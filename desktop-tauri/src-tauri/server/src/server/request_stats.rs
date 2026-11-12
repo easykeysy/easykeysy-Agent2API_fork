@@ -91,6 +91,22 @@ mod lifecycle;
 mod sql;
 
 pub use source::{ApiKeyIdentity, RequestSource};
+
+/// fork：`request-raw.jsonl` 行格式（与 DB `request_raw` 表同字段）。
+/// 放在模块级：`store_raw` 的读改写与裁剪都在函数体内引用它，
+/// impl 块内不能定义 struct。
+#[derive(serde::Deserialize, serde::Serialize)]
+struct RawRow {
+    id: String,
+    ts: i64,
+    #[serde(rename = "requestBody", default)]
+    request_body: String,
+    #[serde(rename = "responseBody", default)]
+    response_body: String,
+    #[serde(default)]
+    truncated: bool,
+}
+
 pub fn request_date_bounds(start: NaiveDate, end: NaiveDate) -> Option<(i64, i64)> {
     let next = end.succ_opt()?;
     Some((clock::local_midnight_ms(start), clock::local_midnight_ms(next)))
@@ -651,19 +667,6 @@ impl RequestStats {
                 eprintln!("[Stats] 原始正文裁剪失败");
             }
         }
-    }
-
-    /// fork：文件侧用的最小 JSON 行格式（与 DB 表同字段）
-    #[derive(serde::Deserialize, serde::Serialize)]
-    struct RawRow {
-        id: String,
-        ts: i64,
-        #[serde(rename = "requestBody", default)]
-        request_body: String,
-        #[serde(rename = "responseBody", default)]
-        response_body: String,
-        #[serde(default)]
-        truncated: bool,
     }
 
     /// 按 id 读取完整下游正文；fork：先查 `request-raw.jsonl`，没有再回落查 DB。

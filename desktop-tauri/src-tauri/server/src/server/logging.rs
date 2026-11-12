@@ -54,6 +54,17 @@ fn events_to_file() -> bool {
 /// 行格式与 `LogEntry` 的 serde 契约一致（id 用 0 占位，ts 取当前时刻）。
 /// 写入失败静默丢弃；**不**调 `console_line`（这里本来就是日志路径，
 /// 再打一行等于递归自己）。
+/// fork：非 Linux 侧的空实现（`events_to_file` 恒为 false，本函数不会被调到）。
+#[cfg(not(target_os = "linux"))]
+fn append_event_file(
+    level: &str,
+    category: &str,
+    message: &str,
+    data: Option<&Value>,
+) {
+    let _ = (level, category, message, data);
+}
+
 #[cfg(target_os = "linux")]
 fn append_event_file(
     level: &str,
