@@ -26,7 +26,7 @@ on:
         required: false
         default: "main"
       release_tag:
-        description: "Optional tag to publish successful binaries to (e.g. v3.4.2). Leave empty to skip release upload."
+        description: "Optional tag to publish successful binaries to (e.g. v3.5.0). Leave empty to skip release upload."
         required: false
         default: ""
   push:
