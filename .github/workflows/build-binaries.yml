@@ -1,0 +1,240 @@
+name: Build desktop binaries (Windows + Linux AppImage)
+
+# Builds Tauri desktop bundles on GitHub-hosted runners, uploads them as
+# workflow artifacts, and (when a release tag is available and the build
+# succeeds) publishes the produced binaries to the GitHub Release for that tag.
+#
+# No local session needed after triggering: runs to completion in GitHub Actions.
+# Artifacts remain downloadable from the run; release assets are attached to the
+# tag's Release when publishing conditions are met.
+#
+# Frontend assets under desktop-tauri/ui/ (including ui/islands/*) are used as
+# committed; this workflow does not rebuild them.
+#
+# Publishing behavior:
+# - push of a tag matching v*  -> builds and uploads successful outputs to that
+#   tag's GitHub Release (created if missing).
+# - workflow_dispatch          -> always uploads workflow artifacts; if
+#   `release_tag` is provided, also uploads successful outputs to that tag's
+#   GitHub Release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (branch/tag/sha) to build"
+        required: false
+        default: "main"
+      release_tag:
+        description: "Optional tag to publish successful binaries to (e.g. v3.4.2). Leave empty to skip release upload."
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Windows (NSIS)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop-tauri
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop-tauri/src-tauri -> target
+
+      - name: Build (NSIS)
+        id: build
+        shell: bash
+        working-directory: desktop-tauri
+        run: |
+          set -o pipefail
+          npx --yes @tauri-apps/cli@^2 build --bundles nsis 2>&1 | tee ../build-windows.log
+        continue-on-error: true
+
+      - name: Collect outputs
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p out/windows
+          # bundles (if any)
+          if [ -d desktop-tauri/src-tauri/target/release/bundle ]; then
+            cp -a desktop-tauri/src-tauri/target/release/bundle out/windows/bundle || true
+          fi
+          # raw binaries (useful even if installer bundling fails but compile succeeded)
+          find desktop-tauri/src-tauri/target/release -maxdepth 1 -type f \( -name '*.exe' -o -name '*.pdb' -o -name '*.dll' \) -exec cp -f {} out/windows/ \; || true
+          cp -f build-windows.log out/windows/ || true
+
+      - name: Prepare release assets
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p out/release-windows
+          # prefer installer/bundle artifacts; fall back to raw exe
+          find out/windows/bundle -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp -f {} out/release-windows/ \; 2>/dev/null || true
+          if [ -z "$(ls -A out/release-windows 2>/dev/null)" ]; then
+            find out/windows -maxdepth 1 -type f -name '*.exe' -exec cp -f {} out/release-windows/ \; 2>/dev/null || true
+          fi
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: out/windows
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Resolve release tag
+        id: release
+        if: always()
+        shell: bash
+        run: |
+          tag=""
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ github.event.inputs.release_tag || '' }}" ]]; then
+            tag="${{ github.event.inputs.release_tag }}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to GitHub Release
+        if: steps.release.outputs.tag != '' && steps.build.outcome == 'success' && hashFiles('out/release-windows/*') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          fail_on_unmatched_files: false
+          files: out/release-windows/*
+
+  linux:
+    name: Linux (AppImage)
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop-tauri
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl wget file \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            patchelf \
+            xdg-utils \
+            pkg-config
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop-tauri/src-tauri -> target
+
+      - name: Build (AppImage)
+        id: build
+        shell: bash
+        working-directory: desktop-tauri
+        run: |
+          set -o pipefail
+          npx --yes @tauri-apps/cli@^2 build --bundles appimage 2>&1 | tee ../build-linux.log
+        continue-on-error: true
+
+      - name: Collect outputs
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p out/linux
+          if [ -d desktop-tauri/src-tauri/target/release/bundle ]; then
+            cp -a desktop-tauri/src-tauri/target/release/bundle out/linux/bundle || true
+          fi
+          find desktop-tauri/src-tauri/target/release -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} out/linux/ \; || true
+          cp -f build-linux.log out/linux/ || true
+
+      - name: Prepare release assets
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p out/release-linux
+          find out/linux/bundle -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -exec cp -f {} out/release-linux/ \; 2>/dev/null || true
+          if [ -z "$(ls -A out/release-linux 2>/dev/null)" ]; then
+            find out/linux -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} out/release-linux/ \; 2>/dev/null || true
+          fi
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: out/linux
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Resolve release tag
+        id: release
+        if: always()
+        shell: bash
+        run: |
+          tag=""
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+          elif [[ -n "${{ github.event.inputs.release_tag || '' }}" ]]; then
+            tag="${{ github.event.inputs.release_tag }}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to GitHub Release
+        if: steps.release.outputs.tag != '' && steps.build.outcome == 'success' && hashFiles('out/release-linux/*') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          fail_on_unmatched_files: false
+          files: out/release-linux/*
