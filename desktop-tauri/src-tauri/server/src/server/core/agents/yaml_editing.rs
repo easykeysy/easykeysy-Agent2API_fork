@@ -1,9 +1,9 @@
-//! YAML 配置的原位读写。
+//! YAML config 。
 //!
-//! 读用 serde_yaml；写只改本次要改的叶子：映射逐层下沉，非映射值（数组、标量）整体替换 ——
-//! 与 DeepSeek Harness 自己的 settings 写入是同一个口径，因此未被触及的行（含注释、缩进、
-//! 行尾风格）逐字保留。定位不到（流式写法、根不是块状映射、块标量等）一律拒绝写入，最后再用
-//! 「重新解析 == 期望值」兜底：宁可报错，也不写出结构对不上原文的文件。
+//! use serde_yaml； need ： down ，（、） ——
+//! and DeepSeek Harness settings is 1 ， and （、、
+//! ）。 not to （、 not is 、 etc ） 1 ， after use 
+//! 「 new == 」： can ， not for not up file。
 
 use serde_json::{json, Value};
 
@@ -42,7 +42,7 @@ pub fn render(original: &str, desired: &Value) -> Result<String, String> {
     Ok(rendered)
 }
 
-/// 只收集真正变化的叶子：映射逐层比较，非映射值整体替换。
+/// ：，。
 fn diff(path: &[String], before: &Value, after: &Value, edits: &mut Vec<(Vec<String>, Option<Value>)>) {
     if let (Some(old), Some(new)) = (before.as_object(), after.as_object()) {
         for key in old.keys().filter(|key| !new.contains_key(*key)) {
@@ -68,7 +68,7 @@ fn child(path: &[String], key: &str) -> Vec<String> {
     next
 }
 
-/// 一个映射的直接子块；`end` 已排除块尾的空行与注释。
+/// 1 ；`end` already excluding empty and 。
 #[derive(Clone, Copy)]
 struct Region {
     start: usize,
@@ -76,7 +76,7 @@ struct Region {
     indent: usize,
 }
 
-/// 一条映射条目：键所在行、键缩进、冒号后的值（去注释）、以及原样的行尾注释。
+/// 1 ： in 、、 after （）、 and 。
 struct Entry {
     line: usize,
     indent: usize,
@@ -136,7 +136,7 @@ fn root(lines: &[String]) -> Result<Region, String> {
         break;
     }
     let Some((start, indent)) = start else {
-        // 空文档：插到最前面，末尾的空行由 join 原样保留。
+        // empty： to before ， empty by join 。
         return Ok(Region { start: 0, end: 0, indent: 0 });
     };
     let mut end = lines.len();
@@ -180,7 +180,7 @@ fn descend(lines: &mut Vec<String>, entry: &Entry, parent: &Region) -> Result<Re
     Ok(Region { start: entry.line + 1, end, indent })
 }
 
-/// 块状值的结束行：下一个同级或更外层内容之前，并去掉块尾空行与注释。
+/// ： down 1 or before ， and empty and 。
 fn block_end(lines: &[String], entry: &Entry, parent_end: usize) -> usize {
     if !entry.value.is_empty() {
         return entry.line + 1;
@@ -225,7 +225,7 @@ fn insert(lines: &mut Vec<String>, region: &Region, key: &str, value: &Value) ->
     Ok(())
 }
 
-/// 删除后若父映射已空，写回 `字段: {}`：空映射比留空的 `字段:`（值为 null）更明确。
+/// delete after if already empty， `: {}`：emptyempty `:`（ as null）。
 fn prune(lines: &mut Vec<String>, parents: &[String]) {
     let Some(key) = parents.last() else {
         return;
@@ -290,7 +290,7 @@ fn render_sequence(items: &[Value], indent: usize) -> Result<Vec<String>, String
             }
         };
         let Some(mut entries) = nested else { continue };
-        // 首项与 `- ` 同行，其余按子键缩进，与 js-yaml（DSH 自己的写入器）一致。
+        // and `- ` ， its by ， and js-yaml（DSH ） 1 。
         let head = entries.remove(0);
         lines.push(format!("{}- {}", pad(indent), head.trim_start()));
         lines.extend(entries);
@@ -298,7 +298,7 @@ fn render_sequence(items: &[Value], indent: usize) -> Result<Vec<String>, String
     Ok(lines)
 }
 
-/// 标量交给 serde_yaml 渲染，引号与转义由它按 YAML 规则决定。
+/// to serde_yaml ， and by by YAML then 。
 fn render_scalar(value: &Value) -> Result<String, String> {
     let text = serde_yaml::to_string(value).map_err(|error| format!("配置值无法生成 YAML: {error}"))?;
     let text = text.trim_end_matches('\n');
@@ -321,7 +321,7 @@ fn leading_indent(line: &str) -> usize {
     line.len() - line.trim_start_matches(' ').len()
 }
 
-/// 行首是否为 `键:` 形式的块状映射条目；用来排除序列项与流式写法。
+/// is as `:` ； use excluding and 。
 fn is_key_line(text: &str) -> bool {
     let Some((key, _)) = text.split_once(':') else {
         return false;
@@ -332,7 +332,7 @@ fn is_key_line(text: &str) -> bool {
         && !key.starts_with(['-', '?', '{', '[', '&', '*', '!'])
 }
 
-/// `text`（已去行首缩进）若以 `key:` 开头，返回冒号后的原始后缀。
+/// `text`（ already ） if `key:` ，return after after 。
 fn key_suffix<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     for prefix in [format!("{key}"), format!("'{key}'"), format!("\"{key}\"")] {
         if let Some(rest) = text.strip_prefix(prefix.as_str()).and_then(|rest| rest.strip_prefix(':')) {
@@ -344,7 +344,7 @@ fn key_suffix<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     None
 }
 
-/// 拆出冒号后的值与行尾注释：`  http://x # 说明` → (`http://x`, ` # 说明`)。
+/// after and ：` http://x # ` → (`http://x`, ` # `)。
 fn split_value(suffix: &str) -> (String, String) {
     let trimmed = suffix.trim_start();
     if trimmed.starts_with('#') {

@@ -19,16 +19,16 @@ import { ClientIdentificationPanel } from '../../../ui-shared/client-identificat
 import { clientIdentificationApi } from '../api/client-identification'
 
 /**
- * 设置。
+ * set。
  *
- * ── 手机上只放「改了就生效、且不需要复杂表单」的项 ────────────
- * 桌面端设置页有 11 个分类、几十个字段。手机上保留：
- *   · 外观与语言（纯前端偏好）
- *   · 账号凭证（兼容模式的 API Key、退出登录）
- *   · 网关地址（复制给客户端）
- *   · 关于与安装（PWA 安装引导、版本）
- * 端口、路由、重试、超时、数据保留这些需要看文档才能填对的，一律留在桌面端
- * —— 摆出来只会让人误改。
+ * ── up 「、 and not need need 」 ────────────
+ * set has 11 、 。 up ：
+ * · and （ before ）
+ * · （ API Key、）
+ * · （ to client）
+ * · and （PWA 、）
+ * 、 by 、、 when 、 this need need can for ， 1 in 
+ * —— will 。
  */
 export function SettingsPage() {
   const { session, packaged, server, servers } = useStore()
@@ -40,7 +40,7 @@ export function SettingsPage() {
   const currentLocale = locale()
   const options = localeOptions()
 
-  // 本页没有自己的列表请求：下拉只需重拉会话（网关状态来自它）
+  // no has request： down need will （）
   const pull = usePullToRefresh({ onRefresh: () => store.refresh(true) })
 
   const install = async () => {
@@ -49,7 +49,7 @@ export function SettingsPage() {
     setInstalling(false)
     if (outcome === 'accepted') store.toast(t('正在安装…'))
     else if (outcome === 'dismissed') store.toast(t('已取消安装'))
-    // 'unavailable'：没有可用事件（iOS 或已安装），界面本来就展示手动指引
+    // 'unavailable'： no has available（iOS or already ），
   }
 
   const signOut = async () => {
@@ -70,7 +70,7 @@ export function SettingsPage() {
         actions={<IconButton name='refresh' label={t('刷新')} onClick={() => void store.refresh(true)} />}
       />
 
-      {/* 服务器：APK 才有（浏览器里地址就是当前 origin，没什么可配的） */}
+      {/* ：APK has （ is current origin， no can ） */}
       {packaged ? (
         <div className='m-section' style={{ marginTop: 0 }}>
           <SectionHead title={t('服务器')} />
@@ -95,7 +95,7 @@ export function SettingsPage() {
         </div>
       ) : null}
 
-      {/* 网关状态 */}
+      {/* */}
       <div className='m-section' style={packaged ? undefined : { marginTop: 0 }}>
         <Card className='m-card'>
           <div className='m-row'>
@@ -199,7 +199,7 @@ export function SettingsPage() {
       <div className='m-section'>
         <SectionHead title={t('账号')} />
         <Card className='m-card'>
-          {/* APK 有真正的登录态，给「退出登录」；浏览器端只有 API Key 可清 */}
+          {/* APK has ， to 「」； has API Key can */}
           {packaged ? (
             <Button size='default' variant='ghost' type='button' className='m-row h-auto min-h-[52px] w-full justify-start rounded-none border-0 px-3.5 py-3 text-left' onClick={() => void signOut()}>
               <span className='m-logo'>
@@ -239,7 +239,7 @@ export function SettingsPage() {
         </Card>
       </div>
 
-      {/* APK 不需要装到桌面（本身就是 App），这一段只给浏览器形态 */}
+      {/* APK not need need to （ is App）， this 1 to */}
       {packaged ? null : (
       <div className='m-section'>
         <SectionHead title={t('安装到桌面')} />
@@ -310,7 +310,7 @@ export function SettingsPage() {
       </div>
       )}
 
-      {/* 只有真有事时才出现：平时不占版面 */}
+      {/* has has when ： when not */}
       {pwa.updateReady || pwa.swState === 'unsupported' ? (
         <div className='m-section'>
           <SectionHead title={t('应用状态')} />
@@ -345,17 +345,17 @@ export function SettingsPage() {
       ) : null}
 
       {/*
-        APK 的更新走安装包（浏览器里没有这条路径：PWA 的更新是 Service Worker，
-        见上面的「应用状态」）。两套互斥，不会同时出现。
+        APK update（ no has this path：PWA update is Service Worker，
+         up 「 use 」）。， not will when 。
       */}
       {packaged ? <AppUpdatePanel /> : null}
 
       <div className='m-section' style={{ paddingBottom: 8 }}>
         <Card className='m-card'>
-          {/* 「Agent2API 手机端」这一行点开是版本信息抽屉：本机版本 + 所连网关
-              的版本 / 形态 / 系统 / 路径（手机端出问题时第一句要问的就是这些，
-              而用户手里只有手机，不该被要求跑回电脑前翻设置页）。
-              版本号仍常驻在右侧 —— 一眼能读到的那个数最常用。 */}
+          {/* 「Agent2API 」 this 1 is ： + 
+               / / / path（ when 1 need is this ，
+               use has ， not this need before set）。
+               in —— 1 can to that use 。 */}
           <Button size='default' variant='ghost' type='button' className='m-row h-auto min-h-[52px] w-full justify-start rounded-none border-0 px-3.5 py-3 text-left' onClick={() => setSystemInfo(true)}>
             <span className='m-logo'>
               <Icon name='info' />
@@ -364,7 +364,7 @@ export function SettingsPage() {
               <div className='m-t1'>{t('Agent2API 手机端')}</div>
               <div className='m-t2'>{t('版本信息 · 所连网关环境')}</div>
             </div>
-            {/* 版本号常驻：排查问题时第一句就要问「你装的哪版」 */}
+            {/* ： when 1 need 「 」 */}
             <span className='m-mono' style={{ flex: 'none', fontSize: 11.5, color: 'var(--m-text-3)' }}>
               v{APP_VERSION}
             </span>

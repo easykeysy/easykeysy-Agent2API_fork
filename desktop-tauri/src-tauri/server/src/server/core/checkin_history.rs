@@ -1,24 +1,24 @@
-//! 签到历史台账 —— 签到中心「最近签到记录」的数据源。
+//! to —— to in 「 to 」 。
 //!
-//! ── 为什么需要它 ────────────────────────────────────────────
-//! 定时签到只有 `autoCheckin.lastResult` 一条（被下一轮覆盖），账号页只能看到
-//! 「最后一次」的结果；签到中心的时间线要回看多轮（定时 / 手动 / 启动补签），
-//! 所以把每轮批量签到的汇总追加进 config.json 的 `checkinHistory`。
+//! ── Why need need ────────────────────────────────────────────
+//! when to has `autoCheckin.lastResult` 1 （ down 1 ）， can to 
+//! 「 after 1 」 ； to in when need （ when / / ），
+//! to total config.json `checkinHistory`。
 //!
-//! ── 只记批量轮次（id=None），单账号签到不记 ─────────────────
-//! 时间线记录的是「一轮」的成败总览；单账号签到是账号页 / 明细行上的点操作，
-//! 它的效果已经通过 `checkinAt` 反映在每日签到的账号状态里，再进时间线只会
-//! 把「今天 09:12 签了浣熊-C」这种碎行混进轮次记录里。
+//! ── （id=None）， to not ─────────────────
+//! when is 「 1 」 total； to is / up ，
+//! already `checkinAt` in daily to ， when will 
+//! 「 09:12 -C」 this 。
 //!
-//! ── 为什么放 core 而不是 api ────────────────────────────────
-//! 记账点是 `billing::checkin::run_checkin`（定时签到与手动批量共用那一段执行体），
-//! 它在 core 里；`core::auto_checkin` 直接读写 config 已是先例（见它的模块头
-//! 「配置读写」），本模块沿用同一模式：`config::update_raw_field` 合并写回，
-//! config.json 里的其它字段原样保留。
+//! ── Why core not is api ────────────────────────────────
+//! is `billing::checkin::run_checkin`（ when to and use that 1 ），
+//! in core ；`core::auto_checkin` config already is （ module header
+//! 「config」）， use 1 ：`config::update_raw_field` and ，
+//! config.json its 。
 //!
-//! ── 容量 ────────────────────────────────────────────────────
-//! 保留最近 [`MAX_ENTRIES`]（20）条：一天最多定时 1 轮 + 手动若干轮，20 条
-//! 足够回看两三天；再大只会把 config.json 撑大，没有查询价值。
+//! ── ────────────────────────────────────────────────────
+//! [`MAX_ENTRIES`]（20）： 1 when 1 + if ，20 
+//! ； will config.json ， no has 。
 
 use serde_json::{json, Value};
 
@@ -26,13 +26,13 @@ use crate::server::config;
 use crate::server::core::auto_checkin;
 use crate::server::logging;
 
-/// config.json 里承载签到历史的键
+/// config.json to 
 const CONFIG_KEY: &str = "checkinHistory";
-/// 台账保留条数（新条目在前，超出裁掉最老的）
+/// （ new in before ， ）
 pub const MAX_ENTRIES: usize = 20;
 
-/// 读台账（新在前）。非数组 / 缺失都给空表 —— 与 auto_checkin 的 raw_object
-/// 同一兜底口径：旧 config.json 里没有这个字段，读出来必须是合法默认值。
+/// （ new in before ）。 / to empty —— and auto_checkin raw_object
+/// 1 ： old config.json no has this ，must is default。
 pub fn list() -> Vec<Value> {
     match config::current().raw().get(CONFIG_KEY) {
         Some(Value::Array(items)) => items.clone(),
@@ -40,13 +40,13 @@ pub fn list() -> Vec<Value> {
     }
 }
 
-/// 追加一轮签到汇总。`summary` 是 `run_checkin` 的返回值（含 results），
-/// 这里只挑界面要展示的字段重组成一行，`results` 明细不落台账 ——
-/// 失败明细的展示口径与 `autoCheckin.lastResult` 一致（`名字（错误）`，取前 5 条），
-/// 两处同构意味着签到中心与定时任务卡看到的是同一份失败解释。
+/// 1 to total。`summary` is `run_checkin` return（ results），
+/// this need 1 ，`results` not ——
+/// failure and `autoCheckin.lastResult` 1 （`（error）`， before 5 ），
+/// to in and when to is 1 failure。
 ///
-/// 失败只记日志、不向上传播：台账写不进去不影响这次签到本身的结果
-/// （积分已经在上游领到了）。
+/// failure、 not to up ： not not this to 
+/// （ already in up to ）。
 pub fn record(summary: &Value, reason: &str) {
     let number = |key: &str| summary.get(key).and_then(Value::as_u64).unwrap_or(0);
     let failures: Vec<String> = summary
@@ -62,14 +62,14 @@ pub fn record(summary: &Value, reason: &str) {
     let now_ms = logging::now_ms();
     let entry = json!({
         "at": now_ms,
-        // 日期键按北京时间（上游自然日口径，见 core::beijing）：台账的
-        // 「今天」与签到的「今天」必须是同一天，否则海外部署下时间线会错位
+        // by when （ up ， core::beijing）： 
+        // 「」 and to 「」must is 1 ，otherwise down when will 
         "date": auto_checkin::today_key(),
         "reason": reason,
         "succeeded": number("succeeded"),
-        // 活跃保活数（WorkBuddy 国际版）：与 succeeded 分开统计 —— 保活的
-        // 成功不落 checkinAt，台账里也要单独一列，时间线才读得出这一轮
-        // 「国际版那边发生了什么」
+        // （WorkBuddy ）： and succeeded statistics —— 
+        // success not checkinAt， need 1 ， when this 1 
+        // 「 that 」
         "active": number("active"),
         "total": number("total"),
         "skipped": number("skipped"),
@@ -82,8 +82,8 @@ pub fn record(summary: &Value, reason: &str) {
     write(entries);
 }
 
-/// 合并写回 `checkinHistory`（与 auto_checkin::write_state 同一模式：
-/// `update_raw_field` 按键直写，config.json 里的其它字段原样保留）
+/// and `checkinHistory`（ and auto_checkin::write_state 1 ：
+/// `update_raw_field` by ，config.json its ）
 fn write(entries: Vec<Value>) {
     config::update_raw_field(CONFIG_KEY, Value::Array(entries));
 }

@@ -1,35 +1,35 @@
-//! 管理面的响应压缩（gzip）。
+//! response（gzip）。
 //!
-//! ── 为什么需要这一层 ────────────────────────────────────────
-//! 面板是一组体量不小的静态资源（`islands/ui.js` 约 2.3 MB、`ui.css` 约 130 KB、
-//! 每种语言的词典合计约 700 KB），再加上首屏的 `/api/session`（账号多时上百 KB）。
-//! 这些内容都是文本，gzip 通常能压到三分之一以下；而浏览器一定会带
-//! `Accept-Encoding: gzip`。不压的话，远程访问（家里宽带上行 / 手机网络）光是
-//! 下载界面就要几十秒 —— 2026-11 的「打开面板一直转圈」就是这条路径。
+//! ── Why need need this 1 ────────────────────────────────────────
+//! is 1 not （`islands/ui.js` 2.3 MB、`ui.css` 130 KB、
+//! 700 KB）， up `/api/session`（ when up KB）。
+//! this is ，gzip can to 1 down ； 1 will 
+//! `Accept-Encoding: gzip`。 not ，（ up / ） is 
+//! down need seconds —— 2026-11 「 1 」 is this path。
 //!
-//! ── 为什么只挂在管理面 ──────────────────────────────────────
-//! `/v1/*` 的对话响应是 SSE 流。对流做压缩会引入缓冲、破坏逐帧下发，收益也远
-//! 不如静态资源明显。`panel_router` 不包含 `/v1/*`，所以把这个中间件挂在它上面
-//! 就天然避开了流式响应；网关面（`gateway_router`）保持原样。
+//! ── Why in ──────────────────────────────────────
+//! `/v1/*` for response is SSE 。 for will 、 down ，
+//! not 。`panel_router` not `/v1/*`， this in in up 
+//! response；（`gateway_router`）。
 //!
-//! ── 压缩的判定 ──────────────────────────────────────────────
-//! 只处理满足全部条件的响应：
-//!   · 客户端明确接受 gzip（含 `*`；`gzip;q=0` 视为不接受）；
-//!   · 状态码 200（304 / 302 / 4xx 没有可压的正文，压了反而添乱）；
-//!   · 没有现成的 `Content-Encoding`（避免二次压缩）；
-//!   · `Content-Type` 是文本类（JSON / JS / CSS / HTML / SVG / XML …）；
-//!   · 正文长度已知且落在 1 KB – 8 MB 之间 —— 太小的压了不划算，太大的
-//!     （备份导出、日志下载）要么不是文本，要么会把整份内容读进内存；
-//!   · 响应头没有 `Cache-Control: no-transform`。
+//! ── ──────────────────────────────────────────────
+//! response：
+//! · client gzip（ `*`；`gzip;q=0` as not ）；
+//! · 200（304 / 302 / 4xx no has can ，）；
+//! · no has `Content-Encoding`（）；
+//! · `Content-Type` is （JSON / JS / CSS / HTML / SVG / XML …）；
+//! · already and in 1 KB – 8 MB —— not ， 
+//! （、 down ） need not is ， need will ；
+//! · response no has `Cache-Control: no-transform`。
 //!
-//! 正文长度用 `Body::size_hint().exact()` 取，而不是只看 `Content-Length` 头：
-//! axum 的 `Json` / `Body::from(Vec)` 在进入中间件时还没有写 `Content-Length`
-//! （那是 hyper 序列化响应时才补的），只看头会漏掉几乎所有接口响应。
+//! use `Body::size_hint().exact()` ， not is `Content-Length` ：
+//! axum `Json` / `Body::from(Vec)` in in when no has `Content-Length`
+//! （ that is hyper response when ）， will allresponse。
 //!
-//! ── 和静态缓存的配合 ────────────────────────────────────────
-//! 静态文件带 ETag，浏览器第二次打开时走 304、不传正文，也就不会走到这里的
-//! 压缩分支；只有「第一次下载」或「文件真的变了」才会压。因此不做压缩结果
-//! 缓存也不会在每次刷新时重复消耗 CPU。
+//! ── and ────────────────────────────────────────
+//! file ETag， when 304、 not ， not will to this 
+//! ； has 「 1 down 」 or 「file 」 will 。 not 
+//! not will in new when CPU。
 
 use axum::body::{to_bytes, Body, HttpBody};
 use axum::http::{header, HeaderMap, HeaderValue, Request, StatusCode};
@@ -39,14 +39,14 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::Write;
 
-/// 小于这个长度不压：gzip 头尾与分块开销会让收益接近零。
+/// this not ：gzip and will 。
 const MIN_SIZE: usize = 1024;
-/// 单份正文的压缩上限。超过它的响应（备份 / 日志下载）要么已经压过，要么不是文本。
+/// limit。 response（ / down ） need already ， need not is 。
 const MAX_SIZE: usize = 8 * 1024 * 1024;
 
-/// 管理面的 gzip 中间件。
+/// gzip in 。
 pub(super) async fn gzip(request: Request<Body>, next: Next) -> Response {
-    // HEAD 只回响应头、没有正文；压了反而会让 Content-Length 与实际不符。
+    // HEAD response、 no has ； will Content-Length and not 。
     if request.method() == axum::http::Method::HEAD {
         return next.run(request).await;
     }
@@ -58,8 +58,8 @@ pub(super) async fn gzip(request: Request<Body>, next: Next) -> Response {
         return response;
     }
 
-    // 即使这次不压（比如正文太小），也要声明表示随 Accept-Encoding 变化 ——
-    // 否则中间缓存可能把未压缩的那份回给接受 gzip 的客户端，反之亦然。
+    // this not （e.g.）， need Accept-Encoding ——
+    // otherwise in can can that to gzip client，。
     append_vary(&mut response, "Accept-Encoding");
 
     if !accepts_gzip {
@@ -72,7 +72,7 @@ pub(super) async fn gzip(request: Request<Body>, next: Next) -> Response {
         .exact()
         .or_else(|| content_length(&response).map(|value| value as u64));
     let Some(size) = size else {
-        // 长度未知 = 流式正文（SSE / 下载），一律不碰。
+        // unknown = （SSE / down ）， 1 not 。
         return response;
     };
     if !((MIN_SIZE as u64)..=(MAX_SIZE as u64)).contains(&size) {
@@ -82,18 +82,18 @@ pub(super) async fn gzip(request: Request<Body>, next: Next) -> Response {
     let (mut parts, body) = response.into_parts();
     let bytes = match to_bytes(body, MAX_SIZE).await {
         Ok(bytes) => bytes,
-        // 理论上走不到（长度已知且在上面卡过上限）。真出错时宁可回空正文的 500，
-        // 也不能把已经消费掉的 body 当成原响应发出去。
+        // up not to （ already and in up limit）。 when can empty 500，
+        // not can already body response。
         Err(_) => return internal_error(),
     };
 
-    // 压缩是 CPU 活，2 MB 级的脚本在单核 NAS 上也要几十毫秒；挪到阻塞线程池，
-    // 避免压住 tokio 的 IO 线程。
+    // is CPU ，2 MB in NAS up need ms； to ，
+    // tokio IO 。
     let original = bytes.clone();
     let compressed = tokio::task::spawn_blocking(move || gzip_bytes(&bytes)).await;
     let compressed = match compressed {
         Ok(Ok(value)) => value,
-        // 压缩失败不是业务失败：原样发未压缩的正文，界面照常能用。
+        // failure not is failure： ， can use 。
         _ => {
             parts.headers.remove(header::CONTENT_LENGTH);
             parts
@@ -113,7 +113,7 @@ pub(super) async fn gzip(request: Request<Body>, next: Next) -> Response {
     Response::from_parts(parts, Body::from(compressed))
 }
 
-/// 响应是否可以交给 gzip 分支（不含「客户端是否接受」这一步）。
+/// response is can to gzip （ not 「client is 」 this 1 ）。
 fn compressible(response: &Response) -> bool {
     if response.status() != StatusCode::OK {
         return false;
@@ -137,7 +137,7 @@ fn compressible(response: &Response) -> bool {
     is_text_mime(content_type)
 }
 
-/// 文本类的 Content-Type 判定（只认面板实际会产出的那几档）。
+/// Content-Type （ will that ）。
 fn is_text_mime(content_type: &str) -> bool {
     let mime = content_type
         .split(';')
@@ -145,7 +145,7 @@ fn is_text_mime(content_type: &str) -> bool {
         .unwrap_or("")
         .trim()
         .to_ascii_lowercase();
-    // SSE 单独挡一道：虽然也是 text/*，但它需要逐帧下发（见模块头）。
+    // SSE 1 ： is text/*， need need down （module header）。
     if mime == "text/event-stream" {
         return false;
     }
@@ -162,10 +162,10 @@ fn is_text_mime(content_type: &str) -> bool {
         )
 }
 
-/// 解析 `Accept-Encoding`，判断客户端接不接受 gzip。
+/// `Accept-Encoding`，client not gzip。
 ///
-/// 显式的 `gzip` / `x-gzip` 优先于 `*`；`q=0` 表示明确拒绝。这里不处理
-/// `identity` 或其它编码 —— 面板只产出 gzip 一种压缩形态。
+/// `gzip` / `x-gzip` `*`；`q=0` 。 this not 
+/// `identity` or its —— gzip 1 。
 fn accepts_gzip(headers: &HeaderMap) -> bool {
     let Some(value) = headers
         .get(header::ACCEPT_ENCODING)
@@ -197,7 +197,7 @@ fn accepts_gzip(headers: &HeaderMap) -> bool {
     gzip_q.or(wildcard_q).unwrap_or(0.0) > 0.0
 }
 
-/// 在 `Vary` 里补一项（已有则不重复）。
+/// in `Vary` 1 （ already has then not ）。
 fn append_vary(response: &mut Response, value: &'static str) {
     let existing = response
         .headers()
@@ -220,7 +220,7 @@ fn append_vary(response: &mut Response, value: &'static str) {
     }
 }
 
-/// 从已有的 `Content-Length` 头读长度（`size_hint` 拿不到时的兜底）。
+/// from already has `Content-Length` （`size_hint` not to when ）。
 fn content_length(response: &Response) -> Option<usize> {
     response
         .headers()
@@ -234,16 +234,16 @@ fn length_value(length: usize) -> HeaderValue {
 }
 
 fn gzip_bytes(bytes: &[u8]) -> std::io::Result<Vec<u8>> {
-    // 6 是 gzip 的默认档：压缩比与 CPU 的折中点。再高（9）只多几个百分点，
-    // 却会让 NAS / 小主机上首次加载多等一截。
+    // 6 is gzip default： and CPU in 。（9） ，
+    // will NAS / up etc 1 。
     let mut encoder = GzEncoder::new(Vec::new(), Compression::new(6));
     encoder.write_all(bytes)?;
     encoder.finish()
 }
 
 fn internal_error() -> Response {
-    // 这一层只负责编码，不该产生业务错误；真的走到这里说明正文长度与声明不符。
-    // 用最小化的 500 兜底，避免把「已消费的 body」当成正常响应发出去。
+    // this 1 ， not this error； to this and not 。
+    // use 500 ， 「 already body」response。
     let body = Body::from("response compression failed");
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)

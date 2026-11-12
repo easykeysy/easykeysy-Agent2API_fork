@@ -1,4 +1,4 @@
-//! HTTPDNS 只查询策略列出的 HTTPS 原域名；解析值只能改变连接地址，不能改变 TLS 校验。
+//! HTTPDNS HTTPS ； can ， not can TLS 。
 
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
@@ -128,7 +128,7 @@ async fn get(
         IpAddr::V4(ip) => ip.to_string(),
         IpAddr::V6(ip) => format!("[{ip}]"),
     };
-    // 解析服务本身也不关闭证书验证；失败只视为没有 DNS 候选。
+    // not ；failure as no has DNS 。
     let mut response = client
         .get(format!("https://{host}{path}"))
         .query(query)

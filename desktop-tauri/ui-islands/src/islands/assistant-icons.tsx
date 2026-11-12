@@ -1,22 +1,22 @@
 /**
- * AI 助手页用到的几枚图标（内联 SVG）。
+ * AI use to （ SVG）。
  *
- * ── 为什么不走 icons.js ─────────────────────────────────────
- * `ui/icons.js` 是 vanilla 层的字符串表（`window.wbIcons.icon(name, size)` 返回
- * HTML 字符串），岛这边只能靠 `dangerouslySetInnerHTML` 塞进去；而助手页要的
- * 这 6 枚（加号 / 图片 / 盾牌 / 闪电 / 发送 / 尖角）在那边也都没有。按
- * `models-page.tsx` 的先例（能力位那四枚）在岛内内联，几何同一套约定：
- * 24 画布、currentColor、描边 1.8~2、圆头。
+ * ── Why not icons.js ─────────────────────────────────────
+ * `ui/icons.js` is vanilla （`window.wbIcons.icon(name, size)` return
+ * HTML ）， this can `dangerouslySetInnerHTML` ； need 
+ * this 6 （ / / / / / ） in that no has 。 by 
+ * `models-page.tsx` （ can that ） in ， 1 ：
+ * 24 、currentColor、 1.8~2、。
  *
- * ## 图标清单
- * - `PlusIcon`：左下角「添加图片」的加号
- * - `ImageIcon`：附件缩略图缺省占位、图片能力提示
- * - `FileIcon`：JSON / .info 文本附件的文件图标
- * - `ShieldIcon`：权限模式「变更前确认」
- * - `BoltIcon`：权限模式「完全访问」
- * - `SendIcon`：发送（向上的箭头，与截图同形）
- * - `ChevronIcon`：胶囊 / 菜单的展开箭头
- * - `MiniChevronIcon`：二级列表行尾的向右箭头
+ * ## 
+ * - `PlusIcon`： down 「」 
+ * - `ImageIcon`：、 can 
+ * - `FileIcon`：JSON / .info file
+ * - `ShieldIcon`：「 before 」
+ * - `BoltIcon`：「」
+ * - `SendIcon`：（ to up ， and ）
+ * - `ChevronIcon`： / 
+ * - `MiniChevronIcon`： to 
  */
 
 type IconProps = { size?: number; className?: string }

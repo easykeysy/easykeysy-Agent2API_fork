@@ -1,14 +1,14 @@
 import * as React from 'react'
 
 /**
- * 按页面可见性刷新的轮询 hook。
+ * by can new hook。
  *
- * 手机端的轮询必须满足三件事，缺一个就会变成「后台偷偷烧流量」：
- *   ① 页面不可见（切到别的 App / 锁屏）时停表；
- *   ② 上一次请求还没回来时不叠加下一次；
- *   ③ 卸载即停，不留悬挂定时器。
+ * must， 1 will 「 after 」：
+ * ① not can （ to App / ） when ；
+ * ② up 1 request no when not down 1 ；
+ * ③ ， not when 。
  *
- * `interval` 传 0 表示不轮询（只跑首次）。
+ * `interval` 0 not （）。
  */
 export function usePolling(
   run: () => Promise<void> | void,
@@ -54,7 +54,7 @@ export function usePolling(
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
-        // 回到前台立刻补一次，用户不会盯着旧数据
+        // to before 1 ， use not will old 
         void tick()
         start()
       } else {

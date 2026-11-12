@@ -1,24 +1,24 @@
-//! CodeArts 账号的**存量投影**（实现已整体搬到提供商插件）。
+//! CodeArts ****（ already to ）。
 //!
-//! ── 存量展示与配置迁移 ──────────────────────────────────────
-//! `CODEARTS_PROVIDER_ID` 保持落盘身份；公开投影服务旧账号，限制器迁移清理已退役
-//! 活动的 Token 条件，不改凭证、账号身份和启用状态。
+//! ── and config ──────────────────────────────────────
+//! `CODEARTS_PROVIDER_ID` ； old ，limit already 
+//! Token ， not 、 and enabled。
 //!
-//! ── 为什么投影必须留着 ──────────────────────────────────────
-//! 存量记录的凭证散在顶层字段里（`access_key_id` / `security_token` /
-//! `oauth_context`…），没有 `pluginSecret` —— `store_view::public_account`
-//! 因此走不到「插件记录优先」那一支。不留投影，这些账号会退化成
-//! `public_account` 的通用骨架（uid 空、tokenTail 空、`hasRefreshToken` false），
-//! 账号页上看起来像坏了。
+//! ── Whymust ──────────────────────────────────────
+//! in （`access_key_id` / `security_token` /
+//! `oauth_context`…）， no has `pluginSecret` —— `store_view::public_account`
+//! not to 「」 that 1 。 not ， this will 
+//! `public_account` use （uid empty、tokenTail empty、`hasRefreshToken` false），
+//! up 。
 //!
-//! ── 什么已经搬走了 ──────────────────────────────────────────
-//! 凭据解析（`Credential::from_payload` / `to_record_value`）、身份判据
-//! （`domain_id + user_id`）、续期写回、福利台账、登录落库 —— 全在插件里。
-//! 新账号由插件经 `plugin_upsert_account` 落库（凭证在 `pluginSecret`），
-//! 上面那条「插件记录优先」会先带走它们，本文件对这些记录是逐字空操作。
+//! ── already ──────────────────────────────────────────
+//! （`Credential::from_payload` / `to_record_value`）、
+//! （`domain_id + user_id`）、、、 —— in 。
+//! new by `plugin_upsert_account` （ in `pluginSecret`），
+//! up that 「」 will ，file for this is empty。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{json, Value};
 
@@ -28,11 +28,11 @@ use crate::server::core::providers::{kind_id, ProviderKind};
 
 use super::state::StoredAccount;
 
-/// 本家的 provider id（`store_view` 的形状分派与别处比对都要用，
-/// 与其它几家同一命名：`<X>_PROVIDER_ID`）。
+/// provider id（`store_view` and for need use ，
+/// and its 1 ：`<X>_PROVIDER_ID`）。
 pub const CODEARTS_PROVIDER_ID: &str = kind_id(ProviderKind::CodeArts);
 
-/// 过期活动的 Token 规则不再迁入；已显式清空的限制器保持不限制。
+/// Token then not ； already empty limitunlimited。
 pub(crate) fn migrate_limiters(accounts: &mut [StoredAccount]) -> usize {
     let mut changed = 0;
     for record in accounts {
@@ -76,14 +76,14 @@ pub(crate) fn migrate_limiters(accounts: &mut [StoredAccount]) -> usize {
 }
 
 impl super::AccountStore {
-    /// 界面用的公开形态（**只服务存量内置记录**）。
+    /// use （****）。
     ///
-    /// **绝不带任何凭证字段**（AK/SK/STS/refresh token/DPoP 私钥一个都不出现
-    /// 在这里）。
+    /// ** not **（AK/SK/STS/refresh token/DPoP 1 not 
+    /// in this ）。
     ///
-    /// 判据不解析凭据结构 —— 网关不再认识这家的凭据形状（那部分在插件里）。
-    /// 这里只读通用键：`hasRefreshToken` 看 `refreshToken` 在不在，
-    /// `available` 看记录有没有 token。缺哪一项就如实报缺，不猜。
+    /// not —— not this （ that in ）。
+    /// this use ：`hasRefreshToken` `refreshToken` in not in ，
+    /// `available` has no has token。 1 ， not 。
     pub(crate) fn to_codearts_public_account(&self, record: &StoredAccount) -> Value {
         let available = record.has_token();
         let can_refresh = !record.refresh_token().is_empty();
@@ -108,21 +108,21 @@ impl super::AccountStore {
         );
         public.insert("desktop".to_string(), Value::Bool(false));
         public.insert("available".to_string(), Value::Bool(available));
-        // `maxConcurrent` 不在这里写：本家**没有「不限」这个选项**，记录上的 0
-        // （含从未设置过）要报成上游的默认并发 3 而不是 0，否则选路读到的 0 等于
-        // 不限、不会在本家满员时跳过这个账号（详见 `store_util::
-        // max_concurrent_public_for`，那个函数按 provider 套上这层口径）。
-        // 进入本家的这个键由 `store_view::public_account` 统一注入。
+        // `maxConcurrent` not in this ：** no has 「 not 」 this **， up 0
+        // （ from set） need up default and 3 not is 0，otherwise to 0 etc 
+        // not 、 not will in when this （ `store_util::
+        // max_concurrent_public_for`， that by provider up this ）。
+        // this by `store_view::public_account` 1 。
         //
-        // 每日福利领取的台账原样透出（存量记录的顶层键 `codeartsWelfare`；
-        // 插件新落的是 `pluginLedger.codeartsWelfare`，那条路走插件投影）：
-        // 界面要显示「今天已试过几次 / 是否已到账」。里面**只有活动 id、幂等键
-        // 与布尔状态**，没有任何凭据材料，所以不需要像凭据那样过滤。
+        // daily （ `codeartsWelfare`；
+        // new is `pluginLedger.codeartsWelfare`， that ）：
+        // need 「 already / is already to 」。** has id、 etc 
+        // and **， no has ， not need need that 。
         public.insert(
             "welfare".to_string(),
             record.get("codeartsWelfare").cloned().unwrap_or(Value::Null),
         );
-        // 账号能路由到哪些模型（转发与广告都按这个判），以及它是不是福利通道
+        // can by to （ and by this ）， and is not is 
         for (key, source) in [
             ("domainId", "domain_id"),
             ("userName", "user_name"),

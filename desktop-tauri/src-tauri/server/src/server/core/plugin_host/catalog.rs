@@ -1,4 +1,4 @@
-//! 插件商店和更新检查共用持久化缓存；页面轮询不消耗 GitHub 请求额度。
+//! and updatecheck use ； not GitHub request。
 
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -217,7 +217,7 @@ async fn fetch_catalog(channels: crate::server::config::UpdateChannels) -> Resul
             }
             Ok(None) => value["reason"] = json!("当前通道暂无可安装的版本"),
             Err(error) => {
-                // 失败保留上次发行版，但必须标明不是本轮取得的新结果。
+                // failure up ，must not is new 。
                 if let Some(old) = old {
                     for field in [
                         "version",

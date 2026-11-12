@@ -1,36 +1,36 @@
-//! 云同步：把业务数据快照传到 WebDAV / S3 兼容存储，或从远端取回。
+//! ： to WebDAV / S3 ， or from 。
 //!
 //! ```text
-//! GET  /api/cloud-sync             设置 + 状态
-//! PUT  /api/cloud-sync             保存设置
-//! POST /api/cloud-sync/test        测试连接（顺带建目录）
-//! GET  /api/cloud-sync/remote      远端快照信息（二次确认弹窗用）
-//! POST /api/cloud-sync/upload      上传
-//! POST /api/cloud-sync/download    下载并应用
-//! POST /api/cloud-sync/import-key  用同步密码解出并安装远端账号密钥
+//! GET /api/cloud-sync set + 
+//! PUT /api/cloud-sync set
+//! POST /api/cloud-sync/test （directory）
+//! GET /api/cloud-sync/remote （ use ）
+//! POST /api/cloud-sync/upload up 
+//! POST /api/cloud-sync/download down and use 
+//! POST /api/cloud-sync/import-key use and 
 //! ```
 //!
-//! ── 为什么分成这几块文件 ────────────────────────────────────
-//!   `settings`   设置与状态（kv 保留键 `cloudSync`）
-//!   `manifest`   远端「这一份是什么」的元数据与兼容判定
-//!   `snapshot`   业务数据的取 / 装（唯一的数据范围判定）
-//!   `keyfile`    同步密码 → 账号密钥的封装
-//!   `webdav` / `s3`  传输原语
-//!   `transport`  传输抽象（协议层不认识具体服务商）
-//!   `auto_sync`  变更触发 + 防抖
+//! ── Why this file ────────────────────────────────────
+//! `settings` set and （kv `cloudSync`）
+//! `manifest` 「 this 1 is 」 and 
+//! `snapshot` / （ 1 ）
+//! `keyfile` → 
+//! `webdav` / `s3` 
+//! `transport` （ not ）
+//! `auto_sync` + 
 //!
-//! ── 为什么全局一把同步锁 ────────────────────────────────────
-//! 上传与下载都会读写同一份远端数据，两个并发操作的结果取决于谁后完成 ——
-//! 用户点两下按钮就可能得到「远端是我刚传的、本机是旧机器的」这种最难解释的
-//! 状态。与 cc-switch 的 `sync_mutex` 同一取向：所有传输共用一把锁，操作排队。
-//! 锁是 `tokio::sync::Mutex`（跨 await 持有），不能换成 std 的。
+//! ── Why 1 ────────────────────────────────────
+//! up and down will 1 ， and after ——
+//! use down by can can to 「 is 、 is old 」 this 
+//! 。 and cc-switch `sync_mutex` 1 to ：all use 1 ，。
+//! is `tokio::sync::Mutex`（ await has ）， not can std 。
 //!
-//! ── 下载会重装哪些内存态 ────────────────────────────────────
-//! 与整库恢复同一清单（见 `db::backup` 模块头），逐项核实：
-//!   · `config::reload()` —— 配置快照必须重读，否则本次运行还是旧配置；
-//!   · `usage_records::reload_facts()` —— 余额事实表是选路依据；
-//!   · `crypto::reset_cache(Accounts)` —— **仅当密钥文件被替换**（见 `keyfile`）；
-//!   · 面板登录态、桌面设置、任务排期**不在同步范围**，因此不需要重装。
+//! ── down will ────────────────────────────────────
+//! and 1 （ `db::backup` module header），：
+//! · `config::reload()` —— configmust，otherwise is old config；
+//! · `usage_records::reload_facts()` —— is ；
+//! · `crypto::reset_cache(Accounts)` —— **onlyfile **（ `keyfile`）；
+//! · 、set、** not in **， not need need 。
 
 pub(crate) mod auto_sync;
 pub(crate) mod keyfile;
@@ -52,18 +52,18 @@ use crate::server::logging;
 use manifest::{MAX_ARTIFACT_BYTES, REMOTE_KEY_FILE, REMOTE_MANIFEST, REMOTE_SNAPSHOT};
 use transport::Transport;
 
-/// 装库句柄（`bootstrap` 里调用一次；设置读写都在 `settings` 子模块里）。
+/// （`bootstrap` use 1 ；set in `settings` ）。
 pub(crate) fn install(db: Option<Db>) {
     settings::install(db);
 }
 
-/// 全局同步锁（上传 / 下载 / 自动同步共用）
+/// （ up / down / use ）
 pub(crate) fn sync_lock() -> &'static tokio::sync::Mutex<()> {
     static LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
 }
 
-/// sha256 → 小写十六进制（manifest / 快照 / 签名共用一份实现）
+/// sha256 → （manifest / / use 1 ）
 pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest as _, Sha256};
     let digest = Sha256::digest(bytes);
@@ -75,14 +75,14 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     text
 }
 
-// ─── 设置 ─────────────────────────────────────────────────────
+// ─── set ─────────────────────────────────────────────────────
 
-/// GET /api/cloud-sync 的数据
+/// GET /api/cloud-sync 
 pub(crate) fn settings_json() -> Value {
     settings::load().public_json()
 }
 
-/// 保存设置。`input` 里空密码 = 沿用旧值（见 `settings::apply_save`）。
+/// set。`input` empty = use old （ `settings::apply_save`）。
 pub(crate) fn save_settings(input: settings::SaveInput) -> Result<Value, String> {
     let saved = settings::apply_save(input)?;
     logging::log(
@@ -101,12 +101,12 @@ pub(crate) fn save_settings(input: settings::SaveInput) -> Result<Value, String>
     Ok(saved.public_json())
 }
 
-/// 读设置并要求「已启用」。手动操作也受总开关约束 —— 与 cc-switch 同义：
-/// 开关关着意味着「这台机器不参与云同步」，不该因为用户点了一下按钮就绕过。
+/// set and need 「 already enabled」。total —— and cc-switch ：
+/// 「 this not and 」， not this as use 1 down by 。
 ///
-/// 只校验远端凭据（`validate_remote`）：同步密码在**下载 / 预览**路径上允许为空，
-/// 理由见 `settings::validate_remote` 的注释（新机器第一次下载时本机还没有密码）。
-/// 真正需要密码的是上传（见 `upload_locked`），那里单独报错。
+/// （`validate_remote`）： in ** down / **path up as empty，
+/// by `settings::validate_remote` （ new 1 down when no has ）。
+/// need need is up （ `upload_locked`）， that 。
 fn require_enabled() -> Result<settings::CloudSyncSettings, String> {
     let settings = settings::load();
     if !settings.enabled {
@@ -116,13 +116,13 @@ fn require_enabled() -> Result<settings::CloudSyncSettings, String> {
     Ok(settings)
 }
 
-// ─── 测试连接 ─────────────────────────────────────────────────
+// ─── ─────────────────────────────────────────────────
 
-/// 测试连接：**不看**总开关（还没配好就打开开关是正常的配置顺序），
-/// 但要求当前服务商的必填项齐全。
+/// ：** not **total（ no is config），
+/// need current 。
 pub(crate) async fn test_connection(input: settings::SaveInput) -> Result<Value, String> {
-    // 用「当前已保存的密文 + 这次输入的明文」拼一份临时设置来测：
-    // 用户改了密码但还没保存时，测的应该是新密码。
+    // use 「current already + this 」 1 when set：
+    // use no when ， this is new 。
     let mut probe = settings::load();
     probe.provider = input.provider;
     probe.webdav.base_url = input.webdav_base_url;
@@ -149,8 +149,8 @@ pub(crate) async fn test_connection(input: settings::SaveInput) -> Result<Value,
     probe.profile = input.profile;
     probe.normalize();
 
-    // 只校验当前服务商的必填项：临时填一个占位同步密码，跳过「密码未设置」
-    // 这一条（测试连接不需要密码，那个密码只用于封装账号密钥）。
+    // current ： when 1 ，「set」
+    // this 1 （ not need need ， that used for）。
     let mut validate_target = probe.clone();
     if validate_target.sync_password.is_empty() {
         validate_target.sync_password = "placeholder".to_string();
@@ -165,12 +165,12 @@ pub(crate) async fn test_connection(input: settings::SaveInput) -> Result<Value,
     }))
 }
 
-// ─── 远端信息 ─────────────────────────────────────────────────
+// ─── ─────────────────────────────────────────────────
 
-/// 远端快照摘要（不含数据本身）
+/// need （ not ）
 pub(crate) async fn remote_info() -> Result<Value, String> {
     let settings = settings::load();
-    // 远端预览只要求地址 / 凭据齐全（新机器还没有同步密码，见 validate_remote）
+    // need / （ new no has ， validate_remote）
     settings.validate_remote()?;
     let transport = Transport::from_settings(&settings)?;
     let Some((bytes, manifest)) = transport.get_manifest().await? else {
@@ -198,24 +198,24 @@ pub(crate) async fn remote_info() -> Result<Value, String> {
         "incompatibleReason": incompatible_reason,
         "keyFingerprint": manifest.key_fingerprint,
         "localKeyFingerprint": local_fingerprint,
-        // 远端带了密钥封装、且与本机密钥不一致（或本机还没有密钥）→
-        // 下载前必须先输入同步密码导入密钥
+        // 、 and and not 1 （ or no has ）→
+        // down before must
         "keyRequired": manifest.key_fingerprint.is_some()
             && manifest.key_fingerprint != local_fingerprint,
         "hasKeyArtifact": manifest.artifacts.contains_key(REMOTE_KEY_FILE),
     }))
 }
 
-// ─── 上传 ─────────────────────────────────────────────────────
+// ─── up ─────────────────────────────────────────────────────
 
-/// 上传：构建快照 → 封装密钥 → 传 artifact → 最后传 manifest。
+/// up ： → → artifact → after manifest。
 pub(crate) async fn upload(db: &Db) -> Result<Value, String> {
     let _guard = sync_lock().lock().await;
     let settings = require_enabled()?;
     upload_locked(db, &settings).await
 }
 
-/// 上传本体（调用方已持锁）。自动同步也走这里，避免两处顺序漂移。
+/// up （ use already ）。 this ，。
 pub(crate) async fn upload_locked(
     db: &Db,
     settings: &settings::CloudSyncSettings,
@@ -234,7 +234,7 @@ pub(crate) async fn upload_locked(
         ));
     }
 
-    // 账号密钥：本机还没有密钥（从未保存过账号）时不传
+    // ： no has （ from ） when not 
     let key_bytes = crypto::existing_key_bytes(SecretScope::Accounts);
     let password = settings.sync_password_plain()?.ok_or_else(|| {
         "未设置同步密码，无法加密上云的账号密钥".to_string()
@@ -255,7 +255,7 @@ pub(crate) async fn upload_locked(
     let manifest_bytes = serde_json::to_vec_pretty(&manifest)
         .map_err(|error| format!("序列化 manifest 失败: {error}"))?;
 
-    // 顺序：artifact 先、manifest 最后（见 manifest 模块头）
+    // ：artifact 、manifest after （ manifest module header）
     transport
         .put(REMOTE_SNAPSHOT, snapshot_bytes.clone(), "application/json")
         .await?;
@@ -298,20 +298,20 @@ pub(crate) async fn upload_locked(
     }))
 }
 
-// ─── 下载 ─────────────────────────────────────────────────────
+// ─── down ─────────────────────────────────────────────────────
 
-/// 下载：校验 manifest → 拉快照 → 校验 → 安全备份 → 应用 → 重装内存态。
+/// down ： manifest → → → → use → 。
 pub(crate) async fn download(db: &Db, config_dir: &std::path::Path) -> Result<Value, String> {
     let _guard = sync_lock().lock().await;
     let settings = require_enabled()?;
     download_locked(db, config_dir, &settings).await
 }
 
-/// 下载本体（调用方已持锁）。
+/// down （ use already ）。
 ///
-/// 下载期间用 `auto_sync` 的抑制守卫包住「应用 + 重装」这一段：替换数据会写
-/// 三张表，若不抑制，自动同步会立刻把刚下载的内容再传一遍（白跑一趟，而且
-/// 若远端是别人传的，这一传就把「我刚下载的」变成「我覆盖的」）。
+/// down use `auto_sync` 「 use + 」 this 1 ： will 
+/// ， if not ， will down 1 （ 1 ， and 
+/// if is ， this 1 「 down 」「 」）。
 pub(crate) async fn download_locked(
     db: &Db,
     config_dir: &std::path::Path,
@@ -323,10 +323,10 @@ pub(crate) async fn download_locked(
     };
     manifest::validate_compat(&manifest)?;
 
-    // 密钥检查：远端带了密钥封装、且与本机不一致时必须先 import-key。
-    // 这里**不**自动用本机保存的同步密码去解 —— 那个密码是「上传时用的」，
-    // 远端这份可能来自另一台机器（用了不同的密码）。让用户显式输入，失败
-    // 的提示才准确（「同步密码不正确」而不是「账号解不开」）。
+    // check：、 and and not 1 when must import-key。
+    // this ** not ** use —— that is 「 up when use 」，
+    // this can can 1 （ use not ）。 use ，failure
+    // （「 not 」 not is 「 not 」）。
     let local_fingerprint = crypto::key_fingerprint(SecretScope::Accounts);
     if manifest.key_fingerprint.is_some() && manifest.key_fingerprint != local_fingerprint {
         return Err(KEY_REQUIRED.to_string());
@@ -338,7 +338,7 @@ pub(crate) async fn download_locked(
     let snapshot: snapshot::Snapshot = serde_json::from_slice(&snapshot_bytes)
         .map_err(|error| format!("远端 snapshot.json 解析失败: {error}"))?;
 
-    // 安全备份：用**当前**数据构建一份快照写到 backups/
+    // ： use **current** 1 to backups/
     let safety = {
         let current = snapshot::build(db)?;
         snapshot::safety_backup(&current, config_dir)?
@@ -347,9 +347,9 @@ pub(crate) async fn download_locked(
     let applied = {
         let _suppress = auto_sync::SuppressionGuard::new();
         let applied = snapshot::apply(db, &snapshot)?;
-        // 配置快照重读：下载改的就是 kv，不重读的话本次运行还是旧配置
+        // config： down is kv， not is old config
         crate::server::config::reload();
-        // 余额事实表重读：选路依赖它（账号可能被换掉了一半）
+        // ：（ can can 1 ）
         crate::server::core::usage_records::reload_facts();
         crate::server::core::limiter::sources::reload();
         crate::server::core::limiter::counter::invalidate();
@@ -390,21 +390,21 @@ pub(crate) async fn download_locked(
     }))
 }
 
-/// 下载需要先导入密钥时返回的**哨兵错误**。
+/// down need need when return **error**。
 ///
-/// 用字符串哨兵而不是自定义错误类型：本模块的对外契约是 `Result<_, String>`
-/// （与其它 API 模块一致），而界面要按它弹「输入同步密码」。哨兵值同时是
-/// 错误文案，用户直接点下载时也能看懂。
+/// use not is error： for is `Result<_, String>`
+/// （ and its API 1 ）， need by 「」。 when is 
+/// error， use down when can 。
 pub(crate) const KEY_REQUIRED: &str = "远端快照使用了另一把账号加密密钥，请先输入同步密码导入密钥";
 
-/// 用同步密码解出远端账号密钥并装到本机。
+/// use and to 。
 pub(crate) async fn import_key(password: &str) -> Result<Value, String> {
     if password.is_empty() {
         return Err("同步密码不能为空".to_string());
     }
     let _guard = sync_lock().lock().await;
     let settings = settings::load();
-    // 只校验远端凭据：这一步的作用就是「新机器还没有同步密码」时先把密钥装进来
+    // ： this 1 use is 「 new no has 」 when 
     settings.validate_remote()?;
     let transport = Transport::from_settings(&settings)?;
     let Some((_, manifest)) = transport.get_manifest().await? else {
@@ -441,10 +441,10 @@ pub(crate) async fn import_key(password: &str) -> Result<Value, String> {
     }))
 }
 
-/// 记录一次失败（手动 / 自动）。状态落库 + 事件日志。
+/// 1 failure（ / ）。 + 。
 ///
-/// 日志用 `warn` 级而不是 `error`：同步失败通常可重试（网络抖动、密码填错），
-/// 把它当 error 会让日志页的错误徽标长期亮着，掩盖真正的服务故障。
+/// use `warn` not is `error`：failure can （、），
+/// error will error， 。
 pub(crate) fn record_failure(error: &str, source: &str) {
     settings::update_status(|status| {
         status.last_error = Some(error.to_string());

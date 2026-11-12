@@ -1,19 +1,19 @@
-//! KukuAI 账号的**存量记录投影**（网关侧只剩这一件事）。
+//! KukuAI ****（ this 1 ）。
 //!
-//! ── 这个文件为什么还在 ──────────────────────────────────────
-//! 实现已经整体搬到提供商插件（凭证解析 / 本机客户端读取 / 网页登录 /
-//! 会话换发 / 转发 / 目录 / 余额 / 签到）。
+//! ── this fileWhy in ──────────────────────────────────────
+//! already to （ / client / /
+//! will / / directory / / to ）。
 //!
-//! 但**存量账号的记录形状**还得有人认识：升级上来的库里躺着 `uid` /
-//! `loginName` / `tokenTail` / `desktop` 这些顶层字段（没有 `pluginSecret`），
-//! 而账号列表要按这家自己的口径把它们渲染出来（`desktop` 决定「桌面端」徽章，
-//! `source` 标着这条是粘贴 / 文件 / 本机导入）。
+//! ** ** has ： up `uid` /
+//! `loginName` / `tokenTail` / `desktop` this （ no has `pluginSecret`），
+//! need by this （`desktop` 「」，
+//! `source` this is / file / ）。
 //!
-//! 所以这里只留一个**纯投影**函数：读记录、拼公开形态、不含任何上游知识。
-//! 新账号由插件落库（凭证在 `pluginSecret` 里，走 `to_plugin_public_account`）。
+//! this 1 ****：、、 not up 。
+//! new by （ in `pluginSecret` ， `to_plugin_public_account`）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{Map, Value};
 
@@ -22,11 +22,11 @@ use crate::server::core::providers::{kind_id, ProviderKind};
 use super::state::StoredAccount;
 use super::store::AccountStore;
 
-/// KukuAI 的 provider id（`store_view` 的分派键）。
+/// KukuAI provider id（`store_view` ）。
 pub(crate) const KUKU_PROVIDER_ID: &str = kind_id(ProviderKind::Kuku);
 
 impl AccountStore {
-    /// 账号的公开形态（前端账号列表 / 会话摘要用；**不含凭证**）。
+    /// （ before / will need use ；** not **）。
     pub fn to_kuku_public_account(&self, record: &StoredAccount) -> Value {
         let proxy = crate::server::core::proxies::describe_account_proxy(Some(&record.proxy()));
         let mut public = Map::new();

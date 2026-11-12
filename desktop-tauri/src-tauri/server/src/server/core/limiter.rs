@@ -1,4 +1,4 @@
-//! 账号限制器：条件组、提供商额度来源与独立本地用量台账。
+//! limit：、 and usage。
 
 pub mod counter;
 pub mod evaluate;

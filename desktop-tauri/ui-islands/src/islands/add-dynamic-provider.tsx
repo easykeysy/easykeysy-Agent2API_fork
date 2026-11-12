@@ -1,4 +1,4 @@
-/** 未在内置表单登记的运行时 provider：动态方法、纯文本说明与旧插件兼容入口。 */
+/** in when provider：、 and old 。 */
 import * as React from 'react'
 import {
   Alert, AlertDescription, AlertTitle, Button, Input, Label, SegmentedControl,
@@ -32,7 +32,7 @@ const objectOf = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown> : undefined
 
-/** 501 才使用已有握手 meta；不臆造方法索引，也不把 token/sms 当作 OAuth。 */
+/** 501 use already has meta； not ， not token/sms OAuth。 */
 function legacyMethods(provider: RuntimeProviderRecord | undefined): MethodsState {
   const source = provider?.source || textOf(provider?.meta?.source)
   const builtin = source === 'builtin' || provider?.id?.endsWith('-subscription') === true
@@ -57,7 +57,7 @@ function legacyMethods(provider: RuntimeProviderRecord | undefined): MethodsStat
       method.type = 'oauth'
       method.label ||= t('网页登录（旧版声明）')
     } else if (kind === 'token') {
-      // 旧 token 声明没有主字段的 key，不能猜成 token/apiKey；由 JSON 手动明确字段。
+      // old token no has key， not can token/apiKey； by JSON 。
       method.type = 'manual'
       method.label ||= t('手动凭证 JSON')
       const extraFields = Array.isArray(raw.extra_fields) ? raw.extra_fields : []
@@ -100,7 +100,7 @@ function credentialPayload(text: string): Record<string, unknown> {
   }
   let value: unknown
   try { value = JSON.parse(text) } catch {
-    // JSON.parse 的错误可能包含原文片段，不能把凭证回显进错误提示。
+    // JSON.parse error can can ， not can error。
     throw new Error(t('凭证 JSON 格式不正确，请检查括号和引号'))
   }
   const record = objectOf(value)
@@ -171,7 +171,7 @@ export function DynamicProviderBlock({
   const snapshot = React.useRef({ method, inputs, mode, proxyDraft })
   snapshot.current = { method, inputs, mode, proxyDraft }
   const callbackType = progress.callbackInput ?? method?.callbackInput ?? 'url'
-  // 网页端的粘贴框归 web shim；本岛仅补原生桌面等待态，避免重复回调输入。
+  // web shim；only etc ，。
   const manualWaiting = active && shared().workbuddyDesktop?.platform !== 'web'
     && loginView.waiting && method?.type === 'oauth' && !method.reason
     && progress.active === true && progress.provider === provider && Boolean(progress.state)
@@ -191,8 +191,8 @@ export function DynamicProviderBlock({
   React.useEffect(() => {
     clearCallback(true)
     if (!active) {
-      // 关掉弹窗即作废这次读取；下次打开会重新问插件要登录方式
-      //（原来的「重新读取登录方式」按钮已移除，靠这里保证每次打开都是新清单）。
+      // this ； down will new need 
+      //（ 「 new 」 by already ， this is new ）。
       loadedRef.current = false
       setCallbackError('')
       progressRef.current = {}
@@ -239,7 +239,7 @@ export function DynamicProviderBlock({
       }
     })()
     return () => { current = false; requestingRef.current = false }
-    // 等待状态由共享引擎掌管，不以等待态重建方法或重新发起登录。
+    // etc by ， not etc or new 。
   }, [provider, active, version])
 
   React.useEffect(() => {
@@ -258,9 +258,9 @@ export function DynamicProviderBlock({
           progressRef.current = {}
           setProgress({})
           const inputs = readInputs(current.method, current.inputs)
-          // 插件申报 embeddedOnly 时一律走内嵌窗口（不信任残留的 mode 状态）。
+          // embeddedOnly when 1 （ not mode ）。
           const mode = current.method.embeddedOnly ? 'embedded' : current.mode
-          // 旧 browser 声明没有索引，只走已存在的默认网页登录入口。
+          // old browser no has ， already in default。
           return startLogin(provider, undefined, mode, undefined,
             current.method.methodIndex === undefined ? undefined : {
               methodIndex: current.method.methodIndex, inputs, proxy: readProxyDraft(current.proxyDraft),
@@ -288,7 +288,7 @@ export function DynamicProviderBlock({
       const current = snapshot.current.method
       const state = textOf(next.state)
       if (!state) {
-        // start 的预约态 / 旧 LoginState 查询不携带 flow，不能覆盖已收到的真实进度。
+        // start / old LoginState not flow， not can already to 。
         if (!progressRef.current.state) setProgress({ active: true, provider })
         return
       }
@@ -305,7 +305,7 @@ export function DynamicProviderBlock({
         setCallbackError(t('网关未返回有效的手动回调输入契约；请更新网关后重新发起。'))
         return
       }
-      // 只摘公开进度字段，不保存整个 payload 或凭证；flow 必须属于当前 provider。
+      // ， not payload or ；flow mustcurrent provider。
       const safe: LoginProgress = {
         active: true, provider, state,
         manualCallback: next.manualCallback === true, callbackInput,
@@ -371,7 +371,7 @@ export function DynamicProviderBlock({
       savingRef.current = true
       setSaving(true)
       setError('')
-      // API 方法必须进入 account.normalize，不能把 Key/Token 交给 OAuth start。
+      // API must account.normalize， not can Key/Token to OAuth start。
       const result = normalizeLoginResult(await postAccount(payload))
       if (method.type === 'api' && result.proxySaved !== true) {
         const id = result.account?.id
@@ -443,13 +443,13 @@ export function DynamicProviderBlock({
       if (!engine?.isActive?.() || engine.activeProvider?.() !== provider) throw new Error()
       const bridge = shared().workbuddyDesktop
       if (!bridge?.submitLoginCallback) throw new Error()
-      // URL / 裸 code 只在输入框与这次受保护 POST 中存在，不 trim、解析或伪造 URL。
+      // URL / code in and this POST in in ， not trim、 or URL。
       const reply = objectOf(await bridge.submitLoginCallback(flow.state, raw))
       if (!isCurrent()) return
       if (reply?.success === false || reply?.ok === false || reply?.error) throw new Error()
       clearCallback()
       setCallbackNotice(t('回调已提交，仍需等待网关确认账号登录完成。'))
-      // accepted / Pending / accountId 都不触发 finish；终态只由现有 start/wait 链收尾。
+      // accepted / Pending / accountId not finish； by has start/wait 。
     } catch {
       if (isCurrent()) setCallbackError(t('授权回调提交失败；请检查输入并重试，登录仍在等待。'))
     } finally {

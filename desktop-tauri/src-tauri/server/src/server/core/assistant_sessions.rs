@@ -1,4 +1,4 @@
-//! AI 助手会话按整条消息流保存；图片复制和会话分叉在同一事务内完成。
+//! AI will by ； and will in 1 。
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -114,8 +114,8 @@ pub fn fork(id: &str, new_id: &str, message_id: &str) -> Result<Value, String> {
         let now = logging::now_ms();
         tx.execute("INSERT INTO assistant_sessions (id, title, messages, model, reasoning, created_at, updated_at, title_generated) VALUES (?1, ?2, '[]', ?3, ?4, ?5, ?5, 1)",
             params![new_id, truncate(&format!("{title} · 分叉"), MAX_TITLE_CHARS), model, reasoning, now]).map_err(|_| "新会话 id 已存在或无法创建")?;
-        // fork：blob 走文件（`assistant-images` 目录，与 Db 无关）——读旧文件
-        // （缺失时回落查库里的遗留行）、写新文件、台账 bytes 置 NULL。
+        // fork：blob file（`assistant-images` directory， and Db none）—— old file
+        // （ when ）、 new file、 bytes NULL。
         for (old, new) in &mut replacements {
             let (bytes, mime): (Vec<u8>, String) = {
                 let mut candidate: Option<(Vec<u8>, String)> =
@@ -177,20 +177,20 @@ fn replace_image_ids(value: &mut Value, ids: &HashMap<String, String>) {
 }
 
 pub fn remove(id: &str) -> bool {
-    // fork：会话的图片 blob 在文件侧（`assistant-images/`），台账行由库外键
-    // 连带删，文件要在这里一并清掉（库级 `ON DELETE CASCADE` 够不着文件）。
+    // fork： will blob in file（`assistant-images/`）， by 
+    // ，file need in this 1 and （ `ON DELETE CASCADE` not file）。
     crate::server::core::assistant_images::remove_for_session(id.trim());
     database().and_then(|db| db.with(|conn| conn.execute("DELETE FROM assistant_sessions WHERE id = ?1", params![id.trim()]).map(|count| count > 0).unwrap_or(false))).unwrap_or(false)
 }
 
 pub fn clear() -> usize {
-    // fork：清空全部会话连带清空全部图片文件（台账行由库 `DELETE` 连带清）。
+    // fork：empty will emptyfile（ by `DELETE` ）。
     crate::server::core::assistant_images::clear_all();
     database().and_then(|db| db.with(|conn| conn.execute("DELETE FROM assistant_sessions", []).unwrap_or(0))).unwrap_or(0)
 }
 
-/// 启动期后缀迁移：把历史会话上记录的模型名改成原始 ID。
-/// 只改显示/续聊用的名字，不碰消息正文；返回被改动的行数。
+/// after ： will up ID。
+/// / use ， not ；return 。
 pub fn migrate_model_ids(mapping: &HashMap<String, String>) -> usize {
     let Some(db) = database() else { return 0 };
     let mut changed = 0;

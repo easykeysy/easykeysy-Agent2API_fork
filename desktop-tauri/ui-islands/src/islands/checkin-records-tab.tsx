@@ -16,7 +16,7 @@ import {
 import { SERVER_PAGE_SIZES, TableFooter, writePageSize, type PageSizeChoice } from './table-shell'
 import { t } from '../i18n'
 
-/** 签到记录采用服务端分页；筛选变化时回到第一页。 */
+/** to use server； when to 1 。 */
 const RANGES = [
   { value: 'all', label: '全部' },
   { value: 'today', label: '今天' },
@@ -34,7 +34,7 @@ const OUTCOME_OPTIONS = [
   { value: 'failed', label: '失败' },
 ]
 
-/** 签到类型三档（后端按 source 归组：手动 / 定时 / 定时补签） */
+/** to （ after by source ： / when / when ） */
 const KIND_OPTIONS = [
   { value: '', label: t('全部类型') },
   { value: 'manual', label: t('手动签到') },
@@ -42,7 +42,7 @@ const KIND_OPTIONS = [
   { value: 'makeup', label: t('定时补签') },
 ]
 
-/** 时间档位 → 毫秒下界（含今天在内的 N 个自然日；all = 不限）。 */
+/** when → ms down （ in N ；all = not ）。 */
 function rangeStart(value: string): number | null {
   const now = new Date()
   const midnight = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
@@ -140,8 +140,8 @@ export function RecordsTab(): React.ReactElement {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const page = Math.min(Math.floor(query.offset / pageSize) + 1, pageCount)
 
-  // 提供商选项：可用提供商来自签到中心的 providerOptions；当前页记录里出现
-  // 但已不在选项里的（历史账号 / 已移除的插件）补进来，免得筛选值显示成 id
+  // ：available to in providerOptions；current
+  // already not in （ / already ）， id
   const providerOptions = (() => {
     const options = new Map<string, string>()
     for (const option of store.center?.auto?.providerOptions ?? []) options.set(option.id, t(option.label))

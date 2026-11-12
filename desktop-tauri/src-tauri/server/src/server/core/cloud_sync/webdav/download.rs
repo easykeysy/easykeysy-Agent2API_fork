@@ -1,4 +1,4 @@
-//! GET 逐跳处理重定向，以保留真实失败目标并限制跨来源凭据转发。
+//! GET to ，failure and limit。
 
 use std::time::Duration;
 
@@ -108,7 +108,7 @@ pub(super) async fn get_bytes(
         if urls.len() > MAX_REDIRECTS {
             return Err(redirect_error("超过最大重定向次数（10 次）", status, &urls));
         }
-        // 凭据只属于原始来源；跨来源后即使跳回也不自动重新附加。
+        // ； after not new 。
         send_auth &= current.origin() == next.origin();
         current = next;
         urls.push(current.clone());

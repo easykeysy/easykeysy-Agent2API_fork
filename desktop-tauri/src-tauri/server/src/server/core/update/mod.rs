@@ -1,4 +1,4 @@
-//! 软件更新：共享 GitHub 访问策略、版本检查与经过校验的安装包下载。
+//! update： GitHub 、check and down 。
 
 mod check;
 mod download;
@@ -14,17 +14,17 @@ mod source_state;
 mod selection;
 mod probe;
 mod integrity;
-// 更新源索引：从索引仓库的 `app.json` 读「构建产物放在哪个仓库」。
-// 与插件商店共用信任根仓库、两个文件（见模块头）。
+// update： from `app.json` 「 in 」。
+// and use 、 file（module header）。
 mod index;
-// 公网出网的候选出口实现（`fetch_public`）也被 `core::model_meta`（models.dev
-// 元数据刷新）复用：那条链路回答的是「这台机器的公网怎么出去」，与访问哪个
-// 公网站点无关，为它复制一份候选解析只会多一处会漂移的知识。因此对本 crate
-// 可见，对外仍不暴露。
+// （`fetch_public`） `core::model_meta`（models.dev
+// new ） use ： that is 「 this 」， and 
+// none， as 1 will 1 will 。 for crate
+// can ， for not 。
 pub(crate) mod client;
-// 容器内自更新：headless 入口注册重启钩子（`set_restart_hook`）要用它，
-// 所以对本 crate 之外也要可见（桌面形态不注册，该模块的函数在非 Linux 上
-// 一律返回「不支持」）。
+// update：headless （`set_restart_hook`） need use ，
+// for crate need can （ not ， this in Linux up 
+// 1 return「unsupported」）。
 pub mod selfupdate;
 mod token;
 mod version;
@@ -43,24 +43,24 @@ pub use version::{
     UpdateError, DEFAULT_REPO, GITHUB_API, MAX_INSTALLER_BYTES, SOURCE_REPO,
 };
 pub use integrity::download_plan;
-/// 「更新设置」弹窗的 GitHub 令牌接口（api::update 走这两条；加解密本体
-/// 只在 token 模块内部，见它的模块头）
+/// 「updateset」 GitHub （api::update this ；
+/// in token ， module header）
 pub use token::{set_token, status_json};
 
-/// 请求 GitHub 的 UA（Node 版字面量，随项目改名同步）
+/// request GitHub UA（Node ，）
 const USER_AGENT: &str = "agent2api-local-proxy";
 
-/// 强制更新策略独立于用户的普通版本检查开关，每五分钟刷新一次。
+/// update use check，minutes new 1 。
 const INDEX_RETRY_MS: i64 = 5 * 60 * 1000;
 
-/// 本应用的当前版本号（编译期取自 Cargo.toml，发布流程与 tauri.conf.json
-/// 同步更新）。壳的 `checkUpdate` 命令用的是运行时 package_info —— 两者常态
-/// 一致；后端定时检查（scheduled_tasks）拿不到 Tauri 句柄，用这一份自足。
+/// use current（ Cargo.toml， and tauri.conf.json
+/// update）。 `checkUpdate` use is when package_info —— 
+/// 1 ； after when check（scheduled_tasks） not to Tauri ， use this 1 。
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// ─── 下载任务状态 ───────────────────────────────────────────
+// ─── down ───────────────────────────────────────────
 
-/// 下载任务（对应 Node 版闭包里的 `task` 对象）。
+/// down （ for Node `task` for ）。
 #[derive(Clone, Debug)]
 struct Task {
     active: bool,
@@ -68,7 +68,7 @@ struct Task {
     canceled: bool,
     error: Option<String>,
     filename: String,
-    /// 落盘路径；取消或失败后置 None（与 Node 的 `current.path = null` 一致）
+    /// path； or failure after None（ and Node `current.path = null` 1 ）
     path: Option<String>,
     received: u64,
     total: u64,
@@ -95,7 +95,7 @@ impl Task {
         map.insert("total".to_string(), Value::from(self.total));
         map.insert("selecting".to_string(), Value::Bool(self.selecting));
         map.insert("source".to_string(), json!(self.source));
-        // percent：总量未知时为 0；已知时向上取整到 100 封顶
+        // percent：totalunknown when as 0； already when to up to 100 
         // （Node: `task.total > 0 ? Math.min(100, Math.round(received/total*100)) : 0`）
         let percent = if self.total > 0 {
             let raw = (self.received as f64 / self.total as f64 * 100.0).round() as i64;
@@ -108,43 +108,43 @@ impl Task {
     }
 }
 
-/// 管理器内部状态：下载任务、取消标志、最近一次拉到的 Release、仓库名。
+/// ： down 、、 1 to Release、。
 struct Inner {
     task: Option<Task>,
-    /// 与任务一一对应的取消标志（Node 用 AbortController，Rust 用原子标志）
+    /// and 1 1 for （Node use AbortController，Rust use ）
     cancel_flag: Option<Arc<std::sync::atomic::AtomicBool>>,
-    /// 最近一次拉到的 Release（内存缓存）
+    /// 1 to Release（）
     latest: Option<Value>,
     repository: String,
-    /// `repository` 来自 `WORKBUDDY_UPDATE_REPO` 环境变量（显式覆盖）。
+    /// `repository` `WORKBUDDY_UPDATE_REPO` （）。
     ///
-    /// 为真时**不读索引**：用户的覆盖绝不能被索引悄悄改回官方仓库。
+    /// as when ** not **： use not can 。
     repository_explicit: bool,
-    /// `repository` 是从索引里解析出来的（`true`）还是内置默认值（`false`）。
-    /// 只用于日志口径。
+    /// `repository` is from （`true`） is default（`false`）。
+    /// used for。
     repository_from_index: bool,
-    /// 上次尝试解析索引的时刻（毫秒，0 = 还没试过）。与 [`INDEX_RETRY_MS`]
-    /// 一起做节流。
+    /// up when （ms，0 = no ）。 and [`INDEX_RETRY_MS`]
+    /// 1 。
     index_checked_at: i64,
     app_index: index::AppIndex,
     download_dir: PathBuf,
-    /// 容器内更新已应用、但进程还没重启（只活在内存里，重启即自然清零）。
+    /// update already use 、 no （ in ，）。
     ///
-    /// 挡「同一版重复安装」：新版本已就位、只差重启时不再重复替换文件。
+    /// 「 1 」： new already 、 when not file。
     pending_restart: bool,
     service_update_active: bool,
 }
 
-/// 更新管理器句柄：内部一把锁 + Clone（与 auto_checkin / models 同构）。
+/// update： 1 + Clone（ and auto_checkin / models ）。
 #[derive(Clone)]
 pub struct UpdateManager {
     inner: Arc<Mutex<Inner>>,
 }
 
 impl UpdateManager {
-    /// 构造管理器。`directory` 是配置目录（下载落在 `{directory}/updates`）。
+    /// 。`directory` is configdirectory（ down in `{directory}/updates`）。
     ///
-    /// 仓库解析顺序与 Node 版一致：参数 > `WORKBUDDY_UPDATE_REPO` > DEFAULT_REPO
+    /// and Node 1 ：parameter > `WORKBUDDY_UPDATE_REPO` > DEFAULT_REPO
     /// （`String(repo || env || DEFAULT).trim()`）。
     pub fn new(directory: PathBuf) -> Self {
         let explicit = std::env::var("WORKBUDDY_UPDATE_REPO")
@@ -177,7 +177,7 @@ impl UpdateManager {
         }
     }
 
-    /// 仓库名（`owner/repo`）
+    /// （`owner/repo`）
     pub fn repository(&self) -> String {
         self.lock().repository.clone()
     }
@@ -187,22 +187,22 @@ impl UpdateManager {
         self.lock().index_checked_at = 0;
     }
 
-    /// 解析本次检查要用的仓库，必要时先读一次索引。
+    /// check need use ， need when 1 。
     ///
-    /// ── 优先级 ──────────────────────────────────────────────────
-    /// 1. `WORKBUDDY_UPDATE_REPO` 环境变量：显式覆盖，最高优先，**且不读索引**
-    ///    —— 内网镜像 / 离线演练要能完全绕开官方源；
-    /// 2. 索引里的 `app.repo`（见 [`index::resolve_app_repo`]）；
-    /// 3. 内置 [`DEFAULT_REPO`]。
+    /// ── ──────────────────────────────────────────────────
+    /// 1. `WORKBUDDY_UPDATE_REPO` ：，，** and not **
+    /// —— / need can ；
+    /// 2. `app.repo`（ [`index::resolve_app_repo`]）；
+    /// 3. [`DEFAULT_REPO`]。
     ///
-    /// ── 为什么带节流 ────────────────────────────────────────────
-    /// 定时检查可能几分钟一轮，而索引是一份几乎不变的几百字节文件。每次都读
-    /// 只是白打 raw.githubusercontent.com（顺带消耗它的限额）。所以读成功后
-    /// [`INDEX_RETRY_MS`] 内不再读；**读失败**也一样等这么久再试 —— 失败多半
-    /// 是网络不通，立刻重试只会连着失败。
+    /// ── Why ────────────────────────────────────────────
+    /// when check can can minutes 1 ， is 1 not file。
+    /// is raw.githubusercontent.com（ ）。success after 
+    /// [`INDEX_RETRY_MS`] not ；**failure** 1 etc this —— failure
+    /// is not ， will failure。
     ///
-    /// 注意节流只影响「多久读一次」，不影响「解析后的值」：一旦读到过，就用它
-    /// 覆盖 `repository` 并一直用下去（进程重启后重新读）。
+    /// Note「 1 」， not 「 after 」： 1 to ， use 
+    /// `repository` and 1 use down （ after new ）。
     async fn resolve_repository(&self) -> String {
         let (current, explicit) = { let guard = self.lock(); (guard.repository.clone(), guard.repository_explicit) };
         if explicit { return current; }
@@ -237,12 +237,12 @@ impl UpdateManager {
         json!({ "currentVersion": current, "forceUpdate": self.force_update(current), "repository": self.repository() })
     }
 
-    /// 下载目录（`{config_dir}/updates`）—— 与壳侧 `update::download_dir()` 同源
+    /// down directory（`{config_dir}/updates`）—— and `update::download_dir()` 
     pub fn download_dir(&self) -> PathBuf {
         self.lock().download_dir.clone()
     }
 
-    /// 组装 check 的响应（对应 buildCheckResult，字段逐个对齐）
+    /// check response（ for buildCheckResult， for ）
     fn build_check_result(&self, current_version: &str) -> Value {
         let version = current_version.trim().to_string();
         let (latest, repository, download_dir, task, pending_restart) = {
@@ -272,7 +272,7 @@ impl UpdateManager {
         } else {
             None
         };
-        // 只有带 url 的资产才算「可下载」
+        // has url 「 can down 」
         let asset = latest
             .as_ref()
             .and_then(|value| value.get("asset"))
@@ -280,8 +280,8 @@ impl UpdateManager {
                 value.get("url").and_then(Value::as_str).map(|url| !url.is_empty()).unwrap_or(false)
             })
             .cloned();
-        // 容器内更新包与它的 .sha256 伴随文件（非 Linux、或该发布没挂这两个
-        // 资产时都是 None —— 面板据此退回「手动升级命令」的提示）
+        // update and .sha256 file（ Linux、 or this no this 
+        // when is None —— 「」 ）
         let downloadable = |value: Option<&Value>| -> Option<Value> {
             value
                 .filter(|item| {
@@ -299,10 +299,10 @@ impl UpdateManager {
                 _ => Value::Null,
             }
         };
-        // 「这一版有没有给本机的包」的诊断：release 那半边（资产总数 / 后缀清单 /
-        // 有没有被更新源挡掉）来自 check.rs 的 release_json；两个 expected* 是
-        // **本机事实**，在这里现补 —— 它们与服务端包无关地跟着平台走，不该混进
-        // 那份按仓库落库的 Release 快照（换台机器读缓存会读到别人的后缀）。
+        // 「 this 1 has no has to 」 ：release that （total / after /
+        // has no has update） check.rs release_json； expected* is 
+        // ****， in this —— and servernone， not this 
+        // that by Release （ will to after ）。
         let probe = latest.as_ref().and_then(|value| value.get("assetProbe"));
         let probe_field = |key: &str| -> Value {
             probe.and_then(|value| value.get(key)).cloned().unwrap_or(Value::Null)
@@ -311,8 +311,8 @@ impl UpdateManager {
             "assetsTotal": probe_field("assetsTotal"),
             "suffixes": probe_field("suffixes"),
             "filteredBySource": probe_field("filteredBySource"),
-            // 桌面安装包要的后缀（容器 / headless 是空表）；容器内更新包要的完整文件名
-            // （非 Linux 是 null）—— 界面按 selfUpdate 二选一，两条消息各有各的说法
+            // need after （ / headless is empty）；update need file
+            // （ Linux is null）—— by selfUpdate 1 ， has 
             "expectedSuffixes": version::installer_suffixes(),
             "expectedName": version::server_bundle_name(),
         });
@@ -328,7 +328,7 @@ impl UpdateManager {
             "forceUpdate": force_update,
             "currentVersion": if version.is_empty() { Value::Null } else { Value::String(version) },
             "latestVersion": if latest_tag.is_empty() { Value::Null } else { Value::String(latest_tag.to_string()) },
-            // 无法解析版本号时不谎报「有更新」，界面按 null 显示为「无法比较」
+            // none when not 「 has update」， by null as 「none」
             "hasUpdate": match comparison {
                 Some(order) => Value::Bool(order > 0),
                 None => Value::Null,
@@ -349,51 +349,51 @@ impl UpdateManager {
                 .and_then(Value::as_bool)
                 == Some(true),
             "asset": asset.clone().unwrap_or(Value::Null),
-            // ── 手机端（APK）────────────────────────────────────
-            // 与 `asset` 并列：网关同时服务电脑和手机，两边各取所需。
-            // 手机端拿这个 GitHub 下载地址自己去下（手机自己出网，不经网关中转）。
-            // 该版本没挂 apk 时是 null，手机端据此藏起「立即更新」。
+            // ── （APK）────────────────────────────────────
+            // and `asset` and ： when and ， need 。
+            // this GitHub down down （， not in ）。
+            // this no apk when is null，「update」。
             "androidAsset": downloadable(latest.as_ref().and_then(|value| value.get("androidAsset")))
                 .unwrap_or(Value::Null),
-            // ── 容器内更新（Linux / Docker）──────────────────────
-            // selfUpdate 说的是「这个部署能不能原地更新」（平台 + 环境开关），
-            // serverAsset 说的是「这一版有没有可下的包」—— 两者分开，面板才能
-            // 区分「本部署不支持」与「该版本没提供更新包」这两种不同的提示。
+            // ── update（Linux / Docker）──────────────────────
+            // selfUpdate is 「 this can not can update」（ + ），
+            // serverAsset is 「 this 1 has no has can down 」—— ， can 
+            // 「unsupported」 and 「 this no update」 this not 。
             "selfUpdate": selfupdate::supported(),
             "serverAsset": server_asset.unwrap_or(Value::Null),
             "serverChecksumUrl": server_checksum.unwrap_or(Value::Null),
-            // 「有新版但没有可下载的包」的原因（界面拼在提示里，见 update-panel
-            // 与 update-modal 的 assetMissingReason）
+            // 「 has new no has can down 」 Reason（ in ， update-panel
+            // and update-modal assetMissingReason）
             "assetProbe": asset_probe,
-            // 已应用、只差重启：界面据此把按钮换成「立即重启」，
-            // 而不是再给一次注定 400 的「下载并更新」
+            // already use 、： by 「」，
+            // not is to 1 400 「 down and update」
             "pendingRestart": pending_restart,
-            // 安装包所在的仓库（构建账号下），只用于「更新从哪来」的说明。
-            // 界面的作者行 / Star 入口**不要**用它 —— 见下一行。
+            // in （ down ），used for「update from 」 。
+            // / Star ** not need ** use —— down 1 。
             "repository": repository,
-            // 项目源码仓库：界面上的「关于作者」「收藏项目」由它拼链接。
-            // 构建账号只是借来跑 Actions 的，主页上没有代码，不能拿来当项目地址。
+            // ： up 「」「」 by 。
+            // is Actions ， up no has ， not can 。
             "sourceRepository": SOURCE_REPO,
             "downloadSupported": asset.is_some(),
-            // 安装包形态（"nsis" / "dmg"）：界面据此决定文案 ——
-            // Windows 要提示 UAC 提权、macOS 是挂载磁盘映像后手动拖进应用程序
+            // （"nsis" / "dmg"）： ——
+            // Windows need UAC 、macOS is after use 
             "installerKind": installer_kind(),
             "downloadDir": download_dir.to_string_lossy(),
             "task": task.map(|task| task.to_json()).unwrap_or(Value::Null),
         })
     }
 
-    // ─── 容器内更新（Docker / Linux headless）────────────────────
+    // ─── update（Docker / Linux headless）────────────────────
     //
-    // 与上面的「下载安装包」是两条路：那条给桌面端下安装器（下完由壳启动
-    // 安装程序），这条给容器里的自己换文件（下完由本进程原地替换 + 重启）。
-    // 两条入口都是 POST /api/update/{install,restart} 的唯一实现，
-    // 细节与安全边界见 selfupdate 模块头。
+    // and up 「 down 」 is ： that to down （ down by 
+    // ）， this to file（ down by + ）。
+    // is POST /api/update/{install,restart} 1 ，
+    // and selfupdate module header。
 
-    /// 应用已下载的更新包：校验 → 解包 → 原子替换二进制与 ui 目录。
+    /// use already down update： → → and ui directory。
     ///
-    /// 下载目录里的文件按**固定文件名**取（`safe_file_name(包名)`），不接受
-    /// 调用方传路径 —— 少一个「把任意文件当成更新包解包替换」的入口。
+    /// down directory file by **file**（`safe_file_name()`）， not 
+    /// use path —— 1 「 anyfileupdate」 。
     pub async fn install_downloaded(&self, ui_dir: Option<&Path>) -> Result<Value, UpdateError> {
         if !selfupdate::supported() {
             return Err(UpdateError::with_status(
@@ -401,11 +401,11 @@ impl UpdateManager {
                 "当前部署不支持容器内更新：需要在容器中运行并设置 AGENT2API_SELF_UPDATE=1",
             ));
         }
-        // 下载还在跑的时候文件是半截的：宁可让人等，也不要拿半个包去替换
+        // down in when file is ： can etc ， not need 
         if self.lock().task.as_ref().map(|task| task.active).unwrap_or(false) {
             return Err(UpdateError::with_status(400, "更新包还在下载中，请等下载完成后再安装"));
         }
-        // 已经应用过一次、还没重启：只允许重启，不再重复替换文件。
+        // already use 1 、 no ：， not file。
         if self.lock().pending_restart {
             return Err(UpdateError::with_status(
                 400,
@@ -413,10 +413,10 @@ impl UpdateManager {
             ));
         }
         let bundle = selfupdate::bundle_name().expect("supported 已判定平台与架构");
-        // 从**内存里那份 release JSON** 取三个值：包地址、校验文件地址、版本号。
-        // 键名是 check.rs 存进去的那套（`serverBundle` / `serverChecksums` / `tag`），
-        // **不是** check 响应里给界面用的扁平字段（`serverAsset` / `serverChecksumUrl` /
-        // `latestVersion`）—— 两套名字混用的后果是永远读空、永远报「没有提供校验文件」。
+        // from ** that release JSON** ：、file、。
+        // is check.rs that （`serverBundle` / `serverChecksums` / `tag`），
+        // ** not is ** check response to use （`serverAsset` / `serverChecksumUrl` /
+        // `latestVersion`）—— use after is empty、「 no has file」。
         let (bundle_url, checksum_url, version) = {
             let guard = self.lock();
             let latest = guard.latest.clone();
@@ -437,7 +437,7 @@ impl UpdateManager {
                 .to_string();
             (asset_url("serverBundle"), asset_url("serverChecksums"), tag)
         };
-        // 该发布没挂包（老版本 Release）：给界面一句能照做的提示，而不是含糊的失败
+        // this no （ Release）： to 1 can ， not is failure
         if bundle_url.is_empty() {
             return Err(UpdateError::with_status(
                 400,
@@ -497,7 +497,7 @@ impl UpdateManager {
         }))
     }
 
-    /// 请求重启进程（容器由 restart 策略拉起；见 selfupdate 的重启钩子）。
+    /// request（ by restart ； selfupdate ）。
     pub fn request_restart(&self) -> Result<Value, UpdateError> {
         if !selfupdate::supported() {
             return Err(UpdateError::with_status(
@@ -515,13 +515,13 @@ impl UpdateManager {
     }
 }
 
-// ─── 进程级句柄 ─────────────────────────────────────────────
+// ─── ─────────────────────────────────────────────
 
-/// 进程级更新管理器（与 config / logging 同一模式）：
-/// bootstrap 时装入一次，路由层与服务启动路径共用同一实例。
+/// update（ and config / logging 1 ）：
+/// bootstrap when 1 ， by and path use 1 。
 static GLOBAL: std::sync::OnceLock<UpdateManager> = std::sync::OnceLock::new();
 
-/// 更新检查的排期按仓库隔离，缓存里的版本比较仍使用当前二进制版本。
+/// updatecheck by ， use current。
 pub fn global_check_key() -> String {
     GLOBAL.get().map(UpdateManager::check_key)
         .unwrap_or_else(|| format!("updateCheck:{DEFAULT_REPO}"))
@@ -531,7 +531,7 @@ pub fn required_update() -> Option<Value> {
     GLOBAL.get().and_then(|manager| manager.force_update(CURRENT_VERSION))
 }
 
-/// 初始化进程级管理器（幂等）
+/// （ etc ）
 pub fn init_global(manager: UpdateManager) -> UpdateManager {
     let plugins_before = crate::server::core::plugin_host::settings::current();
     if config::sync_installed_update_channel(CURRENT_VERSION) {
@@ -540,11 +540,11 @@ pub fn init_global(manager: UpdateManager) -> UpdateManager {
     }
     if GLOBAL.set(manager.clone()).is_ok() {
         let updater = manager.clone();
-        // 必须走 `crate::spawn_task`：本函数由 `ServerState::bootstrap` 调用，
-        // 而 headless（容器 / 命令行）的 bootstrap 跑在**建 Tokio 运行时之前**
-        // 的主线程上 —— 裸 `tokio::spawn` 在那里直接 panic，release 是
-        // panic=abort，进程当场退出，restart 策略把它拉起来又是同一次崩溃
-        // （v3.3.0-beta.5 容器内更新后无限重启的根因）。
+        // must `crate::spawn_task`： by `ServerState::bootstrap` use ，
+        // headless（ / ） bootstrap in ** Tokio when before **
+        // up —— `tokio::spawn` in that panic，release is 
+        // panic=abort，，restart is 1 
+        // （v3.3.0-beta.5 update after none ）。
         crate::spawn_task(async move {
             loop {
                 let _ = updater.refresh_policy(CURRENT_VERSION).await;

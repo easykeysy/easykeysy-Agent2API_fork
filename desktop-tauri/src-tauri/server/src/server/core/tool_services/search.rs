@@ -1,13 +1,13 @@
-//! 网络搜索的批量编排（搜索 + 抓取）。
+//! （ + ）。
 //!
-//! ── 搜索 ────────────────────────────────────────────────────
-//! queries 1~10 条，可并发；每条 query 并发后台选中的**全部**提供商，单条
-//! query 内先合并各家重复来源；跨 query 再按全局编号去重（最多 100 条来源）。
-//! 部分上游失败时返回成功结果 + warnings；全部 query 失败时由 HTTP 层回错误
-//! 状态。响应形状与 OmniProxy 的 Skill 端点逐字段一致。
+//! ── ────────────────────────────────────────────────────
+//! queries 1~10 ， can and ； query and after in ****，
+//! query and ； query by （ 100 ）。
+//! up failure when returnsuccess + warnings； query failure when by HTTP error
+//! 。response and OmniProxy Skill 1 。
 //!
-//! ── 抓取 ────────────────────────────────────────────────────
-//! urls 1~10 条，保持输入顺序，尽量部分成功；只接受公网 http/https。
+//! ── ────────────────────────────────────────────────────
+//! urls 1~10 ，，success； http/https。
 
 use serde_json::{json, Value};
 
@@ -110,7 +110,7 @@ fn source_json(number: usize, source: &SourceDraft) -> Value {
     })
 }
 
-/// 校验 queries / urls 的批量入参（1~10 条非空字符串）
+/// queries / urls （1~10 empty）
 pub fn batch_items(values: Option<&Value>, field: &str) -> Result<Vec<String>, SearchError> {
     let Some(items) = values.and_then(Value::as_array) else {
         return Err(SearchError::new(
@@ -200,7 +200,7 @@ pub struct SearchRun {
     pub successful: usize,
 }
 
-/// 执行一次批量搜索
+/// 1 
 pub async fn run_search(store: &AccountStore, scope: Option<&KeyScope>, queries: Vec<String>) -> Result<SearchRun, SearchError> {
     let queries: Vec<String> = queries.into_iter().map(|query| query.trim().to_string()).collect();
     if queries.iter().any(String::is_empty) {
@@ -214,7 +214,7 @@ pub async fn run_search(store: &AccountStore, scope: Option<&KeyScope>, queries:
     let mut sources = Vec::new();
     let mut skipped = Vec::new();
     let mut denied = false;
-    // 一批请求只取一次配置与能力快照。账号引用失效时不改选其他账号。
+    // 1 request 1 config and can 。 use when not its 。
     for provider in &config.selection.search {
         let entry = config.providers.get(provider).cloned().unwrap_or_default();
         if !entry.enabled { continue; }
@@ -315,7 +315,7 @@ pub struct FetchRun {
     pub successful: usize,
 }
 
-/// 执行一次批量抓取
+/// 1 
 pub async fn run_fetch(urls: Vec<String>) -> Result<FetchRun, SearchError> {
     let provider = super::load().selection.fetch;
     if !super::is_fetch_provider(&provider) || !super::ready_providers().contains(&provider.as_str()) {

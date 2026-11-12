@@ -163,7 +163,7 @@ fn commit(changes: &[Change]) -> Result<(), String> {
                     }
                 }
             };
-            // rename 后的目录同步也可能失败，此时文件已经变了，同样需要回滚。
+            // rename after directory can can failure， when file already ， need need 。
             if result.is_ok() || files::read(&change.target).ok().flatten() == change.after {
                 written.push(change.clone());
             }

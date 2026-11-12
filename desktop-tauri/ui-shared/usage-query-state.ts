@@ -9,9 +9,9 @@ export type UsageQueryRow = {
   error?: string | null
   code?: string | number | null
   at?: number
-  /** 最近一次成功查询的毫秒时间戳；失败不会推进。 */
+  /** 1 success ms when ；failure not will 。 */
   lastSuccessAt?: number
-  /** 仅失败时携带的历史读数，不代表本次查询成功。 */
+  /** onlyfailure when ， not success。 */
   lastUsage?: Record<string, unknown> | null
 }
 
@@ -25,7 +25,7 @@ function timestamp(value: unknown): number {
   return Number.isFinite(time) && time > 0 && time <= 8.64e15 ? time : 0
 }
 
-/** 最新尝试与上次成功读数分别保存；失败不能刷新历史读数的时间。 */
+/** new and up success；failure not can new when 。 */
 export function mergeUsageQueryRow(row: UsageQueryRow, previous?: UsageQueryRow): UsageQueryRow {
   if (!row.error) {
     return { ...row, lastUsage: null, lastSuccessAt: timestamp(row.lastSuccessAt) || timestamp(row.at) }

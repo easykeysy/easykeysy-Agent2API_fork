@@ -1,24 +1,24 @@
-//! 插件 UI 资源的托管：`GET /plugins/{pack}/ui/{*rest}`。
+//! UI ：`GET /plugins/{pack}/ui/{*rest}`。
 //!
-//! ── 为什么由网关托管而不是客户端自己读包 ──────────────────────
-//! 插件页面是包里的静态资源，而**只有网关知道包装在哪**（`{config_dir}/plugins/
-//! <id>/<version>/ui/`）。手机端连的是网关，它连那台机器的文件系统都看不到 ——
-//! 所以页面必须由网关出。
+//! ── Why by not is client ──────────────────────
+//! is ，** has in **（`{config_dir}/plugins/
+//! <id>/<version>/ui/`）。 is ， that file not to ——
+//! must by 。
 //!
-//! ── 为什么这条路由**不挂 protected** ────────────────────────
-//! 它是页面本身（HTML + JS + CSS），要能被 iframe 直接加载；而 iframe 里的
-//! 请求带不上面板令牌头。页面拿到令牌靠的是宿主用 `postMessage` 传进去
-//! （见客户端的 `plugin-frame` 桥接）。真正的数据请求仍走 `/api/*`，那些
-//! 全部挂 protected —— 页面本身不含任何数据，只是代码。
+//! ── Why this by ** not protected** ────────────────────────
+//! is （HTML + JS + CSS）， need can iframe ； iframe 
+//! request not up 。 to is use `postMessage` 
+//! （见客户端的 `plugin-frame` 桥接）。真正的数据请求仍走 `/api/*`， that 
+//! protected —— not ， is 。
 //!
-//! 这是与「静态 `ui/` 目录」同一档的暴露面：`ui/index.html` 同样不鉴权。
+//! this is and 「 `ui/` directory」 1 ：`ui/index.html` not 。
 //!
-//! ── 安全 ────────────────────────────────────────────────────
-//! 路径解析与边界检查全在 `plugin_host::resolve_ui_file`：只服务**已启用**包的
-//! `ui/` 目录，`..` 与绝对路径一律拒绝。这里只负责读文件 + content-type。
+//! ── ────────────────────────────────────────────────────
+//! path and check in `plugin_host::resolve_ui_file`：** already enabled** 
+//! `ui/` directory，`..` and for path 1 。 this file + content-type。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use axum::body::Body;
 use axum::extract::Path;
@@ -40,14 +40,14 @@ pub async fn serve(Path((pack, rest)): Path<(String, String)>) -> Response {
     let response = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, mime_of(&path))
-        // 与静态服务同一口径：插件升级后浏览器立刻拿到新页面，
-        // 不会出现「页面引用了旧 js」的中间态
+        // and 1 ： after to new ，
+        // not will 「 use old js」 in 
         .header(header::CACHE_CONTROL, "no-store")
         .body(Body::from(bytes));
     response.unwrap_or_else(|_| errors::not_found_response("GET", "plugin-ui"))
 }
 
-/// 扩展名 → content-type。插件页面是一组前端资源，常见类型够用。
+/// → content-type。 is 1 before ， use 。
 fn mime_of(path: &std::path::Path) -> &'static str {
     match path
         .extension()

@@ -3,7 +3,7 @@ import { t } from '../i18n'
 import { store } from '../state/store'
 import { Alert, Badge as UiBadge, BadgeDot, Button, Empty as UiEmpty, PageHeader, PageTitle, PageDescription, Skeleton, Card } from '@ui'
 
-/** 通用页头（一级页）：大标题 + 副标题 + 右侧动作 */
+/** use （ 1 ）： + + */
 export function PageHead({
   title,
   subtitle,
@@ -25,11 +25,11 @@ export function PageHead({
 }
 
 /**
- * 二级页的页内说明条。
+ * 。
  *
- * 二级页的标题已经由顶部返回栏（NavBar）承载，页内再写一遍大标题就是重复。
- * 但副标题（统计读数 / 时间范围）有信息量，保留成一行小字。右侧动作放这里，
- * 因为它属于页面内容而不是导航。
+ * already by return（NavBar）， 1 is 。
+ * （statistics / when ） has ， 1 。 this ，
+ * as not is 。
  */
 export function PageIntro({
   subtitle,
@@ -55,7 +55,7 @@ export function PageIntro({
   )
 }
 
-/** 圆形图标按钮（页头 / 返回栏右侧都用它） */
+/** by （ / return use ） */
 export function IconButton({
   name,
   label,
@@ -80,7 +80,7 @@ export function IconButton({
   )
 }
 
-/** 区块标题：左侧标题 + 右侧可选动作 */
+/** ： + optional */
 export function SectionHead({
   title,
   action,
@@ -100,7 +100,7 @@ export function SectionHead({
   )
 }
 
-/** 徽章：语义色与桌面端一致（绿=正常、黄=告警、红=失效、灰=中性、蓝=待办） */
+/** ： and 1 （=、=、=、= in 、=） */
 export function Badge({
   tone,
   dot,
@@ -116,17 +116,17 @@ export function Badge({
   </UiBadge>
 }
 
-/** 空态 */
+/** empty */
 export function Empty({ text }: { text: string }) {
   return <UiEmpty className='m-empty'>{text}</UiEmpty>
 }
 
-/** 错误条（页内，不弹窗） */
+/** error（， not ） */
 export function ErrorNote({ text }: { text: string }) {
   return <Alert variant='destructive' className='mx-4'>{text}</Alert>
 }
 
-/** 加载骨架：给列表页首屏用，避免「空白 → 突然出现内容」的跳动 */
+/** ： to use ，「empty → 」 */
 export function SkeletonList({ rows = 4, height = 64 }: { rows?: number; height?: number }) {
   return (
     <div className='m-section'>
@@ -141,7 +141,7 @@ export function SkeletonList({ rows = 4, height = 64 }: { rows?: number; height?
   )
 }
 
-/** 复制到剪贴板（失败时退回 execCommand，老 WebView 也能用） */
+/** to （failure when execCommand， WebView can use ） */
 export async function copyText(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text)
@@ -155,19 +155,19 @@ export async function copyText(text: string): Promise<void> {
     try {
       document.execCommand('copy')
     } catch {
-      /* 复制失败：提示由调用方给 */
+      /* failure： by use to */
     }
     area.remove()
   }
 }
 
-/** 复制 + 提示的常用组合 */
+/** + use */
 export async function copyWithToast(text: string, label?: string): Promise<void> {
   await copyText(text)
   store.toast(t('已复制{label}', { label: label ? `：${label}` : '' }))
 }
 
-/** 数值卡片（报表 / 首页共用） */
+/** （ / use ） */
 export function StatCard({
   label,
   value,

@@ -31,7 +31,7 @@ export function ClientRuleEditor({ api, view: initialView, rule, evidence, onClo
     return {
       ...view.config,
       clients: draft.clientId === NEW_CLIENT ? [...view.config.clients, { id: customId, name: name.trim() }] : view.config.clients,
-      // 新规则放在自定义规则最前面；预览使用的顺序与保存后的顺序完全相同。
+      // new then in then before ； use and after 。
       rules: rule ? view.config.rules.map(item => item.id === rule.id ? next : item) : [next, ...view.config.rules],
     }
   }

@@ -1,43 +1,43 @@
-//! 账号选路与 429 轮换（从 mod.rs 拆出，单文件行数约定）。
+//! and 429 （ from mod.rs ，file）。
 //!
-//! 对应 Node 版 workbuddy-upstream-client.mjs 的这几段：
-//!   selectTargetAccount   三级选路（优先级挑 → 全限额/全忙时恢复最早或按余量挤占 → 全禁用报 503）
-//!   withProxyNotice       代理解析失败时记日志并回退直连
-//!   requireSession        无可用登录态时报 401
-//!   markAccountLimited    限额标记落盘 + 恢复时间文案
-//!   reportLimitEvent      429 结构化事件上报（桌面端日志页的「账号 A → B」链路）
+//! for Node workbuddy-upstream-client.mjs this ：
+//! selectTargetAccount （ → / when or by → use 503）
+//! withProxyNotice failure when and 
+//! requireSession noneavailable when 401
+//! markAccountLimited + when 
+//! reportLimitEvent 429 up （ 「 A → B」）
 //!
-//! ── 为什么是自由函数而不是 `impl UpstreamService` 的方法 ──────
-//! 这些函数无一例外都要「读账号存储 + 读/写限额 + 打日志」，本质是对
-//! 账号存储的操作，而不是转发器自身的行为；拆成 `fn(&UpstreamService, ...)`
-//! 后 mod.rs 只保留「一次转发的编排」，两类关注点不再互相淹没。
-//! 作为 `mod.rs` 的子模块声明（`mod rotate;`），它可以直接看到
-//! `UpstreamService` 的私有字段（Rust 的私有项对后代模块可见），
-//! 所以不需要为它们开访问器。
+//! ── Why is by not is `impl UpstreamService` ──────
+//! this none 1 need 「 + / + 」， is for 
+//! ， not is as ； `fn(&UpstreamService, ...)`
+//! after mod.rs 「 1 」， not no 。
+//! as `mod.rs` （`mod rotate;`）， can to 
+//! `UpstreamService` has （Rust has for after can ），
+//! not need need as 。
 //!
-//! ── 全局一条队列：候选集合 = 「能提供该模型的那些 provider」的全部账号 ──
-//! 选路入口收一个 `providers` 集合（`router::route_for_forward` 给出的、清单里
-//! 有这个模型名的家），候选账号先按 `account.provider ∈ providers` 过滤，再按
-//! **全局**优先级挑 —— 四家账号混在同一条队里，谁的号小谁先用。
-//! 「workbuddy 的请求不会借到 raccoon 的账号」这条仍然成立：raccoon 若不提供
-//! 这个模型名，它就不在 `providers` 里。限额冷却键仍是账号记录内的
-//! `rateLimits[model]`，账号唯一确定 provider，无需改结构。
+//! ── 1 ： = 「 can this that provider」 ──
+//! 1 `providers` （`router::route_for_forward` to 、
+//! has this ）， by `account.provider ∈ providers` ， by 
+//! **** —— in 1 ， use 。
+//! 「workbuddy request not will to raccoon 」 this ：raccoon if not 
+//! this ， not in `providers` 。 is 
+//! `rateLimits[model]`， 1 provider，none need 。
 //!
-//! ── 冷却键里的 `model` 是**上游真名**（本文件另一个要紧的口径）──────
-//! 上面那个「账号唯一确定 provider」的结论正是真名解析的前提：同一个请求名
-//! 在 workbuddy 与 catpaw 两家可能各自映射到**不同**的上游模型，而每条账号
-//! 记录只属于一家，所以「按账号所属的家解析真名」永远只有一个答案。
-//! 判定侧用 [`routing::CooldownKeys`]，写入侧（`mark_account_limited`）由调用方
-//! 传入已经解析好的真名 —— 两处必须同源，否则冷却会写在一个键上、查在另一个
-//! 键上（那正是 2026-09 那次「映射生效了、请求却仍然打到已限额账号」的成因，
-//! 见 `routing::CooldownKeys` 的说明）。
+//! ── `model` is ** up **（file 1 need ）──────
+//! up that 「 1 provider」 is before ： 1 request
+//! in workbuddy and catpaw can can to ** not ** up ，
+//! 1 ，「 by 」 has 1 。
+//! use [`routing::CooldownKeys`]，（`mark_account_limited`） by use 
+//! already —— must，otherwise will in 1 up 、 in 1 
+//! up （ that is 2026-09 that 「、request to already 」 ，
+//! `routing::CooldownKeys` ）。
 //!
-//! ── 11128 退避去哪了 ───────────────────────────────────────
-//! 改造前 `request_with_waf_retry` 在本文件里（含「11128 → 10s/25s」的判定）。
-//! 那个码是 workbuddy 的专属知识，已随转发改造搬进
-//! `providers::workbuddy::retry_advice`；**重试循环**留在编排层
-//! （`provider_loop::send_with_retry`），因为「重试几次、打什么日志」
-//! 是编排职责（架构文档 §4.3）。
+//! ── 11128 ───────────────────────────────────────
+//! before `request_with_waf_retry` in file（「11128 → 10s/25s」 ）。
+//! that is workbuddy ， already 
+//! `providers::workbuddy::retry_advice`；**** in 
+//! （`provider_loop::send_with_retry`）， as 「、」
+//! is （ §4.3）。
 
 use std::collections::HashMap;
 
@@ -53,13 +53,13 @@ use crate::server::logging;
 use super::{account_display, format_reset_text, has_access_token, priority_of, RouteTarget,
             UpstreamService};
 
-/// 取指定账号的会话；`account_id` 为 None 时回落到**该 provider 的**默认登录态。
+/// will ；`account_id` as None when to ** this provider **default。
 ///
-/// 没有可用登录态时报 401（文案对齐 Node 的 requireSession，去掉
-/// 「node server.mjs --login」那半句 —— 壳内 Rust 版没有那个命令行入口）。
+/// no has available when 401（ for Node requireSession，
+/// 「node server.mjs --login」 that —— Rust no has that ）。
 ///
-/// `provider` 是本次转发要用的 provider id：默认登录态的派生必须收窄到它，
-/// 否则「只有 raccoon 账号」的机器上 workbuddy 请求会借到 raccoon 的凭证。
+/// `provider` is need use provider id：default must to ，
+/// otherwise「 has raccoon 」 up workbuddy request will to raccoon 。
 pub(super) async fn session_for(
     service: &UpstreamService,
     provider: &str,
@@ -99,39 +99,39 @@ pub(super) async fn session_for(
     }
 }
 
-/// 本次请求使用的账号（对照 Node 的 selectTargetAccount，三级顺序）。
+/// request use （ for Node selectTargetAccount，）。
 ///
-///   1. 按设置页选定的**路由策略**排一份候选清单（`routing::plan_route`：
-///      顺序优先 = 位次；负载均衡 = 每条请求轮换），
-///      跳过禁用、余额不足、限额冷却中与已达并发上限的账号，逐个
-///      向前找——跳过没有可用凭证的记录（避免选到空账号）；
-///   2. 剩下的启用账号都在限额冷却期 / 已达并发上限 → 先在「未达并发上限」
-///      的账号里挑恢复最早的一个试一次；一个都没有（全部达到并发上限）→
-///      按**余量**挤占账号强塞（取舍见下方代码处的说明），
-///      把上游真实的 429（含恢复时间）返回给客户端；
-///   3. 全部禁用（或全部余额不足）→ 明确报 503，绝不回退到已禁用 / 欠费账号。
+/// 1. by set ** by ** 1 （`routing::plan_route`：
+/// = ； = request），
+/// use 、 not 、 in and already and limit ， 
+/// to before —— no has available （ to empty）；
+/// 2. down enabled in / already and limit → in 「 and limit」
+/// 1 1 ； 1 no has （ to and limit）→
+/// by ****（ down ），
+/// up 429（ when ）return to client；
+/// 3. use （ or not ）→ 503， not to already use / 。
 ///
-/// 会话粘性（`settings.sticky` ≠ off 且 `conv_key` 非空）在第一级之前生效：
-/// 命中的账号可用时直接置顶（`plan_route` 已把它排到首位并写明原因）。
+/// will （`settings.sticky` ≠ off and `conv_key` empty） in 1 before ：
+/// in available when （`plan_route` already to and Reason）。
 ///
-/// 候选集合 = `providers` 里各家的全部账号（见模块头）。`providers` 非空。
+/// = `providers` （module header）。`providers` empty。
 ///
-/// `keys` 是请求名到各家上游真名的解析器：限额冷却按**真名**判定（理由见
-/// `routing::CooldownKeys`）—— 传请求名会让别名请求的冷却查不到、已限额的
-/// 账号被反复选中。第三级「恢复最早的那个」同样按真名读 `resetAt`。
+/// `keys` is request to up ： by ****（ by 
+/// `routing::CooldownKeys`）—— request will request not to 、 already 
+/// in 。「 that 」 by `resetAt`。
 ///
-/// `pinned` 是「这一轮只准用这个账号」（模型测试专用，见
-/// [`super::ForwardRequest::pinned_account`]）：候选池先被它收窄成一个账号，
-/// 上面那三级顺序对**那一个账号**照常生效 —— 它在限额冷却期时仍会被选中发一次，
-/// 这正是测试要的（把上游真实的 429 与恢复时间带回来，而不是换别人跑一遍）。
+/// `pinned` is 「 this 1 use this 」（ use ，
+/// [`super::ForwardRequest::pinned_account`]）： 1 ，
+/// up that for ** that 1 ** —— in when will in 1 ，
+/// this is need （ up 429 and when ， not is 1 ）。
 ///
-/// `conv_key` 是会话粘性键（`route_state::conversation_key` 的产物；空串 =
-/// 不粘）。粘性命中会刷新该键的最近使用时刻 —— 「缓存还在值上」的计时就在
-/// 这一步续。
+/// `conv_key` is will （`route_state::conversation_key` ；empty =
+/// not ）。 in will new this use when —— 「 in up 」 when in 
+/// this 1 。
 ///
-/// 返回的 `RouteTarget::decision` 是本次选路的**决策快照**（排序 + 每位原因 +
-/// 被跳过者），由调用方挂进 telemetry 落请求日志 ——「上一个请求为什么走它」
-/// 的数据源。
+/// return `RouteTarget::decision` is ****（ + Reason +
+/// ）， by use telemetry request ——「 up 1 requestWhy」
+/// 。
 pub(super) async fn select_target_account(
     service: &UpstreamService,
     providers: &[&str],
@@ -190,7 +190,7 @@ fn select_target_account_sync(
             503, "当前模型路由没有参与转发的账号，请在路由页检查提供商与账号范围",
         ));
     }
-    // 这些家都没有账号记录 → 用第一家的默认登录态（环境变量旁路等）
+    // this no has → use 1 default（ etc ）
     if accounts.is_empty() {
         return Ok(RouteTarget {
             provider: providers.first().copied().unwrap_or_default().to_string(),
@@ -203,39 +203,39 @@ fn select_target_account_sync(
         });
     }
 
-    // 限制器软跳过的候选先剔除（余额不足 / Token 限额，见 `filter_limiter_blocked`），
-    // 三级选择共用
+    // limit （ not / Token ， `filter_limiter_blocked`），
+    // use 
     let (candidates, balance_blocked_ids) = filter_limiter_blocked(&accounts, keys, pinned);
 
-    // 在途计数快照取一次（锁是纳秒级的内存操作，见 connections.rs）：
-    // 第一级与第二级共用同一份，两级看到的「谁在忙」是同一时刻的事实。
+    // in 1 （ is seconds ， connections.rs）：
+    // 1 and use 1 ， to 「 in 」 is 1 when 。
     let counts = request_connection_counts(service, tried_ids, request_routing.group.is_some());
     let now = logging::now_ms();
-    // ── 策略与运行期状态快照（route_state.rs 的那份内存，读不改写）────
-    // 粘性查找在这里顺手续了最近使用时刻 —— 「auto 档 5 分钟没往来就放手」
-    // 的计时由它维持。
+    // ── and （route_state.rs that ， not ）────
+    // in this use when —— 「auto 5 minutes no 」
+    // when by 。
     let settings = request_routing.settings;
     let ttl = routing::sticky_ttl_ms(settings.sticky);
     let snap = service.route.snapshot_for_model(conv_key, keys.request_model(), now, ttl);
-    // 轮转游标只在「本请求的第一次选路」前进：429 顺延的后续选路沿用同一
-    // 起点往后走，否则一条请求会连跳好几位。
+    // in 「request 1 」 before ：429 after use 1 
+    // after ，otherwise 1 request will 。
     //
-    // ── 「粘性命中」不等于「这次真的用它」（2026-11-03 修）─────────
-    // 粘性表里有绑定，不代表绑定的账号此刻能用：它可能正在限流冷却、被限制器
-    // 拦下、达到并发上限，或者不在本轮的路由范围里。那些情况下 `plan_route`
-    // 会把它挡在可用清单之外，请求本来就轮不到它 —— 此时若仍按「有命中」跳过
-    // 轮换，游标永远不动，同一会话的所有请求都会从队列第 1 位重新开始，高峰期
-    // 正好把队首账号压满。
+    // ── 「 in 」 not etc 「 this use 」（2026-11-03 ）─────────
+    // has ， not can use ： can can in 、 limit
+    // down 、 to and limit，or not in by 。 that down `plan_route`
+    // will in available，request not to —— when if by 「 has in 」
+    // ， not ， 1 will allrequest will from 1 new ，
+    // 。
     //
-    // 所以：有命中时先按「不轮换」排一份（不消耗位次），只有命中项真的排到
-    // 第 1 位才沿用；否则照常推进轮换、重新排一份。没有命中时就是原来的路径
-    // （先取位次再排，只排一次）。命中项「可用但被垫底 / 退避 / 熔断推后」也
-    // 算没排到第 1 位 —— 那一次请求本来就会落到别的账号上，按轮换摊开比全部
-    // 压回队首合理。
+    // ： has in when by 「 not 」 1 （ not ）， has in to 
+    // 1 use ；otherwise、 new 1 。 no has in when is path
+    // （， 1 ）。 in 「available / / after 」
+    // no to 1 —— that 1 request will to up ， by 
+    // 。
     //
-    // 家内轮询（`Provider`）的取用条件与 `Rotate` 逐字相同 ——「一次请求只
-    // 消耗一格环位」对两种轮转是同一个口径；差别只在它取的是**每家各一个**
-    // 起始位（见 `rotate_take_per_provider`）。
+    // （`Provider`） use and `Rotate` ——「 1 request
+    // 1 」 for is 1 ； in is ** 1 **
+    // （ `rotate_take_per_provider`）。
     let may_rotate = tried_ids.is_empty() && pinned.is_none();
     let wants_rotation = may_rotate && settings.strategy != config::RouteStrategy::Order;
     let take_rotation = || match settings.strategy {
@@ -243,11 +243,11 @@ fn select_target_account_sync(
             Some(service.route.rotate_take(keys.request_model())),
             None,
         ),
-        // 游标只传「哪几家」用来定键名（`provider_sizes`），各家的**人数不参与
-        // 取模** —— 取模发生在 `plan_route` 内部、用的是过滤（禁用 / 冷却 /
-        // 并发满 / 无凭证）之后的实际成员数。推进与环绕必须用同一把尺子：
-        // 2026-10-14 之前这里按未过滤人数取模，两个模数一旦不等，家内就会出现
-        // 「同一个账号连续被选中两次」的不均匀。
+        // 「」 use （`provider_sizes`）， ** not and 
+        // ** —— in `plan_route` 、 use is （ use / /
+        // and / none） after 。 and must use 1 ：
+        // 2026-10-14 before this by ， 1 not etc ， will 
+        // 「 1 in 」 not 。
         config::RouteStrategy::Provider => (
             None,
             Some(service.route.rotate_take_per_provider(
@@ -275,7 +275,7 @@ fn select_target_account_sync(
             sticky_account: snap.sticky_hit.as_deref(),
         },
     );
-    // 粘性命中项没有排到第 1 位：这一次请求用不上它，照常消耗一格环位重排。
+    // in no has to 1 ： this 1 request use not up ， 1 。
     let sticky_first = snap
         .sticky_hit
         .as_deref()
@@ -327,8 +327,8 @@ fn select_target_account_sync(
         .cloned()
         .collect();
     if enabled.is_empty() {
-        // 剔除后一个可试的都没有：先分辨是不是限制器拦截造成的 —— 那与「全禁用」
-        // 是两件不同的事，用户要做的事也不一样（等余额回升 / 等窗口重置 / 去启用账号）。
+        // after 1 can no has ： is not is limit —— that and 「 use 」
+        // is not ， use need not 1 （ etc / etc / enabled）。
         let enabled_total = accounts
             .iter()
             .filter(|account| !matches!(account.get("enabled"), Some(Value::Bool(false))))
@@ -348,21 +348,21 @@ fn select_target_account_sync(
         ));
     }
 
-    // ── 第二级兜底（并发感知）──────────────────────────────────
-    // 启用中的账号都在限额冷却期内 / 已达并发上限时，仍挑一个试一次：
-    //   ① 先在「启用 + 未尝试 + 未达并发上限」的账号里挑**恢复最早**的
-    //      —— 上游若已实际解除限额可直接成功，否则把真实 429 与恢复时间
-    //      返回给客户端（与改造前同一条路，只多了并发这一道闸）；
-    //   ② 一个都没有（未尝试的账号**全部**达到并发上限）→ 挑**余量最大**
-    //      的账号强塞。
+    // ── （ and ）──────────────────────────────────
+    // enabled in in / already and limit when ， 1 1 ：
+    // ① in 「enabled + + and limit」 **** 
+    // —— up if already can success，otherwise 429 and when 
+    // return to client（ and before 1 ， and this 1 ）；
+    // ② 1 no has （ **** to and limit）→ ****
+    // 。
     //
-    // ── 为什么 ② 强塞而不是报 503（本级的取舍）──────────────────
-    // 限流是「等得起」的：冷却有明确恢复时间，到点账号自然回来；并发挤占
-    // 则是**即刻自愈**的 —— 在途请求一轮对话结束后计数立刻回落（见
-    // connections.rs 的 Drop）。全部账号都忙时拒绝请求（503）只会把本可
-    // 服务的请求直接挡在门外，而强塞只意味着短暂超载 1-2 个（软上限口径见
-    // `routing::max_concurrent_of`）。所以：能等就等（①），等不了就挤（②），
-    // 永不因并发上限直接 503。
+    // ── Why ② not is 503（ ）──────────────────
+    // is 「 etc 」 ： has when ， to ； and 
+    // then is **** —— in request 1 for after （
+    // connections.rs Drop）。 when request（503） will can 
+    // request in ， 1-2 （limit
+    // `routing::max_concurrent_of`）。： can etc etc （①）， etc not （②），
+    // not and limit 503。
     let mut best_effort: Option<Value> = None;
     let mut best_reset = f64::INFINITY;
     for account in &enabled {
@@ -372,7 +372,7 @@ fn select_target_account_sync(
         if tried_ids.iter().any(|tried| tried == &crate::server::core::routing_groups::attempt_key(account)) {
             continue;
         }
-        // 已达并发上限的账号不进「正常兜底」候选 —— 它们是 ② 的原料
+        // already and limit not 「」 —— is ② 
         let limit = routing::max_concurrent_of(account);
         if limit > 0 && counts.get(id).copied().unwrap_or(0) >= limit as usize {
             continue;
@@ -385,8 +385,8 @@ fn select_target_account_sync(
         }
     }
     if best_effort.is_none() {
-        // ① 无果：在「全部达到并发上限」（或没有未尝试账号）时按余量挤占。
-        // 挑出的账号走与 ① 同一条收尾（取会话 → 组装选路结果）。
+        // ① none： in 「 to and limit」（ or no has ） when by 。
+        // and ① 1 （ will → ）。
         if let Some(account) = squeeze_by_headroom(&enabled, &counts, tried_ids, keys, now) {
             if let Some(id) = routing::account_id(&account).map(str::to_string) {
                 if let Some(entry) = service.store.get_session_by_id(&id) {
@@ -436,40 +436,40 @@ fn select_target_account_sync(
     })
 }
 
-/// 账号记录上的 provider id（缺失按默认 provider）。
-/// 实现与出处都在 `routing` —— 那里也要按 provider 收窄候选（`pick_for_model`），
-/// 一处实现两处用，免得「缺失回落默认家」这条规则被抄成两份、日后改歪一份。
+/// up provider id（ by default provider）。
+/// and in `routing` —— that need by provider （`pick_for_model`），
+/// 1 use ，「default」 this then 、 after 1 。
 pub(super) use crate::server::core::routing::provider_of;
 
-/// 限额冷却键的解析器（请求名 → 各家上游真名）。
+/// （request → up ）。
 ///
-/// 与 `provider_of` 同一模式：定义与论证都在 `routing`，这里只做转出 ——
-/// 编排层（`provider_loop`）要建它、本模块的选路函数要收它，两处都写全路径
-/// 只会让签名更长；而它是**冷却键口径**的单一事实来源，不该在别处再写一遍。
+/// and `provider_of` 1 ： and in `routing`， this ——
+/// （`provider_loop`） need 、 need ，path
+/// will ； is **** 1 ， not this in 1 。
 pub(super) use crate::server::core::routing::CooldownKeys;
 
-/// 候选账号池：`providers` 里各家的全部账号（公开形态，文件顺序）；
-/// `pinned` 非空时再收窄成**那一个账号**（模型测试，见
-/// [`select_target_account`] 对该参数的说明）。
+/// ：`providers` （，file）；
+/// `pinned` empty when ** that 1 **（，
+/// [`select_target_account`] for this parameter ）。
 ///
-/// 账号集合按提供商和指定账号收窄；保留禁用记录，以便准确报告全部禁用。
-/// 字段来自账号库的轻量快照，不构造管理界面的完整列表。
+/// by and ； use ， use 。
+/// ， not 。
 ///
-/// 收窄只做「过滤」，不报错也不回退：钉住的账号不在这几家（账号被删了、
-/// 或认错了家）时得到的是空池 —— 上游那条路径会照常给出「这些家都没有账号」
-/// 的既有语义，不会静默换一个账号去跑。
+/// 「」， not not ： not in this （ 、
+/// or ） when to is empty —— up that path will to 「 this no has 」
+/// has ， not will 1 。
 ///
-/// ── 本地就绪闸门也在这里摘人 ────────────────────────────
-/// 被 `readiness` 挡住的 provider 整个不进候选池（判据与理由见那个模块的模块头：
-/// 那是一条**还没出本机就注定失败**的通道，比如 ZCode 活动套餐在 headless 上没有
-/// 验证码令牌）。摘在这里而不是摘在 `pick_account_by_priority` 里，是因为三级选路
-/// （正常挑 → 恢复最早 → 按余量挤占）读的都是这一份池子 —— 写在下游任一级的话，
-/// 闸门挡不住另外两级，而第二、三级恰恰是「明知可能失败也要再试一次」的地方。
+/// ── in this ────────────────────────────
+/// `readiness` provider not （ and by that module header：
+/// that is 1 ** no failure** ，e.g. ZCode in headless up no has 
+/// ）。 in this not is in `pick_account_by_priority` ， is as 
+/// （ → → by ） is this 1 —— in down 1 ，
+/// not ，、 is 「 can can failure need 1 」 。
 ///
-/// **全被挡住时照旧返回原池**：闸门是优化，不是准入。如果 `providers` 里每一家
-/// 都被挡住（或这次只点名了被挡的那一家），宁可让请求照原路走一遍、把错误如实
-/// 落在这条通道上，也不要在候选池层面伪装成「这家没有账号」—— 那会让第三级的
-/// 文案说出不存在的事实，用户会去查一个本来有账号的账号页。
+/// ** when old return**： is ， not is 。if `providers` 1 
+/// （ or this that 1 ）， can request 1 、 error
+/// in this up ， not need in 「 this no has 」—— that will 
+/// not in ， use will 1 has 。
 pub(super) fn accounts_in_providers(
     service: &UpstreamService,
     providers: &[&str],
@@ -510,17 +510,17 @@ fn scoped_accounts(
     if routable.is_empty() { accounts } else { routable }
 }
 
-/// 组装选路结果；代理解析失败时把提示**带进选路结果**（本次回退直连）。
+/// ；failure when ****（）。
 ///
-/// ── 提示为什么是返回值的一部分而不是当场打日志 ────────────────
-/// 改造前这里直接 `logging::log` 一行运行日志。那是**逐请求**的事实：代理配错
-/// 的账号上每条请求都会刷一行，而请求日志那边看不到「这次其实是直连的」。
-/// 现在把文案挂在 `RouteTarget::proxy_notice` 上，由转发层记进本轮尝试明细
-/// （见那个字段的说明），运行日志不再写。
+/// ── Why is return 1 not is ────────────────
+/// before this `logging::log` 1 。 that is **request** ：
+/// up request will 1 ，request that not to 「 this its is 」。
+/// in in `RouteTarget::proxy_notice` up ， by 
+/// （ that ）， not 。
 ///
-/// 两个来源合并成一条文案：账号存储里记的 `proxyError`（上次解析失败的原因）
-/// 与本次现场解析失败的原因。**后者优先** —— 它说明的是「这次为什么直连」，
-/// 而 `proxyError` 可能是更早的旧状态。
+/// and 1 ： `proxyError`（ up failure Reason）
+/// and failure Reason。** after ** —— is 「 this Why」，
+/// `proxyError` can can is old 。
 pub(super) fn with_proxy_notice(
     account: Value,
     proxy: Value,
@@ -537,8 +537,8 @@ pub(super) fn with_proxy_notice(
     let resolved = match ResolvedProxy::from_json(&proxy) {
         Ok(proxy) => proxy,
         Err(reason) => {
-            // 会话里的 proxy 由账号存储解析过（成功才会带过来），
-            // 这里失败说明数据在两次读盘之间变了：按直连兜底
+            // will proxy by （success will ），
+            // this failure in ： by 
             notice = Some(format!("账号代理不可用（{reason}），本次回退直连"));
             None
         }
@@ -561,14 +561,14 @@ pub(super) fn with_proxy_notice(
     }
 }
 
-/// 记录限额并返回可读的恢复时间文本（对照 Node 的 markAccountLimited）。
+/// and return can when （ for Node markAccountLimited）。
 ///
-/// `account_id` 已经唯一确定了 provider（id 在整份账号文件里唯一、且每条记录
-/// 只属于一家），所以冷却键 = `provider×账号×模型` 天然成立。
+/// `account_id` already 1 provider（id in file 1 、 and 
+/// 1 ）， = `provider××` 。
 ///
-/// `model` 必须是**上游实际收到的真名**（不是客户端请求名）—— 调用方从
-/// `SendBody::wire_model` 取（见 `upstream::payload`）。传请求名会把冷却写在
-/// 上游永远不会记额度的键上，判定侧也就查不到它（见 `routing::CooldownKeys`）。
+/// `model` must is ** up to **（ not is clientrequest）—— use from 
+/// `SendBody::wire_model` （ `upstream::payload`）。request will in 
+/// up not will up ， not to （ `routing::CooldownKeys`）。
 pub(super) fn mark_account_limited(
     service: &UpstreamService,
     account_id: &str,
@@ -578,9 +578,9 @@ pub(super) fn mark_account_limited(
     reset_at: Option<i64>,
     message: &str,
 ) -> String {
-    // Node 从 `error.body` 里再解析一次 msg 取恢复时间；Rust 侧的错误文案
-    // 已经带上上游原文，`reset_at` 由适配器的 classify_error 解析后传进来，
-    // 这里再兜一次文本解析（两条路径结果一致：都来自同一份上游文案）
+    // Node from `error.body` 1 msg when ；Rust error
+    // already up up ，`reset_at` by classify_error after ，
+    // this 1 （path 1 ： 1 up ）
     let parsed = if let Some(reset_at) = reset_at.filter(|value| *value > 0) {
         reset_at
     } else {
@@ -603,10 +603,10 @@ pub(super) fn mark_account_limited(
     }
 }
 
-/// 该账号对某模型当前的限额恢复时间戳（未限额 0）——上报事件时用，
-/// 与 Node 的 `limitEntry?.resetAt` 同源（都从账号记录里现读）。
+/// this for current when （ 0）—— up when use ，
+/// and Node `limitEntry?.resetAt` （ from ）。
 ///
-/// `model` 是上游真名（见 `mark_account_limited` 的说明），与写入侧同一个键。
+/// `model` is up （ `mark_account_limited` ）， and 1 。
 pub(super) fn account_limit_reset_at(service: &UpstreamService, account_id: &str, model: &str) -> i64 {
     service.store.route_account(account_id)
         .map(|account| {
@@ -621,28 +621,28 @@ pub(super) fn account_limit_reset_at(service: &UpstreamService, account_id: &str
         .unwrap_or(0)
 }
 
-/// 候选中**最早**的限额恢复时间戳（毫秒；一个都没有时 0）。
+/// in **** when （ms； 1 no has when 0）。
 ///
-/// ── 用途：把「还要等多久」告诉客户端 ────────────────────────
-/// 所有候选账号都被限流时，编排层给客户端的错误文案里带上这个时刻
-/// （`provider_loop` 的「均已限额或禁用」分支）。不带的话客户端只能立刻
-/// 重试、再撞一次同样的墙；带上之后（Claude Code / Codex 这类客户端会读
-/// 文案里的时间）才能做**合法的退避等待**。
+/// ── use ： 「 need etc 」client ────────────────────────
+/// all when ， to client error up this when 
+/// （`provider_loop` 「 already or use 」）。 not client can 
+/// 、 1 ； up after （Claude Code / Codex this client will 
+/// when ） can ** etc **。
 ///
-/// ── 为什么取**最早**的而不是最晚的 ─────────────────────────
-/// 「最早」= 第一个可能恢复、值得再试的时刻。取最晚会让客户端多睡一段
-/// 本不必睡的时间（账号是逐个恢复的，不是同时）。
+/// ── Why**** not is ─────────────────────────
+/// 「」= 1 can can 、 when 。 will client 1 
+/// not when （ is ， not is when ）。
 ///
-/// ── 限额来自账号库的增量快照 ─────────────────────────────────
-/// 写入即使快照失效，下次判定读取已提交的新记录；不混用路由运行期退避表。
+/// ── ─────────────────────────────────
+/// ， down already new ； not use by 。
 ///
-/// `providers` 是本次请求的候选家；冷却键按 [`routing::CooldownKeys`] 解析
-/// （与写入侧同一个键）。**启用中的账号全都算**，包括本轮已经撞过的那几个 ——
-/// 它们刚被标记，恢复时刻正是客户端最该等的那个。
+/// `providers` is request ； by [`routing::CooldownKeys`] 
+/// （ and 1 ）。**enabled in **，including already that ——
+/// ， when is client this etc that 。
 ///
-/// `accounts_in_providers` 只按 provider 过滤、**不过滤禁用账号**（那是选路
-/// 层的事），所以这里自己剔一遍：一个被禁用的账号即便留着未过期的冷却记录也
-/// 不算候选，报它的恢复时刻会把用户引向一个系统根本不会去的账号。
+/// `accounts_in_providers` by provider 、** not use **（ that is 
+/// ）， this 1 ： 1 use 
+/// not ， when will use to 1 not will 。
 pub(super) fn earliest_limit_reset_at(
     service: &UpstreamService,
     providers: &[&str],
@@ -656,11 +656,11 @@ pub(super) fn earliest_limit_reset_at(
     earliest_limit_reset_at_in(&accounts, keys, now)
 }
 
-/// [`earliest_limit_reset_at`] 的纯函数内核（账号清单与「现在」都由调用方给，
-/// 便于单测直接覆盖排序语义）。
+/// [`earliest_limit_reset_at`] （ and 「 in 」 by use to ，
+/// ）。
 ///
-/// 过期的冷却不必再筛：`rate_limit_reset_at` 只回**未来**时刻或 0
-/// （见那里的说明），所以这里直接对非零值取最小。
+/// not ：`rate_limit_reset_at` **** when or 0
+/// （ that ）， this for 。
 fn earliest_limit_reset_at_in(
     accounts: &[Value],
     keys: &routing::CooldownKeys<'_>,
@@ -674,19 +674,19 @@ fn earliest_limit_reset_at_in(
         .unwrap_or(0)
 }
 
-/// 全部账号达到并发上限时的**挤占**挑选：余量（`limit - count`）最大者优先。
+/// to and limit when ****：（`limit - count`）。
 ///
-/// ── 排序口径（任务约定，改动前先读）──────────────────────────
-///   · **不限（maxConcurrent == 0）= 无穷大余量**，永远排在有限上限之前 ——
-///     用 `i64::MAX` 近似：任何真实的 `limit - count` 都比它小；
-///   · 同余量挑**恢复最早**的（与 ① 的「恢复最早试一次」同一偏好：优先选
-///     「最可能马上恢复额度」的账号多打一个）；
-///   · `>` 严格比较保持候选顺序稳定（同余量同恢复时间时先见者优先）。
+/// ── （， before ）──────────────────────────
+/// · ** not （maxConcurrent == 0）= none**， in has limit before ——
+/// use `i64::MAX` ： `limit - count` ；
+/// · **** （ and ① 「 1 」 1 ：
+/// 「 can can up 」 1 ）；
+/// · `>` （ when when ）。
 ///
-/// 挑中即打一行 verbose（verbose 级别不进运行日志页，只在终端/调试时可见
-/// —— 这是逐请求的事件，info 级会刷屏，但排障时必须找得到「为什么明明
-/// 设了上限还打到这个账号」的答案）。没有可挤的账号（全部已尝试过）时
-/// 返回 None，由调用方落到尾部的「无账号」兜底。
+/// in 1 verbose（verbose not ， in / when can 
+/// —— this is request ，info will ， when must to 「Why
+/// limit to this 」 ）。 no has can （ already ） when 
+/// return None， by use to 「none」。
 fn squeeze_by_headroom(
     enabled: &[Value],
     counts: &HashMap<String, usize>,
@@ -727,19 +727,19 @@ fn squeeze_by_headroom(
     squeezed
 }
 
-/// 当前在途请求计数的快照（账号 id → 请求数），选路的并发过滤用。
+/// current in request （ id → request）， and use 。
 ///
-/// 从 `Connections` 的表里一次读出（`snapshot` 锁内克隆，纳秒级）。
-/// 拿不到运行时句柄的调用方传**空表** = 不做并发过滤（`pick_for_model`
-/// 的调用点 `api::session` 有句柄，正常传真值；`describe_route_decision`
-/// 属排障快照，传空表）。
+/// from `Connections` 1 （`snapshot` ，seconds）。
+/// not to when use **empty** = not and （`pick_for_model`
+/// use `api::session` has ，；`describe_route_decision`
+/// ，empty）。
 pub(super) fn connection_counts(service: &UpstreamService) -> HashMap<String, usize> {
     service.connections().snapshot().into_iter().collect()
 }
 
 fn request_connection_counts(service: &UpstreamService, tried: &[String], group: bool) -> HashMap<String, usize> {
     let mut counts = connection_counts(service);
-    // 顺延时当前请求还持有前一轮连接；同账号的另一模型不能被这一个槽位挡住。
+    // when currentrequest has before 1 ； 1 not can this 1 。
     if group {
         if let Some(id) = tried.last().map(|key| crate::server::core::routing_groups::account_key(key)) {
             if let Some(count) = counts.get_mut(id) { *count = count.saturating_sub(1); }
@@ -753,17 +753,17 @@ pub(super) fn allows_route_skip(service: &UpstreamService, account_id: &str) -> 
         .is_some_and(|account| account.get("allowRouteSkip") == Some(&Value::Bool(false)))
 }
 
-/// 下一个可用账号（全局队列，限定在 `providers` 各家的账号里，跳过已尝试的）。
+/// down 1 available（， in `providers` ， already ）。
 ///
-/// `keys` 见 [`select_target_account`]：冷却按各家真名判定。
-/// 排序走与第一级选路**同一个** `routing::plan_route`（同一策略、同一份运行期
-/// 状态快照，只是不做粘性查找、不前进轮转游标）—— 429 降级 / 失败顺延接的
-/// 「下一个」与队列面板画的顺序因此一致；并发上限的过滤由此自动获得，
-/// 换号顺延不会把请求塞回一个已达上限的账号。
+/// `keys` [`select_target_account`]： by 。
+/// and 1 ** 1 ** `routing::plan_route`（ 1 、 1 
+/// ， is not 、 not before ）—— 429 / failure 
+/// 「 down 1 」 and 1 ； and limit by ，
+/// not will request 1 already limit 。
 ///
-/// `pinned` 见 [`select_target_account`]：钉住账号时，候选池里只有那一个账号、
-/// 它已经在 `tried_ids` 里 —— 本函数因此必然返回 None，也就是「不顺延」。
-/// 这条是刻意的：模型测试问的是「这个账号行不行」，换个人跑通只会把结论搅浑。
+/// `pinned` [`select_target_account`]： when ， has that 1 、
+/// already in `tried_ids` —— return None， is 「 not 」。
+/// this is ： is 「 this not 」， will 。
 pub(super) fn pick_next_account(
     service: &UpstreamService,
     providers: &[&str],
@@ -776,15 +776,15 @@ pub(super) fn pick_next_account(
         return None;
     }
     let accounts = scoped_accounts(service, providers, keys.request_model(), pinned, Some(request_routing));
-    // 换号顺延与第一级选路同一份候选剔除：被限制器拦下的账号不会在 429 之后
-    // 被当作「下一个」重新塞进来
+    // and 1 1 ： limit down not will in 429 after 
+    // 「 down 1 」 new 
     let (candidates, balance_blocked_ids) = filter_limiter_blocked(&accounts, keys, pinned);
     let counts = request_connection_counts(service, tried_ids, request_routing.group.is_some());
     let now = logging::now_ms();
     let settings = request_routing.settings;
-    // 顺延不走粘性（粘住的是「答对了的账号」，刚失败的那个不该被粘回来）；
-    // 空会话键使 sticky_lookup 直接返回 None，其余快照（垫底 / 休息 / 熔断）
-    // 照常参与排序
+    // not （ is 「 for 」，failure that not this ）；
+    // empty will sticky_lookup return None， its （ / / ）
+    // and 
     let snap = service.route.snapshot("", now, 0);
     let meta = routing::PlanMeta {
         strategy: settings.strategy,
@@ -800,10 +800,10 @@ pub(super) fn pick_next_account(
     plan.ordered.into_iter().next().map(|entry| entry.account)
 }
 
-/// 选路决策快照（请求日志「路由回放」的数据源）。
+/// （request「 by 」 ）。
 ///
-/// 有界：排序清单与被跳过者各最多带 12 条 —— 账号几十个时全部带上只会
-/// 让每条请求日志膨胀，而前 12 位已足以回答「为什么是它、为什么不是那个」。
+/// has ： and 12 —— when up will 
+/// request， before 12 already 「Why is 、Why not is that 」。
 fn decision_json(
     plan: &routing::RoutePlan,
     settings: &config::RoutingSettings,
@@ -834,22 +834,22 @@ fn decision_json(
     })
 }
 
-/// 限制器软跳过的候选剔除：**余额不足**（限制器余额 skip 规则命中：最近读数
-/// 低于阈值）或 **Token 限额**（Token skip 规则命中：当前重置窗口内消耗已达
-/// 阈值）的账号在进选路**之前**整体拿掉 —— 三级选择（正常选路 / 兜底等恢复 /
-/// 并发挤占）共用这一份候选。两类与限流不同，都是「等不起」或「等了也没用」的：
-/// 限流有明确的恢复时间、到点自然回来，硬塞一次还能把真实 429 带回来；余额不足
-/// 硬塞只会吃上游的 402 / 403，Token 限额硬塞是在跟自己的保护规则对着干。
+/// limit ：** not **（limit skip then in ：
+/// ） or **Token **（Token skip then in ：current already 
+/// ） in ** before ** —— （ / etc /
+/// and ） use this 1 。 and not ， is 「 etc not 」 or 「 etc no use 」 ：
+/// has when 、 to ， 1 can 429 ； not 
+/// will up 402 / 403，Token is in then for 。
 ///
-/// 判定全读**内存事实表**（余额：`usage_records::balance_facts`；Token：
-/// `core::limiter::token_facts`，心跳 10 秒全量刷新 + 请求收尾增量记账）——
-/// 零 IO，纳秒级查表。余额回升后下一轮查询刷新事实、Token 窗口翻页后下一轮
-/// 刷新归零，账号自动恢复参与，无需任何人手动清理。
+/// ****（：`usage_records::balance_facts`；Token：
+/// `core::limiter::token_facts`， 10 seconds new + request）——
+/// IO，seconds。 after down 1 new 、Token after down 1 
+/// new ， and ，none need 。
 ///
-/// `pinned`（模型测试）不剔除：测试要的是**那个账号**的真实反应 —— 被限制时
-/// 把上游的拒绝原样带回来，与「限流中的账号仍会被钉住测试」同一取舍。
-/// 返回 `(剔除后的候选, 被剔除的账号 id 集合)`：调用方在「一个可试的都没有」时
-/// 用后者分辨 503 的原因（限制器拦截 vs 全禁用）。
+/// `pinned`（） not ： need is ** that ** —— limit when 
+/// up ， and 「 in will 」 1 。
+/// return `( after , id )`： use in 「 1 can no has 」 when 
+/// use after 503 Reason（limit vs use ）。
 fn filter_limiter_blocked(
     accounts: &[Value],
     keys: &routing::CooldownKeys<'_>,
@@ -881,15 +881,15 @@ fn filter_limiter_blocked(
     (candidates, blocked_ids)
 }
 
-/// 429 限额事件上报到运行日志（对照 Node 的 reportLimitEvent）。
+/// 429 up to （ for Node reportLimitEvent）。
 ///
-/// 结构化 data 让前端能直接展示「账号 A → 账号 B」的切换链路与恢复时间
-/// （logs-panel 读 `data.from` / `data.to` / `data.resetAtText`）。
-/// `priority` 是**目标账号**的优先级（Node 在降级分支传 `next.priority`，
-/// 其余分支是 `?? null`）。
+/// data before can 「 A → B」 and when 
+/// （logs-panel `data.from` / `data.to` / `data.resetAtText`）。
+/// `priority` is **** （Node in `next.priority`，
+/// its is `?? null`）。
 ///
-/// `provider` 进 data（多提供商后同一条日志要能分辨是哪一家在切换）。
-/// 前端只读自己认识的键，多一个键不影响既有展示。
+/// `provider` data（ after 1 need can is 1 in ）。
+/// before ， 1 not has 。
 #[allow(clippy::too_many_arguments)]
 pub(super) fn report_limit_event(
     level: &str,
@@ -927,7 +927,7 @@ mod tests {
     use crate::server::core::routing::CooldownKeys;
     use serde_json::json;
 
-    /// 造一条带限额冷却的账号记录（形状与 `mark_rate_limited` 落盘的一致）
+    /// 1 （ and `mark_rate_limited` 1 ）
     fn limited(id: &str, provider: &str, model: &str, reset_at: i64) -> serde_json::Value {
         json!({
             "id": id,
@@ -941,7 +941,7 @@ mod tests {
         json!({ "id": id, "provider": provider, "enabled": true })
     }
 
-    /// 取**最早**的恢复时刻（不是最晚）：客户端该睡到第一个可能恢复的点
+    /// **** when （ not is ）：client this to 1 can can 
     #[test]
     fn the_earliest_reset_wins() {
         let keys = CooldownKeys::new("Qwen/Qwen3.8-Flash-Next");
@@ -954,7 +954,7 @@ mod tests {
         assert_eq!(earliest_limit_reset_at_in(&accounts, &keys, now), now + 60_000);
     }
 
-    /// 没有处在冷却期的账号 → 0（调用方据此退回原句，不拼「最早…恢复」）
+    /// no has in → 0（ use ， not 「…」）
     #[test]
     fn no_future_reset_reports_zero() {
         let keys = CooldownKeys::new("m");
@@ -966,8 +966,8 @@ mod tests {
         );
     }
 
-    /// **已过期**的冷却不算数（记录还在但时刻已过 = 未限额，与
-    /// `rate_limit_reset_at` 的口径一致）——算进去会让文案报一个过去的时刻
+    /// **expired** not （ in when already = ， and 
+    /// `rate_limit_reset_at` 1 ）—— will 1 when 
     #[test]
     fn an_expired_cooldown_is_not_counted() {
         let keys = CooldownKeys::new("m");
@@ -979,7 +979,7 @@ mod tests {
         assert_eq!(earliest_limit_reset_at_in(&accounts, &keys, now), 0);
     }
 
-    /// 冷却**按模型**分键：别的模型的冷却不该影响本模型的「还要等多久」
+    /// ** by **： not this 「 need etc 」
     #[test]
     fn another_models_cooldown_is_ignored() {
         let keys = CooldownKeys::new("m");
@@ -988,7 +988,7 @@ mod tests {
         assert_eq!(earliest_limit_reset_at_in(&accounts, &keys, now), 0);
     }
 
-    /// 多账号时取全体最早（这条覆盖的是「取 min 而不是取第一个」）
+    /// when （ this is 「 min not is 1 」）
     #[test]
     fn the_minimum_spans_all_accounts() {
         let keys = CooldownKeys::new("m");

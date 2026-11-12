@@ -1,18 +1,18 @@
-//! 账号批量操作（Agent2API W3-T4 从 `store_crud.rs` 拆出，单文件行数约定）。
+//! （Agent2API W3-T4 from `store_crud.rs` ，file）。
 //!
-//!   batch_update  批量修改（启用状态 / 代理 / 并发 / 查询 / 限制器；逐账号调 apply_patch）
-//!   batch_remove  批量删除（不存在的 id 记入 failed，不中断整批）
+//! batch_update （enabled / / and / / limit； apply_patch）
+//! batch_remove delete（ not in id failed， not in ）
 //!
-//! ── 与单账号操作的关系 ──────────────────────────────────────
-//! 两者都依赖 `store_crud` 里的私有内核（`AccountStore::apply_patch`、
-//! `to_raccoon_public_account` 等）—— 同一个 `impl AccountStore` 的分块，
-//! 拆文件只影响可读性，不影响可见性（Rust 的私有项对同模块可见）。
+//! ── and ──────────────────────────────────────
+//! `store_crud` has （`AccountStore::apply_patch`、
+//! `to_raccoon_public_account` etc ）—— 1 `impl AccountStore` ，
+//! file can ， not can （Rust has for can ）。
 //!
-//! ── 删除保护（W3-T4）────────────────────────────────────────
-//! `batch_remove` 会跳过「不可删除」的账号（小浣熊桌面端实时登录态），
-//! 记入 `failed` 并附原因 —— 与单账号 `remove_account` 的拒绝口径一致。
-//! **注意**：受保护判定必须在取账号锁之前做完（`protected_from_removal`
-//! 自己取锁，`std::sync::Mutex` 不可重入，持锁再调会当场死锁）。
+//! ── delete（W3-T4）────────────────────────────────────────
+//! `batch_remove` will 「 not can delete」 （ when ），
+//! `failed` and Reason —— and `remove_account` 1 。
+//! **Note**：must in before （`protected_from_removal`
+//! ，`std::sync::Mutex` not can ， will ）。
 
 use serde_json::{json, Map, Value};
 
@@ -61,7 +61,7 @@ impl BatchLimiterMode {
         let mut current = limiter::effective_rules_in(fields);
         match self {
             Self::Append => {
-                // 重复执行同一批操作不能不断叠加相同规则。
+                // 1 not can not then 。
                 for rule in incoming {
                     if !current.contains(rule) {
                         current.push(*rule);
@@ -92,10 +92,10 @@ impl BatchLimiterMode {
 }
 
 impl AccountStore {
-    /// 批量修改账号；只开放无需逐账号指定身份的配置。
+    /// ；none need config。
     ///
-    /// 语义上是「对每个选中账号各跑一次 update_account」，但整批只落盘一次。
-    /// 单个账号失败不中断整批：结果里分别记 ok / failed（含原因）。
+    /// up is 「 for in 1 update_account」， 1 。
+    /// failure not in ： ok / failed（Reason）。
     pub fn batch_update(
         &self,
         ids: &[String],
@@ -107,7 +107,7 @@ impl AccountStore {
         let Some(patch_object) = patch.as_object() else {
             return Err(AccountStoreError::bad_request("批量修改内容必须是 JSON 对象"));
         };
-        // 备注名、凭证与优先级属于账号身份，不开放整组覆盖。
+        // 、 and ， not 。
         let mut allowed = Map::new();
         let mut enabled_value = false;
         if let Some(value) = patch_object.get("enabled") {
@@ -121,9 +121,9 @@ impl AccountStore {
             allowed.insert("proxy".to_string(), normalized);
         }
         if let Some(value) = patch_object.get("maxConcurrent") {
-            // 校验先做**一次**（与单账号同一份，见 `normalize_max_concurrent`）：
-            // 丢进循环里逐账号报错会把同一个 400 说 N 遍，而这是「参数写错了」，
-            // 不是「某个账号存不下」—— 后者才该记进 failed。
+            // ** 1 **（ and 1 ， `normalize_max_concurrent`）：
+            // will 1 400 N ， this is 「parameter」，
+            // not is 「 not down 」—— after this failed。
             let next = normalize_max_concurrent(value)?;
             allowed.insert("maxConcurrent".to_string(), Value::from(next));
         }
@@ -175,20 +175,20 @@ impl AccountStore {
             || (limiter_mode.is_some_and(BatchLimiterMode::needs_rules)
                 && (group_needs_usage || incoming_rules.iter().any(|rule| rule.kind == limiter::LimiterKind::Balance)));
         let _guard = self.guard();
-        // 批量操作按语义要遍历**选中的那些账号**（逐条 apply_patch、逐条记
-        // ok/failed），所以这里是「按需取那几条」而不是读全量：ids 里的每一项
-        // 走一次主键查询。选中 3 个账号时只读 3 行，而不是把 20 条记录的 JSON
-        // 全解析一遍。
+        // by need ** in that **（ apply_patch、
+        // ok/failed）， this is 「 by need that 」 not is ：ids 1 
+        // 1 。 in 3 when 3 ， not is 20 JSON
+        // 1 。
         let mut ok: Vec<Value> = Vec::new();
         let mut failed: Vec<Value> = Vec::new();
         let mut skipped: Vec<Value> = Vec::new();
-        // 要写的行（在内存里改好，最后一次性进事务）：只有改动过的才写，于是
-        // 「批量点了确定但没有任何字段真的变化」不会产生任何写入
-        // （旧实现在那种情况仍会整份重写文件）。
+        // need （ in ， after 1 ）： has ， is 
+        // 「 no has 」 not will 
+        // （ old in that will file）。
         let mut dirty: Vec<StoredAccount> = Vec::new();
-        // 被禁用的 CatPaw 账号 (id, provider)：批量的「禁用」与单账号同语义 ——
-        // 它们的会话映射必须作废（见 `store_crud::update_account` 的说明）。
-        // 收集起来在写库、放锁之后再动作注册表（两把锁不嵌套）。
+        // use CatPaw (id, provider)： 「 use 」 and ——
+        // will must（ `store_crud::update_account` ）。
+        // in 、 after （ not ）。
         let mut disabled_catpaw: Vec<(String, String)> = Vec::new();
         for id in ids {
             let Some(mut record) = self.record_by_id(&_guard, id) else {
@@ -197,12 +197,12 @@ impl AccountStore {
             };
             let name = record.name();
             let provider = record.provider();
-            // 访客账号与「这家没有余额查询」同一档（见 `usage_query::supports_usage`）：
-            // 它不参与余额查询，写一份查询设置进去只会得到一份永不生效的配置 ——
-            // 界面上还会因此多出「查询设置」段与自动查询的排期。
+            // and 「 this no has 」 1 （ `usage_query::supports_usage`）：
+            // not and ， 1 set will to 1 not config ——
+            // up will 「set」 and 。
             //
-            // 判据读**公开形态**：插件账号的 `isGuest` 在 `pluginPublic` 里，
-            // 直接 `record.get("isGuest")` 读不到（见 `plugin_accounts` 的说明）。
+            // ****： `isGuest` in `pluginPublic` ，
+            // `record.get("isGuest")` not to （ `plugin_accounts` ）。
             let guest = self
                 .public_account(&record)
                 .get("isGuest")
@@ -248,9 +248,9 @@ impl AccountStore {
                 continue;
             }
             let was_enabled = record.enabled();
-            // 优先级冲突判定：批量入口刻意**不开放** priority（见上面的 allowed
-            // 注释），所以这个回调不会被调用 —— 给一个必然成功的实现，
-            // 保持 `apply_patch` 的签名统一（它要能表达"这个 patch 可能改优先级"）。
+            // ：** not ** priority（ up allowed
+            // ）， this not will use —— to 1 success ，
+            // `apply_patch` 1 （ need can " this patch can can "）。
             match Self::apply_patch(&mut record, &account_patch, |_| Ok(None)) {
                 Ok(changes) => {
                     if !changes.is_empty() {
@@ -268,9 +268,9 @@ impl AccountStore {
             }
         }
         if !dirty.is_empty() {
-            // 整批一个事务：要么全成、要么全不成。批量改代理 / 启用状态时
-            // 中途失败会留下「前几个改好了、后面没改」的中间态，用户看到的
-            // 是「点了一次批量，只生效了一半」—— 事务把这种可能消掉。
+            // 1 ： need 、 need not 。 / enabled when 
+            // in failure will down 「 before 、 after no 」 in ， use to 
+            // is 「 1 ， 1 」—— this can can 。
             self.with_conn_mut(&_guard, |conn| {
                 let tx = conn.transaction()?;
                 for record in &dirty {
@@ -279,24 +279,24 @@ impl AccountStore {
                 tx.commit()
             })?;
         }
-        // 写库完成后再动注册表（放锁，见 `disabled_catpaw` 的说明）
+        // after （， `disabled_catpaw` ）
         drop(_guard);
         if limiter_mode.is_some() { limiter::counter::invalidate(); }
         for (id, provider) in disabled_catpaw {
             self.invalidate_catpaw_sessions(&id, &provider);
         }
-        // 快照要在写入之后给（前端拿到的是最新状态）。批量改的是代理/启用状态，
-        // 都不影响列表顺序与优先级，所以重新读一次全量拿到的就是正确快照。
-        // 这里**重新取一次锁**而不是复用上面那把：那把已经在动注册表之前放掉了
-        // （两把锁不嵌套的纪律，见 `disabled_catpaw` 的说明），而中间那段时间
-        // 别的写者可能已经改过库 —— 重取 + 重读保证快照是**当下**的真相，
-        // 而不是「放锁前那一瞬」的。读一次全量的成本在批量入口可接受
-        // （批量本来就是低频、少量条目的操作）。
+        // need in after to （ before to is new ）。 is /enabled，
+        // not and ， new 1 to is 。
+        // this ** new 1 ** not is use up that ： that already in before 
+        // （ not ， `disabled_catpaw` ）， in that when 
+        // can can already —— + is ** down ** ，
+        // not is 「 before that 1 」 。 1 in can 
+        // （ is 、 ）。
         let snapshot = {
             let guard = self.guard();
             self.snapshot(&self.load(&guard), Visibility::UserFacing)
         };
-        // 摘要文案：与 Node 版逐字一致（enabled 与 proxy 两种说法）
+        // need ： and Node 1 （enabled and proxy ）
         let mut summary: Vec<String> = Vec::new();
         if patch_object.contains_key("enabled") {
             summary.push(format!(
@@ -305,7 +305,7 @@ impl AccountStore {
             ));
         }
         if let Some(proxy) = allowed.get("proxy") {
-            // 无代理时说「无代理（直连）」，否则用 describe 出来的 label
+            // none when 「none（）」，otherwise use describe label
             let label = if proxy.is_null() {
                 "无代理（直连）".to_string()
             } else {
@@ -360,21 +360,21 @@ impl AccountStore {
         Ok(json!({ "ok": ok, "failed": failed, "skipped": skipped, "list": snapshot }))
     }
 
-    /// 批量删除账号。不存在的 id 记入 failed 而不是整体报错 —— 用户重复点删除
-    /// （或列表已刷新）不会看到莫名其妙的失败。当前账号由优先级派生，
-    /// 删掉它之后自动变成下一个可用账号，无需额外处理。
+    /// delete。 not in id failed not is —— use delete
+    /// （ or already new ） not will to its failure。current by ，
+    /// after down 1 available，none need 。
     ///
-    /// ── 删除后作废 CatPaw 的会话映射（W5-T-d4）──────────────────
-    /// 与单账号 `remove_account` 同一语义：conversationId 属于上游账号上下文，
-    /// 账号没了就再也不能续接。provider 在**删除之前**随记录一起收集
-    /// （删掉之后回读只能得到 None），注册表动作放在落盘、放锁之后
-    /// （两把锁不嵌套）。
+    /// ── delete after CatPaw will （W5-T-d4）──────────────────
+    /// and `remove_account` 1 ：conversationId up up down ，
+    /// no not can 。provider in **delete before ** 1 
+    /// （ after can to None）， in 、 after 
+    /// （ not ）。
     pub fn batch_remove(&self, ids: &[String]) -> Result<Value, AccountStoreError> {
         if ids.is_empty() {
             return Err(AccountStoreError::bad_request("缺少要删除的账号 id"));
         }
-        // 受保护账号的判定必须在**取账号锁之前**做完（`protected_from_removal`
-        // 自己会取锁，而 std::sync::Mutex 不可重入 —— 持锁再调它会当场死锁）
+        // must in ** before **（`protected_from_removal`
+        // will ， std::sync::Mutex not can —— will ）
         let protected: Vec<(String, String)> = ids
             .iter()
             .filter_map(|id| {
@@ -385,14 +385,14 @@ impl AccountStore {
         let _guard = self.guard();
         let mut removed: Vec<Value> = Vec::new();
         let mut failed: Vec<Value> = Vec::new();
-        // (账号 id, provider)：注册表作废要用的身份（记录删掉后就查不到了）
+        // ( id, provider)： need use （ after not to ）
         let mut removed_owners: Vec<(String, String)> = Vec::new();
-        // 待删的 id：先逐条校验（受保护 / 不存在），全部通过后一次性进事务。
-        // 「存在性」用主键查询判（不再读全量），选中几个就查几行。
+        // id：（ / not in ）， after 1 。
+        // 「 in 」 use （ not ）， in 。
         let mut targets: Vec<String> = Vec::new();
         for id in ids {
-            // 受保护的账号（三家桌面端实时登录态）与「不存在」一样记入 failed，
-            // 但不中断整批 —— 与 remove_account 的拒绝口径一致
+            // （ when ） and 「 not in 」 1 failed，
+            // not in —— and remove_account 1 
             if let Some((_, reason)) = protected.iter().find(|(target, _)| target == id) {
                 failed.push(json!({ "id": id, "error": reason }));
                 continue;
@@ -407,11 +407,11 @@ impl AccountStore {
             }
         }
         if targets.is_empty() {
-            // 没有任何一条可删：不写库，直接给当前快照
+            // no has 1 can ： not ， to current
             let state = self.load(&_guard);
             return Ok(json!({ "removed": removed, "failed": failed, "list": self.snapshot(&state, Visibility::UserFacing) }));
         }
-        // 整批一个事务：删除要么全生效、要么一条都不删
+        // 1 ：delete need 、 need 1 not 
         self.with_conn_mut(&_guard, |conn| {
             let tx = conn.transaction()?;
             for id in &targets {
@@ -439,7 +439,7 @@ impl AccountStore {
                 }
             ),
         );
-        // 落盘完成后作废这些账号的 CatPaw 会话映射（放锁，见本函数说明）
+        // after this CatPaw will （，）
         drop(_guard);
         for (id, provider) in removed_owners {
             self.invalidate_catpaw_sessions(&id, &provider);

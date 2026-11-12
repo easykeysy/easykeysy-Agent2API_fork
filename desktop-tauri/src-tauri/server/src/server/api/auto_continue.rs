@@ -1,41 +1,41 @@
-//! 「长度截断自动续写」的开关与轮数上限：`GET/PUT /api/auto-continue`。
+//! 「」 and limit：`GET/PUT /api/auto-continue`。
 //!
-//! ── 这个端点做什么 ──────────────────────────────────────────
-//! 上游的 turn 会**中途收尾**：输出预算用尽（`finish_reason: length` 一族）、连接被
-//! 掐断、或者整轮烧在思考通道里、正文只吐一两个词。客户端拿到的是半截答案，
-//! 而它无法区分「模型就说这么多」与「被腰斩」。开启后转发层把**已经写出的那半截**
-//! 当作 assistant 回合回放给上游、追一句「请继续输出」再打一次，新内容接在
-//! **同一条**客户端响应后面。六条判据、两道停机条件（轮数上限 + 相似度闸）与
-//! 代价口径都在 [`crate::server::core::upstream::continuation`]，这里只管两件事：
-//! 开不开（`autoContinue`）、最多问几轮（`autoContinueMaxRounds`，默认 3、合法 1~8）。
+//! ── this ──────────────────────────────────────────
+//! up turn will ** in **： use （`finish_reason: length` 1 ）、 
+//! 、or in 、 1 。client to is ，
+//! none「 this 」 and 「 」。 after ** already that **
+//! assistant to up 、 1 「」 1 ， new in 
+//! ** 1 **clientresponse after 。、（limit + ） and 
+//! in [`crate::server::core::upstream::continuation`]， this ：
+//! not （`autoContinue`）、（`autoContinueMaxRounds`，default 3、 1~8）。
 //!
-//! ── 为什么一个端点装两项，而不是照 keepalive 那样一项一个开关 ──
-//! 因为这两项**必须一起读才有意义**：续写链的两道停机里，轮数上限是那道**硬保险**
-//! （另一道是相似度闸，判的是「续出来的是不是上一段的复读」，阈值是软的），
-//! 一次请求最多打上游几回只由这两个数合起来决定。拆成两个端点则会出现
-//! 「开关开了、上限还没设」的中间态 —— 那是同一次设置动作的两半，所以合成一条
-//! PUT（与 `/api/routing` 那条「一个开关 + 几个有界整数」同形）。
+//! ── Why 1 ， not is keepalive that 1 1 ──
+//! as this **must 1 has **： ，limit is that ****
+//! （ 1 is ， is 「 is not is up 1 」， is ），
+//! 1 request up by this 。 then will 
+//! 「、limit no 」 in —— that is 1 set ， 1 
+//! PUT（ and `/api/routing` that 「 1 + has 」）。
 //!
-//! ── 为什么默认关、又为什么要能在线切 ───────────────────────
-//! 代价是真金白银的：续写的每一轮都带着前几轮的全部历史，一轮的成本**不覆盖**
-//! 前一轮而是求和，而收益只落在「这一轮确实被腰斩」的那一类请求上。花额度 +
-//! 改「客户端看到什么」这种可观测行为，两条都够格让默认值取关（见
-//! `config::KEY_AUTO_CONTINUE` 的取舍说明）。留成在线端点，是为了**能在真流量上
-//! 验证并随时撤回**：开一下、看几条请求、不对就关掉，不需要重新构建镜像。
-//! 转发层逐请求读内存快照，改完下一个请求立即生效，不重启进程。
+//! ── Whydefault、Why need can in ───────────────────────
+//! is ： 1 before ， 1 ** not **
+//! before 1 is and ， in 「 this 1 」 that 1 request up 。 +
+//! 「client to 」 this can as ，default（
+//! `config::KEY_AUTO_CONTINUE` ）。 in ， is as ** can in up 
+//! and when **： 1 down 、request、 not for ， not need need new 。
+//! request， down 1 request， not 。
 //!
-//! ── 为什么两项能分开改（partial update）─────────────────────
-//! 调用场景是分开的：先用默认 3 轮验一次效果，之后只想把预算收到 1 轮 ——
-//! 那一次 PUT 不该顺手把开关写回它已有的值（一次多余的落盘与一条多余的日志），
-//! 更不该要求调用方先 GET 才能安全地 PUT。所以**出现哪一项就改哪一项**，
-//! 缺省项保持原值；同时校验全部通过才落盘（与 `put_retry` / `put_retention`
-//! 同一顺序），避免出现「开关改了、上限没改」的半套设置。
+//! ── Why can （partial update）─────────────────────
+//! use is ： use default 3 1 ， after to 1 ——
+//! that 1 PUT not this already has （ 1 and 1 ），
+//! not this need use GET can PUT。** 1 1 **，
+//! ； when （ and `put_retry` / `put_retention`
+//! 1 ），「、limit no 」 set。
 //!
-//! ── 与 /api/keepalive-strip、/api/sanitize 的关系 ────────────
-//! 形状刻意保持一致（GET 读 / PUT 写 / 响应体就是新状态），差别只在写侧项目数：
-//! 那两条各一个布尔值，本条是一个布尔值 + 一个有界整数（于是多了范围校验）。
-//! 三者都是「改客户端看到的字节 / 改转发链的行为」且默认关，因此共用同一套
-//! 读写模式与同一条事件日志口径（`[Config]`，开关两个方向都记）。
+//! ── and /api/keepalive-strip、/api/sanitize ────────────
+//! 1 （GET / PUT / response is new ）， in ：
+//! that 1 ， is 1 + 1 has （ is ）。
+//! is 「client to / as 」 and default， use 1 
+//! and 1 （`[Config]`， to ）。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -52,17 +52,17 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// GET /api/auto-continue —— 当前开关与轮数上限
+/// GET /api/auto-continue —— current and limit
 pub async fn get_auto_continue(State(_state): State<ServerState>) -> Response {
     ok_json(state_json())
 }
 
 /// PUT /api/auto-continue —— body `{autoContinue?: true|false, autoContinueMaxRounds?: 1~8}`
 ///
-/// 两项各自独立（缺省项不动），全部校验通过才落盘。写配置后下一个请求立即生效
-/// （转发层逐请求读快照，不重启进程）。开与关都记一条事件日志：开的那一刻起，
-/// 一次客户端请求可能对应多次上游往返、多花一份额度，而关的那一刻起又变回去 ——
-/// 排查「这次请求怎么打了四回上游」时，日志里必须查得到这条线。
+/// （ not ），。config after down 1 request
+/// （request， not ）。 and 1 ： that 1 ，
+/// 1 clientrequest can can for up 、 1 ， that 1 ——
+/// 「 this request up 」 when ，must to this 。
 pub async fn put_auto_continue(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -76,8 +76,8 @@ pub async fn put_auto_continue(State(_state): State<ServerState>, body: Bytes) -
         Err(message) => return errors::management_error(400, message),
     };
     if patch.enabled.is_none() && patch.max_rounds.is_none() {
-        // 两项都没给：不写盘、不记日志（一条「设置已更新」的日志底下什么都没有，
-        // 会让排障的人以为发生过一次改动），直接把当前状态原样回给调用方
+        // no to ： not 、 not （ 1 「set already update」 down no has ，
+        // will as 1 ）， current to use 
         return ok_json(state_json());
     }
     if !config::set_auto_continue_patch(patch) {
@@ -87,20 +87,20 @@ pub async fn put_auto_continue(State(_state): State<ServerState>, body: Bytes) -
     ok_json(state_json())
 }
 
-/// 请求体 → 部分更新入参（`Err` 的文本就是 400 的文案）。
+/// request → update（`Err` is 400 ）。
 ///
-/// ── 为什么抽成纯函数 ────────────────────────────────────────
-/// 判据要能被单测钉住：`ServerState::bootstrap` 会开真库、写 `~/.agent2api`，
-/// 用例驱动不了 handler 本身，而这几条判定恰恰是「写坏了静默伤到每一条请求」
-/// 的那一类（与 `api::cline_headers` 的 `validated_overrides` 同一手法）。
+/// ── Why ────────────────────────────────────────
+/// need can ：`ServerState::bootstrap` will 、 `~/.agent2api`，
+/// use not handler ， this is 「 to 1 request」
+/// that 1 （ and `api::cline_headers` `validated_overrides` 1 ）。
 ///
-/// ── 为什么不认 `null` ───────────────────────────────────────
-/// 与 [`KEY_AUTO_CONTINUE`]、[`KEY_AUTO_CONTINUE_MAX_ROUNDS`] 的读侧口径**一致**：
-/// 缺失 = 用当前值（不改），出现了就必须是合法值。`null` 出现在这里只能是值打错
-/// —— 这条 PUT 没有「删掉这一项」的语义（setter 只 insert，落库侧的删除只跟着
-/// 底稿走），所以 `null` 什么也表达不了：既不是「关掉」（那是 `false`），也不是
-/// 「回到未配」（那要改库删行）。像 `put_retry` 那样把它当成「这一项不改」放过，
-/// 结果是调用方收到 200 而实际什么都没变。
+/// ── Why not `null` ───────────────────────────────────────
+/// and [`KEY_AUTO_CONTINUE`]、[`KEY_AUTO_CONTINUE_MAX_ROUNDS`] ** 1 **：
+/// = use current（ not ），must is 。`null` in this can is 
+/// —— this PUT no has 「 this 1 」 （setter insert， delete
+/// ）， `null` not ： not is 「」（ that is `false`）， not is 
+/// 「 to 」（ that need ）。 `put_retry` that 「 this 1 not 」，
+/// is use to 200 no 。
 fn patch_from(object: &Map<String, Value>) -> Result<AutoContinuePatch, String> {
     let mut patch = AutoContinuePatch::default();
     if let Some(value) = object.get(KEY_AUTO_CONTINUE) {
@@ -110,8 +110,8 @@ fn patch_from(object: &Map<String, Value>) -> Result<AutoContinuePatch, String> 
         patch.enabled = Some(enabled);
     }
     if let Some(value) = object.get(KEY_AUTO_CONTINUE_MAX_ROUNDS) {
-        // 判据与读侧共用 `int_in_range`（含「接受 3.0 这种整值浮点」这一条）：
-        // 范围与「什么算一个整数」两侧各写一份，迟早出现接口拒绝而手改库接受
+        // and use `int_in_range`（「 3.0 this 」 this 1 ）：
+        // and 「 1 」 1 ，
         let Some(rounds) = int_in_range(
             value,
             AUTO_CONTINUE_MIN_ROUNDS,
@@ -126,10 +126,10 @@ fn patch_from(object: &Map<String, Value>) -> Result<AutoContinuePatch, String> 
     Ok(patch)
 }
 
-/// 这次改动的一句话记录（进事件日志）。
+/// this 1 （）。
 ///
-/// 三种形态分开写：只改开关 / 只改上限 / 两项一起改。日志里要能看出**这次 PUT
-/// 动了哪一项**，否则「谁把上限从 3 改到 8 的」这类问题只能靠翻请求体回答。
+/// ： / limit / 1 。 need can ** this PUT
+/// 1 **，otherwise「 limit from 3 to 8 」 this can request。
 fn change_note(patch: &AutoContinuePatch) -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Some(enabled) = patch.enabled {
@@ -145,7 +145,7 @@ fn change_note(patch: &AutoContinuePatch) -> String {
     parts.join(" / ")
 }
 
-/// 开关与上限（GET 与 PUT 共用，前端直接用响应刷新界面）
+/// and limit（GET and PUT use ， before use response new ）
 fn state_json() -> Value {
     json!({
         KEY_AUTO_CONTINUE: config::auto_continue(),
@@ -155,32 +155,32 @@ fn state_json() -> Value {
 
 #[cfg(test)]
 mod tests {
-    //! PUT 的两条判据：类型与范围。
+    //! PUT ： and 。
     //!
-    //! ── 为什么钉在这里而不是响应状态码上 ────────────────────
-    //! handler 需要的 `ServerState` 只能由 `ServerState::bootstrap` 构造，而它会
-    //! 开真库、写 `~/.agent2api` —— 用例驱动不了它。于是判据抽成 [`patch_from`]
-    //! （返回 `Err(文案)`），handler 那侧只有一句
-    //! `Err(message) => errors::management_error(400, message)`：文案错不了，
-    //! 而 400 是那句话本身，不是可以再写歪的逻辑。与 `api::cline_headers`、
-    //! `api::codearts_welfare` 的同一取舍。
+    //! ── Why in this not is response up ────────────────────
+    //! handler need need `ServerState` can by `ServerState::bootstrap` ， will 
+    //! 、 `~/.agent2api` —— use not 。 is [`patch_from`]
+    //! （return `Err()`），handler that has 1 
+    //! `Err(message) => errors::management_error(400, message)`： not ，
+    //! 400 is that ， not is can 。 and `api::cline_headers`、
+    //! `api::codearts_welfare` 1 。
     //!
-    //! ── 每个用例钉的是哪种「写歪」───────────────────────────
-    //! 这三条各自对应一个**看起来合理**的实现，而不只是补覆盖率：
-    //! 认 `null`、用 `as_i64`（于是 3.0 被拒）、缺项时填默认值。
+    //! ── use is 「」───────────────────────────
+    //! this for 1 **** ， not is ：
+    //! `null`、 use `as_i64`（ is 3.0 ）、 when default。
 
     use super::*;
 
-    /// 一份只含给定几项的请求体。
+    /// 1 to request。
     fn body(pairs: &[(&str, Value)]) -> Map<String, Value> {
         pairs.iter().map(|(key, value)| (key.to_string(), value.clone())).collect()
     }
 
-    /// 布尔项只认字面 `true` / `false`；`null` 也算类型不符。
+    /// `true` / `false`；`null` not 。
     ///
-    /// 钉住的写歪：把 `null` 当成「没给」（`put_retry` 对 null 是这么处理的，
-    /// 那里合理 —— 表单整份回传会有未填项；这里两个键都没有「清空」语义），
-    /// 于是调用方收到 200 而开关一动没动。
+    /// ： `null` 「 no to 」（`put_retry` for null is this ，
+    /// that —— will has ； this no has 「empty」），
+    /// is use to 200 1 no 。
     #[test]
     fn the_switch_accepts_only_a_literal_boolean() {
         let only_false = patch_from(&body(&[(KEY_AUTO_CONTINUE, json!(false))]))
@@ -199,11 +199,11 @@ mod tests {
         }
     }
 
-    /// 轮数上限的边界：1 与 8 都收，0 / 9 / 越界远的都拒；`3.0` 这种整值浮点**必须收**。
+    /// limit ：1 and 8 ，0 / 9 / ；`3.0` this **must**。
     ///
-    /// 钉住的写歪：判据改用 `value.as_i64()`（`routing_api` 的 `int_field` 就是
-    /// 这么写的）—— 那样读侧接受 3.0、写侧 400，同一份配置两条口径
-    /// （`parse::int_in_range` 的存在理由就是把它们钉成一条）。
+    /// ： use `value.as_i64()`（`routing_api` `int_field` is 
+    /// this ）—— that 3.0、 400， 1 config
+    /// （`parse::int_in_range` in by is 1 ）。
     #[test]
     fn the_round_cap_is_validated_against_the_same_range_as_the_read_side() {
         for (accepted, expected) in [(json!(1), 1), (json!(8), 8), (json!(3.0), 3)] {
@@ -236,11 +236,11 @@ mod tests {
         }
     }
 
-    /// 两项独立：只出现一项时另一项是 `None`（= 不动），都不出现时两项都是 `None`。
+    /// ： 1 when 1 is `None`（= not ）， not when is `None`。
     ///
-    /// 钉住的写歪：缺省项填成默认值 —— 那会让「只想把预算收到 1 轮」这一次 PUT
-    /// 顺手把开关写回关（用户刚打开的功能被自己下一次的调整抹掉），
-    /// 且 `set_auto_continue_patch` 那边根本分不出「没给」与「给的是默认值」。
+    /// ：default —— that will 「 to 1 」 this 1 PUT
+    /// （ use can down 1 ），
+    /// and `set_auto_continue_patch` that not 「 no to 」 and 「 to is default」。
     #[test]
     fn an_absent_key_stays_absent_rather_than_becoming_the_default() {
         let only_switch = patch_from(&body(&[(KEY_AUTO_CONTINUE, json!(true))])).expect("合法");
@@ -257,8 +257,8 @@ mod tests {
         .expect("合法");
         assert_eq!((both.enabled, both.max_rounds), (Some(true), Some(8)));
 
-        // 空对象 = 什么都没给：不报错（一次 PUT 只改一项是常态，全给也是它），
-        // 但两项都必须是 None，否则 handler 会落一次没有任何变化的盘
+        // empty for = no to ： not （ 1 PUT 1 is ， to is ），
+        // must is None，otherwise handler will 1 no has 
         let nothing = patch_from(&body(&[])).expect("空对象不该报错");
         assert_eq!(nothing.enabled, None);
         assert_eq!(nothing.max_rounds, None);

@@ -8,7 +8,7 @@ import { useProviderDocumentation } from './docs-provider-data'
 import { useGatewayBase } from './port-panel'
 import { t } from '../i18n'
 
-// 地址节点由 port-panel 写入；id 与 clipboard.js 的 data-copy-from 契约必须保持稳定。
+// by port-panel ；id and clipboard.js data-copy-from must。
 function EndpointRow({ id, name, note }: { id: string; name: string; note: string }) {
   return <div className='ep-row'>
     <div className='ep-head'>

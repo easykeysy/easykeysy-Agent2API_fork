@@ -1,16 +1,16 @@
-//! 工具服务的「本机接入」：把 Skill 包 / MCP 配置写进本机客户端。
+//! 「」： Skill / MCP configclient。
 //!
-//! 与 OmniProxy 桌面端安装器的目标一致，但落点复用本项目「Agent 配置」页已有的
-//! 客户端路径表（`agents::resources::skill_roots` / MCP 配置文件），不另维护一份
-//! 客户端清单：
-//!   · Skill：写到客户端的用户级 skills 目录（`<root>/web-search/…`），
-//!     包含 SKILL.md、skill.json、运行时脚本与 `.agent2api.json`（API Key）；
-//!   · MCP：改写客户端 MCP 配置里本服务那一项（JSON / JSONC / TOML / YAML 由
-//!     既有写入器处理），HTTP 形态填 url + Authorization，视觉分析还可以用
-//!     本地桥接（stdio）形态以支持本地图片路径。
+//! and OmniProxy 1 ， use 「Agent config」 already has 
+//! clientpath（`agents::resources::skill_roots` / MCP configfile）， not 1 
+//! client：
+//! · Skill： to client use skills directory（`<root>/web-search/…`），
+//! SKILL.md、skill.json、 when and `.agent2api.json`（API Key）；
+//! · MCP：client MCP config that 1 （JSON / JSONC / TOML / YAML by 
+//! has ），HTTP url + Authorization， can use 
+//! （stdio）supportspath。
 //!
-//! 所有写入都走既有的预览 + 确认令牌（MCP）或原子写（Skill），失败不会留下
-//! 半套配置。
+//! all has + （MCP） or （Skill），failure not will down 
+//! config。
 
 use std::path::{Path, PathBuf};
 
@@ -59,7 +59,7 @@ fn marker_is_ours(target: &Path, service: &str) -> bool {
     value.get("name").and_then(Value::as_str) == Some(super::package_name(service))
 }
 
-/* ─── Skill 目标 ───────────────────────────────────────────── */
+/* ─── Skill ───────────────────────────────────────────── */
 
 pub fn skill_targets(service: &str) -> Vec<Value> {
     let mut rows = Vec::new();
@@ -117,7 +117,7 @@ pub fn install_skill(
             outcomes.push(InstallOutcome::failed(client_id, def.name, "该客户端不支持 Skill"));
             continue;
         }
-        // 已装过的那一份优先（保持路径稳定），否则装到该客户端的首选根目录
+        // already that 1 （path），otherwise to this client directory
         let target = roots
             .iter()
             .map(|root| skill_dir(root, service))
@@ -178,7 +178,7 @@ pub fn uninstall_skill(service: &str, client_ids: &[String]) -> Vec<InstallOutco
     outcomes
 }
 
-/* ─── MCP 目标 ─────────────────────────────────────────────── */
+/* ─── MCP ─────────────────────────────────────────────── */
 
 fn server_name(service: &str) -> &'static str {
     super::package_name(service)
@@ -212,7 +212,7 @@ pub fn mcp_targets(service: &str) -> Vec<Value> {
     rows
 }
 
-/// 视觉本地桥接脚本的落点（写一次、安装时复用）
+/// （ 1 、 when use ）
 fn ensure_bridge_script() -> Result<PathBuf, String> {
     let dir = crate::paths::config_dir().join("tools");
     std::fs::create_dir_all(&dir).map_err(|error| format!("创建工具目录失败：{error}"))?;

@@ -86,11 +86,11 @@ function ActivityRetryPlan({ entry, masterOn, onEdit }: {
 }): React.ReactElement {
   const enabled = activityRetryEnabled(entry)
   const active = masterOn && entry.enabled && enabled
-  // 重试关着时这两个数字都不必提：`retryAccounts` 里可能还留着旧名单，
-  // 但它们不会被消费 —— 说出来只会让「重试关闭」的徽标自相矛盾。
+  // when this not ：`retryAccounts` can can old ，
+  // not will —— will 「」 。
   const count = enabled ? Number(entry.retryCount) || 0 : 0
-  // 次数用完的账号已经不在 `retryCount` 里了（后端摘掉了），所以数字归零不等于
-  // 「没事了」—— 这两种状态必须分开说，否则用户以为签到已经完成。
+  // use already not in `retryCount` （ after ）， not etc 
+  // 「 no 」—— this must，otherwise use as to already 。
   const exhausted = enabled ? (entry.retryExhausted?.length ?? 0) : 0
   return <Card render={<section />} className='ck-activity-retry'>
     <CardHeader className='ck-schedule-plan-head'>

@@ -6,7 +6,7 @@ import { bridge, errorMessage, type RoutingWorkspace } from './routing-types'
 
 type ModelFilterResult = { source: string[]; model: string; providers: string[]; error: string }
 
-// 筛选结果独立于路由草稿，不能用模型工作区替换正在编辑的配置。
+// by ， not can use in config。
 export function useRoutingModelFilter(workspace: RoutingWorkspace | undefined, scope: string) {
   const [selected, setSelected] = React.useState('')
   const [result, setResult] = React.useState<ModelFilterResult | null>(null)

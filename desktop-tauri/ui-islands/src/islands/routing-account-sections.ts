@@ -12,7 +12,7 @@ export const routingCollapsedSections = [
 type CollapsedSection = typeof routingCollapsedSections[number]['key']
 type AccountSection = 'active' | CollapsedSection
 
-// 分组只改变展示位置，保留每组内部的原始顺序，不改写路由优先级。
+// ， ， not by 。
 export function routingAccountSections<T>(items: T[], accounts: AccountRecord[], provider: (item: T) => string, included: (item: T) => boolean) {
   const counts = new Map<string, { total: number; enabled: number }>()
   for (const account of accounts) {

@@ -1,4 +1,4 @@
-/** 只使用现有 methods/start/wait/callback/cancel 契约；不猜提供商协议。 */
+/** use has methods/start/wait/callback/cancel ； not 。 */
 import { apiCall, ApiError } from './client'
 import { serverIdentity } from '../lib/servers'
 import { isSuspendedProvider } from '../../../ui-shared/provider-availability'
@@ -54,7 +54,7 @@ export async function cancelDynamicLogin(state: string): Promise<void> {
 }
 
 export function submitDynamicCallback(state: string, callbackUrl: string): Promise<{ accountId?: string; accepted?: boolean; continue?: boolean; nextUrl?: string }> {
-  // URL / 裸 code 原文必须保留，不能 trim、拆参数或重建 state。
+  // URL / code must， not can trim、parameter or state。
   return apiCall('/api/session/login/callback', { method: 'POST', body: { state, callbackUrl } })
 }
 
@@ -74,8 +74,8 @@ export async function addDynamicApiAccount(input: LoginInput & { name?: string }
   }
   const warning = typeof result.warning === 'string' ? t(result.warning) : ''
   if (result.proxySaved === true) return warning
-  // 新网关同次落库成功后不重复 PATCH；旧网关仍尝试兼容保存并保留告警。
-  // 失败不能撤销已经添加的账号，也不能假称代理已保存。
+  // new success after not PATCH； old and 。
+  // failure not can already ， not can already 。
   let proxyWarning = t('旧网关未确认代理同次保存，已使用兼容接口保存；请在账号设置中确认代理选择。')
   try {
     await apiCall(`/api/accounts/${encodeURIComponent(result.account.id)}`, {

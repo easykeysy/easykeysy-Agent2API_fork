@@ -1,357 +1,357 @@
-//! 配置的**对外契约**：默认值、键名常量、各设置的形状与取值范围。
+//! config ** for **：default、、set and 。
 //!
-//! ── 为什么单独一层 ──────────────────────────────────────────
-//! 这些名字同时是**三处的契约**：`config.json`（现在是 `kv` 表的键）、
-//! HTTP API 的响应体、以及前端 `config.X` 的读法。它们必须只有一处定义 ——
-//! 读侧与写侧各写一遍字符串，任一处拼错都不报错，只会静默地读到默认值。
-//! 抽成独立文件后「配置一共有哪些键、各自什么范围」一眼可见，
-//! 而 `mod.rs` 只留「怎么读写」。
+//! ── Why 1 ──────────────────────────────────────────
+//! this when is ** **：`config.json`（ in is `kv` ）、
+//! HTTP API response、 and before `config.X` 。must has 1 ——
+//! and 1 ， 1 not ， will to default。
+//! file after 「config 1 has 、」 1 can ，
+//! `mod.rs` 「」。
 //!
-//! ── 键名为什么一字不改（camelCase 保留）─────────────────────
-//! 改造前它们是 `config.json` 的顶层键；进 `kv` 表后**仍然用原名**，
-//! 不改成 snake_case：这些名字同时是 HTTP API 契约（`GET /api/config` 的
-//! 响应体、前端 `config.X` 的读法），改名会让前端、账号迁移、模型规则三处
-//! 同时受影响。数据库里的键名与 JSON 键一一对应，排障时能直接把库里的值
-//! 贴进配置文件比对（约定见 `db::schema` 模块头）。
-//! 另一面：这些键**绝不能与 `db::schema::RESERVED_KV_KEYS` 相撞** ——
-//! 撞名的后果是配置写入把别人的状态删掉（论证见那里）。
+//! ── Why 1 not （camelCase ）─────────────────────
+//! before is `config.json` ； `kv` after ** use **，
+//! not snake_case： this when is HTTP API （`GET /api/config` 
+//! response、 before `config.X` ）， will before 、、 then 
+//! when 。 and JSON 1 1 for ， when can 
+//! configfile for （ `db::schema` module header）。
+//! 1 ： this ** not can and `db::schema::RESERVED_KV_KEYS` ** ——
+//! after is config （ that ）。
 //!
-//! ── 两类常量 ────────────────────────────────────────────────
-//!   - **键名**（`KEY_*`）：读写两侧共用的字符串；
-//!   - **边界**（`DEFAULT_*` / `*_MIN_*` / `*_MAX_*`）：读侧回落与写侧校验
-//!     共用同一份数字，避免「接口拒绝 60 而手改库接受它」这种两套口径。
+//! ── ────────────────────────────────────────────────
+//! - ****（`KEY_*`）： use ；
+//! - ****（`DEFAULT_*` / `*_MIN_*` / `*_MAX_*`）： and 
+//! use 1 ，「 60 」 this 。
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-/// 默认模型：客户端未指定模型时使用（对应 Node 版 `--default-model` 默认值）
+/// default：client when use （ for Node `--default-model` default）
 pub const DEFAULT_MODEL: &str = "auto";
-/// 计费接口默认语言（对应 Node 版 `--locale` 默认值）
+/// default（ for Node `--locale` default）
 pub const DEFAULT_LOCALE: &str = "zh-CN";
 
-// ─── 保留期设置的键名与边界（config.json 里的字段名**就是契约**）─────
-// 命名风格与既有字段（apiKey / locale / lastRequestModel / autoCheckin）一致：
-// camelCase。这里把键名提成常量，是因为**读侧与写侧必须用同一个字符串** ——
-// 任一处手写拼错都不会报错，只会静默地读到默认值。
+// ─── set and （config.json ** is **）─────
+// and has （apiKey / locale / lastRequestModel / autoCheckin） 1 ：
+// camelCase。 this ， is as ** and must use 1 ** ——
+// 1 not will ， will to default。
 
-/// 事件日志（统一库的 `logs` 表）保留天数
+/// （ 1 `logs` ）
 pub const KEY_LOG_RETENTION_DAYS: &str = "logRetentionDays";
-/// 请求日志（统一库的 `requests` 表）保留天数。
+/// request（ 1 `requests` ）。
 ///
-/// 为什么不是旧版的 `requestRetentionDays`：那个键在「全量保留」时期
-/// （`4a0e104`）退役过，老库 / 旧 config.json 里残留的值是**旧默认**（30 天）。
-/// 恢复这项设置时默认改成了 99999 天 —— 沿用旧键会让那些残留值悄悄生效，
-/// 升级后的第一次记账就把老日志裁掉。换新键让它从新默认起步；旧键残留
-/// 不被读取、也无害（与全量保留时期的口径一致）。
+/// Why not is old `requestRetentionDays`： that in 「」 when 
+/// （`4a0e104`）， / old config.json is ** old default**（30 ）。
+/// this set when default 99999 —— use old will that ，
+/// after 1 。 new from new default； old 
+/// not 、none（ and when 1 ）。
 pub const KEY_REQUEST_RETENTION_DAYS: &str = "requestLogRetentionDays";
-/// 按天聚合（统一库的 `request_daily` 表）保留天数（改名理由同上）
+/// by （ 1 `request_daily` ）（ by up ）
 pub const KEY_DAILY_RETENTION_DAYS: &str = "dailyAggregateRetentionDays";
 pub const KEY_LOG_RETENTION_COUNT: &str = "logRetentionCount";
 pub const KEY_REQUEST_RETENTION_COUNT: &str = "requestLogRetentionCount";
 
-/// 事件日志的保存目录（config.json 键）。
+/// directory（config.json ）。
 ///
-/// 值是**绝对路径**；缺省 / 空串 / 相对路径（读侧视为写坏）都回落配置目录 ——
-/// 两类数据各一个键，互不约束（可以搬到同一个目录，文件名不冲突）。
+/// is ** for path**； / empty / for path（ as ）configdirectory ——
+/// 1 ， not （ can to 1 directory，file not ）。
 pub const KEY_LOG_DIR: &str = "logDir";
-/// 请求日志（明细 + 按天聚合）的保存目录（config.json 键），语义同 `KEY_LOG_DIR`
+/// request（ + by ） directory（config.json ）， `KEY_LOG_DIR`
 pub const KEY_REQUEST_STATS_DIR: &str = "requestStatsDir";
-/// 调试模式原始报文的保存目录（config.json 键），语义同 `KEY_LOG_DIR`
+/// directory（config.json ）， `KEY_LOG_DIR`
 pub const KEY_DEBUG_DIR: &str = "debugDir";
 
-/// 「软件更新」的出网线路（config.json 键，**缺省 = 直连**）。
+/// 「update」 （config.json ，** = **）。
 ///
-/// 值是归一后的代理配置对象（与账号代理同一形状：`{source:'clash',
-/// listenerUid}` / `{source:'custom',…}`），null / 缺省都表示直连。
-/// 检查更新与下载安装包共用它（`core::update::client` 的出口候选），
-/// 定时检查任务同一条路 —— 所以改完不用重启，下一次检查就生效。
-/// 归一与解析都复用账号代理那两份实现（`normalize_account_proxy` /
-/// `resolve_account_proxy`），这里只存取。
+/// is 1 after config for （ and 1 ：`{source:'clash',
+/// listenerUid}` / `{source:'custom',…}`），null / 。
+/// checkupdate and down use （`core::update::client` ），
+/// when check 1 —— not use ， down 1 check。
+/// 1 and use that （`normalize_account_proxy` /
+/// `resolve_account_proxy`）， this 。
 pub const KEY_UPDATE_PROXY: &str = "updateProxy";
 
-/// 「关注 beta 版更新」开关（config.json 键，缺省关）。
+/// 「 beta update」（config.json ，）。
 ///
-/// 与 `updateStable` 共同筛选 Release，当前安装版本不改变关注范围。
-/// beta 版本号必须与 tag 的语义化版本一致，否则无法判断更新先后。
+/// and `updateStable` Release，current not 。
+/// beta must and tag 1 ，otherwisenoneupdate after 。
 pub const KEY_UPDATE_BETA: &str = "updateBeta";
 
-/// GitHub 令牌的密文信封（config.json 键，**存的不是明文**）。
+/// GitHub （config.json ，** not is **）。
 ///
-/// 值是 `core::update::token` 用 AES-256-GCM 加密出来的 `enc1:<base64>` 信封，
-/// 明文只进内存、只在拼请求头时用；密钥在库外的密钥文件里（细节见那个
-/// 模块的头注释）。API 只报「有没有、来自哪」，不回显本体。
-/// 环境变量 `GITHUB_TOKEN` 仍是兜底来源（优先级：这个键 > 环境变量）。
+/// is `core::update::token` use AES-256-GCM `enc1:<base64>` ，
+/// 、 in request when use ； in file（ that 
+/// ）。API 「 has no has 、」， not 。
+/// `GITHUB_TOKEN` is （： this > ）。
 pub const KEY_GITHUB_TOKEN: &str = "githubToken";
 
-/// 调试模式开关（config.json 键）。
+/// （config.json ）。
 ///
-/// 开启后转发层会把**发给上游的请求头（脱敏）与请求体、上游返回的响应头与
-/// 响应体**完整落到统一库的 `debug_traffic` 表（见 `core::debug_traffic`），请求日志
-/// 页的「详情」列据此展示。默认关闭 —— 报文体积可达数百 KB，常开会让日志目录
-/// 迅速膨胀；关闭时采集路径完全不执行（零开销，见各采集点的 `if enabled`）。
+/// after will ** to up request（） and request、 up return response and 
+/// response** to 1 `debug_traffic` （ `core::debug_traffic`），request
+/// 「」。default —— can KB， will directory
+/// ； when path not （， `if enabled`）。
 pub const KEY_DEBUG_MODE: &str = "debugMode";
 
-/// 出站请求体黑名单指纹脱敏开关（config.json 键，对应 workbuddy2api 的
+/// request（config.json ， for workbuddy2api 
 /// `features.sanitize_blacklist_fingerprints`）。
 ///
-/// 开启后转发层在每次出站前剥离上游内容审核的黑名单指纹（见
-/// `core::sanitize`）：表头键值整段删除、承载语义的模板句最小改写。
-/// **默认开启**（与参考项目同默认）：关掉它等于把客户端 system 模板原样发给
-/// 上游，那正是模板句被误拦（400 code=11128）的原因。
-/// 转发层逐请求读快照，改完下一个请求立即生效，不重启进程。
+/// after in before up （
+/// `core::sanitize`）：delete、 。
+/// **default**（ and default）： etc client system to 
+/// up ， that is （400 code=11128） Reason。
+/// request， down 1 request， not 。
 pub const KEY_SANITIZE_FINGERPRINTS: &str = "sanitizeBlacklistFingerprints";
 
-/// 开发者角色兼容开关（config.json 键，设置页「网关 → 开发者角色兼容」）。
+/// （config.json ，set「 → 」）。
 ///
-/// 开启后转发层在每次出站前把请求 `messages` 里 `role: "developer"` 的消息
-/// 改写为 `role: "system"`（OpenAI 新版 API 用 developer 取代 system 承载
-/// 指令），兼容不认识 developer 角色的 OpenAI 兼容上游 —— 自定义提供商是
-/// 请求体原样透传的，不归一的话这类消息会原样发出去被上游 400。
-/// **默认开启**（与 OmniProxy 同默认）：改写语义无损（两类角色在 OpenAI 语义
-/// 上等价），而默认关会让发 developer 角色的客户端一上来就撞不认识它的上游。
-/// 转发层逐请求读快照，改完下一个请求立即生效，不重启进程。
-/// 转换实施点见 `core::upstream::payload`（send_body 的角色归一层）。
+/// after in before request `messages` `role: "developer"` 
+/// as `role: "system"`（OpenAI new API use developer system 
+/// ）， not developer OpenAI up —— is 
+/// request ， not 1 this will up 400。
+/// **default**（ and OmniProxy default）：none（ in OpenAI 
+/// up etc ），default will developer client 1 up not up 。
+/// request， down 1 request， not 。
+/// `core::upstream::payload`（send_body 1 ）。
 pub const KEY_DEVELOPER_ROLE_COMPAT: &str = "developerRoleCompat";
 
-/// **Cline 转发头的逐键覆盖**（config.json 键）。
+/// **Cline **（config.json ）。
 ///
-/// 形状：`{"User-Agent": "Cline/3.0.62", ...}`（string → string）。语义是
-/// **覆盖表**而非全量配置：Cline 上游请求的伪装头默认值硬编码在
-/// `core::providers::cline::headers`（与官方客户端形态对齐的那一套，含
-/// `X-CLIENT-TYPE: cline-sdk` 这类产品面校验头），这张表里**非空**的项按键
-/// 覆盖默认值（也可新增自定义头），**空串**的项表示「这个头不要发」——
-/// 于是「回到默认」与「删掉某个头」都是一次 PUT 就能表达的事。
+/// ：`{"User-Agent": "Cline/3.0.62", ...}`（string → string）。 is 
+/// ****config：Cline up request default in 
+/// `core::providers::cline::headers`（ and client for that 1 ，
+/// `X-CLIENT-TYPE: cline-sdk` this ）， this **empty** by 
+/// default（ can add），**empty** 「 this not need 」——
+/// is 「 to default」 and 「 」 is 1 PUT can 。
 ///
-/// 为什么默认值不进配置：与 `promptGatewayText` 同一取向 —— 默认值是代码里
-/// 的一等公民（上游行为收紧时跟着版本走），配置里只存用户**改过的**那部分，
-/// 存量安装不迁移、不回种。
+/// Whydefault not config： and `promptGatewayText` 1 to —— default is 
+/// 1 etc （ up as when ），config use ** ** that ，
+/// not 、 not 。
 pub const KEY_CLINE_UPSTREAM_HEADERS: &str = "clineUpstreamHeaders";
 
-/// 网关面（`/v1/*`）跨域访问开关的键（config.json 键，设置页「安全 → 网关跨域访问」）。
+/// 网关面（`/v1/*`） （config.json ，set「 → 」）。
 ///
-/// **默认关闭**：不开时浏览器里第三方来源的页面调不到网关面 —— 预检请求会落到
-/// API Key 中间件上被 401 拒掉（预检按规范不携带 `Authorization` 头），页面侧
-/// 只能看到一句「无法连接 API」。要用浏览器里的本地页面（自建 Web UI、单文件
-/// 前端应用等）直接连网关时把它打开。开启后网关面按面板路由的老口径应答：
-/// 预检直接 204，三个 `Access-Control-Allow-*` 头逐响应下发（来源为 `*`）。
+/// **default**： not when not to —— request will to 
+/// API Key in up 401 （ by not `Authorization` ），
+/// can to 1 「none API」。 need use （ Web UI、file
+/// before use etc ） when 。 after by by ：
+/// 204， `Access-Control-Allow-*` response down （ as `*`）。
 ///
-/// ── 为什么默认关，而面板路由一直是 `*` ────────────────────────
-/// 面板路由的 `*` 是既有行为（面板与 `/api/*` 同源，浏览器本来不需要它），
-/// 改它属于另一件事；而网关面是**真正转发上游、消耗额度**的那一面 ——
-/// 开着 `*` 又没配 API Key 时，任何网页都能借本机网关打上游。默认关 + 显式
-/// 开启，至少让用户知道自己打开了什么。
+/// ── Whydefault， by 1 is `*` ────────────────────────
+/// by `*` is has as （ and `/api/*` ， not need need ），
+/// 1 ； is ** up 、** that 1 ——
+/// `*` no API Key when ， can up 。default + 
+/// ， use 。
 ///
-/// 面板路由（`/api/*`）不受本开关影响，保持既有的无条件 CORS
-/// （见 `http::panel_router` 与 `http::cors`）。
+/// by （`/api/*`） not ， has none CORS
+/// （ `http::panel_router` and `http::cors`）。
 pub const KEY_CORS_ENABLED: &str = "corsEnabled";
 
-/// 「丢弃保活换行分片」开关的键（详见 `core::upstream::sse::is_newline_keepalive`）。
+/// 「」 （ `core::upstream::sse::is_newline_keepalive`）。
 ///
-/// 打开后，**声明了该能力位的**提供商（目前只有 WorkBuddy 与 AutoClaw）在下发
-/// SSE 帧时丢掉「整片只由换行组成」的 content 分片 —— 那是那两条上游的保活节拍
-/// （同一个流里 `: heartbeat` 注释行也在发），客户端按 markdown 渲染就被排成
-/// 一行一个词。两天 58 发 WorkBuddy 200 请求里 20 发带这类分片（34.5%），
-/// 脏请求里它们占正文分片中位 13.4%（区间 1.2%–30.8%）。
+/// after ，** this can **（ before has WorkBuddy and AutoClaw） in down 
+/// SSE when 「 by 」 content —— that is that up 
+/// （ 1 `: heartbeat` in ），client by markdown 
+/// 1 1 。 58 WorkBuddy 200 request 20 this （34.5%），
+/// request in 13.4%（ 1.2%–30.8%）。
 ///
-/// **默认关闭**，与适配器那位 `sse_strip_newline_chunks()` 是**与**的关系：
-/// 能力位回答「这家的上游会不会发这种东西」，这个开关回答「本机要不要为它改写
-/// 下发帧」。默认关的理由不是怀疑判据，而是取舍的方向性 —— 开了之后，模型真
-/// 有一个「单独成片」的换行也会被一起吃掉；那是一处**看得见的外观损失**，
-/// 而它换掉的是一整屏断句。留一个不改代码就能开关的口子，是为了让这件事能在
-/// 真流量上验证与随时撤回（见 `api::keepalive` 的 `/api/keepalive-strip`）。
+/// **default**， and that `sse_strip_newline_chunks()` is ** and ** ：
+/// can 「 this up will not will this 」， this 「 need not need as 
+/// down 」。default by not is ， is to —— after ，
+/// has 1 「」 will 1 ； that is 1 ** **，
+/// is 1 。 1 not can ， is as this can in 
+/// up and when （ `api::keepalive` `/api/keepalive-strip`）。
 ///
-/// 部署级兜底：配置里没有这个键时读环境变量 `AGENT2API_STRIP_NEWLINE_KEEPALIVE`
-/// （`1` / `true` / `on` 才算开启，其余含空值都算关，见 `parse::env_strip_newline_keepalive`）
-/// —— Docker 部署想从第一次启动就打开的，不必先进面板点一次。
+/// ：config no has this when `AGENT2API_STRIP_NEWLINE_KEEPALIVE`
+/// （`1` / `true` / `on` ， its empty， `parse::env_strip_newline_keepalive`）
+/// —— Docker from 1 ， not 1 。
 pub const KEY_STRIP_NEWLINE_KEEPALIVE: &str = "stripNewlineKeepalive";
 
-/// 机器人校验开关的键（config.json 键，ALTCHA proof-of-work，见 `server::altcha`）。
+/// （config.json ，ALTCHA proof-of-work， `server::altcha`）。
 ///
-/// **默认开启**：登录 / 注册是公开的认证边界，脚本可以无限打（暴破密码、
-/// 抢注管理员）；ALTCHA 让每个请求先花一次算力，配合失败锁定把批量攻击
-/// 打得没性价比。对真人无感 —— 登录页在后台把题算完才允许提交。
-/// 只影响面板的 login / setup 两个端点，与 `/v1/*` 的 API Key 鉴权无关。
+/// **default**： / is ， can none（、
+/// ）；ALTCHA request 1 ，failure 
+/// no 。 for none —— in after 。
+/// login / setup ， and `/v1/*` API Key none。
 ///
-/// 部署级兜底：配置里没有这个键时读环境变量 `AGENT2API_CAPTCHA_ENABLED`
-/// （登录页人机验证组件环境变量，默认为1开启，0为关闭，见
-/// `parse::env_captcha_enabled`）—— Docker 想从第一次启动就关掉校验的，
-/// 在 compose / `.env` 里设它即可；设置页改过一次之后以库里的值为准
-/// （优先级「配置里的值 > 环境变量」）。
+/// ：config no has this when `AGENT2API_CAPTCHA_ENABLED`
+/// （，default as 1，0 as ，
+/// `parse::env_captcha_enabled`）—— Docker from 1 ，
+/// in compose / `.env` can ；set 1 after as 
+/// （「config > 」）。
 ///
-/// ── 分端（2026-10 起）──────────────────────────────────────
-/// 本键是**旧版的单开关**，现在只作为两端的共同默认值：读取时优先看
-/// [`KEY_CAPTCHA_DESKTOP`] / [`KEY_CAPTCHA_WEB`]，两者都没有才回落它。
-/// 升级时两个分端键缺省即回落旧值 —— 老用户改过的开关状态不会丢。
+/// ── （2026-10 ）──────────────────────────────────────
+/// is ** old **， in as default： when 
+/// [`KEY_CAPTCHA_DESKTOP`] / [`KEY_CAPTCHA_WEB`]， no has 。
+/// when old —— use not will 。
 pub const KEY_CAPTCHA_ENABLED: &str = "captchaEnabled";
 
-/// 桌面端（Tauri 壳）的机器人校验开关。
+/// （Tauri ） 。
 ///
-/// 桌面形态默认**开启**（与旧单开关一致）：登录 / 注册端点对局域网里的
-/// 其他设备同样开放，ALTCHA 是同一道门槛。用户可在设置里单独关掉 ——
-/// 本机访问而嫌算力开销时，关掉只影响桌面形态。
+/// default****（ and old 1 ）： / for 
+/// its ，ALTCHA is 1 。 use can in set ——
+/// when ，。
 pub const KEY_CAPTCHA_DESKTOP: &str = "captchaDesktop";
 
-/// 网页端（headless / Docker / 浏览器面板）的机器人校验开关。
+/// （headless / Docker / ） 。
 ///
-/// headless 形态默认**开启**：这是暴露在真实网络上的登录页，暴破成本最低。
+/// headless default****： this is in up ，。
 pub const KEY_CAPTCHA_WEB: &str = "captchaWeb";
 
-/// models.dev 模型元数据开关的键（config.json 键，见 `core::model_meta`）。
+/// models.dev （config.json ， `core::model_meta`）。
 ///
-/// **默认开启**：它是「上游没声明的那几个能力键由社区库补上」这条链路的总闸
-/// ——关掉只影响**联网刷新**（内嵌快照仍生效，模型清单照常工作），所以默认开
-/// 的代价只是定时任务里多一次几 MB 的公网请求；而默认关的代价是「这个功能对
-/// 绝大多数用户等于不存在」（没人会去设置里找一个不知道自己需要的开关）。
+/// **default**： is 「 up no that can by up 」 this total
+/// ——** new **（，），default
+/// is when 1 MB request；default is 「 this can for 
+/// use etc not in 」（ no will set 1 not need need ）。
 ///
-/// 关闭后：`core::model_meta::refresh` 直接返回 skipped（不打网络），已经装载
-/// 的索引继续用（内存里的那份 + 库里的那份都不会被清掉）——「关掉」的语义是
-/// 「别再联网拉了」，不是「把已有数据扔掉」。
+/// after ：`core::model_meta::refresh` return skipped（ not ）， already 
+/// use （ that + that not will ）——「」 is 
+/// 「」， not is 「 already has 」。
 pub const KEY_MODELS_DEV_ENABLED: &str = "modelsDevEnabled";
 
-/// 系统提示词模式的键（config.json 键，对应 workbuddy2api 的 `prompt.mode`）。
+/// （config.json ， for workbuddy2api `prompt.mode`）。
 ///
-/// 取值 `passthrough` / `custom` / `append`（见 `core::prompt::PromptMode`）；
-/// **默认 `passthrough`**（与参考项目同默认）：不动客户端 system，行为与改造前
-/// 逐字相同。`custom` / `append` 改用网关自有提示词替换/追加 system 消息 ——
-/// 那是脱敏之外的第二层防护：从**源头**消灭 system 来源的指纹，而不是等它
-/// 出站前再改（两层叠加、互不替代，见 `core::prompt` 的模块头）。
+/// `passthrough` / `custom` / `append`（ `core::prompt::PromptMode`）；
+/// **default `passthrough`**（ and default）： not client system， as and before 
+/// 。`custom` / `append` use has / system ——
+/// that is ： from **** system ， not is etc 
+/// before （、 not ， `core::prompt` module header）。
 pub const KEY_PROMPT_MODE: &str = "promptMode";
 
-/// 系统提示词文件的键（config.json 键，对应 workbuddy2api 的 `prompt.file`）。
+/// file （config.json ， for workbuddy2api `prompt.file`）。
 ///
-/// 空串 / 缺失 = 用内置默认提示词（`core::prompt::BUILT_IN_PROMPT`）；
-/// 否则读该路径（UTF-8 文本）。只在 `custom` / `append` 模式下有意义 ——
-/// `passthrough` 不读文件。
+/// empty / = use default（`core::prompt::BUILT_IN_PROMPT`）；
+/// otherwise this path（UTF-8 ）。 in `custom` / `append` down has ——
+/// `passthrough` not file。
 pub const KEY_PROMPT_FILE: &str = "promptFile";
 
-/// **界面里直接编辑**的系统提示词正文（config.json 键）。
+/// **** （config.json ）。
 ///
-/// 非空白 = **以它为准**，优先级高于 [`KEY_PROMPT_FILE`] 与内置默认；空串 /
-/// 缺失 = 回到「文件 > 内置默认」的老路径。逐家的项里也是这个名字（与
-/// `promptMode` / `promptFile` 一样，全局与逐家共用一套键名）。
+/// empty = ** as **， [`KEY_PROMPT_FILE`] and default；empty /
+/// = to 「file > default」 path。 is this （ and 
+/// `promptMode` / `promptFile` 1 ， and use 1 ）。
 ///
-/// ── 为什么要有它（与提示词文件的关系）────────────────────────
-/// 文件路径适合「我有一份自己维护的提示词」；改一个字要去编辑器里开文件、
-/// 存盘、再切回设置页，对「只想补一句『回答用中文』」这种需求太重。界面正文
-/// 是**就地编辑的那一份**，保存即生效（`set_prompt` 会重跑解析，下一个请求
-/// 就用新文本）。两者不互相替代：界面正文清空后，文件与内置默认照旧生效 ——
-/// 用户不必为了试一句话就把文件路径先删掉。
+/// ── Why need has （ and file ）────────────────────────
+/// filepath「 has 1 」； 1 need file、
+/// 、set， for 「 1 『 use in 』」 this need 。
+/// is ** that 1 **，（`set_prompt` will ， down 1 request
+/// use new ）。 not ：empty after ，file and default old ——
+/// use not as 1 filepath。
 pub const KEY_PROMPT_TEXT: &str = "promptText";
 
-/// **按提供商**覆盖系统提示词设置的键（config.json 键）。
+/// ** by **set （config.json ）。
 ///
-/// 形状：`{"<providerId>": {"promptMode": "...", "promptFile": "..."}}` ——
-/// 项里的键名与全局那两个**逐字相同**（三处只有一套名字：配置、接口载荷、
-/// 接口响应），值是**稀疏**的 ——
-/// 只写想单独配置的那几家，其余一律沿用上面两个全局键。删除某家 = 把这个键从
-/// 对象里去掉（接口侧传 `null`）。
+/// ：`{"<providerId>": {"promptMode": "...", "promptFile": "..."}}` ——
+/// and that ****（ has 1 ：config、、
+/// response）， is **** ——
+/// config that ， its 1 use up 。delete = this from 
+/// for （ `null`）。
 ///
-/// ── 为什么需要它（与全局键的关系）────────────────────────────
-/// 「用哪份提示词」本来就是**按上游**不同的问题：一家的内容审核按逐字指纹拦截、
-/// 另一家（ZCode 活动套餐通道）只认它自己的官方身份块，拿同一份提示词套所有家
-/// 不是过严就是过松。全局键保留为**默认值**（不写这个键时行为与改造前逐字相同），
-/// 逐家的差异写在这里。
+/// ── Why need need （ and ）────────────────────────────
+/// 「 use 」 is ** by up ** not ： 1 by 、
+/// 1 （ZCode ） ， 1 all
+/// not is is 。 as **default**（ not this when as and before ），
+/// in this 。
 pub const KEY_PROMPT_PROVIDERS: &str = "promptProviders";
 
-/// **网关自带提示词**的逐家开关（config.json 键）：`{"<providerId>": false}`。
+/// **** （config.json ）：`{"<providerId>": false}`。
 ///
-/// 上面那个键管的是**客户端 system 怎么处理**；这一项管的是**网关自己要不要装
-/// 它那段内置文本**（今天只有 ZCode 活动套餐通道的官方三段身份块，见
-/// `zcode::OFFICIAL_PROMPT_NOTE` 的实测记录）。
+/// up that is **client system **； this 1 is ** need not need 
+/// that **（ has ZCode ，
+/// `zcode::OFFICIAL_PROMPT_NOTE` ）。
 ///
-/// ── 为什么单独一张表，而不并进 `promptProviders` ──────────────
-/// 两者的生效条件与默认值都不一样：`promptProviders` 的项是「这家**有**自己的
-/// 模式 / 文件」（缺省 = 跟随全局），而这一项是「这家要不要装网关的内置段」
-/// （缺省 = **装**，因为那是上游当下的硬性要求）。并进同一项里，用户只想拨一下
-/// 开关就得连带把模式 / 文件一起落成显式值 —— 于是「今天关掉官方段」会顺手把
-/// 这家的模式钉死在当时的全局值上，之后改全局它不再跟随：一个动作产生两个后果，
-/// 而且第二个后果用户看不见。分表之后两者互不干扰，各自的缺省语义也说得清。
+/// ── Why 1 ， not and `promptProviders` ──────────────
+/// and default not 1 ：`promptProviders` is 「 this ** has ** 
+/// / file」（ = ）， this 1 is 「 this need not need 」
+/// （ = ****， as that is up down need ）。 and 1 ， use 1 down 
+/// / file 1 —— is 「」 will 
+/// this in when up ， after not ： 1 after ，
+/// and after use not 。 after not ， 。
 ///
-/// 值存 `true` / `false`（用户明确拨过的那一侧）；**键缺失 = 默认（装）**。
-/// 接口传 `null` = 删键、回到默认（见 `/api/prompt` 的载荷说明）—— 留着用户
-/// 拨过一次的 `true` 是有意的：配置里一眼看得出「这家被明确确认过要装」，
-/// 与「从来没动过」区分开，排障时少一次猜测。
+/// `true` / `false`（ use that 1 ）；** = default（）**。
+/// `null` = 、 to default（ `/api/prompt` ）—— use 
+/// 1 `true` is has ：config 1 「 this need 」，
+/// and 「 from no 」， when 1 。
 pub const KEY_PROMPT_GATEWAY: &str = "promptGateway";
 
-/// **网关自带提示词的正文覆盖**（config.json 键）：
+/// ** **（config.json ）：
 /// `{"<providerId>": {"identity": "...", "stable": "...", "dynamic": "..."}}`。
 ///
-/// 上面那个键管的是「装不装」，这一项管的是「装的那段长什么样」—— 用户改过的
-/// 那一段以配置里的文本为准（逐段合并：只写改过的那几段即可，缺的段用官方原文，
-/// 见 `core::prompt::GatewayBlocks::or`）。段名就是三段的名字：身份句 / 稳定段 /
-/// 动态段 —— 三段各自成块是上游的结构要求，所以不提供「合成一整段」的编辑方式。
+/// up that is 「 not 」， this 1 is 「 that 」—— use 
+/// that 1 config as （ and ： that can ， use ，
+/// `core::prompt::GatewayBlocks::or`）。 is ： / /
+/// —— is up need ， not 「 1 」 。
 ///
-/// 动态段里的 `{cwd}` / `{platform}` / `{shell}` / `{os_version}` / `{git}` /
-/// `{provider}` / `{model}` 是**占位符**：发请求时才换成真实运行值（工作目录、
-/// 平台、模型名……）。官方原文里本来就带 `{provider}` / `{model}` 两个，这里只是
-/// 把 Environment 段那几行也变成同样的写法，用户想改哪一行都行、想删也可以。
+/// `{cwd}` / `{platform}` / `{shell}` / `{os_version}` / `{git}` /
+/// `{provider}` / `{model}` is ****：request when （directory、
+/// 、……）。 `{provider}` / `{model}` ， this is 
+/// Environment that ， use 1 、 can 。
 ///
-/// 删掉某家 = 把这个键从对象里去掉（接口侧传 `null`）= 回到官方原文。
+/// = this from for （ `null`）= to 。
 pub const KEY_PROMPT_GATEWAY_TEXT: &str = "promptGatewayText";
 
-/// 插件侧读「网关自带提示词开关」时用的**约定键名**（`settings.get` 的 `key`）。
+/// 「」 when use ****（`settings.get` `key`）。
 ///
-/// ── 为什么插件不能直接读 `KEY_PROMPT_GATEWAY` ────────────────
-/// `settings.get` 的默认口径是「读 `plugin.<provider>.<key>` 这条**插件私有**
-/// 配置」，而提示词开关是网关自己的用户配置（存在顶层 `promptGateway` 表里、
-/// 按 provider id 索引）。给这两个键名开一条专用回答，插件就能读到同一份用户
-/// 配置 —— 否则界面上拨了开关、实际发出去的请求不变。
+/// ── Why not can `KEY_PROMPT_GATEWAY` ────────────────
+/// `settings.get` default is 「 `plugin.<provider>.<key>` this ** has **
+/// config」， is use config（ in `promptGateway` 、
+/// by provider id ）。 to this 1 use ， can to 1 use 
+/// config —— otherwise up 、 request not 。
 pub const PLUGIN_SETTING_GATEWAY_PROMPT: &str = "gatewayPrompt";
 
-/// 插件侧读「网关自带提示词正文覆盖」时用的约定键名（与
-/// [`PLUGIN_SETTING_GATEWAY_PROMPT`] 同一处置）。
+/// 「」 when use （ and 
+/// [`PLUGIN_SETTING_GATEWAY_PROMPT`] 1 ）。
 ///
-/// 回答的形状是 `{identity, stable, dynamic}`（只含用户改过的段，缺的段回
-/// `Null` 表示「用官方原文」）。
+/// is `{identity, stable, dynamic}`（ use ， 
+/// `Null` 「 use 」）。
 pub const PLUGIN_SETTING_GATEWAY_PROMPT_TEXT: &str = "gatewayPromptText";
 
-/// 写入**某一家**的提示词覆盖时的载荷（`set_prompt_provider` 的入参）。
+/// ** 1 ** when （`set_prompt_provider` ）。
 ///
-/// 字段与 [`ProviderPrompt`] 前三项一一对应；用独立类型而不是元组，是为了
-/// 将来加字段时不必再挨个改调用点的解构。
+/// and [`ProviderPrompt`] before 1 1 for ； use not is ， is as 
+/// will when not use 。
 #[derive(Clone, Debug)]
 pub struct ProviderPromptPatch {
-    /// 模式（透传 / 替换 / 追加）
+    /// （ / / ）
     pub mode: crate::server::core::prompt::PromptMode,
-    /// 提示词文件（`None` / 空白 = 用内置默认提示词）
+    /// file（`None` / empty = use default）
     pub file: Option<String>,
-    /// 界面里编辑的正文（`None` / 空白 = 没有这一份，回落文件 / 内置默认）
+    /// （`None` / empty = no has this 1 ，file / default）
     pub inline: Option<String>,
 }
 
-/// 系统提示词设置（设置页「通用 → 系统提示词」）。
+/// set（set「 use → 」）。
 ///
-/// 与 `RetrySettings` 同一取舍：几个值总是一起用（转发层逐请求取一次、
-/// 接口一起返回），打包成一个值让调用方一次拿到，不必多次读锁。
-/// 与另外几个设置不同，这个**不是 `Copy`**：`text` 是提示词全文（可能几百行），
-/// 逐请求克隆它纯属浪费 —— 转发层拿的是借用视图（`core::prompt::PromptPlan`）。
+/// and `RetrySettings` 1 ： total is 1 use （request 1 、
+/// 1 return）， 1 use 1 to ， not 。
+/// and set not ， this ** not is `Copy`**：`text` is （ can can ），
+/// request —— is use （`core::prompt::PromptPlan`）。
 #[derive(Clone, Debug)]
 pub struct PromptSettings {
-    /// 模式（透传 / 替换 / 追加）
+    /// （ / / ）
     pub mode: crate::server::core::prompt::PromptMode,
-    /// 用户指定的提示词文件（`None` = 未指定）
+    /// use file（`None` = ）
     pub file: Option<String>,
-    /// 界面里编辑的正文（`None` = 没编辑过这一份；有值时它是**生效文本的来源**）
+    /// （`None` = no this 1 ； has when is ** **）
     pub inline: Option<String>,
-    /// **实际生效**的提示词文本：`custom` / `append` 下是界面正文 / 文件内容 /
-    /// 内置默认；`passthrough` 下**没有生效的正文**，但会把用户存下的界面正文
-    /// 带出来（设置页的编辑框要看得见它，见 `resolve_choice` 的说明）
+    /// **** ：`custom` / `append` down is / file /
+    /// default；`passthrough` down ** no has **， will use down 
+    /// （set need ， `resolve_choice` ）
     pub text: String,
-    /// 文本来源（界面与日志要能回答「这次用的到底是哪一份」）
+    /// （ and need can 「 this use to is 1 」）
     pub source: crate::server::core::prompt::PromptSource,
-    /// 指定了文件但读不到时的原因（`None` = 没这回事）；读失败时 `text`
-    /// 回落成内置默认 —— 与「写坏回落」的既有取向一致：桌面应用不能因为
-    /// 一个提示词文件的问题启动不了或转发不了
+    /// file not to when Reason（`None` = no this ）；failure when `text`
+    /// default —— and 「」 has to 1 ： use not can as 
+    /// 1 file not or not 
     pub file_error: Option<String>,
-    /// **按提供商**的覆盖（`KEY_PROMPT_PROVIDERS`）；不在这张表里的家走上面那五项。
-    /// `BTreeMap` 而不是 `HashMap`：界面与接口响应都要有稳定顺序（同一份配置
-    /// 每次渲染的行序不同，用户会以为设置被改动过）
+    /// ** by ** （`KEY_PROMPT_PROVIDERS`）； not in this up that 。
+    /// `BTreeMap` not is `HashMap`： and response need has （ 1 config
+    /// not ， use will as set ）
     pub providers: BTreeMap<String, ProviderPrompt>,
-    /// **网关自带提示词的逐家开关**（`KEY_PROMPT_GATEWAY`）：`false` = 这一家不装，
-    /// 不在表里 = 装（默认）。与 `providers` 分开的两点理由见那个键的说明。
+    /// ** **（`KEY_PROMPT_GATEWAY`）：`false` = this 1 not ，
+    /// not in = （default）。 and `providers` by that 。
     pub gateway: BTreeMap<String, bool>,
-    /// **网关自带提示词的逐家正文覆盖**（`KEY_PROMPT_GATEWAY_TEXT`）：只含被改过的
-    /// 家；不在表里 = 用官方原文。与开关分两张表：改文本与拨开关是两件事。
+    /// ** **（`KEY_PROMPT_GATEWAY_TEXT`）： 
+    /// ； not in = use 。 and ： and is 。
     pub gateway_text: BTreeMap<String, crate::server::core::prompt::GatewayBlocks>,
 }
 
@@ -371,37 +371,37 @@ impl Default for PromptSettings {
     }
 }
 
-/// 单一提供商上的提示词覆盖（`KEY_PROMPT_PROVIDERS` 的每一项）。
+/// 1 up （`KEY_PROMPT_PROVIDERS` 1 ）。
 ///
-/// 字段与 [`PromptSettings`] 的前六项**逐一同构**：解析口径也只有一处
-/// （`prompt_from` 里那个 `resolve_choice`），于是「全局默认怎么解析、逐家就怎么
-/// 解析」不会分叉成两套。不存在「这家没配 file 于是继承全局 file」这种半继承
-/// 语义：某家一旦出现在 map 里，它的 mode / file / inline **都**以自己这份为准
-/// （`file: None` = 用内置默认提示词）—— 半继承是最容易让用户看不懂的模式，
-/// 界面上「这家配了什么」与「实际用了什么」必须一眼对得上。
+/// and [`PromptSettings`] before ** 1 **： has 1 
+/// （`prompt_from` that `resolve_choice`）， is 「default、
+/// 」 not will 。 not in 「 this no file is file」 this 
+/// ： 1 in map ， mode / file / inline **** this as 
+/// （`file: None` = use default）—— is use not ，
+/// up 「 this 」 and 「 use 」must 1 for up 。
 #[derive(Clone, Debug)]
 pub struct ProviderPrompt {
-    /// 模式（透传 / 替换 / 追加）
+    /// （ / / ）
     pub mode: crate::server::core::prompt::PromptMode,
-    /// 用户指定的提示词文件（`None` = 未指定，用内置默认）
+    /// use file（`None` = ， use default）
     pub file: Option<String>,
-    /// 界面里编辑的正文（`None` = 没编辑过这一份）
+    /// （`None` = no this 1 ）
     pub inline: Option<String>,
-    /// **实际生效**的提示词文本（`passthrough` 下同全局那份：没有生效正文，
-    /// 但有界面正文就带出来）
+    /// **** （`passthrough` down that ： no has ，
+    /// has ）
     pub text: String,
-    /// 文本来源
+    /// 
     pub source: crate::server::core::prompt::PromptSource,
-    /// 指定了文件但读不到时的原因（`None` = 没这回事）
+    /// file not to when Reason（`None` = no this ）
     pub file_error: Option<String>,
 }
 
-/// 三档保留天数的默认值（缺失时用它们）。
+/// default（ when use ）。
 ///
-/// 请求日志与按天聚合的默认是 99999 天（约 274 年）：效果上等于「全量保留」，
-/// 同时界面仍是一个普通的天数输入框 —— 想清理历史数据的用户可以把它改小，
-/// 不必再专程去各页面找「清空」入口（旧「全量保留」版本的行为仍是兜底：
-/// 清空 / 按筛选删除的入口保留）。
+/// request and by default is 99999 （ 274 ）： up etc 「」，
+/// when is 1 —— use can ，
+/// not 「empty」（ old 「」 as is ：
+/// empty / by delete ）。
 pub const DEFAULT_LOG_RETENTION_DAYS: i64 = 30;
 pub const DEFAULT_REQUEST_RETENTION_DAYS: i64 = 99999;
 pub const DEFAULT_DAILY_RETENTION_DAYS: i64 = 99999;
@@ -410,36 +410,36 @@ pub const DEFAULT_REQUEST_RETENTION_COUNT: i64 = 1_000_000;
 pub const RETENTION_MIN_COUNT: i64 = 1;
 pub const RETENTION_MAX_COUNT: i64 = 100_000_000;
 
-/// **历史**路由优先级键：`{"workbuddy": 10, "raccoon": 20}`。
+/// **** by ：`{"workbuddy": 10, "raccoon": 20}`。
 ///
-/// provider 路由优先级已随「账号全局一条队列」下线（先用哪一家由账号优先级
-/// 决定）。这个键只在账号存储的启动迁移里读一次（`legacy_provider_route`），
-/// 用来把旧版「按家分队」的号码按旧的实际顺序合并成全局队列；不再有写侧，
-/// 文件里残留的值也不会被抹掉（未知字段全量保留）。
+/// provider by already 「 1 」 down （ use 1 by 
+/// ）。 this in 1 （`legacy_provider_route`），
+/// use old 「 by 」 by old and ； not has ，
+/// file not will （unknown）。
 pub const KEY_PROVIDER_ROUTE: &str = "providerRoute";
 
-/// 保留天数的合法范围：下限 1 天（保留 0 天等于什么都不存，不是有效配置），
-/// 上限即「近似无限」的默认值 99999 天 —— 再往上没有语义（99999 天已约 274 年），
-/// 又能防手改 config.json 写个天文数字让裁剪逻辑空转。
+/// ： down 1 （ 0 etc not ， not is validconfig），
+/// limit「none」 default 99999 —— up no has （99999 already 274 ），
+/// can config.json empty。
 ///
-/// **写侧（`stats_api::parse_retention_value`）与读侧（`days_field`）共用这两个常量**：
-/// 若两边各写一套数字，手改文件与走接口设值就会出现两套口径
-/// （比如接口拒绝 5000 而读侧接受它）。两侧的处理方式不同是有意的：
-/// 走接口的非法值给 400（用户当场能改），手改文件的非法值回落到默认（不打扰）。
+/// **（`stats_api::parse_retention_value`） and （`days_field`） use this **：
+/// if 1 ，file and will 
+/// （e.g. 5000 ）。 not is has ：
+/// to 400（ use can ），file to default（ not ）。
 pub const RETENTION_MIN_DAYS: i64 = 1;
 pub const RETENTION_MAX_DAYS: i64 = 99999;
 
-/// 数据保留设置。日志与请求明细同时受天数和数量限制，按天聚合只按天数保留。
-/// 保存后立即裁剪；缩减请求明细不会重算或删除按天聚合。
+/// set。 and request when and limit， by by 。
+/// after ；request not will or delete by 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RetentionSettings {
-    /// 事件日志保留天数
+    /// 
     pub log_days: i64,
     pub log_count: i64,
-    /// 请求日志保留天数
+    /// request
     pub request_days: i64,
     pub request_count: i64,
-    /// 按天聚合保留天数
+    /// by 
     pub daily_days: i64,
 }
 
@@ -455,8 +455,8 @@ impl Default for RetentionSettings {
     }
 }
 
-/// 保留期的**部分**更新入参（PUT /api/retention 允许只传其中几项）。
-/// `None` = 这一项不动（对应「允许部分字段」的契约）。
+/// ****update（PUT /api/retention its in ）。
+/// `None` = this 1 not （ for 「」 ）。
 #[derive(Clone, Copy, Debug, Default)]
 pub struct RetentionPatch {
     pub log_days: Option<i64>,
@@ -466,82 +466,82 @@ pub struct RetentionPatch {
     pub daily_days: Option<i64>,
 }
 
-// ─── 定时任务设置的键名与边界（config.json 里的字段名**就是契约**）─────
+// ─── when set and （config.json ** is **）─────
 //
-// 间隔型任务（凭证维护 / 模型刷新 / 软件版本检查 / 两个前端自动刷新）打包在
-// `scheduledTasks` 对象下；自动签到不在其中 —— 它是**每天定点**型，时刻与上次
-// 执行结果由 `core::auto_checkin` 自己管（`autoCheckin` 字段），本模块不重复持有。
-// 余额查询已退役成每账号各自配置的自动查询（`core::usage_query`），不在其中。
-// 页面上的这些间隔型任务是「同一个形状」，所以配置也写成同一形状，
-// 免得读侧要按任务名各写一套解析。
+// （ / new / check / before new ） in 
+// `scheduledTasks` for down ； to not in its in —— is ****， when and up 
+// by `core::auto_checkin` （`autoCheckin` ）， not has 。
+// already config （`core::usage_query`）， not in its in 。
+// up this is 「 1 」，config 1 ，
+// need by 1 。
 
-/// 间隔型任务的配置对象键
+/// config for 
 pub const KEY_SCHEDULED_TASKS: &str = "scheduledTasks";
-/// 凭证自动维护在 `scheduledTasks` 下的子键
+/// in `scheduledTasks` down 
 pub const KEY_CREDENTIAL_MAINTENANCE: &str = "credentialMaintenance";
-/// 模型目录定时刷新在 `scheduledTasks` 下的子键
+/// directory when new in `scheduledTasks` down 
 pub const KEY_MODEL_REFRESH: &str = "modelRefresh";
-/// 日志页自动刷新在 `scheduledTasks` 下的子键（**前端**定时器，后端只存配置）
+/// new in `scheduledTasks` down （** before ** when ， after config）
 pub const KEY_LOGS_AUTO_REFRESH: &str = "logsAutoRefresh";
-/// 请求日志页自动刷新在 `scheduledTasks` 下的子键（同上）
+/// request new in `scheduledTasks` down （ up ）
 pub const KEY_REQUESTS_AUTO_REFRESH: &str = "requestsAutoRefresh";
-/// 报表页自动刷新在 `scheduledTasks` 下的子键（同上）
+/// new in `scheduledTasks` down （ up ）
 pub const KEY_REPORT_AUTO_REFRESH: &str = "reportAutoRefresh";
-/// 软件版本检查在 `scheduledTasks` 下的子键（后端定时向 GitHub 查最新发布版本）
+/// check in `scheduledTasks` down （ after when to GitHub new ）
 pub const KEY_UPDATE_CHECK: &str = "updateCheck";
 
-/// 凭证维护默认间隔（分钟）：与改造前的硬编码 600 秒一致
+/// default（minutes）： and before 600 seconds 1 
 pub const DEFAULT_CREDENTIAL_MAINTENANCE_MINUTES: i64 = 10;
-/// 模型目录定时刷新默认间隔（分钟）。
+/// directory when new default（minutes）。
 ///
-/// 保守取值：WorkBuddy 的 `/v3/config` 拉取**没有 TTL 早退**，每一轮都是真打
-/// 上游（见 `providers::workbuddy` 的 `refresh_models`），间隔太密等于给上游
-/// 添无谓的负载。一小时的粒度对「模型清单变了没」这个问题足够。
+/// ：WorkBuddy `/v3/config` ** no has TTL **， 1 is 
+/// up （ `providers::workbuddy` `refresh_models`）， etc to up 
+/// none 。 1 when for 「 no 」 this 。
 pub const DEFAULT_MODEL_REFRESH_MINUTES: i64 = 60;
-/// 两个前端自动刷新的默认间隔（秒）：每秒一次。
+/// before new default（seconds）：seconds 1 。
 ///
-/// 比改造前的硬编码 10 秒密得多，这是有意的：两条任务都只在**对应页面可见时**
-/// 才请求（`document.hidden` 与当前页都判过），离开页面就完全静默，所以
-/// 「密」的代价只落在用户正盯着那一页的时候 —— 而那正是他想要实时的时刻。
-/// 两条接口都是本地读写（一条读日志库、一条查统计库），不出网。
+/// before 10 seconds， this is has ： in ** for can when **
+/// request（`document.hidden` and current），，
+/// 「」 in use that 1 when —— that is need when when 。
+/// is （ 1 、 1 statistics）， not 。
 pub const DEFAULT_LOGS_AUTO_REFRESH_SECONDS: i64 = 1;
 pub const DEFAULT_REQUESTS_AUTO_REFRESH_SECONDS: i64 = 1;
 pub const DEFAULT_REPORT_AUTO_REFRESH_SECONDS: i64 = 1;
-/// 软件版本检查默认间隔（分钟）：每 20 分钟查一次 GitHub 最新发布。
+/// checkdefault（minutes）： 20 minutes 1 GitHub new 。
 ///
-/// 20 分钟 = 3 次/小时，相对匿名限额（60 次/小时，且**按出口 IP 计** —— 同一
-/// 出口下的其它程序共用这份额度）留足余量，又能让新版本的提示在一刻钟量级内
-/// 出现。**这个默认值只影响「没配过间隔」的情形**：已经保存过
-/// `scheduledTasks.updateCheck.interval` 的配置按原值跑（`interval_field`
-/// 只在键缺失或越界时才回落到默认），所以调整它不会改写老用户的设置。
+/// 20 minutes = 3 / when ， for （60 / when ， and ** by IP ** —— 1 
+/// down its use this ）， can new in 1 
+/// 。** this default「 no 」 **： already 
+/// `scheduledTasks.updateCheck.interval` config by （`interval_field`
+/// in or when to default）， not will use set。
 pub const DEFAULT_UPDATE_CHECK_MINUTES: i64 = 20;
 
-/// 间隔型任务的取值范围。上下限分两套（分钟 / 秒），因为两类任务的合理区间
-/// 差着量级：后端维护任务按分钟（1 分钟～1 天），前端刷新按秒（1 秒～10 分钟）。
+/// 。 up down （minutes / seconds）， as 
+/// ： after by minutes（1 minutes～1 ）， before new by seconds（1 seconds～10 minutes）。
 ///
-/// 秒级下限放到 1 秒：这两条任务是**页面可见才跑**的本地轮询（不出网、不打上游），
-/// 密一点最坏是「多读几次本地库里的一页数据」，不会给任何外部服务添负担。
-/// 原来的 5 秒下限没有技术理由，只是照着改造前的 10 秒兜底值随手划的。
+/// seconds down to 1 seconds： this is ** can ** （ not 、 not up ），
+/// 1 is 「 1 」， not will to 。
+/// 5 seconds down no has by ， is before 10 seconds 。
 ///
-/// 与保留期同样：**写侧（`scheduled_tasks::parse_interval`）与读侧
-/// （`interval_field`）共用这些常量**，否则会出现「接口拒绝 60 而手改文件接受它」。
+/// and ：**（`scheduled_tasks::parse_interval`） and 
+/// （`interval_field`） use this **，otherwise will 「 60 file」。
 pub const INTERVAL_MIN_MINUTES: i64 = 1;
 pub const INTERVAL_MAX_MINUTES: i64 = 1440;
 pub const INTERVAL_MIN_SECONDS: i64 = 1;
 pub const INTERVAL_MAX_SECONDS: i64 = 600;
 
-/// 一个间隔型任务的配置：开关 + 间隔（单位由任务定义决定）。
+/// 1 config： + （ by ）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct IntervalTask {
     pub enabled: bool,
-    /// 间隔值，单位见任务定义（分钟或秒）
+    /// ，（minutes or seconds）
     pub interval: i64,
 }
 
-/// 六条间隔型任务的配置（设置页「定时任务」区域）。
+/// config（set「 when 」）。
 ///
-/// 与 `RetentionSettings` 同一取舍：几个值总是一起用（GET 一次返回、各自循环
-/// 各取所需），打包成一个 `Copy` 值让调用方一次拿到、不必多次读锁。
+/// and `RetentionSettings` 1 ： total is 1 use （GET 1 return、
+/// need ）， 1 `Copy` use 1 to 、 not 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScheduledSettings {
     pub credential_maintenance: IntervalTask,
@@ -583,141 +583,141 @@ impl Default for ScheduledSettings {
     }
 }
 
-/// 一条间隔型任务的**部分**更新入参（`None` = 该项不动）。
+/// 1 ****update（`None` = this not ）。
 #[derive(Clone, Copy, Debug, Default)]
 pub struct IntervalTaskPatch {
     pub enabled: Option<bool>,
     pub interval: Option<i64>,
 }
 
-// ─── 请求重试设置的键名与边界（config.json 里的字段名**就是契约**）─────
+// ─── requestset and （config.json ** is **）─────
 //
-// 转发层的退避重试读这三个值（见 `upstream::provider_loop::send_with_retry`
-// 与 `attempt_queue`）。
+// this （ `upstream::provider_loop::send_with_retry`
+// and `attempt_queue`）。
 //
-// ── 为什么分两档次数（同账号原地重发 / 换账号）──────────────
-// 一次转发失败后的处置有两条路，代价与收益完全不同：
-//   - **在同一个账号上原地重发**：便宜，可能只是瞬时抖动或敏感词误拦，
-//     等一个间隔再发一次往往就好了 —— 这是 `retryCount`；
-//   - **换一个账号再试**：换号要走另一份额度与限流，还可能是另一家，
-//     用户往往希望「先在当前账号多试几次，实在不行再换号」—— 这是
+// ── Why（ / ）──────────────
+// 1 failure after has ， and not ：
+// - ** in 1 up **：， can can is when or ，
+// etc 1 1 —— this is `retryCount`；
+// - ** 1 **： need 1 and ， can can is 1 ，
+// use 「 in current， in not 」—— this is 
 //     `retryCrossProviderCount`。
 //
-// 判定口径（`provider_loop::attempt_queue` 记账）：
-//   - 请求**首次选中的那个账号**用 `retryCount`，原地重发几次；
-//   - **每换一个账号**（不分是同家的下一个还是另一家的）扣一次
-//     `retryCrossProviderCount`，扣满就带着最后一次的错误收尾，
-//     不再往下顺延。
+// （`provider_loop::attempt_queue` ）：
+// - request** in that ** use `retryCount`，；
+// - ** 1 **（ not is down 1 is 1 ） 1 
+// `retryCrossProviderCount`， after 1 error，
+// not down 。
 //
-// ── 第二档为什么按「账号」而不是按「提供商」（2026-09 修正）────
-// 旧实现按提供商分段：同一家名下的所有账号算一段、共用一份原地重发预算，
-// 只有跨家才重新给一份。这有两个后果，都与用户对这个数字的预期不符：
-//   - 「能换几个账号」根本没有任何设置管 —— 只受队列里账号总数限制，
-//     某家囤了 9 个账号时，一次请求会一路试到第 10 个（用户实测截图）；
-//   - 用户填的 5 只在「跨家之后」生效，而跨家本身已经是队列走完的副产品，
-//     等到那时往往早就没有可用账号了。
-// 现在改成「换账号次数」：不管换到哪一家，换一次扣一次。键名保留
-// `retryCrossProviderCount` 不变（改名会让老配置读不到、回落默认值，
-// 得额外做迁移，不划算）—— 键名是历史包袱，语义以本节为准。
+// ── Why by 「」 not is by 「」（2026-09 ）────
+// old by ： 1 down all 1 、 use 1 ，
+// has new to 1 。 this has after ， and use for this not ：
+// - 「 can 」 no has set —— totallimit，
+// 9 when ， 1 request will 1 to 10 （ use ）；
+// - use 5 in 「 after 」， already is ，
+// etc to that when no has available。
+// in 「」： not to 1 ， 1 1 。
+// `retryCrossProviderCount` not （ will config not to 、default，
+// ， not ）—— is ， as 。
 
-/// **同一账号内**的原地重发次数（0 = 失败立即换号，不重发）
+/// ** 1 ** （0 = failure， not ）
 pub const KEY_RETRY_COUNT: &str = "retryCount";
-/// **换账号**的次数（0 = 不换号，直接收尾）。
+/// **** （0 = not ，）。
 ///
-/// ── 常量名与 JSON 键名为什么对不上 ─────────────────────────
-/// 键名（`retryCrossProviderCount`）是**配置契约**：改名会让改了名的老配置
-/// 读不到、静默回落成默认值，还得额外做一次迁移，不划算 —— 所以字符串
-/// 原样冻结。常量名（Rust 侧标识符）说的才是真语义：**按账号计，不分家**，
-/// 换到同家的下一个账号与换到另一家都算一次。语义详见本节开头的说明。
+/// ── and JSON Why for not up ─────────────────────────
+/// （`retryCrossProviderCount`） is **config**： will config
+/// not to 、default， 1 ， not —— 
+/// 。（Rust ） is ：** by ， not **，
+/// to down 1 and to 1 1 。 。
 pub const KEY_RETRY_ACCOUNT_SWITCH_COUNT: &str = "retryCrossProviderCount";
-/// 两次重试之间的等待秒数
+/// etc seconds
 pub const KEY_RETRY_INTERVAL_SECONDS: &str = "retryIntervalSeconds";
 
-/// 同一账号的原地重发次数默认值：失败后再试 3 次（连同首发共 4 次发送）
+/// 1 default：failure after 3 （ 4 ）
 pub const DEFAULT_RETRY_COUNT: i64 = 3;
-/// 换账号的次数默认值：失败后最多换 5 个账号。
+/// default：failure after 5 。
 ///
-/// 比原地重发那档更宽是刻意的：换号的成本主要在「等到下一个可用账号」，
-/// 而一个账号失败往往说明它这份额度确实不通，多换几个比快速失败更符合预期。
+/// that is ： need in 「 etc to down 1 available」，
+/// 1 failure this not ， failure。
 pub const DEFAULT_RETRY_SWITCH_COUNT: i64 = 5;
-/// 重试间隔默认值：5 秒
+/// default：5 seconds
 pub const DEFAULT_RETRY_INTERVAL_SECONDS: i64 = 5;
 
-/// 「指定错误码直接换号」的配置键（值是 HTTP 状态码数组，如 `[402, 429]`）。
+/// 「error」 config（ is HTTP ， `[402, 429]`）。
 ///
-/// 键名里的 `NoRetry` 是历史措辞（最早的语义是「命中即报错」），行为后来
-/// 改成了「不在同一账号重发、直接换下一个账号」—— 键名是配置契约，改名
-/// 会让老配置读不到，保留至今。命中名单的上游失败跳过本账号：原地重发与
-/// 同账号补救（内容拦截换提示词 / 401 刷新）都不做，按队列换下一个账号
-/// 继续试，换满仍失败才把错误给客户端。
+/// `NoRetry` is （ is 「 in 」）， as after 
+/// 「 not in 1 、 down 1 」—— is config，
+/// will config not to ，。 in up failure： and 
+/// （ / 401 new ） not ， by down 1 
+/// ，failure error to client。
 pub const KEY_RETRY_NO_RETRY_CODES: &str = "noRetryStatusCodes";
-/// 默认名单：402（WorkBuddy 积分不足）。余额问题重发结论不变，
-/// 客户端拿到 402 才能如实体感「这个账号没钱了」。
+/// default：402（WorkBuddy not ）。 not ，
+/// client to 402 can 「 this no 」。
 pub const DEFAULT_NO_RETRY_CODES: &[u16] = &[402];
-/// 名单里状态码的合法范围：HTTP 状态码本身就定义在 100–599
+/// ：HTTP in 100–599
 pub const RETRY_CODE_MIN: u16 = 100;
 pub const RETRY_CODE_MAX: u16 = 599;
-/// 名单长度上限：状态码总共就 500 个，50 项足够表达任何配置，
-/// 也防止一次粘贴把界面和 config.json 撑爆
+/// limit：total 500 ，50 config，
+/// 1 and config.json 
 pub const RETRY_MAX_NO_RETRY_CODES: usize = 50;
 
-/// 次数与间隔的合法范围。
+/// and 。
 ///
-/// 上限 10 次 / 300 秒：次数过多或间隔过长都会让客户端干等（重试是「再发一次」，
-/// 换号也是「换个人再发一次」，都不是把请求拆成多次）。下限 0：次数 0 = 关闭
-/// 该档（不重发 / 不换号），间隔 0 = 立即重发。
+/// limit 10 / 300 seconds： or will client etc （ is 「 1 」，
+/// is 「 1 」， not is request）。 down 0： 0 = 
+/// this （ not / not ）， 0 = 。
 pub const RETRY_MIN_COUNT: i64 = 0;
 pub const RETRY_MAX_COUNT: i64 = 10;
 pub const RETRY_MIN_INTERVAL_SECONDS: i64 = 0;
 pub const RETRY_MAX_INTERVAL_SECONDS: i64 = 300;
 
-/// 请求重试设置（设置页「通用 → 请求重试」区域）。
+/// requestset（set「 use → request」）。
 ///
-/// 与 `RetentionSettings` 同一取舍：几个值总是一起用（转发层每次重试判定
-/// 都取），打包成一个快照值让调用方一次拿到、不必多次读锁。
-/// 曾经是 `Copy` 的；`no_retry_codes` 加进来后共享列表只能 `Clone`
-/// （`Arc` 本身不是 Copy）—— 快照克隆只多一次指针自增，热路径无感。
+/// and `RetentionSettings` 1 ： total is 1 use （
+/// ）， 1 use 1 to 、 not 。
+/// is `Copy` ；`no_retry_codes` after can `Clone`
+/// （`Arc` not is Copy）—— 1 ，pathnone。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RetrySettings {
-    /// **同一账号内**的原地重发次数（0 = 失败立即换号）
+    /// ** 1 ** （0 = failure）
     pub count: i64,
-    /// **换账号**的次数上限（0 = 不换号，直接收尾）。
+    /// **** limit（0 = not ，）。
     ///
-    /// 字段名保留了旧措辞、JSON 键名也没变（见
-    /// [`KEY_RETRY_ACCOUNT_SWITCH_COUNT`]）—— 键名是配置契约，改名会让老配置
-    /// 读不到。此处标识符说的是真语义：**按账号计，不分家**，换到同家的下一个
-    /// 账号与换到另一家都算一次。
+    /// old 、JSON no （
+    /// [`KEY_RETRY_ACCOUNT_SWITCH_COUNT`]）—— is config， will config
+    /// not to 。 is ：** by ， not **， to down 1 
+    /// and to 1 1 。
     pub account_switch_count: i64,
-    /// 两次重试之间的间隔（秒）
+    /// （seconds）
     pub interval_seconds: i64,
-    /// **指定错误码直接换号**名单（[`KEY_RETRY_NO_RETRY_CODES`]）。
+    /// **error**（[`KEY_RETRY_NO_RETRY_CODES`]）。
     ///
-    /// 为什么是 `Arc<[u16]>` 而不是 `Vec<u16>`：快照被逐失败请求取用，
-    /// `Arc` 让克隆只付一次指针自增；判定（`no_retry`）读的是共享切片，
-    /// 不需要任何锁。
+    /// Why is `Arc<[u16]>` not is `Vec<u16>`： failurerequest use ，
+    /// `Arc` 1 ；（`no_retry`） is ，
+    /// not need need 。
     pub no_retry_codes: Arc<[u16]>,
 }
 
 impl RetrySettings {
-    /// 间隔的毫秒形态（转发层的 sleep 直接用）
+    /// ms（ sleep use ）
     pub fn delay_ms(&self) -> u64 {
         self.interval_seconds.max(0) as u64 * 1000
     }
 
-    /// 同一账号的原地重发预算（与 [`Self::switch_budget`] 是两个独立的口径）。
+    /// 1 （ and [`Self::switch_budget`] is ）。
     ///
-    /// 负值按 0 处理：`bounded_int_field` 已保证范围，这里是防御性的
-    /// （负数转 `usize` 会回绕成天文数字，那会让重试变成死循环）。
+    /// by 0 ：`bounded_int_field` already ， this is 
+    /// （ `usize` will ， that will ）。
     pub fn resend_budget(&self) -> usize {
         self.count.max(0) as usize
     }
 
-    /// 换账号的次数上限（换一次扣一次，扣满即收尾）。
+    /// limit（ 1 1 ，）。
     pub fn switch_budget(&self) -> usize {
         self.account_switch_count.max(0) as usize
     }
 
-    /// 这个上游状态码是否命中「直接换号」名单。
+    /// this up is in 「」。
     pub fn no_retry(&self, status: u16) -> bool {
         self.no_retry_codes.contains(&status)
     }
@@ -734,7 +734,7 @@ impl Default for RetrySettings {
     }
 }
 
-/// 请求重试的**部分**更新入参（`None` = 该项不动）。
+/// request ****update（`None` = this not ）。
 #[derive(Clone, Debug, Default)]
 pub struct RetryPatch {
     pub count: Option<i64>,
@@ -743,52 +743,52 @@ pub struct RetryPatch {
     pub no_retry_codes: Option<Vec<u16>>,
 }
 
-// ─── 上游请求超时（四个阶段，对应 OmniProxy 的同名设置）──────────────
+// ─── up request when （ ， for OmniProxy set）──────────────
 
-/// 连接超时：建立上游 TCP/TLS 连接或代理隧道的最大等待时间（秒）
+/// when ： up TCP/TLS or etc when （seconds）
 pub const KEY_TIMEOUT_CONNECT_SECONDS: &str = "connectTimeoutSeconds";
-/// 等待响应超时：请求发出后等待上游响应头的最大时间（秒）
+/// etc response when ：request after etc up response when （seconds）
 pub const KEY_TIMEOUT_HEADERS_SECONDS: &str = "headersTimeoutSeconds";
-/// 流式响应空闲超时：流式响应相邻数据之间允许的最大空闲时间（秒），收到新数据后重新计时
+/// responseempty when ：response empty when （seconds）， to new after new when 
 pub const KEY_TIMEOUT_STREAM_IDLE_SECONDS: &str = "streamIdleTimeoutSeconds";
-/// 非流式响应超时：读取完整非流式响应体允许的最大时间（秒）
+/// response when ：response when （seconds）
 pub const KEY_TIMEOUT_BODY_SECONDS: &str = "bodyTimeoutSeconds";
 
-/// 连接超时默认值：30 秒（与 egress 里原先的硬编码值一致）
+/// when default：30 seconds（ and egress 1 ）
 pub const DEFAULT_TIMEOUT_CONNECT_SECONDS: i64 = 30;
-/// 等待响应超时默认值：300 秒（与 request.rs 原先的 HEADERS_TIMEOUT_MS 一致）
+/// etc response when default：300 seconds（ and request.rs HEADERS_TIMEOUT_MS 1 ）
 pub const DEFAULT_TIMEOUT_HEADERS_SECONDS: i64 = 300;
-/// 流式空闲超时默认值：300 秒（与 OmniProxy 的 stream_idle_timeout 一致）
+/// empty when default：300 seconds（ and OmniProxy stream_idle_timeout 1 ）
 pub const DEFAULT_TIMEOUT_STREAM_IDLE_SECONDS: i64 = 300;
-/// 非流式响应超时默认值：300 秒（与 OmniProxy 的 body_timeout 一致）
+/// response when default：300 seconds（ and OmniProxy body_timeout 1 ）
 pub const DEFAULT_TIMEOUT_BODY_SECONDS: i64 = 300;
 
-/// 四项超时的合法范围（秒）：与 OmniProxy 的 1~3600 逐字一致。
+/// when （seconds）： and OmniProxy 1~3600 1 。
 ///
-/// 下限 1 而不是 0：0 在这里没有合理语义（「立即超时」等于禁用转发，
-/// 想禁用某一阶段保护的人其实要的是把它调大到上限）。
+/// down 1 not is 0：0 in this no has （「 when 」 etc use ，
+/// use 1 its need is to limit）。
 pub const TIMEOUT_MIN_SECONDS: i64 = 1;
 pub const TIMEOUT_MAX_SECONDS: i64 = 3600;
 
-/// 上游请求超时（设置页「通用 → 请求超时」区域）。
+/// up request when （set「 use → request when 」）。
 ///
-/// 四个阶段各一个值，与 OmniProxy 的 connect / headers / stream_idle / body
-/// 一一对应；转发层逐请求取一次快照（`Copy`，四个 i64）。
+/// 1 ， and OmniProxy connect / headers / stream_idle / body
+/// 1 1 for ；request 1 （`Copy`， i64）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TimeoutSettings {
-    /// 建连（含到代理的那一段）
+    /// （ to that 1 ）
     pub connect_seconds: i64,
-    /// 请求发出 → 响应头到达
+    /// request → response to 
     pub headers_seconds: i64,
-    /// 流式响应相邻数据之间的最大空闲
+    /// response empty
     pub stream_idle_seconds: i64,
-    /// 非流式响应体读完的总预算
+    /// response total
     pub body_seconds: i64,
 }
 
 impl TimeoutSettings {
-    /// 负数 / 0 按最小值兜底（防御性：读侧已由 bounded_int_field 保证范围，
-    /// 转 `u64` 前必须挡住，否则回绕成天文数字）
+    /// / 0 by （： already by bounded_int_field ，
+    /// `u64` before must，otherwise）
     fn ms(seconds: i64) -> u64 {
         seconds.max(TIMEOUT_MIN_SECONDS) as u64 * 1000
     }
@@ -809,12 +809,12 @@ impl TimeoutSettings {
         Self::ms(self.body_seconds)
     }
 
-    /// 传输层 read_timeout 的后备上限：取「等响应头」与「流空闲」两者的大者。
+    /// read_timeout after limit：「 etc response」 and 「empty」 。
     ///
-    /// reqwest 的 `read_timeout` 作用于每一次读（既覆盖首包前、也覆盖数据块
-    /// 之间），而这两个阶段是分开的旋钮 —— 后备值取大者，保证它**永不**成为
-    /// 哪个旋钮的隐藏天花板（真正的判定在各阶段自己的计时器，见
-    /// `upstream::request` 与 `upstream::ForwardStream`）。
+    /// reqwest `read_timeout` used for 1 （ before 、
+    /// ）， this is —— after ，** not ** as 
+    /// （ in when ，
+    /// `upstream::request` and `upstream::ForwardStream`）。
     pub fn read_timeout_backstop_ms(&self) -> u64 {
         self.headers_ms().max(self.stream_idle_ms())
     }
@@ -831,7 +831,7 @@ impl Default for TimeoutSettings {
     }
 }
 
-/// 四项超时的**部分**更新入参（`None` = 该项不动）。
+/// when ****update（`None` = this not ）。
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TimeoutPatch {
     pub connect_seconds: Option<i64>,
@@ -840,55 +840,55 @@ pub struct TimeoutPatch {
     pub body_seconds: Option<i64>,
 }
 
-// ─── 排队等待（走排队制的上游：目前只有 Qoder 的免费模型）─────────────
+// ─── etc （ up ： before has Qoder ）─────────────
 
-/// 排队时最多等待几次（0 = 不等待，直接把排队态作为错误返回）
+/// when etc （0 = not etc ， as errorreturn）
 pub const KEY_QUEUE_MAX_WAITS: &str = "queueMaxWaits";
-/// 单次排队等待的秒数（0 = 跟随上游建议值）
+/// etc seconds（0 = up ）
 pub const KEY_QUEUE_WAIT_SECONDS: &str = "queueWaitSeconds";
 
-/// 默认等待次数：2 次。
+/// default etc ：2 。
 ///
-/// 与参考实现（CLIProxyAPI 的 qoder2api 插件 `queue_max_waits` 默认值）取同一
-/// 档：上游给的建议间隔实测 9～30 秒，两次最多等一分钟 —— 落在「用户还能接受
-/// 的首字等待」与「默认 300 秒的等待响应超时」之间。
+/// and （CLIProxyAPI qoder2api `queue_max_waits` default） 1 
+/// ： up to 9～30 seconds， etc 1 minutes —— in 「 use can 
+/// etc 」 and 「default 300 seconds etc response when 」。
 pub const DEFAULT_QUEUE_MAX_WAITS: i64 = 2;
-/// 默认单次等待秒数：0 = 跟随上游建议（上游没给建议时适配器退到 15 秒）
+/// default etc seconds：0 = up （ up no to when to 15 seconds）
 pub const DEFAULT_QUEUE_WAIT_SECONDS: i64 = 0;
 
-/// 等待次数的合法范围 0~10：0 = 关闭等待（排队即报错）。上限 10 是因为
-/// 「等一会儿再发」等得太多次不如让客户端自己决定重试 —— 它会收到一条写清
-/// 「排队中、不是登录态或额度问题」的错误，而不是一个看不出所以然的超时。
+/// etc 0~10：0 = etc （）。limit 10 is as 
+/// 「 etc 1 will 」 etc not client —— will to 1 
+/// 「 in 、 not is or 」 error， not is 1 not when 。
 pub const QUEUE_MIN_MAX_WAITS: i64 = 0;
 pub const QUEUE_MAX_MAX_WAITS: i64 = 10;
-/// 单次等待秒数的合法范围 0~120（0 = 跟随上游建议）
+/// etc seconds 0~120（0 = up ）
 pub const QUEUE_MIN_WAIT_SECONDS: i64 = 0;
 pub const QUEUE_MAX_WAIT_SECONDS: i64 = 120;
 
-/// 排队等待设置（设置页「通用 → 排队等待」区域）。
+/// etc set（set「 use → etc 」）。
 ///
-/// 与 `TimeoutSettings` 同一取舍：两个值总是一起用（每次排队判定取一份快照），
-/// 打包成一个 `Copy` 值让调用方一次拿到。
+/// and `TimeoutSettings` 1 ： total is 1 use （ 1 ），
+/// 1 `Copy` use 1 to 。
 ///
-/// ── 它影响谁 ────────────────────────────────────────────────
-/// 只有**走排队制的适配器**读它（目前是 Qoder：免费模型繁忙时上游用 403 +
-/// 业务码 10605 回一句「暂不可服务，建议 N 秒后再来」）。其它家没有排队语义，
-/// 这份设置对它们无影响。
+/// ── ────────────────────────────────────────────────
+/// has ** **（ before is Qoder： when up use 403 +
+/// 10605 1 「 not can ， N seconds after 」）。 its no has ，
+/// this set for none。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QueueSettings {
-    /// 最多等待次数（0 = 不等待）
+    /// etc （0 = not etc ）
     pub max_waits: i64,
-    /// 单次等待秒数（0 = 跟随上游建议值）
+    /// etc seconds（0 = up ）
     pub wait_seconds: i64,
 }
 
 impl QueueSettings {
-    /// 等待次数预算（负值按 0：读侧已保证范围，这里是防御性的）
+    /// etc （ by 0： already ， this is ）
     pub fn wait_budget(&self) -> usize {
         self.max_waits.clamp(QUEUE_MIN_MAX_WAITS, QUEUE_MAX_MAX_WAITS) as usize
     }
 
-    /// 强制单次等待时长（毫秒）；`None` = 跟随上游建议
+    /// etc when （ms）；`None` = up 
     pub fn forced_wait_ms(&self) -> Option<u64> {
         let seconds = self.wait_seconds.clamp(QUEUE_MIN_WAIT_SECONDS, QUEUE_MAX_WAIT_SECONDS);
         if seconds > 0 {
@@ -908,55 +908,55 @@ impl Default for QueueSettings {
     }
 }
 
-/// 排队等待的**部分**更新入参（`None` = 该项不动）。
+/// etc ****update（`None` = this not ）。
 #[derive(Clone, Copy, Debug, Default)]
 pub struct QueuePatch {
     pub max_waits: Option<i64>,
     pub wait_seconds: Option<i64>,
 }
 
-// ─── ZCode 验证码令牌池（活动套餐通道的补货节奏，见 api/zcode_captcha）──
+// ─── ZCode （ ， api/zcode_captcha）──
 
-/// 令牌池的库存目标（`zcodeCaptchaPoolTarget`）：库存低于它前端铸造器才补铸。
+/// （`zcodeCaptchaPoolTarget`）： before 。
 pub const KEY_CAPTCHA_POOL_TARGET: &str = "zcodeCaptchaPoolTarget";
-/// 铸造器轮询库存的间隔毫秒（`zcodeCaptchaPoolPollMs`）。
+/// ms（`zcodeCaptchaPoolPollMs`）。
 pub const KEY_CAPTCHA_POOL_POLL_MS: &str = "zcodeCaptchaPoolPollMs";
-/// 铸造器一轮最多铸几个（`zcodeCaptchaPoolMaxPerRound`）。
+/// 1 （`zcodeCaptchaPoolMaxPerRound`）。
 pub const KEY_CAPTCHA_POOL_MAX_PER_ROUND: &str = "zcodeCaptchaPoolMaxPerRound";
 
-/// 默认库存目标：3 个（原 `POOL_TARGET` 硬编码值）。一个够「下一条请求立刻
-/// 有得用」，又不至于铸一堆在 120 秒 TTL 内用不掉的（白白烧阿里云风控配额）。
+/// default：3 （ `POOL_TARGET` ）。 1 「 down 1 request
+/// has use 」， not 1 in 120 seconds TTL use not （quota）。
 pub const DEFAULT_CAPTCHA_POOL_TARGET: i64 = 3;
-/// 默认轮询间隔：2500 毫秒（原 `POLL_MS` 硬编码值），「库存见底到补上」的平滑窗口。
+/// default：2500 ms（ `POLL_MS` ），「 to up 」 。
 pub const DEFAULT_CAPTCHA_POOL_POLL_MS: i64 = 2_500;
-/// 默认单轮铸造上限：1 个（原 `MAX_PER_ROUND` 硬编码值）。SDK 同一实例连着
-/// 铸会互相干扰，默认一轮一个最稳。
+/// defaultlimit：1 （ `MAX_PER_ROUND` ）。SDK 1 
+/// will ，default 1 1 。
 pub const DEFAULT_CAPTCHA_POOL_MAX_PER_ROUND: i64 = 1;
 
-/// 库存目标的合法范围 1~10：上限取「吸收突发」够用的量级 —— 目标越大，
-/// 无流量时过期作废的令牌越多（120 秒 TTL），烧的是阿里云风控配额。
+/// 1~10：limit「」 use —— ，
+/// none when （120 seconds TTL）， is quota。
 pub const CAPTCHA_POOL_MIN_TARGET: i64 = 1;
 pub const CAPTCHA_POOL_MAX_TARGET: i64 = 10;
-/// 轮询间隔的合法范围 1000~30000 毫秒：下限以下纯浪费本地往返，上限以上
-/// 「缺货到补上」的窗口会长到失去意义。轮询只读库存不铸造，太快不会多铸。
+/// 1000~30000 ms： down down ，limit up 
+/// 「 to up 」 will to 。 not ， not will 。
 pub const CAPTCHA_POOL_MIN_POLL_MS: i64 = 1_000;
 pub const CAPTCHA_POOL_MAX_POLL_MS: i64 = 30_000;
-/// 单轮铸造上限的合法范围 1~5：连铸之间固定隔 500ms，5 个已是一轮连铸
-/// 半分多钟都不到的量；再大单轮触发上游风控的风险显著上升。
+/// limit 1~5： 500ms，5 already is 1 
+/// not to ； up up 。
 pub const CAPTCHA_POOL_MIN_MAX_PER_ROUND: i64 = 1;
 pub const CAPTCHA_POOL_MAX_MAX_PER_ROUND: i64 = 5;
 
-/// ZCode 验证码令牌池的补货节奏（设置页「网关 → 验证码令牌池」区域）。
+/// ZCode （set「 → 」）。
 ///
-/// 与 `QueueSettings` 同一取舍：铸造器每轮轮询 stats、转发层每条活动套餐
-/// 请求都要判一次「库存够不够」，取一份 `Copy` 快照即可。
+/// and `QueueSettings` 1 ： stats、
+/// request need 1 「 not 」， 1 `Copy` can 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CaptchaPoolSettings {
-    /// 库存目标（低于它前端才补铸）
+    /// （ before ）
     pub target: i64,
-    /// 铸造器轮询间隔（毫秒）
+    /// （ms）
     pub poll_ms: i64,
-    /// 铸造器一轮最多铸几个
+    /// 1 
     pub max_per_round: i64,
 }
 
@@ -970,7 +970,7 @@ impl Default for CaptchaPoolSettings {
     }
 }
 
-/// 验证码令牌池的**部分**更新入参（`None` = 该项不动）。
+/// ****update（`None` = this not ）。
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CaptchaPoolPatch {
     pub target: Option<i64>,
@@ -978,63 +978,63 @@ pub struct CaptchaPoolPatch {
     pub max_per_round: Option<i64>,
 }
 
-// ─── 会话图片压缩（转发前把内嵌 base64 大图压小，设置页「网关 → 图片压缩」）──
+// ─── will （ before base64 ，set「 → 」）──
 
-/// 图片压缩总开关（`imageCompressEnabled`，**默认开**）。
+/// total（`imageCompressEnabled`，**default**）。
 ///
-/// 解析口径：**只有字面 `false` 才算关**（见 `parse::image_compress_from`），
-/// 键缺失或写成别的值都按开 —— 于是升级上来的老配置（没有这个键）一启动就是
-/// 开启状态。
+/// ：** has `false` **（ `parse::image_compress_from`），
+/// or by —— is up config（ no has this ） 1 is 
+/// 。
 ///
-/// 为什么默认开：它改的是**发给上游的字节**，收益（更小的请求体、更低的上游
-/// 计费）对绝大多数对话都成立，属于「默认就该有」的能力；本项目有「自定义
-/// 提供商透传」这类把请求体原样送出的家，压过之后未必符合每个用户的预期，
-/// 所以把它做成**默认开、可一键关**的开关，关掉即回到「请求体一个字节都不动」。
+/// Whydefault： is ** to up **，（ request、 up 
+/// ） for for ，「default this has 」 can ； has 「
+/// 」 this request ， after use ，
+/// **default、 can 1 ** ， to 「request 1 not 」。
 pub const KEY_IMAGE_COMPRESS_ENABLED: &str = "imageCompressEnabled";
-/// 图片长边像素上限（`imageCompressMaxEdge`）：超过则等比缩小。
+/// limit（`imageCompressMaxEdge`）： then etc 。
 pub const KEY_IMAGE_COMPRESS_MAX_EDGE: &str = "imageCompressMaxEdge";
-/// JPEG 重编码质量（`imageCompressQuality`，40~95）。
+/// JPEG （`imageCompressQuality`，40~95）。
 pub const KEY_IMAGE_COMPRESS_QUALITY: &str = "imageCompressQuality";
-/// 触发阈值 KB（`imageCompressThresholdKb`）：解码后小于它保持原样（0 = 全部处理）。
+/// KB（`imageCompressThresholdKb`）： after （0 = ）。
 pub const KEY_IMAGE_COMPRESS_THRESHOLD_KB: &str = "imageCompressThresholdKb";
 
-/// 长边上限默认值：2048（**照抄 OmniProxy 的默认值**）。
+/// limitdefault：2048（** OmniProxy default**）。
 ///
-/// 多数视觉模型推荐的长边上限量级；默认取值口径与 OmniProxy 逐字一致，
-/// 用户要更省流量可在设置页调小（参考 CatPaw 上游限制用的 1568）。
+/// limit；default and OmniProxy 1 ，
+/// use need can in set（ CatPaw up limit use 1568）。
 pub const DEFAULT_IMAGE_COMPRESS_MAX_EDGE: i64 = 2048;
-/// 重编码质量默认值：80（照抄 OmniProxy）。
+/// default：80（ OmniProxy）。
 pub const DEFAULT_IMAGE_COMPRESS_QUALITY: i64 = 80;
-/// 触发阈值默认值：512 KB（照抄 OmniProxy）—— 解码后小于 512KB 的图不处理。
+/// default：512 KB（ OmniProxy）—— after 512KB not 。
 pub const DEFAULT_IMAGE_COMPRESS_THRESHOLD_KB: i64 = 512;
 
-/// 长边上限的合法范围 256~8192：下限以下缩得连图看不清，上限以上等于不缩。
+/// limit 256~8192： down down not ，limit up etc not 。
 pub const IMAGE_COMPRESS_MIN_MAX_EDGE: i64 = 256;
 pub const IMAGE_COMPRESS_MAX_MAX_EDGE: i64 = 8192;
-/// 质量范围 40~95：低于 40 画面明显劣化，高于 95 体积收益几乎为零。
+/// 40~95： 40 ， 95 as 。
 pub const IMAGE_COMPRESS_MIN_QUALITY: i64 = 40;
 pub const IMAGE_COMPRESS_MAX_QUALITY: i64 = 95;
-/// 触发阈值范围 0~10240 KB：0 = 不设阈值、全部候选图都过一遍。
+/// 0~10240 KB：0 = not 、 1 。
 pub const IMAGE_COMPRESS_MIN_THRESHOLD_KB: i64 = 0;
 pub const IMAGE_COMPRESS_MAX_THRESHOLD_KB: i64 = 10240;
 
-/// 会话图片压缩设置（设置页「网关 → 图片压缩」区域）。
+/// will set（set「 → 」）。
 ///
-/// 与 `QueueSettings` 同一取舍：四个值总是一起用（每次发送前取一份快照），
-/// 打包成一个 `Copy` 值让调用方一次拿到 —— 转发链把这份快照随请求借下去。
+/// and `QueueSettings` 1 ： total is 1 use （ before 1 ），
+/// 1 `Copy` use 1 to —— this request down 。
 ///
-/// ── 它作用在哪 ──────────────────────────────────────────────
-/// 只在**对话链路**（chat / responses / anthropic 三个入口归一后的 Chat 请求体）
-/// 生效；生图与图片编辑走独立分支，在 `send_body` 里提前返回，天然不经过这里。
+/// ── use in ──────────────────────────────────────────────
+/// in ** for **（chat / responses / anthropic 1 after Chat request）
+/// ； and ， in `send_body` before return， not this 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ImageCompressSettings {
-    /// 总开关（关 = 出站请求体一个字节都不动）
+    /// total（ = request 1 not ）
     pub enabled: bool,
-    /// 长边像素上限（超过等比缩小，不放大）
+    /// limit（ etc ， not ）
     pub max_edge: i64,
-    /// JPEG 重编码质量
+    /// JPEG 
     pub quality: i64,
-    /// 触发阈值（KB，解码后小于它保持原样）
+    /// （KB， after ）
     pub threshold_kb: i64,
 }
 
@@ -1049,66 +1049,66 @@ impl Default for ImageCompressSettings {
     }
 }
 
-/// 会话图片压缩的**部分**更新入参（`None` = 该项不动）。
+/// will ****update（`None` = this not ）。
 ///
-/// 形状与 `AutoContinuePatch` 相同（开关 + 若干有界整数一起写），理由也一样：
-/// **一次 PUT 只落一次盘**，避免出现「开关开了、参数还是旧的」半套状态。
+/// and `AutoContinuePatch` （ + if has 1 ）， by 1 ：
+/// ** 1 PUT 1 **，「、parameter is old 」。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ImageCompressPatch {
-    /// 开关（`None` = 该项不动）
+    /// （`None` = this not ）
     pub enabled: Option<bool>,
-    /// 长边上限（`None` = 该项不动）。调用方须先按
-    /// `IMAGE_COMPRESS_MIN_MAX_EDGE..=IMAGE_COMPRESS_MAX_MAX_EDGE` 校验过。
+    /// limit（`None` = this not ）。 use by 
+    /// `IMAGE_COMPRESS_MIN_MAX_EDGE..=IMAGE_COMPRESS_MAX_MAX_EDGE` 。
     pub max_edge: Option<i64>,
-    /// 质量（`None` = 该项不动）。调用方须先按
-    /// `IMAGE_COMPRESS_MIN_QUALITY..=IMAGE_COMPRESS_MAX_QUALITY` 校验过。
+    /// （`None` = this not ）。 use by 
+    /// `IMAGE_COMPRESS_MIN_QUALITY..=IMAGE_COMPRESS_MAX_QUALITY` 。
     pub quality: Option<i64>,
-    /// 触发阈值 KB（`None` = 该项不动）。调用方须先按
-    /// `IMAGE_COMPRESS_MIN_THRESHOLD_KB..=IMAGE_COMPRESS_MAX_THRESHOLD_KB` 校验过。
+    /// KB（`None` = this not ）。 use by 
+    /// `IMAGE_COMPRESS_MIN_THRESHOLD_KB..=IMAGE_COMPRESS_MAX_THRESHOLD_KB` 。
     pub threshold_kb: Option<i64>,
 }
 
-// ─── 账号路由（策略 / 会话粘性 / 失败退避 / 限流垫底 / 熔断）─────────
+// ─── by （ / will / failure / / ）─────────
 
-/// 路由策略：候选账号怎么排序（`routingStrategy`）。
+/// by ：（`routingStrategy`）。
 ///
-///   - `Order`：队列位次（优先级数字）就是一切 —— 现状行为；
-///   - `Rotate`：每条请求轮换到下一位（新会话的起点由位次决定），均摊用量；
-///   - `Usage`：用量占比最低的先用（没有读数的账号按位次排在有读数的后面）。
+/// - `Order`：（） is 1 —— as ；
+/// - `Rotate`：request to down 1 （ new will by ），usage；
+/// - `Usage`：usage use （ no has by in has after ）。
 ///
-/// 智能按窗口重置、手动固定两档讨论后**不做**（用户拍板：只留三种）。
+/// can by 、 after ** not **（ use ：）。
 pub const KEY_ROUTING_STRATEGY: &str = "routingStrategy";
-/// 会话粘性：同一会话尽量跟住答过它的账号（`routingSticky`）。
+/// will ： 1 will （`routingSticky`）。
 ///
-///   - `Auto`：跟住，直到上游缓存不值得续（约 5 分钟无往来）；
-///   - `Session`：跟住更久（6 小时内同会话同账号）；
-///   - `Turn`：只在单条请求内不换号（与转发既有行为一致，跨请求不粘）；
-///   - `Off`：每条请求独立选。
+/// - `Auto`：， to up not （ 5 minutesnone）；
+/// - `Session`：（6 when will ）；
+/// - `Turn`： in request not （ and has as 1 ，request not ）；
+/// - `Off`：request。
 pub const KEY_ROUTING_STICKY: &str = "routingSticky";
-/// 失败退避：转发失败的账号休息一会儿再回来（`routingFailoverBackoff`，默认开）
+/// failure：failure 1 will （`routingFailoverBackoff`，default）
 pub const KEY_ROUTING_FAILOVER_BACKOFF: &str = "routingFailoverBackoff";
-/// 限流垫底（Sink）：还有额度时被 429 的账号排到队尾，**30 分钟后自动回到队列**，
-/// 或提前成功转发一次即解除（`routingSink`，默认开）。
+/// （Sink）： has when 429 to ，**30 minutes after to **，
+/// or before success 1 （`routingSink`，default）。
 ///
-/// 数值以 `route_state::SINK_TTL_MS` 为准，别在这里写一个具体数字：从前这里是
-/// 「轮一圈才回来」，而那个语义正是自锁的成因（429 沉底 → 排到队尾 → 轮不到 →
-/// 没机会成功 → 永远解不开；实测国际版 11 个账号被逐个撞完后全部永久沉底）。
+/// `route_state::SINK_TTL_MS` as ， in this 1 ： from before this is 
+/// 「 1 」， that is （429 → to → not to →
+/// no will success → not ； 11 after ）。
 pub const KEY_ROUTING_SINK: &str = "routingSink";
-/// 熔断开关（`routingBreakerEnabled`，默认关）
+/// （`routingBreakerEnabled`，default）
 pub const KEY_ROUTING_BREAKER_ENABLED: &str = "routingBreakerEnabled";
-/// 熔断阈值：连续失败多少次后熔断（`routingBreakerThreshold`）
+/// ：failure after （`routingBreakerThreshold`）
 pub const KEY_ROUTING_BREAKER_THRESHOLD: &str = "routingBreakerThreshold";
-/// 熔断时长（秒）：熔断后过多久放行试一次（`routingBreakerTimeoutSeconds`）
+/// when （seconds）： after 1 （`routingBreakerTimeoutSeconds`）
 pub const KEY_ROUTING_BREAKER_TIMEOUT: &str = "routingBreakerTimeoutSeconds";
-/// 恢复阈值：熔断放行后要连续成功几次才算恢复（`routingBreakerSuccessThreshold`）
+/// ： after need success（`routingBreakerSuccessThreshold`）
 pub const KEY_ROUTING_BREAKER_SUCCESS: &str = "routingBreakerSuccessThreshold";
 
 pub const ROUTING_STRATEGY_ORDER: &str = "order";
 pub const ROUTING_STRATEGY_ROTATE: &str = "rotate";
-/// 家内轮询（`provider`）：家之间按优先级，同一家内部轮流用各账号。
+/// （`provider`）： by ， 1 use 。
 ///
-/// 与「负载均衡」的差别在**轮转的边界**：这里家的先后固定（由优先级定），
-/// 只有家内换人 —— 适合「想优先用某几家、又不愿把某一家的某个账号焊死」。
+/// and 「」 in ** **： this after （ by ），
+/// has —— 「 use 、 not 1 」。
 pub const ROUTING_STRATEGY_PROVIDER: &str = "provider";
 
 pub const STICKY_OFF: &str = "off";
@@ -1116,26 +1116,26 @@ pub const STICKY_TURN: &str = "turn";
 pub const STICKY_SESSION: &str = "session";
 pub const STICKY_AUTO: &str = "auto";
 
-/// 熔断阈值合法范围：1~20 次
+/// ：1~20 
 pub const ROUTING_BREAKER_MIN_THRESHOLD: i64 = 1;
 pub const ROUTING_BREAKER_MAX_THRESHOLD: i64 = 20;
-/// 熔断时长合法范围：10~600 秒
+/// when ：10~600 seconds
 pub const ROUTING_BREAKER_MIN_TIMEOUT: i64 = 10;
 pub const ROUTING_BREAKER_MAX_TIMEOUT: i64 = 600;
-/// 恢复阈值合法范围：1~10 次
+/// ：1~10 
 pub const ROUTING_BREAKER_MIN_SUCCESS: i64 = 1;
 pub const ROUTING_BREAKER_MAX_SUCCESS: i64 = 10;
 
-/// 路由策略（`RouteStrategy` 的 Rust 形态；配置里存 `as_str`）
+/// by （`RouteStrategy` Rust ；config `as_str`）
 ///
-/// 三档：顺序优先（队列第 1 位接走所有请求）、负载均衡（逐请求轮换）、
-/// 家内轮询（家之间按优先级、同一家内部轮流用各账号）。
-/// 「余额优先（usage）」已下线（2026-10，按用户要求移除）—— 见 `from_id` 的兜底说明。
+/// ：（ 1 allrequest）、（request）、
+/// （ by 、 1 use ）。
+/// 「（usage）」 already down （2026-10， by use need ）—— `from_id` 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RouteStrategy {
     Order,
     Rotate,
-    /// 家内轮询（本仓新增，上游没有）：轮转的边界收在「家」里面
+    /// （add， up no has ）： in 「」
     Provider,
 }
 
@@ -1148,11 +1148,11 @@ impl RouteStrategy {
         }
     }
 
-    /// 配置值 → 策略。**未知值一律回落顺序优先**（与旧行为一致）。
+    /// config → 。**unknown 1 **（ and old as 1 ）。
     ///
-    /// 已下线的 `"usage"`（余额优先）单独归到**负载均衡**而不是默认档：那种配置是
-    /// 用户当初显式选的「谁空谁上」，语义上最接近的是「把负载摊开」（rotate），
-    /// 静默退回「排第 1 的接走所有请求」会与他的本意相反。
+    /// already down `"usage"`（） to **** not is default： that config is 
+    /// use 「empty up 」， up is 「 」（rotate），
+    /// 「 1 allrequest」 will and 。
     pub fn from_id(value: &str) -> Self {
         match value {
             ROUTING_STRATEGY_PROVIDER => Self::Provider,
@@ -1162,7 +1162,7 @@ impl RouteStrategy {
     }
 }
 
-/// 会话粘性档位（`StickyMode`）
+/// will （`StickyMode`）
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StickyMode {
     Off,
@@ -1190,7 +1190,7 @@ impl StickyMode {
         }
     }
 
-    /// 粘性记录的存活时长（毫秒）；`None` = 不粘（Off / Turn）
+    /// when （ms）；`None` = not （Off / Turn）
     pub fn ttl_ms(&self) -> Option<i64> {
         match self {
             Self::Auto => Some(5 * 60 * 1000),
@@ -1200,8 +1200,8 @@ impl StickyMode {
     }
 }
 
-/// 账号路由设置（账号页「路由」区域）。转发层逐请求取一次快照
-/// （`Copy`），改完设置下一个请求立即生效 —— 与超时 / 重试同一模式。
+/// by set（「 by 」）。request 1 
+/// （`Copy`），set down 1 request —— and when / 1 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoutingSettings {
     pub strategy: RouteStrategy,
@@ -1229,7 +1229,7 @@ impl Default for RoutingSettings {
     }
 }
 
-/// 路由设置的**部分**更新入参（`None` = 该项不动）
+/// by set ****update（`None` = this not ）
 #[derive(Clone, Copy, Debug, Default)]
 pub struct RoutingPatch {
     pub strategy: Option<RouteStrategy>,
@@ -1242,78 +1242,78 @@ pub struct RoutingPatch {
     pub breaker_success_threshold: Option<i64>,
 }
 
-// ─── 长度截断的自动续写（autoContinue / autoContinueMaxRounds）─────────
+// ─── （autoContinue / autoContinueMaxRounds）─────────
 //
-// 判据、执行链与代价口径都在 `core::upstream::continuation`（六条判据、两道停机
-// 条件都写在那个模块头），这里只存「开不开」与「最多续几轮」两个数。
+// 、 and in `core::upstream::continuation`（、
+// in that module header）， this 「 not 」 and 「」 。
 //
-// ── 为什么是两个键，而不是一个 off/1/3/8 的档位 ──────────────
-// 「要不要续」与「最多问几轮」是两个独立的选择：只想多问一次（省额度）与
-// 愿意问满，都发生在「要开」这个前提之下。合成一个枚举会把「关掉」这个**默认态**
-// 塞进某个数字里 —— 于是配置里出现两种表达同一件事的写法（0 与 off），
-// 而它们将来各走各的路只是时间问题。
+// ── Why is ， not is 1 off/1/3/8 ──────────────
+// 「 need not need 」 and 「」 is ： 1 （） and 
+// ， in 「 need 」 this before down 。 1 will 「」 this **default**
+// —— is config 1 （0 and off），
+// will is when 。
 
-/// 「上游说到一半就停、网关自己把它问完」开关的键（config.json 键，判据见
+/// 「 up to 1 、 」 （config.json ，
 /// `core::upstream::continuation`）。
 ///
-/// **默认关闭**，与 `stripNewlineKeepalive` 同一取向，但代价的方向不同：那条
-/// 丢帧改的是「客户端看到哪些字节」，本条多花的是**真金白银的上游往返** ——
-/// 续写的每一轮都带着前几轮的全部历史，一轮的成本不覆盖前一轮（合并口径见
-/// `core::upstream::continuation` 的模块头）。改可观测行为 + 花额度，两条各自
-/// 都够格让默认值取关。
+/// **default**， and `stripNewlineKeepalive` 1 to ， to not ： that 
+/// is 「client to 」， is ** up ** ——
+/// 1 before ， 1 not before 1 （ and 
+/// `core::upstream::continuation` module header）。 can as + ，
+/// default。
 ///
-/// 开着时是否真的续，还要过六条判据（**工具轮永不续**排在最前，那是客户端的
-/// 执行权）；关掉时调用侧根本不包装，下发字节与接入前逐字一致。留一个在线开关
-/// 的理由与 `/api/keepalive-strip` 相同 —— 「在真流量上验一次、不对立刻撤回」
-/// 不该需要重新构建镜像（见 `api::auto_continue`）。
+/// when is ， need （** not ** in before ， that is client 
+/// ）； when use not ， down and before 1 。 1 in 
+/// by and `/api/keepalive-strip` —— 「 in up 1 、 not for 」
+/// not this need need new （ `api::auto_continue`）。
 ///
-/// 部署级兜底：配置里没有这个键时读环境变量 `AGENT2API_AUTO_CONTINUE`
-/// （`1` / `true` / `on` 才算开启，其余含空值都算关，判据与
-/// `AGENT2API_STRIP_NEWLINE_KEEPALIVE` 共用同一份实现，见
-/// `parse::env_auto_continue`）—— Docker 部署想从第一次启动就打开的，
-/// 不必先进面板点一次开关。
+/// ：config no has this when `AGENT2API_AUTO_CONTINUE`
+/// （`1` / `true` / `on` ， its empty， and 
+/// `AGENT2API_STRIP_NEWLINE_KEEPALIVE` use 1 ，
+/// `parse::env_auto_continue`）—— Docker from 1 ，
+/// not 1 。
 pub const KEY_AUTO_CONTINUE: &str = "autoContinue";
 
-/// 自动续写的**轮数上限**（config.json 键）：一次请求最多「再问一次」几回。
+/// **limit**（config.json ）： 1 request「 1 」。
 ///
-/// 两道停机条件里它是**硬保险**：另一道（相似度闸）判的是「续出来的这段是不是
-/// 上一段的复读」，阈值 0.5 是软判据，卡在边缘上的文本照样过得去。上限本身就是
-/// 那条续写链的次数，所以设多大都不构成死循环 —— 这个数管的只是一件成本问题
-/// （见 [`AUTO_CONTINUE_MAX_ROUNDS`]），分工见 `core::upstream::continuation` 的模块头。
+/// is ****： 1 （） is 「 this is not is 
+/// up 1 」， 0.5 is ， in up 。limit is 
+/// that ， not —— this is 1 
+/// （ [`AUTO_CONTINUE_MAX_ROUNDS`]）， `core::upstream::continuation` module header。
 ///
-/// 环境变量兜底 `AGENT2API_AUTO_CONTINUE_MAX`：非整数或越界都算「没配」，
-/// 与文件侧同一口径（**回落默认而不是夹紧**，理由见 `parse` 模块头）。
+/// `AGENT2API_AUTO_CONTINUE_MAX`： or 「 no 」，
+/// and file 1 （**default not is **， by `parse` module header）。
 pub const KEY_AUTO_CONTINUE_MAX_ROUNDS: &str = "autoContinueMaxRounds";
 
-/// 轮数上限默认值：3 轮 —— 参考实现（社区件 Trae2api-cn 的 `continuation.py`）
-/// 的默认值，也符合「一次腰斩通常一问就补完」的实测形状；与
-/// `DEFAULT_RETRY_COUNT` 那个「先试三次」是同一个量级的取向。
+/// limitdefault：3 —— （ Trae2api-cn `continuation.py`）
+/// default，「 1 1 」 ； and 
+/// `DEFAULT_RETRY_COUNT` that 「」 is 1 to 。
 pub const DEFAULT_AUTO_CONTINUE_MAX_ROUNDS: i64 = 3;
 
-/// 轮数下限：1，**不收 0**。
+/// down ：1，** not 0**。
 ///
-/// 开着开关却一轮都不续，与「关掉开关」是同一件事；把这个状态留在配置里只会
-/// 让人以为功能生效了。想关就去关 [`KEY_AUTO_CONTINUE`]，不要用数字表达关闭
-/// （与 `retryCount` 那档相反：那里的 0 是「不重发、直接换号」的真实行为）。
+/// 1 not ， and 「」 is 1 ； this in config will 
+/// as can 。 [`KEY_AUTO_CONTINUE`]， not need use 
+/// （ and `retryCount` that ： that 0 is 「 not 、」 as ）。
 pub const AUTO_CONTINUE_MIN_ROUNDS: i64 = 1;
 
-/// 轮数上限：8。
+/// limit：8。
 ///
-/// 每多一轮都是一次完整的上游往返（含前几轮全部历史的 prompt），第 9 轮起
-/// 边际收益远低于代价；而「续到第八轮还没说完」实际意味着这条链在复读，
-/// 该停的是它而不是继续加预算。
+/// 1 is 1 up （ before prompt）， 9 
+/// ；「 to no 」 this in ，
+/// this is not is 。
 pub const AUTO_CONTINUE_MAX_ROUNDS: i64 = 8;
 
-/// 自动续写的**部分**更新入参（`None` = 该项不动）。
+/// ****update（`None` = this not ）。
 ///
-/// 形状与 `RoutingPatch` 相同（开关 + 若干个有界整数一起写），存在的理由是
-/// **一次 PUT 只落一次盘**：两项各写一次会留出「开关已开、上限还是旧值」的
-/// 半套状态，而这两项要一起读才有意义。
+/// and `RoutingPatch` （ + if has 1 ）， in by is 
+/// ** 1 PUT 1 **： 1 will 「 already 、limit is old 」 
+/// ， this need 1 has 。
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AutoContinuePatch {
-    /// 开关（`None` = 该项不动）
+    /// （`None` = this not ）
     pub enabled: Option<bool>,
-    /// 轮数上限（`None` = 该项不动）。调用方须先按
-    /// `AUTO_CONTINUE_MIN_ROUNDS..=AUTO_CONTINUE_MAX_ROUNDS` 校验过。
+    /// limit（`None` = this not ）。 use by 
+    /// `AUTO_CONTINUE_MIN_ROUNDS..=AUTO_CONTINUE_MAX_ROUNDS` 。
     pub max_rounds: Option<i64>,
 }

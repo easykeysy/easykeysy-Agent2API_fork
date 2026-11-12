@@ -1,29 +1,29 @@
-//! Trae 历史模型 ID 的一次性清理（2026-11）。
+//! Trae ID 1 （2026-11）。
 //!
-//! ── 为什么需要这一步 ────────────────────────────────────────
-//! 旧插件把 Trae 目录里的每个 `config_name` 都加了一层 `-solo`，Max 档再加
-//! 一层 `-max`（`<id>-solo-max`）。这两个后缀是本网关自造的，不是上游模型名。
-//! 插件现在只广告原始 `config_name` 与可选的 `<id>-max`；存量配置（模型规则、路由页、Key 白名单、
-//! 助手、会话、账号限额键、目录缓存）里仍留着旧名，必须一起收敛，否则用户会
-//! 看到「列表里只有一个 ID、配置里却是另一个」。
+//! ── Why need need this 1 ────────────────────────────────────────
+//! old Trae directory `config_name` 1 `-solo`，Max 
+//! 1 `-max`（`<id>-solo-max`）。 this after is ， not is up 。
+//! in `config_name` and optional `<id>-max`；config（ then 、 by 、Key 、
+//! 、 will 、、directory） old ，must 1 ，otherwise use will 
+//! to 「 has 1 ID、config is 1 」。
 //!
-//! ── 旧请求仍然可用 ──────────────────────────────────────────
-//! 迁移只改**我们保存的数据**，不改下游正在发的请求名。旧客户端仍可请求
-//! 旧客户端仍可请求
-//! `<id>-solo` / `<id>-solo-max`：插件侧保留兼容解析，主程序入口把前者归一成
-//! 原始 ID、后者归一成新的 `<id>-max`（见 `core::trae_model_ids::legacy_model_alias`）。
+//! ── old requestavailable ──────────────────────────────────────────
+//! ** **， not down in request。 old client can request
+//! old client can request
+//! `<id>-solo` / `<id>-solo-max`：， before 1 
+//! ID、 after 1 new `<id>-max`（ `core::trae_model_ids::legacy_model_alias`）。
 //!
-//! ── 为什么只跑一次 ──────────────────────────────────────────
-//! 目录缓存与配置里的旧名改完就不存在了，判据本身可自证；但「用户后来手建了
-//! 一个恰好以 `-solo` 结尾的别名」不能被下一次启动再次改写。因此用配置顶层
-//! 标记 `traeModelIdsMigrated` 记录已处理（与 WorkBuddy 拆家标记同一模式）。
+//! ── Why 1 ──────────────────────────────────────────
+//! directory and config old not in ， can ；「 use after 
+//! 1 `-solo` 」 not can down 1 。 use config
+//! `traeModelIdsMigrated` already （ and WorkBuddy 1 ）。
 //!
-//! ── 哪些地方改、哪些不改 ────────────────────────────────────
-//! 改：模型规则里**上游 ID**（disabled / custom / capabilities / mappings.target
-//! / seeded）、路由页的模型键、Key 的 allowedModels、助手模型、lastRequestModel、
-//! 会话 model、Agent 方案的模型字段、Trae 账号的限额键与限制器模型范围、目录缓存。
-//! 不改：请求历史 / 报表（那是已发生的事实），以及**用户自定义的别名**（只有
-//! 别名恰好等于旧模型 ID 时才随目录缓存一起改）。
+//! ── 、 not ────────────────────────────────────
+//! ： then ** up ID**（disabled / custom / capabilities / mappings.target
+//! / seeded）、 by 、Key allowedModels、、lastRequestModel、
+//! will model、Agent 、Trae and limit、directory。
+//! not ：request / （ that is already ）， and ** use **（ has 
+//! etc old ID when directory 1 ）。
 
 use std::collections::{HashMap, HashSet};
 
@@ -42,7 +42,7 @@ const FLAG: &str = "traeModelIdsMigrated";
 const TRAE: &str = "trae";
 const AGENT_PROFILES: &str = "agentProfiles";
 
-/// 本机是否已经处理过 Trae 旧模型 ID 的迁移。
+/// is already Trae old ID 。
 pub(crate) fn migrated() -> bool {
     config::current()
         .raw()
@@ -51,26 +51,26 @@ pub(crate) fn migrated() -> bool {
         .unwrap_or(false)
 }
 
-/// 写下「已处理」标记（无论有没有可迁移内容都要写，理由见模块头）。
+/// down 「 already 」（none has no has can need ， by module header）。
 pub(crate) fn mark_migrated() -> bool {
     config::update_raw_field(FLAG, Value::Bool(true))
 }
 
-/// 启动期入口。返回 `false` 表示有改动没落盘，调用方**不要**写标记。
+/// 。return `false` has no ， use ** not need **。
 pub(crate) fn migrate(store: &AccountStore) -> bool {
-    // ① 目录缓存既提供「哪些旧名真实存在过」的证据，也顺手改成新 ID。
+    // ① directory「 old in 」 ， new ID。
     let mut mapping: HashMap<String, String> = HashMap::new();
     let mut cache_changed = migrate_cache("plugin:trae", &mut mapping);
     cache_changed += migrate_cache("trae", &mut mapping);
 
-    // ② 模型规则 / 外部配置里的旧名以目录缓存为证据改写；缓存没有的
-    //    后缀名不动，避免误伤上游真实以 `-solo` 结尾的模型。
+    // ② then / config old directory as ； no has 
+    // after not ， up `-solo` 。
     let bases: HashSet<String> = mapping
         .values()
         .map(|base| base.to_ascii_lowercase())
         .collect();
 
-    // ③ 规则 / 配置 / 会话 / 账号 / 插件内存缓存。
+    // ③ then / config / will / / 。
     let (rules_changed, rules_saved) = migrate_rules(&mapping);
     let config_saved = migrate_config(&mapping, &bases);
     let profiles_changed = migrate_agent_profiles(&mapping, &bases);
@@ -104,7 +104,7 @@ pub(crate) fn migrate(store: &AccountStore) -> bool {
     true
 }
 
-/// 目录缓存里出现过的旧 ID → 新 ID；同时把缓存条目的 `id` 改掉。
+/// directory old ID → new ID； when `id` 。
 fn migrate_cache(scope: &str, mapping: &mut HashMap<String, String>) -> usize {
     let Some(cached) = catalog_cache::load(scope) else {
         return 0;
@@ -141,8 +141,8 @@ fn rewrite_model_ids(
                     if !id.eq_ignore_ascii_case(&target) {
                         object.insert("id".to_string(), Value::String(target));
                         if was_max {
-                            // 旧 Max 条目本身已是 Max 读数，补上标记让它继续被
-                            // 旧 `<id>-solo-max` 请求识别。
+                            // old Max already is Max ， up 
+                            // old `<id>-solo-max` request。
                             object.insert("traeMax".to_string(), Value::Bool(true));
                         }
                         *changed += 1;
@@ -223,7 +223,7 @@ fn migrate_rules(mapping: &HashMap<String, String>) -> (usize, bool) {
 fn migrate_config(mapping: &HashMap<String, String>, bases: &HashSet<String>) -> bool {
     let mut changed = 0usize;
     let saved = config::update_raw_fields(|raw| {
-        // 路由页的按模型配置：键就是对外模型名。
+        // by by config： is for 。
         if let Some(models) = raw
             .get_mut(config::KEY_ROUTING_PROFILES)
             .and_then(Value::as_object_mut)
@@ -247,7 +247,7 @@ fn migrate_config(mapping: &HashMap<String, String>, bases: &HashSet<String>) ->
                 }
             }
         }
-        // 网关 Key 的模型白名单（只动允许 Trae 的 Key）。
+        // Key （ Trae Key）。
         if let Some(items) = raw
             .get_mut(api_keys::KEY_API_KEYS)
             .and_then(Value::as_array_mut)
@@ -289,7 +289,7 @@ fn migrate_config(mapping: &HashMap<String, String>, bases: &HashSet<String>) ->
                 }
             }
         }
-        // 助手选择的模型 / 标题模型。
+        // / 。
         if let Some(object) = raw
             .get_mut(config::KEY_ASSISTANT_CONFIG)
             .and_then(Value::as_object_mut)
@@ -303,7 +303,7 @@ fn migrate_config(mapping: &HashMap<String, String>, bases: &HashSet<String>) ->
                 }
             }
         }
-        // 账号页「模型」筛选的默认值。
+        // 「」 default。
         if let Some(text) = raw
             .get("lastRequestModel")
             .and_then(Value::as_str)
@@ -404,8 +404,8 @@ fn rewrite_names(
     });
 }
 
-/// 对外模型名：优先用目录缓存给出的旧名映射；映射缺失时只在基名确实存在时
-/// 才按后缀推断（避免把用户手建的 `my-solo` 这类名字改掉）。
+/// for ： use directory to old ； when in in when 
+/// by after （ use `my-solo` this ）。
 fn external_base(
     name: &str,
     mapping: &HashMap<String, String>,
@@ -418,8 +418,8 @@ fn external_base(
     if let Some(base) = mapping.get(&trimmed.to_ascii_lowercase()) {
         return Some(base.clone());
     }
-    // 这个基名本身就是真实模型时，旧名可能也是真实模型（上游确实以 -solo 结尾），
-    // 不能按后缀推断改写。
+    // this is when ， old can can is （ up -solo ），
+    // not can by after 。
     if bases.contains(&trimmed.to_ascii_lowercase()) {
         return None;
     }
@@ -433,7 +433,7 @@ fn is_trae(provider: Option<&str>) -> bool {
     provider.is_some_and(|provider| provider.eq_ignore_ascii_case(TRAE))
 }
 
-/// 旧 `<id>-solo` → 原始 ID；旧 `<id>-solo-max` → 新的 `<id>-max`。
+/// old `<id>-solo` → ID； old `<id>-solo-max` → new `<id>-max`。
 fn legacy_name(name: &str) -> Option<String> {
     if let Some(base) = strip_suffix(name, "-solo-max") {
         return Some(format!("{base}-max"));
@@ -507,19 +507,19 @@ fn dedupe_seeded(items: &mut Vec<String>) -> usize {
     before - items.len()
 }
 
-/// 入口归一：旧客户端请求 `<id>-solo` 时改成原始 ID，`<id>-solo-max` 改成
-/// 新的 `<id>-max`。只认 Trae 清单里确实存在的目标，避免影响别家真实的
-/// `foo-solo` 模型；Max 变体未广告时回落到基础模型，至少不丢请求。
+/// 1 ： old clientrequest `<id>-solo` when ID，`<id>-solo-max` 
+/// new `<id>-max`。 Trae in ， 
+/// `foo-solo` ；Max when to ， not request。
 pub(crate) fn legacy_model_alias(model: &str) -> Option<String> {
     let target = legacy_name(model)?;
-    // 旧名本身就是别家的真实模型（或用户建的别名）时保留原意。
+    // old is （ or use ） when 。
     if !crate::server::core::providers::catalog::providers_for_model(model).is_empty() {
         return None;
     }
     let manifest = crate::server::core::providers::catalog::manifest_for_provider(TRAE);
     if let Some(base) = strip_suffix(model, "-solo-max") {
-        // `<id>-max` 只在本插件合成的 Max 条目上带标记；撞名的真实上游模型
-        // 不能被旧 `<id>-solo-max` 请求占用。
+        // `<id>-max` in Max up ； up 
+        // not can old `<id>-solo-max` request use 。
         let ours = manifest.iter().any(|entry| {
             entry
                 .get("id")

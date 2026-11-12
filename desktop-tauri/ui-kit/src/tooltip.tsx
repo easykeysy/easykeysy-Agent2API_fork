@@ -3,12 +3,12 @@ import { Tooltip as BaseTooltip } from '@base-ui/react/tooltip'
 import { cn } from './lib/cn'
 
 /**
- * 共享提示气泡：品牌底和浅底两种形态，固定定位并处理视口边界。
- * 声明式使用 TooltipTrigger；命令式提示桥通过 anchor 指定现有元素。
- * 提示层高于弹窗与下拉层、低于全局通知，不接管业务的点击钉住状态。
+ * ： and ， and 。
+ * use TooltipTrigger； anchor has 。
+ * and down 、， not 。
  */
 
-/** 四个部件都按标准包一层，只为挂上 data-slot 标记（样式钩子与调试的锚点） */
+/** by 1 ， as up data-slot （ and ） */
 function TooltipProvider(props: BaseTooltip.Provider.Props) {
   return <BaseTooltip.Provider data-slot='tooltip-provider' {...props} />
 }
@@ -23,9 +23,9 @@ function TooltipTrigger(props: BaseTooltip.Trigger.Props) {
 
 type TooltipContentProps = Omit<React.ComponentProps<typeof BaseTooltip.Popup>, 'className'> & {
   className?: string
-  /** 与锚点的距离，默认 8px */
+  /** and ，default 8px */
   sideOffset?: number
-  /** 锚定方向，默认 top（气泡在锚点上方） */
+  /** to ，default top（ in up ） */
   side?: 'top' | 'right' | 'bottom' | 'left'
   anchor?: React.ComponentProps<typeof BaseTooltip.Positioner>['anchor']
   variant?: 'default' | 'plain'
@@ -55,7 +55,7 @@ function TooltipContent({ className, sideOffset = 8, side = 'top', anchor, varia
   )
 }
 
-/** 气泡箭头：与气泡同色的 45° 小方块 */
+/** ： and 45° */
 function TooltipArrow({ className, ...props }: React.ComponentProps<typeof BaseTooltip.Arrow>) {
   return (
     <BaseTooltip.Arrow

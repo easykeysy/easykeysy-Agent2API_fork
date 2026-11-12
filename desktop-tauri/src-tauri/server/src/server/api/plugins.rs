@@ -1,4 +1,4 @@
-//! 插件管理接口。在线安装启动后台任务；状态读取不触发外网请求。
+//! 。 in after ； not request。
 
 use axum::body::Bytes;
 use axum::response::Response;
@@ -11,7 +11,7 @@ use crate::server::errors::management_error;
 use crate::server::http::{ok_json, parse_body};
 
 const MAX_PACK_BASE64_BYTES: usize = (MAX_PACK_BYTES + 2) / 3 * 4;
-// 仅插件上传路由使用：96 MiB ZIP 的 base64 为 128 MiB，另留有限的 JSON 开销。
+// only up by use ：96 MiB ZIP base64 as 128 MiB， has JSON 。
 pub(crate) const MAX_PACK_UPLOAD_BYTES: usize = MAX_PACK_BASE64_BYTES + 1024 * 1024;
 
 pub async fn list() -> Response {
@@ -208,7 +208,7 @@ fn pack_bytes(body: &[u8]) -> Result<Vec<u8>, String> {
         .map(|(_, text)| text)
         .unwrap_or(encoded)
         .trim();
-    // decode 会先为输出分配内存；按编码长度与 padding 预检，实际字节仍在解码后复核。
+    // decode will as ； by and padding ， in after 。
     if encoded.len() > MAX_PACK_BASE64_BYTES {
         return Err(pack_size_error());
     }

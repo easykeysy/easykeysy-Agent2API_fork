@@ -1,31 +1,31 @@
-//! 「这次请求命中的是哪把网关 Key」以及它带来的**可用提供商 / 可用模型**限制
-//! （R9，参考 OmniProxy 的 `allowed_provider_ids` / `allowed_models`）。
+//! 「 this request in is Key」 and **available / available**limit
+//! （R9， OmniProxy `allowed_provider_ids` / `allowed_models`）。
 //!
-//! ── 为什么单独一个模块（而不是塞进 api_keys.rs）────────────────
-//! 两个理由：
-//!   1. `api_keys.rs` 是**配置的存取层**（config.json 的 `apiKeys` 字段：解析、
-//!      增删改、白名单判定），它不认识 axum；本模块是**请求作用域**的东西
-//!      （塞进请求扩展、被 handler 与转发层读），它要认识 axum 的 `Request`。
-//!      混在一起会让那个文件同时背两种关注点；
-//!   2. 限制的**传播路径**（中间件放入 → handler 取出 → 传进转发入参）横跨
-//!      `http.rs` / `api/*` / `core::upstream` 三处，落在一个有名字的类型上
-//!      比散落成「某个字段的约定」好找。
+//! ── Why 1 （ not is api_keys.rs）────────────────
+//! by ：
+//! 1. `api_keys.rs` is **config **（config.json `apiKeys` ：、
+//! 、）， not axum； is **request use ** 
+//! （request、 handler and ）， need axum `Request`。
+//! in 1 will that file when ；
+//! 2. limit **path**（ in → handler → ）
+//!      `http.rs` / `api/*` / `core::upstream` ， in 1 has up 
+//! 「 」。
 //!
-//! ── 中间件怎么把「命中的那把 Key」传下去（本项目选的方式）──────
-//! 用 **axum 的请求扩展**（`http::Request::extensions_mut().insert(...)`）：
-//!   - 类型安全、无字符串键；扩展缺失表示没有白名单，不代表通过鉴权。
-//!   - **不碰请求体与请求头**：本项目多处按「客户端原始 body 的 sha256」做
-//!     去重键（`api::chat` / `api::protocol`），往 body 里塞东西会改变去重键；
-//!     往请求头里塞则会污染转发时透传给上游的头集合（适配器会读
-//!     `client_headers`，见 `ProviderAdapter::build_chat_request`）。
-//!   - 与既有做法一致：axum 的 `Extension<T>` 是「请求作用域的附加数据」的
-//!     标准落点，本项目 `ServerState` 走 `State` 是因为它全局唯一，而「命中的
-//!     Key」是**逐请求**的，正是 Extension 的用途。
+//! ── in 「 in that Key」 down （ ）──────
+//! use **axum request**（`http::Request::extensions_mut().insert(...)`）：
+//! - 、none； no has ， not 。
+//! - ** not request and request**： by 「client body sha256」
+//! （`api::chat` / `api::protocol`）， body will ；
+//! request then will when to up （ will 
+//! `client_headers`， `ProviderAdapter::build_chat_request`）。
+//! - and has 1 ：axum `Extension<T>` is 「request use 」 
+//! ， `ServerState` `State` is as 1 ，「 in 
+//! Key」 is **request** ， is Extension use 。
 //!
-//! ── 权限对象与鉴权的边界 ────────────────────────────────────
-//! 环境变量 Key 没有列表白名单，因此已鉴权请求可以没有 `KeyScope`。
-//! `None` 只表示不限制权限，不表示已通过鉴权；无效、停用或无法解密的 Key
-//! 必须由模型入口拒绝，不能回退为不受限制的模型调用。
+//! ── for and ────────────────────────────────────
+//! Environment variable key no has ， already request can no has `KeyScope`。
+//! `None` unlimited， not already ；invalid、disabled or none Key
+//! must by ， not can as not limit use 。
 
 use std::collections::HashSet;
 
@@ -33,22 +33,22 @@ use axum::extract::Request;
 
 use crate::server::core::api_keys::ApiKeyEntry;
 
-/// 本次请求命中的 Key 所带来的限制（**已归一**：空列表 = 不限制）。
+/// request in Key limit（** already 1 **：empty = unlimited）。
 ///
-/// 存 `HashSet`（小写形式）而不是原始 `Vec<String>`：判定发生在**每一次选路
-/// 尝试**与**每一个模型列表条目**上，逐条 `eq_ignore_ascii_case` 扫描是 O(n)
-/// 次字符串比较；归一成小写集合后是一次哈希查找。大小写不敏感与整条链路同口径
-/// （模型名、provider id 的比对历来忽略大小写，见 `model_rules` 模块头）。
+/// `HashSet`（） not is `Vec<String>`： in ** 1 
+/// ** and ** 1 ** up ， `eq_ignore_ascii_case` is O(n)
+/// ； 1 after is 1 。 not and 
+/// （、provider id for ignore， `model_rules` module header）。
 #[derive(Clone, Debug, Default)]
 pub struct KeyScope {
-    /// 允许的 provider id（小写），空集合 = 不限制
+    /// provider id（），empty = unlimited
     allowed_providers: HashSet<String>,
-    /// 允许的对外模型名（小写），空集合 = 不限制
+    /// for （），empty = unlimited
     allowed_models: HashSet<String>,
 }
 
 impl KeyScope {
-    /// 由一条 Key 记录构造（`allowed*` 为空 = 该维度不限制）
+    /// by 1 Key （`allowed*` as empty = this unlimited）
     pub fn from_entry(entry: &ApiKeyEntry) -> Self {
         Self {
             allowed_providers: normalize(&entry.allowed_providers),
@@ -56,12 +56,12 @@ impl KeyScope {
         }
     }
 
-    /// **只有这一家**（模型测试专用：测试要打在**这一行所属的家**上，
-    /// 而不是「别名碰巧命中的第一家」—— 同一对外名允许在多家各挂一条映射，
-    /// 不定家的话「测这一行」测出来的是别人，结论无法归因）。
+    /// ** has this 1 **（ use ： need in ** this 1 ** up ，
+    /// not is 「 in 1 」—— 1 for in 1 ，
+    /// not 「 this 1 」 is ，none）。
     ///
-    /// 模型维度不限制：测试的目标模型由请求体自己点名（那是这一行的默认绑定），
-    /// 再叠一道模型白名单只会多一处可能对不上的判定。
+    /// unlimited： by request（ that is this 1 default），
+    /// 1 will 1 can can for not up 。
     pub fn provider_only(provider: &str) -> Self {
         let mut allowed_providers = HashSet::new();
         let id = normalize_one(provider);
@@ -83,56 +83,56 @@ impl KeyScope {
         Some(scope)
     }
 
-    /// 是否限制提供商（界面上「有没有勾」的判据，也用于日志措辞）
+    /// is limit（ up 「 has no has 」 ，used for）
     pub fn restricts_providers(&self) -> bool {
         !self.allowed_providers.is_empty()
     }
 
-    /// 是否限制模型
+    /// is limit
     pub fn restricts_models(&self) -> bool {
         !self.allowed_models.is_empty()
     }
 
-    /// 允许请求 `model`（**对外模型名**，含映射 alias）？
+    /// request `model`（** for **， alias）？
     ///
-    /// 比对忽略大小写与首尾空白：模型名会从 HTTP 请求体里原样取出来，
-    /// 客户端多一个空格不该被当成「不在白名单里」。
+    /// for ignore and empty： will from HTTP request，
+    /// client 1 empty not this 「 not in 」。
     pub fn allows_model(&self, model: &str) -> bool {
         self.allowed_models.is_empty() || self.allowed_models.contains(&normalize_one(model))
     }
 
-    /// 允许路由到 `provider`（provider id）？
+    /// by to `provider`（provider id）？
     pub fn allows_provider(&self, provider: &str) -> bool {
         self.allowed_providers.is_empty() || self.allowed_providers.contains(&normalize_one(provider))
     }
 
-    /// 白名单里的 provider id（小写、排序；未限制 = 空表）。
+    /// provider id（、；limit = empty）。
     ///
-    /// 目前唯一的消费方是模型测试的**直达选路**（`provider_loop` 的
-    /// `ignore_model_gate`）：测试把家钉在白名单里，候选链直接取它 ——
-    /// 被测的模型可能还没启用（先测通、再决定启不启用），按模型路由的
-    /// 启停门禁不适用于这一跳。
+    /// before 1 is ****（`provider_loop` 
+    /// `ignore_model_gate`）： in ， ——
+    /// can can no enabled（、 not enabled）， by by 
+    /// not used for this 1 。
     pub fn allowed_provider_ids(&self) -> Vec<String> {
         sorted(&self.allowed_providers)
     }
 
-    /// 白名单的可读摘要（日志与错误文案用；空 = `不限制`）
+    /// can need （ and error use ；empty = `unlimited`）
     pub fn describe(&self) -> String {
         let providers = if self.restricts_providers() {
             sorted(&self.allowed_providers).join("、")
         } else {
-            "不限制".to_string()
+            "unlimited".to_string()
         };
         let models = if self.restricts_models() {
-            format!("{} 个模型", self.allowed_models.len())
+            format!("{} ", self.allowed_models.len())
         } else {
-            "不限制".to_string()
+            "unlimited".to_string()
         };
-        format!("提供商 {providers}；模型 {models}")
+        format!(" {providers}； {models}")
     }
 }
 
-/// 一组白名单归一成小写集合（去空白、去空项）
+/// 1 1 （empty、empty）
 fn normalize(list: &[String]) -> HashSet<String> {
     list.iter()
         .map(|item| normalize_one(item))
@@ -140,34 +140,34 @@ fn normalize(list: &[String]) -> HashSet<String> {
         .collect()
 }
 
-/// 单个名字归一：去首尾空白 + 转小写
+/// 1 ：empty + 
 fn normalize_one(value: &str) -> String {
     value.trim().to_lowercase()
 }
 
-/// 集合排序后的副本（日志文案要稳定，HashSet 的迭代顺序每次都不同）
+/// after （ need ，HashSet not ）
 fn sorted(set: &HashSet<String>) -> Vec<String> {
     let mut out: Vec<String> = set.iter().cloned().collect();
     out.sort();
     out
 }
 
-/// 把命中的 Key 记录放进请求扩展（**只有鉴权中间件调它**）。
+/// in Key request（** has in **）。
 ///
-/// 不覆盖已有值：中间件只跑一次，但将来若有人再挂一层鉴权中间件，
-/// 「第一个命中的 Key 说了算」比「最后写的覆盖前面的」更容易解释。
+/// not already has ： in 1 ， will if has 1 in ，
+/// 「 1 in Key 」「 after before 」。
 pub fn attach(request: &mut Request, scope: KeyScope) {
     if request.extensions().get::<KeyScope>().is_none() {
         request.extensions_mut().insert(scope);
     }
 }
 
-/// 白名单判定；`None` = 不限制。调用方必须独立完成鉴权。
+/// ；`None` = unlimited。 use must。
 pub fn allows_model(scope: Option<&KeyScope>, model: &str) -> bool {
     scope.map_or(true, |scope| scope.allows_model(model))
 }
 
-/// 同上，提供商维度
+/// up ，
 pub fn allows_provider(scope: Option<&KeyScope>, provider: &str) -> bool {
     scope.map_or(true, |scope| scope.allows_provider(provider))
 }

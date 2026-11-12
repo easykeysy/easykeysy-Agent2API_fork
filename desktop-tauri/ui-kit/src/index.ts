@@ -1,15 +1,15 @@
 /**
- * @agent2api/ui —— 项目私有组件库。
+ * @agent2api/ui —— has 。
  *
- * 源码随仓库维护（不走 npm 发布），消费方是 desktop-tauri/ui-islands；
- * 样式入口见 styles/globals.css，消费方必须配 @source 扫描本目录。
+ * （ not npm ）， is desktop-tauri/ui-islands；
+ * styles/globals.css，must @source directory。
  *
- * 组件的**形态、props 命名、组合方式与行为**一律对齐 shadcn/ui 的标准
- * （Base UI 那一支）：别人按 shadcn 的习惯写就能命中，不必先读我们的源码。
- * **样式取值**则一律走项目令牌（styles/theme.css），观感与既有界面一致。
+ * **、props 、 and as ** 1 for shadcn/ui 
+ * （Base UI that 1 ）： by shadcn can in ， not 。
+ * **** then 1 （styles/theme.css）， and has 1 。
  *
- * 加新组件时按这个口径来：先看 shadcn 有没有标准件，有就照它的 API 搬，
- * 不要自己发明 prop（Input 上曾有个自造的 `icon`，已由标准的 InputGroup 取代）。
+ * new when by this ： shadcn has no has ， has API ，
+ * not need prop（Input up has `icon`， already by InputGroup ）。
  */
 
 export { Button, buttonVariants, type ButtonProps } from './button'

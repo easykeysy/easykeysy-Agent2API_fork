@@ -14,7 +14,7 @@ type VerificationWindow = {
   wbZcodeClaimVerification?: { cancel(): void; status(): Verification | null }
 }
 
-/** 常驻提示不抢焦点，阿里云弹出的滑块继续由用户本人操作。 */
+/** not ， by use 。 */
 export function CheckinVerificationNotice() {
   const api = () => (window as unknown as VerificationWindow).wbZcodeClaimVerification
   const [state, setState] = React.useState<Verification | null>(() => api()?.status() || null)

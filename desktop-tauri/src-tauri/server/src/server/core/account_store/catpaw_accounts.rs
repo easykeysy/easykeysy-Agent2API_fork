@@ -1,22 +1,22 @@
-//! CatPaw 账号的**公开形态**与归属探测（本仓库保留的部分）。
+//! CatPaw **** and （ ）。
 //!
-//! ── 这份文件为什么这么小 ────────────────────────────────────
-//! 本家的会话协议转发、会话注册表、模型目录、网页登录全部搬到了**提供商
-//! 插件**（`agent2api-providers` 的 `catpaw/`），不随本仓库发布 —— 那是风险
-//! 隔离的一部分。新增账号由插件的 `account.normalize` 归一化后落进
-//! `pluginSecret`，公开形态走 `plugin_accounts::to_plugin_public_account`。
+//! ── this fileWhy this ────────────────────────────────────
+//! will 、 will 、directory、 to **
+//! **（`agent2api-providers` `catpaw/`）， not —— that is 
+//! 1 。add by `account.normalize` 1 after 
+//! `pluginSecret`， `plugin_accounts::to_plugin_public_account`。
 //!
-//! 留在这里的只有**存量内置记录**的展示投影与归属判定：它们没有
-//! `pluginSecret`，凭证还是顶层的 `accessToken` / `uid` / `loginName`，
-//! 界面需要按本家的字段集显示。这不是上游协议知识。
+//! in this has **** and ： no has 
+//! `pluginSecret`， is `accessToken` / `uid` / `loginName`，
+//! need need by 。 this not is up 。
 //!
-//! ── 桌面端账号的展示为什么只读记录 ──────────────────────────
-//! 内置版曾在这里实时读 `~/.meituan-catpaw/auth.json`（那份实现在插件里）。
-//! 网关侧只剩存量记录的投影，读文件的知识不该留在这儿：读不到时如实把
-//! `available` 报成 false，比在网关里再维护一份路径解析更干净。
+//! ── Why ──────────────────────────
+//! in this when `~/.meituan-catpaw/auth.json`（ that in ）。
+//! ，file not this in this ： not to when 
+//! `available` false， in 1 path。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{Map, Value};
 
@@ -24,13 +24,13 @@ use crate::server::core::account_store::state::StoredAccount;
 use crate::server::core::account_store::store::{AccountStore, AccountStoreError};
 use crate::server::core::providers::{kind_id, ProviderKind};
 
-/// 余额查询凭证的字段名（与插件侧 `balance::BALANCE_TOKEN_FIELD` 同值）。
+/// （ and `balance::BALANCE_TOKEN_FIELD` ）。
 ///
-/// 两边各自声明同一个字面量而不是互相 import：插件与网关没有代码依赖，
-/// 这个键是**落盘契约**的一部分。
+/// 1 not is import： and no has ，
+/// this is **** 1 。
 const BALANCE_TOKEN_FIELD: &str = "balanceToken";
 
-/// 凭证长度上限（与内置版 `MAX_TOKEN_LENGTH` 同值）
+/// limit（ and `MAX_TOKEN_LENGTH` ）
 const MAX_TOKEN_LENGTH: usize = 8192;
 
 fn catpaw_id() -> &'static str {
@@ -38,10 +38,10 @@ fn catpaw_id() -> &'static str {
 }
 
 impl AccountStore {
-    /// 取一条 CatPaw 账号记录（公开形态的原始 JSON）。
+    /// 1 CatPaw （ JSON）。
     ///
-    /// 只服务管理面的**归属判定**（`refresh_account` / `patch_account` 用它
-    /// 确认「这个 id 属于本家」）。
+    /// ****（`refresh_account` / `patch_account` use 
+    /// 「 this id 」）。
     pub fn catpaw_account_record(&self, account_id: &str) -> Option<Value> {
         let guard = self.guard();
         let catpaw = catpaw_id();
@@ -58,12 +58,12 @@ impl AccountStore {
         candidates.into_iter().next().map(|item| item.to_value())
     }
 
-    /// CatPaw 账号的**公开形态**（进 HTTP 响应）。
+    /// CatPaw ****（ HTTP response）。
     ///
-    /// 只对**没有** `pluginSecret` 的存量记录生效（判据在
-    /// `store_view::public_account`，插件记录先走插件那份投影）。
+    /// for ** no has ** `pluginSecret` （ in 
+    /// `store_view::public_account`， that ）。
     ///
-    /// 字段：`id` / `provider` / `name` / `uid` / `loginName` / `tokenTail` /
+    /// ：`id` / `provider` / `name` / `uid` / `loginName` / `tokenTail` /
     /// `desktop` / `source` / `priority` / `enabled` / `addedAt` / `updatedAt` /
     /// `proxy` / `rateLimits` / `available` / `hasBalanceToken`。
     pub fn to_catpaw_public_account(&self, record: &StoredAccount) -> Value {
@@ -103,20 +103,20 @@ impl AccountStore {
         public.insert("addedAt".to_string(), Value::from(record.added_at()));
         public.insert("updatedAt".to_string(), Value::from(record.updated_at()));
         public.insert("proxy".to_string(), proxy);
-        // 限额冷却标记：选路层从公开形态读它（与另外几家同口径）。
-        // 字段照样透出 —— 少一个键会让通用代码在这条分支上多一次特判。
+        // ： from （ and ）。
+        // —— 1 will use in this up 1 。
         public.insert(
             "rateLimits".to_string(),
             record.get("rateLimits").cloned().unwrap_or_else(|| Value::Object(Map::new())),
         );
-        // 可用性：桌面端记录不落 token，存量形态里也没有实时读文件的路径，
-        // 因此只按「有没有 token」判（桌面端记录如实报 false，等插件接管）。
+        // available： not token， no has when file path，
+        // by 「 has no has token」（ false， etc ）。
         public.insert(
             "available".to_string(),
             Value::Bool(record.has_token() && !record.is_desktop()),
         );
-        // 余额查询凭证**只透出「配没配」**，绝不透出值本身（凭证不进前端：
-        // 账号列表是会被截图/贴出来排障的界面，而这一项是完整的会话凭证）。
+        // **「 no 」**， not （ not before ：
+        // is will / ， this 1 is will ）。
         public.insert(
             "hasBalanceToken".to_string(),
             Value::Bool(
@@ -130,20 +130,20 @@ impl AccountStore {
         Value::Object(public)
     }
 
-    /// 设置 / 清除某 CatPaw 账号的**余额查询凭证**（`balanceToken`）。
+    /// set / CatPaw ****（`balanceToken`）。
     ///
-    /// ── 为什么单独一个方法，而不是加进通用的 `apply_patch` ─────────
-    /// 通用 patch 处理的是各家**共有**的运营属性（备注名 / 优先级 / 启用 / 代理），
-    /// 而 `balanceToken` 是 CatPaw 独有的余额查询凭证。把它塞进 `apply_patch`
-    /// 只会让那个共用函数多一个 provider 分支，而它唯一的作用是存一个字符串。
+    /// ── Why 1 ， not is use `apply_patch` ─────────
+    /// use patch is ** has ** （ / / enabled / ），
+    /// `balanceToken` is CatPaw has 。 `apply_patch`
+    /// will that use 1 provider ， 1 use is 1 。
     ///
-    /// ── 两种记录形态 ────────────────────────────────────────────
-    ///   - **插件记录**（有 `pluginSecret`）：写进 secret 里的同名键 —— 插件读
-    ///     账号时看到的就是它，`balance.query` 直接用；
-    ///   - **存量内置记录**：写记录顶层（与内置版逐字同形）。
+    /// ── ────────────────────────────────────────────
+    /// - ****（ has `pluginSecret`）： secret —— 
+    /// when to is ，`balance.query` use ；
+    /// - ****：（ and ）。
     ///
-    /// `value` 语义：字符串（去空白后非空）= 设置；`null` / 空串 = **清除**。
-    /// 返回变化描述（与 `update_account` 的 changes 同形）。
+    /// `value` ：（empty after empty）= set；`null` / empty = ****。
+    /// return（ and `update_account` changes ）。
     pub fn update_catpaw_balance_token(
         &self,
         id: &str,
@@ -162,7 +162,7 @@ impl AccountStore {
                 if trimmed.is_empty() {
                     None
                 } else {
-                    // 这个值最终会拼进 `Cookie` 头：长度与 CR/LF/分号都要挡
+                    // this will `Cookie` ： and CR/LF/ need 
                     let stripped = trimmed
                         .strip_prefix("Bearer ")
                         .or_else(|| trimmed.strip_prefix("bearer "))
@@ -180,10 +180,10 @@ impl AccountStore {
                 }
             }
         };
-        // ── 插件记录：写进 `pluginSecret` ────────────────────────
-        // 判据是记录上**有没有** `pluginSecret`（不是「plugin_account 能不能读到
-        // secret」—— 那个函数对存量内置记录也会摊平出一份）。锁在这里先放开：
-        // `plugin_update_secret` 内部还要取同一把锁。
+        // ── ： `pluginSecret` ────────────────────────
+        // is up ** has no has ** `pluginSecret`（ not is 「plugin_account can not can to 
+        // secret」—— that for will 1 ）。 in this ：
+        // `plugin_update_secret` need 1 。
         let plugin_secret = {
             let guard = self.guard();
             self.record_by_id(&guard, id)
@@ -216,7 +216,7 @@ impl AccountStore {
                 Err(message) => return Err(AccountStoreError::new(message, 500)),
             }
         }
-        // ── 存量内置记录：写顶层字段 ────────────────────────────
+        // ── ： ────────────────────────────
         let _guard = self.guard();
         let mut record = self
             .record_by_id(&_guard, id)
@@ -233,7 +233,7 @@ impl AccountStore {
         match &next {
             Some(token) => {
                 record.set(BALANCE_TOKEN_FIELD, Value::String(token.clone()));
-                // 日志只说「已更新」，**不打印凭证本身**（与全仓的 token 处理一致）
+                // 「 already update」，** not **（ and token 1 ）
                 changes.push("余额查询凭证已更新".to_string());
             }
             None => {
@@ -253,19 +253,19 @@ impl AccountStore {
         Ok(changes)
     }
 
-    /// 作废某账号在 CatPaw 会话注册表里的记录 —— **迁移后是空操作**。
+    /// in CatPaw will —— ** after is empty**。
     ///
-    /// ── 为什么留着这个函数 ──────────────────────────────────────
-    /// 会话注册表（`x-session-id → conversationId`）已经随转发实现搬进插件
-    /// 进程，网关手里没有那张表，也就无从作废。插件侧的转发路径每次都会
-    /// `reconcile_identity`：同一条账号记录换了用户时，旧会话在**下一次请求**
-    /// 就被识别出来并作废 —— 覆盖了原先「删除 / 禁用 / 重新导入」三个入口要
-    /// 解决的同一件事。
+    /// ── Why this ──────────────────────────────────────
+    /// will （`x-session-id → conversationId`） already 
+    /// ， no has that ，none from 。 path will 
+    /// `reconcile_identity`： 1 use when ， old will in ** down 1 request**
+    /// and —— 「delete / use / new 」 need 
+    /// 1 。
     ///
-    /// 保留函数签名而不是删掉调用点：那四个调用点（单删 / 单改 / 批删 / 批改 /
-    /// 账号导入）的语义是「凭证身份变了，下游缓存要失效」，这个语义仍然成立 ——
-    /// 只是当下的下游在插件里、且能自愈。将来若插件协议加上「按账号作废会话」
-    /// 的 RPC，接回来的落点就是这里。
+    /// not is use ： that use （ / / / /
+    /// ） is 「， down need 」， this ——
+    /// is down down in 、 and can 。 will if up 「 by will 」
+    /// RPC， is this 。
     pub(crate) fn invalidate_catpaw_sessions(&self, _account_id: &str, _provider: &str) -> usize {
         0
     }

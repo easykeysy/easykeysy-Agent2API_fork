@@ -1,57 +1,57 @@
-//! 调试模式的**上游原始报文**存储：`debug_traffic` 表。
+//! ** up **：`debug_traffic` 。
 //!
-//! ── 存什么（只有上游侧，不含下游）───────────────────────────
-//! 开启调试模式（config.json 的 `debugMode`）后，每次转发在**即将发送前**
-//! 抓一份 envelope：
-//!   - 请求侧：上游 URL、**脱敏后的**请求头、实际发出去的请求体（已按家改写
-//!     过 model 的最终形态）；
-//!   - 响应侧：上游状态码、**脱敏后的**响应头、响应体（流式为上游原始 SSE
-//!     文本，非流式为聚合前的原始文本）。
-//! 下游侧（客户端发来的请求体 + 网关下发的响应体）由 `request_raw` 表采
-//! （`api::pipeline::capture_raw_body` / `capture_raw_json`），与本表**同一个
-//! 开关**：调试模式开启时两处都采、关闭时两处都不采（预览对话因此默认没有
-//! 正文可看 —— 对齐 OmniProxy 的口径）。另有一份与本开关无关的覆盖式落盘
-//! （`write_debug_files` → `{config_dir}/debug/last-request.json`），那是
-//! 「最近一次入站请求体」的快照，三者互不重叠。
+//! ── （ has up ， not down ）───────────────────────────
+//! （config.json `debugMode`） after ， in ** will before **
+//! 1 envelope：
+//! - request： up URL、** after **request、 request（ already by 
+//! model ）；
+//! - response： up 、** after **response、response（ as up SSE
+//! ， as before ）。
+//! down （client request + down response） by `request_raw` 
+//! （`api::pipeline::capture_raw_body` / `capture_raw_json`）， and ** 1 
+//! **： when 、 when not （ for default no has 
+//! can —— for OmniProxy ）。 has 1 and none 
+//! （`write_debug_files` → `{config_dir}/debug/last-request.json`）， that is 
+//! 「 1 request」 ， not 。
 //!
-//! ── 为什么单独一张表，不塞进 requests 的行里 ──────────────────
-//! 一次 SSE 响应动辄数百 KB，塞进请求明细会让那张表迅速膨胀、拖慢每一页的
-//! 读取。分开之后请求明细的读取成本与调试模式无关；详情按 id 到这张表取。
-//! 两侧用**同一个 id 关联**（`record::RequestEntry::id`）。这条判断在
-//! 「文件 → 表」的改造里一字未变，只是「单独一个文件」变成了「单独一张表」。
+//! ── Why 1 ， not requests ──────────────────
+//! 1 SSE response KB，request will that 、 1 
+//! 。 after request and none； by id to this 。
+//! use ** 1 id **（`record::RequestEntry::id`）。 this in 
+//! 「file → 」 1 ， is 「 1 file」「 1 」。
 //!
-//! ── 脱敏（**硬要求**，不可关闭）─────────────────────────────
-//! 请求头里的 `authorization` / `cookie` / `x-api-key` 等凭据类字段一律替换成
-//! `[redacted]`（见 [`redact_headers`]）。这不是可选项：报文是明文落盘的，
-//! 不脱敏等于把各家账号的 token 抄在磁盘上。响应头里的 `set-cookie` 同理。
+//! ── （** need **， not can ）─────────────────────────────
+//! request `authorization` / `cookie` / `x-api-key` etc 1 
+//! `[redacted]`（ [`redact_headers`]）。 this not is optional： is ，
+//! not etc token in up 。response `set-cookie` 。
 //!
-//! ── 留存控制 ──────────────────────────────────────────────
-//! 请求体与响应体完整保存，不按单条大小截断；仅超过 [`MAX_ENTRIES`] 时淘汰最旧记录。
-//! 未完成的流按实际收到的字节保存；人为中止不会伪造未收到的内容。
+//! ── ──────────────────────────────────────────────
+//! request and response， not by ；only [`MAX_ENTRIES`] when old 。
+//! by to ； as in not will to 。
 //!
-//! ── `Db` 是进程级状态（本模块的两处特殊之处之一）────────────
-//! 与 `AccountStore` / `LogStore` / `RequestStats` 不同，本模块没有「注入式句柄」
-//! 的形态：框架用 `static DB: OnceLock<Option<Db>>` 装一次，其余函数直接取。
-//! 原因是采集器的生命周期 —— [`TrafficCapture`] 随响应流活到请求结束才 drop，
-//! 那一刻触发 [`record`]，而**那个位置拿不到 `ServerState`**（响应流活得比
-//! handler 栈帧久）。所以采集侧只能是进程级可取的，与 `logging::store_ref`
-//! 同一模式。
-//! 改造前还有两个静态量，它们的去留：
-//!   - `STORE: OnceLock<Mutex<TrafficStore>>` **删除**：内存快照（`VecDeque` +
-//!     `bytes`）整体不再需要 —— 库就是全集，读取是一次查询；
-//!   - `DIRECTORY: RwLock<Option<PathBuf>>` **删除**：报文不再有自己的目录，
-//!     也不再有「换目录」这回事（数据进了统一库，见 `file()` 的说明）。
+//! ── `Db` is （ 1 ）────────────
+//! and `AccountStore` / `LogStore` / `RequestStats` not ， no has 「」
+//! ： use `static DB: OnceLock<Option<Db>>` 1 ， its 。
+//! Reason is —— [`TrafficCapture`] response to request drop，
+//! that 1 [`record`]，** that not to `ServerState`**（response
+//! handler ）。 can is can ， and `logging::store_ref`
+//! 1 。
+//! before has ， ：
+//! - `STORE: OnceLock<Mutex<TrafficStore>>` **delete**：（`VecDeque` +
+//! `bytes`） not need need —— is ， is 1 ；
+//! - `DIRECTORY: RwLock<Option<PathBuf>>` **delete**： not has directory，
+//! not has 「directory」 this （ 1 ， `file()` ）。
 //!
-//! ── 并发模型 ────────────────────────────────────────────────
-//! 改造前是「一把 `Mutex` 包住内存快照 + 落盘」；现在串行化由 `Db` 那把 Mutex
-//! 负责（每次操作在一次 `Db::with` / `with_mut` 里跑完）。**所有失败都不影响
-//! 请求**：写库失败只打一行日志。
+//! ── and ────────────────────────────────────────────────
+//! before is 「 1 `Mutex` + 」； in by `Db` that Mutex
+//! （ in 1 `Db::with` / `with_mut` ）。**allfailure not 
+//! request**：failure 1 。
 //!
-//! ── 硬约束：持 `Db` 锁期间绝不能调 `logging::log` / `logging::verbose` ──
-//! 那两个函数会写**同一个库**（`logging::store` → `LogStore::append`），而
-//! `std::sync::Mutex` 不可重入 —— 在 `Db::with` 的闭包里调它们会当场死锁。
-//! 所以本模块的错误路径**一律用 `eprintln!`**（改造前 `write_all` / `append_line`
-//! 里用的就是它，这条纪律现在更要紧：库是共享的，而死锁会带走整个进程）。
+//! ── ： `Db` not can `logging::log` / `logging::verbose` ──
+//! that will ** 1 **（`logging::store` → `LogStore::append`），
+//! `std::sync::Mutex` not can —— in `Db::with` will 。
+//! errorpath** 1 use `eprintln!`**（ before `write_all` / `append_line`
+//! use is ， this in need ： is ， will ）。
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -65,29 +65,29 @@ use crate::server::logging;
 mod payload;
 mod sql;
 
-/// 表里保留的最大条数。超过后**精确删到上限**（每次只删超出那几条）。
+/// 。 after ** to limit**（ that ）。
 ///
-/// 取 500：与事件日志的上限同量级，够看「最近这批请求发生了什么」；
-/// 调试模式是**临时排障**用的，不是长期归档 —— 真要长期留，用户该用导出，
-/// 而不是指望这里无限增长。
+/// 500： and limit，「 this request」；
+/// is ** when ** use ， not is —— need ， use this use ，
+/// not is this none。
 ///
-/// ── 为什么不再「丢最旧的一半」───────────────────────────────
-/// 旧实现的注释写明「丢一半」是为了省下每次超限都整文件重写的代价
-/// （一次重写换掉一半的量，比逐条删便宜）。进数据库后这条理由**消失了**：
-/// 淘汰是一条 DELETE，它的成本与删多少行无关（旧实现里正是「删多少」决定了
-/// 要重写多少字节）。
-/// 精确删到上限的好处是可预期的容量：用户看到 `count()` 就到 500 为止，
-/// 不会出现「刚过 500 就掉到 250」那种一半的跳变。
-/// 代价是超限后每次 `record` 都会发一条 DELETE，但那次删除通常只影响
-/// **一两行**（`record` 每次只加一条，除非有人手工往库里塞了一大批）——
-/// 而且只在超限时才发（见 [`record`] 的先判后删）。
+/// ── Why not 「 old 1 」───────────────────────────────
+/// old 「 1 」 is as down file 
+/// （ 1 1 ，）。 after this by ****：
+/// is 1 DELETE， and none（ old is 「」
+/// need ）。
+/// to limit is can ： use to `count()` to 500 as ，
+/// not will 「 500 to 250」 that 1 。
+/// is after `record` will 1 DELETE， that delete
+/// ** 1 **（`record` 1 ， has 1 ）——
+/// and in when （ [`record`] after ）。
 pub const MAX_ENTRIES: usize = 500;
 
-/// 凭据类请求头：命中即替换成 `[redacted]`（大小写不敏感）。
+/// request： in `[redacted]`（ not ）。
 ///
-/// 名单在 OmniProxy 的基础上补齐了**我们五家用到的自定义头**：各家适配器
-/// 会在头里带 token / cookie / 签名（见 `providers/*/adapter.rs` 的
-/// `build_chat_request`）。宁可多脱几个（多脱只损失排障信息，少脱是事故）。
+/// in OmniProxy up ** use to **：
+/// 会在头里带 token / cookie / 签名（见 `providers/*/adapter.rs` 
+/// `build_chat_request`）。 can （， is ）。
 const SENSITIVE_HEADERS: &[&str] = &[
     "authorization",
     "proxy-authorization",
@@ -109,54 +109,54 @@ const SENSITIVE_HEADERS: &[&str] = &[
     "x-autoclaw-token",
 ];
 
-/// 脱敏占位符（与 OmniProxy 同字面量，便于对照两边的日志）
+/// （ and OmniProxy ， for ）
 pub const REDACTED: &str = "[redacted]";
 
-/// 进程级数据库句柄（与 `logging::store_ref` 同一模式：`None` = 库不可用）。
+/// （ and `logging::store_ref` 1 ：`None` = unavailable）。
 ///
-/// `OnceLock<Option<Db>>` 而不是 `OnceLock<Db>`：`Db::open` 可能失败，而
-/// `init` 的签名要接 `Option<Db>`（调用点手里就是它）—— 包在 `Option` 里
-/// 让「未初始化」与「初始化了但库不可用」共用同一条取值路径（都是 `None`），
-/// 各函数只需判一次。
+/// `OnceLock<Option<Db>>` not is `OnceLock<Db>`：`Db::open` can can failure，
+/// `init` need `Option<Db>`（ use is ）—— in `Option` 
+/// 「」 and 「unavailable」 use 1 path（ is `None`），
+/// need 1 。
 static DB: OnceLock<Option<Db>> = OnceLock::new();
 
-/// 进程级库句柄（未初始化或库不可用时为 `None`）
+/// （ or unavailable when as `None`）
 fn db() -> Option<&'static Db> {
     DB.get().and_then(|slot| slot.as_ref())
 }
 
-/// 初始化存储（启动时调用一次；`OnceLock` 天然幂等 —— 重复调用只有第一次生效）。
+/// （ when use 1 ；`OnceLock` etc —— use has 1 ）。
 ///
-/// ── 它现在还需要做什么（相比改造前少了一大半）───────────────
-/// 改造前它做三件事：设目录、清空内存、把旧文件载入内存并裁一遍（超限还要
-/// 回写文件）。进数据库后后两件都不需要了：
-///   - **没有「载入」**：库就是全集，读取是一次查询（改造前必须先把文件读进
-///     内存才能 `get` / `count`，那是文件时代的补偿机制）；
-///   - **没有「启动裁剪」**：超限的行由 [`record`] 的留存条数守着，而启动时
-///     库里最多就是上次退出时的状态（那时已经合规）；即便有人手工往库里塞了
-///     超限数据，下一次 `record` 也会收敛它。
-/// 所以它只剩「把 `Db` 装上」这一件事 —— 但**仍然必要且必须被调用**：没装
-/// 就相当于本模块没启用，[`record`] 会静默丢弃、[`get`] 一律 `None`。
-/// 无返回值、不报错：调试数据不值得让网关起不来（模块头的取向）。
+/// ── in need need （ before 1 ）───────────────
+/// before ：directory、empty、 old file and 1 （ need 
+/// file）。 after after not need need ：
+/// - ** no has 「」**： is ， is 1 （ before must file
+/// can `get` / `count`， that is file when ）；
+/// - ** no has 「」**： by [`record`] ， when 
+/// is up when （ that when already ）； has 
+/// ， down 1 `record` will 。
+/// 「 `Db` up 」 this 1 —— ** need and must use **： no 
+/// no enabled，[`record`] will 、[`get`] 1 `None`。
+/// nonereturn、 not ： not not （module header to ）。
 ///
-/// 无论调试开关是否打开都要初始化（`ServerState::bootstrap` 的注释）：开关是
-/// **逐请求**判定的（改完设置下一个请求就生效），存储没就绪会让开启后的第一批
-/// 请求无处可落。
+/// none is need （`ServerState::bootstrap` ）： is 
+/// **request** （set down 1 request）， no will after 1 
+/// requestnone can 。
 pub fn init(db: Option<Db>) {
-    // 重复调用只让第一次生效（`set` 失败即已初始化）。与改造前一致：
-    // 那时是覆盖目录 + 重新载入，现在库自己就是真相，覆盖没有意义。
+    // use 1 （`set` failure already ）。 and before 1 ：
+    // that when is directory + new ， in is ， no has 。
     let _ = DB.set(db);
-    // fork：载荷改走文件后，启动要做两件事（都只跟文件侧有关）：
-    //   1. 把库里遗留的载荷搬进文件、再把那四列清空 —— 否则旧安装的 `.db`
-    //      永远瘦不下来；
-    //   2. 清孤儿载荷（ramdisk 被清空 / 台账被裁剪后留下的文件）。
+    // fork：file after ， need （file has ）：
+    // 1. file、 that empty —— otherwise old `.db`
+    // not down ；
+    // 2. （ramdisk empty / after down file）。
     super::blocking::in_place(move_legacy_payloads);
 }
 
-/// 把仍留在库里的载荷搬到文件侧，然后清空那四列。
+/// in to file， after empty that 。
 ///
-/// 顺序是「先落盘、后清列」：文件写失败的行原样留在库里（宁可多占一点 `.db`
-/// 也不丢报文）；全部写成功之后才进一次清列，避免留下「两处都没有」的行。
+/// is 「、 after 」：filefailure in （ can 1 `.db`
+/// not ）；success after 1 ， down 「 no has 」 。
 fn move_legacy_payloads() {
     let Some(db) = db() else {
         return;
@@ -173,42 +173,42 @@ fn move_legacy_payloads() {
     }
     if !moved.is_empty() {
         if let Some(Err(error)) = db.with(|conn| sql::blank_payloads(conn, &moved)) {
-            eprintln!("[Debug] 旧报文载荷清理失败: {error}");
+            eprintln!("[Debug] old failure: {error}");
         }
     }
-    // 孤儿清扫只在台账可读时做（读不出来就别动文件，见 `payload::sweep`）。
+    // in can when （ not file， `payload::sweep`）。
     if let Some(Ok(ids)) = db.with(sql::ids) {
         payload::sweep(&ids.into_iter().collect());
     }
 }
 
-/// fork：报文**载荷**所在的目录（`{cache_dir}/debug-traffic/`；排障用）。
+/// fork：**** in directory（`{cache_dir}/debug-traffic/`； use ）。
 ///
-/// 改造后库里的 `debug_traffic` 只是台账，正文全在目录里；调用方
-/// `api::storage_api` 读的是 `Db::file()`，本函数没有调用方 —— 保留它是为了
-/// 回答「报文落在哪」这个问题。
+/// after `debug_traffic` is ， in directory； use 
+/// `api::storage_api` is `Db::file()`， no has use —— is as 
+/// 「 in 」 this 。
 ///
-/// 旧语义（**就是库文件**；设置页概况用）见 git 历史。
+/// old （** is file**；set use ） git 。
 ///
-/// 语义从「报文文件路径」变成「装着报文数据的库文件」—— 与 `AccountStore::file()`
-/// / `LogStore::file()` / `RequestStats::file()` 的处理一致。
+/// from 「filepath」「 file」—— and `AccountStore::file()`
+/// / `LogStore::file()` / `RequestStats::file()` 1 。
 ///
-/// ── 库不可用时为什么给 `None`（而不是约定路径）────────────────
-/// 调用方 `api::storage_api` 现在读的是 `Db::file()`（库不可用时用约定路径兜底，
-/// 由那边决定），本函数因此**没有调用方**了。保留它是为了与另外三个 store 的
-/// 「file()」形态一致（它们都保留了这个访问器），且它是排障时「报文落在哪」
-/// 这个问题的直接答案 —— 按本项目「有意保留的设施逐个标注并写明理由」的做法
-/// 标注，而不是删掉（删了以后排障要用 `sqlite3` 才知道库在哪）。
+/// ── unavailable when Why to `None`（ not is path）────────────────
+/// use `api::storage_api` in is `Db::file()`（unavailable when use path，
+/// by that ），** no has use **。 is as and store 
+/// 「file()」 1 （ this ）， and is when 「 in 」
+/// this —— by 「 has and by 」 
+/// ， not is （ after need use `sqlite3` in ）。
 ///
-/// 给 `None` 而不是约定路径的取舍仍然成立：调用方（若有）能表达「没有」，
-/// 比给一个「大小 0 字节、可能根本不存在」的路径更诚实。
+/// to `None` not is path ： use （ if has ） can 「 no has 」，
+/// to 1 「 0 、 can can not in 」 path。
 #[allow(dead_code)]
 pub fn file() -> Option<PathBuf> {
     db()?;
     Some(payload::dir())
 }
 
-/// 条数（设置页概况用；库不可用时 0）
+/// （set use ；unavailable when 0）
 pub fn count() -> usize {
     match db() {
         Some(db) => db
@@ -220,25 +220,25 @@ pub fn count() -> usize {
     }
 }
 
-/// 落一条完整报文；同 id 覆盖，失败只打日志，不影响转发。
+/// 1 ； id ，failure， not 。
 pub fn record(entry: TrafficEntry) {
     super::blocking::in_place(|| record_sync(entry));
 }
 
 fn record_sync(entry: TrafficEntry) {
     let Some(db) = db() else {
-        // 库不可用：静默丢弃（与改造前「STORE 未初始化」同一处理）。
-        // 这里连日志都不打 —— 每个请求都会走到这一步，刷屏反而掩盖真问题。
+        // unavailable：（ and before 「STORE 」 1 ）。
+        // this not —— request will to this 1 ，。
         return;
     };
-    // fork：载荷先落文件，台账再进库。文件写失败就回落到「载荷照旧进库」——
-    // 调试报文宁可多占一点 `.db`，也不该因为内存盘临时不可写而整条丢掉。
-    // 失败只打控制台：**不能**用 logging::log / verbose —— 它们要写同一个库，
-    // 而此刻我们正握着那把锁（见模块头的死锁约束）。
+    // fork：file，。filefailure to 「 old 」——
+    // can 1 `.db`， not this as when not can 。
+    // failure：** not can ** use logging::log / verbose —— need 1 ，
+    // that （module header ）。
     let written = match payload::write(&entry) {
         Ok(()) => true,
         Err(error) => {
-            eprintln!("[Debug] 调试报文写入文件失败（回落入库）: {error}");
+            eprintln!("[Debug] filefailure（）: {error}");
             false
         }
     };
@@ -252,13 +252,13 @@ fn record_sync(entry: TrafficEntry) {
     match stored {
         Some(Ok(())) => {}
         Some(Err(error)) => {
-            eprintln!("[Debug] 调试报文写入数据库失败: {error}");
+            eprintln!("[Debug] failure: {error}");
             return;
         }
-        // 连接中毒（`Db` 的取向：不拿半截数据当真相）
+        // in （`Db` to ： not ）
         None => return,
     }
-    // 写入后只清理超过留存条数的旧记录；真的删了行才扫一次载荷孤儿。
+    // after old ； 1 。
     match db.with(|conn| sql::enforce_limits(conn)) {
         Some(Ok(removed)) if removed > 0 => {
             if let Some(Ok(ids)) = db.with(sql::ids) {
@@ -266,70 +266,70 @@ fn record_sync(entry: TrafficEntry) {
             }
         }
         Some(Ok(_)) | None => {}
-        Some(Err(error)) => eprintln!("[Debug] 调试报文裁剪失败: {error}"),
+        Some(Err(error)) => eprintln!("[Debug] failure: {error}"),
     }
 }
 
-/// 按 id 取一条（请求日志页的「详情」列用；库不可用时 `None`）
+/// by id 1 （request 「」 use ；unavailable when `None`）
 ///
-/// 同 id 多行时取**最后写入的那一份**（`ORDER BY ts DESC, rowid DESC LIMIT 1`），
-/// 与改造前「内存里从尾部往前找第一个匹配」逐字一致。
+/// id when ** after that 1 **（`ORDER BY ts DESC, rowid DESC LIMIT 1`），
+/// and before 「 from before 1 」 1 。
 pub fn get(id: &str) -> Option<TrafficEntry> {
     let mut entry = db()?
         .with(|conn| sql::select_one(conn, id))
         .and_then(Result::ok)
         .flatten()?;
-    // fork：台账里的载荷四列是空的，正文在文件里；遗留行（还没被搬运的）
-    // 在库里本来就有内容，`hydrate` 找不到文件时原样返回。
+    // fork： is empty ， in file；（ no ）
+    // in has ，`hydrate` not to file when return。
     payload::hydrate(&mut entry);
     Some(entry)
 }
 
-/// 一条原始报文记录。
+/// 1 。
 ///
-/// 字段用 `Option` 表达「这一侧没采到」：请求发不出去时没有响应侧，
-/// 关闭调试模式时整条不写。`id` 是关联键 —— 与请求日志的 `id` 同值。
-/// 这三个 `Option` 在库里的落点是**可空列**（`status` / `response_headers` /
-/// `response_body`），**不用空串代替 NULL**：前端的详情弹窗依赖这个区分
-/// （`ui/requests-panel.js` 的 `renderDetail`：`data.status == null` 显示 `-`，
-/// `data.responseBody ? String(...)` 为空则不渲染那一块）。
+/// use `Option` 「 this 1 no to 」：request not when no has response，
+/// when not 。`id` is —— and request `id` 。
+/// this `Option` in is ** can empty**（`status` / `response_headers` /
+/// `response_body`），** not use empty NULL**： before this 
+/// （`ui/requests-panel.js` `renderDetail`：`data.status == null` `-`，
+/// `data.responseBody ? String(...)` as empty then not that 1 ）。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TrafficEntry {
-    /// 关联键：请求日志条目 id（同一请求在两边同 id）
+    /// ：request id（ 1 request in id）
     pub id: String,
-    /// 记录时刻（毫秒 Unix 时间戳）
+    /// when （ms Unix when ）
     pub ts: i64,
-    /// 上游 URL（含路径；查询串原样保留）
+    /// up URL（path；）
     #[serde(default)]
     pub url: String,
-    /// 实际承载的 provider id
+    /// provider id
     #[serde(default)]
     pub provider: String,
-    /// 发给上游的请求头（**已脱敏**）
+    /// to up request（** already **）
     #[serde(default)]
     pub request_headers: Value,
-    /// 发给上游的请求体（已按家改写过 model 的最终形态）
+    /// to up request（ already by model ）
     #[serde(default)]
     pub request_body: Value,
-    /// 上游响应状态码（未发出 / 未收到响应时缺失）
+    /// up response（ / to response when ）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<u16>,
-    /// 上游响应头（**已脱敏**）
+    /// up response（** already **）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub response_headers: Option<Value>,
-    /// 上游响应体：流式为原始 SSE 文本，非流式为聚合前的原始文本
+    /// up response： as SSE ， as before 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub response_body: Option<String>,
-    /// 历史记录的截断标记；新采集的正文不截断。
+    /// ； new not 。
     #[serde(default)]
     pub truncated: bool,
 }
 
-/// 头集合脱敏：凭据类字段换成 [`REDACTED`]，其余原样。
+/// ： [`REDACTED`]， its 。
 ///
-/// 收 `Vec<(String, String)>`（适配器给出的形态）与 `HeaderMap`（reqwest 响应）
-/// 两种来源，统一输出 JSON 对象 —— 重名头按**后到覆盖**（与 HTTP 语义一致，
-/// 且这两种来源里重名极少见）。
+/// `Vec<(String, String)>`（ to ） and `HeaderMap`（reqwest response）
+/// ， 1 JSON for —— by ** after to **（ and HTTP 1 ，
+/// and this ）。
 pub fn redact_headers<'a>(headers: impl IntoIterator<Item = (&'a str, &'a str)>) -> Value {
     let mut object = serde_json::Map::new();
     for (name, value) in headers {
@@ -344,9 +344,9 @@ pub fn redact_headers<'a>(headers: impl IntoIterator<Item = (&'a str, &'a str)>)
     Value::Object(object)
 }
 
-/// 请求日志「详情」的响应形态：原始报文 + 请求日志的关联字段。
+/// request「」 response： + request 。
 ///
-/// 由 `api::debug_api` 组装（本模块只给报文那半）。
+/// by `api::debug_api` （ to that ）。
 pub fn detail_payload(entry: &TrafficEntry) -> Value {
     json!({
         "id": entry.id,
@@ -362,42 +362,42 @@ pub fn detail_payload(entry: &TrafficEntry) -> Value {
     })
 }
 
-// ─── 采集器（转发层用）────────────────────────────────────────
+// ─── （ use ）────────────────────────────────────────
 
-/// 一次转发的原始报文采集器。
+/// 1 。
 ///
-/// ── 生命周期 ────────────────────────────────────────────────
-/// 请求侧在**即将发送前**创建（此时 URL / 头 / 体都已定稿），响应侧在收到
-/// 响应头时补上状态码与头，响应体随字节流累积，最后在**流结束或 drop 时**
-/// 落库（[`Drop`]）。用 Drop 而不是「结束时显式调用」的理由与
-/// `RecordingStream` 相同：客户端断开、上游断流、请求被取消三条路径都不会
-/// 走到「正常结束」，只靠显式调用会丢掉那些最需要看的失败现场。
+/// ── ────────────────────────────────────────────────
+/// request in ** will before **create（ when URL / / already ），response in to 
+/// response when up and ，response， after in ** or drop when **
+/// （[`Drop`]）。 use Drop not is 「 when use 」 by and 
+/// `RecordingStream` ：client、 up 、request path not will 
+/// to 「」， use will that need need failure。
 ///
-/// ── 为什么共享 `Arc` ────────────────────────────────────────
-/// 流式路径里采集器要跟着 `ForwardStream` 走（它可能在 handler 返回后才被
-/// axum 拉取完），非流式路径里跟着聚合函数走。两条路径都持有同一个
-/// `Arc<TrafficCapture>`，谁最后 drop 谁落库。
+/// ── Why `Arc` ────────────────────────────────────────
+/// path need `ForwardStream` （ can can in handler return after 
+/// axum ），path。path has 1 
+/// `Arc<TrafficCapture>`， after drop 。
 pub struct TrafficCapture {
     state: std::sync::Mutex<CaptureState>,
 }
 
 struct CaptureState {
     entry: TrafficEntry,
-    /// 响应体累积（落库时移到 entry.response_body）
+    /// response（ when to entry.response_body）
     body: Vec<u8>,
-    /// 是否真的发过上游请求（`reset_request` 置位）。
+    /// is up request（`reset_request` ）。
     ///
-    /// 未置位 = 请求在到达转发层之前就失败了（没有可用账号、模型不存在…），
-    /// 那种情况**不落库**：报文里除了 id 与时刻什么都没有，留着只会让
-    /// 「详情」列表混进一堆空条目。
+    /// = request in to before failure（ no has available、 not in …），
+    /// that ** not **： id and when no has ， will 
+    /// 「」 1 empty。
     sent: bool,
-    /// 已落库（保证只写一次）
+    /// already （ 1 ）
     done: bool,
 }
 
 impl TrafficCapture {
-    /// 请求侧：转发开始时创建，只带 id（URL / 头 / 体等真正发送时由
-    /// [`Self::reset_request`] 填上 —— 那时它们才定稿）。
+    /// request： when create， id（URL / / etc when by 
+    /// [`Self::reset_request`] up —— that when ）。
     pub fn begin(id: &str) -> Self {
         Self {
             state: std::sync::Mutex::new(CaptureState {
@@ -409,11 +409,11 @@ impl TrafficCapture {
         }
     }
 
-    /// 重置为一次新的尝试（同一条请求内的退避重试 / 401 刷新重试）。
+    /// as 1 new （ 1 request / 401 new ）。
     ///
-    /// **最后一次为准**（与 OmniProxy 的「重试覆盖为最后一次尝试」同口径）：
-    /// 重试时把上一轮的响应现场清掉，用户看到的是最终真正生效的那次往返，
-    /// 而不是「第一次失败 + 第二次成功」混在一起的两段 body。
+    /// ** after 1 as **（ and OmniProxy 「 as after 1 」）：
+    /// when up 1 response， use to is that ，
+    /// not is 「 1 failure + success」 in 1 body。
     pub fn reset_request(
         &self,
         url: &str,
@@ -424,15 +424,15 @@ impl TrafficCapture {
         let mut guard = self.lock();
         guard.entry = blank_entry(&guard.entry.id.clone(), url, provider, headers, body);
         guard.body.clear();
-        // 走到这里说明请求体已构造、即将发出 —— 这条报文有内容可落
+        // to this request already 、 will —— this has can 
         guard.sent = true;
-        // done 不重置：本条请求只写一行，重试不产生新条目
+        // done not ：request 1 ， not new 
     }
 
-    /// 响应头到达时补上状态码与响应头（**必须在 consume response 之前调**）。
+    /// response to when up and response（**must in consume response before **）。
     ///
-    /// 顺带清空已累积的响应体：重试场景下上一次尝试的 body 不该混进来
-    /// （见 [`Self::reset_request`] 的「最后一次为准」）。
+    /// empty already response： down up 1 body not this 
+    /// （ [`Self::reset_request`] 「 after 1 as 」）。
     pub fn attach_response(&self, status: u16, headers: &reqwest::header::HeaderMap) {
         let mut guard = self.lock();
         guard.entry.status = Some(status);
@@ -452,10 +452,10 @@ impl TrafficCapture {
         String::from_utf8_lossy(&self.lock().body).into_owned()
     }
 
-    /// 落库（幂等：第二次调用什么都不做）。
+    /// （ etc ： use not ）。
     ///
-    /// 没真发过请求（`sent` 为假）时直接丢弃：那种报文除了 id 什么都没有
-    /// （见 `CaptureState::sent` 的说明）。
+    /// no request（`sent` as ） when ： that id no has 
+    /// （ `CaptureState::sent` ）。
     pub fn finish(&self) {
         let mut guard = self.lock();
         if guard.done {
@@ -467,7 +467,7 @@ impl TrafficCapture {
         }
         let body = std::mem::take(&mut guard.body);
         if !body.is_empty() {
-            // 字符可能横跨网络分片，完整累积后再解码。
+            // can can ， after 。
             guard.entry.response_body = Some(match String::from_utf8(body) {
                 Ok(text) => text,
                 Err(error) => String::from_utf8_lossy(error.as_bytes()).into_owned(),
@@ -491,7 +491,7 @@ impl Drop for TrafficCapture {
     }
 }
 
-/// 一条空白记录的构造（`begin` / `reset_request` 共用）
+/// 1 empty （`begin` / `reset_request` use ）
 fn blank_entry(
     id: &str,
     url: &str,
@@ -516,36 +516,36 @@ fn blank_entry(
     }
 }
 
-/// 调试模式是否开启（**唯一**判定入口）：上游报文（本模块各采集点）与
-/// 下游正文（`api::pipeline::capture_raw_body` / `capture_raw_json`）都问它；
-/// 请求日志的「预览对话」与「原始报文」两块数据因此同进同退。
+/// is （** 1 **）： up （） and 
+/// down （`api::pipeline::capture_raw_body` / `capture_raw_json`）；
+/// request 「 for 」 and 「」。
 ///
-/// 每次调用都读配置快照（`config::current()` 是 RwLock 读 + 结构体克隆）：
-/// 开关改完下一个请求就生效，不必重启。转发热路径上多一次读锁是可接受的
-/// —— 与「每次重试判定都读重试设置」同一取向（见 `config::RetrySettings`）。
+/// use config（`config::current()` is RwLock + ）：
+/// down 1 request， not 。path up 1 is can 
+/// —— and 「set」 1 to （ `config::RetrySettings`）。
 pub fn enabled() -> bool {
     crate::server::config::current().debug_mode()
 }
 
-/// 迁移项用：把一批旧文件条目写进 `debug_traffic` 表（**一个事务**，含导入后的裁剪）。
+/// use ： 1 old file `debug_traffic` （** 1 **， after ）。
 ///
-/// 与 `logs` / `requests` 的迁移项同构：整批原子提交，导入后只按留存条数裁剪。
+/// and `logs` / `requests` ：， after by 。
 ///
-/// 用 `unchecked_transaction` 而不是 `transaction`：迁移框架给的签名是
-/// `&Connection`（`transaction()` 要 `&mut`），调用点 `Db::with` 全程只有一把锁、
-/// 没有第二个访问者 —— 那条「同连接不得嵌套事务」的约束由调用点保证。
+/// use `unchecked_transaction` not is `transaction`： to is 
+/// `&Connection`（`transaction()` need `&mut`）， use `Db::with` has 1 、
+/// no has —— that 「 not 」 by use 。
 ///
-/// ── `INSERT OR IGNORE` 而不是纯 INSERT（T11 之后必须如此）──────
-/// `id` 是主键，而运行期也在往这张表写（用户在点「升级」之前可能已经开着调试
-/// 模式发过请求）。重复点击「升级」时旧文件的 id 已在库里，纯 INSERT 会撞主键
-/// 让整批回滚 —— 于是用户看到「调试报文迁移失败」而原因只是「导过了」。
-/// 用 `OR IGNORE`：已存在的跳过、新的照常进，重复点击成为无害的空操作。
-/// 返回 `(新导入条数, 已存在跳过的条数)` 供调用方记日志。
+/// ── `INSERT OR IGNORE` not is INSERT（T11 after must）──────
+/// `id` is ， in this （ use in 「」 before can can already 
+/// request）。「」 when old file id already in ， INSERT will 
+/// —— is use to 「failure」Reason is 「」。
+/// use `OR IGNORE`： already in 、 new ， as none empty。
+/// return `( new , already in )` use 。
 ///
-/// 为什么这里**不**用 `upsert_entry`（同 id 覆盖，运行期那条路用它）：
-/// 覆盖会把库里那份换掉，而两份内容可能不同（运行期采的报文可能更完整 ——
-/// 重试路径会重采、调试开关中途打开也会再采一次）。旧文件是**历史快照**，
-/// 不该反过来盖掉更新的那份。
+/// Why this ** not ** use `upsert_entry`（ id ， that use ）：
+/// will that ， can can not （ can can ——
+/// path will 、 in will 1 ）。 old file is ****，
+/// not this update that 。
 pub(crate) fn import_legacy(
     conn: &rusqlite::Connection,
     entries: &[TrafficEntry],
@@ -565,19 +565,19 @@ pub(crate) fn import_legacy(
     Ok((imported, skipped))
 }
 
-// 这里原本有一个 `legacy_count`（「表非空即跳过」的幂等闸门）。**已删除**：
-// T11 把迁移改成用户点「升级」触发之后，那个判据不成立了 —— 用户可能在那之前
-// 开着调试模式发过请求（表里已有报文），于是本项被永远判成「已迁过」，
-// 旧文件里的历史报文再也进不来（`logs` 项已线上复现同类死循环）。
-// 现在靠 `INSERT OR IGNORE` 按主键幂等，不需要「表空不空」这个查询 ——
-// 完整论证见 `db::migrate::debug::import_debug` 的幂等段。
+// this has 1 `legacy_count`（「empty」 etc ）。** already delete**：
+// T11 use 「」 after ， that not —— use can can in that before 
+// request（ already has ）， is 「 already 」，
+// old file not （`logs` already up ）。
+// in `INSERT OR IGNORE` by etc ， not need need 「empty not empty」 this ——
+// `db::migrate::debug::import_debug` etc 。
 
-/// 迁移项用：旧文件的解析口径（**与改造前 `init` 的载入逐字一致**）。
+/// use ： old file （** and before `init` 1 **）。
 ///
-/// 逐行解析、空行跳过、坏行跳过（不报错、不 panic）—— 调试数据不值得让网关
-/// 起不来。它留在本模块而不是搬进迁移项，理由与 T4 的 `parse_*` 相同：
-/// 「一行 JSON 长什么样」是数据契约（`TrafficEntry` 的 serde 注解就是契约），
-/// 与运行期必须共用同一份实现。
+/// 、empty、（ not 、 not panic）—— not 
+/// not 。 in not is ， by and T4 `parse_*` ：
+/// 「 1 JSON 」 is （`TrafficEntry` serde is ），
+/// and must use 1 。
 pub(crate) fn parse_legacy_jsonl(text: &str) -> Vec<TrafficEntry> {
     let mut out = Vec::new();
     for line in text.lines() {

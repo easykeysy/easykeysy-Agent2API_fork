@@ -1,34 +1,34 @@
 /**
- * AI 助手的文本附件（JSON / .info）：消息形状、引用解析与传给模型的文本块。
+ * AI （JSON / .info）：、 use and to 。
  *
- * ── 为什么单独一个模块 ──────────────────────────────────────
- * 桌面端、手机端、会话历史与两个账号导入工具都要用同一套「附件编号怎么算、
- * 预览怎么拼、文件名怎么匹配」。分散在各端会出现「桌面按最新一条消息编号、
- * 手机按整个会话编号」这种分叉 —— 模型拿到的 `attachment:1` 指向就会变。
+ * ── Why 1 ──────────────────────────────────────
+ * 、、 will and need use 1 「、
+ * 、file」。 in will 「 by new 1 、
+ * by will 」 this —— to `attachment:1` to will 。
  *
- * ── 附件只跟「最近一条带附件的用户消息」走 ──────────────────
- * 用户在一条消息里可以带多个文件，之后的几轮工具调用都用同一组编号。
- * 再发一条不带文件的消息时，旧附件仍可被读取（会话里还留着原文），但编号
- * 仍以最近一次上传的那组为准 —— 与图片参考的 `attachment:N` 口径一致。
+ * ── 「 1 use 」 ──────────────────
+ * use in 1 can file， after use use 1 。
+ * 1 not file when ， old can （ will ），
+ * 1 up that as —— and `attachment:N` 1 。
  *
- * ── 发给模型的不是全文 ──────────────────────────────────────
- * 文件原文存在消息里（重开历史还在），但每一轮请求只带「元信息 + 顶层字段 +
- * 前 1200 个字符」。完整内容由 `read_attachment` 工具按需读取，否则一份几十
- * KB 的 JSON 会在每一次工具来回里重复占上下文。
+ * ── to not is ──────────────────────────────────────
+ * file in （ in ）， 1 request「 + +
+ * before 1200 」。 by `read_attachment` by need ，otherwise 1 
+ * KB JSON will in 1 up down 。
  */
 
 export type AssistantTextFile = {
   name: string
-  /** 原始字节数（展示用；文本长度另算） */
+  /** （ use ；） */
   size: number
   text: string
 }
 
-/** 一次最多带几个文件（与图片分开计数） */
+/** 1 file（ and ） */
 export const MAX_TEXT_FILES = 3
-/** 单个文件的字节上限：凭证 JSON 通常只有几 KB，512 KB 已经非常宽松 */
+/** file limit： JSON has KB，512 KB already */
 export const MAX_TEXT_FILE_BYTES = 512 * 1024
-/** 每一轮请求里每个文件最多带多少字符的预览 */
+/** 1 request file */
 export const MAX_FILE_PREVIEW_CHARS = 1200
 
 export function isAssistantTextFile(value: unknown): value is AssistantTextFile {
@@ -39,7 +39,7 @@ export function isAssistantTextFile(value: unknown): value is AssistantTextFile 
     && (typeof file.size === 'number' || file.size === undefined)
 }
 
-/** 宽松读取会话里存的文件数组（手改过的历史不让整条会话打不开） */
+/** will file（ not will not ） */
 export function assistantFiles(value: unknown): AssistantTextFile[] {
   if (!Array.isArray(value)) return []
   return value.filter(isAssistantTextFile).map(file => ({
@@ -49,7 +49,7 @@ export function assistantFiles(value: unknown): AssistantTextFile[] {
   }))
 }
 
-/** 最近一条带附件的用户消息里的文件（编号从 1 开始就是它里面的顺序） */
+/** 1 use file（ from 1 is ） */
 export function assistantFileContext(messages: Array<{ role?: unknown; files?: unknown }>): AssistantTextFile[] {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index]
@@ -61,8 +61,8 @@ export function assistantFileContext(messages: Array<{ role?: unknown; files?: u
 }
 
 /**
- * 把模型给的引用解析成附件：`attachment:1`、`1`、`1.json` 或文件名。
- * 编号优先；按名字匹配时只有唯一命中才算，避免同名文件之间猜。
+ * to use ：`attachment:1`、`1`、`1.json` or file。
+ * ； by when has 1 in ，file。
  */
 export function assistantFileOf(
   files: AssistantTextFile[],
@@ -95,7 +95,7 @@ export function formatFileSize(bytes: number): string {
   return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1).replace(/\.0$/, '')} MB`
 }
 
-/** 顶层字段名（给模型一个「这是什么形状」的摘要）：不是对象 / 数组时返回空 */
+/** （ to 1 「 this is 」 need ）： not is for / when returnempty */
 export function jsonTopLevelKeys(text: string): string[] {
   try {
     const parsed = JSON.parse(text)
@@ -109,7 +109,7 @@ export function jsonTopLevelKeys(text: string): string[] {
   }
 }
 
-/** 文件在模型侧的一段说明（不包含密码学意义上的脱敏：用户明确要把文件交给模型） */
+/** file in 1 （ not up ： use need file to ） */
 function fileBlock(file: AssistantTextFile, index: number): string {
   const ordinal = index + 1
   const keys = jsonTopLevelKeys(file.text)
@@ -133,10 +133,10 @@ function fileBlock(file: AssistantTextFile, index: number): string {
 }
 
 /**
- * 一条用户消息 + 附件 → 发给上游的文本正文。
+ * 1 use + → to up 。
  *
- * 纯文本仍保持字符串形态（上游对字符串兼容性最好），附件说明只是追加在正文
- * 后面；带图时由调用方把这段文本塞进第一个 text part。
+ * （ up for ）， is in 
+ * after ； when by use this 1 text part。
  */
 export function userContentWithFiles(content: string, files: AssistantTextFile[]): string {
   const body = content

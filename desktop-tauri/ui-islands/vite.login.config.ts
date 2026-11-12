@@ -4,17 +4,17 @@ import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 
 /**
- * 登录页独立打包配置。
+ * config。
  *
- * 动机：`login.html` 只需要渲染一张登录卡片，但此前引用的是主面板的
- * `islands/ui.js`（2.3 MB，含全部页面与报表图表）。远程访问时这一份
- * 就把登录页拖到几十秒。这里只以 `src/login-entry.tsx` 为入口，产出
- * `ui/islands/login.js`，与主包共用同一套 React / 组件库版本。
+ * ：`login.html` need need 1 ， before use is 
+ * `islands/ui.js`（2.3 MB， and ）。 when this 1 
+ * to seconds。 this `src/login-entry.tsx` as ，
+ * `ui/islands/login.js`， and use 1 React / 。
  *
- * 其余配置与 `vite.config.ts` 保持一致（alias、dedupe、production 替换、
- * esbuild 压缩、目标 es2020），避免两份产物在运行时行为上出现差异。
- * 样式不在这里产出：登录页的 Tailwind 类仍由主构建的 `ui.css` 提供，
- * `login.html` 继续引用那一份。
+ * its config and `vite.config.ts` 1 （alias、dedupe、production 、
+ * esbuild 、 es2020）， in when as up 。
+ * not in this ： Tailwind by `ui.css` ，
+ * `login.html` use that 1 。
  */
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -29,7 +29,7 @@ export default defineConfig({
   },
   build: {
     outDir: '../ui/islands',
-    // 与主构建共用目录，别把 ui.js / ui.css 清掉
+    // and use directory， ui.js / ui.css 
     emptyOutDir: false,
     lib: {
       entry: 'src/login-entry.tsx',

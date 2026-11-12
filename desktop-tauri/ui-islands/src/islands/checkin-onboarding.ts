@@ -14,7 +14,7 @@ function patchOnboarding(id: string, next: Partial<OnboardingCache>): void {
   patch({ onboarding: map })
 }
 
-/** 手动查询可强制刷新；批量查询跳过已结清的账号。 */
+/** can new ； already 。 */
 export async function queryOnboarding(id: string, refresh = false): Promise<void> {
   const cached = onboardingOf(id)
   if (cached.status === 'loading' || cached.claiming) return

@@ -1,29 +1,29 @@
 /**
- * 面板认证：登录 / 首次注册 / 人机验证。
+ * ： / / 。
  *
- * ── 为什么要自己实现一遍 ALTCHA ───────────────────────────────
- * 桌面网页端用的是 `ui/panel-captcha.js`（自定义元素 `<panel-captcha>`），
- * 那是给 `login.html` 准备的经典脚本，APK 里没有那个页面、也不该为了它去
- * 加载桌面端的整套资源。协议本身很简单（服务端见 `server::altcha`）：
+ * ── Why need 1 ALTCHA ───────────────────────────────
+ * use is `ui/panel-captcha.js`（ `<panel-captcha>`），
+ * that is to `login.html` ，APK no has that 、 not this as 
+ * 。（server `server::altcha`）：
  *
- *   领题 → `{algorithm, challenge, salt, maxnumber, signature}`
- *   枚举 n 使 `sha256(salt + n) === challenge`
- *   提交 base64(JSON({algorithm, challenge, number, salt, signature}))
+ * → `{algorithm, challenge, salt, maxnumber, signature}`
+ * n `sha256(salt + n) === challenge`
+ * base64(JSON({algorithm, challenge, number, salt, signature}))
  *
- * 这里把求解实现成 Promise，不做成自定义元素 —— APK 的登录页是 React 组件，
- * 用状态驱动比 DOM 事件更自然。
+ * this Promise， not —— APK is React ，
+ * use DOM 。
  *
- * ── 为什么不用 crypto.subtle 一把梭 ────────────────────────────
- * `crypto.subtle` 只在安全上下文提供。APK 里页面 origin 是 `http://localhost`，
- * **算安全上下文**（localhost 被视为可信），所以这里可以放心用原生实现 ——
- * 与网页端那份「http 局域网要纯 JS 兜底」的顾虑不同。
- * 但为了在浏览器里调试时不炸，仍然保留了纯 JS 兜底。
+ * ── Why not use crypto.subtle 1 ────────────────────────────
+ * `crypto.subtle` in up down 。APK origin is `http://localhost`，
+ * ** up down **（localhost as can ）， this can use ——
+ * and that 「http need JS 」 not 。
+ * as in when not ， JS 。
  */
 
 import { apiCall, url, type PanelStatus } from './client'
 import { activeServerId, readServerAuth, serverIdentity, storeServerAuth } from '../lib/servers'
 
-/** 题面（服务端 `altcha::challenge()` 的原样输出） */
+/** （server `altcha::challenge()` ） */
 type Challenge = {
   algorithm: string
   challenge: string
@@ -32,7 +32,7 @@ type Challenge = {
   signature: string
 }
 
-/** 求解进度回调（0–1），用于界面上给一点反馈 */
+/** （0–1），used for up to 1 */
 export type SolveProgress = (ratio: number) => void
 
 /* ── SHA-256 ─────────────────────────────────────────────── */
@@ -52,18 +52,18 @@ function rotr(value: number, bits: number): number {
   return (value >>> bits) | (value << (32 - bits))
 }
 
-/** 纯 JS SHA-256（UTF-8 输入 → 32 字节摘要） */
+/** JS SHA-256（UTF-8 → 32 need ） */
 function sha256Bytes(bytes: Uint8Array): Uint8Array {
   const H = new Int32Array([
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
   ])
   const length = bytes.length
-  // 补位：0x80 + 若干 0 + 64 位长度
+  // ：0x80 + if 0 + 64 
   const padded = new Uint8Array(((length + 9 + 63) >> 6) << 6)
   padded.set(bytes)
   padded[length] = 0x80
   const bitLength = length * 8
-  // 长度只有低 32 位可能非零（题面几十字节，够用）
+  // has 32 can can （， use ）
   const view = new DataView(padded.buffer)
   view.setUint32(padded.length - 4, bitLength >>> 0, false)
   view.setUint32(padded.length - 8, Math.floor(bitLength / 0x100000000), false)
@@ -128,7 +128,7 @@ function hasNativeCrypto(): boolean {
 
 const encoder = new TextEncoder()
 
-/** 一次 sha256 的 hex 结果（优先原生实现） */
+/** 1 sha256 hex （） */
 async function sha256Hex(text: string): Promise<string> {
   if (hasNativeCrypto()) {
     const digest = await crypto.subtle.digest('SHA-256', encoder.encode(text))
@@ -137,14 +137,14 @@ async function sha256Hex(text: string): Promise<string> {
   return toHex(sha256Bytes(encoder.encode(text)))
 }
 
-/* ── 求解 ─────────────────────────────────────────────────── */
+/* ── ─────────────────────────────────────────────────── */
 
 /**
- * 枚举 number 使 `sha256(salt + number) === challenge`。
+ * number `sha256(salt + number) === challenge`。
  *
- * 每 2000 次让出一次主线程：纯 JS 路径的 await 只进微任务队列，不让出的话
- * 界面会冻住。原生路径每次 digest 本身就是异步的，天然让出。
- * 服务端上限 5–10 万次，平均命中在一半。
+ * 2000 1 ： JS path await ， not 
+ * will 。path digest is ，。
+ * serverlimit 5–10 ， in in 1 。
  */
 async function solve(challenge: Challenge, onProgress?: SolveProgress): Promise<number> {
   const target = String(challenge.challenge || '').toLowerCase()
@@ -162,9 +162,9 @@ async function solve(challenge: Challenge, onProgress?: SolveProgress): Promise<
 }
 
 /**
- * 领题并求解，返回可直接放进登录请求体的 payload。
+ * and ，return can request payload。
  *
- * 服务端关闭校验时领题回 400 —— 这时返回 `null`，调用方提交时不带 captcha 字段。
+ * server when 400 —— this when return `null`， use when not captcha 。
  */
 export async function solveCaptcha(onProgress?: SolveProgress): Promise<string | null> {
   let challenge: Challenge
@@ -173,11 +173,11 @@ export async function solveCaptcha(onProgress?: SolveProgress): Promise<string |
     if (!response.ok) return null
     challenge = (await response.json()) as Challenge
   } catch {
-    // 网关不可达：交给登录请求自己报错，不在这里把「验证失败」当结论
+    // not can ： to request， not in this 「failure」
     return null
   }
   const number = await solve(challenge, onProgress)
-  // 服务端要的是 base64(JSON)（std 与 url-safe 都认，btoa 给的是 std）
+  // server need is base64(JSON)（std and url-safe ，btoa to is std）
   return btoa(
     JSON.stringify({
       algorithm: challenge.algorithm,
@@ -189,21 +189,21 @@ export async function solveCaptcha(onProgress?: SolveProgress): Promise<string |
   )
 }
 
-/* ── 登录 / 注册 ─────────────────────────────────────────── */
+/* ── / ─────────────────────────────────────────── */
 
 export type AuthResult = { access: string; refresh: string } | { error: string }
 
 /**
- * 登录或首次注册。
+ * or 。
  *
- * 两者共用一条路径：服务端 `/api/panel/status` 说没注册过就走 setup，
- * 否则走 login。成功后令牌一定在响应体里 —— 请求带了 `x-panel-auth-mode:
- * body`，服务端据此把令牌放进 body（见 `tokens_in_body`）。
+ * use 1 path：server `/api/panel/status` no setup，
+ * otherwise login。success after 1 in response —— request `x-panel-auth-mode:
+ * body`，server body（ `tokens_in_body`）。
  *
- * 为什么必须要求令牌进 body：APK 的页面 origin 与网关不同源，服务端种的
- * HttpOnly cookie 属于网关那个 origin，WebView 的 fetch 跨源时不会带上它
- * （`Allow-Origin: *` 下浏览器拒绝带 cookie）。只有拿 body 里的令牌走请求头
- * 这条路。
+ * Whymust need body：APK origin and not ，server 
+ * HttpOnly cookie that origin，WebView fetch when not will up 
+ * （`Allow-Origin: *` down cookie）。 has body request
+ * this 。
  */
 export async function authenticate(input: {
   mode: 'login' | 'setup'
@@ -226,7 +226,7 @@ export async function authenticate(input: {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        // 令牌进响应体（两条通道都给：有的中转会剥自定义头）
+        // response（ to ： has in will ）
         'x-panel-auth-mode': 'body',
       },
       body: JSON.stringify(body),
@@ -243,7 +243,7 @@ export async function authenticate(input: {
     }
     const data = payload?.data
     if (!data?.accessToken || !data?.refreshToken) {
-      // 服务端没按标记给令牌（老版本网关）：告诉用户升级，而不是让他反复试
+      // server no by to （）： use ， not is 
       return { error: '网关没有返回登录令牌，请确认网关版本（需要支持 x-panel-auth-mode 的版本）' }
     }
     if (serverIdentity() !== identity) return { error: '服务器已切换，请在当前服务器重新登录' }
@@ -263,7 +263,7 @@ function readError(error: unknown): string {
   return ''
 }
 
-/** 退出登录：撤掉服务端会话（失败也无所谓），再清本地 */
+/** ：server will （failurenone）， */
 export async function logout(): Promise<void> {
   const auth = readServerAuth(activeServerId())
   const headers: Record<string, string> = {
@@ -278,11 +278,11 @@ export async function logout(): Promise<void> {
   try {
     await fetch(url('/api/panel/logout'), { method: 'POST', headers, body: '{}' })
   } catch {
-    /* 网关不可达也照样清本地 */
+    /* not can */
   }
 }
 
-/** 读当前面板状态（未登录也能调） */
+/** current（ can ） */
 export async function fetchPanelStatus(): Promise<PanelStatus> {
   return apiCall<PanelStatus>('/api/panel/status', { quiet: true })
 }

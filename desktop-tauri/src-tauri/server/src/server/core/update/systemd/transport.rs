@@ -73,7 +73,7 @@ fn response(reader: &mut impl BufRead) -> Result<Value, UpdateError> {
     Ok(value)
 }
 
-/// 能力探测只短连，不停服务、不读网络；短缓存避免状态轮询反复启动进程。
+/// can ， not 、 not ；。
 pub(super) fn probe() -> Result<(), UpdateError> {
     static CACHE: Mutex<Option<(Instant, Result<(), UpdateError>)>> = Mutex::new(None);
     let mut cache = CACHE.lock().unwrap_or_else(|error| error.into_inner());

@@ -29,7 +29,7 @@ pub struct AttemptDetail {
     pub sticky_hit: bool,
     #[serde(rename = "startedAt", default)]
     pub started_at: Option<i64>,
-    /// 响应头或会话式转发接收结果，不代表流式响应已经结束。
+    /// response or will ， not response already 。
     #[serde(rename = "responseAt", default)]
     pub response_at: Option<i64>,
     #[serde(rename = "finishedAt", default)]

@@ -1,46 +1,46 @@
-//! 一次性配置目录迁移：`~/.workbuddy-proxy` → `~/.agent2api`（只拷贝，不删源）。
+//! 1 configdirectory：`~/.workbuddy-proxy` → `~/.agent2api`（， not ）。
 //!
-//! ── 语义（架构文档 §3.1）────────────────────────────────────
-//!   - 新目录不存在、旧目录存在 → 把旧目录**整体拷贝**为新目录，旧目录保留不动
-//!     （用户可随时回退到旧版，且迁移出问题时数据仍在原处）；
-//!   - 两者都存在 → 什么都不做（**以新目录为准**，不合并、不覆盖 ——
-//!     合并会让「哪些数据以哪边为准」变得不可预测）。已存在的新目录一律当作
-//!     用户/前一次运行的真实数据，**不猜测**它是历史失败产物、更不覆写；
-//!   - 都不存在 → 什么都不做（后续初始化自己会建空目录）；
-//!   - 有环境变量覆盖（`AGENT2API_PROXY_HOME` / 旧名）→ 什么都不做：用户显式
-//!     指定了目录，这时去动默认路径只会制造困惑，也可能把数据拷到错误的盘上。
+//! ── （ §3.1）────────────────────────────────────
+//! - new directory not in 、 old directory in → old directory**** as new directory， old directory not 
+//! （ use can when to old ， and when in ）；
+//! - in → not （** new directory as **， not and 、 not ——
+//! and will 「 as 」 not can ）。 already in new directory 1 
+//! use / before 1 ，** not ** is failure、 not ；
+//! - not in → not （ after will emptydirectory）；
+//! - has （`AGENT2API_PROXY_HOME` / old ）→ not ： use 
+//! directory， this when defaultpath will ， can can to error up 。
 //!
-//! ── 为什么是拷贝而不是改名 ───────────────────────────────────
-//! 改名（rename）在两端目录位于不同卷时不可靠，而且会让已装旧版的用户
-//! 回退旧版本时找不到数据。配置目录只有 config.json / accounts.json /
-//! logs.jsonl 这类小文件，拷贝的代价可以忽略。
+//! ── Why is not is ───────────────────────────────────
+//! （rename） in directory not when not can ， and will already old use 
+//! old when not to 。configdirectory has config.json / accounts.json /
+//! logs.jsonl this file， can ignore。
 //!
-//! ── 暂存目录：本次唯一 + 亲自创建，才允许清理 ─────────────────
-//! 直接往新目录里拷，一旦中途失败（磁盘满 / 某个文件被占用）就会留下一个
-//! **残缺的新目录**；下次启动看到「新目录已存在」就走「以新目录为准」分支，
-//! 再也不会重试 —— 用户的账号列表会莫名其妙少一半，且无从恢复。
-//! 因此先拷到同级暂存目录，成功后再 `rename` 成正式目录（两者同卷，改名原子）：
-//! 新目录要么是完整副本，要么根本不存在（下次启动自动重试）。
+//! ── directory： 1 + create， ─────────────────
+//! new directory， 1 in failure（ / file use ） will down 1 
+//! ** new directory**； down to 「 new directory already in 」「 new directory as 」，
+//! not will —— use will its 1 ， and none from 。
+//! to directory，success after `rename` directory（，）：
+//! new directory need is ， need not in （ down ）。
 //!
-//! 暂存目录名带本次进程号与时间戳（`{正式目录名}.migrating-{pid}-{nanos}`），
-//! 用 `create_dir` 亲自创建、并先写入所有权标记文件，于是：
-//!   - 失败时只删**本次自己创建**的那一个路径，绝不对未知的同名固定路径
-//!     调 `remove_dir_all`；
-//!   - 崩溃残留的旧暂存目录，只有在「名字带本程序前缀 **且** 标记文件存在」时
-//!     才清理，其余一律只提示不动手 —— 宁可能留垃圾，也不误删用户数据。
+//! directory and when （`{directory}.migrating-{pid}-{nanos}`），
+//! use `create_dir` create、 and allfile， is ：
+//! - failure when **create** that 1 path， not for unknown path
+//! `remove_dir_all`；
+//! - old directory， has in 「 before ** and ** file in 」 when 
+//! ， its 1 not —— can can ， not use 。
 //!
-//! ── 链接 / 重解析点不跟随 ───────────────────────────────────
-//! 拷贝时遇到符号链接、Windows 重解析点（junction / mount point）一律跳过并
-//! 提示：跟随它们会遍历到配置目录之外（甚至别的卷），既可能拷进无关数据，
-//! 也可能踩到环路。旧目录本身若就是链接/重解析点，直接报错拒绝迁移。
+//! ── / not ───────────────────────────────────
+//! when to 、Windows （junction / mount point） 1 and 
+//! ： will to configdirectory（ ）， can can none，
+//! can can to 。 old directory if is /，。
 //!
-//! ── 失败会阻断本次启动（且可重试）──────────────────────────
-//! 返回 `Result`：调用方（壳侧 `lib.rs` 的 setup 第一步）失败时**不写任何配置
-//! 文件**、提示用户后退出。这样旧目录原样保留、新目录不会被建出来，下一次
-//! 启动仍会重试。若失败后继续启动，后续任何一次写盘（桌面设置 / config.json /
-//! 日志库）都会把新目录建出来，迁移从此再也不会发生，用户看到的是「数据消失」。
+//! ── failure will （ and can ）──────────────────────────
+//! return `Result`： use （ `lib.rs` setup 1 ）failure when ** not config
+//! file**、 use after 。 this old directory、 new directory not will ， down 1 
+//! will 。 if failure after ， after 1 （set / config.json /
+//! ） will new directory， from not will ， use to is 「」。
 //!
-//! 错误信息只带路径与系统错误，不含文件内容（配置里有 token，不进日志/对话框）。
+//! errorpath and error， not file（config has token， not / for ）。
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -48,38 +48,38 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::paths;
 
-/// 暂存目录名后缀（正式目录名 + 后缀 + 本次唯一标识，见模块头）
+/// directory after （directory + after + 1 ，module header）
 const STAGING_SUFFIX: &str = ".migrating";
 
-/// 暂存目录的所有权标记文件：只有带它的暂存目录才被认为是本程序创建的。
-/// 名字取得足够特别，避免与用户自己的文件重名后被误判。
+/// directory allfile： has directory as is create 。
+/// ， and use file after 。
 const STAGING_MARKER: &str = ".agent2api.migrating.marker";
 
-/// 迁移结果（成功时的分支；调用方据此决定要不要提示用户）
+/// （success when ； use need not need use ）
 #[derive(Debug)]
 pub enum MigrationOutcome {
-    /// 已完成迁移（源目录保留）
+    /// already （directory）
     Migrated { from: PathBuf, to: PathBuf },
-    /// 无需迁移（新目录已存在 / 旧目录不存在）
+    /// none need （ new directory already in / old directory not in ）
     NothingToDo,
-    /// 用户用环境变量显式指定了配置目录，迁移不适用
+    /// use use configdirectory， not use 
     SkippedEnvOverride,
 }
 
-/// 迁移配置目录。失败返回可读的中文说明（调用方据此提示用户并退出）。
+/// configdirectory。failurereturn can in （ use use and ）。
 ///
-/// 幂等：迁移成功后新目录存在，后续每次启动都会在第一道判断上直接返回。
+/// etc ：success after new directory in ， after will in 1 up return。
 ///
-/// 成功分支不在这里打日志：用户可见的启动日志由调用方（壳侧 setup）统一输出，
-/// 那里也正好能拿到 `Migrated` 的源/目标路径。
+/// success not in this ： use can by use （ setup） 1 ，
+/// that can to `Migrated` /path。
 pub fn migrate_config_dir() -> Result<MigrationOutcome, String> {
-    // 有环境变量覆盖（新名或旧名）时不迁移：用户显式指定了目录
+    // has （ new or old ） when not ： use directory
     if env_dir_override_set() {
         return Ok(MigrationOutcome::SkippedEnvOverride);
     }
 
     let target = paths::config_dir();
-    // 新目录存在（哪怕是链接）→ 以它为准：不合并、不覆盖、不猜测来源
+    // new directory in （ is ）→ as ： not and 、 not 、 not 
     if std::fs::symlink_metadata(&target).is_ok() {
         return Ok(MigrationOutcome::NothingToDo);
     }
@@ -120,12 +120,12 @@ pub fn migrate_config_dir() -> Result<MigrationOutcome, String> {
         ));
     };
 
-    // 上次迁移中途崩溃可能留下暂存目录：只清理能确认属于本程序的那些
+    // up in can can down directory： can that 
     sweep_stale_staging(parent, target_name);
 
     let staging = parent.join(staging_name(target_name));
-    // create_dir（不是 create_dir_all）：目录必须由本次调用创建成功，
-    // 否则说明撞名/被别人占了，宁可报错也不能往里面拷
+    // create_dir（ not is create_dir_all）：directorymust by use createsuccess，
+    // otherwise/ ， can not can 
     if let Err(error) = std::fs::create_dir(&staging) {
         return Err(format!(
             "创建迁移暂存目录 {} 失败：{error}。旧数据仍完整保留在 {}；\
@@ -137,8 +137,8 @@ pub fn migrate_config_dir() -> Result<MigrationOutcome, String> {
 
     match publish(&legacy, &staging, &target) {
         Ok(Publish::Published) => Ok(MigrationOutcome::Migrated { from: legacy, to: target }),
-        // 拷贝期间正式目录被别的进程建出来：以已存在的目录为准，本次不再迁移，
-        // 也不算失败（旧目录同样原样保留）。清掉本次暂存目录即可。
+        // directory ： already in directory as ， not ，
+        // not failure（ old directory）。directory can 。
         Ok(Publish::TargetAppeared) => {
             remove_own_staging(&staging);
             Ok(MigrationOutcome::NothingToDo)
@@ -150,13 +150,13 @@ pub fn migrate_config_dir() -> Result<MigrationOutcome, String> {
     }
 }
 
-/// 目录迁移是否**仍未完成**（防御性校验，供 `ServerState::bootstrap` 使用）。
+/// directory is ****（， `ServerState::bootstrap` use ）。
 ///
-/// 判定条件与 `migrate_config_dir` 的触发条件完全一致：无环境变量覆盖、
-/// 旧目录存在、新目录不存在。满足时说明「本该执行的迁移没有执行」——
-/// 此时若继续启动，后端随后任何一次写盘（日志库 / config.json / 账号库）
-/// 都会把新目录建出来，迁移从此再也无法重试，用户看到的是「数据消失」。
-/// 返回 `Some(原因)` 时调用方应当拒绝启动。
+/// and `migrate_config_dir` 1 ：none、
+/// old directory in 、 new directory not in 。 when 「 this no has 」——
+/// when if ， after after 1 （ / config.json / ）
+/// will new directory， from none， use to is 「」。
+/// return `Some(Reason)` when use 。
 pub fn pending_reason() -> Option<String> {
     if env_dir_override_set() {
         return None;
@@ -178,20 +178,20 @@ pub fn pending_reason() -> Option<String> {
     ))
 }
 
-/// 发布结果：正常改名，或「拷贝期间正式目录被别的进程建出来」。
+/// ：， or 「directory 」。
 enum Publish {
-    /// 暂存目录已原子改名为正式目录
+    /// directory already as directory
     Published,
-    /// 正式目录在拷贝期间出现：以它为准，本次不改名覆盖
+    /// directory in ： as ， not 
     TargetAppeared,
 }
 
-/// 拷贝到暂存目录 → 去掉标记 → 原子改名成正式目录。
+/// to directory → → directory。
 ///
-/// 任何一步失败都返回中文说明；调用方负责清掉本次创建的暂存目录。
+/// 1 failurereturn in ； use create directory。
 fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, String> {
-    // 标记文件先于任何拷贝写入：它是「这个目录由本次迁移创建」的证据，
-    // 后续清理（含下次启动扫残留）只认它
+    // file： is 「 this directory by create」 ，
+    // after （ down ）
     let marker = staging.join(STAGING_MARKER);
     if let Err(error) = std::fs::OpenOptions::new()
         .write(true)
@@ -217,7 +217,7 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
         ));
     }
 
-    // 标记文件不能跟着进正式目录（否则新配置目录里会多一个无意义的文件）
+    // file not can directory（otherwise new configdirectory will 1 none file）
     if let Err(error) = std::fs::remove_file(&marker) {
         return Err(format!(
             "清理暂存目录标记文件 {} 失败：{error}。旧数据仍完整保留在 {}；\
@@ -227,9 +227,9 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
         ));
     }
 
-    // 同卷 rename 是原子的：要么新目录完整出现，要么根本没有（下次重试）。
-    // 拷贝期间若正式目录被别的进程建出来（理论上被单实例插件挡住，这里仍兜一手），
-    // 直接失败而不是改名覆盖 —— 已有目录一律以它为准，绝不擅自覆盖用户数据。
+    // rename is ： need new directory， need no has （ down ）。
+    // if directory （ up ， this 1 ），
+    // failure not is —— already has directory 1 as ， not use 。
     if std::fs::symlink_metadata(target).is_ok() {
         crate::server::logging::console_line(
             "[Config]",
@@ -254,7 +254,7 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
         })
 }
 
-/// 删除本次自己创建的暂存目录；失败只提示（它不影响源数据与下次重试）。
+/// deletecreate directory；failure（ not and down ）。
 fn remove_own_staging(staging: &Path) {
     if let Err(error) = std::fs::remove_dir_all(staging) {
         crate::server::logging::console_line(
@@ -267,10 +267,10 @@ fn remove_own_staging(staging: &Path) {
     }
 }
 
-/// 本次运行唯一的暂存目录名：`{正式目录名}.migrating-{pid}-{nanos}`。
+/// 1 directory：`{directory}.migrating-{pid}-{nanos}`。
 ///
-/// 带上进程号与纳秒时间戳，既保证「这个目录一定是本次创建的」，也让崩溃残留
-/// 不会与下一次运行撞名（撞名会让 create_dir 直接失败，迁移永远重试不了）。
+/// up and seconds when ，「 this directory 1 is create 」，
+/// not will and down 1 （ will create_dir failure， not ）。
 fn staging_name(target_name: &str) -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -279,11 +279,11 @@ fn staging_name(target_name: &str) -> String {
     format!("{target_name}{STAGING_SUFFIX}-{}-{nanos}", std::process::id())
 }
 
-/// 清理**可确认属于本程序**的历史暂存目录（上次迁移中途崩溃/断电留下）。
+/// ** can ** directory（ up in / down ）。
 ///
-/// 只处理同一父目录下、名字带本程序前缀、且带所有权标记文件的目录；
-/// 不满足条件的同名路径只提示、绝不动手 —— 用户自己的目录不能被当成垃圾删掉。
-/// 清理失败同样只提示：它不影响本次迁移（本次用的是另一个新名字）。
+/// 1 directory down 、 before 、 and allfile directory；
+/// not path、 not —— use directory not can 。
+/// failure： not （ use is 1 new ）。
 fn sweep_stale_staging(parent: &Path, target_name: &str) {
     let prefix = format!("{target_name}{STAGING_SUFFIX}");
     let Ok(entries) = std::fs::read_dir(parent) else {
@@ -329,15 +329,15 @@ fn sweep_stale_staging(parent: &Path, target_name: &str) {
     }
 }
 
-/// 递归拷贝目录（`std::fs` 没有现成的递归拷贝）。
+/// directory（`std::fs` no has ）。
 ///
-/// 只拷贝普通文件与目录：符号链接 / Windows 重解析点（junction、mount point）
-/// 一律**跳过并提示**，绝不跟随 —— 配置目录里正常不该有链接，真有时跟随它
-/// 会遍历到配置目录之外（甚至别的卷），既可能拷进无关数据，也可能踩到环路。
-/// 其它类型（设备、管道等）同样跳过。
+/// file and directory： / Windows （junction、mount point）
+/// 1 ** and **， not —— configdirectory not this has ， has when 
+/// will to configdirectory（ ）， can can none， can can to 。
+/// its （、 etc ）。
 ///
-/// `skip` 是暂存目录里的所有权标记文件路径：它只属于本次迁移，源目录里即使
-/// 恰好同名也不该把它覆盖/写坏（那会让清理逻辑认不出自己的目录）。
+/// `skip` is directory allfilepath：，directory
+/// not this /（ that will not directory）。
 fn copy_dir_all(from: &Path, to: &Path, skip: &Path) -> io::Result<()> {
     for entry in std::fs::read_dir(from)? {
         let entry = entry?;
@@ -369,11 +369,11 @@ fn copy_dir_all(from: &Path, to: &Path, skip: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// 是否是链接类目录项：符号链接，或 Windows 重解析点（junction / mount point）。
+/// is is directory：， or Windows （junction / mount point）。
 ///
-/// `file_type().is_symlink()` 只覆盖真正的符号链接；Windows 的 junction 在
-/// `file_attributes` 上带 `FILE_ATTRIBUTE_REPARSE_POINT` 位，两者都要判，
-/// 否则「跟随 junction 越界遍历」的洞还在。
+/// `file_type().is_symlink()` ；Windows junction in 
+/// `file_attributes` up `FILE_ATTRIBUTE_REPARSE_POINT` ， need ，
+/// otherwise「 junction 」 in 。
 fn is_link_like(metadata: &std::fs::Metadata) -> bool {
     if metadata.file_type().is_symlink() {
         return true;
@@ -382,8 +382,8 @@ fn is_link_like(metadata: &std::fs::Metadata) -> bool {
     {
         use std::os::windows::fs::MetadataExt;
 
-        /// `FILE_ATTRIBUTE_REPARSE_POINT`。不引 windows-sys 常量：那个依赖
-        /// 只在 Windows 目标下存在，写死位值可以让本文件跨平台编译。
+        /// `FILE_ATTRIBUTE_REPARSE_POINT`。 not windows-sys ： that 
+        /// in Windows down in ， can file。
         const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
         if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
             return true;
@@ -392,10 +392,10 @@ fn is_link_like(metadata: &std::fs::Metadata) -> bool {
     false
 }
 
-/// 是否设置了配置目录的环境变量覆盖（`AGENT2API_PROXY_HOME` 或旧名）。
+/// is setconfigdirectory （`AGENT2API_PROXY_HOME` or old ）。
 ///
-/// 只判断「有没有设」，不重复解析路径 —— 解析口径的唯一事实来源是
-/// `paths::config_dir()`；覆盖生效时迁移整体不适用。
+/// 「 has no has 」， not path —— 1 is 
+/// `paths::config_dir()`； when not use 。
 fn env_dir_override_set() -> bool {
     ["AGENT2API_PROXY_HOME", "WORKBUDDY_PROXY_HOME"]
         .iter()

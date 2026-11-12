@@ -1,21 +1,21 @@
 /**
- * Agent2API · 模型管理页的**数据层**（快照 store / 取数 / 写入 / 对外契约）。
+ * Agent2API · ****（ store / / / for ）。
  *
- * 从 models-page.tsx 拆出来：那个文件装完「左栏 + 表格 + 两个弹窗」的视图层已超过项目约定的
- * 单文件体量，而这一层的边界很清楚 —— **有没有 JSX**。依赖是单向的（视图层 import 它，它不
- * 认识视图层），所以拆开不会引入环。
+ * from models-page.tsx ： that file「 + + 」 already 
+ * file， this 1 —— ** has no has JSX**。 is to （ import ， not 
+ * ）， not will 。
  *
- * 它不是岛：文件名是 .ts，不会被 src/index.tsx 的 `islands/*.tsx` glob 加载；页面级的岛仍然
- * 只有 models-page.tsx 一个。页面级的说明（两种数据源、静态表头为什么要就地重排、控件替换的
- * 取舍）都在 models-page.tsx 的文件头。
+ * not is ：file is .ts， not will src/index.tsx `islands/*.tsx` glob ； 
+ * has models-page.tsx 1 。 （、Why need 、 
+ * ） in models-page.tsx file。
  *
- * ── 状态放模块级快照 + useSyncExternalStore（照 port-panel / update-panel）──
- * 对外契约方法（render / load / selectProvider / refreshAll）从 React 之外调用，且必须与界面
- * 共用同一份状态；组件内部的 useState 做不到这一点。所以状态是一份模块级快照，改动一律走
- * patch()（换新对象再通知订阅者），组件用 useSyncExternalStore 订阅它。
- * **选中项归一化放在 patch 里**而不是渲染期：渲染期改状态会与 React 的渲染顺序打架。
+ * ── + useSyncExternalStore（ port-panel / update-panel）──
+ * for （render / load / selectProvider / refreshAll） from React use ， and must and 
+ * use 1 ； useState not to this 1 。 is 1 ， 1 
+ * patch()（ new for ）， use useSyncExternalStore 。
+ * ** in 1 in patch ** not is ： will and React 。
  *
- * 本页自持内置家那份数据，不经过 app.js 的 state（那是 /api/session 的快照，轮询会整份覆盖）。
+ * that ， not app.js state（ that is /api/session ， will ）。
  */
 
 import { activeModelBindings } from '../../../ui-shared/models-bindings'
@@ -26,7 +26,7 @@ import type { CustomProviderRecord, ManageMapping, ManageModel, ManageView } fro
 import type { SegmentedControlOption } from '@ui'
 import { t } from '../i18n'
 
-/* ─── 类型 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
 export type Align = 'left' | 'center' | 'right'
 type ColumnDecl = { key: string; label?: string; align?: Align }
@@ -43,21 +43,21 @@ type ColSettingsSpec = {
 
 type ProviderOption = { id: string; label: string }
 type UpstreamOption = { id: string; label: string; off: boolean }
-/** 映射弹窗的上下文：行内「＋映射」给 `{target, provider}`，点 chip 上的等级标再带上 `alias` */
+/** up down ：「＋」 to `{target, provider}`， chip up etc up `alias` */
 export type MappingContext = { alias?: string; target: string; provider: string }
-/** 添加模型弹窗的上下文：选中自定义家时这家是锁定的（见 openCustomModel） */
+/** up down ： in when this is （ openCustomModel） */
 export type CustomModelContext = { provider: string; locked: boolean }
 /**
- * 能力弹窗的上下文：只带 `(provider, id)` 两个定位键 —— 弹窗打开时从当前
- * 快照里查那一行（展示名、当前生效值、覆盖标记都从行上读）。数据在弹窗开着
- * 期间被刷新（目录刷新 / 别的写操作）时，行还在就跟着更新、行没了由弹窗
- * 自己提示（它拿不到上下文了）。
+ * can up down ： `(provider, id)` —— when from current
+ * that 1 （、current、 from up ）。 in 
+ * new （directory new / ） when ， in update、 no by 
+ * （ not to up down ）。
  */
 export type CapabilityContext = { provider: string; id: string }
 
 type Filters = { provider: string; state: string; search: string; sort: string; visibility: string }
 
-/** 表格现造的绑定（默认绑定 alias == target 由模型行合成，不在 mappings 里另占一格） */
+/** （default alias == target by ， not in mappings 1 ） */
 export type Binding = {
   alias: string
   target: string
@@ -67,12 +67,12 @@ export type Binding = {
 }
 
 /**
- * window 上由其它脚本 / 其它岛挂载的共享桥。
+ * window up by its / its 。
  *
- * 刻意用「局部窄类型 + 转型读取」而不是 declare global 往 Window 上加属性：workbuddyDesktop /
- * wbApp / wbConfirm / wbProviders 这些是多个岛共用的桥，若每个岛各 declare 一份，接口合并会因
- * 同名属性类型不一致直接报 TS2717 —— 并行迁移时必然互相撞车。本文件只 declare 自己独占的
- * wbModelsPanel（见文件末尾）。
+ * use 「 + 」 not is declare global Window up ：workbuddyDesktop /
+ * wbApp / wbConfirm / wbProviders this is use ， if declare 1 ， and will 
+ * not 1 TS2717 —— and when 。file declare 
+ * wbModelsPanel（file）。
  */
 export type SharedWindow = {
   workbuddyDesktop?: {
@@ -83,20 +83,20 @@ export type SharedWindow = {
     removeModelMapping(alias: string, target: string, provider: string): Promise<ManageView | null | undefined>
     addCustomModel(provider: string, id: string): Promise<ManageView | null | undefined>
     removeCustomModel(provider: string, id: string): Promise<ManageView | null | undefined>
-    /** 能力位覆盖（只服务内置家；自定义家走 wbModelsCustom.setCapabilities） */
+    /** can （； wbModelsCustom.setCapabilities） */
     setModelCapabilities(
       provider: string, id: string, patch: Record<string, number | boolean | null>,
     ): Promise<ManageView | null | undefined>
   }
   wbApp?: {
     toast?: (message: string, kind?: 'err' | 'ok') => void
-    /** HTML 转义（app.js 里的全局单份实现，只给确认框的正文用） */
+    /** HTML （app.js ， to use ） */
     esc?: (value: unknown) => string
     formatTime?: (value: unknown) => string
-    /** 当前页标识：首屏只在用户正看着本页时才自拉一次 */
+    /** current： in use when 1 */
     readonly currentPage?: string
   }
-  /** 裸全局：app.js 的顶层函数声明，旧实现直接写 formatTime(...) */
+  /** ：app.js ， old formatTime(...) */
   formatTime?: (value: unknown) => string
   wbConfirm?: {
     ask?: (options: { title?: string; html?: string; okText?: string; okClass?: string }) => Promise<boolean>
@@ -114,7 +114,7 @@ export type SharedWindow = {
     labelOf?: (id: string) => string
     refreshCustom?: () => Promise<unknown>
   }
-  /** 预置提供商目录（preset-providers.js）：自定义家记录不带图标，按名字回match预置图标用 */
+  /** directory（preset-providers.js）： not ， by match use */
   wbPresetProviders?: {
     list?: Array<{ key?: string; name?: string; icon?: string }>
     presetOf?: (key: string) => { key?: string; name?: string; icon?: string } | null
@@ -138,14 +138,14 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** toast 的统一出口（运行期读 wbApp，不在模块顶层解构） */
+/** toast 1 （ wbApp， not in ） */
 export function toast(message: string, kind?: 'err' | 'ok'): void {
   shared().wbApp?.toast?.(message, kind)
 }
 
 /**
- * 确认框正文的转义：跨文件引用一律走 wbApp（esc 是 app.js 里的全局单份实现），只有它还没
- * 就绪时才自己转一遍 —— 宁可重复一次，也不能让插值漏出去（wbConfirm.ask 收的是 HTML 片段）。
+ * ：file use 1 wbApp（esc is app.js ）， has no 
+ * when 1 —— can 1 ， not can （wbConfirm.ask is HTML ）。
  */
 export function esc(value: unknown): string {
   const fn = shared().wbApp?.esc
@@ -155,71 +155,71 @@ export function esc(value: unknown): string {
   ))
 }
 
-/** 时间戳 → 本地时间串（0 与非法值返回空串，调用处据此省略那半句提示） */
+/** when → when （0 and returnempty， use that ） */
 export function formatTime(value: unknown): string {
   const fn = shared().formatTime ?? shared().wbApp?.formatTime
   return String(fn?.(value) ?? '')
 }
 
-/** 归一化判重口径：去空白 + 大小写不敏感（与后端一致） */
+/** 1 ：empty + not （ and after 1 ） */
 const norm = (value: unknown): string => String(value ?? '').trim().toLowerCase()
 export const same = (left: unknown, right: unknown): boolean => norm(left) === norm(right)
 
-/* ─── 常量 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
-/** 「全部」视图里每组默认只展开这么多行，其余折叠成一行「展开其余 N 个」 */
+/** 「」default this ， its 1 「 its N 」 */
 export const GROUP_LIMIT = 8
 
-/** 筛选的落盘键（走 wbFilterMemory：provider / state / search 三个维度各存各的） */
+/** （ wbFilterMemory：provider / state / search ） */
 const FILTERS_KEY = 'workbuddy-desktop-models-filters'
 
 const MODEL_STATES: readonly string[] = ['all', 'enabled', 'disabled', 'mapped']
-/** 状态分段控件上的标签（键与 MODEL_STATES 一一对应，顺序也照它；只有展示串走 t()，value 是匹配/落盘用的枚举值） */
+/** up （ and MODEL_STATES 1 1 for ，； has t()，value is / use ） */
 const MODEL_STATE_LABEL: Record<string, string> = {
   all: t('全部'), enabled: t('已启用'), disabled: t('已禁用'), mapped: t('有映射'),
 }
-/** 选项提到模块级：SegmentedControl 每拿到新数组都要重新量滑块位置，常量能省掉这轮测量 */
+/** to ：SegmentedControl to new need new ， can this */
 export const MODEL_STATE_OPTIONS: readonly SegmentedControlOption<string>[] = MODEL_STATES.map(value => ({
   value, label: MODEL_STATE_LABEL[value],
 }))
 
 /**
- * 排序档位（issue #161：按倍率排序，便于挑便宜的模型）。
+ * （issue #161： by ， ）。
  *
- * `default` 是「不做额外排序」—— 组内仍按后端清单原序（只把禁用的沉到组末尾，
- * 见 models-page 的组内排序说明），与加这个档位之前**逐字一致**。
+ * `default` is 「 not 」—— by after （ use to ，
+ * models-page ）， and this before ** 1 **。
  *
- * 倍率取自清单上的 `credits` 文本（如 `x0.7 credits`），解析不出的一律排在最后：
- * 「查不到倍率」与「倍率是 0」是两件事，按 0 参与排序会把未知的顶到最前面。
+ * up `credits` （ `x0.7 credits`）， not 1 in after ：
+ * 「 not to 」 and 「 is 0」 is ， by 0 and will unknown to before 。
  */
 const MODEL_SORTS: readonly string[] = ['default', 'rate-asc', 'rate-desc']
 
-/* ─── 可见性筛选 ───────────────────────────────── */
+/* ─── can ───────────────────────────────── */
 
 /**
- * 可见性筛选项的取值。
+ * can 。
  *
- * ── 为什么「全部」排第一 ────────────────────────────────────
- * 与上面状态筛选（`MODEL_STATES` = `all / enabled / disabled / mapped`）同一
- * 习惯：「全部」是**归零档**，排在首位。分段控件的滑块从左边起第一格出发，
- * 用户想「看全」时下意识往左找，把它放在末尾会多扫一眼。
+ * ── Why「」 1 ────────────────────────────────────
+ * and up （`MODEL_STATES` = `all / enabled / disabled / mapped`） 1 
+ * ：「」 is ****， in 。 from 1 ，
+ * use 「」 when down ， in will 1 。
  *
- * 注意「排第一」不等于「默认选中」：默认值仍是 `visible`（见
- * `DEFAULT_FILTERS`），理由见下。
+ * Note「 1 」 not etc 「default in 」：default is `visible`（
+ * `DEFAULT_FILTERS`）， by down 。
  *
- * ── 为什么默认是 `visible` 而不是 `all` ─────────────────────
- * 上游目录是**超集**：里面混着官方客户端根本不展示的模型（如 Antigravity 的
- * 2.5 / 2.0 系列、Qoder 的 `enable:false` 条目）。这些模型在本仓**默认已被
- * 关闭默认绑定**（见 `model_rules::seed_hidden_disabled`），也就是说它们本来
- * 就不可用；管理页一打开就让它们占满表格，反而把用户真正能用的模型挤下去。
- * 所以默认只看可见的，要看全的自己去切（切到「全部」会落盘记住）。
+ * ── Whydefault is `visible` not is `all` ─────────────────────
+ * up directory is ****：client not （ Antigravity 
+ * 2.5 / 2.0 、Qoder `enable:false` ）。 this in **default already 
+ * default**（ `model_rules::seed_hidden_disabled`）， is 
+ * unavailable； 1 ， use can use down 。
+ * default can ， need （ to 「」 will ）。
  *
- * ── 为什么有 `undeclared` 这一档 ────────────────────────────
- * 只有四家（Antigravity / Qoder / Raccoon / CodeArts）有可见性判据，其余家
- * 的条目根本没有 `visibility` 字段。「这家没这个信息」与「这家说它不可见」
- * 必须分开：前者不代表不可用，混进 `hidden` 会让用户误以为那些家的模型都被
- * 关掉了。`undeclared` 在筛选上归入 `visible`（不藏）—— 与各家「没有依据就
- * 不藏」的纪律一致。
+ * ── Why has `undeclared` this 1 ────────────────────────────
+ * has （Antigravity / Qoder / Raccoon / CodeArts） has can ， its 
+ * no has `visibility` 。「 this no this 」 and 「 this not can 」
+ * must： before not unavailable， `hidden` will use as that 
+ * 。`undeclared` in up `visible`（ not ）—— and 「 no has 
+ * not 」 1 。
  */
 const MODEL_VISIBILITIES: readonly string[] = ['all', 'visible', 'hidden', 'undeclared']
 const MODEL_VISIBILITY_LABEL: Record<string, string> = {
@@ -229,7 +229,7 @@ export const MODEL_VISIBILITY_OPTIONS: readonly SegmentedControlOption<string>[]
   value, label: MODEL_VISIBILITY_LABEL[value],
 }))
 
-/** 归一化一行的可见性：`'shown'` → `visible`，`'hidden'` → `hidden`，其余 → `undeclared` */
+/** 1 1 can ：`'shown'` → `visible`，`'hidden'` → `hidden`， its → `undeclared` */
 export function visibilityOf(model: ManageModel): 'visible' | 'hidden' | 'undeclared' {
   const raw = typeof model.visibility === 'string' ? model.visibility.trim().toLowerCase() : ''
   if (raw === 'hidden') return 'hidden'
@@ -238,23 +238,23 @@ export function visibilityOf(model: ManageModel): 'visible' | 'hidden' | 'undecl
 }
 
 /**
- * 列的 key 用表格里既有的 `data-col`（index.html 的 `<col class="c-xxx" data-col="xxx">`、
- * 表头 th、table-columns.js 的列宽登记三处同名，键名只有一套）。顺序即默认渲染顺序。
+ * key use has `data-col`（index.html `<col class="c-xxx" data-col="xxx">`、
+ * th、table-columns.js ， has 1 ）。default。
  */
 const COLUMNS: ColumnDecl[] = [
-  // 「选择」列：整行的批量操作入口（照账号页勾选列的口径 —— 列设置里要有名字，
-  // 表格里那格是「全选」复选框，没有表头文案）
+  // 「」： （ —— set need has ，
+  // that is 「」， no has ）
   { key: 'check', label: t('选择'), align: 'center' },
   { key: 'model', label: t('上游模型') },
   { key: 'rate', label: t('倍率') },
-  // 「可见性」紧挨「来源」：两者回答的是同一类问题（这条记录哪来的 / 上游
-  // 认不认它），并排放读起来才连贯。没判据的家显示 `—`（见 models-page 的
-  // `visibilityCell`）—— 那是「这家没这个信息」，不是「确认可见」。
+  // 「 can 」「」： is 1 （ this / up 
+  // not ）， and 。 no `—`（ models-page 
+  // `visibilityCell`）—— that is 「 this no this 」， not is 「 can 」。
   { key: 'visibility', label: t('可见性') },
   { key: 'source', label: t('来源') },
-  // 能力位两列（顺序、文案与 model-capability 的键序对应）：数值合并在
-  // 「上下文 / 输出」一格里，三个布尔合并成一列徽章 —— 分成五列会把
-  // 复合控件最宽的「模型映射」列挤到不可用（列数取舍见交付说明）
+  // can （、 and model-capability for ）： and in 
+  // 「 up down / 」 1 ， and 1 —— will 
+  // 「」 to unavailable（）
   { key: 'budget', label: t('上下文 / 输出') },
   { key: 'caps', label: t('能力') },
   { key: 'alias', label: t('模型映射') },
@@ -262,53 +262,53 @@ const COLUMNS: ColumnDecl[] = [
 ]
 
 /**
- * 自定义家没有「倍率」「来源」这两个概念（它们是内置家清单的字段）：选中自定义家时这两列
- * **按视图隐藏**，列设置里的配置本身不动 —— 切回内置家原样恢复。表头（syncStaticHead 的
- * 第三个参数）与数据行（visibleColumns）读同一份过滤结果，不会各画一个样。
+ * no has 「」「」 this （ is ）： in when this 
+ * ** by **，set config not —— 。（syncStaticHead 
+ * parameter） and （visibleColumns） 1 ， not will 1 。
  */
 const CUSTOM_HIDDEN_COLUMNS: ReadonlySet<string> = new Set(['rate', 'source', 'visibility'])
 
 const EMPTY_VIEW: ManageView = { models: [], mappings: [] }
 
 /**
- * 默认筛选。
+ * default。
  *
- * `visibility: 'visible'` 是**有意偏离「全部」**的唯一一处：上游目录里混着
- * 官方客户端根本不展示的模型（本仓已默认关闭它们的默认绑定），把它们摆在表里
- * 只会盖住用户真能用的那些。想看全的切到「未声明 / 全部」即可（落盘，会记住）。
+ * `visibility: 'visible'` is ** has 「」** 1 1 ： up directory
+ * client not （ already default default）， in 
+ * will use can use that 。 to 「 / 」 can （， will ）。
  */
 const DEFAULT_FILTERS: Filters = { provider: 'all', state: 'all', search: '', sort: 'default', visibility: 'visible' }
 
-/* ─── 共享快照（外部 store）──────────────────── */
+/* ─── （ store）──────────────────── */
 
 export type PanelState = {
-  /** 左栏选中的提供商：'all' / 某个内置家 id / 某个 custom- id */
+  /** in ：'all' / id / custom- id */
   provider: string
   stateFilter: string
-  /** 可见性筛选（全部 / 可见 / 不展示 / 未声明），见 MODEL_VISIBILITIES */
+  /** can （ / can / not / ）， MODEL_VISIBILITIES */
   visibilityFilter: string
   search: string
-  /** 排序档位（默认 / 倍率升序 / 倍率降序），见 MODEL_SORTS */
+  /** （default / / ）， MODEL_SORTS */
   sort: string
-  /** 内置家的 manage 视图（null = 还没拉到） */
+  /** manage （null = no to ） */
   data: ManageView | null
-  /** 已展开全部行的提供商集合 */
+  /** already */
   expanded: ReadonlySet<string>
-  /** 行内操作在途标记（防同一行连点） */
+  /** in （ 1 ） */
   pending: ReadonlySet<string>
-  /** 映射弹窗的上下文；null = 关着（弹窗内部状态归弹窗自己管） */
+  /** up down ；null = （） */
   mapping: MappingContext | null
-  /** 添加模型弹窗的上下文；null = 关着 */
+  /** up down ；null = */
   customModel: CustomModelContext | null
-  /** 能力弹窗的上下文；null = 关着 */
+  /** can up down ；null = */
   capability: CapabilityContext | null
 }
 
 /**
- * 读上次会话的筛选。不能做成模块顶层的常量：wbFilterMemory 由 filter-memory.js 挂在 window
- * 上，而那个文件排在 islands/ui.js **之后**（index.html 1455 行），首次渲染是否已经晚于它
- * 取决于解析器有没有在两个脚本之间让出 —— 读不到就返回默认值并留个记号，由
- * restoreSavedFilters 在挂载后补读一次，免得把「筛选记忆」整个丢掉。
+ * up will 。 not can ：wbFilterMemory by filter-memory.js in window
+ * up ， that file in islands/ui.js ** after **（index.html 1455 ）， is already 
+ * has no has in —— not to returndefault and ， by 
+ * restoreSavedFilters in after 1 ， 「」 。
  */
 function readSavedFilters(): Filters {
   const memory = shared().wbFilterMemory
@@ -316,20 +316,20 @@ function readSavedFilters(): Filters {
   const saved = memory.load(FILTERS_KEY, { ...DEFAULT_FILTERS })
   return {
     provider: String(saved.provider || 'all'),
-    // 存坏的状态档位回落「全部」（原生 select 赋一个不存在的值也是这个结果）
+    // 「」（ select 1 not in is this ）
     state: MODEL_STATES.includes(saved.state) ? saved.state : 'all',
     search: String(saved.search || ''),
-    // 存坏的排序档位回落「默认」（与状态档位同一口径）
+    // 「default」（ and 1 ）
     sort: MODEL_SORTS.includes(saved.sort) ? saved.sort : 'default',
-    // 存坏的可见性档位回落「可见」（与默认值一致，不是「全部」）
+    // can 「 can 」（ and default 1 ， not is 「」）
     visibility: MODEL_VISIBILITIES.includes(saved.visibility) ? saved.visibility : 'visible',
   }
 }
 
 const initialFilters = readSavedFilters()
-/** 上次会话的筛选是否已经进过界面（只补读一次） */
+/** up will is already （ 1 ） */
 let filtersRestored = Boolean(shared().wbFilterMemory)
-/** 用户是否已经动过筛选：动过就不再回灌，免得把用户刚敲进去的字冲掉 */
+/** use is already ： not ， use */
 let filtersTouched = false
 
 let snapshot: PanelState = {
@@ -346,7 +346,7 @@ let snapshot: PanelState = {
   capability: null,
 }
 
-/** 快照的订阅者（当前只有页面那一个 root） */
+/** （current has that 1 root） */
 const subscribers = new Set<() => void>()
 
 export function getSnapshot(): PanelState {
@@ -361,32 +361,32 @@ export function subscribe(listener: () => void): () => void {
 }
 
 /**
- * 打补丁并通知界面：useSyncExternalStore 靠引用比较判变化，必须换新对象。
+ * and ：useSyncExternalStore use ，must new for 。
  *
- * 选中项归一化（认不出的取值落回「全部」）也在这里做，理由见 resolveProvider。
+ * in 1 （ not 「」） in this ， by resolveProvider。
  */
 function patch(next: Partial<PanelState>): void {
   const merged = { ...snapshot, ...next }
   const provider = resolveProvider(merged)
   const switched = resolveProvider(snapshot) !== provider
   snapshot = provider === merged.provider ? merged : { ...merged, provider }
-  // 「三元组 → 思考等级」索引跟着数据换：chip 上那枚等级标读它，而数据一换索引就得跟着换，
-  // 否则改完等级、列表重绘后 chip 上还是旧的那个字（旧实现是每次 render 重建一次，
-  // 这里改成跟着快照走 —— 覆盖所有改动路径，且没有「依赖某次 render 刚跑过」的隐式前提）
+  // 「 → etc 」：chip up that etc ， 1 ，
+  // otherwise etc 、 after chip up is old that （ old is render 1 ，
+  // this —— allpath， and no has 「 render 」 before ）
   rebuildReasoningIndex()
-  // 换了视图（内置 ↔ 自定义）就得重排静态表头：自定义家按视图隐藏倍率 / 来源两列。
-  // 放在这里而不是只放在 selectProvider —— 选中项也可能被归一化改掉（那家被删了），
-  // 那条路同样会换视图，而旧实现只在 selectProvider 里同步表头（漏了归一化那一路）。
+  // （ ↔ ）： by / 。
+  // in this not is in selectProvider —— in can can 1 （ that ），
+  // that will ， old in selectProvider （ 1 that 1 ）。
   if (switched) syncHead()
   for (const listener of subscribers) listener()
 }
 
-/** 落盘筛选（三个维度各写各的，patch 覆盖存量 —— 与 wbFilterMemory.save 同一口径） */
+/** （ ，patch —— and wbFilterMemory.save 1 ） */
 function saveFilters(next: Record<string, string>): void {
   shared().wbFilterMemory?.save(FILTERS_KEY, next)
 }
 
-/** filter-memory.js 排在岛之后：首屏没读到就补读一次（用户已经动过筛选就不回灌） */
+/** filter-memory.js in after ： no to 1 （ use already not ） */
 export function restoreSavedFilters(): void {
   if (filtersRestored || filtersTouched || !shared().wbFilterMemory) return
   filtersRestored = true
@@ -401,14 +401,14 @@ export function restoreSavedFilters(): void {
   }
 }
 
-/* ─── 数据读取 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 /**
- * 选中项白名单校验：存盘里记的那家可能已经被删了（或内置清单这次没拉到它），认不出就回落
- * 「全部」—— 否则右栏会是一张永远空的表，而用户找不到原因。
+ * in ： that can can already （ or this no to ）， not 
+ * 「」—— otherwise will is 1 empty ， use not to Reason。
  *
- * **两份数据都到位才判定**：缺任何一份都可能只是「还没加载完」（providers.js 排在岛之后
- * 加载、首屏那次 /api/models/manage 也未必回来），而误判的代价是用户存过的选中项被静默清掉。
+ * ** to **： 1 can can is 「 no 」（providers.js in after 
+ * 、 that /api/models/manage ）， is use in 。
  */
 export function resolveProvider(state: PanelState): string {
   const id = state.provider
@@ -420,33 +420,33 @@ export function resolveProvider(state: PanelState): string {
   return 'all'
 }
 
-/** 归一化后的选中项（渲染与所有取数都读它，保证表头 / 数据行 / 左栏是同一家） */
+/** 1 after in （ and all， / / is 1 ） */
 export function currentProvider(): string {
   return resolveProvider(snapshot)
 }
 
 /**
- * 目录缓存（providers.js）是否已经就位。它排在岛**之后**加载，首屏那一瞬可能还没有 ——
- * 那时候不能把「查不到这家」当成「这家已被删除」。
+ * directory（providers.js） is already 。 in ** after **， that 1 can can no has ——
+ * that when not can 「 not to this 」「 this already delete」。
  */
 export function directoryReady(): boolean {
   return Boolean(shared().wbProviders)
 }
 
-/** 当前选中项是不是「自定义 · 全部」聚合视图 */
+/** current in is not is 「 · 」 */
 export function isAllCustomView(): boolean {
   return currentProvider() === ALL_CUSTOM
 }
 
-/** 当前选中项是不是自定义家（单家或「自定义 · 全部」聚合都算 —— 列隐藏的口径一致） */
+/** current in is not is （ or 「 · 」 —— 1 ） */
 function isCustomView(): boolean {
   return isAllCustomView() || customSource.isCustom(currentProvider())
 }
 
 /**
- * 自定义家视图的缓存：目录缓存是权威数据、重建很便宜，但一次渲染里会被读好几次
- * （表格 + 弹窗候选 + 索引），所以按「该家记录的引用」记一份 —— 目录一刷新（记录换新对象）
- * 自动失效，读到的永远是新值。
+ * ：directory is 、， 1 will 
+ * （ + + ）， by 「 this use 」 1 —— directory 1 new （ new for ）
+ * ， to is new 。
  */
 let customViewCache: { id: string; record: CustomProviderRecord | null; view: ManageView } | null = null
 
@@ -459,12 +459,12 @@ function customViewOf(id: string): ManageView {
 }
 
 /**
- * 「自定义 · 全部」聚合视图的缓存：各自定义家的行拼成一份同形数据（**不含**内置家
- * —— 左栏那颗「全部」是内置组的，这颗是自定义组自己的），一次渲染里同样被读好几次
- * （表格 + 左栏计数 + 弹窗候选 + 索引）。失效判据是**目录缓存的引用**：providers.js
- * 每次 fetchCustomProviders 都换整份新对象，listSource 拿到的引用一变即失效；引用
- * 相等 = 目录没变 = 拼装结果必然一致，直接复用。空目录给 EMPTY_VIEW（与旧版单个
- * 自定义家没有模型时的空表同一形状，空态文案由视图层按条目区分）。
+ * 「 · 」 ： 1 （** not **
+ * —— that 「」 is ， this is ）， 1 
+ * （ + + + ）。 is **directory use **：providers.js
+ * fetchCustomProviders new for ，listSource to use 1 ； use 
+ * etc = directory no = 1 ， use 。emptydirectory to EMPTY_VIEW（ and old 
+ * no has when empty 1 ，empty by by ）。
  */
 let aggregateCache: { directory: readonly unknown[]; view: ManageView } | null = null
 
@@ -484,7 +484,7 @@ function aggregateView(): ManageView {
   return aggregateCache.view
 }
 
-/** 当前视图的数据（两个数据源在这里合流，下游渲染 / 搜索 / 候选自动跟着选中的家走） */
+/** current （ in this ， down / / in ） */
 export function viewData(): ManageView {
   const provider = currentProvider()
   if (provider === ALL_CUSTOM) return aggregateView()
@@ -503,9 +503,9 @@ export function mappings(): ManageMapping[] {
 }
 
 /**
- * 「三元组 → 思考等级」查询闭包。必须**每次渲染前重建一次**：数据换了索引就得跟着换，否则
- * 用户改完等级、列表重绘，chip 上还是旧的那个字。初值给一个恒返回空串的闭包 —— 在第一次
- * render 之前调用它（理论上不会，但弹窗是独立入口）也不会炸，只是显示成「未绑定」。
+ * 「 → etc 」。must** before 1 **：，otherwise
+ * use etc 、，chip up is old that 。 to 1 returnempty —— in 1 
+ * render before use （ up not will ， is ） not will ， is 「」。
  */
 let reasoningOf = (_alias: unknown, _target: unknown, _provider: unknown): string => ''
 
@@ -513,7 +513,7 @@ function rebuildReasoningIndex(): void {
   reasoningOf = buildReasoningIndex(mappings())
 }
 
-/** 家级摘要保留空目录；旧服务端没有摘要时仍从全量模型行统计。 */
+/** need emptydirectory； old server no has need when from statistics。 */
 export function builtinRailCounts(): Map<string, { label: string; n: number }> {
   const counts = new Map<string, { label: string; n: number }>()
   for (const provider of snapshot.data?.providers || []) {
@@ -532,10 +532,10 @@ export function builtinRailCounts(): Map<string, { label: string; n: number }> {
 }
 
 /**
- * 自定义各家在左栏的计数（家 id → {label, n}）。
+ * in （ id → {label, n}）。
  *
- * 「自定义 · 全部」条目的总数与各单家条目的计数都读它。逐家读 buildView（单家视图
- * 缓存照常工作）；目录未就位时是空 Map，行为与旧版一致。
+ * 「 · 」 total and 。 buildView（
+ * ）；directory when is empty Map， as and old 1 。
  */
 export function customRailItems(): Map<string, { label: string; n: number }> {
   const counts = new Map<string, { label: string; n: number }>()
@@ -551,14 +551,14 @@ export function customRailItems(): Map<string, { label: string; n: number }> {
   return counts
 }
 
-/** 左栏内置家 id，含等待获取目录的家；供「获取模型」弹窗组装刷新范围。 */
+/** id， etc getdirectory ；「get」 new 。 */
 function builtinProviders(): string[] {
   return [...builtinRailCounts().keys()]
 }
 /**
- * 某家清单的最近拉取时刻（毫秒；0 = 未知 / 从未成功过）。
- * 给「获取模型」弹窗的「更新日期」列用（那个弹窗打开时不自动拉取，第一屏只能靠这个值说明
- * 各家清单有多旧）。数据取自 manage 视图的 `refreshedAt`，与本页「来源」列的悬停提示同源。
+ * when （ms；0 = unknown / from success）。
+ * to 「get」 「update」 use （ that when not ， 1 can this 
+ * has old ）。 manage `refreshedAt`， and 「」 。
  */
 function providerRefreshedAt(providerId: string): number {
   const summary = snapshot.data?.providers?.find(provider => provider.provider === providerId)
@@ -568,24 +568,24 @@ function providerRefreshedAt(providerId: string): number {
   return Number(hit?.refreshedAt) || 0
 }
 
-/** 提供商下拉选项（id + 展示名；按数据里出现的顺序去重） */
+/** down （id + ； by ） */
 export function providerOptions(): ProviderOption[] {
   const seen = new Map<string, string>()
   for (const model of models()) {
     const key = model.provider || ''
-    // 展示名走词典：后端给的 providerLabel 是注册名（「WorkBuddy 国内版」这类），
-    // 不查表的话非中文界面会整列回落中文
+    // ： after to providerLabel is （「WorkBuddy 」 this ），
+    // not in will in 
     if (key && !seen.has(key)) seen.set(key, t(model.providerLabel || key))
   }
   return [...seen].map(([id, label]) => ({ id, label }))
 }
 
 /**
- * 某一家当前清单里的模型（映射弹窗的「上游模型」下拉数据源）。
+ * 1 current （ 「 up 」 down ）。
  *
- * 含已禁用的行：映射是「名字 → 名字」的静态规则，与启停正交 —— 用户完全可能先建好映射、
- * 之后才把那个模型打开。把它们藏起来会让「为什么我的模型不在下拉里」变成一个查不出的问题。
- * 排序：启用的在前（与表格分组内同一取舍），组内保持后端顺序。
+ * already use ： is 「 → 」 then ， and —— use can can 、
+ * after that 。 will 「Why not in down 」 1 not 。
+ * ：enabled in before （ and 1 ）， after 。
  */
 export function upstreamOptions(providerId: string): UpstreamOption[] {
   if (!providerId) return []
@@ -594,20 +594,20 @@ export function upstreamOptions(providerId: string): UpstreamOption[] {
     .sort((a, b) => Number(a.enabled === false) - Number(b.enabled === false))
     .map(model => ({
       id: model.id,
-      // 展示名与 id 不同才补在括号里，避免出现「GLM-5.3（GLM-5.3）」这种重复
+      // and id not in ，「GLM-5.3（GLM-5.3）」 this 
       label: model.name && model.name !== model.id ? t('{id}（{name}）', { id: model.id, name: model.name }) : model.id,
       off: model.enabled === false,
     }))
 }
 
 /**
- * 添加模型弹窗的提供商候选。
+ * 。
  *
- * 与映射弹窗的 `providerOptions()` **刻意不同**：那个只列「表格里出现过的家」（因为映射必须
- * 挂到一行上），而这里要列**全部可登记的家** —— 用户完全可能先给还没登录的家配好模型清单，
- * 等加上账号就生效。`wbProviders.all()` 读的是 /api/session 的注册表全量（含 count=0 的家），
- * 自定义家再补上（它们不在注册表摘要里）。退化路径：wbProviders 没加载时回落到表格里出现过
- * 的家（少几个选项，但不会让弹窗空着打不开）。
+ * and `providerOptions()` ** not **： that 「 」（ as must
+ * to 1 up ）， this need ** can ** —— use can can to no ，
+ * etc up 。`wbProviders.all()` is /api/session （ count=0 ），
+ * up （ not in need ）。path：wbProviders no when to 
+ * （ ， not will empty not ）。
  */
 export function customProviderOptions(): ProviderOption[] {
   const options: ProviderOption[] = []
@@ -625,30 +625,30 @@ export function customProviderOptions(): ProviderOption[] {
   return options.length ? options : providerOptions()
 }
 
-/* ─── 列设置 ─────────────────────────────────── */
+/* ─── set ─────────────────────────────────── */
 
 let colSettings: ColSettingsHandle | null = null
-/** 表格元素（静态表头同步要用它；由 <table ref> 在提交时写入） */
+/** （ need use ； by <table ref> in when ） */
 let tableEl: HTMLTableElement | null = null
 
-/** 该表当前可见的列（顺序即配置顺序；列设置未就绪时退回全部列） */
+/** this current can （config；set when ） */
 export function visibleColumns(): ColumnView[] {
   const columns: ColumnView[] = colSettings ? colSettings.apply(COLUMNS) : COLUMNS
   if (!isCustomView()) return columns
   return columns.filter(column => !CUSTOM_HIDDEN_COLUMNS.has(column.key))
 }
 
-/** 静态表头就地重排（顺序 / 显隐 / 对齐），并让列宽那一层按当前可见列重对一遍 */
+/** （ / / for ）， and that 1 by current can for 1 */
 export function syncHead(): void {
   shared().wbColSettings?.syncStaticHead('models', tableEl, isCustomView() ? CUSTOM_HIDDEN_COLUMNS : null)
 }
 
 /**
- * 登记这张表：读回本地列配置，并把「列设置」按钮插进操作区末尾（排在那排操作按钮**之后**：
- * 这一排有明确主次 —— 添加 / 刷新是主操作，列设置是「怎么看这张表」的辅助开关）。
+ * this ：config， and 「set」 by （ in that by ** after **：
+ * this 1 has —— / new is ，set is 「 this 」 ）。
  *
- * 必须在挂载后调：按钮要插进 React 渲染出来的 `.head-actions` 里，且 `syncStaticHead` 要求
- * 登记表已存在（它按 id 查配置，没登记就直接返回）。
+ * must in after ： by need React `.head-actions` ， and `syncStaticHead` need 
+ * already in （ by id config， no return）。
  */
 export function registerColumnSettings(): void {
   if (colSettings) return
@@ -658,39 +658,39 @@ export function registerColumnSettings(): void {
     columns: COLUMNS,
     mount: () => document.querySelector('.page[data-page="gateway"] .panel-head .head-actions'),
     buttonPlacement: 'last',
-    // 表头重排 + 数据行按新的列集合重画（两处读同一份配置，不会各画一个样）
+    // + by new （ 1 config， not will 1 ）
     onChange: () => { syncHead(); render() },
   })
   colSettings = handle || null
-  // 注册之前的那一次渲染读的是「全列」兜底值：用户存过的显隐 / 顺序要在首屏就落到数据行上
+  // before that 1 is 「」： use / need in to up 
   if (colSettings) render()
 }
 
-/* ─── 取数与写入 ─────────────────────────────── */
+/* ─── and ─────────────────────────────── */
 
-/** 在途加载的序号：force 重入时用它作废更早那次的响应 */
+/** in ：force when use that response */
 let loadSeq = 0
 let loading = false
 
 /**
- * 拉内置家的 manage 清单并重绘。
+ * manage and 。
  *
- * `force` 供「切页刷新」这类**必须落地**的调用使用：默认情况下 loading 守卫会把重复调用
- * 合并掉，但切页时用户刚在账号页改过东西（加 / 删提供商），这次刷新被吞掉就等于整页没刷新
- * —— 所以 force 放行并发，并用序号保证**只有最后一次的结果生效**。
+ * `force` 「 new 」 this **must** use use ：default down loading will use 
+ * and ， when use in （ / ）， this new etc no new 
+ * —— force and ， and use ** has after 1 **。
  *
- * 失败也要重绘：左栏与自定义家的表格读的是本地目录缓存，它们不该跟着这次网络失败一起停更
- * （内置家的那份保持上一份成功结果）。
+ * failure need ： and is directory， not this this failure 1 
+ * （ that up 1 success）。
  */
 export async function load({ force = false }: { force?: boolean } = {}): Promise<void> {
   if (loading && !force) return
   const seq = ++loadSeq
   loading = true
-  // 补读一次筛选记忆（挂载那一刻 filter-memory.js 可能还没执行，见 restoreSavedFilters）
+  // 1 （ that 1 filter-memory.js can can no ， restoreSavedFilters）
   restoreSavedFilters()
   try {
     const next = await shared().workbuddyDesktop?.getModelManage()
-    // 期间若有更新的一次加载发起，本次结果作废
+    // if has update 1 ，
     if (seq !== loadSeq) return
     patch({ data: next && Array.isArray(next.models) ? next : null })
   } catch (error) {
@@ -703,35 +703,35 @@ export async function load({ force = false }: { force?: boolean } = {}): Promise
 }
 
 /**
- * 切到本页时的整页刷新（app.js 的 showPage 转发进来），两件事：
- *   1. **自定义提供商目录**（providers.js 的缓存）：左栏那组条目、每个家的模型清单与
- *      「这家还在不在」全读它。提供商是运行期数据，可能在账号页被添加 / 改名 / 删除，而这一页
- *      自持数据、不随主状态轮询更新；
- *   2. **内置家的 manage 清单**：上游目录可能被别处的「获取模型」刷新过。
- * 顺序不能颠倒：目录缓存是自定义家的数据源，先刷它再重绘，左栏与表格才是同一份数据画出来的。
- * 目录刷新失败不阻断 —— 按现有缓存重绘，总比整页停更好。
+ * to when new （app.js showPage ），：
+ * 1. **directory**（providers.js ）： that 、 and 
+ * 「 this in not in 」。 is ， can can in / / delete， this 1 
+ * 、 not update；
+ * 2. ** manage **： up directory can can 「get」 new 。
+ * not can ：directory is ，， and is 1 。
+ * directory new failure not —— by has ，total。
  */
 export async function refreshAll(): Promise<void> {
   try {
     await shared().wbProviders?.refreshCustom?.()
-  } catch { /* 目录偶发打不通：用现有缓存重绘，别把整页刷新拖没 */ }
+  } catch { /* directory not ： use has ， new no */ }
   await load({ force: true })
 }
 
-/** 重绘（app.js 的轮询提醒 / 列设置变更 / 目录可能变了时调用） */
+/** （app.js / set / directory can can when use ） */
 export function render(): void {
   patch({})
 }
 
 /**
- * 写操作返回的数据就位。内置家的写接口都返回最新的 manage_view，直接替换；自定义家走整表
- * 提交、没有返回体（next 为 null）—— 它的新数据已经刷进目录缓存，重绘时读得到。
+ * return 。 return new manage_view，；
+ * 、 no has return（next as null）—— new already directory， when to 。
  */
 export function accept(next: unknown): void {
   const view = next as ManageView | null
-  // 返回体带不带整份 manage 视图，由**写的那家**决定（内置家带、自定义家不带），
-  // 与当前选中哪个视图无关 —— 「自定义 · 全部」聚合里勾了一行内置家模型做批量操作时，
-  // 返回的仍是内置 manage 视图，照常落快照
+  // return not manage ， by ** that **（、 not ），
+  // and current in none —— 「 · 」 1 when ，
+  // return is manage ，
   if (view && Array.isArray(view.models)) {
     loadSeq++
     loading = false
@@ -781,7 +781,7 @@ export function addMappingError(provider: string, alias: string, target: string)
     ? t('模型 ID「{id}」在该提供商已有启用绑定，请先关闭它再添加', { id: alias }) : ''
 }
 
-/** 开关 / 新增 / 改一条绑定（alias == target 时即该模型的默认绑定） */
+/** / add / 1 （alias == target when this default） */
 export async function writeBinding(
   provider: string, alias: string, target: string, change: { reasoning?: string; enabled?: boolean; create?: boolean },
 ): Promise<unknown> {
@@ -819,13 +819,13 @@ export async function writeRemoveModel(provider: string, id: string): Promise<un
 }
 
 /**
- * 保存一条模型的能力位覆盖（两个数据源各走各的写路径，与 `writeBinding` 同一条分流）：
- *   · 自定义家：记录里整表提交（`customSource.setCapabilities`）；
- *   · 内置家：`POST /api/models/capabilities`（覆盖层落在 `modelRules.capabilities`，
- *     清单出口统一应用，见后端 `model_rules` 的「能力位覆盖」）。
+ * 1 can （ path， and `writeBinding` 1 ）：
+ * · ：（`customSource.setCapabilities`）；
+ * · ：`POST /api/models/capabilities`（ in `modelRules.capabilities`，
+ * 1 use ， after `model_rules` 「 can 」）。
  *
- * `capabilities` 是**全量六键**（弹窗一次提交全部）：`null` = 恢复继承 / 清除、
- * 有值 = 覆盖 —— 与后端那条接口的三态协议同源。
+ * `capabilities` is ****（ 1 ）：`null` = / 、
+ * has = —— and after that 。
  */
 export async function writeCapabilities(
   provider: string,
@@ -838,11 +838,11 @@ export async function writeCapabilities(
   return enqueueWrite(() => api.setModelCapabilities(provider, id, capabilities))
 }
 
-/* ─── 行内操作 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 /**
- * 行内操作执行器。`key` 是防重入标记（提供商:模型 id，或 alias:target:provider）—— 同名模型
- * 在多家同时存在，只按 id 记会把两家的行一起标成「执行中」。
+ * 。`key` is （: id， or alias:target:provider）—— 
+ * in when in ， by id will 1 「 in 」。
  */
 export async function runRowAction(key: string, run: () => Promise<unknown>, doneText?: string): Promise<void> {
   if (snapshot.pending.has(key)) return
@@ -860,17 +860,17 @@ export async function runRowAction(key: string, run: () => Promise<unknown>, don
 }
 
 /**
- * 行的启停判定：还有任一条生效的绑定（默认或别名）就算启用，全部关闭才算禁用。
- * 「已启用 / 已禁用」筛选与组内排序共用这一份口径，避免两处各判各的。
+ * ： has 1 （default or ）enabled， use 。
+ * 「 already enabled / already use 」 and use this 1 ， 。
  */
 export function rowEnabled(model: ManageModel): boolean {
   return bindingsOf(model).some(binding => binding.enabled !== false)
 }
 
 /**
- * 某一行的全部绑定（照抄 OmniProxy 的映射 chips）：默认绑定（alias == target）由模型行现造，
- * 其余按 target + 提供商匹配。同一对外名在多家出现是主备关系，所以每行的 chips 只属于自己
- * 那行（带 provider 精确匹配；旧版全局条目 provider 缺失，对任何家都命中）。
+ * 1 （ OmniProxy chips）：default（alias == target） by ，
+ * its by target + 。 1 for in is ， chips 
+ * that （ provider ； old provider ， for in ）。
  */
 export function bindingsOf(model: ManageModel): Binding[] {
   const provider = model.provider || ''
@@ -895,9 +895,9 @@ export function bindingsOf(model: ManageModel): Binding[] {
   return rows
 }
 
-/** 行内操作的防重入键：同名模型在多家同时存在时，`id` 不足以定位一行 */
+/** ： in when in when ，`id` not 1 */
 export const rowKeyOf = (model: ManageModel): string => `${model.provider || ''}:${model.id}`
-/** chip 操作的防重入键：同一对外名 + 上游 + 家才唯一确定一条映射 */
+/** chip ： 1 for + up + 1 1 */
 export const bindingKeyOf = (alias: string, target: string, provider: string): string => `${alias}:${target}:${provider || ''}`
 
 export function expandGroup(provider: string): void {
@@ -918,7 +918,7 @@ export function setStateFilter(next: string): void {
   saveFilters({ state: value })
 }
 
-/** 排序档位（与状态筛选同一套落盘口径：换档即写，重开面板原样恢复） */
+/** （ and 1 ：，） */
 export function setSort(next: string): void {
   const value = MODEL_SORTS.includes(next) ? next : 'default'
   if (value === snapshot.sort) return
@@ -927,7 +927,7 @@ export function setSort(next: string): void {
   saveFilters({ sort: value })
 }
 
-/** 可见性筛选项（与状态筛选同一套落盘口径） */
+/** can （ and 1 ） */
 export function setVisibilityFilter(next: string): void {
   const value = MODEL_VISIBILITIES.includes(next) ? next : 'visible'
   if (value === snapshot.visibilityFilter) return
@@ -939,14 +939,14 @@ export function setVisibilityFilter(next: string): void {
 export function setSearch(next: string): void {
   filtersTouched = true
   patch({ search: next })
-  // 各敲一个字写一次 localStorage，量小无感（搜索框是受控的：整张表跟着搜索词重画，
-  // 与旧实现每敲一个字 innerHTML 重画一次同一量级）
+  // 1 1 localStorage，none（ is ：，
+  // and old 1 innerHTML 1 1 ）
   saveFilters({ search: next })
 }
 
 /**
- * 切换选中的提供商。左栏点击与账号页「模型清单 →」跳转都走它。选中项落盘（跨次启动记忆）；
- * 表头按视图重排一次（自定义家隐藏倍率 / 来源两列），其余交给重绘。
+ * in 。 and 「 →」。 in （）；
+ * by 1 （ / ）， its to 。
  */
 export function selectProvider(id: string): void {
   patch({ provider: String(id ?? '').trim() || 'all' })
@@ -955,32 +955,32 @@ export function selectProvider(id: string): void {
 }
 
 /**
- * 删除一个自定义提供商（左栏条目上那颗 ×）。
+ * delete 1 （ up that ×）。
  *
- * 删除逻辑（二次确认 / 级联删账号 / 目录与账号列表刷新）全在 custom-provider-ui.js 里，与
- * 账号设置弹窗那颗「删除提供商」同一实现；这里只做两件事：转发，然后把本页重画一遍。
- * 删掉的是**当前选中的那家**时不用特判：patch 里的选中项归一化认不出已删的家，会自动回落
- * 「全部」。
+ * delete（ / / directory and new ） in custom-provider-ui.js ， and 
+ * set that 「delete」 1 ； this ：， after 1 。
+ * is **current in that ** when not use ：patch in 1 not already ， will 
+ * 「」。
  */
 export async function removeCustomProvider(providerId: string): Promise<void> {
   const api = shared().wbCustomProvidersUi
-  // 正常加载顺序下它一定在（custom-provider-ui.js 在本岛之后加载）。真缺了就说一声 ——
-  // 点了 × 什么都不发生比报错更难查
+  // down 1 in （custom-provider-ui.js in after ）。 1 ——
+  // × not 
   if (!api?.remove) { toast(t('删除入口未就绪，请重试或重启应用'), 'err'); return }
   if (!(await api.remove(providerId))) return
-  // 重拉而非只重绘：该家从后端目录里消失了（它的模型不再参与路由），内置家那份 manage
-  // 视图里的承载关系可能跟着变
+  // ： this from after directory（ not and by ）， that manage
+  // can can 
   await load({ force: true })
 }
 
-/** 「＋ 新建自定义提供商」：就地打开「添加账号」弹窗并直达新建表单（不跳页） */
+/** 「＋ new 」：「」 and new （ not ） */
 export function openAddCustomProvider(): void {
   shared().wbAccountAddForms?.openNewCustomForm?.()
 }
 
-/** 打开映射弹窗。`context` 是行内入口带的上下文（提供商 + 上游模型锁定，只填对外名）。 */
+/** 。`context` is up down （ + up ， for ）。 */
 export function openMapping(context: MappingContext): void {
-  // 索引不用在这里重建：patch 每次都重建（见 patch 的说明），弹窗的初值读的就是最新的那份
+  // not use in this ：patch （ patch ）， is new that 
   patch({ mapping: context })
 }
 
@@ -989,14 +989,14 @@ export function closeMapping(): void {
 }
 
 /**
- * 打开「添加模型」弹窗。无上下文（只有顶部按钮一个入口），每次都是新增。
- * 选中自定义家时这家是**锁定**的：模型就登记到它名下，不必（也不该）再选一次；内置家则
- * 预选当前正在看的那一家（点了某家的分段再来加模型时，这就是他要的家）。
+ * 「」。none up down （ has by 1 ）， is add。
+ * in when this is **** ： to down ， not （ not this ） 1 ； then 
+ * current in that 1 （ when ， this is need ）。
  */
 export function openCustomModel(): void {
   const provider = currentProvider()
-  // 「自定义 · 全部」不预选：模型要登记到某一家名下，聚合视图说明用户没定到哪一家，
-  // 交给弹窗自己选（与内置「全部」视图同一行为）；单家视图锁定那一家
+  // 「 · 」 not ： need to 1 down ， use no to 1 ，
+  // to （ and 「」 1 as ）； that 1 
   const custom = customSource.isCustom(provider)
   const preselect = custom || (provider !== 'all' && provider !== ALL_CUSTOM) ? provider : ''
   patch({ customModel: { provider: preselect, locked: custom } })
@@ -1007,9 +1007,9 @@ export function closeCustomModel(): void {
 }
 
 /**
- * 打开能力弹窗（表格的「上下文 / 输出」与「能力」两列，点格子即入口）。
- * 上下文只带 `(provider, id)`：弹窗打开期间数据可能被刷新，生效值从当前
- * 快照里现读（见 `modelRowOf`），不把值拷进上下文。
+ * can （ 「 up down / 」 and 「 can 」，）。
+ * up down `(provider, id)`： can can new ， from current
+ * （ `modelRowOf`）， not up down 。
  */
 export function openCapability(provider: string, id: string): void {
   patch({ capability: { provider, id } })
@@ -1020,10 +1020,10 @@ export function closeCapability(): void {
 }
 
 /**
- * 按 `(provider, id)` 取一行模型（能力弹窗读生效值 / 覆盖标记 / 展示名）。
+ * by `(provider, id)` 1 （ can / / ）。
  *
- * id 忽略大小写（与全仓的模型名比对口径一致）；行不在（目录刷新后模型
- * 消失、自定义家被删）返回 null，由弹窗提示 + 关闭。
+ * id ignore（ and for 1 ）； not in （directory new after 
+ * 、 ）return null， by + 。
  */
 export function modelRowOf(provider: string, id: string): ManageModel | null {
   const view = providerView(provider)
@@ -1031,13 +1031,13 @@ export function modelRowOf(provider: string, id: string): ManageModel | null {
 }
 
 /**
- * 提供商的展示名：自定义家走目录缓存里的记录名，内置家走注册表，都没有时
- * 回落 id。直接印 provider id 时自定义家会显示成一串 `custom-3f2a91b04c7e`，
- * 用户认不出是哪一家。
+ * ：directory ，， no has when 
+ * id。 provider id when will 1 `custom-3f2a91b04c7e`，
+ * use not is 1 。
  */
 export function providerLabelOf(provider: string): string {
   if (customSource.isCustom(provider)) {
-    // 自定义家是用户自己起的名字（运行期数据），不进词典
+    // is use （）， not 
     const name = customSource.record(provider)?.name
     return (typeof name === 'string' && name) || provider
   }
@@ -1045,15 +1045,15 @@ export function providerLabelOf(provider: string): string {
 }
 
 /**
- * 「获取模型」：打开弹窗，本体在 models-fetch-modal.tsx（全局 wbModelsFetchModal）。
- * 本函数只负责把上下文（选中项、展示名、成功回调）递过去，不掺和弹窗内部的事。
+ * 「get」：， in models-fetch-modal.tsx（ wbModelsFetchModal）。
+ * up down （ in 、、success）， not and 。
  *
- * 内置家的刷新范围 = 左栏实有清单的家 ∪ 有启用账号的家（弹窗里组装），因此标题只写
- * 「内置提供商」，实际刷了哪几家由结果表逐行列出。
+ * new = has ∪ has enabled （），
+ * 「」， by 。
  *
- * 内置家刷新真落地后必须**重拉一次**：本页的数据是自持的，而刷新走的是弹窗里那条
- * /api/models/refresh —— 目录在后端换了一份，本页手里的 manage 视图（左栏计数、行的
- * 「来源」列、新模型的行）却还是旧快照。
+ * new after must** 1 **： is ， new is that 
+ * /api/models/refresh —— directory in after 1 ， manage （、 
+ * 「」、 new ） is old 。
  */
 export function refreshModels(): void {
   const provider = currentProvider()
@@ -1062,26 +1062,26 @@ export function refreshModels(): void {
     ? (customSource.record(provider)?.name || provider)
     : t('内置提供商')
   shared().wbModelsFetchModal?.open({
-    // 「自定义 · 全部」聚合视图没有单一的上游可拉（各家 Base URL 都不同），
-    // 把 providerId 置空，弹窗按内置家的「多家范围」模式组装刷新名单
+    // 「 · 」 no has 1 up can （ Base URL not ），
+    // providerId empty， by 「」 new 
     providerId: provider === ALL_CUSTOM ? '' : provider,
     custom,
     name,
-    // 自定义家：导入成功 → 目录缓存已刷新，重绘即可（数据源是本地缓存）
+    // ：success → directory already new ， can （ is ）
     onDone: () => render(),
-    // 内置家：远程目录落地 → 后端清单换了，必须重拉（force：这次是「刷新已落地」的收尾，
-    // 不能被一个更早的在途加载吞掉）
+    // ：directory → after ，must（force： this is 「 new already 」 ，
+    // not can 1 in ）
     onRefreshed: () => { void load({ force: true }) },
   })
 }
 
-/* ─── 对外契约 ───────────────────────────────── */
+/* ─── for ───────────────────────────────── */
 
 /**
- * visibleColumns 导出给 table-columns.js：列宽那一层要按当前可见列算（覆盖值落到哪个 <col>、
- * 末列不给把手），两边读同一份配置才不会各算一个样。
- * selectProvider 导出给账号页的自定义提供商弹窗（「模型清单 →」跳过来并选中该家）。
- * providerRefreshedAt 导出给「获取模型」弹窗的「更新日期」列；builtinProviders 给它组装刷新范围。
+ * visibleColumns to table-columns.js： that 1 need by current can （ to <col>、
+ * not to ）， 1 config not will 1 。
+ * selectProvider to （「 →」 and in this ）。
+ * providerRefreshedAt to 「get」 「update」；builtinProviders to new 。
  */
 window.wbModelsPanel = {
   render, load, refreshAll, refreshModels, visibleColumns, selectProvider, builtinProviders,
@@ -1090,7 +1090,7 @@ window.wbModelsPanel = {
 
 declare global {
   interface Window {
-    /** 模型管理页（替换 ui/models-panel.js，接口与原实现一致） */
+    /** （ ui/models-panel.js， and 1 ） */
     wbModelsPanel?: {
       render(): void
       load(options?: { force?: boolean }): Promise<void>
@@ -1105,34 +1105,34 @@ declare global {
 }
 
 /**
- * 「三元组 → 思考等级」的读取入口。索引本身（reasoningOf）由 patch 每次重建（见那里），
- * 这里包一层是为了别把可变绑定当值导出 —— 视图层读到的永远是当前那一份索引。
+ * 「 → etc 」 。（reasoningOf） by patch （ that ），
+ * this 1 is as can —— to is current that 1 。
  */
 export function levelOf(alias: unknown, target: unknown, provider: unknown): string {
   return reasoningOf(alias, target, provider)
 }
 
 /**
- * 表格元素的登记口（静态表头同步要用它）。视图层不能直接给模块内的 `tableEl` 赋值
- *（导入的绑定是只读的），所以走这个 setter —— 它由 `<table ref>` 在提交时调用。
+ * （ need use ）。 not can to `tableEl` 
+ *（ is ）， this setter —— by `<table ref>` in when use 。
  */
 export function setTableEl(el: HTMLTableElement | null): void {
   tableEl = el
 }
 
 /**
- * 摘掉表格里**不属于 React 树**的节点（修复 #195，由视图层每次提交后调用）。
+ * ** not React ** （ #195， by after use ）。
  *
- * `<table>` 的直接子级只该有 colgroup / thead / tbody#models 三样，行全部由
- * React 渲染。但 React **不会**清理外部插进表格的节点：注入实验确认，手工塞进
- * tbody 的行、或塞进 table 的独立 tbody，之后 render() / load() 都不会把它们
- * 摘掉，会一直留在表里。issue #195 的现场正是这样一行：不属于当前数据、不计入
- * 标题统计，且它所在的那个 tbody 让它下面少了一条分隔线（tbody 最后一行没有
- * 下边框）。
+ * `<table>` this has colgroup / thead / tbody#models ， by 
+ * React 。 React ** not will ** ：，
+ * tbody 、 or table tbody， after render() / load() not will 
+ * ， will 1 in 。issue #195 is this 1 ： not current、 not 
+ * statistics， and in that tbody down 1 （tbody after 1 no has 
+ * down ）。
  *
- * 判据是 React 给每个渲染元素挂的 fiber 标记（`__reactFiber$…` / 旧版
- * `__reactInternalInstance$…`）：外部插入的节点没有这两个键。摘的全是「不属于
- * React」的节点，所以清理本身不会与 React 的 diff 打架，正常渲染一个都不会碰。
+ * is React to fiber （`__reactFiber$…` / old 
+ * `__reactInternalInstance$…`）： no has this 。 is 「 not 
+ * React」 ， not will and React diff ， 1 not will 。
  */
 export function pruneForeignTableNodes(): void {
   const table = tableEl
@@ -1143,7 +1143,7 @@ export function pruneForeignTableNodes(): void {
     if (child.tagName === 'TBODY') {
       if (child.id !== 'models') child.remove()
     } else if (child.tagName === 'TR' && !owned(child)) {
-      // 直接落在 table 下的 tr 会被浏览器按「匿名 tbody」渲染成一行，同样要清
+      // in table down tr will by 「 tbody」 1 ， need 
       child.remove()
     }
   }

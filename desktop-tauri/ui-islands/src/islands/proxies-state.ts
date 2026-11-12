@@ -3,7 +3,7 @@ import { proxyServiceLabels, type ProxyUsage } from '../../../ui-shared/proxy-us
 import { acceptProxyPool } from './proxy-pool-cache'
 import type { ClashProxySnapshot } from '../../../ui-shared/clash-proxy'
 
-/* ─── 后端形态 ───────────────────────────────── */
+/* ─── after ───────────────────────────────── */
 
 export type ProxyPoolItem = ProxyUsage & {
   id: string
@@ -45,7 +45,7 @@ export type ProxyTestResult = {
   ip?: string
   durationMs?: unknown
   error?: string
-  /** 结果没能落库时的原因（测试结论仍然有效） */
+  /** no can when Reason（valid） */
   saveError?: string
   items?: ProxyPoolItem[]
 }
@@ -55,7 +55,7 @@ export type ProxySettings = {
   defaults?: { testUrl?: string }
 }
 
-/* ─── 桥（只声明本页用到的成员；不 declare global，理由见 accounts-shared）─── */
+/* ─── （ use to ； not declare global， by accounts-shared）─── */
 
 export type ProxyPoolBridge = {
   getProxyPool?: () => Promise<ProxyPoolPayload | null | undefined>
@@ -65,9 +65,9 @@ export type ProxyPoolBridge = {
   removeProxyPoolItem?: (id: string) => Promise<ProxyPoolPayload | null | undefined>
   testProxyPoolItem?: (id: string) => Promise<ProxyTestResult | null | undefined>
   syncClashToProxyPool?: () => Promise<ProxyPoolPayload | null | undefined>
-  /** 测**未保存**的表单内容（弹窗里的「测试出口」，payload 是 `{proxy}`） */
+  /** **** （ 「」，payload is `{proxy}`） */
   testProxy?: (payload: { proxy: unknown }) => Promise<ProxyTestResult | null | undefined>
-  /** 连通性测试目标网址 */
+  /** */
   getProxySettings?: () => Promise<ProxySettings | null | undefined>
   saveProxySettings?: (payload: Record<string, unknown>) => Promise<ProxySettings | null | undefined>
 }
@@ -77,7 +77,7 @@ export type ProxySharedWindow = {
   wbApp?: {
     toast?: (message: string, kind?: 'err' | 'ok') => void
     formatTime?: (value: unknown) => string
-    /** 当前页标识：首屏只在用户正看着本页时才自拉一次 */
+    /** current： in use when 1 */
     readonly currentPage?: string
   }
   wbConfirm?: {
@@ -101,14 +101,14 @@ export function formatTime(value: unknown): string {
   return wb().wbApp?.formatTime?.(value) || ''
 }
 
-/** 耗时文案：`2300` → `2.3s`，`230` → `230ms`（与账号弹窗的出口测试同一口径） */
+/** when ：`2300` → `2.3s`，`230` → `230ms`（ and 1 ） */
 export function durationText(value: unknown): string {
   const ms = Number(value)
   if (!Number.isFinite(ms) || ms < 0) return ''
   return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`
 }
 
-/** 确认框 / 提示里的 HTML 转义（值来自用户输入的名称） */
+/** / HTML （ use ） */
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, char => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char
@@ -126,15 +126,15 @@ type PoolState = {
   loading: boolean
   syncing: boolean
   error: string
-  /** 正在测试的条目 id（行内按钮的文案与去重闸；批量测试时是「当前那一条」） */
+  /** in id（ by and ； when is 「current that 1 」） */
   testing: string | null
-  /** 写操作 / 单条同步在途的条目 id（该行的开关与按钮禁用，防连点） */
+  /** / in id（ this and by use ，） */
   pending: ReadonlySet<string>
-  /** 批量操作在途（批量按钮的禁用与进度文案） */
+  /** in （ by use and ） */
   batchBusy: boolean
-  /** 批量测试的进度 `{done, total}`；null = 没在跑 */
+  /** `{done, total}`；null = no in */
   batchProgress: { done: number; total: number } | null
-  /** 勾选的条目 id（只作用于当前勾选，不随列表刷新自动增减 —— 消失的会被剔除） */
+  /** id（used forcurrent， not new —— will ） */
   selected: ReadonlySet<string>
 }
 
@@ -166,17 +166,17 @@ function patch(partial: Partial<PoolState>): void {
   listeners.forEach(listener => listener())
 }
 
-/** 当前列表（`[]` = 还没读到或一条都没有，用 `state.data` 区分） */
+/** current（`[]` = no to or 1 no has ， use `state.data` ） */
 export function items(): ProxyPoolItem[] {
   return state.data?.items ?? []
 }
 
-/** 「全选」的作用域：当前列表里的全部条目 id（顺序与表格一致） */
+/** 「」 use ：current id（ and 1 ） */
 export function pickableIds(): string[] {
   return items().map(item => item.id)
 }
 
-/* ─── 勾选 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
 export function isPicked(id: string): boolean {
   return state.selected.has(id)
@@ -210,7 +210,7 @@ export function accept(payload: ProxyPoolPayload | null | undefined): void {
   acceptProxyPool(payload.items)
 }
 
-/* ─── 取数与单条动作 ─────────────────────────── */
+/* ─── and ─────────────────────────── */
 
 export async function loadPanel(silent = false): Promise<void> {
   const bridge = wb().workbuddyDesktop
@@ -267,7 +267,7 @@ export async function testItem(item: ProxyPoolItem): Promise<void> {
     if (data?.items) accept({ items: data.items })
     if (data?.success) {
       const suffix = durationText(data.durationMs)
-      // 出口 IP / 耗时是附带读数：IP 是后端数据、耗时只有数字，各自做形参不做键
+      // IP / when is ：IP is after 、 when has ， not 
       toast(t('✅ 「{name}」出口可用{ip}{took}', {
         name: itemName(item),
         ip: data.ip ? t('　出口 IP {ip}', { ip: data.ip }) : '',
@@ -351,7 +351,7 @@ export async function removeItem(item: ProxyPoolItem): Promise<void> {
   }
 }
 
-/* ─── 批量 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
 export async function batchTest(): Promise<void> {
   const bridge = wb().workbuddyDesktop
@@ -389,8 +389,8 @@ export async function batchTest(): Promise<void> {
 export async function batchRemove(): Promise<void> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.removeProxyPoolItem !== 'function') return
-  // 与批量测试互斥（一条在测时删它，测试结果回来会报「条目不存在」）；
-  // 行内启停 / 单条测试同理 —— 视图侧按钮也按同一组条件禁用
+  // and （ 1 in when ， will 「 not in 」）；
+  // / —— by by 1 use 
   if (state.batchBusy || state.testing) return
   const picked = items().filter(item => state.selected.has(item.id))
   const deletable = picked.filter(item => item.source !== 'clash')
@@ -443,7 +443,7 @@ export async function batchRemove(): Promise<void> {
   toast(failed ? parts.join(t('，')) : `✅ ${parts.join(t('，'))}`, failed ? 'err' : 'ok')
 }
 
-/** 新建 / 编辑提交（表单已在弹窗里校验过形状） */
+/** new / （ already in ） */
 export async function saveItem(
   editing: ProxyPoolItem | null,
   payload: Record<string, unknown>,
@@ -458,9 +458,9 @@ export async function saveItem(
   return data
 }
 
-/* ─── 代理设置（设置弹窗）────────────────────── */
+/* ─── set（set）────────────────────── */
 
-/** 读代理设置（设置弹窗打开时调一次；拿不到返回 null，弹窗显示读取失败） */
+/** set（set when 1 ； not to return null，failure） */
 export async function loadSettings(): Promise<ProxySettings | null> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.getProxySettings !== 'function') {

@@ -1,4 +1,4 @@
-//! ModelScope API-Inference 官方异步 Images 协议：创建任务后只轮询，绝不再次提交。
+//! ModelScope API-Inference Images ：create after ， not 。
 
 use std::{sync::Arc, time::Duration};
 use futures::StreamExt;

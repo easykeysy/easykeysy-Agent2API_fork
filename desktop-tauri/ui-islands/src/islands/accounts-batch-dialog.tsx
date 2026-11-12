@@ -1,4 +1,4 @@
-/** 分组与勾选账号共用的批量操作弹窗。 */
+/** and use 。 */
 
 import * as React from 'react'
 import {
@@ -47,7 +47,7 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
   const [current, setCurrent] = React.useState(BATCH_ACTIONS.some(item => item.value === action) ? action : 'enable')
   const [proxyDraft, setProxyDraft] = React.useState<ProxyDraft>(() => draftOfProxy(null))
   const [concDraft, setConcDraft] = React.useState('')
-  // 混选时没有共同的间隔；不预填，避免直接执行就覆盖整组配置。
+  // when no has ； not ，config。
   const [usageDraft, setUsageDraft] = React.useState<UsageDraft>({ enabled: true, intervalInput: '', unit: 'minutes' })
   const [limiterMode, setLimiterMode] = React.useState<BatchLimiterMode>('append')
   const [limiterDraft, setLimiterDraft] = React.useState<LimiterGroup[]>([])

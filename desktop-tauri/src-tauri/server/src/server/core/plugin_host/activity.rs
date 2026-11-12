@@ -72,7 +72,7 @@ impl Drop for OpeningStream {
         let written = self.written.take();
         host.close_stream(id);
         crate::spawn_task(async move {
-            // 取消帧必须排在请求帧之后；尚未写出的调用不能永远占住在途凭证。
+            // must in request after ； use not can in 。
             if let Some(written) = written {
                 if !written.await.unwrap_or(false) {
                     if let Ok(mut streams) = host.streams.lock() { streams.remove(&id); }

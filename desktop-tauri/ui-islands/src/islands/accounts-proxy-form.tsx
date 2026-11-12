@@ -1,4 +1,4 @@
-/** 账号设置与批量操作共用的出网代理表单。 */
+/** set and use 。 */
 
 import * as React from 'react'
 import {
@@ -15,7 +15,7 @@ import { proxyPoolOptions } from './accounts-data'
 import { DIALOG_SEG_CLASS } from './dialog-segmented'
 import type { ClashProxySnapshot } from '../../../ui-shared/clash-proxy'
 
-/** 每条候选都会真实出网，一轮最多测 8 条。 */
+/** will ， 1 8 。 */
 const ROTATE_TEST_LIMIT = 8
 
 export type ProxyPayload =
@@ -28,11 +28,11 @@ export type ProxyPayload =
 export type ProxyDraft = {
   mode: 'none' | 'pool' | 'rotate' | 'clash' | 'custom' | 'retired'
   listenerUid: string
-  /** 池条目 id（mode === 'pool'） */
+  /** id（mode === 'pool'） */
   proxyId: string
-  /** 轮询档：true = 池里全部启用的出口（"全部"，默认档；false = 只在 rotateIds 里轮） */
+  /** ：true = enabled （""，default；false = in rotateIds ） */
   rotateAll: boolean
-  /** 轮询档：指定要轮询的池条目 id（rotateAll 为 true 时不用） */
+  /** ： need id（rotateAll as true when not use ） */
   rotateIds: string[]
   protocol: 'http' | 'socks5'
   host: string
@@ -41,7 +41,7 @@ export type ProxyDraft = {
   password: string
 }
 
-/** 账号 proxy 字段 → 表单草稿（形态与后端 workbuddy-proxy.mjs 一致） */
+/** proxy → （ and after workbuddy-proxy.mjs 1 ） */
 export function draftOfProxy(proxy: AccountRecord['proxy']): ProxyDraft {
   const source = proxy?.config?.source || proxy?.source
   const config = proxy?.config || null
@@ -52,7 +52,7 @@ export function draftOfProxy(proxy: AccountRecord['proxy']): ProxyDraft {
         : source === 'clash' ? 'clash' : source === 'custom' ? 'custom' : source === 'subscription' ? 'retired' : 'none',
     listenerUid: source === 'clash' ? String(config?.listenerUid || '') : '',
     proxyId: source === 'pool' ? String(config?.proxyId || '') : '',
-    // `all` 缺键按「全部」读（后端同一个口径：那是这一档的默认语义）
+    // `all` by 「」（ after 1 ： that is this 1 default）
     rotateAll: rotate ? config?.all !== false : true,
     rotateIds: rotate && Array.isArray(config?.proxyIds) ? config.proxyIds.map(String) : [],
     protocol: config?.protocol === 'socks5' ? 'socks5' : 'http',
@@ -63,7 +63,7 @@ export function draftOfProxy(proxy: AccountRecord['proxy']): ProxyDraft {
   }
 }
 
-/** 草稿 → 接口 payload；非法输入抛出「面向用户」的错误（消息直接进 toast / 弹窗状态行） */
+/** → payload；「 to use 」 error（ toast / ） */
 export function readProxyDraft(draft: ProxyDraft): ProxyPayload {
   if (draft.mode === 'none') return null
   if (draft.mode === 'retired') throw new Error(t('原代理来源已下线，请选择已保存的代理、自定义地址或直连'))
@@ -76,7 +76,7 @@ export function readProxyDraft(draft: ProxyDraft): ProxyPayload {
     return { source: 'pool', proxyId: draft.proxyId }
   }
   if (draft.mode === 'rotate') {
-    // 「全部」不写 proxyIds：池里以后新增的出口自动进轮询（后端归一也是这个形状）
+    // 「」 not proxyIds： after add （ after 1 is this ）
     if (draft.rotateAll) return { source: 'rotate', all: true }
     if (!draft.rotateIds.length) throw new Error(t('轮询至少要选择一条代理（或改选「全部」）'))
     return { source: 'rotate', all: false, proxyIds: [...draft.rotateIds] }
@@ -108,12 +108,12 @@ export function ProxyForm({
   draft: ProxyDraft
   onChange: (next: ProxyDraft) => void
   idPrefix: string
-  /** 是否给出「轮询」档（只有 OpenCode Zen 账号为真，见函数说明） */
+  /** is to 「」（ has OpenCode Zen as ，） */
   allowRotate?: boolean
 }) {
   const [testing, setTesting] = React.useState(false)
   const [testResult, setTestResult] = React.useState<React.ReactNode>(null)
-  /** 池列表：「已保存的代理」与「轮询」两档共用的选项（模块级缓存，见 accounts-data） */
+  /** ：「 already 」 and 「」 use （， accounts-data） */
   const [pool, setPool] = React.useState<PoolItem[] | null>(null)
   const [poolError, setPoolError] = React.useState('')
   const [clash, setClash] = React.useState<ClashProxySnapshot | null>(null)
@@ -133,7 +133,7 @@ export function ProxyForm({
   }, [])
   React.useEffect(() => { if (draft.mode === 'clash' && clash === null) loadClash() }, [draft.mode, clash, loadClash])
 
-  /** 读一次代理池（表单里两个入口：首次挂载与「重新读取」） */
+  /** 1 （ ： and 「 new 」） */
   const loadPool = React.useCallback((force = false): void => {
     setPoolError('')
     void proxyPoolOptions({ force })
@@ -143,15 +143,15 @@ export function ProxyForm({
         setPoolError(errorMessage(error))
       })
   }, [])
-  // 只有选中（或初始就是）引用池的那两档时才真正去读 —— 其余档的用户不必为一次
-  // 多余的请求买单；读完缓存住，切到这一档不会再打网络
+  // has in （ or is ） use that when —— its use not as 1 
+  // request；， to this 1 not will 
   React.useEffect(() => {
     if ((draft.mode === 'pool' || draft.mode === 'rotate') && pool === null) loadPool()
   }, [draft.mode, pool, loadPool])
 
   /**
-   * 轮询档当前会用到哪些条目（与后端 `proxy_rotate::candidate_ids` 同口径：
-   * 「全部」= 池里启用的条目，顺序即池序；指定档 = 表单里选的那些）。
+   * current will use to （ and after `proxy_rotate::candidate_ids` ：
+   * 「」= enabled ，； = that ）。
    */
   function rotateCandidateIds(): string[] {
     if (draft.rotateAll) {
@@ -160,13 +160,13 @@ export function ProxyForm({
     return [...draft.rotateIds]
   }
 
-  /** 用当前表单内容测试出口连通性 */
+  /** use current */
   async function test(): Promise<void> {
     if (testing) return
-    // 轮询档：逐条测候选（每条都走 testProxyPoolItem —— 结果会记进那条代理的
-    // 「上次测试」，与代理页那颗按钮同一个动作）。候选可能几十条，全测一遍是
-    // 几十次往返，所以只测前 ROTATE_TEST_LIMIT 条并把「还有几条没测」说出来；
-    // 只为看某一条通不通时，用「网络代理」页的行内「测试」更直接。
+    // ：（ testProxyPoolItem —— will that 
+    // 「 up 」， and that by 1 ）。 can can ， 1 is 
+    // ， before ROTATE_TEST_LIMIT and 「 has no 」；
+    // as 1 not when ， use 「」 「」。
     if (draft.mode === 'rotate') {
       const ids = rotateCandidateIds()
       if (!ids.length) {
@@ -199,8 +199,8 @@ export function ProxyForm({
       setTesting(false)
       return
     }
-    // 池引用：测的是**那条已保存的条目**（testProxyPoolItem 会把结果记进它的
-    // 「上次测试」，与代理页那一颗按钮同一个动作）—— 未选条目时给出提示
+    // use ： is ** that already **（testProxyPoolItem will 
+    // 「 up 」， and that 1 by 1 ）—— when to 
     if (draft.mode === 'pool') {
       if (!draft.proxyId) {
         toast(t('请先选择已保存的代理'), 'err')
@@ -259,8 +259,8 @@ export function ProxyForm({
   return (
     <div className='acct-proxy-form flex flex-col'>
       {draft.mode === 'retired' ? <p className='mb-3 text-xs text-destructive'>{t('原代理来源已下线，请选择已保存的代理、自定义地址或直连')}</p> : null}
-      {/* 出网方式：档位一行。走组件库的分段控件（与添加账号弹窗同一档尺寸）——
-          这里原先拿 RadioGroup 拼了一套自己的观感，跟别处的分段对不上。 */}
+      {/* ： 1 。 （ and 1 ）——
+           this RadioGroup 1 ， for not up 。 */}
       <SegmentedControl<ProxyDraft['mode']>
         aria-label={t('代理方式')}
         className={DIALOG_SEG_CLASS}
@@ -269,14 +269,14 @@ export function ProxyForm({
         options={[
           { value: 'none', label: t('无代理（直连）') },
           { value: 'pool', label: t('已保存的代理') },
-          // 轮询档只对 OpenCode Zen 出现（见 allowRotate 的说明）
+          // for OpenCode Zen （ allowRotate ）
           ...(allowRotate ? [{
             value: 'rotate' as const,
             label: t('轮询（换 IP）'),
             title: t('逐请求轮换出口（换 IP）：OpenCode Zen 免费档按 IP 限流，单个 IP 的额度用完会对它一律 429'),
           }] : []),
-          // Clash Verge 档已下线：只有现存配置还停在它上面时才补出这一项，
-          // 让用户能看见当前值、并有机会改成别的（补出来就没法切走了）
+          // Clash Verge already down ： has config in up when this 1 ，
+          // use can current、 and has will （ no ）
           ...(draft.mode === 'clash' ? [{ value: 'clash' as const, label: 'Clash Verge' }] : []),
           { value: 'custom', label: t('自定义') },
         ]}
@@ -286,8 +286,8 @@ export function ProxyForm({
         <div className='mt-3'>
           <Field orientation='horizontal' className='field-row'>
             <FieldLabel htmlFor={`${idPrefix}-pool-exit`}>{t('代理')}</FieldLabel>
-            {/* value 恒为字符串（空串 = 还没选）：受控值从 undefined 切到字符串会被 Base UI
-                当成「非受控 → 受控」的切换，所以不给 undefined */}
+            {/* value as （empty = no ）： from undefined to will Base UI
+                「 → 」 ， not to undefined */}
             <Select value={draft.proxyId} disabled={!pool?.length}
               onValueChange={value => set({ proxyId: String(value) })}>
               <SelectTrigger id={`${idPrefix}-pool-exit`} className='min-w-[220px]'>
@@ -299,9 +299,9 @@ export function ProxyForm({
               </SelectTrigger>
               <SelectContent>
                 {(pool ?? []).map(item => (
-                  // 已禁用的条目置灰不可选：选它保存后解析必然失败（转发回退直连），
-                  // 用户只会看到「代理已禁用」。要启用请去「网络代理」页。
-                  // 当前值恰好是禁用项时仍正常显示（触发器读的是同一份 label）
+                  // already use not optional： after failure（），
+                  // use will to 「 already use 」。 need enabled「」。
+                  // current is use when （ is 1 label）
                   <SelectItem key={item.id} value={item.id} disabled={item.enabled === false}>
                     {poolItemLabel(item)}
                   </SelectItem>
@@ -324,12 +324,12 @@ export function ProxyForm({
 
       {draft.mode === 'rotate' ? (
         <div className='mt-3'>
-          {/* 「全部」是默认档：勾上 = 池里每个启用的出口轮流使用（新加的出口
-              自动进轮询，不必回来改这条账号）。取消勾选才出现多选。
-              这一行刻意**不走 .field-row**：账号设置弹窗里它的直接 label 子元素
-              会被 `.acct-dlg-main .field-row > label` 强制成 76px 定宽字段标签，
-              「全部代理节点（推荐）」比 76px 长，nowrap 溢出会压住后面的说明
-              （实测叠字）—— 所以用普通 flex 行，文案跟在复选框后面自然排 */}
+          {/* 「」 is default： up = enabled use （ new 
+              ， not this ）。。
+               this 1 ** not .field-row**：set label 
+               will `.acct-dlg-main .field-row > label` 76px ，
+              「（）」 76px ，nowrap will after 
+              （）—— use flex ， in after */}
           <div className='flex flex-wrap items-center gap-x-2.5 gap-y-1'>
             <Checkbox id={`${idPrefix}-rotate-all`} checked={draft.rotateAll}
               aria-label={t('轮询全部代理节点')}
@@ -347,8 +347,8 @@ export function ProxyForm({
               <MultiSelect id={`${idPrefix}-rotate-exits`}
                 value={draft.rotateIds}
                 onValueChange={values => set({ rotateIds: values.map(String) })}
-                // 禁用项置灰：后端轮询取用时会跳过它们（`candidate_ids` 只留启用项），
-                // 列出来能选等于让用户白挑一条永不生效的出口
+                // use ： after use when will （`candidate_ids` enabled），
+                // can etc use 1 not 
                 options={(pool ?? []).map(item => ({
                   value: item.id,
                   label: poolItemLabel(item),

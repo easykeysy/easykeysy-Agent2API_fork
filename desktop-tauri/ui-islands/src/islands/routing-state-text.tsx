@@ -2,7 +2,7 @@ import * as React from 'react'
 import { StatusDot, cn } from '@ui'
 import { t } from '../i18n'
 
-/** 选路状态的统一文案。与 RouteStateBadge 同口径，但这里只输出「点 + 文案」，不带彩色底。 */
+/** 1 。 and RouteStateBadge ， this 「 + 」， not 。 */
 export function stateLabel(state?: string): string {
   return state === 'usable' ? t('可用') : state === 'cooldown' ? t('冷却中')
     : state === 'concurrency' ? t('并发已满') : state === 'disabled' ? t('已禁用')

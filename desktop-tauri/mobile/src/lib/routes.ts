@@ -6,7 +6,7 @@ export const SCREEN_IDS = [
 export type ScreenId = typeof SCREEN_IDS[number]
 export type Route = { screen: ScreenId; params?: Record<string, string> }
 
-/** 旧插件签到地址只作路由兼容，不再加载插件提供的 HTML。 */
+/** old to by ， not HTML。 */
 export function normalizeRoute(screen: string, params?: Record<string, string>): Route {
   if (screen === 'checkin-records') return { screen: 'checkin', params: { ...params, tab: 'records' } }
   if (screen.startsWith('plugin:')) {

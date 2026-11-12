@@ -1,17 +1,17 @@
-//! 网关侧宿主 + `RpcAdapter` 的端到端验证。
+//! + `RpcAdapter` to 。
 //!
-//! ── 这个测试验证什么 ──────────────────────────────────────────
-//! 前面的 `scripts/verify-plugin-host.mjs` 验证的是**协议本身**（脚本扮演
-//! 网关）。这里验证的是**网关侧的实现**：`Host` 能不能真把插件进程拉起来、
-//! `RpcAdapter` 能不能把 trait 调用变成 RPC、回调能不能走通。
+//! ── this ──────────────────────────────────────────
+//! before `scripts/verify-plugin-host.mjs` is ****（
+//! ）。 this is ** **：`Host` can not can 、
+//! `RpcAdapter` can not can trait use RPC、 can not can 。
 //!
-//! ── 为什么它需要真二进制 ────────────────────────────────────
-//! 这是整条链路上唯一无法用纯 Rust 单元测试覆盖的部分：spawn、管道、
-//! 分帧、握手、进程退出。用假实现替代就等于没测。
+//! ── Why need need ────────────────────────────────────
+//! this is up 1 none use Rust ：spawn、、
+//! 、、。 use etc no 。
 //!
-//! ── 跳过条件 ────────────────────────────────────────────────
-//! 插件二进制不存在时跳过（`cargo test` 在没构建过 pack 的机器上仍要能过）。
-//! 构建方式见 `agent2api-providers/README.md`。
+//! ── ────────────────────────────────────────────────
+//! not in when （`cargo test` in no pack up need can ）。
+//! `agent2api-providers/README.md`。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -22,9 +22,9 @@ use crate::server::core::providers::adapter::ProviderAdapter;
 use crate::server::core::upstream::usage::RequestTelemetry;
 use crate::server::core::upstream::ForwardOutcome;
 
-/// 找到插件二进制（相对 workspace 根）。
+/// to （ for workspace ）。
 fn plugin_exe() -> Option<std::path::PathBuf> {
-    // 测试进程的 cwd 是 crate 根（`server/`），往上是 `src-tauri/`、再上是仓库根
+    // cwd is crate （`server/`）， up is `src-tauri/`、 up is 
     let candidates = [
         "../../../agent2api-providers/target/debug/agent2api-providers.exe",
         "../../../agent2api-providers/target/debug/agent2api-providers",
@@ -37,7 +37,7 @@ fn plugin_exe() -> Option<std::path::PathBuf> {
         .find(|path| path.exists())
 }
 
-/// 一个最小回调实现：只为验证「插件 → 网关」这条路通。
+/// 1 ： as 「 → 」 this 。
 struct TestCallbacks;
 
 impl GatewayCallbacks for TestCallbacks {
@@ -136,7 +136,7 @@ impl GatewayCallbacks for TestCallbacks {
     fn notify(&self, _kind: String, _payload: serde_json::Value) {}
 }
 
-/// 拉起宿主并握手。
+/// and 。
 async fn boot() -> Option<(Arc<Host>, Vec<proto::ProviderInfo>)> {
     let exe = plugin_exe()?;
     let options = HostOptions {
@@ -161,7 +161,7 @@ async fn host_starts_and_lists_providers() {
         .expect("示例 provider 应当在列表里");
     assert!(demo.capabilities.chat, "示例 provider 声明了 chat");
     assert!(demo.capabilities.stateful, "示例 provider 声明了 stateful");
-    // 握手带回来的能力位要能被适配器读到
+    // can need can to 
     let adapter = RpcAdapter::new(
         "demo".into(),
         crate::server::core::providers::ProviderKind::WorkBuddy, // 占位 kind，测试不关心
@@ -207,7 +207,7 @@ async fn build_chat_request_goes_through_rpc() {
         plan.headers
     );
 
-    // 同步版必须报错（说明调用链还在用旧签名）
+    // must（ use in use old ）
     assert!(
         adapter.build_chat_request(&account, &body, &headers).is_err(),
         "插件实现的同步版应当拒绝，而不是返回另一份结果"
@@ -274,7 +274,7 @@ async fn reasoning_patch_goes_through_rpc() {
         other => panic!("期望 Set，得到 {other:?}"),
     }
 
-    // 表外档位：插件应当拒绝并给出原因（不是静默注入）
+    // ： and to Reason（ not is ）
     let skip = adapter
         .reasoning_patch_async("ultra", "demo-fast", &serde_json::json!({}))
         .await;
@@ -295,11 +295,11 @@ async fn refusal_markers_come_from_handshake() {
         return;
     };
     let demo = providers.iter().find(|p| p.id.0 == "demo").expect("demo 存在");
-    // 握手里的标记（协议层）
+    // （）
     assert_eq!(demo.refusal_finishes, vec!["content_policy_violation".to_string()]);
     assert_eq!(demo.refusal_markers, vec!["insufficient_quota".to_string()]);
 
-    // 适配器侧应当把它们作为 &'static 切片暴露出来（trait 的签名要求）
+    // as &'static （trait need ）
     let adapter = RpcAdapter::new(
         "demo".into(),
         crate::server::core::providers::ProviderKind::WorkBuddy,
@@ -326,9 +326,9 @@ async fn ensure_token_reads_the_account_through_callbacks() {
         demo.clone(),
     );
 
-    // 这里要一个 AccountStore 才能调 ensure_access_token —— 它是 trait 的
-    // 签名要求（内置家从 store 取凭证）。插件实现忽略它（凭证在插件那边）。
-    // 用临时库避免碰真实数据。
+    // this need 1 AccountStore can ensure_access_token —— is trait 
+    // need （ from store ）。ignore（ in that ）。
+    // use when 。
     let (db, _guard) = crate::server::db::test_temp::TempDb::open("plugin-host-token");
     let store = crate::server::core::account_store::AccountStore::with_db(Some(db));
 
@@ -363,13 +363,13 @@ async fn missing_account_reports_not_found() {
     host.shutdown().await;
 }
 
-// ── 流式帧（head / chunk / credit / abort）──────────────────────
+// ── （head / chunk / credit / abort）──────────────────────
 
-/// 一个最小假上游：按请求体里的标记决定返回什么。
+/// 1 up ： by request return。
 ///
-/// ── 为什么必须在测试里起一个真 HTTP 服务 ──────────────────────
-/// `demo` 的 `conversation` 是真的发请求（那正是要验的路径：插件自己出网、
-/// 自己推帧）。把它换成假实现就等于只测了网关自己的循环。
+/// ── Whymust in 1 HTTP ──────────────────────
+/// `demo` `conversation` is request（ that is need path：、
+/// ）。 etc 。
 async fn fake_upstream(body_marker: &'static str, payload: &'static str) -> (String, tokio::task::JoinHandle<()>) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("绑定回环端口");
@@ -380,7 +380,7 @@ async fn fake_upstream(body_marker: &'static str, payload: &'static str) -> (Str
             let marker = body_marker;
             let payload = payload;
             tokio::spawn(async move {
-                // 读到请求头结束即可（body 的内容不影响假上游的判定）
+                // to request can （body not up ）
                 let mut buf = vec![0u8; 16 * 1024];
                 let _ = socket.read(&mut buf).await;
                 let response = format!(
@@ -396,12 +396,12 @@ async fn fake_upstream(body_marker: &'static str, payload: &'static str) -> (Str
     (format!("http://127.0.0.1:{port}"), handle)
 }
 
-/// 建一个 demo 适配器。
+/// 1 demo 。
 ///
-/// ── 假上游地址怎么传进去 ────────────────────────────────────
-/// 走 `x-demo-upstream` 请求头，不走环境变量：插件的 env 在 spawn 时固定，
-/// 而一个测试进程里要起好几个假上游（各占一个随机端口），环境变量只能有
-/// 一个值。
+/// ── up ────────────────────────────────────
+/// `x-demo-upstream` request， not ： env in spawn when ，
+/// 1 need up （ 1 ）， can has 
+/// 1 。
 async fn demo_adapter() -> Option<(Arc<Host>, RpcAdapter, Arc<RequestTelemetry>)> {
     let (host, providers) = boot().await?;
     let demo = providers.iter().find(|p| p.id.0 == "demo")?.clone();
@@ -415,7 +415,7 @@ async fn demo_adapter() -> Option<(Arc<Host>, RpcAdapter, Arc<RequestTelemetry>)
     Some((host, adapter, telemetry))
 }
 
-/// 带 `x-demo-upstream` 的入站头。
+/// `x-demo-upstream` 。
 fn upstream_headers(upstream: &str) -> axum::http::HeaderMap {
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
@@ -460,8 +460,8 @@ async fn conversation_streams_head_and_chunks() {
     use futures::StreamExt;
     let mut stream = stream;
     let mut text = String::new();
-    // 上限 8 帧：假上游只推两帧，多出来的就是网关合成的收尾（也正常），
-    // 但真挂住的话这个循环会等到超时而不是永远转。
+    // limit 8 ： up ， is （），
+    // this will etc to when not is 。
     for _ in 0..8 {
         match tokio::time::timeout(Duration::from_secs(10), stream.next()).await {
             Ok(Some(Ok(bytes))) => {
@@ -538,9 +538,9 @@ async fn conversation_upstream_error_is_classified() {
     let store = crate::server::core::account_store::AccountStore::with_db(Some(db));
     let body = serde_json::json!({ "model": "demo-fast", "messages": [] });
 
-    // 假上游固定回 200，所以这条走的是「正常状态 + 正文里是错误」——
-    // demo 的 conversation 不解析正文，于是流里就是那段 JSON。
-    // 真正要钉的是「不 panic、不挂住、能收尾」。
+    // up 200， this is 「 + is error」——
+    // demo conversation not ， is is that JSON。
+    // need is 「 not panic、 not 、 can 」。
     let outcome = adapter
         .forward_conversation(
             &store,
@@ -602,10 +602,10 @@ async fn dropping_the_stream_aborts_the_plugin_call() {
         )
         .await
         .expect("流式转发应当成功");
-    // 立刻丢弃（模拟客户端断开）：Drop 会清登记并给插件发 abort。
+    // （client）：Drop will and to abort。
     drop(outcome);
-    // 给 abort 一点时间落到插件那边；关键断言是「宿主仍然活着」——
-    // abort 路径上 panic 会让下一次调用失败。
+    // to abort 1 when to that ； is 「」——
+    // abort path up panic will down 1 use failure。
     tokio::time::sleep(Duration::from_millis(300)).await;
     let still_alive = adapter
         .ensure_access_token(&store, "acc-1")

@@ -109,7 +109,7 @@ export async function saveProfile(profile: RouteProfile | null, model = current.
       const workspace = await bridge().getRoutingWorkspace(current.model || undefined)
       adoptAccountSorting(workspace.sorting)
       patch({ workspace })
-    } catch { /* 保留错误与最近一次成功快照 */ }
+    } catch { /* error and 1 success */ }
     return false
   } finally { patch({ busy: false }) }
 }

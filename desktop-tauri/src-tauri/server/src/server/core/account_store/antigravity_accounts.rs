@@ -1,20 +1,20 @@
-//! Antigravity 账号的**公开形态**与归属探测（本仓库保留的部分）。
+//! Antigravity **** and （ ）。
 //!
-//! ── 这份文件为什么这么小 ────────────────────────────────────
-//! 本家的凭证解析、Google OAuth 刷新、模型目录、`v1internal` 信封构造与
-//! 会话转发全部搬到了**提供商插件**（`agent2api-providers` 的 `antigravity/`），
-//! 不随本仓库发布 —— 那是风险隔离的一部分。
+//! ── this fileWhy this ────────────────────────────────────
+//! 、Google OAuth new 、directory、`v1internal` and 
+//! will to ****（`agent2api-providers` `antigravity/`），
+//! not —— that is 1 。
 //!
-//! 留在这里的只有两件纯本地的事：
+//! in this has ：
 //! ```text
-//!   antigravity_account_record     这条账号是不是本家的（管理面分派用）
-//!   to_antigravity_public_account  存量内置记录的展示投影（字段映射，无协议知识）
+//! antigravity_account_record this is not is （ use ）
+//! to_antigravity_public_account （，none）
 //! ```
-//! 新增账号由插件的 `account.normalize` 归一化后落进 `pluginSecret`，公开形态
-//! 走 `plugin_accounts::to_plugin_public_account` —— 那条路径不经过本文件。
+//! add by `account.normalize` 1 after `pluginSecret`，
+//! `plugin_accounts::to_plugin_public_account` —— that path not file。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{json, Map, Value};
 
@@ -23,11 +23,11 @@ use super::store::AccountStore;
 use super::ANTIGRAVITY_PROVIDER_ID;
 
 impl AccountStore {
-    /// 取一条 Antigravity 账号记录（原始 JSON）。
+    /// 1 Antigravity （ JSON）。
     ///
-    /// 只服务管理面的**归属判定**（`api::accounts::refresh_account` 用它确认
-    /// 「这个 id 属于本家」）。`account_id` 为空时返回队首启用账号 —— 这个形态
-    /// 已经没有调用方，保留是为了与别家的同名探测函数口径一致。
+    /// ****（`api::accounts::refresh_account` use 
+    /// 「 this id 」）。`account_id` as empty when returnenabled —— this 
+    /// already no has use ， is as and 1 。
     pub fn antigravity_account_record(&self, account_id: &str) -> Option<Value> {
         let guard = self.guard();
         if !account_id.is_empty() {
@@ -43,14 +43,14 @@ impl AccountStore {
         candidates.into_iter().next().map(|item| item.to_value())
     }
 
-    /// Antigravity 账号的**公开形态**（进 HTTP 响应）。
+    /// Antigravity ****（ HTTP response）。
     ///
-    /// 只对**没有** `pluginSecret` 的存量记录生效（判据在
-    /// `store_view::public_account`，插件记录先走插件那份投影）。
+    /// for ** no has ** `pluginSecret` （ in 
+    /// `store_view::public_account`， that ）。
     ///
-    /// 与别家同一条硬约束：**绝不透出令牌本体** —— 只给 `tokenTail`（refresh
-    /// token 尾 4 位）与 `hasRefreshToken` / `hasAccessToken` 两个存在性标记；
-    /// `expiresAt`、`projectId`、`email` 是展示/排障需要的事实，可以给。
+    /// and 1 ：** not ** —— to `tokenTail`（refresh
+    /// token 4 ） and `hasRefreshToken` / `hasAccessToken` in ；
+    /// `expiresAt`、`projectId`、`email` is / need need ， can to 。
     pub fn to_antigravity_public_account(&self, record: &StoredAccount) -> Value {
         let refresh_token = record.refresh_token();
         let mut public = Map::new();
@@ -91,7 +91,7 @@ impl AccountStore {
             "rateLimits".to_string(),
             record.get("rateLimits").cloned().unwrap_or_else(|| json!({})),
         );
-        // 可用 = 有主凭证（refresh token 是这家唯一的续期手段）
+        // available = has （refresh token is this 1 ）
         public.insert(
             "available".to_string(),
             Value::Bool(!refresh_token.trim().is_empty()),

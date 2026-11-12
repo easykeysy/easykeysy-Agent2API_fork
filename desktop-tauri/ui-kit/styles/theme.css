@@ -1,9 +1,9 @@
-/* Agent2API · 桌面端、移动端与插件共享的唯一设计令牌源。
-   --ui-* 保存取值，aliases.css 兼容业务样式使用的旧变量名。
-   主题由 data-theme 控制，system 分支通过媒体查询跟随系统。 */
+/* Agent2API · 、 and 1 。
+   --ui-* ，aliases.css use old 。
+    by data-theme ，system 。 */
 
-/* dark: 变体跟着 data-theme 走，而不是 shadcn 默认的 .dark class。
-   两个分支都要有：显式 dark 与 system 跟随，后者靠媒体查询兜住。 */
+/* dark: data-theme ， not is shadcn default .dark class。
+    need has ： dark and system ， after 。 */
 @custom-variant dark {
   &:where([data-theme='dark'], [data-theme='dark'] *) {
     @slot;
@@ -27,11 +27,11 @@
   --color-popover-foreground: var(--ui-popover-foreground);
   --color-primary: var(--ui-primary);
   --color-primary-foreground: var(--ui-primary-foreground);
-  /* 品牌浅底 / 品牌深字：分段选中、导航选中这类「点亮」态用的那一对 */
+  /* / ： in 、 in this 「」 use that 1 for */
   --color-primary-soft: var(--ui-primary-soft);
   --color-primary-fg: var(--ui-primary-fg);
   --color-primary-bd: var(--ui-primary-bd);
-  /* 选中项计数徽标的底：主色 16% 的透明 tint（不是实底，叠在滑块上） */
+  /* in ： 16% tint（ not is ， in up ） */
   --color-primary-tint: var(--ui-primary-tint);
   --color-secondary: var(--ui-secondary);
   --color-secondary-foreground: var(--ui-secondary-foreground);
@@ -53,15 +53,15 @@
   --color-input: var(--ui-input);
   --color-ring: var(--ui-ring);
 
-  /* 控件层：表单控件与按钮的填充、描边，比表面深一档 */
+  /* ： and by 、， 1 */
   --color-surface: var(--ui-surface);
   --color-surface-2: var(--ui-surface-2);
   --color-surface-inset: var(--ui-surface-inset);
-  /* 浮层底：比卡片亮一档，浮层才像浮在控件之上 */
+  /* ： 1 ， in up */
   --color-raised: var(--ui-raised);
   --color-border-strong: var(--ui-border-strong);
   --color-hairline: var(--ui-hairline);
-  /* 弹窗遮罩：两个主题都压暗，基底固定为黑（用语义色会在深色主题刷白雾） */
+  /* ： ， as （ use will in ） */
   --color-mask: var(--ui-mask);
   --color-control: var(--ui-control-bg);
   --color-control-hover: var(--ui-control-hover);
@@ -69,9 +69,9 @@
   --color-control-border-hover: var(--ui-control-border-hover);
   --color-surface-3: var(--ui-surface-3);
   --color-primary-hover: var(--ui-primary-hover);
-  /* 主色底上的前景：从承载面向白提亮派生，浅色得纯白、深色得近白 */
+  /* up before ： from to ，、 */
   --color-primary-on: var(--ui-primary-on);
-  /* 语义色的柔底 / 描边（-soft 是「语义色 × 白」的实底，不是 alpha 叠加） */
+  /* / （-soft is 「 × 」 ， not is alpha ） */
   --color-destructive-soft: var(--ui-destructive-soft);
   --color-destructive-bd: var(--ui-destructive-bd);
   --color-destructive-hover: var(--ui-destructive-hover);
@@ -81,21 +81,21 @@
   --color-warning-bd: var(--ui-warning-bd);
   --color-info-soft: var(--ui-info-soft);
   --color-info-bd: var(--ui-info-bd);
-  /* 版本标签（国内版 / 国际版）的固定配色 */
+  /* （ / ） */
   --color-cn: var(--ui-cn);
   --color-cn-soft: var(--ui-cn-soft);
   --color-cn-bd: var(--ui-cn-bd);
   --color-intl: var(--ui-intl);
   --color-intl-soft: var(--ui-intl-soft);
   --color-intl-bd: var(--ui-intl-bd);
-  /* 敏感词命中标签的紫（Badge 的 sensitive 档） */
+  /* in （Badge sensitive ） */
   --color-sensitive: var(--ui-sensitive);
   --color-sensitive-soft: var(--ui-sensitive-soft);
   --color-sensitive-bd: var(--ui-sensitive-bd);
-  /* 次级文字中间档（--text-2）：muted-foreground 是第三档（--text-3） */
+  /* in （--text-2）：muted-foreground is （--text-3） */
   --color-subtle: var(--ui-text-2);
   --color-nav-hover: var(--ui-nav-hover);
-  /* 导航项与侧栏共用同一套主题令牌。 */
+  /* and use 1 。 */
   --color-sidebar-fg: var(--ui-sidebar-fg);
   --color-sidebar-muted: var(--ui-sidebar-muted);
   --color-rail-bg: var(--ui-rail-bg);
@@ -119,23 +119,23 @@
   --color-skeleton-base: var(--ui-skeleton-base);
   --color-skeleton-highlight: var(--ui-skeleton-highlight);
 
-  /* ── 圆角阶梯（全站唯一一份，别再往页面样式表里写 px）──────────────
-     依据 Apple 26 一代设计规范：
-       · 26 一代（Liquid Glass，WWDC 2025）把圆角整体调大，并立了**同心**
-         （concentric）这条规矩 —— 嵌套的圆角矩形共用同一个圆心，内层圆角 = 外层
-         圆角 − 两者间距；间距超过外层圆角时内层退化成直角。Apple 为此专门发了
-         `ConcentricRectangle`（SwiftUI）与 `UICornerConfiguration.containerConcentric`
-         （UIKit 26），HIG 的原文是「分组用更大的圆角，去对齐系统里控件的曲率」。
-       · 公开可查的取值：iOS 26 的按钮默认是胶囊、写死圆角的档位是 8pt
-         （`buttonBorderShape(.roundedRectangle(radius: 8))`）；macOS 26 的系统窗口
-         圆角 26pt、浮动侧栏 19pt、26 之前的老窗口 10pt。
+  /* ── （ 1 1 ， px）──────────────
+      Apple 26 1 ：
+       · 26 1 （Liquid Glass，WWDC 2025） ， and ****
+         （concentric） this —— use 1 ， = 
+          − ； when 。Apple as 
+         `ConcentricRectangle`（SwiftUI） and `UICornerConfiguration.containerConcentric`
+         （UIKit 26），HIG is 「 use ， for 」。
+       · can ：iOS 26 by default is 、 is 8pt
+         （`buttonBorderShape(.roundedRectangle(radius: 8))`）；macOS 26 
+          26pt、 19pt、26 before 10pt。
 
-     所以这份阶梯的取法是：
-       · 小档 6 / 8 / 10 逐档相差 2px —— 容器内缩 2px 的内嵌块（分段控件的选项与
-         滑块就是这一种）正好落在下一档上，天然同心，不用一处一处算；
-       · 8 = Apple 那个按钮档位，10 = 本项目的控件档（按钮 / 输入 / 卡片 / 分组框）；
-       · 14 = 弹窗与面板；26 = 与 macOS 26 的系统窗口同圆（用到「跟系统窗口一样圆」
-         的地方才取它）；更小的图形细节（头像角标、图表图例点）不在这条线上，别硬套。 */
+      this is ：
+       · 6 / 8 / 10 2px —— 2px （ and 
+          is this 1 ） in down 1 up ，， not use 1 1 ；
+       · 8 = Apple that by ，10 = （ by / / / ）；
+       · 14 = and ；26 = and macOS 26 （ use to 「 1 」
+          ）； （、） not in this up ，。 */
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 10px;
@@ -150,17 +150,17 @@
   --shadow-2: var(--ui-shadow-2);
   --shadow-3: var(--ui-shadow-3);
   --shadow-glow: var(--ui-glow);
-  /* 焦点环：整条 box-shadow，组件里用 focus-visible:shadow-focus 引用 */
+  /* ： box-shadow， use focus-visible:shadow-focus use */
   --shadow-focus: var(--ui-focus-ring);
 }
 
 :root {
-  /* 基准圆角 = 弹窗 / 面板那一档（与上面的 --radius-lg 同一取值；保留这个变量名
-     是因为旧样式表里 `var(--radius)` / `var(--r-lg)` 还在用）。 */
+  /* = / that 1 （ and up --radius-lg 1 ； this 
+      is as old `var(--radius)` / `var(--r-lg)` in use ）。 */
   --ui-radius: 14px;
-  /* 字体栈首位的 Public Sans 与设计稿一致，但项目尚未引入字体文件
-     （@fontsource-variable/public-sans），当前实际落在系统字体上 —— 与
-     既有界面同款。装上字体包即自动切换，无需改这里。 */
+  /* Public Sans and 1 ，file
+     （@fontsource-variable/public-sans），current in up —— and 
+      has 。 up ，none need this 。 */
   --ui-font-sans: 'Public Sans', 'Segoe UI', 'Microsoft YaHei', 'Microsoft YaHei UI',
     system-ui, sans-serif;
   --ui-font-mono: Consolas, 'Cascadia Mono', 'Courier New', monospace;
@@ -177,8 +177,8 @@
   --ui-secondary-foreground: oklch(0.42 0.16 250);
   --ui-muted: oklch(0.97 0 0);
   --ui-muted-foreground: oklch(0.49 0 0);
-  /* 高亮/选中底 = 主蓝 10% 的 sRGB 淡影（#e5f2ff）；
-     oklch color-mix 蓝+白会 hue 跑偏成粉，禁用。 */
+  /* / in = 10% sRGB （#e5f2ff）；
+     oklch color-mix + will hue ， use 。 */
   --ui-accent: color-mix(in srgb, var(--ui-primary) 10%, white);
   --ui-accent-foreground: oklch(0.145 0 0);
   --ui-destructive: oklch(0.577 0.245 27.325);
@@ -223,7 +223,7 @@
   --ui-intl: oklch(0.52 0.16 268);
   --ui-intl-soft: color-mix(in srgb, var(--ui-intl) 10%, white);
   --ui-intl-bd: color-mix(in srgb, var(--ui-intl) 28%, white);
-  /* 敏感词是独立状态，不能借用失败或地区标签的颜色。 */
+  /* is ， not can use failure or 。 */
   --ui-sensitive: oklch(0.45 0.18 305);
   --ui-sensitive-soft: oklch(0.55 0.18 305 / 14%);
   --ui-sensitive-bd: oklch(0.55 0.18 305 / 32%);
@@ -267,7 +267,7 @@
   --ui-shadow-3: 0 2px 8px oklch(0.145 0 0 / 7%), 0 22px 54px -22px oklch(0.145 0 0 / 26%);
   --ui-glow: 0 1px 2px oklch(0.145 0 0 / 6%),
     0 10px 22px -12px color-mix(in srgb, var(--ui-primary) 45%, transparent);
-  /* 焦点环是整条 box-shadow，不是颜色 —— 组件里用 shadow-focus 工具类引用 */
+  /* is box-shadow， not is —— use shadow-focus use */
   --ui-focus-ring: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 25%, transparent);
 }
 
@@ -284,7 +284,7 @@
   --ui-secondary-foreground: oklch(0.9 0.05 250);
   --ui-muted: oklch(0.305 0 0);
   --ui-muted-foreground: oklch(0.78 0 0);
-  /* 深色高亮 = 主色实底（苹果菜单/控件做法），配白字 */
+  /* = （/）， */
   --ui-accent: var(--ui-primary);
   --ui-accent-foreground: oklch(1 0 0);
   --ui-destructive: oklch(0.704 0.191 22.216);
@@ -371,14 +371,14 @@
   --ui-focus-ring: 0 0 0 3px oklch(0.623 0.206 255.3 / 30%);
 }
 
-/* system 模式跟随系统深浅，与 ui/css/tokens.css 同款写法。
+/* system ， and ui/css/tokens.css 。
 
-   ⚠️ 下面这一块的取值必须与上面 :root[data-theme='dark'] **逐字一致**，只换选择器。
-   两块都要有是 CSS 的硬约束：媒体查询没法并进选择器列表，而 `light-dark()` 在
-   旧 WebView 上不被支持（一旦不支持，整条声明会退化成未定义值，界面直接崩），
-   所以只能老老实实抄两遍。曾经因为只抄了一部分（漏了 --ui-surface 一族与全部
-   语义色的 -soft/-bd），「跟随系统」进深色时弹窗底仍是白的、字却是浅色，
-   在白底上几乎看不见 —— 改这里时请整块对照，别只补单个变量。 */
+   ⚠️ down this 1 must and up :root[data-theme='dark'] ** 1 **，。
+    need has is CSS ： no and ， `light-dark()` in 
+    old WebView up not supports（ 1 unsupported， will ，），
+    can 。 as 1 （ --ui-surface 1 and 
+    -soft/-bd），「」 when is 、 is ，
+    in up not —— this when for ， 。 */
 @media (prefers-color-scheme: dark) {
   :root[data-theme='system'] {
     --ui-background: oklch(0 0 0);

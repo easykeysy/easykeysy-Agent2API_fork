@@ -51,7 +51,7 @@ type Column = {
   sel: string
   track: string
   align?: Align
-  /** 上一版的默认对齐，只给列设置的归一化分辨「旧存盘里那一档是用户挑的还是旧默认」 */
+  /** up 1 default for ， to set 1 「 old that 1 is use is old default」 */
   legacyAlign?: Align
 }
 

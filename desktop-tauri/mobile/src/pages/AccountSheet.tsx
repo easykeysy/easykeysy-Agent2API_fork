@@ -29,11 +29,11 @@ import { confirmDialog } from '@ui'
 import { MetricGrid, MetricCard } from '@ui'
 
 /**
- * 账号详情抽屉。
+ * 。
  *
- * 手机上不做「编辑表单」：账号的凭证、代理、限流规则都是多字段表单，窄屏填
- * 起来痛苦且容易出错。这一层只给**查看 + 几个高频动作**（启停、刷新凭证、
- * 查询余额、设为首选、清除限流、删除），编辑仍回桌面端。
+ * up not 「」： 、、 then is ，
+ * and 。 this 1 to ** + **（、 new 、
+ * 、 as 、、delete），。
  */
 export function AccountSheet({
   account,
@@ -46,7 +46,7 @@ export function AccountSheet({
 }) {
   const now = useDisplayClock()
   const [busy, setBusy] = useState('')
-  /** 快照里这一行的余额结论；undefined = 还没查过 */
+  /** this 1 ；undefined = no */
   const [usageRow, setUsageRow] = useState<UsageRow | undefined>(undefined)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -54,8 +54,8 @@ export function AccountSheet({
   const accountId = account?.id || ''
   const identity = serverIdentity()
 
-  // 换账号（或关掉抽屉）时重置：编辑态不能带到下一个账号上。
-  // 余额走快照而不是逐个查询 —— 快照只读记录表，不触发上游，打开抽屉不会变慢。
+  // （ or ） when ： not can to down 1 up 。
+  // not is —— ， not up ， not will 。
   useEffect(() => {
     setEditingName(false)
     setNameDraft('')
@@ -67,7 +67,7 @@ export function AccountSheet({
         if (!cancelled) setUsageRow(usageIndex(snapshot).get(accountId))
       })
       .catch(() => {
-        /* 余额快照读不到是常态：保持「未查询」，不打扰用户 */
+        /* not to is ：「」， not use */
       })
     return () => {
       cancelled = true
@@ -94,12 +94,12 @@ export function AccountSheet({
   const remove = async () => {
     if (!account) return
     const name = accountName(account)
-    // 删除不可恢复：手机上用两次确认（第一次进二次确认态）
+    // delete not can ： up use （ 1 ）
     if (!await confirmDialog(t('确定删除账号「{name}」？这个操作不可恢复。', { name }))) return
     if (await run('delete', () => deleteAccount(account.id), t('已删除账号'))) onClose()
   }
 
-  /** 手动查这一个账号：会真的打上游，可能慢，所以单独走 busy='usage' */
+  /** this 1 ： will up ， can can ， busy='usage' */
   const queryUsage = async () => {
     if (!account || !supportsUsage(account) || serverIdentity() !== identity) return
     setBusy('usage')
@@ -144,7 +144,7 @@ export function AccountSheet({
     }
   }
 
-  /** 不传 model 时同时清除账号冷却和全部模型限流。 */
+  /** not model when when and 。 */
   const clearLimit = async (model?: string) => {
     if (!account) return
     const question = model
@@ -201,7 +201,7 @@ export function AccountSheet({
                 </Badge>
               </div>
 
-              {/* 备注名就地编辑：手机上没有表单页，改一个字段不该跳走 */}
+              {/* ： up no has ， 1 not this */}
               <div
                 style={{
                   display: 'flex',
@@ -228,7 +228,7 @@ export function AccountSheet({
                         outline: 'none',
                         background: 'transparent',
                         color: 'var(--m-text)',
-                        // 16px 以下 iOS Safari 聚焦时会自动放大页面
+                        // 16px down iOS Safari when will 
                         fontSize: 16,
                       }}
                     />
@@ -332,7 +332,7 @@ export function AccountSheet({
                 </MetricCard>
               </MetricGrid>
 
-              {/* 首选是队列位次，不是账号属性：给它一个整行按钮，别混进删除那一排 */}
+              {/* is ， not is ： to 1 by ，delete that 1 */}
               <Button size='touch' variant='outline'
                 type='button'
                 className='m-btn m-ghost w-full'
@@ -364,7 +364,7 @@ export function AccountSheet({
                   <span className='m-k'>{t('启用')}</span>
                   <span className='m-v'>{account.enabled ? t('是') : t('否')}</span>
                 </div>
-                {/* 读数之外还有话要说时才占一行（部分失败、钱包明细） */}
+                {/* has need when 1 （failure、） */}
                 {canQueryUsage && usageView.detail && usageView.detail !== usageView.text ? (
                   <div className='m-row' style={{ alignItems: 'flex-start' }}>
                     <span className='m-k' style={{ flex: 'none' }}>{t('余额详情')}</span>

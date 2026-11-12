@@ -1,80 +1,80 @@
-//! 自定义提供商（用户自建的上游端点）：存储 + 校验。
+//! （ use up ）： + 。
 //!
-//! ── 与编译期内置注册表的区别（为什么单开一份存储）──────────────
-//! 内置八家（`providers::PROVIDERS`）是**编译期**事实：id 是代码里的字面量、
-//! 各家的凭证链路与协议翻译都是代码。自定义提供商是**运行期数据**：用户填
-//! 名称、协议与基址，id 由本模块生成 —— 它不进 `ProviderKind` 枚举、不进
-//! `PROVIDERS` 注册表，也不参与 `kind_from_id`（那条链路的未知判定必须保持
-//! 「不认识就是不认识」）。
+//! ── and （Why 1 ）──────────────
+//! （`providers::PROVIDERS`） is ****：id is 、
+//! and is 。 is ****： use 
+//! 、 and ，id by —— not `ProviderKind` 、 not 
+//! `PROVIDERS` ， not and `kind_from_id`（ that unknownmust
+//! 「 not is not 」）。
 //!
-//! 存放位置沿用配置模块的 kv 表：键 `customProviders`，值是 JSON 数组。
-//! 读写口径与 `model_rules` 逐字同款（`config::current().raw()` 读、
-//! `config::update_raw_field(KEY, value)` 写）—— 这样整个项目的「运行期可变
-//! 配置」只有一套读写机制，排查时不必分心。
+//! use config kv ： `customProviders`， is JSON 。
+//! and `model_rules` （`config::current().raw()` 、
+//! `config::update_raw_field(KEY, value)` ）—— this 「 can 
+//! config」 has 1 ， when not 。
 //!
-//! ── 条目形状（对外契约，改动要前后端一起改）──────────────────
+//! ── （ for ， need before after 1 ）──────────────────
 //! ```json
 //! {
-//!   "id": "custom-3f2a91b04c7e",   // custom- + 12 位小写十六进制（随机）
-//!   "name": "我的网关",             // 1~64 字符
+//! "id": "custom-3f2a91b04c7e", // custom- + 12 （）
+//! "name": " ", // 1~64 
 //!   "protocol": "chat_completions", // chat_completions / responses / anthropic
 //!   "baseUrl": "https://api.example.com/v1",
 //!   "enabled": true,
 //!   "createdAt": 1730000000000,
-//!   "models": [                     // 用户登记的模型清单（第二阶段起）
+//! "models": [ // use （）
 //!     { "id": "gpt-x", "enabled": true, "reasoning": "",
-//!       "capabilities": { "maxInputTokens": 200000 } }  // 可选：能力位覆盖
+//! "capabilities": { "maxInputTokens": 200000 } } // optional： can 
 //!   ],
-//!   "mappings": [                   // 对外别名 → 上游模型 id 的映射（同上）
+//! "mappings": [ // for → up id （ up ）
 //!     { "alias": "my-alias", "target": "gpt-x", "enabled": true, "reasoning": "" }
 //!   ],
-//!   // per-provider 特判（可选，缺省即「无特判」；预置卡创建时写入）：
-//!   "urlSuffix": "?beta=true",      // 追加到出站 URL 的查询串
-//!   "headers": { "Anthropic-Beta": "…" },  // 合并到默认头上的静态额外头
-//!   "anthropicToolType": "custom",  // 发 anthropic 上游时给工具补 type
-//!   "clientEmulation": "opencode"   // 按 OpenCode 官方 CLI 的形状补齐请求
+//! // per-provider （optional，「none」；create when ）：
+//! "urlSuffix": "?beta=true", // to URL 
+//! "headers": { "Anthropic-Beta": "…" }, // and to default up 
+//! "anthropicToolType": "custom", // anthropic up when to type
+//! "clientEmulation": "opencode" // by OpenCode CLI request
 //! }
 //! ```
 //!
-//! `models` / `mappings` 为什么放在**提供商记录**里而不是像内置家那样走
-//! `modelRules`：内置家的清单来自适配器（远程目录 + 静态表），启停规则挂在
-//! (provider, model id) 上；自定义家的清单本身就是用户逐条登记的运行期数据，
-//! 「enabled」天然是每条记录自己的字段 —— 再套一层 modelRules 等于把同一份
-//! 启停状态存两处（`set_models` 整表替换的语义也对不上「逐条开关」）。
-//! 因此 modelRules 的 disabled/hidden **不适用于**自定义家（管理页也不进）。
+//! `models` / `mappings` Why in **** not is that 
+//! `modelRules`： （directory + ）， then in 
+//! (provider, model id) up ； is use ，
+//! 「enabled」 is —— 1 modelRules etc 1 
+//! （`set_models` for not up 「」）。
+//! modelRules disabled/hidden ** not used for**（ not ）。
 //!
-//! `capabilities`（可选的 per-model 能力位覆盖）遵同一条取舍：内置家那层覆盖
-//! 存 `modelRules.capabilities`（清单是适配器给的，「上游值的纠正」是全局规则），
-//! 自定义家的清单与它的元数据**都是这条记录自己的东西**，覆盖就落在条目上。
-//! 两边的键名 / 归一 / 出口透出规则由 `core::capability` 统一（出口在
-//! `bindings::public_models`：别名继承 target 的能力位）。
+//! `capabilities`（optional per-model can ） 1 ： that 
+//! `modelRules.capabilities`（ is to ，「 up 」 is then ），
+//! and ** is this **， in up 。
+//! / 1 / then by `core::capability` 1 （ in 
+//! `bindings::public_models`： target can ）。
 //!
-//! ── 三条设计约束（改代码前务必读）───────────────────────────
-//!   1. **id 用随机而不是时间戳/计数器**：卸载重装、多进程并发添加都不能
-//!      撞号；`custom-` 前缀是「这是自定义家」的判据（`is_custom_provider_id`），
-//!      去掉前缀就是一条普通随机串；
-//!   2. **baseUrl 保存即规范化**：去首尾空白 + 去掉末尾斜杠。转发时拼路径
-//!      （`{baseUrl}/chat/completions` 这类）会原样追加，留着末尾斜杠会拼出
-//!      `//` 形态 —— 多数上游能容忍，但签名类网关（Anthropic 兼容端点做过
-//!      URL 校验的）会拒，与其让用户在每个入口试错，不如落盘时归一；
-//!   3. **apiKey 不进提供商记录**：它是**账号**的属性（同一家可以加多个账号、
-//!      每个账号一把 key），落在账号记录的 `apiKey` 字段里（见
-//!      `account_store::custom_accounts`）。提供商记录里只放「这家是谁」。
+//! ── （ before ）───────────────────────────
+//! 1. **id use not is when /**：、 and not can 
+//! ；`custom-` before is 「 this is 」 （`is_custom_provider_id`），
+//! before is 1 ；
+//! 2. **baseUrl **：empty + 。 when path
+//! （`{baseUrl}/chat/completions` this ） will ， will 
+//! `//` —— up can ，（Anthropic 
+//! URL ） will ， and its use in ， not when 1 ；
+//! 3. **apiKey not **： is **** （ 1 can 、
+//! 1 key）， in `apiKey` （
+//! `account_store::custom_accounts`）。「 this is 」。
 //!
-//! ── 本阶段的范围（W 切片拆分）────────────────────────────────
-//! 存储与管理 API、账号接入、**模型清单存储 + 目录/路由接线 + Chat
-//! Completions 协议转发**（转发实现见 `providers::custom::forward`）。
-//! `is_custom_provider_id` / `protocol_of` / `wire_model_for` 是转发层的
-//! 判据入口；`responses` / `anthropic` 两种协议的转换器尚未实现 —— 配置可以
-//! 保存，转发时报 400（见 `providers::custom::forward` 的分派骨架）。
+//! ── （W ）────────────────────────────────
+//! and API、、** + directory/ by + Chat
+//! Completions **（ `providers::custom::forward`）。
+//! `is_custom_provider_id` / `protocol_of` / `wire_model_for` is 
+//! ；`responses` / `anthropic` —— config can 
+//! ， when 400（ `providers::custom::forward` ）。
 
 mod bindings;
 mod presets;
-/// 自定义提供商**定义**的导入合并（账号导出文件里的 `customProviders` 段）。
+/// **** and （file `customProviders` ）。
 ///
-/// `pub(crate)`：调用方是 `account_transfer::import_accounts` —— 账号导入的
-/// 前置步骤（先有提供商，账号的外键才不悬空）。除此之外它不该被任何人触碰：
-/// 定义的手工增删改走 `create` / `update` / `remove`，不走导入。
+/// `pub(crate)`： use is `account_transfer::import_accounts` —— 
+/// before （ has ， not empty）。 not this ：
+/// `create` / `update` / `remove`， not 。
 pub(crate) mod transfer;
 pub use bindings::public_models;
 
@@ -90,103 +90,103 @@ use crate::server::core::models::model_id;
 use crate::server::errors::GatewayError;
 use crate::server::logging;
 
-/// kv 键名：配置里这份数组的存放位置。
+/// kv ：config this 。
 ///
-/// 与 `model_rules::KEY_MODEL_RULES` 同一口径 —— 它是 `config` 模块的普通
-/// 顶层键，因此**绝不能**与 `db::schema::RESERVED_KV_KEYS` 相撞（撞名的后果
-/// 见 `config` 模块头）。
+/// and `model_rules::KEY_MODEL_RULES` 1 —— is `config` 
+/// ，** not can ** and `db::schema::RESERVED_KV_KEYS` （ after 
+/// `config` module header）。
 pub const KEY_CUSTOM_PROVIDERS: &str = "customProviders";
 
-/// 自定义 provider id 的前缀。
+/// provider id before 。
 ///
-/// 判据的一部分：`is_custom_provider_id` 要求「以它开头**且**能在存储里找到」。
-/// 单独以 `custom-` 开头的陌生 id（手改数据塞进来的）不算数 —— 那正是
-/// 「注册表里没有、存储里也没有」的死 id，按未知处理（与全仓的 provider
-/// 口径一致：不认识的 id 不猜成任何一家）。
+/// 1 ：`is_custom_provider_id` need 「** and ** can in to 」。
+/// `custom-` id（ ） not —— that is 
+/// 「 no has 、 no has 」 id， by unknown（ and provider
+/// 1 ： not id not 1 ）。
 pub const ID_PREFIX: &str = "custom-";
 
-/// 协议枚举：OpenAI Chat Completions
+/// ：OpenAI Chat Completions
 pub const PROTOCOL_CHAT_COMPLETIONS: &str = "chat_completions";
-/// 协议枚举：OpenAI Responses
+/// ：OpenAI Responses
 pub const PROTOCOL_RESPONSES: &str = "responses";
-/// 协议枚举：Anthropic Messages
+/// ：Anthropic Messages
 pub const PROTOCOL_ANTHROPIC: &str = "anthropic";
 
-/// 全部合法协议（校验用；顺序即错误文案与前端下拉的顺序）
+/// （ use ；error and before down ）
 pub const PROTOCOLS: &[&str] = &[PROTOCOL_CHAT_COMPLETIONS, PROTOCOL_RESPONSES, PROTOCOL_ANTHROPIC];
 
-/// 展示名长度上限（字符数；1~64 是契约）
+/// limit（；1~64 is ）
 const MAX_NAME_CHARS: usize = 64;
 
-/// 模型 id / 映射名的长度上限（字符数）。上游模型 id 一般几十字符，
-/// 128 与 `model_rules` 的映射名上限同量级 —— 粘贴进一整段文档时不落盘。
+/// id / limit（）。 up id 1 ，
+/// 128 and `model_rules` limit —— 1 when not 。
 const MAX_MODEL_ID_CHARS: usize = 128;
-/// 映射别名（对外名）的长度上限（字符数；与 `model_rules::alias_valid` 同值）
+/// （ for ） limit（； and `model_rules::alias_valid` ）
 const MAX_ALIAS_CHARS: usize = 128;
-/// 思考等级绑定的长度上限（字符数；与 `model_rules::normalize_reasoning` 同值）
+/// etc limit（； and `model_rules::normalize_reasoning` ）
 const MAX_REASONING_CHARS: usize = 32;
 
-/// ── per-provider 特判字段（预置目录带来的上游修正）的长度上限 ──
-/// urlSuffix（查询串，如 "?beta=true"）：查询串一般十几个字符，128 已宽容
+/// ── per-provider （directory up ） limit ──
+/// urlSuffix（， "?beta=true"）： 1 ，128 already 
 const MAX_URL_SUFFIX_CHARS: usize = 128;
-/// 静态额外头的条数上限。多数家只需要一两条（Anthropic-Beta / Referer 类），
-/// 但**客户端形态伪装**的家要整包复刻官方客户端的头族：Cline Pass 预置卡就是
-/// 9 条（与 `providers/cline/headers.rs` 的 DEFAULT_HEADERS 同一套，缺一条
-/// 上游按客户端形态校验就会 403）。取 16 —— 容得下「整包复刻 + 几条自定义」，
-/// 又仍然拦得住把 headers 当配置文件乱塞的手改数据。
+/// limit。 need need 1 （Anthropic-Beta / Referer ），
+/// **client** need client ：Cline Pass is 
+/// 9 （ and `providers/cline/headers.rs` DEFAULT_HEADERS 1 ， 1 
+/// up by client will 403）。 16 —— down 「 + 」，
+/// headers configfile 。
 const MAX_HEADER_ENTRIES: usize = 16;
-/// 静态额外头的键 / 值长度上限：头名 RFC 形态几十字符、值（Anthropic-Beta 的
-/// beta 清单）可能上百字符，512 不拦正常值、只拦把文档粘进来的手改数据
+/// / limit： RFC 、（Anthropic-Beta 
+/// beta ） can can up ，512 not 、 
 const MAX_HEADER_NAME_CHARS: usize = 64;
 const MAX_HEADER_VALUE_CHARS: usize = 512;
-/// 工具 type 补齐的唯一合法值：MiniMax 的 Claude 兼容端点拒绝无 type 的工具
-/// （`requireClaudeToolType`，参考实现 translator/concerns/toolCall.js），
-/// 对应给每个工具补 `type: "custom"`。空串 = 按默认（无 type）。
+/// type 1 ：MiniMax Claude none type 
+/// （`requireClaudeToolType`， translator/concerns/toolCall.js），
+/// for to `type: "custom"`。empty = by default（none type）。
 pub const TOOL_TYPE_CUSTOM: &str = "custom";
 
-/// 客户端形态伪装的唯一合法值：OpenCode 官方 CLI。开着它时转发会按官方客户端的
-/// 形状补齐请求（`Bearer public` 匿名凭证、`ses_…` 会话头、`bash` / `read` 桩
-/// 工具），否则 OpenCode Zen 的免费档一律 403 `FreeTierError`（实现与实测记录
-/// 见 `providers::custom::emulation`）。空串 = 不伪装（默认）。
+/// client 1 ：OpenCode CLI。 when will by client 
+/// request（`Bearer public` 、`ses_…` will 、`bash` / `read` 
+/// ），otherwise OpenCode Zen 1 403 `FreeTierError`（ and 
+/// `providers::custom::emulation`）。empty = not （default）。
 ///
-/// **它是 opt-in 且会改写请求体**，所以必须由**记录显式声明**（预置卡
-/// 「OpenCode Zen」会写入它），不能按 baseUrl 猜 —— 猜错的后果是给别的上游
-/// 塞两个假工具。
+/// ** is opt-in and will request**，must by ****（
+/// 「OpenCode Zen」 will ）， not can by baseUrl —— after is to up 
+/// 。
 pub const CLIENT_EMULATION_OPENCODE: &str = "opencode";
 
-/// ── 余额查询方案（`balanceScheme`）────────────────────────────
+/// ── （`balanceScheme`）────────────────────────────
 ///
-/// 上游**自家**有没有余额接口、怎么查，各家写法完全不同（金额型 / 百分比窗口
-/// / 账号密码换 JWT / 控制台令牌 / API Key 签名），因此这条事实必须跟着记录走，
-/// 不能按 baseUrl 猜。七个取值的实现见 `providers::custom::balance`
-/// （移植来源：OmniProxy 的六种 `BalanceScheme`，取值逐字相同，便于两仓对照；
-/// 国际站 `zhipu_zai` 是本项目自研补充）。
+/// up **** has no has 、， not （ / 
+/// / JWT / / API Key ）， this must，
+/// not can by baseUrl 。 `providers::custom::balance`
+/// （：OmniProxy `BalanceScheme`，， for ；
+/// `zhipu_zai` is ）。
 ///
-/// ── 谁写这个键 ──────────────────────────────────────────────
-/// **预置 API 卡片**（`ui/preset-providers.js` 的 `balance.scheme`）：用户从
-/// 「预置 API」段点开 DeepSeek / NewAPI / 商汤日日新 这类卡片时，前端把方案
-/// 一并提交，后端在这里校验后落盘。手工新建的自定义提供商不带这个键 ——
-/// 方案只对「已经知道是哪一家」的预置上游成立（见下 baseUrl 兜底）。
+/// ── this ──────────────────────────────────────────────
+/// ** API **（`ui/preset-providers.js` `balance.scheme`）： use from 
+/// 「 API」 DeepSeek / NewAPI / new this when ， before 
+/// 1 and ， after in this after 。 new not this ——
+/// for 「 already is 1 」 up （ down baseUrl ）。
 ///
-/// ── 为什么读侧还要按 baseUrl 兜底识别 ────────────────────────
-/// 这个键是本轮新加的：存量记录（同一次升级前从预置卡建的）没有它，而它们的
-/// baseUrl 恰好是官方固定域名的那几家（DeepSeek / OpenCode Go / 智谱 /
-/// 商汤）**可以可靠认出**，于是读侧按域名补一次，让它们升级后直接能用。
-/// 自建上游（sub2api / NewAPI 的域名千奇百怪）没有兜底，必须重建一次或手改
-/// 记录 —— 这两个方案的凭证本来就要用户自己填，多填一次不算门槛。
+/// ── Why need by baseUrl ────────────────────────
+/// this is new ：（ 1 before from ） no has ， 
+/// baseUrl is that （DeepSeek / OpenCode Go / /
+/// ）** can can **， is by 1 ， after can use 。
+/// up （sub2api / NewAPI ） no has ，must 1 or 
+/// —— this need use ， 1 not 。
 pub const BALANCE_SCHEME_SUB2API: &str = "sub2api";
 pub const BALANCE_SCHEME_NEW_API: &str = "new_api";
 pub const BALANCE_SCHEME_DEEPSEEK: &str = "deepseek";
 pub const BALANCE_SCHEME_OPENCODE: &str = "opencode";
 pub const BALANCE_SCHEME_SENSENOVA: &str = "sensenova";
 pub const BALANCE_SCHEME_ZHIPU: &str = "zhipu";
-/// 智谱**国际站**（z.ai）：与国内站同一条账户报告接口、同一个信封，但
-/// 鉴权与币种都不同（API Key 铸 SIGN 签名 / 美元），因此是独立方案而不是
-/// `zhipu` 的一个参数 —— 方案决定「打哪里、用什么凭证」，凭证差异大到
-/// 界面的「查询设置」字段表都不一样（国内站要控制台令牌，国际站不用填）。
+/// ****（z.ai）： and 1 、 1 ，
+/// and not （API Key SIGN / ）， is not is 
+/// `zhipu` 1 parameter —— 「、 use 」， to 
+/// 「set」 not 1 （ need ， not use ）。
 pub const BALANCE_SCHEME_ZHIPU_ZAI: &str = "zhipu_zai";
 
-/// 全部合法方案（校验与读侧归一共用；顺序不影响行为）
+/// （ and 1 use ； not as ）
 pub const BALANCE_SCHEMES: &[&str] = &[
     BALANCE_SCHEME_SUB2API,
     BALANCE_SCHEME_NEW_API,
@@ -197,15 +197,15 @@ pub const BALANCE_SCHEMES: &[&str] = &[
     BALANCE_SCHEME_ZHIPU_ZAI,
 ];
 
-/// 拉取上游模型清单的总超时（毫秒）。清单接口是一次性的管理动作，
-/// 不参与对话转发的长连接口径（egress 的 read_timeout 是给 SSE 的）。
+/// up total when （ms）。 is 1 ，
+/// not and for （egress read_timeout is to SSE ）。
 const FETCH_MODELS_TIMEOUT_MS: u64 = 15_000;
 
-/// 读全量条目（容错：非数组 / 坏条目一律丢弃）。
+/// （： / 1 ）。
 ///
-/// 丢弃的判据只有一条：**不是带非空 id 的对象**。其余字段（name / protocol /
-/// baseUrl / enabled）缺失时按各自默认值补齐（见 `item_of`），不在这里丢弃 ——
-/// 「能列出来但编辑时才报缺字段」比「静默消失」好定位。
+/// has 1 ：** not is empty id for **。 its （name / protocol /
+/// baseUrl / enabled） when by default（ `item_of`）， not in this ——
+/// 「 can when 」「」。
 fn read_items() -> Vec<Value> {
     let raw = config::current();
     let items = raw
@@ -225,24 +225,24 @@ fn read_items() -> Vec<Value> {
             Some(item_of(object))
         })
         .collect();
-    // 对外契约是「按 createdAt 升序」。存储里本来就应当是这个顺序（create 追加），
-    // 但手改配置/旧版本写入可能乱序，所以读取时**总是**重排一次 —— 稳定排序，
-    // 同一个 createdAt（毫秒相同）保持原有相对顺序。
+    // for is 「 by createdAt 」。 is this （create ），
+    // config/ old can can ， when **total is ** 1 —— ，
+    // 1 createdAt（ms） has for 。
     items.sort_by_key(|item| {
         item.get("createdAt").and_then(Value::as_i64).unwrap_or(0)
     });
     items
 }
 
-/// 一条存储条目 → 对外形态：补齐缺失的默认字段，**只有契约里的八个键**。
+/// 1 → for ： default，** has **。
 ///
-/// 为什么在这里做「补键」而不是原样透出：手改过的配置可能少一个 `enabled`，
-/// 原样透出会让前端拿到 undefined，行为在多处分叉（开关渲染成关闭、过滤被跳过）。
-/// 补齐后对外形态恒定，与新建路径写出来的字节一致。
+/// Why in this 「」 not is ： config can can 1 `enabled`，
+/// will before to undefined， as in （、 ）。
+/// after for ， and new path 1 。
 ///
-/// `models` / `mappings` 同样在这里补默认（缺省空数组、坏条目丢弃）——
-/// 转发热路径（`carriers_of_model` / `wire_model_for`）直接读本函数的产物，
-/// 容错只在这一处做，读侧不必各自再判形状。
+/// `models` / `mappings` in this default（empty、）——
+/// path（`carriers_of_model` / `wire_model_for`） ，
+/// in this 1 ， not 。
 fn item_of(object: &Map<String, Value>) -> Value {
     let id = object
         .get("id")
@@ -285,26 +285,26 @@ fn item_of(object: &Map<String, Value>) -> Value {
         "createdAt": object.get("createdAt").and_then(Value::as_i64).unwrap_or(0),
         "models": models,
         "mappings": mappings,
-        // per-provider 特判字段：读侧容错归一（坏值按缺省丢弃，与 models 同一口径）。
-        // 缺省即「无特判」—— 老记录没有这几个键，转发侧按缺省走。
+        // per-provider ： 1 （ by ， and models 1 ）。
+        // 「none」—— no has this ， by 。
         "urlSuffix": url_suffix_of(object.get("urlSuffix")),
         "headers": headers_of(object.get("headers")),
         "anthropicToolType": tool_type_of(object.get("anthropicToolType")),
         "clientEmulation": client_emulation,
-        // 余额查询方案：**读侧也会按 baseUrl 兜底识别**（存量记录没有这个键，
-        // 见 BALANCE_SCHEMES 的说明），所以这里给的不是原始值而是归一结果
+        // ：** will by baseUrl **（ no has this ，
+        // BALANCE_SCHEMES ）， this to not is is 1 
         "balanceScheme": balance_scheme_of_record(object),
     });
     presets::write_key(&mut item, presets::key_of_record(object));
     item
 }
 
-/// 读侧归一：余额查询方案。优先用记录里的键（只认七个合法值），
-/// 缺键 / 值和 baseUrl 一样都是坏值时按 [`infer_balance_scheme`] 兜底。
+/// 1 ：。 use （ ），
+/// / and baseUrl 1 is when by [`infer_balance_scheme`] 。
 ///
-/// 认不出的值按「无方案」处理而不是报错：读取路径的职责是「能显示、能使用」，
-/// 手改坏的值丢掉即可（与 `client_emulation_of` 同一取向）—— 一条坏值不该让
-/// 整条提供商记录消失。
+/// not by 「none」 not is ：path is 「 can 、 can use 」，
+/// can （ and `client_emulation_of` 1 to ）—— 1 not this 
+/// 。
 fn balance_scheme_of_record(object: &Map<String, Value>) -> String {
     let stored = object
         .get("balanceScheme")
@@ -325,12 +325,12 @@ fn balance_scheme_of_record(object: &Map<String, Value>) -> String {
     .to_string()
 }
 
-/// 按 baseUrl 兜底识别方案（**只认官方固定域名的那几家**）。
+/// by baseUrl （** that **）。
 ///
-/// 判据是主机名后缀，不是整串相等：这些上游的推理路径各家填得不一样
-/// （`/v1` 有没有、coding 套餐与通用端点两条路），拿整串比会漏掉一半。
-/// 自建上游（sub2api / NewAPI）刻意不在表内 —— 域名无从判断，猜错会把
-/// 别的上游的余额接口当成它的打。
+/// is after ， not is etc ： this up path not 1 
+/// （`/v1` has no has 、coding and use ）， will 1 。
+/// up （sub2api / NewAPI） not in —— none from ， will 
+/// up 。
 fn infer_balance_scheme(base_url: &str) -> Option<&'static str> {
     let host = base_url
         .split("://")
@@ -353,15 +353,15 @@ fn infer_balance_scheme(base_url: &str) -> Option<&'static str> {
     if matches("api.deepseek.com") {
         return Some(BALANCE_SCHEME_DEEPSEEK);
     }
-    // OpenCode 的 Go 面（订阅制）才有 `/v1/usage`；免费档（Zen）没有余额接口，
-    // 但两者同域 —— 方案本身只决定「打哪个路径」，免费档查了会失败并如实报错，
-    // 不影响转发。客户端形态伪装与方案互不相干（见 `is_opencode_go_endpoint`）。
+    // OpenCode Go （） has `/v1/usage`；（Zen） no has ，
+    // —— 「 path」， will failure and ，
+    // not 。client and not （ `is_opencode_go_endpoint`）。
     if matches("opencode.ai") {
         return Some(BALANCE_SCHEME_OPENCODE);
     }
-    // 智谱两站：国内站走 bigmodel.cn **控制台**的令牌，国际站（z.ai）用账号
-    // 的 API Key 铸 SIGN 签名（见 providers::custom::balance 的模块头）。
-    // 两站同一条账户报告接口，但鉴权与币种不同，因此是两个方案。
+    // ： bigmodel.cn **** ，（z.ai） use 
+    // API Key SIGN （ providers::custom::balance module header）。
+    // 1 ， and not ， is 。
     if matches("bigmodel.cn") {
         return Some(BALANCE_SCHEME_ZHIPU);
     }
@@ -374,12 +374,12 @@ fn infer_balance_scheme(base_url: &str) -> Option<&'static str> {
     None
 }
 
-/// 某自定义提供商的余额查询方案（`None` = 这一家没接余额查询）。
+/// （`None` = this 1 no ）。
 ///
-/// ── 为什么走 [`config::with_raw`] 而不是 `get()` ─────────────
-/// 消费方是账号公开形态的构建（`account_store::store_view`，**逐账号**调用），
-/// 而 `get()` 会经 `list()` 克隆整份配置（含提示词全文）。这里只需要一条记录
-/// 里的一个字段，借读锁现读即可（闭包内是纯内存动作，见 `with_raw` 的约束）。
+/// ── Why [`config::with_raw`] not is `get()` ─────────────
+/// is （`account_store::store_view`，**** use ），
+/// `get()` will `list()` config（）。 this need need 1 
+/// 1 ， can （ is ， `with_raw` ）。
 pub fn balance_scheme_of(provider_id: &str) -> Option<String> {
     let id = provider_id.trim();
     if id.is_empty() {
@@ -397,9 +397,9 @@ pub fn balance_scheme_of(provider_id: &str) -> Option<String> {
     scheme
 }
 
-/// 读侧归一：urlSuffix。合法形态 = 空串（无特判）或 `?` 开头、无空白、
-/// 长度有限的查询串（如 `?beta=true`）；坏值一律按无特判处理 —— 导入的
-/// 定义不该因为一个畸形后缀整条被拒，丢弃后转发仍然可用。
+/// 1 ：urlSuffix。 = empty（none） or `?` 、noneempty、
+/// has （ `?beta=true`）； 1 by none —— 
+/// not this as 1 after ， after available。
 fn url_suffix_of(value: Option<&Value>) -> String {
     let text = value
         .and_then(Value::as_str)
@@ -412,9 +412,9 @@ fn url_suffix_of(value: Option<&Value>) -> String {
     if usable { text.to_string() } else { String::new() }
 }
 
-/// 读侧归一：静态额外头。只收「键值都是非空字符串」的条目（上限
-/// [`MAX_HEADER_ENTRIES`] 条，键 / 值超长截断 —— 与 model_entries_of 的
-/// 「超长截断不丢弃」同一取向）；同名的最后一条赢，落盘前排序使形态稳定。
+/// 1 ：。「 is empty」 （limit
+/// [`MAX_HEADER_ENTRIES`] ， / —— and model_entries_of 
+/// 「 not 」 1 to ）； after 1 ， before 。
 fn headers_of(value: Option<&Value>) -> Map<String, Value> {
     let mut out = Map::new();
     let Some(entries) = value.and_then(Value::as_array) else {
@@ -422,8 +422,8 @@ fn headers_of(value: Option<&Value>) -> Map<String, Value> {
     };
     for entry in entries.iter().take(MAX_HEADER_ENTRIES * 2) {
         let Some(object) = entry.as_object() else { continue };
-        // 数组形态 [{name, value}] 与对象形态 {"Name": "value"} 都收：
-        // 对象形态是创建/编辑的入参形态，数组形态留给将来的编辑器
+        // [{name, value}] and for {"Name": "value"} ：
+        // for is create/ ， to will 
         let pairs: Vec<(String, String)> = if let Some(name) =
             object.get("name").and_then(Value::as_str)
         {
@@ -454,7 +454,7 @@ fn headers_of(value: Option<&Value>) -> Map<String, Value> {
     out
 }
 
-/// 读侧归一：工具 type 补齐。目前只有 `custom` 一个合法值（空 = 默认）。
+/// 1 ： type 。 before has `custom` 1 （empty = default）。
 fn tool_type_of(value: Option<&Value>) -> String {
     let text = value.and_then(Value::as_str).map(str::trim).unwrap_or("");
     if text.eq_ignore_ascii_case(TOOL_TYPE_CUSTOM) {
@@ -464,10 +464,10 @@ fn tool_type_of(value: Option<&Value>) -> String {
     }
 }
 
-/// 读侧归一：客户端形态伪装。目前只有 `opencode` 一个合法值（空 = 不伪装）。
+/// 1 ：client。 before has `opencode` 1 （empty = not ）。
 ///
-/// 与 `tool_type_of` 同一口径：认不出的值按「不伪装」处理 —— 伪装会改写请求体，
-/// 宁可少伪装一次（表现为上游 403，能查）也不要把一个手改坏的值当成开关打开。
+/// and `tool_type_of` 1 ： not by 「 not 」 —— will request，
+/// can 1 （ as up 403， can ） not need 1 。
 fn client_emulation_of(value: Option<&Value>) -> String {
     let text = value.and_then(Value::as_str).map(str::trim).unwrap_or("");
     if text.eq_ignore_ascii_case(CLIENT_EMULATION_OPENCODE) {
@@ -477,12 +477,12 @@ fn client_emulation_of(value: Option<&Value>) -> String {
     }
 }
 
-/// 读取容错：`models` 数组 → 归一后的条目列表（非数组 / 坏条目一律丢弃）。
+/// ：`models` → 1 after （ / 1 ）。
 ///
-/// 丢弃的判据与 `read_items` 同一取向：**不是带非空 id 的对象**就不要 ——
-/// 一条没有 id 的模型登记对路由毫无意义，留着只会让转发侧多一次空判。
-/// 长度超限（手改数据塞进来的超长值）**不丢弃、截断**：读取路径的职责是
-/// 「能显示、能使用」，把脏值裁进合法范围比整条消失好定位。
+/// and `read_items` 1 to ：** not is empty id for ** not need ——
+/// 1 no has id for by none， will 1 empty。
+/// （ ）** not 、**：path is 
+/// 「 can 、 can use 」， 。
 fn model_entries_of(value: Option<&Value>) -> Vec<Value> {
     let mut entries: Vec<Value> = Vec::new();
     for item in value.and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]) {
@@ -507,11 +507,11 @@ fn model_entries_of(value: Option<&Value>) -> Vec<Value> {
                 MAX_REASONING_CHARS,
             ),
         });
-        // 能力位覆盖（可选的稀疏表，键名与归一规则见 `core::capability`：
-        // 内置家的同一层覆盖在 `modelRules.capabilities`，两处共用该模块的判定）。
-        // **空表不落键**：老记录（没有这个键的）读回再写时一个字节都不多，
-        // 配置文件不被无谓扰动 —— 与 `reasoning` 拿空串占位刚好相反，
-        // 那个是必填字段的默认值，这个是可选的覆盖层。
+        // can （optional ， and 1 then `core::capability`：
+        // 1 in `modelRules.capabilities`， use this ）。
+        // **empty not **：（ no has this ） when 1 not ，
+        // configfile not none —— and `reasoning` empty，
+        // that is default， this is optional 。
         let capabilities = capability::normalize_object(object.get("capabilities"));
         if !capabilities.is_empty() {
             if let Some(map) = entry.as_object_mut() {
@@ -523,11 +523,11 @@ fn model_entries_of(value: Option<&Value>) -> Vec<Value> {
     entries
 }
 
-/// 读取容错：`mappings` 数组 → 归一后的条目列表（判据见 [`model_entries_of`]）。
+/// ：`mappings` → 1 after （ [`model_entries_of`]）。
 ///
-/// 比模型多一条判据：**alias 与 target 缺一不可** —— 只有别名的映射指不到
-/// 任何上游模型（写了等于没写），只有 target 的映射没有对外名（永远不会有
-/// 请求命中它）。两者都在才算一条可用的映射。
+/// 1 ：**alias and target 1 not can ** —— has not to 
+/// up （ etc no ）， has target no has for （ not will has 
+/// request in ）。 in 1 available 。
 fn mapping_entries_of(value: Option<&Value>) -> Vec<Value> {
     let mut entries: Vec<Value> = Vec::new();
     for item in value.and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]) {
@@ -562,39 +562,39 @@ fn mapping_entries_of(value: Option<&Value>) -> Vec<Value> {
     entries
 }
 
-/// 按字符截断（超过上限的部分裁掉，不 panic）
+/// by （limit ， not panic）
 fn truncate_chars(text: &str, limit: usize) -> String {
     text.chars().take(limit).collect()
 }
 
-/// 整份写回（唯一写路径）。
+/// （ 1 path）。
 ///
-/// 返回是否写盘成功；失败时**调用方必须当成整体失败**（新值没有生效）——
-/// 与 `model_rules::save` 一样，落库失败由 `config::update_raw_field` 自己
-/// 打日志，这里只把布尔交给上层，不再重复记一条。
+/// return is success；failure when ** use mustfailure**（ new no has ）——
+/// and `model_rules::save` 1 ，failure by `config::update_raw_field` 
+/// ， this to up ， not 1 。
 fn write_items(items: &[Value]) -> bool {
     config::update_raw_field(KEY_CUSTOM_PROVIDERS, Value::Array(items.to_vec()))
 }
 
-/// 当前全部自定义提供商（按 createdAt 升序）。
+/// current（ by createdAt ）。
 pub fn list() -> Vec<Value> {
     read_items()
 }
 
-/// 摘要形态的自定义家列表（`{id, label, count}`）——「可选哪些家」这类候选表的
-/// **自定义家那一半**（另一半是注册表，见 `providers::summary_json`）。
+/// need （`{id, label, count}`）——「optional」 this 
+/// ** that 1 **（ 1 is ， `providers::summary_json`）。
 ///
-/// 形状与注册表那一份**逐键一致**：消费方（`api::keys_api` 的「可用提供商」候选）
-/// 把两张表首尾拼成一张候选表，形状不同就得在拼接处再写一层适配，而那种适配层
-/// 只会让「加一个字段忘了另一边」的事故重演 —— 形状一致时，界面拿到的就是一张
-/// 无差别的表（它本来也不该知道哪一项是自定义家）。
+/// and that 1 ** 1 **：（`api::keys_api` 「available」）
+/// 1 ， not in 1 ， that 
+/// will 「 1 1 」 —— 1 when ， to is 1 
+/// none （ not this 1 is ）。
 ///
-/// `label` 取 `name`：用户起的名字就是这一家的展示名（与 `label_of` 同一口径，
-/// 回退 id 而不是「未知」——见 `providers::label_of` 的说明）。
+/// `label` `name`： use is this 1 （ and `label_of` 1 ，
+/// id not is 「unknown」—— `providers::label_of` ）。
 ///
-/// 为什么 `count` 由调用方算而不是在这里数：账号在 `AccountStore` 里，本模块是
-/// 配置层、不认识它（与 `providers::summary_json` 同一取舍）。也正因为只借一个
-/// 计数闭包，两张表的 `count` 必然同口径 —— 都是「这家现在有几个账号」。
+/// Why `count` by use not is in this ： in `AccountStore` ， is 
+/// config、 not （ and `providers::summary_json` 1 ）。 as 1 
+/// ， `count` —— is 「 this in has 」。
 pub fn summary_json<F>(count: F) -> Vec<Value>
 where
     F: Fn(&str) -> usize,
@@ -609,7 +609,7 @@ where
         .collect()
 }
 
-/// 按 id 取一条；不存在返回 None。
+/// by id 1 ； not in return None。
 pub fn get(id: &str) -> Option<Value> {
     let id = id.trim();
     if id.is_empty() {
@@ -620,21 +620,21 @@ pub fn get(id: &str) -> Option<Value> {
         .find(|item| item.get("id").and_then(Value::as_str) == Some(id))
 }
 
-/// 这个 id 是不是**已注册的自定义提供商**。
+/// this id is not is ** already **。
 ///
-/// 判据两条都要满足：以 [`ID_PREFIX`] 开头、且能在存储里找到。只看前缀会让
-/// 「手改数据塞进来的 custom-xxx」被当成真家（账号写入、级联删除都会认它，
-/// 而它没有协议与基址，转发阶段必然失败）；只看存储又太慢且语义不清。
+/// need ： [`ID_PREFIX`] 、 and can in to 。 before will 
+/// 「 custom-xxx」 （、delete will ，
+/// no has and ，failure）； and not 。
 ///
-/// 消费方：`providers::label_of`（展示名回退）、`api::accounts::add_account`
-/// 的分派、账号公开形态的兜底判断，以及下一阶段的转发热路径（先判这里，
-/// 再决定走不走自定义通道）。
+/// ：`providers::label_of`（）、`api::accounts::add_account`
+/// 、 ， and down 1 path（ this ，
+/// not ）。
 pub fn is_custom_provider_id(id: &str) -> bool {
     let id = id.trim();
     id.starts_with(ID_PREFIX) && get(id).is_some()
 }
 
-/// 自定义提供商的展示名；不存在返回 None（调用方决定回退到什么）。
+/// ； not in return None（ use to ）。
 pub fn label_of(id: &str) -> Option<String> {
     get(id).and_then(|item| {
         item.get("name")
@@ -643,9 +643,9 @@ pub fn label_of(id: &str) -> Option<String> {
     })
 }
 
-/// 自定义提供商的协议；不存在返回 None。
+/// ； not in return None。
 ///
-/// 下一阶段转发的分派依据（三选一的协议翻译）；本阶段供管理 API 与排查使用。
+/// down 1 （ 1 ）； API and use 。
 pub fn protocol_of(id: &str) -> Option<String> {
     get(id).and_then(|item| {
         item.get("protocol")
@@ -654,11 +654,11 @@ pub fn protocol_of(id: &str) -> Option<String> {
     })
 }
 
-/// 新建一个自定义提供商：`{name, protocol, baseUrl}` → 落盘后的完整条目。
+/// new 1 ：`{name, protocol, baseUrl}` → after 。
 ///
-/// `apiKey` **刻意不在本函数的处理范围**：它是账号的属性（见模块头），由
-/// 调用方（`api::custom_providers::create`）在拿到 provider id 之后写进
-/// 第一个账号记录。
+/// `apiKey` ** not in **： is （module header）， by 
+/// use （`api::custom_providers::create`） in to provider id after 
+/// 1 。
 pub fn create(payload: &Value) -> Result<Value, String> {
     let object = payload
         .as_object()
@@ -682,12 +682,12 @@ pub fn create(payload: &Value) -> Result<Value, String> {
         "createdAt": logging::now_ms(),
         "models": [],
         "mappings": [],
-        // per-provider 特判字段（预置目录带来的上游修正），见 validate_* 的说明
+        // per-provider （directory up ）， validate_* 
         "urlSuffix": validate_url_suffix(object.get("urlSuffix"))?,
         "headers": validate_headers(object.get("headers"))?,
         "anthropicToolType": validate_tool_type(object.get("anthropicToolType"))?,
         "clientEmulation": validate_client_emulation(object.get("clientEmulation"))?,
-        // 余额查询方案（预置卡片提交，见 BALANCE_SCHEMES 的说明）
+        // （， BALANCE_SCHEMES ）
         "balanceScheme": validate_balance_scheme(object.get("balanceScheme"))?,
     });
     presets::write_key(&mut item, preset_key);
@@ -699,10 +699,10 @@ pub fn create(payload: &Value) -> Result<Value, String> {
     Ok(item)
 }
 
-/// 更新一个自定义提供商：字段缺省不动，改 protocol / baseUrl 时同样校验。
+/// update 1 ： not ， protocol / baseUrl when 。
 ///
-/// 为什么不支持改 `id` / `createdAt`：前者是账号记录外键的指向目标（改了会让
-/// 名下账号变成孤儿），后者是排序依据 —— 两者都是身份的一部分，不是可编辑属性。
+/// Whyunsupported `id` / `createdAt`： before is to （ will 
+/// down ）， after is —— is 1 ， not is can 。
 pub fn update(id: &str, payload: &Value) -> Result<Value, String> {
     let id = id.trim();
     if id.is_empty() {
@@ -718,8 +718,8 @@ pub fn update(id: &str, payload: &Value) -> Result<Value, String> {
     else {
         return Err(format!("自定义提供商不存在: {id}"));
     };
-    // 逐项取值：**只在请求里带了合法值时才改**。非法值一律报错（不静默忽略）——
-    // 「保存成功但没生效」比一条明确的 400 难排查得多。
+    // ：** in request when **。 1 （ not ignore）——
+    // 「success no 」 1 400 。
     let current = items[index].clone();
     let mut merged = current.as_object().cloned().unwrap_or_default();
     if let Some(value) = object.get("name") {
@@ -740,8 +740,8 @@ pub fn update(id: &str, payload: &Value) -> Result<Value, String> {
             .ok_or_else(|| "enabled 必须是布尔值".to_string())?;
         merged.insert("enabled".to_string(), Value::Bool(enabled));
     }
-    // 特判字段同样按 patch 语义收：带键才动，非法值报错（与上面同一取向）。
-    // 编辑弹窗不发这三个键，所以从预置创建的家在改名 / 改协议后特判原样保留。
+    // by patch ：，（ and up 1 to ）。
+    // not this ， from create in / after 。
     if let Some(value) = object.get("urlSuffix") {
         merged.insert(
             "urlSuffix".to_string(),
@@ -766,9 +766,9 @@ pub fn update(id: &str, payload: &Value) -> Result<Value, String> {
             Value::String(validate_client_emulation(Some(value))?),
         );
     }
-    // 余额查询方案：与上面同一 patch 语义（带键才动）。编辑弹窗不发它 ——
-    // 方案是「这一家是谁」的派生事实，用户改协议 / 改名不该顺手把它改掉；
-    // 要清掉它得显式传空串（存储层读侧认空 = 无方案）。
+    // ： and up 1 patch （）。 not ——
+    // is 「 this 1 is 」 ， use / not this ；
+    // need empty（empty = none）。
     if let Some(value) = object.get("balanceScheme") {
         merged.insert(
             "balanceScheme".to_string(),
@@ -783,19 +783,19 @@ pub fn update(id: &str, payload: &Value) -> Result<Value, String> {
     Ok(updated)
 }
 
-/// 删除一个自定义提供商，**并级联删除该家名下的全部账号**；返回删掉的账号数。
+/// delete 1 ，** and delete this down **；return 。
 ///
-/// ── 为什么级联删除是必须的（而不是留给用户手删）──────────────
-/// 账号记录的归属是 `provider` 字符串字段。提供商删掉后，那些账号会变成
-/// 「指向一个不存在家的孤儿」：界面分组里挂着、路由候选链里永远排不上、
-/// 用户想清理还得逐条点删。这与 `model_rules::remove_custom` 顺带清理孤儿
-/// 规则是同一个取舍 —— 删除动作的语义是「这一家我不要了」，占着的东西一起清。
+/// ── Whydelete is must （ not is to use ）──────────────
+/// is `provider` 。 after ， that will 
+/// 「 to 1 not in 」：、 by not up 、
+/// use 。 this and `model_rules::remove_custom` 
+/// then is 1 —— delete is 「 this 1 not need 」， 1 。
 ///
-/// ── 顺序：先删账号，再删提供商 ───────────────────────────────
-/// 账号删除可能因为数据库不可用而失败；那种情况下提供商**必须保留**（否则
-/// 留下一批孤儿账号，比「什么都没发生」更难恢复）。反过来（提供商写失败、
-/// 账号已删）只会留下一个账号数为 0 的提供商，用户重试一次即可 —— 两个方向的
-/// 后果不对等，所以顺序不可交换。
+/// ── ：， ───────────────────────────────
+/// delete can can as unavailablefailure； that down **must**（otherwise
+/// down 1 ，「 no 」）。（failure、
+/// already ） will down 1 as 0 ， use 1 can —— to 
+/// after not for etc ， not can 。
 pub fn remove(id: &str, store: &AccountStore) -> Result<usize, String> {
     let id = id.trim();
     if id.is_empty() {
@@ -815,43 +815,43 @@ pub fn remove(id: &str, store: &AccountStore) -> Result<usize, String> {
     Ok(accounts_removed)
 }
 
-// ─── 模型清单与映射（第二阶段：目录 / 路由 / 转发的数据源）──────
+// ─── and （：directory / by / ）──────
 
-/// 该家的模型清单（归一后；`item_of` 已补默认，这里只是取键）。
+/// this （ 1 after ；`item_of` already default， this is ）。
 ///
-/// 消费方：目录聚合（`providers::custom` 的追加）、`carriers_of_model` 的
-/// 能力判定、以及管理弹窗的回显。**enabled 过滤不在这一层做** —— 「清单」
-/// 与「清单里可用的部分」是两个口径（对齐 `catalog::manifest_for` 与
-/// `advertised_manifest_for` 的分工），调用方按需过滤。
+/// ：directory（`providers::custom` ）、`carriers_of_model` 
+/// can 、 and 。**enabled not in this 1 ** —— 「」
+/// and 「available 」 is （ for `catalog::manifest_for` and 
+/// `advertised_manifest_for` ）， use by need 。
 pub fn models_of(id: &str) -> Vec<Value> {
     get(id)
         .and_then(|item| item.get("models").and_then(Value::as_array).cloned())
         .unwrap_or_default()
 }
 
-/// 该家的映射表（归一后；判据见 [`models_of`]）。
+/// this （ 1 after ； [`models_of`]）。
 pub fn mappings_of(id: &str) -> Vec<Value> {
     get(id)
         .and_then(|item| item.get("mappings").and_then(Value::as_array).cloned())
         .unwrap_or_default()
 }
 
-/// **整体替换**该家的 `models` 与 `mappings` 两个键并落盘（UI 弹窗整表保存）。
+/// **** this `models` and `mappings` and （UI ）。
 ///
-/// ── 为什么是「整体替换」而不是逐条增删 ────────────────────────
-/// 模型管理弹窗的交互是「编辑一份本地副本 → 点保存」：允许顺序调整、批量
-/// 启停、一次改多条 reasoning。逐条 API 要么把顺序丢失、要么逼前端发 N 个
-/// 请求且中途失败会留下半成品。整表替换的语义与弹窗一一对应，回滚也简单
-/// （失败即整体不生效，见 `write_items` 的说明）。
+/// ── Why is 「」 not is ────────────────────────
+/// is 「 1 → 」：、
+/// 、 1 reasoning。 API need 、 need before N 
+/// request and in failure will down 。 and 1 1 for ，
+/// （failure not ， `write_items` ）。
 ///
-/// ── 整体读写下的键保护 ────────────────────────────────────────
-/// 记录是**整体读写**的（`read_items` / `write_items`），本函数必须先把
-/// 既有记录完整取出来、只改这两个键再写回 —— 直接写一个只含这两键的对象
-/// 会把 name / protocol / baseUrl / enabled 全部冲掉。校验在写入前完成：
-/// 非法值（空 id、超长、类型不对）一律 400，绝不静默丢弃 —— 「保存成功但
-/// 没生效」比一条明确的错误难排查得多。
+/// ── down ────────────────────────────────────────
+/// is **** （`read_items` / `write_items`），must 
+/// has 、 this —— 1 this for 
+/// will name / protocol / baseUrl / enabled 。 in before ：
+/// （empty id、、 not for ） 1 400， not —— 「success
+/// no 」 1 error。
 ///
-/// 返回更新后的**完整记录**（响应契约 `{provider: ...}` 直接透传给前端重绘）。
+/// returnupdate after ****（response `{provider: ...}` to before ）。
 pub fn set_models(id: &str, models: Value, mappings: Value) -> Result<Value, GatewayError> {
     let id = id.trim();
     if id.is_empty() {
@@ -880,19 +880,19 @@ pub fn set_models(id: &str, models: Value, mappings: Value) -> Result<Value, Gat
     }, || GatewayError::new("保存失败：配置写入未成功，本次修改未生效；请检查磁盘空间与配置目录权限"))
 }
 
-/// 「这个名字由哪些自定义家提供」（`catalog::providers_for_model` 的自定义段）。
+/// 「 this by 」（`catalog::providers_for_model` ）。
 ///
-/// 判据（三条同时成立才算承载）：该家 `enabled=true`，且存在一条 **enabled**
-/// 的同 id 模型，或一条 **enabled** 且 `alias==name` 的映射。名字比较
-/// `eq_ignore_ascii_case` —— 与全仓的模型名匹配口径一致（`model_rules` 的
-/// 模块头），客户端传 `GPT-X` 与 `gpt-x` 必须落到同一条登记上。
+/// （ when ）： this `enabled=true`， and in 1 **enabled**
+/// id ， or 1 **enabled** and `alias==name` 。
+/// `eq_ignore_ascii_case` —— and 1 （`model_rules` 
+/// module header），client `GPT-X` and `gpt-x` must to 1 up 。
 ///
-/// 注意这里**不查账号、不查 baseUrl**：它回答的是「能力」（谁登记了这个
-/// 名字），「此刻可不可用」由目录聚合（还要求有启用账号）与转发层（账号
-/// 选路失败会如实报错）分层回答 —— 与内置家的 `manifest_for` 同一分工。
+/// Note this ** not 、 not baseUrl**： is 「 can 」（ this 
+/// ），「 can unavailable」 by directory（ need has enabled） and （
+/// failure will ） —— and `manifest_for` 1 。
 ///
-/// 性能：单次 `read_items()` 遍历（配置是进程级快照，无磁盘 IO）；
-/// 转发热路径每请求调用一两次，无需缓存。
+/// can ： `read_items()` （config is ，none IO）；
+/// pathrequest use 1 ，none need 。
 pub fn carriers_of_model(name: &str) -> Vec<String> {
     let name = name.trim();
     if name.is_empty() { return Vec::new(); }
@@ -902,61 +902,61 @@ pub fn carriers_of_model(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// 发给某个自定义家时应使用的**上游真名**与思考等级绑定。
+/// to when use ** up ** and etc 。
 ///
-/// ── 解析优先级（与 `catalog::wire_target_for_provider` 对齐但数据源不同）──
-///   ① 存在 enabled 且 `alias == 请求名` 的映射 → 真名 = 该映射的 `target`、
-///      等级 = 该映射的 `reasoning`（映射上没绑则空）；
-///   ② 否则存在 enabled 的同 id 模型 → 真名 = 请求名**原值**（零改写是常态，
-///      统一大小写只会白复制一次 body）、等级 = 该模型上绑的 `reasoning`；
-///   ③ 都不命中 → 真名 = 请求名、等级 = None（防御：正常选路下不会发生，
-///      候选链就是按 [`carriers_of_model`] 算的）。
+/// ── （ and `catalog::wire_target_for_provider` for not ）──
+/// ① in enabled and `alias == request` → = this `target`、
+/// etc = this `reasoning`（ up no then empty）；
+/// ② otherwise in enabled id → = request****（ is ，
+/// 1 will 1 body）、 etc = this up `reasoning`；
+/// ③ not in → = request、 etc = None（： down not will ，
+/// is by [`carriers_of_model`] ）。
 ///
-/// 名字比较一律 `eq_ignore_ascii_case`（理由同 [`carriers_of_model`]）。
+/// 1 `eq_ignore_ascii_case`（ by [`carriers_of_model`]）。
 ///
-/// ── 与思考等级注入的约定（`providers::custom::forward`）────────
-/// 返回的 `Some(level)` 表示「这条映射 / 模型上绑了等级」；注入还要满足两个
-/// 条件（在调用方判，这里不重复）：客户端请求体里**没有**显式给
-/// `reasoning_effort` / `reasoning`（用户显式意图优先于默认绑定），且等级不是
-/// `off`/`none`（本网关不向任何上游发「关闭思考」字段，判据
-/// `model_rules::reasoning_is_off`）。名字与等级**同源同次解析** —— 拆成两次
-/// 调用就会出现「A 条映射改了名、B 条映射的等级被注入」的串味。
+/// ── and etc （`providers::custom::forward`）────────
+/// return `Some(level)` 「 this / up etc 」； need 
+/// （ in use ， this not ）：clientrequest** no has ** to 
+/// `reasoning_effort` / `reasoning`（ use default）， and etc not is 
+/// `off`/`none`（ not to up 「」，
+/// `model_rules::reasoning_is_off`）。 and etc **** —— 
+/// use will 「A 、B etc 」 。
 pub fn wire_model_for(provider_id: &str, requested_name: &str) -> (String, Option<String>) {
     let requested = requested_name.trim();
     get(provider_id).and_then(|provider| bindings::resolve(&provider, requested))
         .unwrap_or_else(|| (requested.to_string(), None))
 }
 
-/// **服务端代理拉取**上游的模型清单（`POST /api/custom-providers/fetch-models`）。
+/// **server** up （`POST /api/custom-providers/fetch-models`）。
 ///
-/// 为什么由网关代拉而不是浏览器直连：桌面壳的页面跑在本地 origin 上，
-/// 直连会撞上游的 CORS；且 apiKey 只在服务端流转（公开形态刻意不含它），
-/// 让前端自己去拉就得把 key 交给页面 —— 两条理由都指向同一做法。
+/// Why by not is ： in origin up ，
+/// will up CORS； and apiKey in server（ not ），
+/// before key to —— by to 1 。
 ///
-/// ── URL 与鉴权（各协议的 baseUrl 惯例不同，别拼错）─────────────
-///   - `chat_completions` / `responses`：baseUrl 惯例**带 /v1**（如
-///     `https://api.example.com/v1`）→ 拼 `{baseUrl}/models`；
-///   - `anthropic`：baseUrl 惯例是**不带 /v1 的根地址**（如
-///     `https://api.anthropic.com`）→ 拼 `{baseUrl}/v1/models`。
-///   鉴权：前两者 `Authorization: Bearer <key>`；anthropic 是
-///   `x-api-key` + `anthropic-version: 2023-06-01`（它的鉴权头不是 Bearer）。
+/// ── URL and （ baseUrl not ，）─────────────
+/// - `chat_completions` / `responses`：baseUrl ** /v1**（
+/// `https://api.example.com/v1`）→ `{baseUrl}/models`；
+/// - `anthropic`：baseUrl is ** not /v1 **（
+/// `https://api.anthropic.com`）→ `{baseUrl}/v1/models`。
+/// ： before `Authorization: Bearer <key>`；anthropic is 
+/// `x-api-key` + `anthropic-version: 2023-06-01`（ not is Bearer）。
 ///
-/// key 取该家**第一个可用账号**的凭证（`first_custom_credential`：启用且
-/// 「apiKey 非空 **或** 声明了无需鉴权」，按优先级升序 —— 与转发选路的
-/// 「队首优先」同口径）；一个都没有时报「请先添加账号」。账号配了出网代理就
-/// 带上（`ResolvedProxy`），没有则直连。
+/// key this ** 1 available** （`first_custom_credential`：enabled and 
+/// 「apiKey empty ** or ** none need 」， by —— and 
+/// 「」）； 1 no has when 「」。
+/// up （`ResolvedProxy`）， no has then 。
 ///
-/// ── 凭证为空时**不发鉴权头**（2026-09 修）──────────────────────
-/// 无需鉴权的上游（本地 Ollama、OpenCode Zen 的免费档）在 `/models` 上
-/// 本来就不校验凭证。旧实现在这里无条件拼 `Authorization: Bearer `（空）或
-/// `x-api-key: `，严格的上游会直接 401 —— 而这条路径以前根本走不到（空 key
-/// 的账号被 `first_custom_credential` 过滤掉了，见那个函数的说明）。
-/// **有意不套 `clientEmulation` 的伪装头**：`/models` 实测无需伪装即可 200，
-/// 多套一层只会让这条管理动作也跟着上游的形态校验一起坏掉。
+/// ── as empty when ** not **（2026-09 ）──────────────────────
+/// none need up （ Ollama、OpenCode Zen ） in `/models` up 
+/// not 。 old in this none `Authorization: Bearer `（empty） or 
+/// `x-api-key: `， up will 401 —— this path before not to （empty key
+/// `first_custom_credential` ， that ）。
+/// ** has not `clientEmulation` **：`/models` none need can 200，
+/// 1 will this up 1 。
 ///
-/// 响应解析：OpenAI 与 anthropic 的清单形态相同（`{data: [{id}]}`），
-/// 取每个条目的非空 `id`。**不落盘** —— 清单拉回来给前端确认后再调
-/// `set_models`，拉取与保存是弹窗里的两步。
+/// response：OpenAI and anthropic （`{data: [{id}]}`），
+/// empty `id`。** not ** —— to before after 
+/// `set_models`， and is 。
 pub async fn fetch_upstream_models(
     provider_id: &str,
     store: &AccountStore,
@@ -991,8 +991,8 @@ pub async fn fetch_upstream_models(
     let mut builder = client
         .get(&url)
         .timeout(Duration::from_millis(FETCH_MODELS_TIMEOUT_MS));
-    // 凭证为空（无需鉴权的账号）时**一个鉴权头都不发**：空 Bearer 对严格的上游
-    // 等同凭证错误，与「这家不要凭证」的语义正好相反（见函数头的说明）
+    // as empty（none need ） when ** 1 not **：empty Bearer for up 
+    // etc error， and 「 this not need 」 （ ）
     let api_key = credential.api_key.trim();
     if !api_key.is_empty() {
         builder = if protocol == PROTOCOL_ANTHROPIC {
@@ -1032,12 +1032,12 @@ pub async fn fetch_upstream_models(
     Ok(ids)
 }
 
-/// 上游清单接口是否成功（2xx 即可：个别网关会回 200 以外的成功码）
+/// up is success（2xx can ： will 200 success）
 fn response_ok(status: u16) -> bool {
     (200..300).contains(&status)
 }
 
-/// 写入校验：模型 ID、开关与能力必须合法，重复 ID（忽略大小写）直接报错。
+/// ： ID、 and can must， ID（ignore）。
 fn validate_model_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
     let mut entries: Vec<Value> = Vec::new();
     for (position, item) in raw.iter().enumerate() {
@@ -1058,9 +1058,9 @@ fn validate_model_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
             ));
         }
         let reasoning = validate_reasoning(object.get("reasoning"))?;
-        // 能力位覆盖（可选；校验见 validate_capabilities）—— 它是整表替换里
-        // **必须原样带回**的字段：前端草稿漏了它，用户填过的能力就会被一次
-        // 「切开关」的提交顺手清掉。
+        // can （optional； validate_capabilities）—— is 
+        // **must** ： before ， use can will 1 
+        // 「」 。
         let capabilities = validate_capabilities(object.get("capabilities"), position + 1)?;
         let enabled = match object.get("enabled") {
             None => true,
@@ -1091,7 +1091,7 @@ fn validate_model_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
     Ok(entries)
 }
 
-/// 同一 (alias, target) 不重复登记；同名的不同 target 可以保存，但只允许启用一条。
+/// 1 (alias, target) not ； not target can ，enabled 1 。
 fn validate_mapping_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
     let mut entries: Vec<Value> = Vec::new();
     for (position, item) in raw.iter().enumerate() {
@@ -1147,13 +1147,13 @@ fn validate_mapping_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
     Ok(entries)
 }
 
-/// 能力位覆盖（`capabilities`）的可选校验：必须是对象，键名与值都要合法
-/// （判定在 `core::capability`，与内置家那层覆盖同一套）。非法时报错而不是
-/// 静默丢弃 —— 与 `reasoning` 同一取向：写入前拦下，不留一条读回来会被
-/// 归一丢掉的脏数据。
+/// can （`capabilities`） optional：must is for ， and need 
+/// （ in `core::capability`， and that 1 ）。 when not is 
+/// —— and `reasoning` 1 to ： before down ， not 1 will 
+/// 1 。
 ///
-/// 返回**归一后的稀疏表**；缺省 / null / 归一后为空都返回 `None`
-/// （调用方不落键，见 `model_entries_of`）。
+/// return** 1 after **； / null / 1 after as emptyreturn `None`
+/// （ use not ， `model_entries_of`）。
 fn validate_capabilities(value: Option<&Value>, position: usize) -> Result<Option<Map<String, Value>>, String> {
     let Some(value) = value.filter(|item| !item.is_null()) else {
         return Ok(None);
@@ -1175,7 +1175,7 @@ fn validate_capabilities(value: Option<&Value>, position: usize) -> Result<Optio
     Ok((!normalized.is_empty()).then_some(normalized))
 }
 
-/// reasoning 绑定校验：缺省/空 → 空串（无绑定）；给了就必须是字符串且 ≤32 字符。
+/// reasoning ：/empty → empty（none）； to must is and ≤32 。
 fn validate_reasoning(value: Option<&Value>) -> Result<String, String> {
     match value {
         None | Some(Value::Null) => Ok(String::new()),
@@ -1192,15 +1192,15 @@ fn validate_reasoning(value: Option<&Value>) -> Result<String, String> {
     }
 }
 
-/// 生成新的 provider id：`custom-` + 12 位小写十六进制。
+/// new provider id：`custom-` + 12 。
 ///
-/// 6 字节随机源取自 `getrandom`（依赖已在 Cargo.toml；altcha / access 等模块
-/// 同款用法）。**不用时间戳或计数器**：卸载重装、同一毫秒内并发添加、从
-/// 备份恢复配置这三种场景下，时间戳都可能撞号，而撞号的后果是两条配置互相
-/// 认成对方（`get` 按 id 单条匹配）—— 用了随机源则碰撞概率可以忽略。
+/// 6 `getrandom`（ already in Cargo.toml；altcha / access etc 
+/// use ）。** not use when or **：、 1 ms and 、 from 
+/// config this down ， when can can ， after is config
+/// for （`get` by id ）—— use then can ignore。
 ///
-/// 随机源失败时如实报错（返回 Err）：宁可让用户重试一次添加，也不落一条
-/// id 靠时间戳兜底的记录 —— 那正是本函数刻意避开的形态。
+/// failure when （return Err）： can use 1 ， not 1 
+/// id when —— that is 。
 fn new_provider_id() -> Result<String, String> {
     let mut bytes = [0u8; 6];
     getrandom::getrandom(&mut bytes)
@@ -1209,7 +1209,7 @@ fn new_provider_id() -> Result<String, String> {
     Ok(format!("{ID_PREFIX}{hex}"))
 }
 
-/// 展示名校验：trim 后 1~64 字符（按字符数，不是字节数 —— 中文名一样受 64 限制）。
+/// ：trim after 1~64 （ by ， not is —— in 1 64 limit）。
 fn normalize_name(value: Option<&Value>) -> Result<String, String> {
     let name = value
         .and_then(Value::as_str)
@@ -1224,7 +1224,7 @@ fn normalize_name(value: Option<&Value>) -> Result<String, String> {
     Ok(name.to_string())
 }
 
-/// 协议校验：必须是 [`PROTOCOLS`] 三选一。
+/// ：must is [`PROTOCOLS`] 1 。
 fn normalize_protocol(value: Option<&Value>) -> Result<String, String> {
     let protocol = value
         .and_then(Value::as_str)
@@ -1239,23 +1239,23 @@ fn normalize_protocol(value: Option<&Value>) -> Result<String, String> {
     Ok(protocol.to_string())
 }
 
-/// 协议是否合法（不分配、不报错的纯判据；`item_of` 的读取容错也用它）
+/// is （ not 、 not ；`item_of` use ）
 fn valid_protocol(protocol: &str) -> bool {
     PROTOCOLS.iter().any(|known| *known == protocol)
 }
 
-/// baseUrl 校验与规范化：必须是 http/https URL，去首尾空白并**去掉末尾斜杠**。
+/// baseUrl and ：must is http/https URL，empty and ****。
 ///
-/// 用 `url::Url` 解析而不是字符串前缀检查：后者放得进 `https://` 这种空 host、
-/// 含空格、或带 schema 以外内容的形态，而它们的失败时刻会推迟到转发时
-/// （400/超时/被上游拒），排查成本比在这里拒掉高得多。
-/// `Url::parse` 对「只有协议头没有 host」的形态会直接报错，所以解析成功即
-/// host 非空；`as_str()` 对空路径的 URL 会补一个 `/`（`https://a.com` →
-/// `https://a.com/`），末尾统一 `trim_end_matches('/')` 归一 —— 用户填不填
-/// 尾斜杠落盘后都是同一个值。其余部分（大小写、查询串、端口）保留原样。
+/// use `url::Url` not is before check： after `https://` this empty host、
+/// empty、 or schema ， failure when will to when 
+/// （400/ when / up ）， in this 。
+/// `Url::parse` for 「 has no has host」 will ，success
+/// host empty；`as_str()` for emptypath URL will 1 `/`（`https://a.com` →
+/// `https://a.com/`）， 1 `trim_end_matches('/')` 1 —— use not 
+/// after is 1 。 its （、、）。
 ///
-/// `pub`：账号记录上的 `baseUrl` **覆盖项**（`custom_accounts` 写入）走同一套
-/// 校验 —— 覆盖值与提供商默认值最终都被转发层消费，两处各写一套迟早分叉。
+/// `pub`： up `baseUrl` ****（`custom_accounts` ） 1 
+/// —— and default ， 1 。
 pub fn normalize_base_url(raw: &str) -> Result<String, String> {
     let raw = raw.trim();
     if raw.is_empty() {
@@ -1268,26 +1268,26 @@ pub fn normalize_base_url(raw: &str) -> Result<String, String> {
     Ok(parsed.as_str().trim_end_matches('/').to_string())
 }
 
-/// OpenCode Zen 免费档的**旧端点**：2026-10 起打它一律 403 `FreeTierError`
-/// （实测，见 `providers::custom::emulation` 的模块头）。
+/// OpenCode Zen ** old **：2026-10 1 403 `FreeTierError`
+/// （， `providers::custom::emulation` module header）。
 pub const LEGACY_OPENCODE_BASE_URL: &str = "https://opencode.ai/zen/v1";
 
-/// OpenCode Zen 免费档的**当前端点**（旧端点已废弃，见上）。
+/// OpenCode Zen **current**（ old already ， up ）。
 pub const OPENCODE_BASE_URL: &str = "https://opencode.ai/inference/v1";
 
-/// OpenCode **Go**（订阅制）的端点。它与免费档的要求**不同**：免费档要「伪装成
-/// 官方客户端」（四会话头 + 工具对 + 匿名凭证），Go 只要客户端**带一个稳定的
-/// 会话头**——上游文档 `docs/go/#where-can-i-use-it` 的公开路由要求（「Send a
-/// stable session ID in `x-opencode-session` for each conversation」），缺了直接
-/// `400 MissingSessionID`（实测：这道检查在鉴权之前，且只看在场、不校验形状）。
-/// 两面的要求不同，转发侧按端点分派，见 `providers::custom::emulation`。
+/// OpenCode **Go**（） 。 and need ** not **： need 「
+/// client」（ will + for + ），Go need client** 1 
+/// will **—— up `docs/go/#where-can-i-use-it` by need （「Send a
+/// stable session ID in `x-opencode-session` for each conversation」），
+/// `400 MissingSessionID`（： this check in before ， and in 、 not ）。
+/// need not ， by ， `providers::custom::emulation`。
 pub const OPENCODE_GO_BASE_URL: &str = "https://opencode.ai/zen/go/v1";
 
-/// 这条记录的 baseUrl 是否逐字命中 OpenCode Go 端点（忽略末尾斜杠与 ASCII 大小写）。
+/// this baseUrl is in OpenCode Go （ignore and ASCII ）。
 ///
-/// 与 [`migrate_base_url`] 同一口径的**精确匹配**：只有官方那个端点走 Go 面的
-/// 特殊处理，用户自建的中转/代理地址一概不碰（那类地址背后是什么取决于中转
-/// 自己，网关不该替它猜）。
+/// and [`migrate_base_url`] 1 ****： has that Go 
+/// ， use in / 1 not （ that after is in 
+/// ， not this ）。
 pub fn is_opencode_go_endpoint(base_url: &str) -> bool {
     base_url
         .trim()
@@ -1295,22 +1295,22 @@ pub fn is_opencode_go_endpoint(base_url: &str) -> bool {
         .eq_ignore_ascii_case(OPENCODE_GO_BASE_URL)
 }
 
-/// 这条（提供商, 账号）组合是不是 **OpenCode Zen 免费档** —— 出网「轮询」档
-/// 唯一允许的对象。
+/// this （, ） is not is **OpenCode Zen ** —— 「」
+/// 1 for 。
 ///
-/// 判据两条：
-///   1. 提供商记录开着客户端形态伪装（`clientEmulation == "opencode"`）。这与
-///      `providers::custom::forward` 判定「这家要走 OpenCode 免费档的那套补齐」
-///      是**同一个开关**：VPN 无 Key、按 IP 限流、429 只管这个 IP 的免费额度，
-///      都是这一档的事实。预置卡「OpenCode Zen」就是靠它落库的；
-///   2. 最终 baseUrl 不是 Go 面端点。OpenCode **Go** 是订阅制（按 Key / 订阅
-///      额度计费），同域不同档，轮换出口对它没有意义 —— 用户手工把伪装开关
-///      开在 Go 记录上时不该被放行（`is_opencode_go_endpoint` 是既有的端点
-///      判据，转发侧也用它分派两套补齐行为）。
+/// ：
+/// 1. client（`clientEmulation == "opencode"`）。 this and 
+/// `providers::custom::forward` 「 this need OpenCode that 」
+/// is ** 1 **：VPN none Key、 by IP 、429 this IP ，
+/// is this 1 。「OpenCode Zen」 is ；
+/// 2. baseUrl not is Go 。OpenCode **Go** is （ by Key / 
+/// ）， not ， for no has —— use 
+/// in Go up when not this （`is_opencode_go_endpoint` is has 
+/// ， use as ）。
 ///
-/// `base_url_override` 是**账号**上的覆盖项（None / 空 = 未覆盖，回落提供商
-/// 的 baseUrl）：两层的值都可能指着 Go 端点，只看提供商那一层会漏掉
-/// 「提供商填 Zen、账号覆盖成 Go」这种组合。
+/// `base_url_override` is **** up （None / empty = ，
+/// baseUrl）： can can Go ， that 1 will 
+/// 「 Zen、 Go」 this 。
 pub fn is_opencode_zen_account(provider_id: &str, base_url_override: Option<&str>) -> bool {
     let Some(provider) = get(provider_id) else {
         return false;
@@ -1333,23 +1333,23 @@ pub fn is_opencode_zen_account(provider_id: &str, base_url_override: Option<&str
                 .map(str::to_string)
         })
         .unwrap_or_default();
-    // baseUrl 也要过读侧迁移：存量记录里可能还写着旧端点（/zen/v1），
-    // 它是免费档的旧入口 —— 漏了这一步会把「旧端点的 Zen 账号」判成非 Zen
+    // baseUrl need ： can can old （/zen/v1），
+    // is old —— this 1 will 「 old Zen 」 Zen
     let base_url = migrate_base_url(&base_url, true);
     !base_url.trim().is_empty() && !is_opencode_go_endpoint(&base_url)
 }
 
-/// 读侧迁移：把**逐字等于旧端点**的 baseUrl 改写成当前端点。
+/// ： ** etc old ** baseUrl current。
 ///
-/// 为什么在读侧做而不是写一条一次性迁移：旧端点是免费档的入口，2026-10 起打它
-/// 一律 403；存量记录里有两处可能还指着它 —— 预置卡早先写进提供商记录的，
-/// 以及用户在**账号**上覆盖的（那条由 `forward` 在解析完最终 baseUrl 后再过一次
-/// 本函数）。读侧改写让老记录不改盘、不迁移也能立刻恢复可用，新写的记录本来就
-/// 用新端点。
+/// Why in not is 1 1 ： old is ，2026-10 
+/// 1 403； has can can —— ，
+/// and use in **** up （ that by `forward` in baseUrl after 1 
+/// ）。 not 、 not can available， new 
+/// use new 。
 ///
-/// `is_opencode` 是**显式开关**（调用方传记录的 `clientEmulation`）：只对
-/// 「按 OpenCode 客户端形状伪装」的记录动手，别家填了同名字符串也不改 ——
-/// 与 `client_emulation` 整体的 opt-in 取向一致。
+/// `is_opencode` is ****（ use `clientEmulation`）： for 
+/// 「 by OpenCode client」 ， not ——
+/// and `client_emulation` opt-in to 1 。
 pub fn migrate_base_url(raw: &str, is_opencode: bool) -> String {
     let text = raw.trim();
     if is_opencode && text.trim_end_matches('/').eq_ignore_ascii_case(LEGACY_OPENCODE_BASE_URL) {
@@ -1358,16 +1358,16 @@ pub fn migrate_base_url(raw: &str, is_opencode: bool) -> String {
     text.to_string()
 }
 
-// ── per-provider 特判字段的写侧校验（create / update 共用）────────
+// ── per-provider （create / update use ）────────
 //
-// 与读侧（url_suffix_of / headers_of / tool_type_of）的分工：读侧面向「盘上
-// 的数据」—— 容错归一，坏值按缺省丢弃（导入不该被一条畸形后缀整条挡住）；
-// 写侧面向「用户的输入」—— 非法值明确报错。非法值静默忽略等于「保存成功但
-// 没生效」，比一条 400 难排查得多（与 update 的既有取向一致）。
+// and （url_suffix_of / headers_of / tool_type_of） ： to 「 up 
+// 」—— 1 ， by （ not this 1 after ）；
+// to 「 use 」—— 。ignore etc 「success
+// no 」， 1 400 （ and update has to 1 ）。
 
-/// urlSuffix：空 = 无特判；非空必须是 `?` 开头、无空白、不超过
-/// [`MAX_URL_SUFFIX_CHARS`] 的查询串（如 `?beta=true`）。转发时原样追加到
-/// 出站 URL 末尾（GLM / MiniMax 的 Claude 兼容端点要求 `?beta=true`）。
+/// urlSuffix：empty = none；emptymust is `?` 、noneempty、 not 
+/// [`MAX_URL_SUFFIX_CHARS`] （ `?beta=true`）。 when to 
+/// URL （GLM / MiniMax Claude need `?beta=true`）。
 fn validate_url_suffix(value: Option<&Value>) -> Result<String, String> {
     let Some(value) = value else { return Ok(String::new()) };
     let text = value.as_str().unwrap_or("").trim();
@@ -1385,10 +1385,10 @@ fn validate_url_suffix(value: Option<&Value>) -> Result<String, String> {
     Ok(text.to_string())
 }
 
-/// 静态额外头：JSON 对象 `{"头名": "值"}`。键 / 值都须是非空字符串（去首尾
-/// 空白），头名不含冒号，条数不超过 [`MAX_HEADER_ENTRIES`]。转发时按名合并到
-/// 默认头上 —— **同名的默认头被覆盖**（包括 Authorization / x-api-key：那是
-/// 「换一种鉴权方式」的高级用法，覆盖后默认凭证头不再发出，由使用者负责）。
+/// ：JSON for `{"": ""}`。 / is empty（
+/// empty）， not ， not [`MAX_HEADER_ENTRIES`]。 when by and to 
+/// default up —— ** default **（including Authorization / x-api-key： that is 
+/// 「 1 」 use ， after default not ， by use ）。
 fn validate_headers(value: Option<&Value>) -> Result<Map<String, Value>, String> {
     let Some(value) = value else { return Ok(Map::new()) };
     let object = value
@@ -1418,9 +1418,9 @@ fn validate_headers(value: Option<&Value>) -> Result<Map<String, Value>, String>
     Ok(out)
 }
 
-/// 工具 type 补齐：空 = 默认（无 type）；`custom` = 发 anthropic 上游时给每个
-/// 工具补 `type: "custom"`。其余值一律拒绝 —— 这是请求体修正的开关，不是
-/// 自由字段，拼错的值等于静默改变转发行为。
+/// type ：empty = default（none type）；`custom` = anthropic up when to 
+/// `type: "custom"`。 its 1 —— this is request ， not is 
+/// by ， etc as 。
 fn validate_tool_type(value: Option<&Value>) -> Result<String, String> {
     let Some(value) = value else { return Ok(String::new()) };
     let text = value.as_str().unwrap_or("").trim();
@@ -1433,10 +1433,10 @@ fn validate_tool_type(value: Option<&Value>) -> Result<String, String> {
     Err("anthropicToolType 只支持 \"custom\"（留空表示不补 type）".to_string())
 }
 
-/// 客户端形态伪装：空 = 不伪装；`opencode` = 按 OpenCode 官方 CLI 的形状补齐
-/// 请求（见 `providers::custom::emulation`）。其余值一律拒绝 —— 与
-/// `validate_tool_type` 同一理由：它是请求体修正的开关，拼错等于静默改变
-/// 转发行为（而且这里改的是**请求体内容**，后果比一个头更重）。
+/// client：empty = not ；`opencode` = by OpenCode CLI 
+/// request（ `providers::custom::emulation`）。 its 1 —— and 
+/// `validate_tool_type` 1 by ： is request ， etc 
+/// as （ and this is **request**， after 1 ）。
 fn validate_client_emulation(value: Option<&Value>) -> Result<String, String> {
     let Some(value) = value else { return Ok(String::new()) };
     let text = value.as_str().unwrap_or("").trim();
@@ -1451,13 +1451,13 @@ fn validate_client_emulation(value: Option<&Value>) -> Result<String, String> {
     ))
 }
 
-/// 余额查询方案：空 = 这一家不查余额（手工新建的家）；非空必须是六个合法值
-/// 之一（见 [`BALANCE_SCHEMES`]）。其余值一律拒绝 —— 与 `validate_tool_type`
-/// 同一理由：方案决定**打哪个上游接口、带哪份凭证**，拼错的值等于把余额查到
-/// 别的接口上去。
+/// ：empty = this 1 not （ new ）；emptymust is 
+/// 1 （ [`BALANCE_SCHEMES`]）。 its 1 —— and `validate_tool_type`
+/// 1 by ：** up 、**， etc to 
+/// up 。
 ///
-/// 这个键由预置卡片提交（`ui/preset-providers.js` 的 `balance.scheme`），
-/// 界面不给用户手选（方案是「这一家是谁」的派生事实）。
+/// this by （`ui/preset-providers.js` `balance.scheme`），
+/// not to use （ is 「 this 1 is 」 ）。
 fn validate_balance_scheme(value: Option<&Value>) -> Result<String, String> {
     let Some(value) = value else { return Ok(String::new()) };
     let text = value.as_str().unwrap_or("").trim();

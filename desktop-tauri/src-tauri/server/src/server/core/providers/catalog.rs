@@ -1,8 +1,8 @@
-//! 聚合模型目录：提供商的原始清单、对外绑定及发送名解析。
+//! directory： 、 for and 。
 //!
-//! 原始模型 ID 是默认绑定，别名是额外绑定。各绑定独立开关；关闭默认绑定
-//! 不会禁用它指向的上游模型，也不会影响仍开启的别名。
-//! 清单来源在本文件，绑定解析在 routing.rs，对外与管理视图在 view.rs。
+//! ID is default， is 。；default
+//! not will use to up ， not will 。
+//! in file， in routing.rs， for and in view.rs。
 
 mod routing;
 mod snapshot;
@@ -28,8 +28,8 @@ pub use view::{
     advertised_manifest_contains, advertised_model_ids, has_available_providers, manage_view,
     models_by_provider, models_response, session_models, suggest_advertised,
 };
-/// 「这条映射在管理页上还有没有模型行可挂」——删除自映射时的放行判据（见函数说明）。
-/// 只服务写侧一个调用点，不进对外的 `pub use`。
+/// 「 this in up has no has can 」——delete when （）。
+/// 1 use ， not for `pub use`。
 pub(crate) use view::host_row_exists;
 
 pub(crate) fn upstream_manifests() -> Vec<(String, Vec<Value>)> {
@@ -39,8 +39,8 @@ pub(crate) fn upstream_manifests() -> Vec<(String, Vec<Value>)> {
     }).collect()
 }
 
-/// 原始能力清单不应用绑定开关；关闭原始 ID 后，别名仍需解析到这条上游记录。
-/// 用户自建模型、models.dev 补齐与能力覆盖都在这一处应用，插件与内置身份共用。
+/// can not use ； ID after ， need to this up 。
+/// use 、models.dev and can in this 1 use ， and use 。
 pub(crate) fn manifest_for_provider(provider: &str) -> Vec<Value> {
     let Some(adapter) = adapter_by_id(provider) else {
         return Vec::new();
@@ -63,12 +63,12 @@ pub(crate) fn manifest_for_provider(provider: &str) -> Vec<Value> {
     models
 }
 
-/// 编译期身份的调用方仍按 kind 查询，执行体优先取已安装的插件。
+/// use by kind ， already 。
 pub(crate) fn manifest_for(kind: ProviderKind) -> Vec<Value> {
     manifest_for_provider(kind_id(kind))
 }
 
-/// 旧内置目录已迁入插件，网关不再持有按 kind 划分的刷新元数据。
+/// old directory already ， not has by kind new 。
 pub(crate) fn refresh_meta(_kind: ProviderKind) -> (bool, i64) {
     (false, 0)
 }
@@ -95,7 +95,7 @@ pub fn provider_available(store: &AccountStore, provider: &str) -> bool {
     store.routing_snapshot().available_providers.contains(provider)
 }
 
-/// 管理视图需要完整清单；对外视图在此基础上再应用每条绑定的开关。
+/// need need ； for in up use 。
 pub(crate) fn managed_manifests(store: &AccountStore) -> Vec<(String, Vec<Value>)> {
     let accounts = store.routing_snapshot();
     all_provider_ids()

@@ -34,7 +34,7 @@ pub(in crate::server::core::plugin_host) async fn required_release(
         let Some(release) = pick_release_assets(release, id, Some(detail)) else {
             continue;
         };
-        // 补齐不跨到另一轮软件的 beta，避免把未来配套包装给旧网关。
+        // not to 1 beta， to old 。
         if !matches!(compare_versions(&release.version, minimum), Some(0 | 1))
             || (release.prerelease && (!is_prerelease_version(minimum)
                 || crate::server::core::update::parse_version(&release.version) != minimum_core))

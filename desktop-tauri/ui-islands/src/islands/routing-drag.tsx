@@ -6,7 +6,7 @@ export type RoutingDrop = { kind: 'provider' | 'account' | 'member'; provider: s
 type Drag = Omit<RoutingDrop, 'target' | 'after'> & { pointer: number; x: number; y: number; active: boolean; list: HTMLElement; ids: string[]; label: string }
 type Position = { kind: RoutingDrop['kind']; provider: string; id: string; target: string; after: boolean; index: number; x: number; y: number; label: string }
 
-/** 只在把手起拖，落点按同级列表计算；取消与松手是两条独立路径。 */
+/** in ， by ； and is path。 */
 export function useRoutingDrag(enabled: boolean, scope: string, onDrop: (drop: RoutingDrop) => void) {
   const drag = React.useRef<Drag | null>(null)
   const position = React.useRef<Position | null>(null)

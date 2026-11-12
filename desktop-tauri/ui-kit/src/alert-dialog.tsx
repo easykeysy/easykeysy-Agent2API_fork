@@ -5,27 +5,27 @@ import { Button } from './button'
 import { t } from './i18n'
 
 /**
- * 确认对话框（标准形态，与 shadcn/ui 的 AlertDialog 一致）。
+ * for （， and shadcn/ui AlertDialog 1 ）。
  *
- * 部件：AlertDialog / AlertDialogTrigger / AlertDialogPortal / AlertDialogClose /
+ * ：AlertDialog / AlertDialogTrigger / AlertDialogPortal / AlertDialogClose /
  * AlertDialogOverlay / AlertDialogContent / AlertDialogHeader / AlertDialogTitle /
  * AlertDialogDescription / AlertDialogFooter / AlertDialogAction /
  * AlertDialogCancel。
  *
- * ── 与 Dialog 的区别（标准语义，别混用）──────────────────────
- * AlertDialog 是**强制选择**：点遮罩、按 Esc 都不关闭，必须点其中一个动作键。
- * Dialog 是普通弹窗：点遮罩 / Esc 就关。
- * 因此「不可恢复操作」的二次确认用 AlertDialog 最贴切 —— 用户不能靠点空白处
- * 糊弄过去，必须明确表态。
+ * ── and Dialog （， use ）──────────────────────
+ * AlertDialog is ****：、 by Esc not ，must its in 1 。
+ * Dialog is ： / Esc 。
+ * 「 not can 」 use AlertDialog —— use not can empty
+ * ，must。
  *
- * 但本项目既有的 wbConfirm.ask 契约允许点遮罩 / Esc 取消（既有 13 处调用点都
- * 依赖「返回 false」这一行为），所以 ui/islands 里的确认弹窗岛走的是标准
- * AlertDialog 结构 + 显式放开两种关闭途径（见 wbConfirm 岛的实现注释）。
- * 新写确认框时直接用本组件、不加那两个放开项，拿到的就是标准行为。
+ * has wbConfirm.ask / Esc （ has 13 use 
+ * 「return false」 this 1 as ）， ui/islands is 
+ * AlertDialog + （ wbConfirm ）。
+ * new when use 、 not that ， to is as 。
  *
- * 层级：z-38（比普通弹窗 z-30 高、比 toast z-40 低）。确认框常从别的弹窗里发起
- * （「终止请求」「删除账号」…），同档时会被后声明的弹窗盖住，所以必须抬起来 ——
- * 这条与 ui/css/components.css 里 `#confirm-modal { z-index: 38 }` 的历史取舍一致。
+ * ：z-38（ z-30 、 toast z-40 ）。 from 
+ * （「request」「delete」…）， when will after ，must ——
+ * this and ui/css/components.css `#confirm-modal { z-index: 38 }` 1 。
  */
 
 const AlertDialog = AlertDialogPrimitive.Root
@@ -57,7 +57,7 @@ function AlertDialogOverlay({ className, ...props }: AlertDialogPrimitive.Backdr
 }
 
 type AlertDialogContentProps = AlertDialogPrimitive.Popup.Props & {
-  /** 是否自带右上角关闭按钮，默认 false —— 强制选择类弹窗不留「✕」这条模糊出口 */
+  /** is up by ，default false —— not 「✕」 this */
   showCloseButton?: boolean
 }
 
@@ -105,7 +105,7 @@ function AlertDialogContent({
   )
 }
 
-/** 标题栏：与 DialogHeader 同款（左侧标题、底部发丝线、右侧留白给关闭钮） */
+/** ： and DialogHeader （、、 to ） */
 function AlertDialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -120,7 +120,7 @@ function AlertDialogHeader({ className, ...props }: React.ComponentProps<'div'>)
   )
 }
 
-/** 正文（项目扩展，对应 `.modal-body`）：纵向排布、超高滚动 */
+/** （， for `.modal-body`）： to 、 */
 function AlertDialogBody({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -131,7 +131,7 @@ function AlertDialogBody({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-/** 底栏：按钮靠右，左侧留白用 mr-auto 顶开 */
+/** ： by ， use mr-auto */
 function AlertDialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -145,8 +145,8 @@ function AlertDialogFooter({ className, ...props }: React.ComponentProps<'div'>)
   )
 }
 
-/** 危险操作的警示正文框（对应 ui/css 的 `.danger-zone`：语义柔底 + 语义描边 + 小字）
- *  `tone` 取 neutral 时是普通提示框（背景凹槽底、普通描边）。 */
+/** （ for ui/css `.danger-zone`： + + ）
+ * `tone` neutral when is （、）。 */
 function AlertDialogBanner({
   className,
   tone = 'danger',

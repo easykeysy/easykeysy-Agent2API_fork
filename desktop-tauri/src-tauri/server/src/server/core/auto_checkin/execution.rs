@@ -7,26 +7,26 @@ use super::{
 use crate::server::logging;
 
 impl AutoCheckin {
-    // ─── 执行 ───────────────────────────────────────────────
+    // ─── ───────────────────────────────────────────────
 
-    /// 执行一次签到并记录结果；失败只记日志，不影响下一次调度。
+    /// 1 to and ；failure， not down 1 。
     ///
-    /// 返回 None 的两种情形（Node 同）：① 已有一次在跑（本次跳过）；
-    /// ② 执行抛错。路由层据此把 ① 翻成「签到正在执行中，请稍候」。
+    /// return None （Node ）：① already has 1 in （）；
+    /// ② 。 by ① 「 to in in ，」。
     ///
-    /// 手动全量（`run_now`，无条目归属）走这里：范围是**全部提供商**——多条目
-    /// 之后批量动作不再有全局「勾选范围」可借，那条范围概念进了每条定时条目。
+    /// （`run_now`，none） this ： is ****——
+    /// after not has 「」 can ， that when 。
     pub async fn fire(&self, reason: &str) -> Option<Value> {
         self.fire_for(reason, None, "manual").await
     }
 
-    /// 执行一次签到，可归属到某条定时条目。
+    /// 1 to ， can to when 。
     ///
-    /// `schedule_id` 给 Some：范围用**那条条目自己勾选的提供商**，去重标记落
-    /// 条目级（`checkin_schedules::mark_fired` / `mark_result`）；给 None
-    /// （手动全量）：范围是全部提供商，只落配置级标记。
-    /// `source` 是签到记录台账的触发来源（schedule / makeup / manual /
-    /// startup，见 `core::checkin_records` 的模块头）。
+    /// `schedule_id` to Some： use ** that **，
+    /// （`checkin_schedules::mark_fired` / `mark_result`）； to None
+    /// （）： is ，config。
+    /// `source` is to （schedule / makeup / manual /
+    /// startup， `core::checkin_records` module header）。
     pub async fn fire_for(
         &self,
         reason: &str,
@@ -37,8 +37,8 @@ impl AutoCheckin {
             .await
     }
 
-    /// [`fire_for`] 的完整形态：`only` 限定提供商范围，`retry_round` 标记补签轮。
-    /// 随机主轮走逐账号调度，这里只处理手动执行、窗口重试和补签。
+    /// [`fire_for`] ：`only` ，`retry_round` 。
+    /// ， this 、 and 。
     pub async fn fire_scoped(
         &self,
         reason: &str,
@@ -47,7 +47,7 @@ impl AutoCheckin {
         only: Option<&[String]>,
         retry_round: Option<&str>,
     ) -> Option<Value> {
-        // 先抢「执行中」标记；抢不到说明上一次还在跑
+        // 「 in 」； not to up 1 in 
         let guard = {
             let mut inner = self.lock();
             if inner.running {
@@ -70,7 +70,7 @@ impl AutoCheckin {
         if schedule_id.is_some() && schedule.is_none() {
             return None;
         }
-        // 条目执行只使用本条范围，手动全量使用全部提供商。
+        // use ， use 。
         let mut providers = schedule
             .as_ref()
             .map(|schedule| schedule.providers.clone())
@@ -90,8 +90,8 @@ impl AutoCheckin {
             return None;
         }
         let fired_scope = providers.clone();
-        // 补签只处理当天未完成账号，窗口重试只消费到时名单；手动执行不受名单限制。
-        // 只有窗口重试计入 retryLimit，主轮、补签和手动执行均不计次。
+        // ， to when ； not limit。
+        // has retryLimit，、 and not 。
         let window_retry =
             retry_round.is_none() && only.is_none() && matches!(source, "schedule" | "startup");
         if window_retry
@@ -135,8 +135,8 @@ impl AutoCheckin {
             checkin_schedules::mark_retried_providers(id, &fired_scope, &today);
         }
         if selected.as_ref().is_some_and(Vec::is_empty) {
-            // 补签轮没有可补的账号：标记照落（今天这一轮算跑过了），免得每 30 秒
-            // 进来查一遍
+            // no has can ：（ this 1 ）， 30 seconds
+            // 1 
             if let (Some(_), Some(_)) = (schedule_id, retry_round) {
                 logging::log(
                     "[Checkin]",
@@ -164,7 +164,7 @@ impl AutoCheckin {
                 .unwrap_or_default();
             checkin_schedules::account_plan::mark_attempted(id, &selected_targets, &today);
         }
-        // 先落日期再执行：即便签到中途进程被杀，也不会在重启后反复补签
+        // ： to in ， not will in after 
         write_state(json!({ "lastFiredDate": today }));
         if let Some(id) = schedule_id {
             checkin_schedules::mark_fired(id, Some(&today));
@@ -201,7 +201,7 @@ impl AutoCheckin {
                 Some(summary)
             }
             Err(error) => {
-                // 失败也写 lastResult（failed 里放错误文案），与 Node 的 catch 分支一致
+                // failure lastResult（failed error）， and Node catch 1 
                 let failure = json!({
                     "at": logging::now_ms(),
                     "date": today,
@@ -221,8 +221,8 @@ impl AutoCheckin {
                 None
             }
         };
-        // 逐家标记：成功失败都记（失败不重跑主轮 —— 重试由 `retryAccounts` 那条
-        // 链按间隔补，不靠「主轮再来一遍」；否则一次上游抖动会把整条条目重签 N 次）
+        // ：successfailure（failure not —— by `retryAccounts` that 
+        // by ， not 「 1 」；otherwise 1 up will N ）
         if let Some(id) = schedule_id {
             checkin_schedules::account_plan::finish_providers(id, &fired_scope, &today);
         }
@@ -230,14 +230,14 @@ impl AutoCheckin {
         outcome
     }
 
-    /// 成功分支：汇总 + 记录 lastResult + 日志（对应 Node fire 里的 try 主体）
+    /// success：total + lastResult + （ for Node fire try ）
     pub(super) fn record_success(&self, result: &Value, today: &str, reason: &str) -> Value {
         let number = |key: &str| result.get(key).and_then(Value::as_u64).unwrap_or(0);
         let succeeded = number("succeeded");
         let active = number("active");
         let total = number("total");
         let skipped = number("skipped");
-        // 失败明细：`名字（错误）`，名字缺失时退到 id，再退到「未知账号」
+        // failure：`（error）`， when to id， to 「unknown」
         let failures: Vec<String> = result
             .get("results")
             .and_then(Value::as_array)
@@ -251,7 +251,7 @@ impl AutoCheckin {
             "active": active,
             "total": total,
             "skipped": skipped,
-            // 只留前 5 条：面板展示用，避免 config.json 被长列表撑大（Node 同）
+            // before 5 ： use ， config.json （Node ）
             "failed": failures.iter().take(5).cloned().collect::<Vec<_>>(),
             "failedCount": failures.len(),
         });

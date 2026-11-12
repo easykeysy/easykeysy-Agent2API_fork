@@ -56,8 +56,8 @@
   --intl: var(--ui-intl);
   --intl-soft: var(--ui-intl-soft);
   --intl-bd: var(--ui-intl-bd);
-  /* 圆角：一律指向上面那份阶梯（theme.css 里有完整依据），
-     这里不再用乘系数算 —— 乘出来的 9.6 / 12.8 这种值就是「到处不一样」的来源 */
+  /* ： 1 to up that （theme.css has ），
+      this not use —— 9.6 / 12.8 this is 「 to not 1 」 */
   --radius: var(--radius-lg);
   --r-xs: var(--radius-xs);
   --r-sm: var(--radius-sm);

@@ -16,10 +16,10 @@ export function draftDirty(draft: RoutingDraft) {
   return JSON.stringify(draft.mode === 'inherit' ? null : draft.profile) !== JSON.stringify(draft.baseline)
 }
 /**
- * 路由配置草稿。按作用范围（'' = 全局）各存一份，切换范围不会丢掉没保存的改动。
+ * by config。 by use （'' = ） 1 ， not will no 。
  *
- * `load` 的第三个参数用于「新增模型独立配置」：直接以独立模式打开某个模型，
- * 不必先打开它再看它继承全局。不传时按后端返回的 customized 决定。
+ * `load` parameterused for「addconfig」： ，
+ * not 。 not when by after return customized 。
  */
 export function useRoutingEditor(onSaved: () => void) {
   const [scope, setScope] = React.useState('')
@@ -100,7 +100,7 @@ export function useRoutingEditor(onSaved: () => void) {
     } catch (failure) { setError(errorMessage(failure)) }
     finally { refs.current.busy = false; setBusy(false) }
   }
-  // 删除模型独立配置：直接落库回继承全局，不再让用户先切「继承」再保存。
+  // deleteconfig：， not use 「」。
   const remove = async (): Promise<boolean> => {
     const target = scope
     const draft = refs.current.drafts[target]
@@ -125,7 +125,7 @@ export function useRoutingEditor(onSaved: () => void) {
     } catch (failure) { setError(errorMessage(failure)); return false }
     finally { refs.current.busy = false; setBusy(false) }
   }
-  // 新增模型独立配置：立即落库，而不是只打开一份未保存草稿，避免用户以为已经创建。
+  // addconfig：， not is 1 ， use as already create。
   const create = async (model: string): Promise<boolean> => {
     const target = model.trim().toLowerCase()
     if (!target || refs.current.busy || refs.current.loading) return false
@@ -135,7 +135,7 @@ export function useRoutingEditor(onSaved: () => void) {
       const workspace = await bridge().getRoutingWorkspace(target)
       if (!workspace.revision) throw new Error(t('路由配置版本不可用，请更新网关后重试'))
       const profile = editableProfile(workspace)
-      // 新独立配置沿用当前生效的参与方式；没有显式配置时默认全部自动参与。
+      // new config use current and ； no has config when default and 。
       if (!profile.providerScope) profile.providerScope = 'all'
       if (profile.providerScope === 'selected') profile.disabledProviders = profile.disabledProviders.filter(id => profile.providers.includes(id))
       profile.excludedAccounts = profile.excludedAccounts.filter(id => workspace.accounts.some(account => account.id === id))

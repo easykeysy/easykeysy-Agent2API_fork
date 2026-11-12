@@ -5,28 +5,28 @@ import { Button } from './button'
 import { t } from './i18n'
 
 /**
- * 弹窗（标准形态，与 shadcn/ui 的 Dialog 一致）。
+ * （， and shadcn/ui Dialog 1 ）。
  *
- * 部件划分照标准：Dialog / DialogTrigger / DialogPortal / DialogClose /
+ * ：Dialog / DialogTrigger / DialogPortal / DialogClose /
  * DialogOverlay / DialogContent / DialogHeader / DialogTitle / DialogDescription /
- * DialogFooter。DialogContent 默认自带遮罩与右上角关闭按钮（showCloseButton），
- * 不需要时传 false。
+ * DialogFooter。DialogContent default and up by （showCloseButton），
+ * not need need when false。
  *
- * 另外两个是本项目的扩展件，对应 ui/css/components.css 里的弹窗结构，
- * shadcn 标准里没有：
- *   · DialogBody    ← `.modal-body`（纵向排布、超高滚动的正文区）
- *   · DialogSection ← `.modal-section`（正文里的分区块，内嵌凹槽底 + 描边）
+ * is ， for ui/css/components.css ，
+ * shadcn no has ：
+ * · DialogBody ← `.modal-body`（ to 、 ）
+ * · DialogSection ← `.modal-section`（ ， + ）
  *
- * 视觉对齐既有的 `.modal-mask` / `.modal` 一族：遮罩 46% 黑 + 3px 背景模糊，
- * 弹窗宽 min(620px, 100%)、--r-lg 圆角、--shadow-3 投影；入场是「淡入 + 上移 10px
- * 收 1.5%」，出场反向。z-index 取 30（与 .modal-mask 同档，轻提示在 40 之上）。
+ * for has `.modal-mask` / `.modal` 1 ： 46% + 3px ，
+ * min(620px, 100%)、--r-lg 、--shadow-3 ； is 「 + up 10px
+ * 1.5%」， to 。z-index 30（ and .modal-mask ， in 40 up ）。
  *
- * 出场动画挂 `fill-mode-forwards`：tw-animate 默认 fill-mode:none，动画一结束元素就
- * 弹回原样（不透明），而 Base UI 要等动画结束那个微任务里才把内容藏起来 —— 中间这
- * 一帧就是「关窗闪一下」。forwards 让它停在动画末帧（opacity 0）上，等隐藏接手。
+ * `fill-mode-forwards`：tw-animate default fill-mode:none， 1 
+ * （ not ）， Base UI need etc that —— in this 
+ * 1 is 「 1 down 」。forwards in （opacity 0） up ， etc 。
  *
- * 交互交给 Base UI 的 Dialog：焦点陷阱、Esc 关闭、滚动锁定、aria-modal 与
- * 关闭后焦点归位全部内建。
+ * to Base UI Dialog：、Esc 、、aria-modal and 
+ * after 。
  */
 
 function Dialog(props: DialogPrimitive.Root.Props) {
@@ -70,28 +70,28 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
 }
 
 type DialogContentProps = DialogPrimitive.Popup.Props & {
-  /** 是否自带右上角关闭按钮，默认 true */
+  /** is up by ，default true */
   showCloseButton?: boolean
   /**
-   * 关闭后是否把 Portal 留在 DOM 里（内容保留、只是隐藏），默认 false（关闭即卸载）。
+   * after is Portal in DOM （、 is ），default false（）。
    *
-   * 需要它的场景：弹窗里挂着一份**有状态的第三方 DOM**（比如登录引擎建的容器，
-   * 里面有它自己持有的 deviceId、发码冷却）。关闭即卸载会把这些一起清掉，
-   * 用户「发码 → 关掉 → 重新打开 → 填码」就会拿到一个已经作废的 deviceId。
-   * 打开这一档，内容留着、状态就还在（Base UI 会把隐藏时的内容标记为 inert，
-   * 键盘与读屏不会跑进去）。
+   * need need ： 1 ** has DOM**（e.g. ，
+   * has has deviceId、）。 will this 1 ，
+   * use 「 → → new → 」 will to 1 already deviceId。
+   * this 1 ，、 in （Base UI will when as inert，
+   * and not will ）。
    */
   keepMounted?: boolean
   /**
-   * 嵌在另一层弹窗里时也画自己那层遮罩，默认 false。
+   * in 1 when that ，default false。
    *
-   * Base UI 的嵌套约定是「子层不画遮罩」，好让父层干净地留在后面（见 DialogBackdrop
-   * 的 `enabled: forceRender || !nested`）。但两件事要落在遮罩上：
-   *   · 压暗整个下层（含父弹窗）—— 没有遮罩就只有换了个框，层叠感靠不住；
-   *   · 点空白处关闭这一层（useDialogRoot 的 outsidePress 认的就是遮罩本身：
-   *     `backdrop === target`），没有遮罩时点空白处什么都不会发生。
-   * 子层的遮罩排在父层 Popup 之后，颜色与模糊与普通弹窗同一套，因此父层是被压暗
-   * 的一层、子层浮在上面。
+   * Base UI is 「 not 」， in after （ DialogBackdrop
+   * `enabled: forceRender || !nested`）。 need in up ：
+   * · down （）—— no has has ， not ；
+   * · empty this 1 （useDialogRoot outsidePress is ：
+   * `backdrop === target`）， no has when empty not will 。
+   * in Popup after ， and and 1 ， is 
+   * 1 、 in up 。
    */
   overlayForceRender?: boolean
 }
@@ -142,9 +142,9 @@ function DialogContent({
   )
 }
 
-/** 弹窗标题栏：标题左、操作右，底部一条 hairline。
-    右侧留 40px 给 DialogContent 自带的关闭按钮（26px 按钮 + 12px 外边距 + 2px 间隙），
-    标题再长也不会压到它下面。 */
+/** ：、， 1 hairline。
+     40px to DialogContent by （26px by + 12px + 2px ），
+     not will to down 。 */
 function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -159,7 +159,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-/** 弹窗正文（项目扩展，对应 `.modal-body`）：纵向排布、超高滚动 */
+/** （， for `.modal-body`）： to 、 */
 function DialogBody({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -170,7 +170,7 @@ function DialogBody({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-/** 弹窗底栏：按钮靠右，左侧留白用 mr-auto 顶开 */
+/** ： by ， use mr-auto */
 function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -184,7 +184,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-/** 正文里的分区块（项目扩展，对应 `.modal-section`）：内嵌凹槽底 + 描边 */
+/** （， for `.modal-section`）： + */
 function DialogSection({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div

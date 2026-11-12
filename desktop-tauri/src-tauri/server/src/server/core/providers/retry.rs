@@ -1,4 +1,4 @@
-//! 可选的失败重试策略；旧插件返回未知方法时沿用原来的退避建议。
+//! optional failure； old returnunknown when use 。
 
 use serde::{Deserialize, Serialize};
 

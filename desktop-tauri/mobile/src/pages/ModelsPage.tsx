@@ -17,16 +17,16 @@ import { Badge as UiBadge } from '@ui'
 import { Toggle as UiToggle } from '@ui'
 
 /**
- * 模型管理。
+ * 。
  *
- * ── 折叠分组代替左栏 + 宽表 ──────────────────────────────────
- * 桌面端是「左侧提供商栏 + 右侧宽表」，手机上改成按提供商折叠的卡片：
- * 一行一个模型，只留扫读需要的四个事实 —— 模型 ID、上下文窗口、来源、
- * 是否展示。映射与能力位编辑进抽屉（在桌面端做）。
+ * ── + ──────────────────────────────────
+ * is 「 + 」， up by ：
+ * 1 1 ， need need —— ID、 up down 、、
+ * is 。 and can （ in ）。
  *
- * ── 两个开关要分开 ────────────────────────────────────────────
- * 「启用」决定这个模型对客户端是否可用；「可见性」是上游官方客户端是否
- * 展示它 —— 两者在桌面端是两列，手机上用小标签表达，不合并成一个开关。
+ * ── need ────────────────────────────────────────────
+ * 「enabled」 this for client is available；「 can 」 is up client is 
+ * —— in is ， up use ， not and 1 。
  */
 
 type Filter = 'all' | 'enabled' | 'hidden'
@@ -89,9 +89,9 @@ export function ModelsPage() {
   const hiddenCount = (models || []).filter(item => item.visibility === 'hidden').length
 
   /**
-   * 「未挂载的映射」：指向的上游模型已不在清单里（上游下线 / 承载它的那家当前
-   * 没有行），因此挂不到任何模型行上。与桌面端同一份判据（后端的 `dangling`），
-   * 手机端只做**提示 + 清理** —— 常规的映射编辑仍在桌面端「模型管理」里做。
+   * 「 」： to up already not in （ up down / that current
+   * no has ）， not to up 。 and 1 （ after `dangling`），
+   * ** + ** —— in 「」。
    */
   const danglingMappings = useMemo(
     () => mappings.filter(item => item.dangling === true)
@@ -197,8 +197,8 @@ export function ModelsPage() {
         </p>)}
       </Card></div> : null}
 
-      {/* 未挂载的映射：目标上游已不在清单里，别名调不通也挂不到行上。桌面端在
-          表格下方单列一块（models-dangling.tsx）；手机端只提示 + 清理。 */}
+      {/* ： up already not in ， not not to up 。 in 
+           down 1 （models-dangling.tsx）； + 。 */}
       {danglingMappings.length ? (
         <div className='m-section'>
           <Card className='m-card m-card-pad'>
@@ -210,8 +210,8 @@ export function ModelsPage() {
             </p>
             {danglingMappings.map(item => {
               const key = `${item.provider || ''}:${item.alias || ''}:${item.target || ''}`
-              // 自映射（alias == target）= 模型自己的默认绑定：用户启停过它就会留下
-              // 这一条，模型下线后挂不到行上。显示成 `x → x` 只会让人困惑，只写一次。
+              // （alias == target）= default： use will down 
+              // this 1 ， down after not to up 。 `x → x` will ， 1 。
               const isDefault = item.isDefault === true
                 || String(item.alias || '').trim().toLowerCase() === String(item.target || '').trim().toLowerCase()
               return (
@@ -406,7 +406,7 @@ function sourceLabel(source?: string): string {
   return t('自定义')
 }
 
-/** 从能力位里读两件手机上值得显示的事实（上下文窗口 / 是否支持思考） */
+/** from can up （ up down / is supports） */
 function readCaps(capabilities: unknown): { context?: string; reasoning?: boolean } {
   if (!capabilities || typeof capabilities !== 'object') return {}
   const caps = capabilities as Record<string, unknown>

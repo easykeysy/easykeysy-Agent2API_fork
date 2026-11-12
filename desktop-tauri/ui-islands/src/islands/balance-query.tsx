@@ -1,29 +1,29 @@
 /**
- * Agent2API · 自定义提供商的**余额查询方案**界面元数据（六种，与后端
- * `providers::custom::balance` 的 `Scheme` 一一对应）。
+ * Agent2API · ****（， and after 
+ * `providers::custom::balance` `Scheme` 1 1 for ）。
  *
- * 它**不是岛**（不向 window 注册任何接口）：只是被几个岛（账号设置弹窗、
- * 新增账号表单）共用的数据与组件模块 —— `.tsx` 后缀是因为里面有一段 JSX，
- * `index.tsx` 的 glob 会顺带 import 它，那是无副作用的空转。
+ * ** not is **（ not to window ）： is （set、
+ * add） use and —— `.tsx` after is as has 1 JSX，
+ * `index.tsx` glob will import ， that is none use empty。
  *
- * ── 为什么要这一张表 ────────────────────────────────────────
- * 方案是「这一家是谁」的派生事实（预置卡片在创建时把它写进提供商记录），
- * 用户**不选方案**；界面要回答的是另一个问题：这个方案需要用户补哪些凭证、
- * 每个框怎么填。那件事只有前端知道（标签 / 占位 / 提示都是文案），
- * 后端只认「五个字段键」这一层契约（`custom_accounts::BALANCE_QUERY_FIELDS`）。
+ * ── Why need this 1 ────────────────────────────────────────
+ * is 「 this 1 is 」 （ in create when ），
+ * use ** not **； need is 1 ： this need need use 、
+ * 。 that has before （ / / is ），
+ * after 「 」 this 1 （`custom_accounts::BALANCE_QUERY_FIELDS`）。
  *
- * ── 什么不用补 ──────────────────────────────────────────────
- * 四条只用**账号自己的 API Key**（sub2api / DeepSeek / OpenCode Go / 智谱国际
- * 站）—— 它们的 `fields` 是空数组，界面只显示一句方案说明（用户「DeepSeek 不用
- * 额外填东西」的口径）；新增账号与「查询设置」两处都照这个数组渲染，不写死分支。
+ * ── not use ──────────────────────────────────────────────
+ * use ** API Key**（sub2api / DeepSeek / OpenCode Go / 
+ * ）—— `fields` is empty， 1 （ use 「DeepSeek not use 
+ * 」 ）；add and 「set」 this ， not 。
  *
- * ── 两个调用点的绑定方式不同（说清楚免得改坏）────────────────
- *   · 新增账号表单（`add-custom-provider.tsx`）：输入框是**非受控**的
- *     （草稿存在模块级 draft 里，提交时按 DOM id 现读），因此那边自己用
- *     `balanceFieldId` 拼 id、自己写草稿；本文件的 `BalanceQuerySection`
- *     只被「账号设置」弹窗用（那是受控的 React 状态）。
- *   · 值只认两种：**非空 = 要写入**、**空 = 不修改**（清除走显式按钮，
- *     传 null 给后端）—— 与 apiKey / 余额凭证那一套语义逐字一致。
+ * ── use not （）────────────────
+ * · add（`add-custom-provider.tsx`）： is **** 
+ * （ in draft ， when by DOM id ）， that use 
+ * `balanceFieldId` id、；file `BalanceQuerySection`
+ * 「set」 use （ that is React ）。
+ * · ：**empty = need **、**empty = not **（ by ，
+ * null to after ）—— and apiKey / that 1 1 。
  */
 
 import * as React from 'react'
@@ -31,7 +31,7 @@ import { Button, Input, Field, FieldLabel } from '@ui'
 
 import { t } from '../i18n'
 
-/** 方案 id（与后端 `custom_providers::BALANCE_SCHEME_*` 逐字一致，勿改拼写） */
+/** id（ and after `custom_providers::BALANCE_SCHEME_*` 1 ，） */
 export type BalanceScheme =
   | 'sub2api'
   | 'new_api'
@@ -41,15 +41,15 @@ export type BalanceScheme =
   | 'zhipu'
   | 'zhipu_zai'
 
-/** 记录键（与后端 `custom_accounts::BALANCE_QUERY_FIELDS` 逐字一致） */
+/** （ and after `custom_accounts::BALANCE_QUERY_FIELDS` 1 ） */
 export type BalanceFieldKey = 'userId' | 'accessToken' | 'username' | 'password' | 'token'
 
-/** 账号公开形态里的 `balanceQuery`（后端注入；只有登记了方案的家才有这个键） */
+/** `balanceQuery`（ after ； has has this ） */
 export type BalanceQueryPublic = {
   scheme?: string
   userId?: string
   username?: string
-  /** 三个密字段**只有存在标记**，值绝不透出（与 apiKey 同一纪律） */
+  /** ** has in **， not （ and apiKey 1 ） */
   hasAccessToken?: boolean
   hasPassword?: boolean
   hasToken?: boolean
@@ -58,27 +58,27 @@ export type BalanceQueryPublic = {
 export type BalanceField = {
   key: BalanceFieldKey
   label: string
-  /** 密字段：输入框遮显、留空 = 不修改、清除走按钮（传 null） */
+  /** ：、empty = not 、 by （ null） */
   secret?: boolean
   placeholder: string
   hint?: string
 }
 
 export type BalanceSchemeSpec = {
-  /** 展示名（与后端 `Scheme::label` 同口径） */
+  /** （ and after `Scheme::label` ） */
   label: string
-  /** 「打哪里」（表单里那行小字，与 OmniProxy 的提示位置一致） */
+  /** 「」（ that ， and OmniProxy 1 ） */
   endpoint: string
-  /** 方案说明（中性提示；讲清要填什么、去哪拿） */
+  /** （ in ； need 、） */
   note: string
-  /** 这个方案要用户补的凭证（空数组 = 只用账号自己的 API Key） */
+  /** this need use （empty = use API Key） */
   fields: BalanceField[]
 }
 
 /**
- * 七个方案的界面定义。文案移植自 OmniProxy 的网关词典（`balance_*` 一批键），
- * 措辞按本项目的口径微调（"提供商设置" → 「账号设置 → 查询设置」）；
- * 智谱国际站（zhipu_zai）是本项目自研的补充，OmniProxy 没有这一条。
+ * 。 OmniProxy （`balance_*` 1 ），
+ * by （"set" → 「set → set」）；
+ * （zhipu_zai） is ，OmniProxy no has this 1 。
  */
 export const BALANCE_SCHEME_SPECS: Record<BalanceScheme, BalanceSchemeSpec> = {
   sub2api: {
@@ -153,9 +153,9 @@ export const BALANCE_SCHEME_SPECS: Record<BalanceScheme, BalanceSchemeSpec> = {
       },
     ],
   },
-  // 智谱国际站（z.ai）：同一条账户报告接口，但鉴权不同 —— 控制台类接口只认
-  // 「API Key 铸 SIGN 签名」（后端 `zhipu_sign_jwt`），裸 Key / 控制台令牌都进不去。
-  // 签名原料就是转发要填的那把 API Key，所以这一支**没有任何输入框**（deepseek 同款）。
+  // （z.ai）： 1 ， not —— 
+  // 「API Key SIGN 」（ after `zhipu_sign_jwt`）， Key / not 。
+  // is need that API Key， this 1 ** no has **（deepseek ）。
   zhipu_zai: {
     label: '智谱（z.ai 国际）',
     endpoint: 'api.z.ai 控制台',
@@ -164,13 +164,13 @@ export const BALANCE_SCHEME_SPECS: Record<BalanceScheme, BalanceSchemeSpec> = {
   },
 }
 
-/** 方案 → 界面定义（未知 / 缺省给 null = 不渲染这一段） */
+/** → （unknown / to null = not this 1 ） */
 export function balanceSpecOf(scheme: string | undefined | null): BalanceSchemeSpec | null {
   if (!scheme) return null
   return (BALANCE_SCHEME_SPECS as Record<string, BalanceSchemeSpec | undefined>)[scheme] ?? null
 }
 
-/** 某个密字段是否已配置（读公开形态的 `has*` 标记） */
+/** is already config（ `has*` ） */
 export function balanceFieldConfigured(
   query: BalanceQueryPublic | null | undefined,
   field: BalanceField,
@@ -183,13 +183,13 @@ export function balanceFieldConfigured(
 }
 
 /**
- * 该方案的查询凭证是否**齐了**（齐了才会真去查；不齐后端回「未配置」，
- * 余额列显示中性提示而不是红色失败）。
+ * this is ****（ will ； not after 「not configured」，
+ * in not is failure）。
  *
- * 与后端各方案的必填判据逐条对齐（`balance.rs` 的各处早退）：
- *   · sub2api / deepseek / opencode / zhipu_zai → 账号有 API Key（那是账号凭证，不在本段）；
- *   · new_api → 访问令牌；sensenova → 账号 + 密码；zhipu → 令牌。
- *   商汤的登录票缓存（后端记录里）不进这一判断：它过期后自动重登。
+ * and after for （`balance.rs` ）：
+ * · sub2api / deepseek / opencode / zhipu_zai → has API Key（ that is ， not in ）；
+ * · new_api → ；sensenova → + ；zhipu → 。
+ * （ after ） not this 1 ： after 。
  */
 export function balanceQueryConfigured(query: BalanceQueryPublic | null | undefined): boolean {
   const scheme = String(query?.scheme || '')
@@ -198,18 +198,18 @@ export function balanceQueryConfigured(query: BalanceQueryPublic | null | undefi
     return String(query?.username || '').trim() !== '' && query?.hasPassword === true
   }
   if (scheme === 'zhipu') return query?.hasToken === true
-  // 其余四家靠账号的 API Key：这里不判（界面上「未配置凭证」徽章由账号层给）
+  // its API Key： this not （ up 「not configured」 by to ）
   return true
 }
 
-/* ─── 草稿与「读改动」（账号设置弹窗用；新增账号表单走自己的 DOM 草稿）── */
+/* ─── and 「」（set use ；add DOM ）── */
 
 /**
- * 账号公开形态 → 本段草稿。
+ * → 。
  *
- * **密字段一律空串**：公开形态只有 `has*` 标记、没有值（后端只给标记，
- * 值与尾号两条管道分开）—— 输入框因此永远是空的，空 = 不修改。
- * 两个非密字段（`userId` / `username`）原样回显，用户看得见自己配了什么。
+ * ** 1 empty**： has `has*` 、 no has （ after to ，
+ * and ）—— is empty ，empty = not 。
+ * （`userId` / `username`）， use 。
  */
 export function balanceQueryDraftOf(
   query: BalanceQueryPublic | null | undefined,
@@ -224,13 +224,13 @@ export function balanceQueryDraftOf(
 }
 
 /**
- * 读本段的改动 → `PATCH /api/accounts` 里的 `balanceQuery` 子对象。
- * `null` = 这一家没有可填的方案字段（不提交这个键）。
+ * → `PATCH /api/accounts` `balanceQuery` for 。
+ * `null` = this 1 no has can （ not this ）。
  *
- * 语义与后端 `normalize_balance_query_patch` 一致：
- *   · 密字段：**留空 = 不修改**（清除走「清除」按钮，它立刻发 null）；
- *   · 非密字段：原样提交（草稿从记录初始化，没动过就是原值 → 后端判无变化；
- *     用户清空 = 显式清掉这一项，看得见自己清的是谁）。
+ * and after `normalize_balance_query_patch` 1 ：
+ * · ：**empty = not **（「」 by ， null）；
+ * · ：（ from ， no is → after none；
+ * use empty = this 1 ， is ）。
  */
 export function readBalanceQueryChanges(
   scheme: string | undefined | null,
@@ -250,14 +250,14 @@ export function readBalanceQueryChanges(
   return Object.keys(patch).length ? patch : null
 }
 
-/* ─── 渲染：账号设置弹窗的「查询设置」段 / 新增账号表单共用 ──── */
+/* ─── ：set 「set」 / add use ──── */
 
 /**
- * 一行方案字段（受控）。
+ * 1 （）。
  *
- * `configured` 只对密字段有意义（公开形态里的 `has*`）：已配置时占位提示
- * 改成「已配置，留空则不修改」并给出「清除」按钮 —— 与 CatPaw 的余额凭证、
- * 自定义账号的 API Key 两处同款。
+ * `configured` for has （ `has*`）： already config when 
+ * 「 already config，empty then not 」 and to 「」 by —— and CatPaw 、
+ * API Key 。
  */
 export function BalanceFieldRow({
   field, value, configured, onValue, onClear, clearBusy, idPrefix,
@@ -266,10 +266,10 @@ export function BalanceFieldRow({
   value: string
   configured: boolean
   onValue: (next: string) => void
-  /** 清除已配置的密字段（传 null 给后端）；非密字段不给这个动作 */
+  /** already config （ null to after ）； not to this */
   onClear?: () => void
   clearBusy?: boolean
-  /** DOM id 前缀（两处调用点的 id 不能撞） */
+  /** DOM id before （ use id not can ） */
   idPrefix: string
 }): React.ReactElement {
   const id = `${idPrefix}-${field.key}`
@@ -290,8 +290,8 @@ export function BalanceFieldRow({
 }
 
 /**
- * 一整段方案字段（说明行 + 逐字段行）。`values` 只装**正在编辑**的值
- * （密字段留空 = 不修改）；`configured` 是公开形态来的「已配置」标记。
+ * 1 （ + ）。`values` ** in ** 
+ * （empty = not ）；`configured` is 「 already config」。
  */
 export function BalanceQuerySection({
   spec, values, configured, onValue, onClear, clearBusy, idPrefix,

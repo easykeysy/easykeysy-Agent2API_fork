@@ -19,7 +19,7 @@ export type RoutingConfigProps = {
   onScope(model: string): void; onAccount(id: string): void; onSort(provider: string): void; onProtection(workspace: RoutingWorkspace): void
 }
 
-/** 账号启停即时保存；独立路由的参与名单、策略与顺序保留草稿。 */
+/** when ； by and 、 and 。 */
 export function RoutingConfigPanel({ editor, scope, now, accountControl, onScope, onAccount, onSort, onProtection }: RoutingConfigProps) {
   const { setOpened, sectionOpen, setSectionOpen, search, setSearch, query, isOpen } = useRoutingExpansion()
   const [legacyDialog, setLegacyDialog] = React.useState<RoutingWorkspace['legacyGlobalParticipation']>(null)

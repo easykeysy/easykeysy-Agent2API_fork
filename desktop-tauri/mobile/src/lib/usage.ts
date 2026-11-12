@@ -1,14 +1,14 @@
 /**
- * 余额读数解析。
+ * 。
  *
- * 后端的 `usage` 对象按家给不同形状（workbuddy 的 `totalLeft` 既有契约、
- * 归一化的 `available` + `wallets`、以及只给展示串的 `availableView`）。
- * 这里**按字段形状探测**而不是按 provider 分派：provider 只决定谁去查，
- * 不决定查回来长什么样。桌面端 `accounts-panels.tsx` 的 `usageSummary`
- * 是同一套口径，手机端只保留「一行读数 + 一句完整说明」两档。
+ * after `usage` for by to not （workbuddy `totalLeft` has 、
+ * 1 `available` + `wallets`、 and to `availableView`）。
+ * this ** by ** not is by provider ：provider ，
+ * not 。 `accounts-panels.tsx` `usageSummary`
+ * is 1 ，「 1 + 1 」。
  *
- * 解析失败一律降级成中性读数（`muted`），不抛错 —— 余额查不到是常态，
- * 不该把账号页拖红。
+ * failure 1 in （`muted`）， not —— not to is ，
+ * not this 。
  */
 
 import type { UsageRow, UsageSnapshot } from '../api/gateway'
@@ -20,9 +20,9 @@ import { creditExpirySummaryOf, creditExpiryText, creditExpiryUnitOf, expiringCr
 
 export type UsageView = {
   kind: 'ok' | 'warn' | 'bad' | 'muted'
-  /** 行内短读数，例如「可用 12.3 万」「未查询」「查询失败」 */
+  /** ，e.g.「available 12.3 」「」「failure」 */
   text: string
-  /** 完整说明（给详情页/长按提示用） */
+  /** （ to / by use ） */
   detail: string
   failureStatus?: string
   failureDetail?: string
@@ -30,17 +30,17 @@ export type UsageView = {
 }
 
 /**
- * 紧凑数字：整数走千分位，超过一万用「万」、超过一亿用「亿」。
+ * ：， 1 use 「」、 1 use 「」。
  *
- * 刻意不 import `lib/format` 的同名能力：那个模块依赖页面层，反过来被
- * 数据层引用会绕出循环；这里只服务余额一种口径，自己写一份更稳。
+ * not import `lib/format` can ： that ， 
+ * use will ； this 1 ， 1 。
  */
 function compact(value: unknown): string {
-  // null / 空串不能被 Number() 悄悄翻成 0：那会把「读不到」显示成「可用 0」
+  // null / empty not can Number() 0： that will 「 not to 」「available 0」
   const num = usageNumberOrNull(value)
   if (num === null) return '—'
   const abs = Math.abs(num)
-  // 「万 / 亿」只保留 1~2 位小数：行内读数要短，精度对余额没有行动价值
+  // 「 / 」 1~2 ： need ， for no has 
   const chinese = locale().startsWith('zh')
   if (abs >= 1e8 && chinese) return `${(num / 1e8).toFixed(2)} ${locale() === 'zh-Hant' ? '億' : '亿'}`
   if (abs >= 1e4 && chinese) return `${(num / 1e4).toFixed(1)} ${locale() === 'zh-Hant' ? '萬' : '万'}`
@@ -51,13 +51,13 @@ function compact(value: unknown): string {
   return num.toLocaleString(language, { maximumFractionDigits: 2 })
 }
 
-/** usage 里可读的「单位」：缺失时按积分兜底 */
+/** usage can 「」： when by */
 function unitOf(usage: Record<string, unknown>): string {
   const unit = usage.unit
   return typeof unit === 'string' && unit.trim() ? usageUnitLabel(unit.trim(), t) : t('积分')
 }
 
-/** 补充查询中的部分失败说明。 */
+/** in failure。 */
 function partialErrors(usage: Record<string, unknown>): string[] {
   const parts = usageWarningsOf(usage).map(line => t(line))
   if (usage.statisticsError) {
@@ -66,14 +66,14 @@ function partialErrors(usage: Record<string, unknown>): string[] {
   return parts
 }
 
-/** 单行余额读数：把快照里的 `usage` / `error` 翻成一行文本 + 完整说明 */
+/** ： `usage` / `error` 1 + */
 export function usageText(row?: UsageRow, now = Date.now()): UsageView {
-  // ① 还没查过（快照里没有这一行）
+  // ① no （ no has this 1 ）
   if (row === undefined) {
     return { kind: 'muted', text: t('未查询'), detail: t('尚未查询该账号的余额') }
   }
 
-  // ② 这一行明确失败：「未配置查询凭证」是中性提示，其余才是红色失败
+  // ② this 1 failure：「not configured」 is in ， its is failure
   if (row.error) {
     if (row.code === 'usage_not_configured') {
       return { kind: 'muted', text: t('未配置'), detail: t(row.error) }
@@ -126,7 +126,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
     return withErrors({ kind: baseKind, text: t('分窗口额度'), detail })
   }
 
-  // ④ workbuddy 既有形状：totalLeft / planLeft / bonusLeft
+  // ④ workbuddy has ：totalLeft / planLeft / bonusLeft
   if (Object.prototype.hasOwnProperty.call(data, 'totalLeft')) {
     const total = data.unlimited === true ? '∞' : compact(data.totalLeft)
     const parts = [t('总剩余 {total}', { total })]
@@ -139,7 +139,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
     return withErrors({ kind: baseKind, text: t('可用 {total}', { total }), detail: parts.join(' · ') })
   }
 
-  // ⑤ 后端已经给好的紧凑展示串（ZCode 的「1亿 token」之类）优先
+  // ⑤ after already to （ZCode 「1 token」）
   if (typeof data.availableView === 'string' && data.availableView.trim()) {
     const text = data.availableView.trim()
     const parts = [text]
@@ -149,7 +149,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
     return withErrors({ kind: baseKind, text, detail: parts.join(' · ') })
   }
 
-  // ⑥ 归一化形状：available 是数字
+  // ⑥ 1 ：available is 
   if (typeof data.available === 'number' && Number.isFinite(data.available)) {
     return withErrors({
       kind: baseKind,
@@ -158,7 +158,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
     })
   }
 
-  // ⑦ 只有钱包明细：取第一个带 balance 的钱包做读数，全部钱包进 detail
+  // ⑦ has ： 1 balance ， detail
   if (Array.isArray(data.wallets)) {
     const wallets = creditStatisticsWalletsOf(data) ?? data.wallets.filter(
       (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
@@ -191,11 +191,11 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
 
   const supplements = usageSupplementReadingsOf(data, t, compact)
   if (supplements.length) return withErrors({ kind: 'muted', text: supplements[0], detail: supplements.join(' · ') })
-  // ⑧ 形状认不出来
+  // ⑧ not 
   return withErrors({ kind: 'muted', text: t('无数据'), detail: t('未返回可识别的余额数据') })
 }
 
-/** 把快照行按账号 id 索引（没有 id 的行跳过） */
+/** by id （ no has id ） */
 export function usageIndex(snapshot: UsageSnapshot | null): Map<string, UsageRow> {
   const map = new Map<string, UsageRow>()
   const rows = snapshot?.results

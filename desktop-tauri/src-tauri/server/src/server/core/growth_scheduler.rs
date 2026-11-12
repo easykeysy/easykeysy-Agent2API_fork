@@ -1,8 +1,8 @@
-//! 猫猫旅行排程的宿主编排：计时、用户配置、当天去重与执行记录。
+//! ： when 、 use config、 and 。
 //!
-//! 默认开关、每日时刻和执行动作由插件的 `schedules.list` 提供。
-//! 未安装、停用或不支持排程的插件不进入执行路径；插件加载与配置更新会唤醒循环。
-//! `growthSchedule` 是已发布的配置键，保留它以兼容用户已有的开关与时刻。
+//! default、daily when and by `schedules.list` 。
+//! 、disabled or unsupported not path； and configupdate will 。
+//! `growthSchedule` is already config， use already has and when 。
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -16,7 +16,7 @@ use crate::server::core::plugin_host::{self, schedules};
 use crate::server::errors::GatewayError;
 use crate::server::logging;
 
-/// 配置键（config.json 里的字段名）。
+/// config（config.json ）。
 pub const CONFIG_KEY: &str = "growthSchedule";
 
 const PROVIDER: &str = "workbuddy";
@@ -24,15 +24,15 @@ const SCHEDULE_ID: &str = "travel";
 
 pub use schedules::MAX_TIMES;
 
-/// 轮询间隔：与 `auto_checkin` 的 30 秒同口径（到点后最多晚 30 秒执行）。
+/// ： and `auto_checkin` 30 seconds（ to after 30 seconds）。
 pub const TICK_MS: u64 = 30_000;
 
-/// 时刻条目归一化为 `HH:MM`。
+/// when 1 as `HH:MM`。
 fn normalize_time(value: Option<&Value>) -> Option<String> {
     schedules::normalize_time(value?.as_str()?)
 }
 
-/// 用户明确保存的值优先；缺失字段采用已加载插件的默认值。
+/// use ； use already default。
 pub fn settings() -> (bool, Vec<String>) {
     let declared = schedules::definition(PROVIDER, SCHEDULE_ID);
     let raw = config::current()
@@ -68,10 +68,10 @@ pub fn settings() -> (bool, Vec<String>) {
     (enabled, times)
 }
 
-/// 写配置（`{enabled?, times?}`，只改传进来的字段）。
+/// config（`{enabled?, times?}`， ）。
 ///
-/// 与 `auto_checkin` 的 `write_state` 同构：合并写回，config.json 的其它字段
-/// 原样保留。
+/// and `auto_checkin` `write_state` ： and ，config.json its 
+/// 。
 pub fn configure(patch: &Value) -> Result<Value, String> {
     let (_, previous_times) = settings();
     let mut current = config::current()
@@ -124,7 +124,7 @@ pub fn configure(patch: &Value) -> Result<Value, String> {
     Ok(state())
 }
 
-/// 对外状态（设置页 / 签到页读它）。
+/// for （set / to ）。
 pub fn state() -> Value {
     let (enabled, times) = settings();
     let raw = config::current()
@@ -138,9 +138,9 @@ pub fn state() -> Value {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
-    // 今天已经跑过的**计划时刻**（界面据此把已执行的条目标灰）。
-    // 只认 `firedTimes`：那是按计划时刻落的标记（见 `run_once` 的说明），
-    // 不回落到 `lastFiredTime`（实际执行时刻，与计划时刻不是同一个坐标系）。
+    // already ** when **（ already ）。
+    // `firedTimes`： that is by when （ `run_once` ），
+    // not to `lastFiredTime`（ when ， and when not is 1 ）。
     let fired_today: Vec<String> = if last_fired_date == today {
         raw.get("firedTimes")
             .and_then(Value::as_array)
@@ -168,9 +168,9 @@ pub fn state() -> Value {
     })
 }
 
-// ─── 运行状态 ───────────────────────────────────────────────
+// ─── ───────────────────────────────────────────────
 
-/// 是否有一轮正在执行（跨进程内全局，与 auto_checkin 的 running 同构）。
+/// is has 1 in （， and auto_checkin running ）。
 fn running_flag() -> &'static AtomicBool {
     static RUNNING: AtomicBool = AtomicBool::new(false);
     &RUNNING
@@ -180,7 +180,7 @@ pub fn is_running() -> bool {
     running_flag().load(Ordering::SeqCst)
 }
 
-/// 抢「执行中」标记的守卫：Drop 时复位（对应 Go 的 `defer`）。
+/// 「 in 」 ：Drop when （ for Go `defer`）。
 struct RunGuard;
 
 impl Drop for RunGuard {
@@ -196,9 +196,9 @@ fn acquire() -> Option<RunGuard> {
     Some(RunGuard)
 }
 
-// ─── 执行 ───────────────────────────────────────────────────
+// ─── ───────────────────────────────────────────────────
 
-/// 执行中、能力暂不可用和真正失败不能合并为同一个空结果。
+/// in 、 can unavailable and failure not can and as 1 empty。
 pub enum RunOutcome {
     Completed(Value),
     Skipped(String),
@@ -206,7 +206,7 @@ pub enum RunOutcome {
     Failed(GatewayError),
 }
 
-/// 跑一轮巡检；去重按计划时刻落，手动执行不占用定时轮次。
+/// 1 ； by when ， not use when 。
 pub async fn run_once(store: &AccountStore, reason: &str, plan_time: Option<&str>) -> RunOutcome {
     if let Some(message) = schedules::pause_reason(PROVIDER, SCHEDULE_ID) {
         return RunOutcome::Skipped(message);
@@ -235,7 +235,7 @@ pub async fn run_once(store: &AccountStore, reason: &str, plan_time: Option<&str
             return RunOutcome::Skipped(message);
         }
         Err(error) => {
-            // 每天定点的动作不应因失败变成高频重试；下个计划时刻或手动执行可再试。
+            // not failure； down when or can 。
             record_run(
                 json!({
                     "at": logging::now_ms(),
@@ -271,7 +271,7 @@ pub async fn run_once(store: &AccountStore, reason: &str, plan_time: Option<&str
 }
 
 fn record_run(summary: Value, plan_time: Option<&str>) {
-    // 落 lastResult + 当天的「已执行时刻」
+    // lastResult + 「 already when 」
     let today = beijing::today_key();
     let now_time = beijing::now().format("%H:%M").to_string();
     let raw = config::current()
@@ -290,12 +290,12 @@ fn record_run(summary: Value, plan_time: Option<&str>) {
                 .collect()
         })
         .unwrap_or_default();
-    // 跨天则重置（firedTimes 只在同一天内有效）
+    // then （firedTimes in 1 valid）
     if raw.get("lastFiredDate").and_then(Value::as_str) != Some(today.as_str()) {
         fired.clear();
     }
-    // 去重标记按**计划时刻**落（见函数头）；手动执行没有计划时刻，
-    // 不写标记 —— 手动跑过不等于当天的定时轮次已经跑过。
+    // by ** when **（）； no has when ，
+    // not —— not etc when already 。
     if let Some(plan_time) = plan_time.filter(|text| !text.is_empty()) {
         if !fired.iter().any(|item| item == plan_time) {
             fired.push(plan_time.to_string());
@@ -312,7 +312,7 @@ fn record_run(summary: Value, plan_time: Option<&str>) {
     config::update_raw_field(CONFIG_KEY, Value::Object(next));
 }
 
-/// 当天该跑的时刻里还有没跑过的 → Some(那一条)，否则 None。
+/// this when has no → Some( that 1 )，otherwise None。
 fn due_time(now: chrono::DateTime<chrono::FixedOffset>) -> Option<String> {
     let (enabled, times) = settings();
     if !enabled || schedules::pause_reason(PROVIDER, SCHEDULE_ID).is_some() {
@@ -339,17 +339,17 @@ fn due_time(now: chrono::DateTime<chrono::FixedOffset>) -> Option<String> {
             Vec::new()
         };
     let now_text = now.format("%H:%M").to_string();
-    // 取「已到点且今天没跑过」里最早的一条：多个时刻同时过期时逐轮补跑
-    //（一轮只跑一次，下个 tick 再补下一条 —— 与 auto_checkin 的补签同语义）
+    // 「 already to and no 」 1 ： when when when 
+    //（ 1 1 ， down tick down 1 —— and auto_checkin ）
     times
         .into_iter()
         .find(|time| time.as_str() <= now_text.as_str() && !fired.iter().any(|item| item == time))
 }
 
-/// 调度循环（由 `ServerState::bootstrap` 起一次）。
+/// （ by `ServerState::bootstrap` 1 ）。
 ///
-/// 每 `TICK_MS` 醒一次重新判定：改完设置下一轮就生效、机器休眠后自愈 ——
-/// 与 `auto_checkin` / `scheduled_tasks` 同一取舍（详见那两个模块头）。
+/// `TICK_MS` 1 new ：set down 1 、 after ——
+/// and `auto_checkin` / `scheduled_tasks` 1 （ that module header）。
 pub fn spawn(store: AccountStore) {
     static STARTED: AtomicBool = AtomicBool::new(false);
     if STARTED.swap(true, Ordering::SeqCst) {
@@ -375,9 +375,9 @@ pub fn spawn(store: AccountStore) {
     });
 }
 
-// ─── 全局句柄（供 API 手动触发）─────────────────────────────
+// ─── （ API ）─────────────────────────────
 
-/// 手动执行不占用当天的定时轮次。
+/// not use when 。
 pub async fn run_now(store: &AccountStore) -> RunOutcome {
     run_once(store, "手动执行", None).await
 }
@@ -400,29 +400,29 @@ mod tests {
             normalize_time(Some(&json!(" 21:30 "))),
             Some("21:30".to_string())
         );
-        // 越界 / 非字符串 / 缺字段
+        // / / 
         assert_eq!(normalize_time(Some(&json!("24:00"))), None);
         assert_eq!(normalize_time(Some(&json!("12:60"))), None);
         assert_eq!(normalize_time(Some(&json!(930))), None);
         assert_eq!(normalize_time(None), None);
     }
 
-    /// 去重标记必须按**计划时刻**比对。
+    /// must by ** when ** for 。
     ///
-    /// 这条钉住的是一个真实 bug：`run_once` 曾按实际执行时刻（`now_time`）
-    /// 落标记，而 `due_time` 拿计划时刻去查 —— 到点后最多晚 30 秒执行，
-    /// 两者永不相等，于是每个 tick 都重跑一遍。
+    /// this is 1 bug：`run_once` by when （`now_time`）
+    /// ， `due_time` when —— to after 30 seconds，
+    /// not etc ， is tick 1 。
     #[test]
     fn due_time_matches_plan_time_not_actual_time() {
         let times = ["09:00".to_string(), "21:00".to_string()];
         let fired = vec!["09:00".to_string()];
         let now_text = "09:00".to_string();
-        // 09:00 已跑过 → 21:00 还没到 → 无事可做
+        // 09:00 already → 21:00 no to → none can 
         let due = times.iter().find(|time| {
             time.as_str() <= now_text.as_str() && !fired.iter().any(|item| *item == **time)
         });
         assert_eq!(due, None);
-        // 若把 fired 换成实际执行时刻（09:01），会误判成「没跑过」→ 重复执行
+        // if fired when （09:01）， will 「 no 」→ 
         let wrong_fired = vec!["09:01".to_string()];
         let due_wrong = times.iter().find(|time| {
             time.as_str() <= now_text.as_str() && !wrong_fired.iter().any(|item| *item == **time)
@@ -437,14 +437,14 @@ mod tests {
             "13:00".to_string(),
             "21:00".to_string(),
         ];
-        // 现在 22:00、今天一个都没跑 → 先补最早的 09:00（一轮一条）
+        // in 22:00、 1 no → 09:00（ 1 1 ）
         let now_text = "22:00".to_string();
         let fired: Vec<String> = Vec::new();
         let due = times.iter().find(|time| {
             time.as_str() <= now_text.as_str() && !fired.iter().any(|item| *item == **time)
         });
         assert_eq!(due.map(|time| time.as_str()), Some("09:00"));
-        // 09:00 跑过之后 → 13:00
+        // 09:00 after → 13:00
         let fired = vec!["09:00".to_string()];
         let due = times.iter().find(|time| {
             time.as_str() <= now_text.as_str() && !fired.iter().any(|item| *item == **time)

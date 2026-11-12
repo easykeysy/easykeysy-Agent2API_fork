@@ -1,5 +1,5 @@
-//! 手动代理的连通性测试设置，存于 kv 的 `proxySettings` 保留键。
-//! `testUrl` 为空时沿用网关默认目标；旧内核端口配置不再消费。
+//! set， kv `proxySettings` 。
+//! `testUrl` as empty when use default； old config not 。
 
 use std::sync::OnceLock;
 

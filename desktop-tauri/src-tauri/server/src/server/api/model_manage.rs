@@ -1,26 +1,26 @@
-//! 模型管理 API（模型管理页）：
+//! API（）：
 //!
-//! - `GET  /api/models/manage`          → `{models, mappings, reasoningLevels}`（含禁用条目与关闭的映射）
-//! - `POST /api/models/state`           `{id, enabled?}` 启停（`hidden` 已移除，传了报 400）
-//! - `POST /api/models/mappings`        `{alias, target, reasoning?, enabled?}` 新增映射 / 改思考等级 / 切开关
-//! - `POST /api/models/mappings/remove` `{alias, target, provider?}` 删除映射
-//! - `POST /api/models/custom`          `{provider, id}` 登记一个上游目录里没有的模型
-//! - `POST /api/models/custom/remove`   `{provider, id}` 移除该登记
-//! - `POST /api/models/capabilities`    `{provider, id, capabilities}` 覆盖对下游声明的能力位
+//! - `GET /api/models/manage` → `{models, mappings, reasoningLevels}`（ use and ）
+//! - `POST /api/models/state` `{id, enabled?}` （`hidden` already ， 400）
+//! - `POST /api/models/mappings` `{alias, target, reasoning?, enabled?}` add / etc / 
+//! - `POST /api/models/mappings/remove` `{alias, target, provider?}` delete
+//! - `POST /api/models/custom` `{provider, id}` 1 up directory no has 
+//! - `POST /api/models/custom/remove` `{provider, id}` this 
+//! - `POST /api/models/capabilities` `{provider, id, capabilities}` for down can 
 //!
-//! 写接口都返回最新的 `{models, mappings, reasoningLevels}`，前端就地重绘、不必再拉一次。
+//! return new `{models, mappings, reasoningLevels}`， before 、 not 1 。
 //!
-//! `reasoning` 是「照抄 OmniProxy 的手动思考等级绑定」（表见
-//! `model_rules::REASONING_LEVELS`，随 manage 响应一并发给前端，前端不自己
-//! 抄一份）。**绑定已接入转发**：等级跟着它所在的那条映射走，由承载那家的
-//! 适配器翻译成本家上游认识的档位字段（各家的规则与「哪些情况故意不注入」见
-//! `model_rules::reasoning` 的模块头）。接口形状与转发无关 —— 转发侧读的是
-//! `ModelRules` 里的同一条映射，这里一行都不用改。
+//! `reasoning` is 「 OmniProxy etc 」（
+//! `model_rules::REASONING_LEVELS`， manage response 1 and to before ， before not 
+//! 1 ）。** already **： etc in that ， by that 
+//! up （ then and 「 not 」
+//! `model_rules::reasoning` module header）。 and none —— is 
+//! `ModelRules` 1 ， this 1 not use 。
 //!
-//! `enabled`（映射开关）与 `reasoning` 共用同一条接口、同一套三态协议：
-//! 请求体里**没带**这个键 = 不动；带了 bool = 显式开 / 关。管理页切换开关时
-//! 只传 (alias, target, provider, enabled) 四项，不带 `reasoning` ——
-//! 两个三态字段各管各的，互不干扰（语义见 `model_rules::add_mapping`）。
+//! `enabled`（） and `reasoning` use 1 、 1 ：
+//! request** no ** this = not ； bool = / 。 when 
+//! (alias, target, provider, enabled) ， not `reasoning` ——
+//! ， not （ `model_rules::add_mapping`）。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -52,7 +52,7 @@ fn text_field(object: &serde_json::Map<String, Value>, key: &str) -> String {
         .to_string()
 }
 
-/// 上游模型 id 是否存在于当前清单（忽略大小写）
+/// up id is in current（ignore）
 /// GET /api/models/manage
 pub async fn get_manage(State(state): State<ServerState>) -> Response {
     ok_json(catalog::manage_view(state.store()))
@@ -68,9 +68,9 @@ pub async fn set_state(State(state): State<ServerState>, body: Bytes) -> Respons
     if id.is_empty() {
         return errors::management_error(400, "缺少模型 id");
     }
-    // `hidden` 已随「删除/恢复」机制移除（启停开关接管了它的全部职责）：
-    // 旧版前端 / 脚本还带着这个字段打进来时，明确报 400 而不是静默忽略 ——
-    // 静默忽略会让调用方以为「删除」成功了，模型其实还开着。
+    // `hidden` already 「delete/」（ ）：
+    // old before / this when ， 400 not is ignore ——
+    // ignore will use as 「delete」success， its 。
     if object.contains_key("hidden") {
         return errors::management_error(400, "hidden 已移除，请使用 enabled 开关");
     }
@@ -79,8 +79,8 @@ pub async fn set_state(State(state): State<ServerState>, body: Bytes) -> Respons
         Some(Value::Bool(value)) => Some(*value),
         Some(_) => return errors::management_error(400, "enabled 必须是布尔值"),
     };
-    // 目标提供商：新版前端总是带着（启停粒度是「提供商 × 模型 id」）；
-    // 缺省走旧版全局语义 —— 只有旧版前端（升级前）会这么传
+    // ： new before total is （ is 「 × id」）；
+    // old —— has old before （ before ） will this 
     let provider = text_field(&object, "provider");
     let provider_opt = if provider.is_empty() { None } else { Some(provider.as_str()) };
     if let Some(provider) = provider_opt {
@@ -91,7 +91,7 @@ pub async fn set_state(State(state): State<ServerState>, body: Bytes) -> Respons
     if let Err(error) = model_rules::set_state(provider_opt, &id, enabled) {
         return errors::management_error(error.status_code, error.message);
     }
-    // 日志里把提供商带上：同名模型在多家同时存在时，单看 id 分不清动的是哪家
+    // up ： in when in when ， id not is 
     let subject = match provider_opt {
         Some(name) => format!("[{name}] {id}"),
         None => id.clone(),
@@ -103,18 +103,18 @@ pub async fn set_state(State(state): State<ServerState>, body: Bytes) -> Respons
 
 /// POST /api/models/mappings
 ///
-/// 同一提供商内的对外 ID 最多启用一条绑定；跨提供商允许同名主备。
-/// `create=true` 只新增，`create=false` 只编辑，缺省兼容旧调用方的保存语义。
+/// 1 for ID enabled 1 ；。
+/// `create=true` add，`create=false` ， old use 。
 ///
-/// ── `reasoning` 的三态（与 `provider` 的二态写法不同，别简写）──────
-/// 前端在**改已有映射的等级**时走的也是这条接口（三元组相同 = 命中同一条），
-/// 所以「请求体里有没有这个键」必须能被区分出来：
-///   - 键**缺失**     → `None`，不动已有的等级（旧前端与老调用点的行为）；
-///   - 键给空串/null  → `Some(None)`，显式清成「不覆盖」；
-///   - 键给字符串     → `Some(Some(x))`，设成 x（表外自定义值也放行，
-///                       由 `model_rules::normalize_reasoning` 只做长度约束）。
-/// 一律按「空 = 清空」处理会让旧前端（它不传这个键）每次建映射都把可能存在的
-/// 绑定顺手清掉 —— 那是静默的数据丢失。
+/// ── `reasoning` （ and `provider` not ，）──────
+/// before in ** already has etc ** when is this （ = in 1 ），
+/// 「request has no has this 」must can ：
+/// - **** → `None`， not already has etc （ old before and use as ）；
+/// - to empty/null → `Some(None)`，「 not 」；
+/// - to → `Some(Some(x))`， x（，
+/// by `model_rules::normalize_reasoning` ）。
+/// 1 by 「empty = empty」 will old before （ not this ） can can in 
+/// —— that is 。
 pub async fn add_mapping(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -123,24 +123,24 @@ pub async fn add_mapping(State(state): State<ServerState>, body: Bytes) -> Respo
     let alias = text_field(&object, "alias");
     let target = text_field(&object, "target");
     let provider = text_field(&object, "provider");
-    // 别名的合法性**不在这里**校验：这条接口同时承担「新建一条对外别名」与
-    // 「切开关 / 改思考等级」两种语义，后者的别名只是定位键、可能本就是上游的
-    // 非 ASCII id（千问办公的 `高级` / `标准`）。判据放在 `model_rules::add_mapping`
-    // 里按「这条别名是不是新建的」区分，新建时用的是 `alias_name_valid`
-    // （不限字符集，见那里的注释）。
+    // ** not in this **： this when 「 new 1 for 」 and 
+    // 「 / etc 」， after is 、 can can is up 
+    // ASCII id（ `` / ``）。 in `model_rules::add_mapping`
+    // by 「 this is not is new 」， new when use is `alias_name_valid`
+    // （ not ， that ）。
     if target.is_empty() {
         return errors::management_error(400, "缺少目标上游模型");
     }
     let provider_opt = if provider.is_empty() { None } else { Some(provider.as_str()) };
     if let Some(kind) = provider_opt {
-        // provider 必须是注册表里的家：它决定候选链里追加谁，写错名字会让
-        // 映射悄悄变成一条永远路由不到的死路
+        // provider must is ：， will 
+        // 1 by not to 
         if !crate::server::core::providers::is_known_provider_id(kind) {
             return errors::management_error(400, format!("未知的提供商: {kind}"));
         }
     }
-    // 思考等级的三态见函数头；超长的值在这里就拒掉（落盘前拦截，不留一条
-    // 读回来会被 `normalize_reasoning` 丢掉的脏数据）
+    // etc ； in this （ before ， not 1 
+    // will `normalize_reasoning` ）
     let reasoning = match object.get("reasoning") {
         None => None,
         Some(Value::Null) => Some(None),
@@ -156,9 +156,9 @@ pub async fn add_mapping(State(state): State<ServerState>, body: Bytes) -> Respo
         }
         Some(_) => return errors::management_error(400, "reasoning 必须是字符串或 null"),
     };
-    // 映射开关的三态见函数头 / `model_rules::add_mapping`：键缺失 = 不动
-    // （新建默认开）；带 bool = 显式开 / 关。非 bool 在这里就拒掉，不留一条
-    // 读回来会被丢弃的脏数据。
+    // / `model_rules::add_mapping`： = not 
+    // （ new default）； bool = / 。 bool in this ， not 1 
+    // will 。
     let enabled = match object.get("enabled") {
         None => None,
         Some(Value::Bool(value)) => Some(*value),
@@ -176,8 +176,8 @@ pub async fn add_mapping(State(state): State<ServerState>, body: Bytes) -> Respo
         Some(name) => format!("{alias} → {target}（{name}）"),
         None => format!("{alias} → {target}"),
     };
-    // 日志把等级与开关一并写出来（改等级 / 切开关走的都是这条接口，
-    // 不说出来日志里看不出区别）
+    // etc and 1 and （ etc / is this ，
+    // not not ）
     let reasoning_text = match reasoning.flatten() {
         Some(level) => format!("，思考等级 {level}"),
         None => String::new(),
@@ -193,10 +193,10 @@ pub async fn add_mapping(State(state): State<ServerState>, body: Bytes) -> Respo
 
 /// POST /api/models/mappings/remove
 ///
-/// 删除一条映射。同名映射允许多条后按 alias 删会有歧义，所以按
-/// `{alias, target, provider?}` 三元组精确定位（与新增同一套键）。
+/// delete 1 。 after by alias will has ， by 
+/// `{alias, target, provider?}` （ and add 1 ）。
 ///
-/// 指名一家删除旧版全局映射时，其余承载家的开关与思考等级保持不变。
+/// 1 delete old when ， its and etc not 。
 pub async fn remove_mapping(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -209,12 +209,12 @@ pub async fn remove_mapping(State(state): State<ServerState>, body: Bytes) -> Re
         return errors::management_error(400, "缺少映射名或目标上游模型");
     }
     let provider_opt = if provider.is_empty() { None } else { Some(provider.as_str()) };
-    // 自映射（默认绑定）正常**不能删** —— 它跟着模型行存在，要停用请关它的开关。
-    // 唯一的例外是**这条模型行已经不在了**（上游把模型下线、那家被移除或没有可用
-    // 账号）：这时开关没有落点，「关掉它」无从谈起，删除是唯一出路 —— 管理页的
-    // 「未挂载的模型映射」正是给这批条目留的入口。判据与视图里标记 `dangling`
-    // 的那一处同源（`catalog::host_row_exists`），免得出现「界面显示为未挂载、
-    // 点删除却被拒」的死锁。
+    // （default）** not can ** —— in ， need disabled 。
+    // 1 is ** this already not in **（ up down 、 that or no has available
+    // ）： this when no has ，「」none from ，delete is 1 —— 
+    // 「 」 is to this 。 and `dangling`
+    // that 1 （`catalog::host_row_exists`），「 as 、
+    // delete 」 。
     if alias.eq_ignore_ascii_case(&target)
         && catalog::host_row_exists(state.store(), provider_opt, &target)
     {
@@ -233,23 +233,23 @@ pub async fn remove_mapping(State(state): State<ServerState>, body: Bytes) -> Re
 
 /// POST /api/models/custom
 ///
-/// 手动登记一个上游模型：`{provider, id}`。
+/// 1 up ：`{provider, id}`。
 ///
-/// ── 解决什么死角 ────────────────────────────────────────────
-/// 上游目录接口没广告、但实际能路由的模型（灰度中的新模型、按账号下发却没进
-/// 目录的模型）。此前网关既列不出、也调不通 —— 用户没有任何入口把它加进来。
+/// ── ────────────────────────────────────────────
+/// up directory no 、 can by （ in new 、 by down no 
+/// directory ）。 before not 、 not —— use no has 。
 ///
-/// ── 校验为什么这么写 ────────────────────────────────────────
-///   1. **provider 必须已注册**：它决定这条条目拼进哪一家的清单。写错名字
-///      （或写一家不存在的家）的后果是「保存成功、表格里没有、也永远调不通」，
-///      与 `add_mapping` 拒未知 provider 同一理由。
-///   2. **id 复用 `alias_valid`**：那套字符集（字母数字与 `- _ . / :`，≤128）
-///      正是各家上游模型 id 的实际形态（含 Cline 的 `pool/model` 斜杠形态与
-///      Qoder 的点号形态）。另写一份只会两处分叉。
-///   3. **拒纯数字**：CatPaw 的数字模型 ID 有特殊语义（上游按数字识别、
-///      网关不知道它的档位与能力，见 `catpaw::models`），走这条手动通道进去
-///      会得到一个「能列出来但调不通」的条目。这种模型本来就该走 CatPaw 自己的
-///      目录，明确拒掉比静默收下更有用。
+/// ── Why this ────────────────────────────────────────
+/// 1. **provider must already **： this 1 。
+/// （ or 1 not in ） after is 「success、 no has 、 not 」，
+/// and `add_mapping` unknown provider 1 by 。
+/// 2. **id use `alias_valid`**： that （ and `- _ . / :`，≤128）
+/// is up id （ Cline `pool/model` and 
+/// Qoder ）。 1 will 。
+/// 3. ****：CatPaw ID has （ up by 、
+/// not and can ， `catpaw::models`）， this 
+/// will to 1 「 can not 」 。 this this CatPaw 
+/// directory， down has use 。
 pub async fn add_custom(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -260,8 +260,8 @@ pub async fn add_custom(State(state): State<ServerState>, body: Bytes) -> Respon
     if provider.is_empty() {
         return errors::management_error(400, "缺少提供商");
     }
-    // 插件家同样算已知（判据见 `providers::is_known_provider_id` 的说明）：
-    // 只问枚举会让已装入的插件家在模型规则页一律收到「未知的提供商」。
+    // already （ `providers::is_known_provider_id` ）：
+    // will already in then 1 to 「unknown 」。
     if !crate::server::core::providers::is_known_provider_id(&provider) {
         return errors::management_error(400, format!("未知的提供商: {provider}"));
     }
@@ -289,14 +289,14 @@ pub async fn add_custom(State(state): State<ServerState>, body: Bytes) -> Respon
 
 /// POST /api/models/custom/remove
 ///
-/// 移除一条自定义模型登记：`{provider, id}`。
+/// 1 ：`{provider, id}`。
 ///
-/// ── 为什么是「移除」而不是「隐藏」────────────────────────────
-/// 自定义模型的存在性完全由 `modelRules.custom` 决定，没有「上游刷新会把它
-/// 带回来」这回事。打隐藏标记的话它仍留在清单里（只是不接收请求），恢复后
-/// 又会回来 —— 而用户的意图是「这条登记我不要了」。移除才是那个语义，
-/// 且移除后 `/v1/models`、管理页、路由三处同时干净消失。
-/// 顺带清掉针对它的孤儿规则（见 `model_rules::remove_custom`）。
+/// ── Why is 「」 not is 「」────────────────────────────
+/// in by `modelRules.custom` ， no has 「 up new will 
+/// 」 this 。 in （ is not request）， after 
+/// will —— use is 「 this not need 」。 is that ，
+/// and after `/v1/models`、、 by when 。
+/// for then （ `model_rules::remove_custom`）。
 pub async fn remove_custom(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -323,28 +323,28 @@ pub async fn remove_custom(State(state): State<ServerState>, body: Bytes) -> Res
 
 /// POST /api/models/capabilities
 ///
-/// 覆盖某条模型**对下游声明**的能力位：`{provider, id, capabilities: {...}}`。
-/// 下游（客户端）按这些值决定怎么构造请求（发不发图片、按多大的窗口堆历史），
-/// 而上游目录给的值可能是错的 —— 这条接口就是那层纠正。覆盖只影响出口
-/// （`/v1/models` 与 Anthropic 列表、管理页），不改路由 / 启停 / 转发行为。
+/// ** for down ** can ：`{provider, id, capabilities: {...}}`。
+/// down （client） by this request（ not 、 by ），
+/// up directory to can can is —— this is that 。
+/// （`/v1/models` and Anthropic 、）， not by / / as 。
 ///
-/// ── 为什么单独一条接口 ──────────────────────────────────────
-/// 覆盖面是 `(provider, id)` 二元组（启停也是，但值是六个键各自的三态；
-/// 映射是三元组）。塞进任何一条现有接口都会让那套三态协议变成两义。
+/// ── Why 1 ──────────────────────────────────────
+/// is `(provider, id)` （ is ， is ；
+/// is ）。 1 has will that 。
 ///
-/// ── `capabilities` 的三态（与 `add_mapping` 的 reasoning 同一套）──
-///   · 键**缺失**   → 不改这一项；
-///   · 键给 `null`  → 清除这一项的覆盖（回到清单原值）；
-///   · 键给值       → 覆盖（token 键要 1~1 亿正整数，能力开关要布尔）。
-/// 管理页弹窗保存时六个键一次全给（「全量提交」最不容易出歧义）；
-/// 只给一个键的单字段路径也支持，留给以后的行内编辑。
+/// ── `capabilities` （ and `add_mapping` reasoning 1 ）──
+/// · **** → not this 1 ；
+/// · to `null` → this 1 （ to ）；
+/// · to → （token need 1~1 ， can need ）。
+/// when 1 to （「」 not ）；
+/// to 1 pathsupports， to after 。
 ///
-/// ── 只服务内置家 ────────────────────────────────────────────
-/// 自定义家的能力覆盖存在**提供商记录**的 `models[].capabilities` 里
-/// （与那家的启停 / 等级同一处存储），写入口是整表保存
-/// `POST /api/custom-providers/models`。这里对 `custom-` id 明确报 400 而不是
-/// 静默写进 modelRules —— 后者会得到一个**永远读不回来**的覆盖（自定义家的
-/// 出口压根不查 modelRules），是最难排查的一类静默失效。
+/// ── ────────────────────────────────────────────
+/// can in **** `models[].capabilities` 
+/// （ and that / etc 1 ）， is 
+/// `POST /api/custom-providers/models`。 this for `custom-` id 400 not is 
+/// modelRules —— after will to 1 ** not ** （ 
+/// not modelRules）， is 1 。
 pub async fn set_capabilities(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -366,8 +366,8 @@ pub async fn set_capabilities(State(state): State<ServerState>, body: Bytes) -> 
         Some(Value::Object(map)) => map.clone(),
         Some(_) => return errors::management_error(400, "capabilities 必须是对象"),
     };
-    // 值校验在这里就拦掉（与 add_mapping 的 reasoning 同一取向：不留一条
-    // 读回来会被归一丢弃的脏数据）；`null` 是合法的「清除」信号，不算非法值。
+    // in this （ and add_mapping reasoning 1 to ： not 1 
+    // will 1 ）；`null` is 「」， not 。
     for (key, value) in &patch {
         if !capability::KEYS.contains(&key.as_str()) {
             return errors::management_error(400, format!("未知的能力字段: {key}"));
@@ -382,8 +382,8 @@ pub async fn set_capabilities(State(state): State<ServerState>, body: Bytes) -> 
     if let Err(error) = model_rules::set_capabilities(&provider, &id, &patch) {
         return errors::management_error(error.status_code, error.message);
     }
-    // 日志把每一项写成「键=值 / 键=恢复」，否则排查时只看得到「保存了能力」
-    // 这一句，分不清清除了哪一项、改成了什么
+    // 1 「= / =」，otherwise when to 「 can 」
+    // this 1 ， not 1 、
     let summary = capability::KEYS
         .iter()
         .filter_map(|key| patch.get(*key).map(|value| (key, value)))

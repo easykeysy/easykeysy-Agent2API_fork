@@ -1,4 +1,4 @@
-//! 客户端配置管理：草稿保存不写客户端；应用与恢复必须持有准确预览的确认令牌。
+//! clientconfig： not client； use and must has 。
 
 use axum::{body::Bytes, extract::State, response::Response};
 use serde_json::{json, Value};
@@ -46,7 +46,7 @@ pub async fn save_profiles(State(state): State<ServerState>, body: Bytes) -> Res
     response((|| {
         let payload = payload(&body)?;
         let def = definition(&payload)?;
-        // 路径偏好不改变客户端自身的配置加载位置。
+        // path not client config。
         if text(&payload, "action") == "path" {
             agents::paths::save_override(def, text(&payload, "configPath"))?;
             return Ok(agents::snapshot(state.port));

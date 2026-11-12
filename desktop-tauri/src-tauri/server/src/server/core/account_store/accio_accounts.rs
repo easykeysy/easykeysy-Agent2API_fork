@@ -1,19 +1,19 @@
-//! Accio 账号的**存量记录投影**（网关侧只剩这一件事）。
+//! Accio ****（ this 1 ）。
 //!
-//! ── 这个文件为什么还在 ──────────────────────────────────────
-//! 实现已经整体搬到提供商插件（转发 / 目录 / 额度 / 登录 / 续期）。网关不再
-//! 解析这家凭证的字段，也不再有自己的添加与续期路径。
+//! ── this fileWhy in ──────────────────────────────────────
+//! already to （ / directory / / / ）。 not 
+//! this ， not has and path。
 //!
-//! 但**存量账号的记录形状**还得有人认识：升级上来的库里躺着 `userId` /
-//! `accessToken` / `refreshToken` / `mode` 这些顶层字段（没有 `pluginSecret`），
-//! 而账号列表要按这家自己的口径把它们渲染出来（`edition` / `editionLabel`
-//! 供界面把两地的账号分开，`hasRefreshToken` 决定「刷新 Token」按钮显不显示）。
+//! ** ** has ： up `userId` /
+//! `accessToken` / `refreshToken` / `mode` this （ no has `pluginSecret`），
+//! need by this （`edition` / `editionLabel`
+//! ，`hasRefreshToken` 「 new Token」 by not ）。
 //!
-//! 所以这里只留一个**纯投影**函数：读记录、拼公开形态、不含任何上游知识。
-//! 新账号由插件落库（凭证在 `pluginSecret` 里，走 `to_plugin_public_account`）。
+//! this 1 ****：、、 not up 。
+//! new by （ in `pluginSecret` ， `to_plugin_public_account`）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{json, Map, Value};
 
@@ -23,11 +23,11 @@ use super::state::StoredAccount;
 use super::store::AccountStore;
 
 impl AccountStore {
-    /// 公开形态（两个地区共用；`edition` / `editionLabel` 体现差异）。
+    /// （ use ；`edition` / `editionLabel` ）。
     ///
-    /// `available` 的判据是「有令牌、且记录上的 provider 认得出地区」——
-    /// 后者用于兜住被改坏 provider 列的记录（它在选路里本来也会被跳过，
-    /// 这里如实显示成不可用，比让用户点一个必然失败的账号好）。
+    /// `available` is 「 has 、 and up provider 」——
+    /// after used for provider （ in will ，
+    /// this unavailable， use 1 failure ）。
     pub fn to_accio_public_account(&self, record: &StoredAccount) -> Value {
         let region = Region::from_provider_id(&record.provider());
         let available = record.has_token() && region.is_some();

@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Agent2API 服务端安装脚本（Linux，无界面形态）。
+# Agent2API server（Linux，none）。
 #
-#   sudo bash install.sh              安装 / 重装
-#   sudo bash install.sh --upgrade    只换程序与界面，保留数据与配置
-#   sudo bash install.sh --uninstall  卸载（保留数据目录，除非再加 --purge）
+# sudo bash install.sh / 
+# sudo bash install.sh --upgrade and ， and config
+# sudo bash install.sh --uninstall （directory， --purge）
 #
-# 脚本假定它与 agent2api-server、ui/、agent2api.service、
-# agent2api.env.example 在同一个目录里（发行包解包后就是这个布局）。
+# and agent2api-server、ui/、agent2api.service、
+# agent2api.env.example in 1 directory（ after is this ）。
 #
-# ── 做了什么 ────────────────────────────────────────────────
-#   1. 建服务账号 agent2api（无登录 shell）
-#   2. 装程序到 /opt/agent2api（可执行文件 + ui/）
-#   3. 建数据目录 /var/lib/agent2api（属服务账号）
-#   4. 首次安装时生成 /etc/agent2api/agent2api.env（从 example 复制）
-#   5. 装 systemd 单元并 enable + start
+# ── ────────────────────────────────────────────────
+# 1. agent2api（none shell）
+# 2. to /opt/agent2api（ can file + ui/）
+# 3. directory /var/lib/agent2api（）
+# 4. when /etc/agent2api/agent2api.env（ from example ）
+# 5. systemd and enable + start
 #
-# ── systemd 一键更新 ────────────────────────────────────────
-# 网关仍以普通账号运行，程序目录仍归 root。独立的按需升级程序通过本机
-# socket 接收请求，只能替换官方校验通过的服务端包，不提供通用提权。
-# 安装与 --upgrade 共用下面的组件配置，旧安装升级一次后即可面板更新。
+# ── systemd 1 update ────────────────────────────────────────
+# ，directory root。 by need 
+# socket request， can server， not use 。
+# and --upgrade use down config， old 1 after can update。
 
 set -euo pipefail
 
@@ -48,7 +48,7 @@ for arg in "$@"; do
   esac
 done
 
-# ── 前置检查 ────────────────────────────────────────────────
+# ── before check ────────────────────────────────────────────────
 if [ "$(id -u)" -ne 0 ]; then
   echo "错误: 需要 root 权限（请用 sudo 运行）" >&2
   exit 1
@@ -70,7 +70,7 @@ if [ "$MODE" != "uninstall" ]; then
   fi
 fi
 
-# 升级组件由脚本生成：保持发行包原有的三个安装文件清单，不依赖额外附件。
+# by ： has file， not 。
 configure_updater() {
   local unit_user unit_group unit_exec unit_work
   unit_user=$(systemctl show "$SERVICE_NAME" --property=User --value) || return 1
@@ -138,7 +138,7 @@ RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RuntimeMaxSec=600
 TimeoutStopSec=10
 EOF
-  # 只新增自己负责的 drop-in，不覆盖主单元、用户 drop-in 或环境配置。
+  # add drop-in， not 、 use drop-in or config。
   cat > "$dropin/50-updater.conf" <<EOF || return 1
 [Unit]
 After=agent2api-updater.socket
@@ -150,7 +150,7 @@ EOF
   echo "→ 一键更新组件已配置（网关权限保持不变）"
 }
 
-# ── 卸载 ────────────────────────────────────────────────────
+# ── ────────────────────────────────────────────────────
 if [ "$MODE" = "uninstall" ]; then
   echo "→ 停止并禁用服务"
   systemctl stop "$SERVICE_NAME" 2>/dev/null || true
@@ -178,7 +178,7 @@ if [ "$MODE" = "uninstall" ]; then
   exit 0
 fi
 
-# ── 升级：只换程序，不碰数据与配置 ──────────────────────────
+# ── ：， not and config ──────────────────────────
 if [ "$MODE" = "upgrade" ]; then
   if [ ! -d "$INSTALL_DIR" ]; then
     echo "错误: $INSTALL_DIR 不存在 —— 这台机器还没装过，请用 install.sh（不带参数）" >&2
@@ -186,7 +186,7 @@ if [ "$MODE" = "upgrade" ]; then
   fi
   echo "→ 停止服务"
   systemctl stop "$SERVICE_NAME"
-  # 先备份旧二进制：新版本起不来时能立刻换回去
+  # old ： new not when can 
   if [ -f "$INSTALL_DIR/agent2api-server" ]; then
     cp -f "$INSTALL_DIR/agent2api-server" "$INSTALL_DIR/agent2api-server.bak"
   fi
@@ -195,7 +195,7 @@ if [ "$MODE" = "upgrade" ]; then
   rm -rf "$INSTALL_DIR/ui"
   cp -r "$HERE/ui" "$INSTALL_DIR/ui"
   chown -R root:root "$INSTALL_DIR"
-  # 组件写入失败也要把已经升级的主服务拉起来，不让迁移故障变成停机。
+  # failure need already ， not 。
   if ! configure_updater; then
     systemctl start "$SERVICE_NAME" || true
     echo "错误: 程序已替换，但一键更新组件配置失败，请检查上面的错误后重跑升级。" >&2
@@ -208,11 +208,11 @@ if [ "$MODE" = "upgrade" ]; then
   exit 0
 fi
 
-# ── 全新安装 ────────────────────────────────────────────────
+# ── new ────────────────────────────────────────────────
 echo "→ 创建服务账号 $SERVICE_USER"
 if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
-  # --system：系统账号，不占普通用户 UID 段；
-  # --no-create-home + /usr/sbin/nologin：不允许登录，数据目录单独给。
+  # --system：， not use UID ；
+  # --no-create-home + /usr/sbin/nologin： not ，directory to 。
   useradd --system --no-create-home --shell /usr/sbin/nologin \
     --user-group "$SERVICE_USER" 2>/dev/null \
     || useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
@@ -236,7 +236,7 @@ if [ ! -f "$CONF_DIR/agent2api.env" ]; then
   if [ -f "$HERE/agent2api.env.example" ]; then
     cp "$HERE/agent2api.env.example" "$CONF_DIR/agent2api.env"
   else
-    # 发行包里没带 example（理论上不该发生）时给个能跑的最小配置
+    # no example（ up not this ） when to can config
     printf 'AGENT2API_HOST=0.0.0.0\nAGENT2API_PROXY_PORT=3065\n' \
       > "$CONF_DIR/agent2api.env"
   fi
@@ -254,7 +254,7 @@ configure_updater
 systemctl enable "$SERVICE_NAME" >/dev/null
 systemctl restart "$SERVICE_NAME"
 
-# ── 启动结果 ────────────────────────────────────────────────
+# ── ────────────────────────────────────────────────
 sleep 2
 if systemctl is-active --quiet "$SERVICE_NAME"; then
   PORT=$(grep -E '^AGENT2API_PROXY_PORT=' "$CONF_DIR/agent2api.env" 2>/dev/null \
@@ -276,10 +276,10 @@ if systemctl is-active --quiet "$SERVICE_NAME"; then
    2. 登录后在「网关 Key」页创建一把 API Key
    3. 客户端 base_url 填 http://<本机IP>:${PORT}/v1，api_key 填刚建的那把
 
-⚠️  未创建 API Key 之前 /v1/* 会拒绝服务（fail-closed），这是预期行为。
+⚠️  未创建 API Key 之前 /v1/* will （fail-closed）， this is as 。
 EOF
 else
-  echo "❌ 服务没能启动。排查："
+  echo "❌ no can 。："
   echo "   systemctl status $SERVICE_NAME"
   echo "   journalctl -u $SERVICE_NAME -n 50 --no-pager"
   exit 1

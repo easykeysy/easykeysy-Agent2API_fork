@@ -1,22 +1,22 @@
 /* ─────────────────────────────────────────────
-   Agent2API · 手机端样式入口
+   Agent2API · 
 
-   复用组件库（ui-kit）的令牌与 Tailwind 产物：Sheet 等组件的类名由
-   globals.css 的 @source 生成。本文件在此之上定义手机端自己的骨架与页面
-   样式（前缀 m-），不引用桌面端的 ui/css/*。
+    use （ui-kit） and Tailwind ：Sheet etc by 
+   globals.css @source 。file in up and 
+   （ before m-）， not use ui/css/*。
 
-   颜色语义与桌面端一致：绿=正常、黄=限流/告警、红=失效；令牌取自
-   ui-kit 的 --ui-*（随 data-theme 切深浅），另补一组移动端尺寸令牌。
+    and 1 ：=、=/、=；
+   ui-kit --ui-*（ data-theme ）， 1 。
    ───────────────────────────────────────────── */
 
 @import '../../../ui-kit/styles/globals.css';
 @import '../../../ui-kit/styles/mobile.css';
 @import '../../../ui-shared/provider-docs.css';
 
-/* 组件库源码：Sheet / Button / Switch 的类名都在 ui-kit/src 的 tsx 里 */
+/* ：Sheet / Button / Switch in ui-kit/src tsx */
 @source '../../../ui-kit/src';
 @source '../../../ui-shared';
-/* 本工程源码 */
+/* */
 @source '../';
 
 :root {
@@ -52,7 +52,7 @@
   --m-safe-t: env(safe-area-inset-top, 0px);
 }
 
-/* ═══════════ 基础 ═══════════ */
+/* ═══════════ ═══════════ */
 
 html,
 body {
@@ -72,7 +72,7 @@ body {
 
 .m-mono { font-family: var(--m-mono); font-variant-numeric: tabular-nums; }
 
-/* 应用骨架：占满视口，正文自己滚，底部标签栏常驻 */
+/* use ：，， */
 .m-app {
   display: flex;
   flex-direction: column;
@@ -93,9 +93,9 @@ body {
 .m-scroll::-webkit-scrollbar { display: none; }
 
 /*
- * 页面自带固定头部时，外层不再滚（滚动交给页面里的 .m-body）。
- * 两层都设 overflow 会出现「滚到一半卡住」的嵌套滚动 —— 触摸端尤其明显。
- * 用 :has() 而不是让 JS 传 class：切换页面时不必多一次 render 才对齐布局。
+ * when ， not （ to .m-body）。
+ * overflow will 「 to 1 」 —— its 。
+ * use :has() not is JS class： when not 1 render for 。
  */
 .m-scroll:has(> .m-page.m-fixed) {
   overflow: hidden;
@@ -107,28 +107,28 @@ body {
   to { opacity: 1; transform: none; }
 }
 
-/* 助手流式输出时那颗闪动的光标（见 pages/AssistantPage 的 streaming 分支）。
-   两步切换而不是淡入淡出：方块光标本来就该是硬闪，和终端一致。 */
+/* when that （ pages/AssistantPage streaming ）。
+    not is ： this is ， and 1 。 */
 @keyframes m-caret {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
 }
 
 /*
- * 固定头部 + 独立滚动列表。
+ * + 。
  *
- * 默认整页一起滚（`.m-page` 在 `.m-scroll` 里）。列表页（账号 / 请求日志 /
- * 运行日志 / 模型）不该这样：筛选条跟着滚走之后，想换个筛选还得先滑回顶部。
- * 这些页面把根节点换成 `.m-page m-fixed`：
+ * default 1 （`.m-page` in `.m-scroll` ）。（ / request /
+ * / ） not this this ： after ， 。
+ * this `.m-page m-fixed`：
  *
- *   .m-scroll（不滚，改成 flex 容器）
- *     └ .m-page.m-fixed（占满高度，纵向 flex）
- *         ├ .m-sticky（页头 + 搜索 + 筛选，flex: none，永不滚走）
- *         └ .m-body（flex: 1，自己滚）
+ * .m-scroll（ not ， flex ）
+ * └ .m-page.m-fixed（， to flex）
+ * ├ .m-sticky（ + + ，flex: none， not ）
+ * └ .m-body（flex: 1，）
  *
- * 为什么要多一层 `.m-sticky` 而不是给每个子元素加 sticky：sticky 只在同一个
- * 滚动容器里生效，而这些页面的标题、搜索框、筛选条是三个兄弟节点，各自
- * sticky 会在滚动时互相盖住、且背景不连续。收进一个容器最省事。
+ * Why need 1 `.m-sticky` not is to sticky：sticky in 1 
+ * ， this 、、 is ，
+ * sticky will in when 、 and not 。 1 。
  */
 .m-page.m-fixed {
   display: flex;
@@ -151,13 +151,13 @@ body {
 .m-body::-webkit-scrollbar { display: none; }
 
 
-/* ═══════════ 顶部标题 / 二级页返回栏 ═══════════ */
+/* ═══════════ / return ═══════════ */
 
-/* ═══════════ 区块 / 卡片 ═══════════ */
+/* ═══════════ / ═══════════ */
 
-/* ═══════════ 徽章 ═══════════ */
+/* ═══════════ ═══════════ */
 
-/* ═══════════ 筛选 chip / 分段 ═══════════ */
+/* ═══════════ chip / ═══════════ */
 
 .m-chips {
   display: flex;
@@ -168,18 +168,18 @@ body {
 }
 .m-chips::-webkit-scrollbar { display: none; }
 
-/* ═══════════ 行 / 列表 ═══════════ */
+/* ═══════════ / ═══════════ */
 
-/* ═══════════ 按钮 ═══════════ */
+/* ═══════════ by ═══════════ */
 
-/* ═══════════ 底部标签栏 ═══════════ */
+/* ═══════════ ═══════════ */
 
-/* ═══════════ 轻提示 ═══════════ */
+/* ═══════════ ═══════════ */
 
-/* ═══════════ PWA 状态条 ═══════════ */
+/* ═══════════ PWA ═══════════ */
 
-/* 离线：顶部细条。它自己吃下安全区，页面标题就不再让一次 —— 否则
-   iPhone 独立窗口里会多出一段空白（见 .m-app[data-offline] 下的覆盖）。 */
+/* ：。 down ， not 1 —— otherwise
+   iPhone will 1 empty（ .m-app[data-offline] down ）。 */
 .m-notice-top {
   flex: none;
   display: flex;
@@ -193,16 +193,16 @@ body {
 .m-app[data-offline='true'] .m-navbar { padding-top: 8px; }
 
 /*
- * AI 助手页的紧凑页头。
+ * AI 。
  *
- * 它是手写的（对话页要省纵向空间，不能用 26px 大标题的 .m-head），所以
- * 安全区得自己补。离线通知条出现时它已经占掉了 safe-t，这里退回 10px，
- * 与上面 .m-head / .m-navbar 的覆盖同口径 —— 否则刘海机型会多一条空白。
+ * is （ for need to empty， not can use 26px .m-head），
+ * 。 when already safe-t， this 10px，
+ * and up .m-head / .m-navbar —— otherwise will 1 empty。
  */
 .m-assistant-head { padding: calc(var(--m-safe-t) + 10px) 14px 10px; }
 .m-app[data-offline='true'] .m-assistant-head { padding-top: 10px; }
 
-/* 有新版本：浮在标签栏之上的胶囊条，拇指够得到 */
+/* has new ： in up ， to */
 .m-notice-update {
   position: fixed;
   left: 12px;
@@ -224,18 +224,18 @@ body {
 .m-notice-update .m-notice-text { flex: 1; min-width: 0; }
 .m-notice-later { flex: none; }
 
-/* ═══════════ 加载态 ═══════════ */
+/* ═══════════ ═══════════ */
 @keyframes m-shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
 }
 
-/* ═══════════ 抽屉内的通用块 ═══════════ */
+/* ═══════════ use ═══════════ */
 
 [data-slot='sheet-body'],
 [data-slot='dialog-body'] { min-height: 0; }
 
-/* 正文滚动时保留内容的自然高度，避免带 overflow 的卡片被 flex 压扁。 */
+/* when ， overflow flex 。 */
 [data-slot='sheet-body'] > *,
 [data-slot='dialog-body'] > *,
 [data-slot='dialog-header'],
@@ -247,18 +247,18 @@ body {
 .m-rows .m-k { flex-shrink: 0; max-width: 40%; overflow-wrap: anywhere; }
 .m-rows .m-v { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 
-/* 触摸设备上按钮不选中文字 */
+/* up by not in */
 .m-app button,
 .m-app .m-row { -webkit-user-select: none; user-select: none; }
 
-/* 模型页的小药丸（上下文窗口 / 来源 / 映射数） */
+/* （ up down / / ） */
 
-/* ═══════════ 下拉刷新 ═══════════ */
+/* ═══════════ down new ═══════════ */
 
 /*
- * 指示器贴住滚动容器顶部，高度由组件的 pull 值控制，超出部分裁掉。
- * 使用前提：父级必须是定位上下文 —— 下面的 .m-page 规则负责这一点。
- * 若把指示器放进别的容器，那个容器需要自带 position: relative。
+ * ， by pull ，。
+ * use before ：must is up down —— down .m-page then this 1 。
+ * if ， that need need position: relative。
  */
 .m-ptr {
   position: absolute;
@@ -289,5 +289,5 @@ body {
   animation: m-ptr-rotate .9s linear infinite;
 }
 
-/* 指示器定位基准：原 .m-page 没有 position 声明，这里补一条，不覆盖任何规则 */
+/* ： .m-page no has position ， this 1 ， not then */
 .m-page { position: relative; }

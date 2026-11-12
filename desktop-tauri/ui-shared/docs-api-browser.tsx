@@ -16,7 +16,7 @@ type DocumentationBrowserProps = {
   onCopy: (text: string, label: string) => void | Promise<void>
 }
 
-/** 整份 Markdown 文档（工具服务 API）。正文不走五语词典，复制按钮与示例同一套。 */
+/** Markdown （ API）。 not ， by and 1 。 */
 function MarkdownArticle({ section, onCopy }: { section: ApiSection; onCopy: DocumentationBrowserProps['onCopy'] }) {
   const markdown = section.markdown || ''
   const html = (window as unknown as { wbMarkdown?: { render?: (text: string) => string } }).wbMarkdown?.render?.(markdown) || ''
@@ -165,7 +165,7 @@ export function DocumentationBrowser({ origin, packs, addresses, notice, onCopy 
             <p>{active.description}</p>
             {active.path ? <code className='docs-article-path'>{active.path}</code> : null}
           </header>
-          {/* 地址节点由 port-panel 更新，切换章节时必须保留，不能随正文卸载。 */}
+          {/* by port-panel update， when must， not can 。 */}
           <div hidden={active.id !== 'addresses'}>{addresses}</div>
           {section?.markdown
             ? <MarkdownArticle section={section} onCopy={onCopy} />

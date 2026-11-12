@@ -1,46 +1,46 @@
 /**
- * Agent2API · 自定义提供商的模型清单数据源（模型管理页选中自定义家时的取数与写入）。
+ * Agent2API · （ in when and ）。
  *
- * 从 ui/models-custom-source.js 逐字搬进 TS，只把 window 接口收窄成显式类型。
- * 三件事：
+ * from ui/models-custom-source.js TS， window 。
+ * ：
  *
- *   1. **取数**：把该家记录（`models` / `mappings` 两个数组）适配成与
- *      `GET /api/models/manage` 同形的 `{models, mappings}` —— 于是表格渲染、搜索、
- *      映射 chip、思考等级、能力位两列、列设置全部照用，一行都不用为自定义家另写；
- *   2. **写入**：该家没有逐条接口，只有「整表替换」（`POST /api/custom-providers/models`）。
- *      每次操作都「读当前记录 → 应用这一处改动 → 提交全量 → 刷新目录缓存」，于是界面上
- *      的每一步（开关 / 别名 / 思考等级 / 能力位 / 移除）都**立即生效**，没有保存按钮、没有草稿态；
- *   3. **拉取**：`fetch-models` 由服务端代拉上游清单，新模型并入后同样走整表提交。
+ * 1. ****： this （`models` / `mappings` ） and 
+ * `GET /api/models/manage` `{models, mappings}` —— is 、、
+ * chip、 etc 、 can 、set use ， 1 not use as ；
+ * 2. ****： this no has ， has 「」（`POST /api/custom-providers/models`）。
+ * 「current → use this 1 → → new directory」， is up 
+ * 1 （ / / etc / can / ）****， no has by 、 no has ；
+ * 3. ****：`fetch-models` by server up ， new and after 。
  *
- * ── 为什么在模型管理页里做适配，而不是把自定义家并进后端 manage_view ──
- * 后端 `core/custom_providers.rs` 写明了「modelRules 的 disabled/hidden **不适用于**
- * 自定义家」：内置家的启停规则挂在全局 modelRules 上（映射是全局表、同一个别名可在多家
- * 各建一条做主备），自定义家的清单本身就是用户逐条登记、存在提供商记录里的数组。两套
- * 存储语义不同，合并要重构存储，而收益只是「少一层前端适配」。所以这里做的是**适配**。
+ * ── Why in ， not is and after manage_view ──
+ * after `core/custom_providers.rs` 「modelRules disabled/hidden ** not used for**
+ * 」： then in modelRules up （ is 、 1 can in 
+ * 1 ）， is use 、 in 。
+ * not ， and need ， is 「 1 before 」。 this is ****。
  *
- * ── 同名映射（alias == target）是早期数据形态 ──────────────
- * 早期版本会把「原始 ID 的默认绑定」也写进 mappings 数组。表格里默认绑定由模型行自己
- * 生成（开关 = `models[].enabled`、等级 = `models[].reasoning`），所以：读取时把它们
- * **合并进默认绑定**，不在映射列另占一格；提交时**不再写回**（见 draftOf 的剔除）——
- * 否则用户改了默认绑定的开关，下一次读取会被那条旧条目覆盖回去。
+ * ── （alias == target） is ──────────────
+ * will 「 ID default」 mappings 。default by 
+ * （ = `models[].enabled`、 etc = `models[].reasoning`），： when 
+ * ** and default**， not in 1 ； when ** not **（ draftOf ）——
+ * otherwise use default ， down 1 will that old 。
  *
- * 目录缓存（`wbProviders.customList`）是唯一的取数来源：它由 providers.js 统一拉取与
- * 刷新，本模块不自己发 GET，只在写入成功后 `refreshCustom()` 一次。
+ * directory（`wbProviders.customList`） is 1 ： by providers.js 1 and 
+ * new ， not GET， in success after `refreshCustom()` 1 。
  */
 
 import { activeModelBindings, disableOtherModelBindings, normalizeModelBindingStates } from '../../../ui-shared/models-bindings'
 import { CAPABILITY_KEYS, normalizeCapabilities } from './model-capability'
 import { t } from '../i18n'
 
-/* ─── 对外数据类型（表格同形数据，models-page.tsx 也读这几个类型）────── */
+/* ─── for （，models-page.tsx this ）────── */
 
-/** 一行模型（后端 `catalog::manage_view` 的 models[] 与本模块的适配结果同形） */
+/** 1 （ after `catalog::manage_view` models[] and ） */
 export type ManageModel = {
   id: string
   name: string
   provider: string
   providerLabel: string
-  /** 'remote' / 'builtin' / 'manual'；自定义家留空串（那两列按视图隐藏） */
+  /** 'remote' / 'builtin' / 'manual'；empty（ that by ） */
   source: string
   kind?: string
   supports_image_generation?: boolean
@@ -48,52 +48,52 @@ export type ManageModel = {
   output_modalities?: string[]
   enabled: boolean
   aliases: string[]
-  /** 家级字段：这家清单的最近拉取时刻（毫秒，0 = 未知）；自定义家没有 */
+  /** ： this when （ms，0 = unknown）； no has */
   refreshedAt?: unknown
   credits?: unknown
   /**
-   * 对下游声明的能力位（生效值：清单原值 + 用户覆盖）。内置家由后端给
-   * 「五键齐全、null = 未声明」的形状；自定义家由本模块适配成**稀疏表**
-   * （没填的键不出现）—— 读侧统一走 `model-capability` 的归一/判定，
-   * 两种形状不会分叉。
+   * for down can （： + use ）。 by after to 
+   * 「、null = 」 ； by ****
+   * （ no not ）—— 1 `model-capability` 1 /，
+   * not will 。
    */
   capabilities?: unknown
-  /** 被用户覆盖过的能力键（只有内置家给；自定义家的一切都是用户填的，恒空） */
+  /** use can （ has to ； 1 is use ，empty） */
   capOverrides?: unknown
   /**
-   * 每个能力键的**来源**（`{键: 'upstream' | 'modelsdev' | 'user'}`，缺的键 =
-   * 那一项没有来源）。管理页据此把「上游实测 / 社区库补的 / 用户改的」分开显示 ——
-   * 三个值长得一样、可信度差着量级（见 `core::model_meta` 的模块头）。
+   * can ****（`{: 'upstream' | 'modelsdev' | 'user'}`， =
+   * that 1 no has ）。 「 up / / use 」 ——
+   * 1 、 can （ `core::model_meta` module header）。
    */
   capSources?: unknown
   /**
-   * 模型**自己能配哪些思考档位**（出口键名，由后端在清单成型处归一：这家自己
-   * 声明的 > models.dev 的 effort 列表；缺失 = 未声明，界面回落通用档位表）。
-   * **只读**，不参与保存：用户能改的是「某条映射用哪一档」
-   * （`ManageMapping.reasoning`），改不了上游认哪几个档位。
+   * ** can **（， by after in 1 ： this 
+   * > models.dev effort ； = ， use ）。
+   * ****， not and ： use can is 「 use 1 」
+   * （`ManageMapping.reasoning`）， not up 。
    */
   reasoningLevels?: unknown
-  /** 默认思考档位（与 `reasoningLevels` 同源；缺失 = 未声明） */
+  /** default（ and `reasoningLevels` ； = ） */
   reasoningDefaultLevel?: unknown
   reasoningFixedLevel?: unknown
   reasoningBindingSupported?: unknown
   reasoningSource?: unknown
   /**
-   * **可见性**：这个模型在官方客户端里是否会被列出。
+   * ** can **： this in client is will 。
    *
-   * `'shown'` / `'hidden'` / `'undeclared'`，由各家 `models.rs` 在自己的解析层
-   * 算出（判据各异：Antigravity 按世代、Qoder 读上游 `enable`、Raccoon 读
-   * `visible`、CodeArts 读 `display_enabled`）。
+   * `'shown'` / `'hidden'` / `'undeclared'`， by `models.rs` in 
+   * （：Antigravity by 、Qoder up `enable`、Raccoon 
+   * `visible`、CodeArts `display_enabled`）。
    *
-   * **缺失 / `null`** = 这家没有可见性判据（当前是除那四家之外的所有家）。
-   * 这与 `'shown'` 是两件事：前者是「这家没这个信息」，后者是「这家说它可见」。
-   * 界面必须把两者分开显示，否则用户会以为「没有判据」是「确认可见」。
+   * ** / `null`** = this no has can （current is that all）。
+   * this and `'shown'` is ： before is 「 this no this 」， after is 「 this can 」。
+   * must ，otherwise use will as 「 no has 」 is 「 can 」。
    */
   visibility?: unknown
   upstreamStatus?: 'undeployed' | null
 }
 
-/** 一条映射（含表格现造的默认绑定：alias == target） */
+/** 1 （ default：alias == target） */
 export type ManageMapping = {
   alias: string
   target: string
@@ -113,26 +113,26 @@ export type ManageProvider = {
   refreshedAt: number
 }
 
-/** 一份同形数据（内置家来自 /api/models/manage，自定义家由 buildView 适配） */
+/** 1 （ /api/models/manage， by buildView ） */
 export type ManageView = {
   models?: ManageModel[]
   mappings?: ManageMapping[]
   providers?: ManageProvider[]
-  /** 候选思考等级（只有内置家那份响应带；缺了走 models-reasoning.ts 的兜底表） */
+  /** etc （ has that response； models-reasoning.ts ） */
   reasoningLevels?: string[]
 }
 
-/** 目录缓存里的一条自定义提供商记录（providers.js 的 customList()） */
+/** directory 1 （providers.js customList()） */
 export type CustomProviderRecord = {
   id?: string
   name?: string
   createdAt?: unknown
-  /** `capabilities` 是该条模型的能力位覆盖（可选稀疏表，键名见 `model-capability`） */
+  /** `capabilities` is this can （optional， `model-capability`） */
   models?: Array<{ id?: unknown; enabled?: unknown; reasoning?: unknown; capabilities?: unknown }>
   mappings?: Array<{ alias?: unknown; target?: unknown; enabled?: unknown; reasoning?: unknown }>
 }
 
-/** 目录模块（providers.js）里本模块用到的那几个方法 */
+/** directory（providers.js） use to that */
 type ProvidersBridge = {
   customList?: () => CustomProviderRecord[]
   refreshCustom?: () => Promise<unknown>
@@ -140,19 +140,19 @@ type ProvidersBridge = {
   customRequest?: (method: string, path: string, body?: unknown) => Promise<{ models?: unknown; provider?: CustomProviderRecord } | null | undefined>
 }
 
-/** 提交入口的入参：三态语义与后端一致（字段不给 = 不改） */
+/** ： and after 1 （ not to = not ） */
 type BindingPatch = { enabled?: boolean; reasoning?: string; create?: boolean }
 
-/* ─── 运行期读 window ─────────────────────────── */
+/* ─── window ─────────────────────────── */
 
 /**
- * 目录模块（providers.js）在 index.html 里排在本岛**之后**加载（它要给账号页的几个
- * 模块共用，位置靠后），所以只能**运行期**取 —— 加载期解构会拿到 undefined，表现是
- * 自定义家整块静默失效（左栏永远「还没有自定义提供商」）。
+ * directory（providers.js） in index.html in ** after **（ need to 
+ * use ， after ）， can **** —— will to undefined， is 
+ * （「 no has 」）。
  */
 type SharedWindow = {
   wbProviders?: ProvidersBridge
-  /** 本模块注册的对外契约；models-fetch-modal.tsx 的批量导入读它的 addModels */
+  /** for ；models-fetch-modal.tsx addModels */
   wbModelsCustom?: CustomSourceApi
 }
 
@@ -160,55 +160,55 @@ function shared(): SharedWindow {
   return window as unknown as SharedWindow
 }
 
-/* ─── 纯函数 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
-/** 归一化判重口径：去空白 + 大小写不敏感（与后端一致） */
+/** 1 ：empty + not （ and after 1 ） */
 const norm = (value: unknown): string => String(value ?? '').trim().toLowerCase()
 const same = (left: unknown, right: unknown): boolean => norm(left) === norm(right)
 
 export const ALL_CUSTOM = 'custom-all'
 
-/** `custom-` 前缀判据（与后端 `is_custom_provider_id` 一致） */
+/** `custom-` before （ and after `is_custom_provider_id` 1 ） */
 export function isCustom(id: unknown): boolean {
   return typeof id === 'string' && id !== ALL_CUSTOM && id.startsWith('custom-')
 }
 
-/** 全部自定义提供商（目录缓存的原始记录，按 createdAt 升序） */
+/** （directory ， by createdAt ） */
 export function list(): CustomProviderRecord[] {
   return (shared().wbProviders?.customList?.() || []).filter(provider => isCustom(provider?.id))
 }
 
 /**
- * 目录缓存的**原始引用**（不拷贝、不过滤）：聚合视图按它判「缓存换没换」。
+ * directory ** use **（ not 、 not ）： by 「 no 」。
  *
- * providers.js 每次 fetchCustomProviders 都把 customItems 整份换新对象，所以
- * 引用相等 = 目录没变 = 聚合缓存仍有效；引用一变缓存即失效重建。这是聚合视图
- * 唯一可靠的失效信号 —— 记录内容是运行期数据，逐条比对既贵又漏（新增 / 删除
- * 家、改模型清单都会换引用，全都该重建）。
+ * providers.js fetchCustomProviders customItems new for ，
+ * use etc = directory no = valid； use 1 。 this is 
+ * 1 can —— is ， for （add / delete
+ * 、 will use ， this ）。
  */
 export function listSource(): readonly CustomProviderRecord[] {
   return shared().wbProviders?.customList?.() || []
 }
 
-/** 取一家（不存在返回 null —— 可能刚被别处删掉） */
+/** 1 （ not in return null —— can can ） */
 export function record(id: string): CustomProviderRecord | null {
   return list().find(provider => provider.id === id) || null
 }
 
 /**
- * 记录 → 可提交的草稿（`{models, mappings}`）。
+ * → can （`{models, mappings}`）。
  *
- * 字段归一化与当年的 custom-models-modal 那份深拷贝同口径：缺省 enabled 视作开、
- * reasoning 视作空串；同名映射并入默认绑定后从 mappings 里剔除（见文件头）。
- * 每次提交都从**目录缓存的当前值**重建，所以本函数是幂等的：连点两次开关，第二次读到
- * 的就是第一次提交后的值。
+ * 1 and custom-models-modal that ： enabled 、
+ * reasoning empty； and default after from mappings （file）。
+ * from **directory current**， is etc ：， to 
+ * is 1 after 。
  */
 type DraftModel = { id: string; enabled: boolean; reasoning: string; capabilities?: Record<string, number | boolean> }
 type DraftMapping = { alias: string; target: string; enabled: boolean; reasoning: string }
 
 /**
- * 记录条目的能力位 → 可提交的稀疏对象（空表给 `undefined`：整表提交里不带
- * 这个键，与后端「空表不落键」的口径一致）。
+ * can → can for （empty to `undefined`： not 
+ * this ， and after 「empty not 」 1 ）。
  */
 function sparseCapabilities(value: unknown): Record<string, number | boolean> | undefined {
   const normalized = normalizeCapabilities(value)
@@ -228,8 +228,8 @@ function draftOf(provider: CustomProviderRecord | null): { models: DraftModel[];
         enabled: model?.enabled !== false,
         reasoning: typeof model?.reasoning === 'string' ? model.reasoning : '',
       }
-      // 能力位覆盖**必须原样带回**：整表替换的语义下，草稿漏了它，用户填过的
-      // 能力就会被一次「切开关」的提交顺手清掉
+      // can **must**： down ，， use 
+      // can will 1 「」 
       draft.capabilities = sparseCapabilities(model?.capabilities)
       return draft
     })
@@ -256,16 +256,16 @@ function draftOf(provider: CustomProviderRecord | null): { models: DraftModel[];
 }
 
 /**
- * 目录记录 → 表格同形数据。返回 `null` = 这家已不存在（被别处删掉了）。
+ * directory → 。return `null` = this already not in （ ）。
  *
- * 形状与后端 `catalog::manage_view` 逐字对齐，模型管理页的渲染只认这些字段：
+ * and after `catalog::manage_view` for ， this ：
  *   · models: `{id, name, provider, providerLabel, source, enabled, aliases,
  *     capabilities, capOverrides}`
- *     —— 自定义家没有倍率与来源概念，`source` 留空串（选中自定义家时那两列本来就按
- *     视图隐藏，见 models-page 的 visibleColumns）；能力位是**记录自带**的稀疏表，
- *     `capOverrides` 恒空（没有「上游原值」这回事，见 `setCapabilities`）；
+ * —— no has and ，`source` empty（ in when that by 
+ * ， models-page visibleColumns）； can is **** ，
+ * `capOverrides` empty（ no has 「 up 」 this ， `setCapabilities`）；
  *   · mappings: `{alias, target, provider, enabled, reasoning, isDefault, dangling, carried}`
- *     —— 默认绑定（alias == target）由模型行现造，与内置家一致。
+ * —— default（alias == target） by ， and 1 。
  */
 export function buildView(id: string): { models: ManageModel[]; mappings: ManageMapping[] } | null {
   const provider = record(id)
@@ -283,8 +283,8 @@ export function buildView(id: string): { models: ManageModel[]; mappings: Manage
       source: '',
       enabled: model.enabled,
       aliases: [],
-      // 能力位是**记录自带的**（用户填的），没有「上游原值」这回事 ——
-      // 覆盖标记恒空，弹窗按「未声明 / 已填」两态呈现
+      // can is ** **（ use ）， no has 「 up 」 this ——
+      // empty， by 「 / already 」
       capabilities: model.capabilities || {},
       capOverrides: [],
     })
@@ -308,9 +308,9 @@ export function buildView(id: string): { models: ManageModel[]; mappings: Manage
       enabled: mapping.enabled,
       reasoning: mapping.reasoning,
       isDefault: false,
-      // 目标不在清单里 = 这条映射挂不到任何一行（表格底部的「未挂载」分组）。
-      // 自定义家不该出现这种条目（移除模型会连带删映射），但手改过的数据文件或早期
-      // 版本可能留下它 —— 照实列出来，比让用户找不到它强。
+      // not in = this not to 1 （ 「」）。
+      // not this this （ will ）， file or 
+      // can can down —— ， use not to 。
       dangling: !row,
       carried: Boolean(row),
     })
@@ -319,11 +319,11 @@ export function buildView(id: string): { models: ManageModel[]; mappings: Manage
   return { models, mappings }
 }
 
-/* ─── 写入 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
 /**
- * 提交入口：读当前记录 → 交给 `mutate` 改草稿 → 整表提交 → 刷新目录缓存。
- * `mutate` 的返回值原样透传给调用方（用于拼 toast 文案）。
+ * ：current → to `mutate` → → new directory。
+ * `mutate` return to use （used for toast ）。
  */
 const writes = new Map<string, Promise<unknown>>()
 
@@ -354,13 +354,13 @@ async function submitNow<T>(id: string, mutate: (draft: ReturnType<typeof draftO
 }
 
 /**
- * 一条绑定的开关 / 思考等级 —— 内置家那两个调用点（chip 开关、等级弹窗）的自定义家实现，
- * 语义逐条对齐：
- *   · `alias == target` 且清单里有这个模型 = **默认绑定**：改模型自己的字段；
- *   · 否则按 (alias, target) 找已有映射，找到就改、找不到就**新增**（添加映射）；
- *   · `patch.enabled === false` 且映射不存在 = 调用方在关一条不存在的映射，报错。
+ * 1 / etc —— that use （chip 、 etc ） ，
+ * for ：
+ * · `alias == target` and has this = **default**： ；
+ * · otherwise by (alias, target) already has ， to 、 not to **add**（）；
+ * · `patch.enabled === false` and not in = use in 1 not in ，。
  *
- * `patch` 里没给的字段保持现值（与后端「三态」协议同一取向：不带 = 不改）。
+ * `patch` no to （ and after 「」 1 to ： not = not ）。
  */
 export async function setBinding(id: string, alias: string, target: string, patch: BindingPatch = {}): Promise<void> {
   const { enabled, reasoning, create } = patch
@@ -398,12 +398,12 @@ export async function setBinding(id: string, alias: string, target: string, patc
   })
 }
 
-/** 删除一条映射（默认绑定不可删 —— 界面上它没有删除按钮） */
+/** delete 1 （default not can —— up no has delete by ） */
 export async function removeMapping(id: string, alias: string, target: string): Promise<void> {
   await submit(id, draft => {
-    // 默认绑定（alias == target）跟着模型行存在：模型还在，只能关不能删。
-    // 模型已经不在了（手改过数据、或模型被移除后残留）时它没有开关可点 —— 与内置家
-    // 同一口径（后端 model_manage::remove_mapping 也用「还有没有模型行」判定），放行删除。
+    // default（alias == target） in ： in ， can not can 。
+    // already not in （、 or after ） when no has can —— and 
+    // 1 （ after model_manage::remove_mapping use 「 has no has 」），delete。
     if (same(alias, target) && draft.models.some(model => same(model.id, target))) {
       throw new Error(t('原始 ID 的默认绑定不能删除，请关闭它的开关'))
     }
@@ -414,7 +414,7 @@ export async function removeMapping(id: string, alias: string, target: string): 
   })
 }
 
-/** 登记一个模型（手动添加走它，判重口径与内置家一致） */
+/** 1 （， and 1 ） */
 export async function addModel(id: string, modelId: string): Promise<void> {
   const value = String(modelId ?? '').trim()
   if (!value) throw new Error(t('请填写模型 ID'))
@@ -431,9 +431,9 @@ export async function addModel(id: string, modelId: string): Promise<void> {
 }
 
 /**
- * 批量登记（「获取模型」弹窗的导入按钮）：已存在的跳过，返回实际新增条数。
- * 与 `fetchModels` 的差别只在**来源** —— 那个是服务端代拉上游后全量并入，这个是用户
- * 在弹窗里逐个勾出来的子集。
+ * （「get」 by ）： already in ，returnadd。
+ * and `fetchModels` in **** —— that is server up after and ， this is use 
+ * in 。
  */
 export async function addModels(id: string, modelIds: readonly unknown[]): Promise<number> {
   const values = (Array.isArray(modelIds) ? modelIds : [])
@@ -455,13 +455,13 @@ export async function addModels(id: string, modelIds: readonly unknown[]): Promi
 }
 
 /**
- * 覆盖某条模型的能力位（自定义家的实现；内置家走 `writeCapabilities` 的
+ * can （ ； `writeCapabilities` 
  * `POST /api/models/capabilities`）。
  *
- * 自定义家的能力存在**提供商记录的 models[] 条目**里（与启停 / 思考等级同一处
- * 存储），于是写入照那条既有路径：读当前记录 → 改这一条的字段 → 整表提交。
- * `patch` 的三态与后端一致：键缺失 = 不改、`null` = 清除这一项、有值 = 覆盖；
- * 清到一项不剩时整份 capabilities 键一并摘掉（与后端「空表不落键」同一口径）。
+ * can in ** models[] **（ and / etc 1 
+ * ）， is that has path：current → this 1 → 。
+ * `patch` and after 1 ： = not 、`null` = this 1 、 has = ；
+ * to 1 not when capabilities 1 and （ and after 「empty not 」 1 ）。
  */
 export async function setCapabilities(
   id: string,
@@ -481,7 +481,7 @@ export async function setCapabilities(
   })
 }
 
-/** 移除一个模型：连带删掉 target 指向它的映射，返回删了几条（用于 toast） */
+/** 1 ： target to ，return（used for toast） */
 export async function removeModel(id: string, modelId: string): Promise<{ removedMappings: number }> {
   return submit(id, draft => {
     if (!draft.models.some(model => same(model.id, modelId))) {
@@ -496,8 +496,8 @@ export async function removeModel(id: string, modelId: string): Promise<{ remove
 }
 
 /**
- * 从上游拉清单并并入（对应内置家的「刷新模型清单」）：服务端代拉、不落盘，已存在的 id
- * 跳过（忽略大小写），只提交新增的那些。
+ * from up and and （ for 「 new 」）：server、 not ， already in id
+ * （ignore），add that 。
  */
 export async function fetchModels(id: string): Promise<{ total: number; added: number }> {
   const providers = shared().wbProviders
@@ -521,7 +521,7 @@ export async function fetchModels(id: string): Promise<{ total: number; added: n
   return { total: ids.length, added: Number(added) || 0 }
 }
 
-/* ─── 对外契约：window.wbModelsCustom ───────────── */
+/* ─── for ：window.wbModelsCustom ───────────── */
 
 export type CustomSourceApi = {
   isCustom: typeof isCustom
@@ -539,13 +539,13 @@ export type CustomSourceApi = {
 }
 
 /**
- * 仍然挂到 window 上：**不是**只被本页用 ——
- * `ui-islands/src/islands/models-fetch-modal.tsx` 的「导入选中的 N 个模型」直接调
- * `wbModelsCustom.addModels(providerId, values)`（grep 结果见交付说明）。整份接口逐字
- * 保留（含本页当前没调到的 fetchModels），免得别处再引用时静默失效。
+ * to window up ：** not is ** use ——
+ * `ui-islands/src/islands/models-fetch-modal.tsx` 「 in N 」
+ * `wbModelsCustom.addModels(providerId, values)`（grep ）。
+ * （current no to fetchModels）， use when 。
  *
- * 刻意不写 `declare global`：这些是多个岛共用的桥，各岛各 declare 一份会因同名属性
- * 类型不一致直接报 TS2717（并行迁移时必然互相撞车）。
+ * not `declare global`： this is use ， declare 1 will 
+ * not 1 TS2717（ and when ）。
  */
 shared().wbModelsCustom = {
   isCustom,

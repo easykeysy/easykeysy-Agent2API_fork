@@ -14,7 +14,7 @@ export type ApiSection = {
   points?: string[]
   warning?: string
   examples?: ApiExample[]
-  /** 整份 Markdown 文档（工具服务 API 这类长文用它，不走五语词典） */
+  /** Markdown （ API this use ， not ） */
   markdown?: string
 }
 

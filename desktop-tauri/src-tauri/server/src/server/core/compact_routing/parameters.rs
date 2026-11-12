@@ -1,4 +1,4 @@
-//! 压缩换模型后的发送参数：不借用来源思考档，按实际承载模型的已知上限收口。
+//! after parameter： not use ， by already limit。
 
 use std::borrow::Cow;
 use serde_json::Value;
@@ -10,7 +10,7 @@ pub fn clear_source_reasoning(body: &mut Value) {
     for key in ["reasoning_effort", "reasoningEffort", "effort", "reasoning", "thinking", "enable_thinking", "thinking_budget"] {
         object.remove(key);
     }
-    // output_config 可能还承载结构化输出格式，只移除来源模型的档位。
+    // output_config can can ， 。
     if let Some(output) = object.get_mut("output_config").and_then(Value::as_object_mut) {
         output.remove("effort");
         if output.is_empty() { object.remove("output_config"); }

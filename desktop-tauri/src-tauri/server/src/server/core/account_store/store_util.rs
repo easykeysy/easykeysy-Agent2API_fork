@@ -1,47 +1,47 @@
-//! JS 语义工具函数（账号存储三兄弟共用）。
+//! JS （ use ）。
 //!
-//! Node 版把账号记录当普通 JS 对象读写，所以大量取值逻辑依赖 JS 的宽松语义
-//! （`x || y`、`x ?? y`、`Number(x)`、`String(x)`、`JSON.stringify` 比较…）。
-//! 这些函数的唯一目标就是**在 Rust 里逐条复刻那些语义**，让行为与 Node 版一致：
-//! 宁可容忍脏数据（类型不对就回落），也不要报错或丢字段 —— 用户手工编辑
-//! 账号记录（库里的 `data` 列，或导出文件）是明确支持的用法。
+//! Node JS for ， JS 
+//! （`x || y`、`x ?? y`、`Number(x)`、`String(x)`、`JSON.stringify` …）。
+//! this 1 is ** in Rust that **， as and Node 1 ：
+//! can （ not for ）， not need or —— use 
+//! （ `data` ， or file） is supports use 。
 //!
-//! 从 store.rs 拆出（单文件行数约定）。三处使用：store.rs / store_view.rs
-//! （读写与公开形态）、store_crud.rs（增删改查）、account_transfer.rs
-//! （导入导出归一）。
+//! from store.rs （file）。 use ：store.rs / store_view.rs
+//! （ and ）、store_crud.rs（）、account_transfer.rs
+//! （ 1 ）。
 
 use serde_json::{Map, Value};
 
 use crate::server::core::account_store::state::json_number;
 
-/// Node 的 `jwt.slice(-4)`：取末 4 个字符（不足 4 个则整串）。
-/// 供导入归一复用（tokenTail 缺省时按最终 accessToken 重算）。
+/// Node `jwt.slice(-4)`： 4 （ not 4 then ）。
+/// 1 use （tokenTail when by accessToken ）。
 pub(crate) fn token_tail_of(token: &str) -> String {
     token_tail(token)
 }
 
-/// Node 的 `text.slice(0, max)`：按字符截断（供导入归一复用）
+/// Node `text.slice(0, max)`： by （ 1 use ）
 pub(crate) fn truncate_text(text: &str, max: usize) -> String {
     truncate_chars(text, max)
 }
 
-/// Node 的 `jwt.slice(-4)`：取末 4 个字符（不足 4 个则整串）
+/// Node `jwt.slice(-4)`： 4 （ not 4 then ）
 pub(super) fn token_tail(token: &str) -> String {
     let chars: Vec<char> = token.chars().collect();
     let start = chars.len().saturating_sub(4);
     chars[start..].iter().collect()
 }
 
-/// Node 的 `text.slice(0, max)`：按字符截断
+/// Node `text.slice(0, max)`： by 
 pub(super) fn truncate_chars(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
 
-/// JS 真值判定（用于 `x || default` 与 `Boolean(x)` 的语义）：
-/// null / false / 0 / "" 为假，其余（含空数组、空对象）为真。
+/// JS （used for `x || default` and `Boolean(x)` ）：
+/// null / false / 0 / "" as ， its （empty、empty for ） as 。
 ///
-/// 对账号存储之外的同层模块（core::routing 等）可见：它们要复刻同一套
-/// JS 语义，复述一个几乎相同的函数不如共用一份实现。
+/// for （core::routing etc ） can ： need 1 
+/// JS ， 1 not use 1 。
 pub(crate) fn js_truthy(value: &Value) -> bool {
     match value {
         Value::Null => false,
@@ -52,9 +52,9 @@ pub(crate) fn js_truthy(value: &Value) -> bool {
     }
 }
 
-/// JS `String(x)`（只对真值调用）：字符串原样、数字/布尔按字面量、
-/// 其余（数组/对象）用 JSON 文本近似 —— 这些取值在实际数据里不会出现，
-/// 但不能因此 panic 或丢失字段。
+/// JS `String(x)`（ for use ）：、/ by 、
+/// its （/ for ） use JSON —— this in not will ，
+/// not can panic or 。
 pub(super) fn js_string(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
@@ -64,7 +64,7 @@ pub(super) fn js_string(value: &Value) -> String {
     }
 }
 
-/// JS `x || fallback`：假值（null/false/0/""）取 fallback
+/// JS `x || fallback`：（null/false/0/""） fallback
 pub(super) fn value_or(value: Option<&Value>, fallback: Value) -> Value {
     match value {
         Some(inner) if js_truthy(inner) => inner.clone(),
@@ -72,7 +72,7 @@ pub(super) fn value_or(value: Option<&Value>, fallback: Value) -> Value {
     }
 }
 
-/// JS `x ?? fallback`：只有 null / 缺失才取 fallback（空串是有效值）
+/// JS `x ?? fallback`： has null / fallback（empty is valid）
 pub(super) fn value_or_nullish(value: Option<&Value>, fallback: Value) -> Value {
     match value {
         Some(Value::Null) | None => fallback,
@@ -80,8 +80,8 @@ pub(super) fn value_or_nullish(value: Option<&Value>, fallback: Value) -> Value 
     }
 }
 
-/// 设置里的值 → 非空字符串（对应 `existing?.nickname` 这类「可能是任意类型」的取值）。
-/// 返回 None 表示「未设置」，调用方据此走下一级兜底。
+/// set → empty（ for `existing?.nickname` this 「 can can is any」 ）。
+/// return None 「set」， use down 1 。
 pub(super) fn optional_text(value: Option<&Value>) -> Option<String> {
     match value {
         Some(Value::String(text)) if !text.is_empty() => Some(text.clone()),
@@ -90,10 +90,10 @@ pub(super) fn optional_text(value: Option<&Value>) -> Option<String> {
     }
 }
 
-/// 对应 Node 的 `Number(x) || fallback`（NaN / 0 / 缺失都取 fallback）。
+/// for Node `Number(x) || fallback`（NaN / 0 / fallback）。
 ///
-/// 已是 JSON 数字时**原样返回**（保住整数形态，见 `json_number` 的说明）；
-/// 字符串则按 JS 的 `Number()` 解析后写成整数或浮点。
+/// already is JSON when **return**（， `json_number` ）；
+/// then by JS `Number()` after or 。
 pub(super) fn number_or(value: Option<&Value>, fallback: Value) -> Value {
     match value {
         Some(Value::Number(number)) => {
@@ -112,8 +112,8 @@ pub(super) fn number_or(value: Option<&Value>, fallback: Value) -> Value {
     }
 }
 
-/// 去 `Bearer ` 前缀（大小写不敏感，至少一个空白），不匹配时原样返回
-/// —— 与 Node 的 `String.replace(/^Bearer\s+/i, '')` 一致。
+/// `Bearer ` before （ not ， 1 empty）， not when return
+/// —— and Node `String.replace(/^Bearer\s+/i, '')` 1 。
 pub(super) fn strip_bearer_prefix(value: &str) -> String {
     const PREFIX: &str = "bearer";
     if value.len() < PREFIX.len() {
@@ -129,7 +129,7 @@ pub(super) fn strip_bearer_prefix(value: &str) -> String {
     rest.trim_start().to_string()
 }
 
-/// 对照 Node 版 `pickToken`：按候选键名依次取第一个非空字符串，去掉 Bearer 前缀
+/// for Node `pickToken`： by 1 empty， Bearer before 
 pub(super) fn pick_token(payload: &Map<String, Value>, keys: &[&str]) -> String {
     for key in keys {
         if let Some(Value::String(text)) = payload.get(*key) {
@@ -142,50 +142,50 @@ pub(super) fn pick_token(payload: &Map<String, Value>, keys: &[&str]) -> String 
     String::new()
 }
 
-/// 公开形态的 `maxConcurrent`（单账号并发上限）读数：记录里没有该键 = 未设置
-/// = **不限**，统一输出数字 0。
+/// `maxConcurrent`（ and limit）： no has this = set
+/// = ** not **， 1 0。
 ///
-/// 消费方（选路 `routing::max_concurrent_of` 与前端账号菜单）按「0 = 不限」
-/// 解释，所以缺键与显式 0 在语义上等价；公开形态统一成恒有的数字键，
-/// 前端不必再判「字段存不存在」。
+/// （ `routing::max_concurrent_of` and before ） by 「0 = not 」
+/// ， and 0 in up etc ； 1 has ，
+/// before not 「 not in 」。
 ///
-/// 取值口径**只写这一份**，且各家的公开形态**不再自己写这个键**：一律由
-/// `store_view::public_account` 在按 provider 分派之后统一注入（与
-/// `hasCredentials` / `checkinAt` 同处）。从前它是各家公开形态里的逐条
-/// `insert`，于是「逐字段白名单」那几家（monkeycode / antigravity / officeace）
-/// 漏掉了它 —— 缺键在选路里被当成 0 = 不限，**并发上限静默失效**。
+/// ** this 1 **， and ** not this **： 1 by 
+/// `store_view::public_account` in by provider after 1 （ and 
+/// `hasCredentials` / `checkinAt` ）。 from before is 
+/// `insert`， is 「」 that （monkeycode / antigravity / officeace）
+/// —— in 0 = not ，** and limit**。
 pub(crate) fn max_concurrent_public(value: Option<&Value>) -> u64 {
     value.and_then(Value::as_u64).unwrap_or(0)
 }
 
-/// 公开形态出口的 `maxConcurrent`：在 [`max_concurrent_public`] 之上套上
-/// 「本家默认并发」的口径。
+/// `maxConcurrent`： in [`max_concurrent_public`] up up 
+/// 「default and 」 。
 ///
-/// 只有 CodeArts 一家有默认值：它**没有「不限」这个选项**，记录上的 0（含从未
-/// 设置过）由上游解释成「按默认并发」（准入闸 `SessionGate::limit_for` 读的是
-/// 同一个数），所以公开形态要报出 3 而不是 0 —— 否则选路读到的 0 等于不限，
-/// `routing::at_concurrency_limit` 不会在本家满员时跳过这个账号，请求照发、
-/// 第 4 个被上游回 **409**，而 409 是账号级冲突、不触发降级换号，客户端拿到一个
-/// 「明明有别家空着却报错」的结果。
+/// has CodeArts 1 has default：** no has 「 not 」 this **， up 0（ from 
+/// set） by up 「 by default and 」（ `SessionGate::limit_for` is 
+/// 1 ）， need 3 not is 0 —— otherwise to 0 etc not ，
+/// `routing::at_concurrency_limit` not will in when this ，request、
+/// 4 up **409**， 409 is 、 not ，client to 1 
+/// 「 has empty」 。
 ///
-/// ── 这两个数字为什么写在网关里 ──────────────────────────────
-/// 它们是**选路参数**（网关据此决定「这个账号还能不能进」），不是上游协议知识：
-/// 准入闸在插件里按同一个数拦，公开形态在这里按同一个数报，两边必须一致。
+/// ── this Why in ──────────────────────────────
+/// is **parameter**（「 this can not can 」）， not is up ：
+/// in by 1 ， in this by 1 ，must 1 。
 ///
-/// ── 只把 0 换成默认，不取大（曾经写成 `max(配置, 3)` 的教训）──────────
-/// 取大把**合法的 1 / 2** 也一起抬成了 3：库里存的是 1、准入闸按 1 拦，界面和
-/// 选路却读到 3。界面表现为「设成 1、保存后还是 3」；选路表现为在途 1 个仍被
-/// 选中、进门被 409 挡回，而有状态路径的 409 不换号 —— 设 1 反而比设 3 更容易
-/// 撞错误。同理要按准入闸的上限 [`MAX_SESSION_LIMIT`] 截断：存储层放行 0–999
-/// （所有家共用一条写入闸），闸门只认到 64，公开形态若报 999，选路会以为还有
-/// 935 个空位。
+/// ── 0 default， not （ `max(config, 3)` ）──────────
+/// ** 1 / 2** 1 3： is 1、 by 1 ， and 
+/// to 3。 as 「 1、 after is 3」； as in 1 
+/// in 、 409 ， has path 409 not —— 1 3 
+/// error。 need by limit [`MAX_SESSION_LIMIT`] ： 0–999
+/// （all use 1 ）， to 64， if 999， will as has 
+/// 935 empty。
 ///
-/// 别家 0 就是 0（不限）—— 两家的差别只在这一个函数里，各家的公开形态
-/// 不必各写一遍。
-/// CodeArts 的默认并发（上游对每账号只给 3 路会话；插件侧的准入闸读同一个数）。
+/// 0 is 0（ not ）—— in this 1 ， 
+/// not 1 。
+/// CodeArts default and （ up for to 3 will ； 1 ）。
 const CODEARTS_DEFAULT_SESSION_LIMIT: u32 = 3;
-/// CodeArts 的并发上限（准入闸只认到这个数；存储层放行 0–999，报原值会让选路
-/// 误判余量）。
+/// CodeArts and limit（ to this ； 0–999， will 
+/// ）。
 const CODEARTS_MAX_SESSION_LIMIT: u32 = 64;
 
 pub(crate) fn max_concurrent_public_for(provider: &str, value: Option<&Value>) -> u64 {
@@ -200,8 +200,8 @@ pub(crate) fn max_concurrent_public_for(provider: &str, value: Option<&Value>) -
     }
 }
 
-/// 取对象成员；非对象（含数组）一律当空表 —— 对 `payload.auth` / `payload.account`
-/// 这类访问而言，与 Node 读出 undefined 的结果等价。
+/// for ； for （） 1 empty —— for `payload.auth` / `payload.account`
+/// this ， and Node undefined etc 。
 pub(super) fn object_or_empty(value: Option<&Value>) -> Map<String, Value> {
     match value {
         Some(Value::Object(map)) => map.clone(),

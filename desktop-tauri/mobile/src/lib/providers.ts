@@ -1,21 +1,21 @@
 /**
- * 提供商图标与展示名。
+ * and 。
  *
- * ── 图标为什么用 <img> 而不是内联 SVG ────────────────────────
- * 提供商图标是一批彩色 PNG（`ui/assets/providers/*.png`），由桌面端同一套
- * 资源提供。移动端页面与它们同源（都在 `ui/` 下），直接引相对路径即可，
- * 不必再打包一份。
+ * ── Why use <img> not is SVG ────────────────────────
+ * is 1 PNG（`ui/assets/providers/*.png`）， by 1 
+ * 。 and （ in `ui/` down ）， for path can ，
+ * not 1 。
  *
- * ── 为什么没有「第二份提供商清单」─────────────────────────────
- * 项目里明确禁止前端维护写死的 provider 列表（见 account_store 模块头）：
- * 加一家内置提供商时，后端注册表是唯一事实来源。这里的映射只解决一件
- * 后端不管的事 —— **图标文件叫什么、中文展示名怎么念**。认不出的 id
- * 一律回落到首字徽章，界面不会空一块。
+ * ── Why no has 「」─────────────────────────────
+ * before provider （ account_store module header）：
+ * 1 when ， after is 1 。 this 1 
+ * after not —— **file、 in **。 not id
+ * 1 to ， not will empty 1 。
  */
 
 import { t } from '../i18n'
 
-/** 提供商 id → 图标文件（相对 `ui/` 根，页面在 `ui/m.html` 所以前缀 `m/` 不用加） */
+/** id → file（ for `ui/` ， in `ui/m.html` before `m/` not use ） */
 const ICONS: Record<string, string> = {
   workbuddy: 'assets/providers/workbuddy.png',
   'workbuddy-intl': 'assets/providers/workbuddy.png',
@@ -74,7 +74,7 @@ const ICONS: Record<string, string> = {
   'gemini-subscription': 'assets/providers/gemini-cli.svg',
 }
 
-/** 后端没给 label 时的兜底展示名（认不出的 id 原样显示） */
+/** after no to label when （ not id ） */
 const LABELS: Record<string, string> = {
   astudio: 'AStudio',
   workbuddy: 'WorkBuddy 国内版',
@@ -132,12 +132,12 @@ const LABELS: Record<string, string> = {
   'gemini-subscription': 'Gemini CLI',
 }
 
-/** 图标地址；认不出的 id 返回空串（调用方画首字徽章） */
+/** ； not id returnempty（ use ） */
 export function providerIcon(id: string | undefined): string {
   return (id && ICONS[id]) || ''
 }
 
-/** 展示名：优先用后端给的 label，其次本地映射，最后原样回显 id */
+/** ： use after to label， its ， after id */
 export function providerLabel(id: string | undefined, fallback?: string): string {
   if (fallback) return t(fallback)
   if (!id) return t('未知')

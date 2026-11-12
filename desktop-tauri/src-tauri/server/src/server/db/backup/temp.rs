@@ -48,7 +48,7 @@ pub(super) fn anonymous_file(config_dir: &Path) -> io::Result<std::fs::File> {
 }
 
 pub(super) struct TempRestoreDb {
-    // 连接必须先于目录释放，Windows 才能删除仍有 WAL/SHM 的暂存库。
+    // mustdirectory，Windows can delete has WAL/SHM 。
     pub conn: Connection,
     _directory: TempDir,
 }

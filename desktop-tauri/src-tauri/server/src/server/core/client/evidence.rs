@@ -1,4 +1,4 @@
-//! 只采集客户端身份相关请求头，不保存认证、Cookie 或请求正文。
+//! clientrequest， not 、Cookie or request。
 
 use std::collections::BTreeMap;
 

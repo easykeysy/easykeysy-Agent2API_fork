@@ -1,34 +1,34 @@
-//! 管理面板的访问控制：管理员注册、双令牌会话、失败锁定与 /v1 fail-closed。
+//! ：、 will 、failure and /v1 fail-closed。
 //!
-//! ── 令牌模型（照 OmniProxy 的短效 + 长效语义）────────────────
-//!   · access token：**短效**（2 小时），HttpOnly cookie（path=/），
-//!     只存进程内存 —— 泄露窗口小，过期即废；
-//!   · refresh token：**长效**（30 天），HttpOnly cookie（path=/api/panel，
-//!     缩小暴露面），库里只存 **sha256 哈希**；携带它到
-//!     `/api/panel/refresh` 轮换出新的 access + 新 refresh（同一会话链，
-//!     旧条目标记 rotated）。access 在进程重启后丢失没关系 —— 浏览器凭
-//!     refresh 静默换新，用户无感。
-//!   · 撤销：登出按会话链整链撤销；**已轮换的旧 refresh 再次出现即视为
-//!     泄露**（重放检测），整条会话链作废，需要重新登录。
+//! ── （ OmniProxy + ）────────────────
+//! · access token：****（2 when ），HttpOnly cookie（path=/），
+//! —— ，；
+//! · refresh token：****（30 ），HttpOnly cookie（path=/api/panel，
+//! ）， **sha256 **； to 
+//! `/api/panel/refresh` new access + new refresh（ 1 will ，
+//! old rotated）。access in after no —— 
+//! refresh new ， use none。
+//! · ： by will ；** already old refresh as 
+//! **（）， will ， need need new 。
 //!
-//! ── 管理员的两种来路 ─────────────────────────────────────────
-//!   · 面板首次注册（推荐）：全新部署时登录页出现「创建管理员账号」，
-//!     写入 `kv` 表的 `panelAdmin` 键 —— 不需要预先在部署配置里放密码；
-//!   · 环境变量预置（`AGENT2API_ADMIN_USER` + 密码，跳过注册流程，
-//!     无人值守 / IaC 部署用）：密码填 `AGENT2API_ADMIN_PASSWORD`（明文，
-//!     内存里现场转成 bcrypt 哈希）或 `AGENT2API_ADMIN_PASSWORD_HASH`
-//!     （已是 bcrypt 哈希，优先于明文）。启动时把哈希同步进库 ——
-//!     **任何落盘形态都只有哈希**，明文只出现在部署配置里。
+//! ── ─────────────────────────────────────────
+//! · （）： new when 「create」，
+//! `kv` `panelAdmin` —— not need need in config；
+//! · （`AGENT2API_ADMIN_USER` + ，，
+//! none / IaC use ）： `AGENT2API_ADMIN_PASSWORD`（，
+//! bcrypt ） or `AGENT2API_ADMIN_PASSWORD_HASH`
+//! （ already is bcrypt ，）。 when ——
+//! ** has **， in config。
 //!
-//! ── 何时启用面板认证 ────────────────────────────────────────
-//! 注册过（或环境变量预置了）管理员即启用：`/api/*` 需要会话或 API Key。
+//! ── when enabled ────────────────────────────────────────
+//! 注册过（或环境变量预置了）管理员即启用：`/api/*` need need will or API Key。
 //!
-//! 桌面壳**默认不注册**，但设置页「允许局域网访问」的开启流程会注册
-//! （见 `desktop-tauri/src/commands.rs` 的 `panel_register`）—— 监听一出回环就
-//! 必须有准入边界。注册是**单向**的：后来关掉局域网访问也不会注销管理员，
-//! 面板认证就此一直开着。
-//! 桌面壳的管理会话由进程内调用自动签发，与网页管理员注册状态无关。
-//! 局域网页面仍要求管理员登录；本机会话不能代替模型调用的网关 Key。
+//! **default not **，set「」 will 
+//! （ `desktop-tauri/src/commands.rs` `panel_register`）—— 1 
+//! must has 。 is ** to ** ： after not will ，
+//! 1 。
+//! will by use ， and none。
+//! need ； will not can use Key。
 
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -44,81 +44,81 @@ use crate::server::logging;
 pub(crate) mod diagnostics;
 pub mod local_session;
 
-/// 会话 cookie 名：**一枚装两段**（`agent2api-panel=<access>.<refresh>`）。
+/// will cookie ：** 1 **（`agent2api-panel=<access>.<refresh>`）。
 ///
-/// ── 为什么合成一枚 ─────────────────────────────────────────
-/// 登录/刷新原先发**两条** `Set-Cookie`（access 在 `Path=/`、refresh 在
-/// `Path=/api/panel`）。宿主中转（fnOS docker 管理页那一类）会把多条同名响应头
-/// 按逗号拼成一条，于是属性被降级成 cookie 名 —— 现场读数里罐子上行的是
-/// `path|domain|max-age|mode|session|version|expires` 这一堆，而新会话的值根本没
-/// 按 `/` 落进罐里。后果是每次经中转开面板都要重登：生产一手读数是同一把
-/// 对不上任何登录的僵尸指纹两天里出现 63 次。
-/// **一条 Set-Cookie 没有可拼的对象**，属性不会被吞，cookie 通道自己就站得住；
-/// 也就不必再依赖 localStorage（那台设备的 `凭证头=无` 是常态）。
+/// ── Why 1 ─────────────────────────────────────────
+/// / new **** `Set-Cookie`（access in `Path=/`、refresh in 
+/// `Path=/api/panel`）。 in （fnOS docker that 1 ） will response
+/// by 1 ， is cookie —— up is 
+/// `path|domain|max-age|mode|session|version|expires` this 1 ， new will no 
+/// by `/` 。 after is in need ： 1 is 1 
+/// for not up 63 。
+/// ** 1 Set-Cookie no has can for **， not will ，cookie ；
+/// not localStorage（ that `=none` is ）。
 ///
-/// ── 代价（有意接受）───────────────────────────────────────
-/// refresh 的 Path 从 `/api/panel` 扩到 `/`：这一枚里同时装着轮换凭据。
-/// 这个源只服务网关自己的面板与 `/v1/*`，且 access 本来就在 `/`，扩出去的增量
-/// 面是「同源下别的可读路径」；而换到的是「经中转打开面板不再每次重登」。
-/// 寿命取 refresh（30 天）：access 的生死由服务端会话表判（`AccessRecord` 的墙钟
-/// 过期），cookie 只是载体 —— 过期后浏览器照样带着、服务端判无效、走 refresh，
-/// 与头令牌模式同一套语义。
+/// ── （ has ）───────────────────────────────────────
+/// refresh Path from `/api/panel` to `/`： this 1 when 。
+/// this and `/v1/*`， and access in `/`， 
+/// is 「 down can path」； to is 「 in not 」。
+/// refresh（30 ）：access by server will （`AccessRecord` 
+/// ），cookie is —— after 、serverinvalid、 refresh，
+/// and 1 。
 pub const ACCESS_COOKIE: &str = "agent2api-panel";
-/// 一枚 cookie 里两段的分隔符。两段都是 `random_hex`，十六进制里不含点，
-/// 所以 `split_once('.')` 是精确切分，不需要转义。
+/// 1 cookie 。 is `random_hex`， not ，
+/// `split_once('.')` is ， not need need 。
 const TOKEN_SEP: char = '.';
-/// 会话传输探测 cookie（90 天寿命）：登录页连打两发 `/api/panel/cookie-probe`
-/// 测「这个环境里 cookie 能不能往返」。中转入口下发/回带都活不成，探测失败时
-/// 前端才显式要求令牌进响应体（见 api::panel::cookie_probe 与 panel::issue_response）。
-/// 它不关联任何会话，服务端只比对值、不认会话。
+/// will cookie（90 ）： `/api/panel/cookie-probe`
+/// 「 this cookie can not can 」。 in down / not ，failure when 
+/// before need response（ api::panel::cookie_probe and panel::issue_response）。
+/// not will ，server for 、 not will 。
 ///
-/// **只留一枚**：探针要预测的是登录响应那趟 `Set-Cookie` 的命运，而登录响应现在
-/// 也只发一条 —— 判据的形状必须和被预测的对象一致（原来种两枚正是因为登录发两条；
-/// 合成一枚之后两枚探针反而会误报「通道好」）。
+/// ** 1 **： need is response that `Set-Cookie` ，response in 
+/// 1 —— must and for 1 （ is as ；
+/// 1 after will 「」）。
 pub const PROBE_COOKIE: &str = "agent2api-panel-probe";
-/// **升级过渡期**的旧 refresh cookie 名（上一版独立签发、`Path=/api/panel`）。
+/// **** old refresh cookie （ up 1 、`Path=/api/panel`）。
 ///
-/// 只读、不签发：合成一枚之后登录/刷新都不再写它，这里读它是为了**升级那一刻
-/// 不把所有在线的人踢掉**。那一版的 access 表在内存里（重启即空），而本次改动
-/// 又把 access 挪到了新 kv 键（`panelAccessSessions`），所以升级后罐里那枚裸
-/// access 必定判无效 —— 唯一还能把会话救回来的是 `panelTokens` 里那条 refresh，
-/// 而它只存在这枚旧 cookie 里（refresh 表格式本次没动，旧记录照旧有效）。
-/// 不读它就等于**升级即全员重登一次**。
+/// 、 not ： 1 after / new not ， this is as ** that 1 
+/// not all in **。 that 1 access in （empty），
+/// access to new kv （`panelAccessSessions`）， after that 
+/// access invalid —— 1 can will is `panelTokens` that refresh，
+/// in this old cookie （refresh no ， old old valid）。
+/// not etc ** 1 **。
 ///
-/// 与 `split_session_cookie` 对裸 access 的回退是同一条理由的两半：那边不读会
-/// 把还活着的会话无谓踢掉，这边不读会把还活着的 refresh 一起丢掉。
+/// and `split_session_cookie` for access is 1 by ： that not will 
+/// will none， this not will refresh 1 。
 ///
-/// 排在会话 cookie 之后：两者都在罐里时新的优先（旧值多半是它上一次轮换的残本，
-/// 命中「已轮换记录」只会白走一趟重放判定）。**下个大版本删掉**。
+/// in will cookie after ： in when new （ old is up 1 ，
+/// in 「 already 」 will 1 ）。** down **。
 const LEGACY_REFRESH_COOKIE: &str = "agent2api-panel-rt";
 
-/// access token 有效期（短效）
+/// access token valid（）
 const ACCESS_TTL: Duration = Duration::from_secs(2 * 3600);
-/// refresh token 有效期（长效）
+/// refresh token valid（）
 const REFRESH_TTL: Duration = Duration::from_secs(30 * 24 * 3600);
-/// 并发轮换的宽限窗：一把 refresh 被合法轮换后的这段时间里，同一把再上来
-/// 按「同一台浏览器的并发续期」处理（见 `rotate_session` 的宽限分支），
-/// 窗外照旧判重放、整链作废。一分钟足够覆盖多标签页同时撞上 access 过期的
-/// 现场（客户端单飞只合并得了同一页面上下文内的并发）。
+/// and ： 1 refresh after this when ， 1 up 
+/// by 「 1 and 」（ `rotate_session` ），
+/// old 、。 1 minutes when up access 
+/// （client and 1 up down and ）。
 const ROTATION_GRACE_MS: i64 = 60_000;
-/// 登录失败锁定：同一来源连续失败 5 次，锁 5 分钟（按 IP 不是全局 ——
-/// 全局锁会把「攻击者锁死管理员」变成一种攻击，Tinyauth 那个 CVE 的教训）
+/// failure： 1 failure 5 ， 5 minutes（ by IP not is ——
+/// will 「」 1 ，Tinyauth that CVE ）
 const LOCKOUT_THRESHOLD: u32 = 5;
 const LOCKOUT_DURATION: Duration = Duration::from_secs(300);
 
 const KV_ADMIN_KEY: &str = "panelAdmin";
 const KV_TOKENS_KEY: &str = "panelTokens";
-/// access 会话表（只存 sha256，见 `AccessRecord`）。⚠️ 新增键必须同时登记进
-/// `db::schema::RESERVED_KV_KEYS`，否则用户改一次配置就把它静默删掉。
+/// access will （ sha256， `AccessRecord`）。⚠️ addmust when 
+/// `db::schema::RESERVED_KV_KEYS`，otherwise use 1 config 。
 const KV_ACCESS_KEY: &str = "panelAccessSessions";
 
-// ── 数据库句柄（启动时注入；kv 读写都走它）────────────────────
+// ── （ when ；kv ）────────────────────
 
 static STORE_DB: OnceLock<Option<Db>> = OnceLock::new();
 
-/// 把库句柄交给本模块（`ServerState::bootstrap` 完成后调用一次）。
-/// `None` = 库不可用：注册与刷新令牌的落盘能力随之降级
-/// （环境变量预置的管理员仍可登录，但会话只存在于内存里）。
+/// to （`ServerState::bootstrap` after use 1 ）。
+/// `None` = unavailable： and new can 
+/// （ can ， will in ）。
 pub fn attach_db(db: Option<Db>) {
     STORE_DB.set(db).ok();
 }
@@ -141,22 +141,22 @@ fn sha256_hex(value: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-// ── 管理员（库是唯一真相；环境变量只在首次播种）────────────────
+// ── （ is 1 ； in ）────────────────
 //
-// 语义与 sub2api / new-api 一致：`AGENT2API_ADMIN_USER` + 密码只在**库中还没有
-// 管理员**时作为种子写入 `kv.panelAdmin`，此后所有校验都只读库 —— 面板里改的
-// 密码立即生效，环境变量改回旧值不会把密码「改回去」。
+// and sub2api / new-api 1 ：`AGENT2API_ADMIN_USER` + in ** in no has 
+// ** when as `kv.panelAdmin`， after all —— 
+// ， old not will 「」。
 //
-// 旧实现是「环境变量一直优先」（`verify_login` 先试 env、`sync_env_admin_to_store`
-// 每次启动覆盖式写入）。后果是配了 env 的部署在面板里永远改不掉密码：新哈希写进
-// 库，登录却仍拿 env 那份比对。改成播种后这两个症状一起消失。
+// old is 「 1 」（`verify_login` env、`sync_env_admin_to_store`
+// ）。 after is env in not ： new 
+// ， env that for 。 after this 1 。
 static ENV_ADMIN: OnceLock<Option<(String, String)>> = OnceLock::new();
 
-/// 环境变量里的种子管理员（仅用于首次播种，**不参与登录校验**）。
+/// （onlyused for，** not and **）。
 fn env_admin() -> Option<&'static (String, String)> {
-    // OnceLock<Option<(String, String)>>：首次调用时读入，此后返回静态引用。
-    // 密码有两个变量：HASH（已是 bcrypt 哈希）优先；PASSWORD（明文）则
-    // 现场 bcrypt::hash 一次 —— 内存与落库从此都只有哈希形态。
+    // OnceLock<Option<(String, String)>>： use when ， after return use 。
+    // has ：HASH（ already is bcrypt ）；PASSWORD（） then 
+    // bcrypt::hash 1 —— and from has 。
     ENV_ADMIN.get_or_init(|| {
         let user = std::env::var("AGENT2API_ADMIN_USER")
             .ok()
@@ -166,9 +166,9 @@ fn env_admin() -> Option<&'static (String, String)> {
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
-            // 兼容 `htpasswd -nBC` 的整行输出（"user:$2y$…"）：冒号后面是
-            // bcrypt 哈希就只取哈希 —— 部署者把生成命令的输出整行粘进来
-            // 就能用，不必手工剥前缀
+            // `htpasswd -nBC` （"user:$2y$…"）： after is 
+            // bcrypt —— 
+            // can use ， not before 
             .map(|value| match value.split_once(':') {
                 Some((_, hash)) if hash.starts_with("$2") => hash.to_string(),
                 _ => value,
@@ -181,10 +181,10 @@ fn env_admin() -> Option<&'static (String, String)> {
                 .filter(|value| !value.is_empty())
                 .and_then(|plain| match bcrypt::hash(plain, 10) {
                     Ok(hash) => Some(hash),
-                    // bcrypt 拒绝的密码（如超过 72 字节）：报出来，别静默
-                    // 失效让部署者以为账号已预置成功
+                    // bcrypt （ 72 ）：，
+                    // as already success
                     Err(error) => {
-                        eprintln!("❌ AGENT2API_ADMIN_PASSWORD 无法转成哈希: {error}");
+                        eprintln!("❌ AGENT2API_ADMIN_PASSWORD none: {error}");
                         None
                     }
                 }),
@@ -197,7 +197,7 @@ fn env_admin() -> Option<&'static (String, String)> {
     .as_ref()
 }
 
-/// 库里的注册记录（`kv` 的 `panelAdmin`：{username, hash}）。
+/// （`kv` `panelAdmin`：{username, hash}）。
 fn store_admin() -> Option<(String, String)> {
     let db = db()?;
     db.with(|conn| {
@@ -217,42 +217,42 @@ fn store_admin() -> Option<(String, String)> {
     })
 }
 
-/// 面板认证是否启用（注册过或预置过管理员）。
+/// is enabled（ or ）。
 pub fn panel_auth_enabled() -> bool {
     env_admin().is_some() || store_admin().is_some()
 }
 
-/// 管理员是否已经存在（登录页据此显示「注册」还是「登录」）。
+/// is already in （「」 is 「」）。
 pub fn admin_registered() -> bool {
     panel_auth_enabled()
 }
 
-/// 密码 → bcrypt 哈希（成本因子 10，与 env 预置、htpasswd -nBC 的输出互通）。
+/// → bcrypt （ 10， and env 、htpasswd -nBC ）。
 ///
-/// 哈希参数只在这一处定义：面板注册（`api::panel`）与桌面壳的注册命令
-/// （绕过 HTTP 闸门的受信本地路径）都要产出同一格式的哈希，参数分叉会让
-/// 两条入口造出互相验证不了的凭证。
+/// parameter in this 1 ：（`api::panel`） and 
+/// （ HTTP path） need 1 ，parameter will 
+/// not 。
 pub fn hash_password(password: &str) -> Result<String, String> {
-    bcrypt::hash(password, 10).map_err(|error| format!("密码加密失败: {error}"))
+    bcrypt::hash(password, 10).map_err(|error| format!("failure: {error}"))
 }
 
-/// 首次注册管理员（只在无人注册时成功 —— 幂等安全：
-/// 竞争下只有第一个写入者生效，后到的会看到「已注册」）。
+/// （ in none when success —— etc ：
+/// down has 1 ， after to will to 「 already 」）。
 ///
-/// 返回 Ok(false) = 已有管理员（环境变量或库），拒绝覆盖。
+/// return Ok(false) = already has （ or ），。
 pub fn setup_admin(username: &str, password_hash: &str) -> Result<bool, String> {
     if panel_auth_enabled() {
         return Ok(false);
     }
     let Some(db) = db() else {
-        return Err("数据库不可用，无法保存管理员账号".to_string());
+        return Err("unavailable，none".to_string());
     };
     let payload = serde_json::json!({ "username": username, "hash": password_hash });
-    // ON CONFLICT DO **NOTHING**（不是 DO UPDATE）：面板注册是**竞争面** ——
-    // 两个请求同时闯过上面的 panel_auth_enabled() 检查时，DO UPDATE 会让
-    // 后写者覆盖先写者（先注册的管理员被凭空换人）。DO NOTHING 让竞态下
-    // 只有一个写入者生效，后到者拿到 changed=0 → Ok(false) → 409。
-    // （env 预置管理员的覆盖式落库走 `sync_env_admin_to_store`，与本函数无关。）
+    // ON CONFLICT DO **NOTHING**（ not is DO UPDATE）： is **** ——
+    // request when up panel_auth_enabled() check when ，DO UPDATE will 
+    // after （ empty）。DO NOTHING down 
+    // has 1 ， after to to changed=0 → Ok(false) → 409。
+    // （env `sync_env_admin_to_store`， and none。）
     let changed = db
         .with_mut(|conn| {
             conn.execute(
@@ -262,36 +262,36 @@ pub fn setup_admin(username: &str, password_hash: &str) -> Result<bool, String> 
             )
         })
         .and_then(|result| result.ok())
-        .ok_or_else(|| "写入管理员账号失败".to_string())?;
+        .ok_or_else(|| "failure".to_string())?;
     Ok(changed > 0)
 }
 
-/// 面板当前登录的管理员用户名（未注册返回 None）。
+/// current use （return None）。
 pub fn admin_username() -> Option<String> {
     store_admin().map(|(username, _)| username)
 }
 
-/// 改密码：校验旧密码 → 写入新哈希 → **撤销除当前会话外的所有会话链**。
+/// ： old → new → **current will all will **。
 ///
-/// 撤销其余会话的理由与常见做法一致：改密码通常意味着「旧密码可能泄露」，
-/// 只改哈希却留着别处的活会话，等于泄露的会话还能用 30 天（refresh 寿命）。
-/// 当前这条会话保留 —— 用户刚在界面上完成操作，立刻把他自己踢下线是坏体验
-/// （也容易让人以为改密码失败了）。
+/// its will by and 1 ：「 old can can 」，
+/// will ， etc will can use 30 （refresh ）。
+/// current this will —— use in up ， down is 
+/// （ as failure）。
 ///
-/// 返回 `Ok(true)` = 已改；`Ok(false)` = 旧密码不对；`Err` = 存储/加密失败。
+/// return `Ok(true)` = already ；`Ok(false)` = old not for ；`Err` = /failure。
 pub fn change_password(
     headers: &HeaderMap,
     old_password: &str,
     new_password_hash: &str,
 ) -> Result<bool, String> {
     let Some((username, _)) = store_admin() else {
-        return Err("尚未注册管理员账号".to_string());
+        return Err("".to_string());
     };
     if !verify_login(&username, old_password) {
         return Ok(false);
     }
     let Some(db) = db() else {
-        return Err("数据库不可用，无法保存新密码".to_string());
+        return Err("unavailable，none new ".to_string());
     };
     let payload = serde_json::json!({ "username": username, "hash": new_password_hash });
     db.with_mut(|conn| {
@@ -303,17 +303,17 @@ pub fn change_password(
     })
     .and_then(|result| result.ok())
     .filter(|changed| *changed > 0)
-    .ok_or_else(|| "写入新密码失败".to_string())?;
+    .ok_or_else(|| " new failure".to_string())?;
 
     revoke_other_sessions(headers);
     Ok(true)
 }
 
-/// 撤销**除请求里这条之外**的所有会话链（改密码用）。
+/// **request this ** all will （ use ）。
 ///
-/// 「当前会话」按请求里的 access 候选定位：命中的那条 access 记录带着 session
-/// id，其余链全部作废。定位不到（请求只带了 refresh、或 access 恰好过期）时
-/// 退化为「全撤销」—— 宁可多踢一次，也不留一条来历不明的活会话。
+/// 「current will 」 by request access ： in that access session
+/// id， its 。 not to （request refresh、 or access ） when 
+/// as 「」—— can 1 ， not 1 not will 。
 fn revoke_other_sessions(headers: &HeaderMap) {
     let current_session = {
         let table = match access_tokens().lock() {
@@ -349,17 +349,17 @@ fn revoke_other_sessions(headers: &HeaderMap) {
     }
 }
 
-/// 环境变量预置的管理员**首次播种**进库（`kv` 的 `panelAdmin`）。
+/// ****（`kv` `panelAdmin`）。
 ///
-/// 只在库里**还没有**管理员时写入（`ON CONFLICT DO NOTHING`）：
-///   · 首次部署 → 用 env 的账号密码建立管理员，之后面板登录就能用；
-///   · 之后每次启动 → 库里已有记录，env 被忽略 —— 用户在面板里改的密码
-///     不会被环境的旧值覆盖回去；
-///   · 想改凭据 → 在面板「设置 → 账户」改密码，或删掉 `panelAdmin` 重新注册。
+/// in ** no has ** when （`ON CONFLICT DO NOTHING`）：
+/// · → use env ， after can use ；
+/// · after → already has ，env ignore —— use in 
+/// not will old ；
+/// · → in 「set → 」， or `panelAdmin` new 。
 ///
-/// env_admin() 里明文已转成 bcrypt 哈希，落库的自然是哈希 —— 数据库的任何角落
-/// 都不会出现明文密码。没配 env 则什么都不做，走面板注册路径。
-/// 启动时（`attach_db` 之后）调用一次。
+/// env_admin() already bcrypt ， is —— 
+/// not will 。 no env then not ，path。
+/// when （`attach_db` after ） use 1 。
 pub fn sync_env_admin_to_store() {
     let Some((user, hash)) = env_admin() else {
         return;
@@ -381,20 +381,20 @@ pub fn sync_env_admin_to_store() {
     if changed > 0 {
         logging::log(
             "[Security]",
-            "✅ 已用环境变量播种面板管理员（此后以库为准，改密码请用设置页）",
+            "✅ already use （ after as ， use set）",
         );
     }
 }
 
-/// 校验账号密码。bcrypt 哈希兼容 `htpasswd -nBC` 的输出格式。
+/// 。bcrypt `htpasswd -nBC` 。
 fn verify_credentials(username: &str, password: &str, expected: &(String, String)) -> bool {    let user_ok = constant_time_eq(username.as_bytes(), expected.0.as_bytes());
     let pass_ok = bcrypt::verify(password, &expected.1).unwrap_or(false);
-    // 两个都算完再返回，避免「用户名对不对」的时序差异
+    // return，「 use for not for 」 when 
     user_ok && pass_ok
 }
 
-/// 按面板提交的凭证校验管理员（**只读库** —— 环境变量仅在首次播种时参与，
-/// 理由见 `sync_env_admin_to_store`）。
+/// by （**** —— only in when and ，
+/// by `sync_env_admin_to_store`）。
 pub fn verify_login(username: &str, password: &str) -> bool {
     store_admin().is_some_and(|expected| verify_credentials(username, password, &expected))
 }
@@ -406,24 +406,24 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-// ── access token（短效，库里只存 sha256）──────────────────────
+// ── access token（， sha256）──────────────────────
 
-/// access token 的一条记录。**库里和内存里都以 sha256(token) 为键** ——
-/// 原先键是裸令牌、表只在内存里，于是「重启」等价于「把所有活会话打成无效」：
-/// 浏览器罐子里那枚 cookie 还在、还在每次开页时被带回来，服务端却不认了
-/// （生产一手读数：`面板会话无效` 里 51 次是同一把早已对不上任何登录的指纹，
-/// 时间点与 12:26 那次容器重启之后逐台吻合）。
+/// access token 1 。** and sha256(token) as ** ——
+/// is 、 in ， is 「」 etc 「 all will invalid」：
+/// that cookie in 、 in when ，server not 
+/// （ 1 ：` will invalid` 51 is 1 already for not up ，
+/// when and 12:26 that after ）。
 ///
-/// 现在照 `panelTokens` 那条已经跑通的做法落库：只存哈希，启动时载回。
-/// 安全性不降级 —— 库里那条哈希本来就够冒充（refresh 同形），而拿不到库的
-/// 攻击者既拿不到旧版的内存表、也拿不到新版这条。
+/// in `panelTokens` that already ：， when 。
+/// not —— that （refresh ）， not to 
+/// not to old 、 not to new this 。
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct AccessRecord {
     /// sha256(token)
     hash: String,
-    /// 会话链 id：同一登录签发的 access 共享，撤销按链整条作废
+    /// will id： 1 access ， by 
     session: String,
-    /// 过期时刻（毫秒，墙钟 —— 内存里的 `Instant` 跨不了进程）
+    /// when （ms， —— `Instant` not ）
     expires_at: i64,
 }
 
@@ -435,14 +435,14 @@ fn access_tokens() -> &'static Mutex<AccessTable> {
     ACCESS_TOKENS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// 生成随机 hex 字符串（会话令牌 / altcha 的 salt 等都用它）。
+/// hex （ will / altcha salt etc use ）。
 pub fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
-    getrandom::getrandom(&mut buf).expect("系统随机源不可用");
+    getrandom::getrandom(&mut buf).expect("unavailable");
     buf.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// 读一个 kv 固定键（altcha 密钥等零散状态用；不存在返回 None）。
+/// 1 kv （altcha etc use ； not in return None）。
 pub fn kv_get(key: &str) -> Option<String> {
     let db = db()?;
     db.with(|conn| {
@@ -456,8 +456,8 @@ pub fn kv_get(key: &str) -> Option<String> {
     .flatten()
 }
 
-/// 写一个 kv 固定键（upsert）。调用方只传「RESERVED_KV_KEYS 里登记过的
-/// 固定名」—— 配置写入按那个集合排除，这里写错键会被一次配置改动删掉。
+/// 1 kv （upsert）。 use 「RESERVED_KV_KEYS 
+/// 」—— config by that excluding， this will 1 config。
 pub fn kv_put(key: &str, value: &str) {
     let Some(db) = db() else { return };
     let _ = db.with_mut(|conn| {
@@ -469,22 +469,22 @@ pub fn kv_put(key: &str, value: &str) {
     });
 }
 
-// ── refresh token（长效，库里只存 sha256）─────────────────────
+// ── refresh token（， sha256）─────────────────────
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct RefreshRecord {
     /// sha256(token)
     hash: String,
-    /// 会话链 id：同一登录的轮换链共享，撤销按链整条作废
+    /// will id： 1 ， by 
     session: String,
-    /// 过期时刻（毫秒）
+    /// when （ms）
     expires_at: i64,
-    /// 已被轮换（旧令牌不能再换；再次出现 = 泄露，整链作废）
+    /// already （ old not can ； = ，）
     rotated: bool,
-    /// 轮换发生时刻（毫秒；0 = 从未轮换）。并发续期的宽限判据要用它
-    /// （见 `rotate_session`）。`#[serde(default)]`：升级前落库的记录没有
-    /// 这个字段，反序列化按「从未轮换」处理 —— 旧记录一旦已轮换就永远在
-    /// 宽限窗之外，重放判据与旧版一致。
+    /// when （ms；0 = from ）。 and need use 
+    /// （ `rotate_session`）。`#[serde(default)]`： before no has 
+    /// this ， by 「 from 」 —— old 1 already in 
+    /// ， and old 1 。
     #[serde(default)]
     rotated_at: i64,
 }
@@ -495,22 +495,22 @@ fn refresh_tokens() -> &'static Mutex<Vec<RefreshRecord>> {
     REFRESH_TOKENS.get_or_init(|| Mutex::new(Vec::new()))
 }
 
-/// 整库恢复后清空短效令牌（`db::backup::import_from_file` 调用）。
+/// after empty（`db::backup::import_from_file` use ）。
 ///
-/// 恢复把 `panelTokens` 换成了备份机器的记录，本机浏览器的 cookie 对不上
-/// 新表；内存里的旧 access 会话若保留，用户会顶着「看似已登录」的状态用到
-/// 过期才撞 401。清空让所有人立刻走重新登录 —— 行为与新库一致。
+/// `panelTokens` ， cookie for not up 
+/// new ； old access will if ， use will 「 already 」 use to 
+/// 401。emptyall new —— as and new 1 。
 pub fn clear_access_tokens() {
     let mut table = match access_tokens().lock() {
         Ok(table) => table,
         Err(poisoned) => poisoned.into_inner(),
     };
     table.clear();
-    // 表现在落库，只清内存会留一份"下一次启动又活过来"的库内容 —— 一起清空
+    // in ， will 1 " down 1 " —— 1 empty
     persist_access_tokens(&mut table);
 }
 
-/// 启动时把库里的 access 会话载入内存（与 `load_refresh_tokens` 同时调用）。
+/// when access will （ and `load_refresh_tokens` when use ）。
 pub fn load_access_tokens() {
     let Some(loaded) = kv_get(KV_ACCESS_KEY) else { return };
     let Ok(records) = serde_json::from_str::<Vec<AccessRecord>>(&loaded) else { return };
@@ -521,7 +521,7 @@ pub fn load_access_tokens() {
     }
 }
 
-/// 记录 → 内存表：过期条目一律丢掉（库可能是两天前那份）。
+/// → ： 1 （ can can is before that ）。
 fn access_table_from(records: Vec<AccessRecord>, now: i64) -> AccessTable {
     records
         .into_iter()
@@ -530,8 +530,8 @@ fn access_table_from(records: Vec<AccessRecord>, now: i64) -> AccessTable {
         .collect()
 }
 
-/// 内存表 → 落库记录（过期条目顺手清掉）。库里**只存哈希**：整库导出与备份
-/// 走的是同一个 kv，裸令牌进去就等于把可用凭据写进明文文件。
+/// → （）。****： and 
+/// is 1 kv， etc availablefile。
 fn access_records(table: &AccessTable, now: i64) -> Vec<AccessRecord> {
     table
         .iter()
@@ -550,8 +550,8 @@ fn persist_access_tokens(table: &mut AccessTable) {
     kv_put(KV_ACCESS_KEY, &payload);
 }
 
-/// 启动时把库里的刷新令牌载入内存（`bootstrap` 完成后调用一次；
-/// 整库恢复后由 `db::backup::import_from_file` 再调一次完成重装）。
+/// when new （`bootstrap` after use 1 ；
+/// after by `db::backup::import_from_file` 1 ）。
 pub fn load_refresh_tokens() {
     let Some(loaded) = db().and_then(|db| {
         db.with(|conn| {
@@ -576,7 +576,7 @@ pub fn load_refresh_tokens() {
 }
 
 fn persist_refresh_tokens(table: &mut Vec<RefreshRecord>) {
-    // 过期条目顺手清掉（条目量级：每设备一条活链 + 若干轮换遗留）
+    // （： 1 + if ）
     let now = now_ms();
     table.retain(|record| record.expires_at > now);
     if let Some(db) = db() {
@@ -591,42 +591,42 @@ fn persist_refresh_tokens(table: &mut Vec<RefreshRecord>) {
     }
 }
 
-// ── 会话签发 / 校验 / 轮换 / 撤销 ─────────────────────────────
+// ── will / / / ─────────────────────────────
 
-/// 一次登录的产出：**一条** Set-Cookie 值交给 handler 下发（一枚装两段，
-/// 见 `ACCESS_COOKIE` 的说明）；裸令牌同时进响应体，供 cookie 走不通的环境
-/// 存 localStorage 后走请求头（见 `session_valid` 的头回退说明）。
+/// 1 ：** 1 ** Set-Cookie to handler down （ 1 ，
+/// `ACCESS_COOKIE` ）； when response， cookie not 
+/// localStorage after request（ `session_valid` ）。
 pub struct IssuedSession {
     pub session_cookie: String,
     pub access_token: String,
     pub refresh_token: String,
-    /// 这枚 access 的**剩余寿命**（秒，四舍五入取整）。
+    /// this access **remaining**（seconds，）。
     ///
-    /// 给客户端做**主动续期**用：以前只有「等 401 再换」这一条路，于是 access
-    /// 每过期一次就要产生一条 401 —— 面板里频率最高的那条轮询（验证码令牌池，
-    /// 2.5 秒一轮）必然第一个撞上，日志与侧栏徽标跟着每 2 小时响一次。客户端
-    /// 拿到剩余寿命就能在到期前自己换，把这条 401 一起消掉。
+    /// to client**** use ： before has 「 etc 401 」 this 1 ， is access
+    /// 1 need 1 401 —— that （，
+    /// 2.5 seconds 1 ） 1 up ， and 2 when 1 。client
+    /// to remaining can in to before ， this 401 1 。
     ///
-    /// 客户端据此算出的时刻只是**提示**，不是授权：服务端仍然按会话表判有效期
-    /// （`session_valid`），算错、时钟偏、客户端不理会都只会退回「401 → 续期」
-    /// 的老路径，不会多出任何绕过面。
+    /// client when is ****， not is ：server by will valid
+    /// （`session_valid`），、 when 、client not will will 「401 → 」
+    /// path， not will 。
     pub expires_in: i64,
 }
 
 impl IssuedSession {
-    /// access 的剩余寿命（秒）。登录与续期都走 [`IssuedSession::issue`]，
-    /// 所以恒等于 `ACCESS_TTL`；留着函数是为了让「寿命从哪来」只有一个出处 ——
-    /// 将来若改成滑动过期，改这里一处即可。
+    /// access remaining（seconds）。 and [`IssuedSession::issue`]，
+    /// etc `ACCESS_TTL`； is as 「 from 」 has 1 ——
+    /// will if ， this 1 can 。
     pub fn access_ttl_secs() -> i64 {
         ACCESS_TTL.as_secs() as i64
     }
 }
 
-/// 一条签发用的 `Set-Cookie` 值：`agent2api-panel=<access>.<refresh>`。
+/// 1 use `Set-Cookie` ：`agent2api-panel=<access>.<refresh>`。
 ///
-/// Path 恒为 `/`、`HttpOnly`、`SameSite=Lax`；`Max-Age` 取 refresh 的寿命
-/// （access 的过期由服务端表判，cookie 只是载体 —— 让它跟着 access 两小时消失
-/// 会把长效轮换凭据一起带走）。
+/// Path as `/`、`HttpOnly`、`SameSite=Lax`；`Max-Age` refresh 
+/// （access by server，cookie is —— access when 
+/// will 1 ）。
 fn issue_cookie(access_token: &str, refresh_token: &str) -> String {
     format!(
         "{ACCESS_COOKIE}={access_token}{TOKEN_SEP}{refresh_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
@@ -634,28 +634,28 @@ fn issue_cookie(access_token: &str, refresh_token: &str) -> String {
     )
 }
 
-/// 一条清除用的 `Set-Cookie`（同名同 Path + `Max-Age=0`）。
+/// 1 use `Set-Cookie`（ Path + `Max-Age=0`）。
 ///
-/// Path 必须与签发时**逐字相同** —— 浏览器删 cookie 要名字与 Path 同时命中。
-/// 从前这里两处都写死 `Path=/`，而 refresh cookie 签在 `Path=/api/panel` 下，
-/// 于是它从来没被删掉过：每台设备的罐子里都攒着一枚陈旧 refresh，每次
-/// `/api/panel/*` 都把它带回来；而活的那把一旦不在候选里，`rotate_session`
-/// 就只能按「已轮换的记录」命中这枚陈旧的 ⇒ 判重放、整条会话链作废 ⇒ 用户被
-/// 弹回登录页。这是「过期 cookie 为什么反复出现」的直接成因之一。
-/// 现在只有一枚会话 cookie、只有一个 Path，这类"另一格清不掉"的形状不存在了。
+/// Path must and when **** —— cookie need and Path when in 。
+/// from before this `Path=/`， refresh cookie in `Path=/api/panel` down ，
+/// is from no ： 1 old refresh，
+/// `/api/panel/*` ； that 1 not in ，`rotate_session`
+/// can by 「 already 」 in this old ⇒ 、 will ⇒ use 
+/// 。 this is 「 cookie Why」 1 。
+/// in has 1 will cookie、 has 1 Path， this " 1 not " not in 。
 pub fn clear_cookie() -> String {
     format!("{ACCESS_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
 }
 
-/// 从一枚会话 cookie 的值里拆出 (access, refresh)。
+/// from 1 will cookie (access, refresh)。
 ///
-/// 带分隔符的必须**两段都非空**，否则两侧都不算：`a.` / `.b` / `.` 这类形状是
-/// 中转把响应拼歪之后留下的碎片，喂进候选只会让判定去比一把根本不存在的凭据
-/// （判据要宁缺毋滥 —— 空串在 `cookie_values` 那一步已经被滤掉了，碎片没有）。
+/// must**empty**，otherwise not ：`a.` / `.b` / `.` this is 
+/// in response after down ， will 1 not in 
+/// （ need —— empty in `cookie_values` that 1 already ， no has ）。
 ///
-/// 没有分隔符的值（升级前那版留下的裸 access）只当 access 候选：它要么在服务端
-/// 表里还活着（那就正常续用，代价是这一趟没有 cookie 侧的 refresh，头令牌仍在候选里），
-/// 要么已经不活（下一次 401 会被 `clear_cookie` 清掉）。不值得为此留一套双格式框架。
+/// no has （ before that down access） access ： need in server
+/// （ that use ， is this 1 no has cookie refresh， in ），
+/// need already not （ down 1 401 will `clear_cookie` ）。 not as 1 。
 fn split_session_cookie(value: &str) -> (Option<&str>, Option<&str>) {
     if let Some((access, refresh)) = value.split_once(TOKEN_SEP) {
         return if access.is_empty() || refresh.is_empty() {
@@ -714,21 +714,21 @@ impl IssuedSession {
         }
     }
 
-    /// 登录：开一条新会话链。
+    /// ： 1 new will 。
     pub fn new_session() -> Self {
         Self::issue(random_hex(16))
     }
 }
 
-/// 面板 access 令牌的**请求头**取值：`x-panel-token` 头 → `Authorization: Bearer`。
+/// access **request**：`x-panel-token` → `Authorization: Bearer`。
 ///
-/// 存在的理由：面板不总在直连环境里跑 —— 从 fnOS docker 管理页一类宿主进入
-/// 时，请求经宿主侧中转，HttpOnly cookie 的两跳（下发 → 回带）都可能被掐掉。
-/// 前端（web_shim / login.html）把登录响应体里的裸令牌存 localStorage，之后
-/// 每个请求带头；服务端**cookie 在前、头在后**（见 `access_candidates`），
-/// 直连环境行为不变。
-/// 头里的令牌 JS 可读（localStorage），与 HttpOnly cookie 相比多暴露给面板
-/// 自身的 XSS 面 —— 这是反代环境下的可用性换安全，面板是同源可信代码。
+/// in by ： not total in —— from fnOS docker 1 
+/// when ，request in ，HttpOnly cookie （ down → ） can can 。
+/// before （web_shim / login.html） response localStorage， after 
+/// request；server**cookie in before 、 in after **（ `access_candidates`），
+/// as not 。
+/// JS can （localStorage）， and HttpOnly cookie to 
+/// XSS —— this is down available， is can 。
 fn access_header_tokens(headers: &HeaderMap) -> Vec<String> {
     named_header_tokens(headers, "x-panel-token")
         .into_iter()
@@ -736,11 +736,11 @@ fn access_header_tokens(headers: &HeaderMap) -> Vec<String> {
         .collect()
 }
 
-/// 取一个（可能重复出现的）请求头的所有非空值。
+/// 1 （ can can ）request allempty。
 ///
-/// 复数是必要的而非防御性的：合并型中转（把多条同名响应头拼成一条的那类）也会
-/// 这样处理**请求**头，于是浏览器同一个 `Cookie` 头里可能出现两次 `agent2api-panel=`
-/// —— 一次有效一次陈旧。只取第一条就等于"看运气"。
+/// is need ： and in （ response 1 that ） will 
+/// this **request**， is 1 `Cookie` can can `agent2api-panel=`
+/// —— 1 valid 1 old 。 1 etc ""。
 fn named_header_tokens(headers: &HeaderMap, name: &str) -> Vec<String> {
     let name = axum::http::HeaderName::from_bytes(name.as_bytes());
     let Ok(name) = name else { return Vec::new() };
@@ -767,33 +767,33 @@ fn bearer_tokens_of(headers: &HeaderMap) -> Vec<String> {
         .collect()
 }
 
-/// access 凭据的**全部候选**，按「同名 cookie 的每个值 → `x-panel-token` → Bearer」
-/// 排列（cookie 在前，直连环境的判定结果与从前逐字一致）。
+/// access ****， by 「 cookie → `x-panel-token` → Bearer」
+/// （cookie in before ， and from before 1 ）。
 ///
-/// ── 为什么不再是「cookie 优先、命中即返」────────────────────
-/// 实测（2026-09-29，fnOS docker 管理页 :5666 中转）：登录成功签发新会话后，
-/// 下一个 `/api/session` 仍被判无效，而日志里两行的指纹对不上 —— 浏览器回带的是
-/// **上一轮**那把（`7a951233`），刚发的（`84f8d751`）没被带上。成因是中转把登录
-/// 响应的两条 `Set-Cookie` 按逗号拼成一条：`agent2api-panel=新值, Path=/, HttpOnly, …`
-/// 里 `Path` 从属性降级成了一个独立 cookie（回带名单里那些 `path|domain|max-age|
-/// expires|session|version` 就是证据），新会话因此没按 `/` 存下来，罐里盖着的还是
-/// 直连那次登录留下的旧值。
+/// ── Why not is 「cookie 、 in 」────────────────────
+/// （2026-09-29，fnOS docker :5666 in ）：success new will after ，
+/// down 1 `/api/session` invalid， for not up —— is 
+/// ** up 1 ** that （`7a951233`）， （`84f8d751`） no up 。 is in 
+/// response `Set-Cookie` by 1 ：`agent2api-panel= new , Path=/, HttpOnly, …`
+/// `Path` from 1 cookie（ that `path|domain|max-age|
+/// expires|session|version` is ）， new will no by `/` down ， is 
+/// that down old 。
 ///
-/// 此时**唯一**还能救回这条会话的是请求头令牌，而头令牌只在「令牌进响应体」模式
-/// 下存在（见 `api::panel::issue_response`）。所以这里的改动必须与探针配套：探针把
-/// 环境判成中转 → 客户端拿到 body 里的令牌并带头 → 服务端**不许**再被罐里那把陈旧
-/// cookie 短路。只改一侧的结果是「探针判通了但 cookie 存歪」的老死循环，或「带了头
-/// 却永远轮不到试」。
+/// when ** 1 ** can this will is request， in 「response」
+/// down in （ `api::panel::issue_response`）。 this must and ： 
+/// in → client to body and → server** not ** that old 
+/// cookie 。 1 is 「 cookie 」 ， or 「
+/// not to 」。
 ///
-/// 上面那条**拼接**成因后来被从源头消掉了：登录/刷新改为只发**一枚**会话 cookie
-/// （access 与 refresh 装进同一枚，见 `ACCESS_COOKIE`），一条 Set-Cookie 没有可拼
-/// 的对象；探针也随之回到一枚 —— 判据的形状要和被预测的对象一致，现在要预测的就是
-/// 一条。「同名 cookie 可能有几格」这条判定照旧留着：罐里那些升级前存下的陈值不会
-/// 自己消失，穷尽候选仍是正确形态。
+/// up that **** after from ：/ new as ** 1 ** will cookie
+/// （access and refresh 1 ， `ACCESS_COOKIE`）， 1 Set-Cookie no has can 
+/// for ； to 1 —— need and for 1 ， in need is 
+/// 1 。「 cookie can can has 」 this old ： that before down not will 
+/// ， is 。
 ///
-/// cookie 仍然排在头前面：中转哪天修好了，用户回到直连 cookie 登录，localStorage
-/// 里那条早已作废的旧链令牌不该抢跑（它验证不过，自然也不再影响判定 —— 判定看的是
-/// 「有没有一把有效」，不是「第一把是谁」）。
+/// cookie in before ： in ， use to cookie ，localStorage
+/// that already old not this （ not ， not —— is 
+/// 「 has no has 1 valid」， not is 「 1 is 」）。
 fn access_candidates(headers: &HeaderMap) -> Vec<String> {
     dedup(
         session_cookie_halves(headers)
@@ -804,16 +804,16 @@ fn access_candidates(headers: &HeaderMap) -> Vec<String> {
     )
 }
 
-/// refresh 凭据的**全部候选**，顺序与 `access_candidates` 同形
-/// （会话 cookie 的每一条的第二段 → 升级期旧 refresh cookie → `x-panel-refresh`
+/// refresh ****， and `access_candidates` 
+/// （ will cookie 1 → old refresh cookie → `x-panel-refresh`
 /// → Bearer）。
 ///
-/// 与 access 共用一份「为什么不再短路」的理由：轮换请求同样会被罐里那把旧
-/// refresh 短路，结果是把活链旁边的僵尸链拿去轮换 —— 撞上重放检测，整链作废，
-/// 用户被迫重登（这条路径此前只在日志里见过"登录已过期"，没人看得出是被短路）。
+/// and access use 1 「Why not 」 by ：request will that old 
+/// refresh ， is —— up ，，
+/// use （ this path before in "expired"， no is ）。
 ///
-/// 旧名前那一格是**升级过渡**用的（见 `LEGACY_REFRESH_COOKIE`）：它排在会话 cookie
-/// 之后，新格式在场时旧值不会抢跑。
+/// old before that 1 is **** use （ `LEGACY_REFRESH_COOKIE`）： in will cookie
+/// after ， new in when old not will 。
 pub fn refresh_candidates(headers: &HeaderMap) -> Vec<String> {
     dedup(
         session_cookie_halves(headers)
@@ -826,10 +826,10 @@ pub fn refresh_candidates(headers: &HeaderMap) -> Vec<String> {
     )
 }
 
-/// 罐里**每一枚**会话 cookie 各自拆成 (access, refresh)。
+/// ** 1 ** will cookie (access, refresh)。
 ///
-/// 逐条拆（不是只取第一条）是必须的：合并型中转会在同名下留下多格，其中一格
-/// 是新会话、另一格是陈值；只取第一条等于看运气。
+/// （ not is 1 ） is must ： and in will in down down ， its in 1 
+/// is new will 、 1 is ； 1 etc 。
 fn session_cookie_halves(headers: &HeaderMap) -> Vec<(Option<String>, Option<String>)> {
     cookie_values(headers, ACCESS_COOKIE)
         .iter()
@@ -848,17 +848,17 @@ fn dedup(values: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-/// 只识别由本进程内调用签发的本机壳会话。
+/// by use will 。
 pub fn local_session_valid(headers: &HeaderMap) -> bool {
     let tokens = access_candidates(headers);
     local_session::valid_any(tokens.iter().map(String::as_str))
 }
 
-/// 请求携带有效的本机壳会话或网页 access token 时准入管理面。
+/// requestvalid will or access token when 。
 ///
-/// 从前这里只取一把（cookie 有就只看 cookie），于是"罐里有一把陈年的同名 cookie"
-/// 与"没带任何凭证"判定结果相同（都是 401），而现场完全不同 —— 见
-/// `access_candidates` 的中转事故记录。
+/// from before this 1 （cookie has cookie）， is " has 1 cookie"
+/// and " no "（ is 401）， not —— 
+/// `access_candidates` in 。
 pub fn session_valid(headers: &HeaderMap) -> bool {
     let tokens = access_candidates(headers);
     if tokens.is_empty() {
@@ -878,29 +878,29 @@ pub fn session_valid(headers: &HeaderMap) -> bool {
         .any(|token| table.contains_key(&sha256_hex(token)))
 }
 
-/// 请求里是否带了**任何**凭证候选（会话 cookie 的任一段、`x-panel-token`、
+/// request is ****（ will cookie 1 、`x-panel-token`、
 /// `x-panel-refresh`、`Authorization: Bearer`、`x-api-key`）。
 ///
-/// ── 为什么需要这个判据 ──────────────────────────────────────
-/// 「面板会话无效」那一行原先对所有 401 一视同仁，但其中两种情形的含义完全不同：
-///   · **什么都没带** —— 浏览器第一次打开面板、登录页每次加载的 `/api/session`
-///     探测。这是正常未登录，不是安全事件；而主界面首屏一次会并发十几条
-///     `/api/*`，按 error 记等于把正常流程刷成一屏红字，还会顶起侧栏的未读
-///     错误徽标、把 500 条的日志表挤满。
-///   · **带了但对不上** —— 罐里的僵尸 cookie、重放、Key 配错。这才是要报的。
+/// ── Why need need this ──────────────────────────────────────
+/// 「 will invalid」 that 1 for all 401 1 ， its in not ：
+/// · ** no ** —— 1 、 `/api/session`
+/// 。 this is ， not is ； 1 will and 
+/// `/api/*`， by error etc 1 ， will 
+/// error、 500 。
+/// · ** for not up ** —— cookie、、Key 。 this is need 。
 ///
-/// 判据只看「有没有候选」，不看值对不对 —— 值对不对正是那行日志在记的内容。
+/// 「 has no has 」， not for not for —— for not for is that in 。
 ///
-/// 探针 cookie（`PROBE_COOKIE`）**不算**凭证：它不关联任何会话，登录前就会被
-/// 种下，把它算进来会让「未登录」全部误判成「带了凭证」。
+/// cookie（`PROBE_COOKIE`）** not **： not will ， before will 
+/// down ， will 「」「」。
 pub fn presents_credentials(headers: &HeaderMap) -> bool {
     !access_candidates(headers).is_empty()
         || !refresh_candidates(headers).is_empty()
         || headers.contains_key("x-api-key")
 }
 
-/// 本次请求里能看到的 access 指纹（诊断日志用，最多两把 —— 排查「同名 cookie
-/// 重复上行」时要能看见每一把分别是什么，值本身绝不进日志）。
+/// request can to access （ use ， —— 「 cookie
+/// up 」 when need can 1 is ， not ）。
 pub fn access_fingerprints(headers: &HeaderMap) -> Vec<String> {
     access_candidates(headers)
         .into_iter()
@@ -909,22 +909,22 @@ pub fn access_fingerprints(headers: &HeaderMap) -> Vec<String> {
         .collect()
 }
 
-/// 用请求里的 refresh 候选轮换出新一组令牌（同一会话链）。
+/// use request refresh new 1 （ 1 will ）。
 ///
-/// 候选按顺序试，**第一个仍活着的**（未轮换、未过期）就是当前会话 —— 陈旧 cookie
-/// 与头里的旧令牌都不会把活链挤掉。返回 `None` = 没有一把能用。
+/// by ，** 1 **（、） is current will —— old cookie
+/// and old not will 。return `None` = no has 1 can use 。
 ///
-/// **重放检测**照旧生效，但只在「没有任何一把候选是活的」时才判：此时若某把候选
-/// 命中了一条已轮换记录，说明它泄露了（活链上新令牌在浏览器手里）—— 整条会话链
-/// 作废，逼着重新登录。之所以要先穷尽活候选：罐里同时躺着新旧两把是**正常现象**
-/// （合并型中转就是这么留脏的），把"读到了旧的那把"当成泄露会把好环境踢成反复重登。
+/// **** old ， in 「 no has 1 is 」 when ： when if 
+/// in 1 already ，（ up new in ）—— will 
+/// ， new 。 need ： when new old is ****
+/// （ and in is this ）， " to old that " will 。
 ///
-/// 已轮换记录有一条**宽限**（`ROTATION_GRACE_MS`）：宽限窗内刚被轮换的令牌再
-/// 上来，按「同一台浏览器的并发续期」处理而不是泄露 —— access 过期那一刻，
-/// 多枚标签页 / 多个页面上下文会带着**同一把**还没轮换的 refresh 同时来换，
-/// 先到的成功、后到的就会撞上「已轮换」；这是正常现场，不是攻击。客户端的
-/// 单飞去重只合并得了同一页面上下文内的并发，跨标签页的只能在服务端兜
-/// （见 `rotate_session` 宽限分支）。窗外的重放照旧整链作废。
+/// already has 1 ****（`ROTATION_GRACE_MS`）： 
+/// up ， by 「 1 and 」 not is —— access that 1 ，
+/// / up down will ** 1 ** no refresh when ，
+/// to success、 after to will up 「 already 」； this is ， not is 。client 
+/// and 1 up down and ， can in server
+/// （ `rotate_session` ）。 old 。
 pub fn rotate_session(headers: &HeaderMap) -> Option<IssuedSession> {
     let candidates = refresh_candidates(headers);
     if candidates.is_empty() {
@@ -949,24 +949,24 @@ pub fn rotate_session(headers: &HeaderMap) -> Option<IssuedSession> {
         drop(table);
         return Some(IssuedSession::issue(session));
     }
-    // 一把活的都没有：按「候选里最先出现的已轮换记录」判重放，整条会话链作废
-    // （refresh 链 + 该链签发过的所有 access）。
+    // 1 no has ： by 「 already 」， will 
+    // （refresh + this all access）。
     let replay = hashes.iter().find_map(|hash| {
         table
             .iter()
             .position(|record| &record.hash == hash && record.rotated)
     });
-    // 连已轮换记录都没命中 → 纯粹的无效令牌（过期 / 别的会话 / 拼歪的碎片）：
-    // 按「刷新失败」处理，不动任何链。
+    // already no in → invalid（ / will / ）：
+    // by 「 new failure」， not 。
     let index = replay?;
     let session = table[index].session.clone();
-    // ── 并发轮换的宽限分支 ─────────────────────────────────────
-    // 这把 refresh 在宽限窗内刚被合法轮换、且链上还有活记录 → 判良性：从链上
-    // 现存的活记录再签发一组新令牌给这个后来者。**不动**那条活记录 —— 它属于
-    // 先到的那次轮换，动它等于把「先到者拿着的新 refresh」作废掉。宽限窗外
-    // （或链上已无活记录，例如登出 / 别处已判过重放）照旧整链作废。
-    // 代价：偷来的令牌在「合法用户轮换后的一分钟」内也能换出新令牌 —— 窗只有
-    // 一分钟，且令牌在那之前本就有效，泄露窗口没有实质扩大。
+    // ── and ─────────────────────────────────────
+    // this refresh in 、 and up has → ： from up 
+    // 1 new to this after 。** not ** that —— 
+    // to that ， etc 「 to new refresh」。
+    // （ or up already none，e.g. / already ） old 。
+    // ： in 「 use after 1 minutes」 can new —— has 
+    // 1 minutes， and in that before valid， no has 。
     if now - table[index].rotated_at <= ROTATION_GRACE_MS {
         if let Some(live) = table
             .iter()
@@ -984,21 +984,21 @@ pub fn rotate_session(headers: &HeaderMap) -> Option<IssuedSession> {
     None
 }
 
-/// 请求里是否带着一把**仍活着**的 refresh（未过期、未轮换）。只读：不轮换、
-/// 不判重放、不动任何会话链。
+/// request is 1 **** refresh（、）。： not 、
+/// not 、 not will 。
 ///
-/// 存在的理由是 401 的处置必须分清两件事，而这两件事在请求上长得一模一样：
+/// in by is 401 must， this in request up 1 1 ：
 ///
-/// - **access 过期、refresh 还活着**：这是续期前的**正常**中间态。那枚会话 cookie
-///   必须留在浏览器手里 —— 客户端拿到 401 的下一步就是拿它去 `/api/panel/refresh`
-///   换新令牌。此时清掉等于把 30 天的静默续期砍成每 2 小时一次强制重登
-///   （access 寿命就是 `ACCESS_TTL`，而同一枚 cookie 里装着 30 天的 refresh）。
-/// - **整条会话链已经没了**：这才是该清 cookie 的情形 —— 不清的话那枚死凭据每次
-///   开页都被带回来重新判一次无效（生产读数：同一把对不上任何登录的指纹两天里
-///   出现 51 次）。
+/// - **access 、refresh **： this is before **** in 。 that will cookie
+/// must in —— client to 401 down 1 is `/api/panel/refresh`
+/// new 。 when etc 30 2 when 1 
+/// （access is `ACCESS_TTL`， 1 cookie 30 refresh）。
+/// - ** will already no **： this is this cookie —— not that 
+/// new 1 invalid（： 1 for not up 
+/// 51 ）。
 ///
-/// 判据与 `rotate_session` 的「活候选」一致：候选里只要有一把命中未轮换且未过期的
-/// 记录，就说明轮换走得通，cookie 不能清。
+/// and `rotate_session` 「」 1 ： need has 1 in and 
+/// ，，cookie not can 。
 pub fn has_live_refresh(headers: &HeaderMap) -> bool {
     let hashes: Vec<String> = refresh_candidates(headers)
         .iter()
@@ -1020,7 +1020,7 @@ pub fn has_live_refresh(headers: &HeaderMap) -> bool {
     })
 }
 
-/// 登出：按 refresh 候选找到会话链，整链撤销 + 清掉请求里能定位到的 access。
+/// ： by refresh to will ， + request can to access。
 pub fn revoke_session(headers: &HeaderMap) {
     let hashes: Vec<String> = refresh_candidates(headers)
         .iter()
@@ -1047,8 +1047,8 @@ pub fn revoke_session(headers: &HeaderMap) {
             persist_refresh_tokens(&mut table);
         }
     }
-    // access 一并作废：带 token 的按值删（候选里的每一把都删，包括陈旧那把 ——
-    // 登出时没人希望罐里的旧令牌还活着），能定位会话链的按链删
+    // access 1 and ： token by （ 1 ，including old that ——
+    // when no old ）， can will by 
     let mut table = match access_tokens().lock() {
         Ok(table) => table,
         Err(poisoned) => poisoned.into_inner(),
@@ -1062,7 +1062,7 @@ pub fn revoke_session(headers: &HeaderMap) {
     persist_access_tokens(&mut table);
 }
 
-/// 把某条会话链签发过的所有 access token 作废（重放检测用）。
+/// will all access token （ use ）。
 fn revoke_access_of_session(session: &str) {
     let mut table = match access_tokens().lock() {
         Ok(table) => table,
@@ -1072,15 +1072,15 @@ fn revoke_access_of_session(session: &str) {
     persist_access_tokens(&mut table);
 }
 
-/// `Cookie` 头里某个名字的**全部**取值（按上行顺序）。
+/// `Cookie` ****（ by up ）。
 ///
-/// 这里**不提供**「只取第一条」的那个体态：本次事故（见 `access_candidates`）的
-/// 成因正是「同名 cookie 有两条上行时只看第一条」。留一个 `Option<String>` 版本
-/// 等于给下一个人留同一条错路 —— 要判存在性用 `.first()`，要判凭据就把全部
-/// 候选交给 `session_valid` / `rotate_session` 那一层。
+/// this ** not **「 1 」 that ：（ `access_candidates`） 
+/// is 「 cookie has up when 1 」。 1 `Option<String>` 
+/// etc to down 1 1 —— need in use `.first()`， need 
+/// to `session_valid` / `rotate_session` that 1 。
 ///
-/// 同名两条是**实测会出现**的形态，不是理论：中转拼头、或同一主机不同端口/路径
-/// 各存了一份（cookie 按主机算不分端口，fnOS :5666 中转与 :3065 直连共用一份罐）。
+/// is ** will ** ， not is ： in 、 or 1 not /path
+/// 1 （cookie by not ，fnOS :5666 in and :3065 use 1 ）。
 pub fn cookie_values(headers: &HeaderMap, name: &str) -> Vec<String> {
     let Some(header) = headers.get(axum::http::header::COOKIE).and_then(|v| v.to_str().ok()) else {
         return Vec::new();
@@ -1088,14 +1088,14 @@ pub fn cookie_values(headers: &HeaderMap, name: &str) -> Vec<String> {
     cookie_values_from_str(header, name)
 }
 
-/// `Cookie` 头里出现过的**名字**（排序去重，**只给名字、不取值**）。
+/// `Cookie` ****（，** to 、 not **）。
 ///
-/// 为什么要这份名单：面板「登录成功却被弹回」这类现场，只看得到「cookie 有 / 无」
-/// 是不够的 —— 中转入口（fnOS docker 管理页这类）常见的毛病是把多条 `Set-Cookie`
-/// 合并或只透传一条，于是浏览器带回来的往往是**探针** cookie 或**上一轮**的会话
-/// cookie：同样是"cookie=有"，但对不上这一把会话。名字列表能一次把三种情况分开
-/// （没送到 / 送到但不是这把 / 两条都在却各自过期），值本身是凭据，进日志等于把
-/// 令牌抄到磁盘上，所以这里刻意只出名字。
+/// Why need this ：「success 」 this ， to 「cookie has / none」
+/// is not —— in （fnOS docker this ） is `Set-Cookie`
+/// and or 1 ， is is **** cookie or ** up 1 ** will 
+/// cookie： is "cookie= has "， for not up this 1 will 。 can 1 
+/// （ no to / to not is this / in ）， is ， etc 
+/// to up ， this 。
 pub fn cookie_names(headers: &HeaderMap) -> Vec<String> {
     let Some(header) = headers.get(axum::http::header::COOKIE).and_then(|v| v.to_str().ok()) else {
         return Vec::new();
@@ -1111,17 +1111,17 @@ pub fn cookie_names(headers: &HeaderMap) -> Vec<String> {
     names
 }
 
-/// 令牌的**短指纹**（sha256 前 8 位十六进制）—— 只为把两行日志对上，不还原令牌。
+/// ****（sha256 before 8 ）—— as for up ， not 。
 ///
-/// 日志里绝不能出现令牌本身（那等于把凭据抄进 SQLite 与备份文件）。但排查
-/// 「登录明明成功、下一个请求却仍被判无效」时必须能回答一个问题：带回的那把
-/// access cookie 是**这次发的**还是**上一轮残留的** —— 两者在"cookie=有"里
-/// 长得一模一样。8 位十六进制（4×10⁸ 空间）足以区分同机先后两把，又不足以反推。
+/// not can （ that etc SQLite and file）。
+/// 「success、 down 1 request invalid」 when must can 1 ： that 
+/// access cookie is ** this ** is ** up 1 ** —— in "cookie= has "
+/// 1 1 。8 （4×10⁸ empty） after ， not 。
 pub fn token_fingerprint(value: &str) -> String {
     sha256_hex(value).chars().take(8).collect()
 }
 
-/// 本次登录下发的 access 令牌指纹（登录日志与后续请求日志对得上用）。
+/// down access （ and after request for up use ）。
 pub fn access_fingerprint(session: &IssuedSession) -> String {
     token_fingerprint(&session.access_token)
 }
@@ -1134,13 +1134,13 @@ fn cookie_values_from_str(header: &str, name: &str) -> Vec<String> {
             let value = part.strip_prefix(name)?.strip_prefix('=')?;
             Some(value.trim().to_string())
         })
-        // 只收**真的有值**的那几条：中转把 Set-Cookie 拼歪时常见 `name=`（空值）
-        // 留在罐里，它不是凭据，让它进候选只会多一次注定落空的查表。
+        // ** has ** that ： in Set-Cookie when `name=`（empty）
+        // in ， not is ， will 1 empty 。
         .filter(|value: &String| !value.is_empty())
         .collect()
 }
 
-// ── 登录失败锁定（按来源 IP）────────────────────────────────
+// ── failure（ by IP）────────────────────────────────
 
 struct Attempt {
     failures: u32,
@@ -1153,7 +1153,7 @@ fn attempts() -> &'static Mutex<HashMap<IpAddr, Attempt>> {
     ATTEMPTS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// 该来源当前是否处于登录锁定中。
+/// this current is in 。
 pub fn login_locked(source: IpAddr) -> bool {
     let table = match attempts().lock() {
         Ok(table) => table,
@@ -1165,7 +1165,7 @@ pub fn login_locked(source: IpAddr) -> bool {
         .is_some_and(|until| Instant::now() < until)
 }
 
-/// 登录失败：累计；达到阈值就锁定一段时间。
+/// failure：； to 1 when 。
 pub fn record_login_failure(source: IpAddr) {
     let mut table = match attempts().lock() {
         Ok(table) => table,
@@ -1181,7 +1181,7 @@ pub fn record_login_failure(source: IpAddr) {
     }
 }
 
-/// 登录成功：清空该来源的失败记录。
+/// success：empty this failure。
 pub fn clear_login_failures(source: IpAddr) {
     match attempts().lock() {
         Ok(mut table) => {
@@ -1193,39 +1193,39 @@ pub fn clear_login_failures(source: IpAddr) {
     };
 }
 
-// ── /v1 fail-closed（headless 未配 Key 时拒绝转发，见 bin）────
+// ── /v1 fail-closed（headless Key when ， bin）────
 
 static V1_FAIL_CLOSED: AtomicBool = AtomicBool::new(false);
 
-/// headless 形态标记：未注册管理员时 `/api/*`（除注册/状态两个认证边界
-/// 端点）一律拒绝 —— 否则面板前端拿到 200 会直接进主界面，把「部署完
-/// 必须先注册」变成可绕过的一步。桌面壳不设置它（桌面免鉴权语义不变）。
+/// headless ： when `/api/*`（/ 
+/// ） 1 —— otherwise before to 200 will ， 「
+/// must」 can 1 。 not set（ not ）。
 static PANEL_GATE: AtomicBool = AtomicBool::new(false);
 
-/// headless 形态是否处于「未注册 /api/* 全拒」闸门下。
+/// headless is 「 /api/* 」 down 。
 pub fn panel_gate() -> bool {
     PANEL_GATE.load(Ordering::Relaxed)
 }
 
-/// headless 启动时打开（面板认证启用后即形同虚设，保留开关是为了
-/// 语义清晰：两态各自独立判断，不隐式推导）。
+/// headless when （enabled after ， is as 
+/// ：， not ）。
 pub fn set_panel_gate(on: bool) {
     PANEL_GATE.store(on, Ordering::Relaxed);
 }
 
-/// `/v1/*` 是否处于 fail-closed（未配置任何 Key 的 headless 形态）。
+/// `/v1/*` is fail-closed（not configured Key headless ）。
 pub fn v1_fail_closed() -> bool {
     V1_FAIL_CLOSED.load(Ordering::Relaxed)
 }
 
-/// headless 启动时按「有没有 Key」决定是否进入 fail-closed。
+/// headless when by 「 has no has Key」 is fail-closed。
 pub fn set_v1_fail_closed(on: bool) {
     V1_FAIL_CLOSED.store(on, Ordering::Relaxed);
 }
 
-// 注意：`panelAdmin` / `panelTokens` / `panelAccessSessions` 三个 kv 键已登记进
-// `db::schema::RESERVED_KV_KEYS`（配置写侧据它排除）—— 新增键时必须两处
-// 同步，否则用户改一次配置就会把管理员与令牌静默删掉。
+// Note: `panelAdmin` / `panelTokens` / `panelAccessSessions` kv already 
+// `db::schema::RESERVED_KV_KEYS`（configexcluding）—— add when must
+// ，otherwise use 1 config will and 。
 
 #[cfg(test)]
 mod credential_candidate_tests {
@@ -1233,12 +1233,12 @@ mod credential_candidate_tests {
     use axum::http::{HeaderMap, HeaderName, HeaderValue};
 
     fn header_name(value: &str) -> HeaderName {
-        HeaderName::from_bytes(value.as_bytes()).expect("测试里的头名必须是合法 token")
+        HeaderName::from_bytes(value.as_bytes()).expect(" must is token")
     }
 
-    /// 组装上行请求头：`cookie` 原文（空串 = 不带 Cookie 头）+ 任意个
-    /// `(头名, 值)`（同名可重复，走 append，因为被测的正是「同一名字两条上行」
-    /// 这种中转产物）。
+    /// up request：`cookie` （empty = not Cookie ）+ any 
+    /// `(, )`（ can ， append， as is 「 1 up 」
+    /// this in ）。
     fn request(cookie: &str, pairs: &[(&str, &str)]) -> HeaderMap {
         let mut headers = HeaderMap::new();
         if !cookie.is_empty() {
@@ -1253,7 +1253,7 @@ mod credential_candidate_tests {
         headers
     }
 
-    /// 会话 cookie 的上行文本（一枚装两段，与 `issue_cookie` 的形状同源）。
+    /// will cookie up （ 1 ， and `issue_cookie` ）。
     fn session_cookie(session: &IssuedSession) -> String {
         format!(
             "{ACCESS_COOKIE}={}.{}",
@@ -1261,16 +1261,16 @@ mod credential_candidate_tests {
         )
     }
 
-    /// 只带 refresh 段的会话 cookie（access 那一段故意是废值）——
-    /// 让轮换类用例能只喂 refresh 而不顺带把 access 也判过。
+    /// refresh will cookie（access that 1 is ）——
+    /// use can refresh not access 。
     fn refresh_only_cookie(token: &str) -> String {
         format!("{ACCESS_COOKIE}=not-a-live-access.{token}")
     }
 
-    /// 候选顺序：同名 cookie 的每个值 → `x-panel-refresh` → Bearer，去重。
+    /// ： cookie → `x-panel-refresh` → Bearer，。
     ///
-    /// cookie 仍在最前（直连环境的判定与从前同序）；改动只发生在「第一把无效时
-    /// 不许就此收摊」。cookie 侧取的是**一枚会话 cookie 的第二段**（refresh）。
+    /// cookie in before （ and from before ）； in 「 1 invalid when 
+    /// not 」。cookie is ** 1 will cookie **（refresh）。
     #[test]
     fn candidates_are_cookie_values_first_then_headers_and_deduplicated() {
         let headers = request(
@@ -1286,30 +1286,30 @@ mod credential_candidate_tests {
             ],
             refresh_candidates(&headers)
         );
-        // 同一条 cookie 的第一段进 access 候选、第二段进 refresh 候选，不串门
+        // 1 cookie 1 access 、 refresh ， not 
         let halves = request("agent2api-panel=acc-a.rt-a", &[]);
         assert_eq!(vec!["acc-a".to_string()], access_candidates(&halves));
 
-        // 同一把既在 cookie 又在头里：只试一次
+        // 1 in cookie in ： 1 
         let once = request("agent2api-panel=acc.same", &[("x-panel-refresh", "same")]);
         assert_eq!(vec!["same".to_string()], refresh_candidates(&once));
 
-        // 空值不进候选（`name=` 是拼歪的 Set-Cookie 留下的碎片，不是凭据）
+        // empty not （`name=` is Set-Cookie down ， not is ）
         let blanks = request("agent2api-panel=;", &[("x-panel-refresh", "   ")]);
         assert!(refresh_candidates(&blanks).is_empty());
-        // 半个配对也是碎片（中转把响应拼歪之后就是这种形状）：两侧都不进候选
+        // for is （ in response after is this ）： not 
         for broken in ["agent2api-panel=.", "agent2api-panel=acc.", "agent2api-panel=.rt"] {
             let headers = request(broken, &[]);
-            assert!(access_candidates(&headers).is_empty(), "{broken} 不该贡献 access 候选");
-            assert!(refresh_candidates(&headers).is_empty(), "{broken} 不该贡献 refresh 候选");
+            assert!(access_candidates(&headers).is_empty(), "{broken} not this access ");
+            assert!(refresh_candidates(&headers).is_empty(), "{broken} not this refresh ");
         }
     }
 
-    /// access 侧同一条序（cookie → x-panel-token → Bearer）。
+    /// access 1 （cookie → x-panel-token → Bearer）。
     ///
-    /// 前两把写成"只有一段"的形状是**有意的**：升级前那版罐子里留下的裸 access
-    /// 值也要能被读出来（`split_session_cookie` 的那条回退），否则升级会把还活着
-    /// 的会话无谓地踢掉一次。合成一枚之后的正常形状见下一条用例。
+    /// before " has 1 " is ** has **： before that down access
+    /// need can （`split_session_cookie` that ），otherwise will 
+    /// will none 1 。 1 after down 1 use 。
     #[test]
     fn access_candidates_follow_the_same_order() {
         let headers = request(
@@ -1327,28 +1327,28 @@ mod credential_candidate_tests {
         );
     }
 
-    /// 一枚装两段的正常形状：第一段是 access 候选，且这条 cookie 同时也贡献 refresh。
+    /// 1 ： 1 is access ， and this cookie when refresh。
     #[test]
     fn one_cookie_feeds_both_sides() {
         let session = IssuedSession::new_session();
         let text = session_cookie(&session);
-        // 与签发侧同源：会话 cookie 的文本必须就是 `issue_cookie` 造出来的那条
+        // and ： will cookie must is `issue_cookie` that 
         assert_eq!(text, session.session_cookie.split(';').next().unwrap().to_string());
         assert_eq!(vec![session.access_token.clone()], access_candidates(&request(&text, &[])));
         assert_eq!(vec![session.refresh_token.clone()], refresh_candidates(&request(&text, &[])));
-        assert!(session_valid(&request(&text, &[])), "一枚 cookie 就该把会话撑起来");
+        assert!(session_valid(&request(&text, &[])), " 1 cookie this will ");
     }
 
-    /// 升级过渡：罐里还留着上一版那枚独立 refresh cookie（`agent2api-panel-rt`）时，
-    /// 它必须仍被当 refresh 候选读出来 —— 否则升级那一刻 access 表是新键（空），
-    /// 唯一能救回会话的就只有它，不读等于**全员被迫重登一次**。
+    /// ： up 1 that refresh cookie（`agent2api-panel-rt`） when ，
+    /// must refresh —— otherwise that 1 access is new （empty），
+    /// 1 can will has ， not etc ** 1 **。
     ///
-    /// 两条断言分别钉住两侧：能被读出来（旧值不丢），以及**不抢跑**（会话 cookie
-    /// 在场时新值排在前面）。
+    /// ： can （ old not ）， and ** not **（ will cookie
+    /// in when new in before ）。
     #[test]
     fn a_legacy_refresh_cookie_still_feeds_the_rotation() {
         let session = IssuedSession::new_session();
-        // 只有旧名：仍要认得出来
+        // has old ： need 
         let legacy_only = request(
             &format!("{LEGACY_REFRESH_COOKIE}={}", session.refresh_token),
             &[],
@@ -1356,14 +1356,14 @@ mod credential_candidate_tests {
         assert_eq!(
             vec![session.refresh_token.clone()],
             refresh_candidates(&legacy_only),
-            "旧名的 refresh 必须仍进候选（升级期不把人踢下线）"
+            " old refresh must（ not down ）"
         );
         assert!(
             rotate_session(&legacy_only).is_some(),
-            "带着旧 cookie 的浏览器应当能静默换到新令牌"
+            " old cookie can to new "
         );
 
-        // 旧名 + 新格式同时在罐里：新的排在前面，旧值不抢跑
+        // old + new when in ： new in before ， old not 
         let both = request(
             &format!(
                 "{}=acc.{rt}; {LEGACY_REFRESH_COOKIE}=legacy-rt",
@@ -1375,13 +1375,13 @@ mod credential_candidate_tests {
         assert_eq!(
             vec![session.refresh_token.clone(), "legacy-rt".to_string()],
             refresh_candidates(&both),
-            "会话 cookie 的 refresh 段要排在旧名之前"
+            " will cookie refresh need in old before "
         );
     }
 
-    /// 本次事故的正对照（2026-09-29，fnOS :5666 中转）：罐里盖着一把**陈年**同名
-    /// cookie、头里带着刚拿到的令牌 —— 旧实现在 cookie 那一步就短路了，于是
-    /// 「登录成功 → 下一个请求 401 → 弹回登录页」死循环。现在每一把候选都要试。
+    /// for （2026-09-29，fnOS :5666 in ）： 1 ****
+    /// cookie、 to —— old in cookie that 1 ， is 
+    /// 「success → down 1 request 401 → 」。 in 1 need 。
     #[test]
     fn a_stale_cookie_cannot_shadow_the_header_token() {
         let session = IssuedSession::new_session();
@@ -1393,21 +1393,21 @@ mod credential_candidate_tests {
         );
         assert!(
             session_valid(&with_header),
-            "陈 cookie 不许把有效的头令牌挡在门外"
+            " cookie not valid in "
         );
 
-        // 同一条会话、同一份 cookie，只是**不带那个头** → 仍然无效。
-        // 这一条控制项是上一条断言的全部意义：少了它，「上面变 true」既可能是
-        // 「试了头」也可能是「判定被放宽成无条件放行」。
+        // 1 will 、 1 cookie， is ** not that ** → invalid。
+        // this 1 is up 1 ：，「 up true」 can can is 
+        // 「」 can can is 「 none」。
         let cookie_only = request(&format!("{ACCESS_COOKIE}={stale}"), &[]);
         assert!(
             !session_valid(&cookie_only),
-            "只带陈 cookie 时必须仍然判无效（否则上一条断言什么都没证明）"
+            " cookie when mustinvalid（otherwise up 1 no ）"
         );
     }
 
-    /// 同名 cookie 重复上行（浏览器把不同 Path 的两份一起带上来）时，每一把
-    /// 都会被试 —— 有效那把排在后面也一样。
+    /// cookie up （ not Path 1 up ） when ， 1 
+    /// will —— valid that in after 1 。
     #[test]
     fn every_repeated_cookie_value_gets_tried() {
         let session = IssuedSession::new_session();
@@ -1417,7 +1417,7 @@ mod credential_candidate_tests {
             &format!("{ACCESS_COOKIE}={stale}; {ACCESS_COOKIE}={}", session.access_token),
             &[],
         );
-        assert!(session_valid(&stale_first), "第二把同名 cookie 也必须试到");
+        assert!(session_valid(&stale_first), " cookie must to ");
 
         let live_first = request(
             &format!("{ACCESS_COOKIE}={}; {ACCESS_COOKIE}={stale}", session.access_token),
@@ -1425,7 +1425,7 @@ mod credential_candidate_tests {
         );
         assert!(session_valid(&live_first));
 
-        // 两把都是陈的 → 无效（同上，给上一条做对照）
+        // is → invalid（ up ， to up 1 for ）
         let both_stale = request(
             &format!("{ACCESS_COOKIE}={stale}; {ACCESS_COOKIE}={}", random_hex(32)),
             &[],
@@ -1433,7 +1433,7 @@ mod credential_candidate_tests {
         assert!(!session_valid(&both_stale));
     }
 
-    /// Bearer 通道同样要兜得住：连自定义请求头都被剥的中转只放标准头过去。
+    /// Bearer need ：request in 。
     #[test]
     fn the_bearer_channel_is_a_candidate_too() {
         let session = IssuedSession::new_session();
@@ -1444,54 +1444,54 @@ mod credential_candidate_tests {
         assert!(session_valid(&headers));
     }
 
-    /// 轮换：cookie 里那把**已轮换**的陈 refresh 排在前面时，要跳到头里那把活的，
-    /// 不许把活链当成重放作废掉。
+    /// ：cookie that ** already ** refresh in before when ， need to that ，
+    /// not 。
     #[test]
     fn rotation_skips_a_rotated_stale_refresh_to_the_live_one() {
         let first = IssuedSession::new_session();
         let second = rotate_session(&request(&refresh_only_cookie(&first.refresh_token), &[]))
-            .expect("首次轮换应成功");
+            .expect("success");
         assert!(
             session_valid(&request(&session_cookie(&second), &[])),
-            "轮换签发的 access 应进会话表（否则后面的断言都在真空里跑）"
+            " access will （otherwise after in empty）"
         );
 
-        // 现在 first.refresh 是「已轮换」记录，second.refresh 是活链。
-        // 罐里若还留着 first 那把（同名残本）并排在其前，旧实现会命中它、
-        // 判重放、整链作废 → 返回 None → 用户被迫重登。
+        // in first.refresh is 「 already 」，second.refresh is 。
+        // if first that （） and in its before ， old will in 、
+        // 、 → return None → use 。
         let mixed = request(
             &refresh_only_cookie(&first.refresh_token),
             &[("x-panel-refresh", &second.refresh_token)],
         );
-        let third = rotate_session(&mixed).expect("陈旧那把不该挡住活链的轮换");
+        let third = rotate_session(&mixed).expect(" old that not this ");
 
-        // 链仍然连着：新签发的 access 有效、新 refresh 还能再轮换一次
+        // ： new access valid、 new refresh can 1 
         assert!(session_valid(&request(&session_cookie(&third), &[])));
         assert!(rotate_session(&request(&session_cookie(&third), &[])).is_some());
     }
 
-    /// 重放检测没被削弱：宽限窗**外**只拿已轮换的旧令牌来换（没有一把活的
-    /// 在场），仍是整条会话链作废；窗内的同一行为则是良性并发续期（多标签页
-    /// 同时撞上 access 过期的正常现场，见 `rotate_session` 的宽限分支）。
+    /// no ：**** already old （ no has 1 
+    /// in ）， is will ； 1 as then is and （
+    /// when up access ， `rotate_session` ）。
     #[test]
     fn a_replayed_refresh_alone_still_kills_its_chain() {
         let first = IssuedSession::new_session();
         let second = rotate_session(&request(&refresh_only_cookie(&first.refresh_token), &[]))
-            .expect("首次轮换应成功");
+            .expect("success");
 
-        // 宽限窗内旧令牌单独上行 = 并发续期：照常签发，且不杀链
+        // old up = and ：， and not 
         let concurrent = rotate_session(&request(&refresh_only_cookie(&first.refresh_token), &[]))
-            .expect("宽限窗内的重复 refresh 该按并发续期签发新令牌");
+            .expect(" refresh this by and new ");
         assert!(
             session_valid(&request(&session_cookie(&concurrent), &[])),
-            "宽限续期签发的新 access 要有效"
+            " new access need valid"
         );
         assert!(
             rotate_session(&request(&session_cookie(&second), &[])).is_some(),
-            "宽限续期不许动链上原有的活 refresh"
+            " not up has refresh"
         );
 
-        // 把已轮换记录拨到宽限窗之外 → 同一把旧令牌再上来就是泄露：整链作废
+        // already to → 1 old up is ：
         {
             let mut table = refresh_tokens().lock().unwrap();
             for record in table.iter_mut() {
@@ -1501,20 +1501,20 @@ mod credential_candidate_tests {
             }
         }
         let replayed = rotate_session(&request(&refresh_only_cookie(&first.refresh_token), &[]));
-        assert!(replayed.is_none(), "宽限窗外的已轮换令牌必须判重放");
+        assert!(replayed.is_none(), " already must");
 
-        // 同链的**活**令牌也应随之作废（整链撤销）—— 这一条才是「整链」二字的意思
+        // ****（）—— this 1 is 「」 
         assert!(
             rotate_session(&request(&session_cookie(&second), &[])).is_none(),
-            "重放检测应作废整条会话链"
+            " will "
         );
         assert!(
             !session_valid(&request(&session_cookie(&second), &[])),
-            "该链签发过的 access 要一并作废"
+            " this access need 1 and "
         );
     }
 
-    /// 登出：候选里任一把命中就整链撤销，且**每一把**上行的 access 都按值删。
+    /// ： 1 in ， and ** 1 ** up access by 。
     #[test]
     fn logout_revokes_through_the_stale_cookie_and_the_header_together() {
         let session = IssuedSession::new_session();
@@ -1526,13 +1526,13 @@ mod credential_candidate_tests {
         assert!(session_valid(&headers));
         revoke_session(&headers);
 
-        // 链没了：refresh 换不出新令牌，access 也不再有效
+        // no ：refresh not new ，access not valid
         assert!(rotate_session(&request(&session_cookie(&session), &[])).is_none());
         assert!(!session_valid(&request(
             &format!("{ACCESS_COOKIE}={}", session.access_token),
             &[]
         )));
-        // 对照：没被登出的另一把 access 不受牵连（撤的是链，不是全表）
+        // for ： no 1 access not （ is ， not is ）
         let other = IssuedSession::new_session();
         assert!(session_valid(&request(
             &format!("{ACCESS_COOKIE}={}", other.access_token),
@@ -1547,17 +1547,17 @@ mod credential_candidate_tests {
 
 #[cfg(test)]
 mod session_lifecycle_tests {
-    //! 面板会话的两条生命线：**落得回**（重启不把人踢下线）与**清得掉**
-    //! （失效的 cookie 不会每次开页都被带回来撞 401）。
+    //! will ：****（ not down ） and ****
+    //! （ cookie not will 401）。
     //!
-    //! 两条都是生产读数的直接对应物：access 表原先只在内存，一次容器重启就把
-    //! 所有已登录浏览器打成无效，而 401 又不清 cookie ⇒ 同一把对不上任何登录的
-    //! 指纹两天里出现 51 次。判据都写成「旧实现必红」的形状。
+    //! is for ：access in ， 1 
+    //! all already invalid， 401 not cookie ⇒ 1 for not up 
+    //! 51 。「 old 」 。
 
     use super::*;
     use axum::http::{HeaderMap, HeaderValue};
 
-    /// 上行 Cookie 头（值是整枚会话 cookie 的内容）。
+    /// up Cookie （ is will cookie ）。
     fn cookie_header(value: &str) -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -1567,12 +1567,12 @@ mod session_lifecycle_tests {
         headers
     }
 
-    /// 一枚会话 cookie 的值（与 `issue_cookie` 同形）—— 用例按它拼上行文本。
+    /// 1 will cookie （ and `issue_cookie` ）—— use by up 。
     fn cookie_value(session: &IssuedSession) -> String {
         format!("{}.{}", session.access_token, session.refresh_token)
     }
 
-    /// 一条 Set-Cookie 里的 Path 属性（没有就 None）—— 签发与清除的比对点。
+    /// 1 Set-Cookie Path （ no has None）—— and for 。
     fn path_of(cookie: &str) -> Option<&str> {
         cookie
             .split(';')
@@ -1580,11 +1580,11 @@ mod session_lifecycle_tests {
             .find_map(|part| part.strip_prefix("Path=").map(str::trim))
     }
 
-    /// 签发的会话载回后仍然有效（= 重启不再把人踢下线）。
+    /// will after valid（= not down ）。
     ///
-    /// 这条钉的是**键的一致性**：表从「裸令牌为键」改成「sha256 为键」时，只要
-    /// 签发侧与查找侧有一边忘了换，这里就红（而 `session_valid` 自己看不出 ——
-    /// 它只是查不到，症状与「令牌真的过期」一模一样）。
+    /// this is ** 1 **： from 「 as 」「sha256 as 」 when ， need 
+    /// and has 1 ， this （ `session_valid` not ——
+    /// is not to ， and 「 」 1 1 ）。
     #[test]
     fn an_issued_session_survives_a_reload() {
         let issued = IssuedSession::new_session();
@@ -1594,15 +1594,15 @@ mod session_lifecycle_tests {
             access_table_from(serde_json::from_str::<Vec<AccessRecord>>(&dumped).unwrap(), now_ms());
         assert!(
             reloaded.contains_key(&sha256_hex(&issued.access_token)),
-            "载回的表必须按 sha256 认得这把令牌"
+            " must by sha256 this "
         );
-        // 内存表换载回的那份后，判定照旧为真（这里不写全局表，避免与并发用例互踩）
+        // that after ， old as （ this not ， and and use ）
         let hash = sha256_hex(&issued.access_token);
         assert!(reloaded.get(&hash).is_some_and(|(_, expiry)| *expiry > now_ms()));
         assert!(session_valid(&cookie_header(&cookie_value(&issued))));
     }
 
-    /// 库里那份是两天前的话，过期条目不能复活（墙钟判据，不是 `Instant`）。
+    /// that is before ， not can （， not is `Instant`）。
     #[test]
     fn expired_records_do_not_come_back() {
         let expired = vec![AccessRecord {
@@ -1610,11 +1610,11 @@ mod session_lifecycle_tests {
             session: "s".to_string(),
             expires_at: now_ms() - 1,
         }];
-        assert!(access_table_from(expired, now_ms()).is_empty(), "过期条目不该被载入");
+        assert!(access_table_from(expired, now_ms()).is_empty(), " not this ");
     }
 
-    /// 落库的只有哈希：整库导出/备份走同一张 kv 表，裸令牌进去等于把可用凭据
-    /// 写成明文文件。
+    /// has ：/ 1 kv ， etc available
+    /// file。
     #[test]
     fn stored_records_never_carry_a_raw_token() {
         let issued = IssuedSession::new_session();
@@ -1623,53 +1623,53 @@ mod session_lifecycle_tests {
         assert!(dumped.contains(&sha256_hex(&issued.access_token)));
         assert!(
             !dumped.contains(&issued.access_token),
-            "落库内容里不能出现裸令牌（那样备份文件就等于凭据文件）"
+            " not can （ that file etc file）"
         );
     }
 
-    /// **一条** `Set-Cookie` 装下整条会话，清除也落在同一条上。
+    /// ** 1 ** `Set-Cookie` down will ， in 1 up 。
     ///
-    /// 三个判据都是症状面的（合并型中转的现场教训）：
-    ///   · 签发只有**一枚** cookie —— 两条 `Set-Cookie` 会被中转按逗号拼成一条，
-    ///     属性降级成名为 `path|domain|max-age|expires` 的 cookie，新会话存不进罐子
-    ///     （经中转开面板每次都要重登，生产一手读数：同一把僵尸指纹两天出现 63 次）；
-    ///   · Path 与清除头逐字一致 —— 浏览器删 cookie 要名字与 Path 同时命中，
-    ///     从前 refresh 签在 `/api/panel` 而清除写 `/`，那枚从来没被删掉过；
-    ///   · 一枚里两段都在（access 与 refresh），否则轮换链跟不到人。
-    /// 旧实现这三条里至少红两条（两条 Set-Cookie、refresh 的 Path 不相等）。
+    /// is （ and in ）：
+    /// · has ** 1 ** cookie —— `Set-Cookie` will in by 1 ，
+    /// as `path|domain|max-age|expires` cookie， new will not 
+    /// （ in need ， 1 ： 1 63 ）；
+    /// · Path and 1 —— cookie need and Path when in ，
+    /// from before refresh in `/api/panel` `/`， that from no ；
+    /// · 1 in （access and refresh），otherwise not to 。
+    /// old this （ Set-Cookie、refresh Path not etc ）。
     #[test]
     fn one_cookie_carries_the_whole_session_and_clearing_targets_it() {
         let issued = IssuedSession::new_session();
-        // 一条：名字只有一个，属性段不再夹第二个 cookie
-        let (pair, attributes) = issued.session_cookie.split_once("; ").expect("至少带 Path 属性");
+        // 1 ： has 1 ， not cookie
+        let (pair, attributes) = issued.session_cookie.split_once("; ").expect(" Path ");
         assert!(
             pair.contains('.'),
-            "会话 cookie 必须是 access.refresh 两段的形状，实得 {pair}"
+            " will cookie must is access.refresh ， {pair}"
         );
         assert!(
             pair.starts_with(&format!("{ACCESS_COOKIE}=")),
-            "cookie 名要还是那一个，实得 {pair}"
+            "cookie need is that 1 ， {pair}"
         );
         assert!(
             !issued.session_cookie.contains(','),
-            "一条 Set-Cookie 里不该有逗号 —— 逗号正是合并型中转拼出来的形状"
+            " 1 Set-Cookie not this has —— is and in "
         );
         assert!(attributes.contains("Path=/"));
         assert!(attributes.contains("HttpOnly"));
         assert!(attributes.contains("SameSite=Lax"));
         assert!(
             attributes.contains(&format!("Max-Age={}", REFRESH_TTL.as_secs())),
-            "寿命取 refresh：access 的过期由服务端会话表判，cookie 只是载体"
+            " refresh：access by server will ，cookie is "
         );
         assert_eq!(
             path_of(&clear_cookie()),
             path_of(&issued.session_cookie),
-            "清除 Path 必须与签发一致"
+            " Path must and 1 "
         );
         assert_eq!(path_of(&issued.session_cookie), Some("/"));
         assert!(clear_cookie().contains(&format!("{ACCESS_COOKIE}=;")));
         assert!(clear_cookie().contains("Max-Age=0"));
-        // 两段各归各位：第一段撑 access，第二段撑轮换
+        // ： 1 access，
         assert!(session_valid(&cookie_header(&cookie_value(&issued))));
         assert!(rotate_session(&cookie_header(&cookie_value(&issued))).is_some());
     }

@@ -14,7 +14,7 @@ pub const MAX_SANITIZE_PROVIDERS: usize = 200;
 pub struct SanitizeSettings {
     pub enabled: bool,
     pub rules: Arc<RuleSet>,
-    /// 空列表表示全部提供商，包含之后新增的插件与自定义提供商。
+    /// empty， after add and 。
     pub providers: Vec<String>,
     pub custom_rules: bool,
 }
@@ -44,7 +44,7 @@ impl SanitizeSettings {
 #[derive(Default)]
 pub struct SanitizePatch {
     pub enabled: Option<bool>,
-    /// None = 不改，Some(None) = 恢复内置规则，Some(Some(...)) = 自定义词表。
+    /// None = not ，Some(None) = then ，Some(Some(...)) = 。
     pub rules: Option<Option<Arc<RuleSet>>>,
     pub providers: Option<Vec<String>>,
 }

@@ -103,9 +103,9 @@ fn account_file(
         .cloned()
         .unwrap_or_default();
     content.retain(|key, _| !key.starts_with("pluginLedger."));
-    // 插件凭证优先于顶层镜像；摊平后仍保留原始 secret，兼容凭证导入与备份回流。
+    // ； after secret， and 。
     if let Some(Value::Object(secret)) = record.get("pluginSecret") {
-        // 旧记录的镜像可能已失效；插件 secret 是凭证的权威副本。
+        // old can can already ； secret is 。
         for key in CREDENTIAL_KEYS {
             content.remove(*key);
         }

@@ -163,7 +163,7 @@ impl UpdateManager {
             ("User-Agent".to_string(), USER_AGENT.to_string()),
             ("Accept".to_string(), "application/octet-stream".to_string()),
         ];
-        // 镜像不可同时提供程序与信任依据；只有官方 HTTPS API 的摘要才能放行。
+        // not can when and ； has HTTPS API need can 。
         let candidates = source::download_candidates(target.as_str(), expected.is_some(), &headers)
             .await.map_err(UpdateError::new)?;
         if expected.is_none() && candidates.len() == 1 {

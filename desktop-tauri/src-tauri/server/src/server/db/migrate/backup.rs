@@ -1,49 +1,49 @@
-//! 旧文件迁移的公共工具：把已迁过的旧文件**改名**成备份。
+//! old file ： already old file****。
 //!
-//! 只放这一件事：所有迁移项都要在成功之后调用它，而「改名碰撞怎么处理、编码
-//! 怎么保证、失败算什么」三个细节必须一次写对 —— 散在各项里各写一遍必然出现
-//! 两种口径（见下面各段的论证）。
+//! this 1 ：all need in success after use ，「、
+//! 、failure」 must 1 for —— in 1 
+//! （ down ）。
 
 use std::path::{Path, PathBuf};
 
 use crate::server::logging;
 
-/// 备份（改名）一个已迁移的旧文件，返回改名后的路径。
+/// （） 1 already old file，return after path。
 ///
-/// 目标名是 `{原文件名}.migrated`（`accounts.json` → `accounts.json.migrated`）；
-/// 若该名字已被占用，改用 `{原文件名}.migrated-{epoch秒}`。
+/// is `{file}.migrated`（`accounts.json` → `accounts.json.migrated`）；
+/// if this already use ， use `{file}.migrated-{epochseconds}`。
 ///
-/// ── 为什么是改名而不是删除 ──────────────────────────────────
-/// 迁移是**不可逆**的数据搬运：库里的行一旦与旧文件对不上，没有第二份可供
-/// 交叉验证。把旧文件留在原地（只是换个名字）意味着用户任何时候都能拿它
-/// 回退或人工核对；代价只是配置目录里多几个 `.migrated` 文件。删除是不可逆
-/// 动作，而迁移本身还没有经过长时间验证 —— 这个阶段绝不能删数据。
+/// ── Why is not is delete ──────────────────────────────────
+/// is ** not can ** ： 1 and old file for not up ， no has can 
+/// 。 old file in （ is ） use when can 
+/// or for ； is configdirectory `.migrated` file。delete is not can 
+/// ， no has when —— this not can 。
 ///
-/// ── 为什么改名而不是拷贝 ────────────────────────────────────
-/// 改名是同一个文件系统内的元数据操作（原子、不产生第二份数据）；拷贝要为
-/// 每个旧文件再写一遍全部字节（`requests.jsonl` 动辄几十 MB），且拷贝完成后
-/// 「删原文件」又是一次不可逆动作。改名一步到位，也顺带保证了「同一个旧文件
-/// 不会被迁移两次」—— 第二次启动时它在原路径上已经不存在了。
+/// ── Why not is ────────────────────────────────────
+/// is 1 file （、 not ）； need as 
+/// old file 1 （`requests.jsonl` MB）， and after 
+/// 「file」 is 1 not can 。 1 to ，「 1 old file
+/// not will 」—— when in path up already not in 。
 ///
-/// ── 时间戳后缀的碰撞分析（为什么不做第二层兜底）─────────────
-/// `-{epoch秒}` 只在前一个备份同名时才会用到。要让它也撞上，需要在同一秒内
-/// 对**同一个**旧文件跑两次迁移，而第一次已经把它改名走了 —— 第二次连
-/// `is_file()` 都过不了，根本走不到这里。不同迁移项的旧文件名互不相同，
-/// 因此不同项之间也不可能撞。故不做「再撞就加序号」的第三层：那是永远
-/// 走不到的分支（本项目对死代码的取向是明写理由而不是留着）。
+/// ── when after （Why not ）─────────────
+/// `-{epochseconds}` in before 1 when will use to 。 need up ， need need in 1 seconds
+/// for ** 1 ** old file， 1 already —— 
+/// `is_file()` not ， not to this 。 not old file not ，
+/// not not can can 。 not 「」 ： that is 
+/// not to （ for to is by not is ）。
 ///
-/// 返回 `None` 的两种情形：**文件不存在**（正常路径 —— 已经迁过或本来就没有），
-/// 以及**改名失败**（跨设备、权限不足、目标被占用）。后者是异常，会打一行
-/// 控制台警告；它是非致命的：数据还在原处，表里的导入已完成，且下次启动会
-/// 因为「表非空」而跳过，不会重复导入。
+/// return `None` ：**file not in **（path —— already or no has ），
+/// and **failure**（、 not 、 use ）。 after is ， will 1 
+/// ； is ： in ， already ， and down will 
+/// as 「empty」， not will 。
 ///
-/// 名字用 `OsString` 拼而不是 `to_str()`：Windows 上的路径不保证是合法 UTF-8，
-/// 对这类名字 `to_str()` 返回 `None`，会让备份整个失效（而它的数据是好的）。
-/// 拼接本身与编码无关，按字节/宽字符接上去即可。
+/// use `OsString` not is `to_str()`：Windows up path not is UTF-8，
+/// for this `to_str()` return `None`， will （ is ）。
+/// and none， by / up can 。
 ///
-/// 调用点：所有迁移项（账号 / 事件日志 / 请求明细 / 请求聚合 / 调试报文 /
-/// 脱敏词表）。而它必须**先于**任何一个调用点写对（改名碰撞、编码、失败语义
-/// 都是容易踩的地方，散在每个迁移项里各写一遍必然有两种口径）。
+/// use ：all（ / / request / request / /
+/// ）。must**** 1 use for （、、failure
+/// is ， in 1 has ）。
 pub(super) fn backup_legacy_file(path: &Path) -> Option<PathBuf> {
     if !path.is_file() {
         return None;
@@ -53,8 +53,8 @@ pub(super) fn backup_legacy_file(path: &Path) -> Option<PathBuf> {
     target_name.push(".migrated");
     let mut target = path.with_file_name(target_name);
     if target.exists() {
-        // epoch 秒取整：够区分「不是同一次运行」，也不需要毫秒精度
-        // （同一秒内的第二次迁移在上一段已论证不可能发生）
+        // epoch seconds：「 not is 1 」， not need need ms
+        // （ 1 seconds in up 1 already not can can ）
         let stamp = logging::now_ms() / 1000;
         let mut stamped = name;
         stamped.push(format!(".migrated-{stamp}"));

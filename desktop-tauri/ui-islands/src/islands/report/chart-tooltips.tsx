@@ -25,7 +25,7 @@ function ChartTooltip({ active, coordinate, container, children }: Omit<ChartToo
   return (
     <TooltipProvider>
       <Tooltip open={active && !dismissed} disableHoverablePopup onOpenChange={open => setDismissed(!open)}>
-        {/* 卡片会裁剪子内容，读数沿用组件库的固定定位浮层。 */}
+        {/* will ， use 。 */}
         <TooltipContent anchor={anchor} side='right' sideOffset={24} variant='plain'
           className='report-chart-tooltip pointer-events-none'>
           {children}

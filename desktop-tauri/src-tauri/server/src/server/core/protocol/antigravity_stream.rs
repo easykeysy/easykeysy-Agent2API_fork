@@ -1,63 +1,63 @@
-//! 上游 **Antigravity / Gemini v1internal SSE** → 标准 chat SSE（状态机）。
+//! up **Antigravity / Gemini v1internal SSE** → chat SSE（）。
 //!
-//! 从 `antigravity_outbound.rs` 拆出（单文件行数约定）：那个文件装请求信封
-//! 转换，本文件装响应方向的状态机。接口逐字镜像
+//! from `antigravity_outbound.rs` （file）： that filerequest
+//! ，fileresponse to 。
 //! [`super::anthropic_outbound::ChatFromAnthropicStream`]：
 //! `new(model)` / `push(&[u8]) -> Vec<Bytes>` / `finish() -> Vec<Bytes>`；
-//! 壳（`upstream::translate::AntigravityToChatStream`）负责空闲守卫、
-//! 调试采集与帧保序，分派在 `upstream::provider_loop`。
+//! （`upstream::translate::AntigravityToChatStream`）empty、
+//! and ， in `upstream::provider_loop`。
 //!
-//! ── 信封解包（规格 §4.2，最容易写错的一处）──────────────────
-//! 上游每帧是 v1internal 包装：真正的 Gemini 响应在 `response` 键下，
-//! **缺省回退顶层**（两套参考都是这个取值链：Manager
+//! ── （ §4.2， 1 ）──────────────────
+//! up is v1internal ： Gemini response in `response` down ，
+//! ****（ is this ：Manager
 //! `response.get("response").unwrap_or(response)`、9router `chunk.response || chunk`）。
 //!
-//! ── parts 折叠（对照 9router `gemini-to-openai.js` 与 Manager
-//!    `mappers/openai/streaming.rs`，两台互为佐证）────────────────
+//! ── parts （ for 9router `gemini-to-openai.js` and Manager
+//! `mappers/openai/streaming.rs`， as ）────────────────
 //!   - `.text` + `thought != true` → `delta.content`
-//!   - `.text` + `thought == true` → `delta.reasoning_content`（本仓约定）
-//!   - `functionCall{name,args,id}` → **一次给全**的 `tool_calls` 增量
-//!     （本家的工具调用是整体事件，不是 Anthropic 那种「宣告帧 + 参数帧」）
-//!   - `inlineData` / `inline_data`（响应侧图片）→ 本仓 chat 形态装不下
-//!     （没有 images 通道），**记日志并跳过**（报告的已知限制）
-//!   - 独占一帧的签名 part（无 text、无 functionCall）→ 暂存给紧随其后的
-//!     functionCall（9router `pendingThoughtSignature` 同款）
+//! - `.text` + `thought == true` → `delta.reasoning_content`（）
+//! - `functionCall{name,args,id}` → ** 1 to ** `tool_calls` 
+//! （ use is ， not is Anthropic that 「 + parameter」）
+//! - `inlineData` / `inline_data`（response）→ chat not down 
+//! （ no has images ），** and **（ already limit）
+//! - 1 part（none text、none functionCall）→ to its after 
+//! functionCall（9router `pendingThoughtSignature` ）
 //!
-//! ── `finishReason` / usage / 收尾时序 ────────────────────────
-//!   - 归一表见 [`map_finish_reason`]；发过工具调用且归一结果是 `stop` 时强制
-//!     `tool_calls`（9router/Manager 同款修补：否则客户端把「还要继续调工具」
-//!     当成对话结束）；
-//!   - `usageMetadata` → chat usage（9router `USAGE_EXTRACTORS.gemini` 口径：
+//! ── `finishReason` / usage / when ────────────────────────
+//! - 1 [`map_finish_reason`]； use and 1 is `stop` when 
+//! `tool_calls`（9router/Manager ：otherwiseclient 「 need 」
+//! for ）；
+//! - `usageMetadata` → chat usage（9router `USAGE_EXTRACTORS.gemini` ：
 //!     `completion = candidatesTokenCount + thoughtsTokenCount`，
 //!     `cachedContentTokenCount` → `prompt_tokens_details.cached_tokens`）；
-//!     最后一帧覆盖式吸收（两套参考同款）；
-//!   - 完成信号 = `finishReason` **或** `data: [DONE]`；EOF 前一个都没见到
-//!     → 按截断报错（错误帧 + `[DONE]`，**不补** finish）；错误帧前不补 usage
-//!     帧（带 usage 且 choices 为空的帧是收尾帧形态，会让部分客户端提前认为
-//!     流已结束 —— 与 `ai_sdk_ndjson` 逐字同形）。
+//! after 1 （）；
+//! - = `finishReason` ** or ** `data: [DONE]`；EOF before 1 no to 
+//! → by （error + `[DONE]`，** not ** finish）；error before not usage
+//! （ usage and choices as empty is ， will client before as 
+//! already —— and `ai_sdk_ndjson` ）。
 //!
-//! ── thoughtSignature 的带出与回填（issue #291）───────────────
-//! 上游把历史回放里 functionCall 的签名当**硬性要求**：缺 → 400「missing a
-//! thought_signature」（issue #237 修的是非流式聚合器丢 `extra_content` 那半，
-//! 客户端带回签名的路径），伪造 → 400「Corrupted thought signature」——
-//! 不发明默认签名。签名随 tool_call 增量带出，位置取 Google 自家 OpenAI
-//! 兼容端点的官方字段 `extra_content.google.thought_signature`；**同时入
-//! 服务端缓存**（[`super::antigravity_signature_cache`]，两档键见那个模块头）
-//! —— 多数 OpenAI 兼容客户端下一轮会把非标的 `extra_content` 丢掉，请求侧
-//! （`antigravity_outbound` 的信封组装）按缓存回填，客户端带回的签名仍最优先
-//! （`call_signature` 的既有路径）。会话键从请求信封随 [`Self::new`] 带进来
-//! （兜底档的写入键）。
+//! ── thoughtSignature and （issue #291）───────────────
+//! up functionCall ** need **： → 400「missing a
+//! thought_signature」（issue #237 is `extra_content` that ，
+//! client path）， → 400「Corrupted thought signature」——
+//! not default。 tool_call ， Google OpenAI
+//! `extra_content.google.thought_signature`；** when 
+//! server**（[`super::antigravity_signature_cache`]， that module header）
+//! —— OpenAI client down 1 will `extra_content` ，request
+//! （`antigravity_outbound` ） by ，client 
+//! （`call_signature` has path）。 will from request [`Self::new`] 
+//! （ ）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{json, Map, Value};
 
 use super::{chat_frame, is_truthy, json_text, random_id, string_field, string_value, SseLineBuffer};
 
-/// 上游 `finishReason` → chat `finish_reason`（9router
-/// `toOpenAIFinish(reason, "gemini")` 的归一表 + Manager 的
-/// `MALFORMED_FUNCTION_CALL`→stop）。未列出的原因折 `stop`（两台参考同款）。
+/// up `finishReason` → chat `finish_reason`（9router
+/// `toOpenAIFinish(reason, "gemini")` 1 + Manager 
+/// `MALFORMED_FUNCTION_CALL`→stop）。 Reason `stop`（）。
 fn map_finish_reason(raw: &str) -> String {
     match raw.trim().to_ascii_uppercase().as_str() {
         "MAX_TOKENS" => "length".to_string(),
@@ -66,8 +66,8 @@ fn map_finish_reason(raw: &str) -> String {
     }
 }
 
-/// `usageMetadata` → chat usage（9router `USAGE_EXTRACTORS.gemini` 的口径：
-/// `candidatesTokenCount` 缺失时用 `total - prompt - thoughts` 反推）。
+/// `usageMetadata` → chat usage（9router `USAGE_EXTRACTORS.gemini` ：
+/// `candidatesTokenCount` when use `total - prompt - thoughts` ）。
 fn usage_metadata(usage: &Value) -> Value {
     let number = |key: &str| usage.get(key).and_then(Value::as_i64).unwrap_or(0);
     let prompt = number("promptTokenCount");
@@ -86,7 +86,7 @@ fn usage_metadata(usage: &Value) -> Value {
     })
 }
 
-/// 上游错误状态码 → 下行 `error.type`（与 `ai_sdk_ndjson` 的映射同形）
+/// up error → down `error.type`（ and `ai_sdk_ndjson` ）
 fn error_type(status: u16) -> &'static str {
     match status {
         400 | 422 => "invalid_request_error",
@@ -99,36 +99,36 @@ fn error_type(status: u16) -> &'static str {
     }
 }
 
-/// 上游 Gemini SSE 字节流 → 标准 chat SSE 字节流（状态机）。
+/// up Gemini SSE → chat SSE （）。
 pub struct ChatFromAntigravityStream {
     buffer: SseLineBuffer,
-    /// 输出帧的 model（发给上游的真名；ForwardStream 的回写层按需改写）
+    /// model（ to up ；ForwardStream by need ）
     model: String,
     id: String,
     created: i64,
-    /// 已下发过首帧（role assistant）
+    /// already down （role assistant）
     started: bool,
     finished: bool,
-    /// 见过完成信号（`finishReason` 或 `data: [DONE]`）
+    /// （`finishReason` or `data: [DONE]`）
     saw_finish: bool,
-    /// 已归一成 chat 口径的结束原因
+    /// already 1 chat Reason
     finish_reason: Option<String>,
-    /// 工具调用序号（`tool_calls[].index`，一个流内自增）
+    /// use （`tool_calls[].index`， 1 ）
     tool_index: i64,
-    /// 下发过工具调用（finish_reason 的 `tool_calls` 修补用）
+    /// down use （finish_reason `tool_calls` use ）
     tools_emitted: bool,
-    /// 独占一帧的签名 part 暂存给紧随其后的 functionCall（9router 同款）
+    /// 1 part to its after functionCall（9router ）
     pending_signature: Option<String>,
-    /// 本次响应所属会话的信封 `sessionId`（签名缓存兜底档的写入键，见模块头；
-    /// 分派时从请求信封带出，拿不到为空串）
+    /// response will `sessionId`（ ，module header；
+    /// when from request， not to as empty）
     session: String,
-    /// usage（最后一帧覆盖式吸收，与两套参考同口径）
+    /// usage（ after 1 ， and ）
     usage: Option<Value>,
 }
 
 impl ChatFromAntigravityStream {
-    /// `session` 是请求信封里的 `sessionId`（会话稳定键，签名缓存兜底档的
-    /// 写入键；拿不到给空串 —— 只损失兜底档，主键档照常工作）
+    /// `session` is request `sessionId`（ will ， 
+    /// ； not to to empty —— ，）
     pub fn new(model: &str, session: &str) -> Self {
         Self {
             buffer: SseLineBuffer::new(),
@@ -147,12 +147,12 @@ impl ChatFromAntigravityStream {
         }
     }
 
-    /// 吃一段上游字节，吐出要下发的 chat SSE 帧
+    /// 1 up ， need down chat SSE 
     pub fn push(&mut self, chunk: &[u8]) -> Vec<bytes::Bytes> {
         let mut out = Vec::new();
         for payload in self.buffer.push(chunk) {
             match payload {
-                // `data: [DONE]`：完成信号（收尾即刻发生，不等到 EOF）
+                // `data: [DONE]`：（， not etc to EOF）
                 None => out.extend(self.done()),
                 Some(data) => {
                     if let Ok(value) = serde_json::from_str::<Value>(&data) {
@@ -167,7 +167,7 @@ impl ChatFromAntigravityStream {
         out
     }
 
-    /// 上游流结束：冲刷残留半行，再按「有没有完成信号」收尾
+    /// up ：， by 「 has no has 」
     pub fn finish(&mut self) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
@@ -187,7 +187,7 @@ impl ChatFromAntigravityStream {
             }
         }
         if !self.saw_finish {
-            // 一个完成信号都没有：上游契约里就是「没走完」，不能补 finish_reason
+            // 1 no has ： up is 「 no 」， not can finish_reason
             return self.fail_message(
                 "上游流在收到结束原因之前结束（响应被截断）",
                 "upstream_error",
@@ -203,7 +203,7 @@ impl ChatFromAntigravityStream {
         out
     }
 
-    /// `data: [DONE]` 到达：立即收尾（没有 finishReason 时按 stop 兜底）
+    /// `data: [DONE]` to ：（ no has finishReason when by stop ）
     fn done(&mut self) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
@@ -216,12 +216,12 @@ impl ChatFromAntigravityStream {
         self.complete(&reason)
     }
 
-    /// 一帧上游 JSON → 零到多个 chat 帧
+    /// 1 up JSON → to chat 
     fn consume(&mut self, event: &Value) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
         }
-        // 信封解包：真身在 `response` 键下，缺省回退顶层（规格 §4.2）
+        // ： in `response` down ，（ §4.2）
         let inner = event
             .get("response")
             .filter(|value| value.is_object())
@@ -265,7 +265,7 @@ impl ChatFromAntigravityStream {
         out
     }
 
-    /// 一个 part → 零到多个 chat 帧
+    /// 1 part → to chat 
     fn consume_part(&mut self, part: &Value) -> Vec<bytes::Bytes> {
         let Some(object) = part.as_object() else {
             return Vec::new();
@@ -282,8 +282,8 @@ impl ChatFromAntigravityStream {
             .get("thought")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        // 签名先记住（9router `pendingThoughtSignature` 同款：任何带签名的 part
-        // 都可能是紧随其后的 functionCall 的签名来源），被下一个 functionCall 消费
+        // （9router `pendingThoughtSignature` ： part
+        // can can is its after functionCall ）， down 1 functionCall 
         if signature.is_some() {
             self.pending_signature = signature;
         }
@@ -301,7 +301,7 @@ impl ChatFromAntigravityStream {
                 .or_else(|| object.get("inline_data"))
                 .is_some()
             {
-                // chat 形态装不下响应侧图片（报告的已知限制）
+                // chat not down response（ already limit）
                 crate::server::logging::verbose(
                     "[Antigravity]",
                     "上游返回了 inlineData 图片，本仓 chat 形态无法承载（缺 images 通道），已跳过",
@@ -318,7 +318,7 @@ impl ChatFromAntigravityStream {
         out
     }
 
-    /// `functionCall` → 一次给全的 `tool_calls` 增量（本家的工具调用是整体事件）
+    /// `functionCall` → 1 to `tool_calls` （ use is ）
     fn tool_call_frames(&mut self, call: &Value, signature: Option<String>) -> Vec<bytes::Bytes> {
         let name = string_field(call, "name");
         let raw_id = string_field(call, "id").trim().to_string();
@@ -333,8 +333,8 @@ impl ChatFromAntigravityStream {
             Some(other) => json_text(other),
         };
         if let Some(signature) = signature.as_deref() {
-            // 签名入服务端缓存（issue #291，见模块头）：多数客户端下一轮不会
-            // 回带非标的 `extra_content`，请求侧按这两档键回填
+            // server（issue #291，module header）：client down 1 not will 
+            // `extra_content`，request by this 
             super::antigravity_signature_cache::remember_call(&self.session, &id, signature);
             super::antigravity_signature_cache::remember_for_session(&self.session, &name, signature);
         }
@@ -350,8 +350,8 @@ impl ChatFromAntigravityStream {
             json!({ "name": name, "arguments": arguments }),
         );
         if let Some(signature) = signature {
-            // 签名随 tool_call 增量带出（Google 自家 OpenAI 兼容端点的字段位置，
-            // 见模块头）；请求侧识别同一位置并回填
+            // tool_call （Google OpenAI ，
+            // module header）；request 1 and 
             tool.insert(
                 "extra_content".to_string(),
                 json!({ "google": { "thought_signature": signature } }),
@@ -362,7 +362,7 @@ impl ChatFromAntigravityStream {
         out
     }
 
-    /// 首帧（role assistant），只发一次
+    /// （role assistant）， 1 
     fn start(&mut self) -> Vec<bytes::Bytes> {
         if self.started {
             return Vec::new();
@@ -374,11 +374,11 @@ impl ChatFromAntigravityStream {
         vec![self.delta_frame(json!({ "role": "assistant", "content": "" }))]
     }
 
-    /// 收尾：finish 帧 + usage 帧 + `[DONE]`（只做一次）。
+    /// ：finish + usage + `[DONE]`（ 1 ）。
     ///
-    /// 有 finishReason（哪怕零内容，如 SAFETY 拦截）时正常收尾；一个完成信号
-    /// 都没有的「空流」按空响应报错（与 `ai_sdk_ndjson` 同一取舍：
-    /// 不能把空回答记成一次成功计费）。
+    /// has finishReason（， SAFETY ） when ； 1 
+    /// no has 「empty」 by emptyresponse（ and `ai_sdk_ndjson` 1 ：
+    /// not can empty 1 success）。
     fn complete(&mut self, reason: &str) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
@@ -392,7 +392,7 @@ impl ChatFromAntigravityStream {
             );
         }
         self.finished = true;
-        // 发过工具调用时把 stop 修补成 tool_calls（9router/Manager 同款）
+        // use when stop tool_calls（9router/Manager ）
         let finish = match reason {
             "stop" if self.tools_emitted => "tool_calls",
             other => other,
@@ -411,7 +411,7 @@ impl ChatFromAntigravityStream {
         out
     }
 
-    /// 上游错误对象 → 错误帧 + `[DONE]`（只做一次）
+    /// up error for → error + `[DONE]`（ 1 ）
     fn fail(&mut self, error: &Value) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
@@ -436,8 +436,8 @@ impl ChatFromAntigravityStream {
                 let text = string_field(error, "code");
                 text.trim().parse::<i64>().ok()
             });
-        // Google 把语义写在 `error.status` 字符串里（规格 §3.2 的分类口径），
-        // 数字 code 缺失/越界时按它兜底
+        // Google in `error.status` （ §3.2 ），
+        // code / when by 
         let status = code
             .and_then(|code| u16::try_from(code).ok())
             .filter(|status| (100..=599).contains(status))
@@ -461,9 +461,9 @@ impl ChatFromAntigravityStream {
         self.fail_message(&message, error_type(status), i64::from(status), code)
     }
 
-    /// 把「协议级失败」落成 chat 错误帧 + `[DONE]`（只做一次）。
+    /// 「failure」 chat error + `[DONE]`（ 1 ）。
     ///
-    /// 与成功路径唯一的差别是**不补 usage 帧**（理由见模块头末条）。
+    /// and successpath 1 is ** not usage **（ by module header）。
     fn fail_message(
         &mut self,
         message: &str,
@@ -478,9 +478,9 @@ impl ChatFromAntigravityStream {
         let mut error = json!({
             "message": message,
             "type": kind,
-            // `status` 是**额外**字段：帧的形态是聚合器与 ForwardStream 认的
-            // `{error:{message,type}}` 超集，多这一个键让流式客户端与抓包能
-            // 直接看出上游报的是 429 还是 503
+            // `status` is ****： is and ForwardStream 
+            // `{error:{message,type}}` ， this 1 client and can 
+            // up is 429 is 503
             "status": status,
         });
         if let (Some(code), Some(object)) = (code, error.as_object_mut()) {
@@ -488,7 +488,7 @@ impl ChatFromAntigravityStream {
         }
         let mut frame = json!({ "error": error });
         if status == 429 {
-            // 限流必须带 retry_after，否则 SDK 不知道该等多久（两台参考同款）
+            // must retry_after，otherwise SDK not this etc （）
             if let Some(object) = frame.as_object_mut() {
                 object.insert("retry_after".to_string(), Value::from(30));
             }
@@ -499,7 +499,7 @@ impl ChatFromAntigravityStream {
         ]
     }
 
-    /// chat 口径的 usage（没有 usageMetadata 时给零值，与另外两台同口径）
+    /// chat usage（ no has usageMetadata when to ， and ）
     fn usage_payload(&self) -> Value {
         self.usage.clone().unwrap_or_else(|| {
             json!({
@@ -510,7 +510,7 @@ impl ChatFromAntigravityStream {
         })
     }
 
-    /// 一个 delta 帧
+    /// 1 delta 
     fn delta_frame(&self, delta: Value) -> bytes::Bytes {
         chat_frame(&json!({
             "id": self.id,
@@ -521,7 +521,7 @@ impl ChatFromAntigravityStream {
         }))
     }
 
-    /// 收尾帧（空 delta + finish_reason）
+    /// （empty delta + finish_reason）
     fn finish_frame(&self, finish_reason: &str) -> bytes::Bytes {
         chat_frame(&json!({
             "id": self.id,

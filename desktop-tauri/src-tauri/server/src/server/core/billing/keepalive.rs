@@ -1,41 +1,41 @@
-//! WorkBuddy 国际版日活保活的**模型链配置**。
+//! WorkBuddy **config**。
 //!
-//! ── 为什么它是一份独立配置 ──────────────────────────────────
-//! 保活走免费模型链，而免费模型是上游运营态的事实：模型下线、改名、新增，都可能
-//! 让那条链整条失效 —— 保活失败一天，国际版的活跃奖励就断一天。所以链路开放给
-//! 用户自定义：签到中心「自动签到」卡里直接编辑，落 config.json 的
+//! ── Why is 1 config ──────────────────────────────────
+//! ， is up ： down 、、add， can can 
+//! that —— failure 1 ， 1 。 to 
+//! use ： to in 「 to 」， config.json 
 //! `checkinKeepalive.models`。
 //!
-//! ── 缺省链在插件里（2026-10 插件化）─────────────────────────
-//! 「上游此刻有哪些免费模型」是上游知识，随实现搬到提供商插件了。因此这里
-//! 的缺省值是**空**：用户没配时网关不下发 `models`，由插件用它自己的缺省链 ——
-//! 网关不再持有那份会过时的名单。用户配了就用用户的（那是纯配置）。
+//! ── in （2026-10 ）─────────────────────────
+//! 「 up has 」 is up ， to 。 this 
+//! is **empty**： use no when not down `models`， by use ——
+//! not has that will when 。 use use use （ that is config）。
 //!
-//! ── 读口径 ─────────────────────────────────────────────────
-//! 两种落盘形态都认：对象 `{"models": […]}`（写入侧落的就是这一种）与裸数组
-//! `[…]`（旧形态 / 手改配置）。缺失 / 非上述形态 / 全是空串都回落缺省链 ——
-//! 与 `auto_checkin::normalize_providers` 同一条兜底哲学：旧 config.json 里没有
-//! 这个字段，读出来必须是合法默认行为。归一化逐项 trim、丢空串、去重（保序）：
-//! 用户在输入框里写的多半是「逗号/空格分隔的一行」，api 层拆好数组再进来，
-//! 这里做最后一道净化。
+//! ── ─────────────────────────────────────────────────
+//! ： for `{"models": […]}`（ is this 1 ） and 
+//! `[…]`（ old / config）。 / up / is empty ——
+//! and `auto_checkin::normalize_providers` 1 ： old config.json no has 
+//! this ，must is default as 。 1 trim、empty、（）：
+//! use in is 「/empty 1 」，api ，
+//! this after 1 。
 
 use serde_json::{Value, json};
 
 use crate::server::config;
 use crate::server::logging;
 
-/// config.json 里承载保活模型链的键
+/// config.json 
 const CONFIG_KEY: &str = "checkinKeepalive";
 
-/// 缺省模型链：**空** —— 由插件用自己的那份（见模块头）。
+/// ：**empty** —— by use that （module header）。
 ///
-/// 保留这个函数是为了让 `models()` 的「回落缺省」分支有具名出口：网关手里
-/// 没有「哪些模型免费」的事实，空数组就是它该说的话。
+/// this is as `models()` 「」 has ：
+/// no has 「」 ，empty is this 。
 pub fn default_models() -> Vec<String> {
     Vec::new()
 }
 
-/// 归一化一份模型清单：逐项 trim、丢空串、去重（保序）。
+/// 1 1 ： trim、empty、（）。
 fn normalize(list: &[String]) -> Vec<String> {
     let mut seen: Vec<String> = Vec::with_capacity(list.len());
     for item in list {
@@ -48,16 +48,16 @@ fn normalize(list: &[String]) -> Vec<String> {
     seen
 }
 
-/// 当前生效的保活模型链（配置缺失 / 非法时回落缺省链）。
+/// current （config / when ）。
 ///
-/// ── 两种落盘形态都认（修复 #183）────────────────────────────
-/// 写入侧（[`set_models`]）落的是**对象** `{"models": […]}`，而这里早先只按
-/// **数组**解析 —— 存进去的是对象、读回来按数组匹配，`Value::Array` 永远不命中，
-/// 于是每次读都回落缺省链：界面表现为「保存成功、日志也打成功，但输入框和重启后
-/// 都还是原链路」，落库实际上是对的。现在对象优先取 `models` 键，数组（旧形态 /
-/// 手改配置）照收，两者之外一律回落缺省。
+/// ── （ #183）────────────────────────────
+/// （[`set_models`]） is ** for ** `{"models": […]}`， this by 
+/// **** —— is for 、 by ，`Value::Array` not in ，
+/// is ： as 「success、success， and after 
+/// is 」， up is for 。 in for `models` ，（ old /
+/// config）， 1 。
 pub fn models() -> Vec<String> {
-    // 先绑定快照再取键：`config::current()` 返回的临时值必须活到借用结束
+    // ：`config::current()` return when must to use 
     let snapshot = config::current();
     let Some(raw) = snapshot.raw().get(CONFIG_KEY) else {
         return default_models();
@@ -85,17 +85,17 @@ pub fn models() -> Vec<String> {
     }
 }
 
-/// 保存保活模型链。**空清单 = 恢复缺省**：用户把输入框清空的意思是
-/// 「我不确定该填什么」，替他回到出厂链比把保活关掉更接近本意
-/// （保活链为空等于国际版日活永远只剩保活失败，那不该是一句配置就能造成的）。
-/// 返回归一化后的清单（写盘失败返回 Err，调用方把原因吐给界面）。
+/// 。**empty = **： use empty is 
+/// 「 not this 」， to 
+/// （ as empty etc failure， that not this is 1 config can ）。
+/// return 1 after （failurereturn Err， use Reason to ）。
 ///
-/// ── API Key 的缺省：取第一把可用 Key ────────────────────────
-/// 改造前不选 Key 就是 `None`，而 `authorized_models()` 对 `None` 直接报
-/// 「请先选择 API Key」—— 用户必须在签到中心手动挑一次才能让保活跑起来，
-/// 而界面上那句提示又只在保存后才出现。现在缺省落到 [`first_key_id`]：
-/// 有可用 Key 就直接用它，用户之后想换再换。显式传 `null` 仍表示「不选」，
-/// 那是用户清空下拉的动作，必须尊重。
+/// ── API Key ： 1 available Key ────────────────────────
+/// before not Key is `None`， `authorized_models()` for `None` 
+/// 「 API Key」—— use must in to in 1 can ，
+/// up that in after 。 in to [`first_key_id`]：
+/// has available Key use ， use after 。 `null` 「 not 」，
+/// that is use empty down ，must。
 pub fn set_models(list: &[String], api_key_id: Option<Option<String>>) -> Result<Vec<String>, String> {
     let selected = api_key_id.unwrap_or_else(|| binding_id().or_else(first_key_id));
     if let Some(id) = selected.as_deref() {
@@ -114,11 +114,11 @@ pub fn set_models(list: &[String], api_key_id: Option<Option<String>>) -> Result
     Ok(value)
 }
 
-/// 第一把**可用**的网关 Key（缺省绑定用）。
+/// 1 **available** Key（ use ）。
 ///
-/// 顺序与「网关 Key」页一致（`api_keys::list()` 的落盘顺序 = 创建顺序），
-/// 跳过停用 / 解密失败的记录。环境变量 Key 排在最后：它没有记录、也没有
-/// 白名单，用户建了真 Key 时优先用真的那把。
+/// and 「 Key」 1 （`api_keys::list()` = create），
+/// disabled / failure 。Environment variable key in after ： no has 、 no has 
+/// ， use Key when use that 。
 fn first_key_id() -> Option<String> {
     use crate::server::core::api_keys;
     if let Some(entry) = api_keys::list().into_iter().find(api_keys::ApiKeyEntry::is_usable) {
@@ -132,10 +132,10 @@ pub fn binding_id() -> Option<String> {
         .and_then(Value::as_str).map(str::trim).filter(|id| !id.is_empty()).map(str::to_string)
 }
 
-/// 实际生效的 Key：显式绑定的那把；没绑过就是第一把可用 Key。
+/// Key： that ； no is 1 available Key。
 ///
-/// 读侧（`state` / `authorized_models`）一律走这里，写侧（`set_models`）在用户
-/// 没指定时也落到它 —— 于是「界面显示哪把」与「保活实际用哪把」永远同一个答案。
+/// （`state` / `authorized_models`） 1 this ，（`set_models`） in use 
+/// no when to —— is 「 」 and 「 use 」 1 。
 pub fn effective_key_id() -> Option<String> {
     binding_id().or_else(first_key_id)
 }
@@ -209,15 +209,15 @@ pub fn record_activity(
     stats.record(entry);
 }
 
-/// 对外状态（签到中心快照的 `keepalive` 段与保存响应共用这一份）：
-/// `models` 是当前生效链，`defaultModels` 给界面提示"清空即恢复这份"。
+/// for （ to in `keepalive` and response use this 1 ）：
+/// `models` is current，`defaultModels` to "empty this "。
 pub fn state() -> Value {
     json!({
         "models": models(),
         "defaultModels": default_models(),
-        // 生效的 Key（显式绑定 > 第一把可用 Key）：界面显示的那把就是保活真用的
+        // Key（ > 1 available Key）： that is use 
         "apiKeyId": effective_key_id(),
-        // 是否只是缺省选中（界面可以提示「用的是默认 Key」）
+        // is is in （ can 「 use is default Key」）
         "apiKeyDefaulted": binding_id().is_none() && effective_key_id().is_some(),
         "authError": authorized_models().err().map(|error| error.message),
     })

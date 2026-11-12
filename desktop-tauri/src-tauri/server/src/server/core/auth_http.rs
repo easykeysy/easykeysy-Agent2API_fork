@@ -1,15 +1,15 @@
-//! 上游管理接口的传输层：**一次裸请求**与鉴权错误类型。
+//! up ：** 1 request** and error。
 //!
-//! ── 这一层现在只剩什么 ──────────────────────────────────────
-//! `send_raw`：发一次请求、把响应读成 `{status, ok, payload}`，出口按调用方
-//! 传入的代理走 `core::egress`（不传 = 直连）。
+//! ── this 1 in ──────────────────────────────────────
+//! `send_raw`： 1 request、 response `{status, ok, payload}`， by use 
+//! `core::egress`（ not = ）。
 //!
-//! 仍在网关里的几家（Raccoon / AutoClaw / CodeArts / 自定义提供商）用它打
-//! 自己的管理接口（余额、目录、续期、登录）。WorkBuddy 那份的 `unwrap`、
-//! 登录轮询码、`Context` 端点拼装随实现搬到了提供商插件。
+//! in （Raccoon / AutoClaw / CodeArts / ） use 
+//! （、directory、、）。WorkBuddy that `unwrap`、
+//! 、`Context` to 。
 //!
-//! `WorkBuddyAuthError` 保留在这里：它是「管理接口失败」的最小公共形状，
-//! 调用方（转发兜底、计费、账号路由）都按它取 `status_code` / `upstream_code`。
+//! `WorkBuddyAuthError` in this ： is 「failure」 ，
+//! use （、、 by ） by `status_code` / `upstream_code`。
 
 use std::time::Duration;
 
@@ -19,16 +19,16 @@ use crate::server::core::egress;
 use crate::server::core::proxies::ResolvedProxy;
 use crate::server::errors::GatewayError;
 
-/// token 临期刷新窗口：过期前 5 分钟视为需要刷新
+/// token new ： before 5 minutes as need need new 
 pub const REFRESH_WINDOW_MS: f64 = 5.0 * 60.0 * 1000.0;
 
-/// 管理接口的默认请求超时（网络异常时不能把管理 API 卡死）
+/// defaultrequest when （ when not can API ）
 pub const REQUEST_TIMEOUT_MS: u64 = 30_000;
 
-/// 管理接口的错误（对应 Node 版 WorkBuddyAuthError）。
+/// error（ for Node WorkBuddyAuthError）。
 ///
-/// `status_code` 为 None 时由路由层按 502 处理 —— 与 Node 版
-/// `Number.isInteger(error.statusCode) ? error.statusCode : 502` 一致。
+/// `status_code` as None when by by by 502 —— and Node 
+/// `Number.isInteger(error.statusCode) ? error.statusCode : 502` 1 。
 #[derive(Clone, Debug)]
 pub struct WorkBuddyAuthError {
     pub message: String,
@@ -49,12 +49,12 @@ impl WorkBuddyAuthError {
         Self { message: message.into(), status_code: status, upstream_code: code }
     }
 
-    /// 归一后的 HTTP 状态码（无显式状态码 → 502，照抄 Node 版）
+    /// 1 after HTTP （none → 502， Node ）
     pub fn http_status(&self) -> i32 {
         self.status_code.unwrap_or(502)
     }
 
-    /// 转成统一的网关错误（路由层按管理 API 信封返回）
+    /// 1 error（ by by API return）
     pub fn to_gateway_error(&self) -> GatewayError {
         let mut error = GatewayError::with_status(self.http_status(), self.message.clone());
         if let Some(code) = self.upstream_code {
@@ -70,7 +70,7 @@ impl std::fmt::Display for WorkBuddyAuthError {
     }
 }
 
-/// 一次上游请求的原始结果：状态码 + 是否 2xx + 解析出的 JSON（解析失败为 None）。
+/// 1 up request ： + is 2xx + JSON（failure as None）。
 #[derive(Clone, Debug, Default)]
 pub struct ApiResponse {
     pub status: u16,
@@ -78,15 +78,15 @@ pub struct ApiResponse {
     pub payload: Option<Value>,
 }
 
-/// 发一次上游请求，返回原始状态码与解析出的 payload。
+/// 1 up request，return and payload。
 ///
-/// ── 出口 ──────────────────────────────────────────────────
-/// `proxy` 为 `None` 时直连（含「账号没配代理」与「代理解析失败回退直连」两种
-/// 情形）；否则交给 `core::egress::client_for` 取该出口的 Client（带连接池缓存）。
+/// ── ──────────────────────────────────────────────────
+/// `proxy` as `None` when （「 no 」 and 「failure」
+/// ）；otherwise to `core::egress::client_for` this Client（）。
 ///
-/// ── 超时 ──────────────────────────────────────────────────
-/// `timeout_ms` 是**单请求总超时**，与客户端上的 `connect_timeout` /
-/// `read_timeout` 是叠加关系（先到者生效）。传 None 表示不设总超时。
+/// ── when ──────────────────────────────────────────────────
+/// `timeout_ms` is **requesttotal when **， and client up `connect_timeout` /
+/// `read_timeout` is （ to ）。 None not total when 。
 pub async fn send_raw(
     method: &str,
     url: &str,

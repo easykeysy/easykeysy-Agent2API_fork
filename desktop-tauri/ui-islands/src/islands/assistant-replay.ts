@@ -15,7 +15,7 @@ export function replayMessages(messages: ChatMessage[], model: string | null): U
       if (result?.content.includes('用户取消') || result?.content.includes('用户已停止')) inferred = 'cancelled'
       else if (result?.content.startsWith('工具执行失败') || result?.content.startsWith('未知工具')) inferred = 'failed'
       else if (result) {
-        try { if (JSON.parse(result.content)?.error) inferred = 'failed' } catch { /* 旧版本只读工具也会返回纯文本。 */ }
+        try { if (JSON.parse(result.content)?.error) inferred = 'failed' } catch { /* old will return。 */ }
       }
       items.push({ kind: 'tool', call, state: result?.outcome?.state || inferred,
         summary: result?.outcome?.summary, auto: result?.outcome?.auto, error: result?.outcome?.error,

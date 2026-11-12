@@ -3,7 +3,7 @@ import { creditPacksOf, isCreditUnit, usageNumberOrNull, usageUnitLabel } from '
 type Translate = (key: string, params?: Record<string, string | number>) => string
 type Format = (value: number) => string
 
-// 这是展示窗口，不改变网关的账号消耗顺序。
+// this is ， not 。
 export const CREDIT_EXPIRY_WINDOW_MS = 7 * 86_400_000
 
 export type ExpiringCredit = {
@@ -38,7 +38,7 @@ function unitOf(value: unknown): string {
 export function creditExpiryUnitOf(value: unknown): string {
   const data = object(value)
   if (!data) return ''
-  // WorkBuddy 的 totalLeft 契约使用积分；其他缺单位的读数不作猜测。
+  // WorkBuddy totalLeft use ； its not 。
   return unitOf(data.unit) || (Object.prototype.hasOwnProperty.call(data, 'totalLeft') ? '积分' : '')
 }
 
@@ -76,7 +76,7 @@ function amountsOf(packs: ExpiringCredit[]): CreditExpiryAmount[] {
     }
     amount.count++
     if (pack.remain === null) amount.unknownCount++
-    // 不同单位分桶；单位缺失和比例读数都不能相加。
+    // not ； and not can 。
     if (pack.remain !== null && pack.unit && pack.unit !== '%') {
       amount.sum = (amount.sum ?? 0) + pack.remain
     }

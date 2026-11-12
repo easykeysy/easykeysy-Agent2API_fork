@@ -1,22 +1,22 @@
 /**
- * 分组设置弹窗（分组带上齿轮那颗按钮打开的）。
+ * set（ up that by ）。
  *
- * ── 为什么是弹窗，不是贴着齿轮的气泡 ──────────────────────────
- * 第一版只有「排序」一节，气泡装得下；但这一处以后还会有默认展开 / 收起、
- * 新账号落到组首还是组尾、本组并发上限、本组代理这些设置 —— 气泡既装不下
- * 几节内容，也没有「标题 + 可滚动正文 + 固定底栏」这套骨架可依。改成弹窗之后，
- * 加设置 = 往正文里追加一个 `GroupSettingSection`，骨架一行不用动。
+ * ── Why is ， not is ──────────────────────────
+ * 1 has 「」 1 ， down ； this 1 after will has default / 、
+ * new to is 、 and limit、 this set —— not down 
+ * ， no has 「 + can + 」 this can 。 after ，
+ * set = 1 `GroupSettingSection`， 1 not use 。
  *
- * ── 排序规则的口径 ────────────────────────────────────────────
- * 规则**按数组顺序比较**，与界面上从上到下的优先级是同一个东西；`manual`
- * 不在这份数组里 —— 它是所有规则都相等时的兜底（保持拖出来的顺序），
- * 固定末位、不可勾选。见 accounts-domain 的 sortGroupMembers。
+ * ── then ────────────────────────────────────────────
+ * then ** by **， and up from up to down is 1 ；`manual`
+ * not in this —— is all then etc when （ ），
+ * 、 not can 。 accounts-domain sortGroupMembers。
  *
- * 「积分到期时间」只对查得到逐份积分包的家开放（`supportsCreditExpiry`）：
- * 其余家那一行置灰成「不可用」而**不是隐藏** —— 藏起来会让人以为界面上少了
- * 一块，而置灰还能说明「这家确实没这个概念」。
+ * 「 to when 」 for to （`supportsCreditExpiry`）：
+ * its that 1 「unavailable」** not is ** —— will as up 
+ * 1 ， can 「 this no this 」。
  *
- * 消耗规则由网关保存，账号页和全局路由共用；改动影响下一次选路。
+ * then by ， and by use ； down 1 。
  */
 
 import * as React from 'react'
@@ -36,11 +36,11 @@ import {
 import { PROVIDER_ICONS } from './add-provider-pick'
 
 /**
- * 每条规则在界面上的名字与两档方向。
+ * then in up and to 。
  *
- * 名字与说明写**字面量 t()** 而不是拼在表里：词典扫描器只认 `t('…')` 的首参是
- * 字符串字面量（变量 / 模板串一律不提取，见 i18n/scan.mjs 的说明），把它们塞进
- * 这张表就会在五种语言的词典里同时缺键、界面回落成中文。
+ * and ** t()** not is in ： `t('…')` is 
+ * （ / 1 not ， i18n/scan.mjs ）， 
+ * this will in when 、 in 。
  */
 function ruleMeta(key: GroupSortRule['key']): {
   name: string
@@ -81,8 +81,8 @@ export function manualOrderBlockedMessage(rules: GroupSortRule[]): string {
 }
 
 /**
- * 规则摘要（分组带上那枚小标记、弹窗里的「当前规则」都用它）。
- * 只列**勾选的**那些 —— 关掉的规则不参与比较，写进摘要只会让「当前规则」说谎。
+ * then need （ up that 、 「current then 」 use ）。
+ * ** ** that —— then not and ， need will 「current then 」。
  */
 export function groupSortSummary(rules: GroupSortRule[]): string {
   return rules
@@ -95,15 +95,15 @@ export function groupSortSummary(rules: GroupSortRule[]): string {
 }
 
 /**
- * 一行规则：优先级号 / 勾选 / 名称与说明 / 方向 / 上下移。
+ * 1 then ： / / and / to / up down 。
  *
- * `state` 有三种，视觉与可操作性各不相同：
- *   · `ready`       —— 可用（可勾、可切方向）
- *   · `no-data`     —— 这一家的后端会产出到期，但**这一组此刻一条都没读到**
- *                      （没点过「查询余额」，或包都过期了）。仍然可勾 —— 用户先设
- *                      好规则、之后查到数据就自然生效；说明行写「暂无数据」。
- *   · `unsupported` —— 这一家的数据里根本没有到期字段。勾选框禁用、方向位换成
- *                      「不可用」，整行不压淡（压淡是「这次没勾」的语义）。
+ * `state` has ， and can not ：
+ * · `ready` —— available（ can 、 can to ）
+ * · `no-data` —— this 1 after will to ，** this 1 1 no to **
+ * （ no 「」， or ）。 can —— use 
+ * then 、 after to ；「none」。
+ * · `unsupported` —— this 1 no has to 。 use 、 to 
+ * 「unavailable」， not （ is 「 this no 」 ）。
  */
 function RuleRow({ rule, priority, isLast, state, busy, onChange }: {
   rule: GroupSortRule
@@ -183,7 +183,7 @@ function RuleRow({ rule, priority, isLast, state, busy, onChange }: {
   )
 }
 
-/** 正文里的一节：标题 + 一句口径 + 内容。后续加设置就再加一个它 */
+/** 1 ： + 1 + 。 after set 1 */
 function GroupSettingSection({ title, hint, children }: {
   title: string
   hint?: string
@@ -201,25 +201,25 @@ function GroupSettingSection({ title, hint, children }: {
 }
 
 /**
- * 弹窗主体。`provider` 由 AccountsDialogs 从 store 的 dialog 状态传入；
- * 关闭时走 `closeDialog()`（列表页与弹窗共用同一个状态位）。
+ * 。`provider` by AccountsDialogs from store dialog ；
+ * when `closeDialog()`（ and use 1 ）。
  */
 export function GroupSettingsDialog({ provider, onClose, accounts, sorting, routeContext }: {
   provider: string; onClose: () => void; accounts?: AccountRecord[]; sorting?: AccountSorting | null; routeContext?: React.ReactNode
 }) {
-  // 订阅 store：规则一改就要重画（本弹窗是 store 的读者，不只是写者）
+  // store： then 1 need （ is store ， not is ）
   React.useSyncExternalStore(subscribe, () => getStore().version)
   const rules = groupSortRules(provider)
   const label = shared().wbProviders?.labelOf?.(provider) || provider
   const icon = PROVIDER_ICONS[provider]
   /**
-   * 方案 A：静态能力名单（这一家的后端**会不会**产出逐份到期）。
-   * 方案 B：运行时是否**真的**读到了 —— 名单里的家如果这一组所有账号都还没查到
-   * 到期（没点过「查询余额」、或者都过期了），这一项不该假装可用。
+   * A： can （ this 1 after ** will not will ** to ）。
+   * B： when is ** ** to —— if this 1 all no to 
+   * to （ no 「」、or）， this 1 not this available。
    */
   const creditSupported = supportsCreditExpiry(provider)
-  // 依赖 store 的 version 而不是空数组：查完余额（usageEntryOf 有新读数）之后
-  // 这一项要从「暂无数据」翻成可用，弹窗开着时也得跟着变
+  // store version not is empty：（usageEntryOf has new ） after 
+  // this 1 need from 「none」available， when 
   const version = getStore().version
   const creditHasData = React.useMemo(
     () => (accounts || allAccounts())
@@ -235,15 +235,15 @@ export function GroupSettingsDialog({ provider, onClose, accounts, sorting, rout
   const customized = hasCustomGroupSort(provider)
   const busy = getStore().sortBusy
 
-  /** 改一条规则：勾选 / 方向直接落库；上移下移改的是数组里的位置 */
+  /** 1 then ： / to ； up down is */
   const changeRule = (key: GroupSortRule['key'], patch: Partial<GroupSortRule>) => {
     const op = (patch as unknown as { __move?: 'up' | 'down' }).__move
     const next = rules.map(rule => ({ ...rule }))
     const index = next.findIndex(rule => rule.key === key)
     if (index < 0) return
     if (op) {
-      // 上移 / 下移改的是**优先级**（数组位置）；手动顺序是兜底、不在数组里，
-      // 所以数组末尾就是它前面 —— 下移的边界是 next.length - 1
+      // up / down is ****（）； is 、 not in ，
+      // is before —— down is next.length - 1
       const to = op === 'up' ? index - 1 : index + 1
       if (to < 0 || to >= next.length) return
       const [moved] = next.splice(index, 1)
@@ -282,7 +282,7 @@ export function GroupSettingsDialog({ provider, onClose, accounts, sorting, rout
                 onChange={patch => changeRule(rule.key, patch)}
               />
             ))}
-            {/* 手动顺序：固定末位、不可勾选 —— 它是兜底而不是一条规则 */}
+            {/* ：、 not can —— is not is 1 then */}
             <div className='grid grid-cols-[16px_15px_minmax(0,1fr)] items-center gap-2 px-1.5 py-1.5'>
               <span className='text-center text-[10.5px] font-bold text-subtle tabular-nums'>{rules.length + 1}</span>
               <span className='inline-flex items-center justify-center text-subtle' title={t('固定兜底，不受开关影响')}>
@@ -313,7 +313,7 @@ export function GroupSettingsDialog({ provider, onClose, accounts, sorting, rout
             </p>
           </GroupSettingSection>
 
-          {/* 后续设置的位置：先把「这里还会有东西」说清楚，加小节时直接替换这一块 */}
+          {/* after set ： 「 this will has 」， when this 1 */}
           <GroupSettingSection title={t('更多设置')} hint={t('后续加入')}>
             <div className='flex flex-wrap gap-1.5'>
               {[t('默认展开 / 收起'), t('新账号落到组首 / 组尾'), t('组内并发上限'), t('余额低于阈值时的提示'), t('本组代理')]

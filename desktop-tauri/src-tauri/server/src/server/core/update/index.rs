@@ -1,4 +1,4 @@
-//! 应用更新与强制更新共用插件索引仓库的 app.json；只信任官方确认过的策略。
+//! use update and update use app.json； 。
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

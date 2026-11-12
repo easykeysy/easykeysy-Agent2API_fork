@@ -1,19 +1,19 @@
 /**
- * 账号设置弹窗的「查询设置」段：**每账号**的自动余额查询间隔。
+ * set 「set」：**** 。
  *
- * 独立成文件的原因：accounts-dialogs.tsx 已超过单文件行数约定，这一段是完整
- * 的功能块（状态草稿 + 校验 + 渲染），放进去只会继续膨胀。
+ * file Reason：accounts-dialogs.tsx already file， this 1 is 
+ * can （ + + ）， will 。
  *
- * ── 全局任务已退役，间隔是每账号自己的 ────────────────────────
- * 全局「定时查询积分」任务删除后，余额查询按账号各自的间隔到期触发
- * （`core::usage_query` 的心跳循环），本段就是那个间隔的唯一配置入口。保存走
- * PATCH /api/accounts 的 `usageQuery` 键（后端 `apply_patch` 归一化校验），
- * 界面的单位选择（秒 / 分钟 / 小时）只是输入辅助，落库一律是**秒**。
+ * ── already ， is ────────────────────────
+ * 「 when 」delete after ， by to 
+ * （`core::usage_query` ）， is that 1 config。
+ * PATCH /api/accounts `usageQuery` （ after `apply_patch` 1 ），
+ * （seconds / minutes / when ） is ， 1 is **seconds**。
  *
- * ── 「余额不足处理」已迁走 ──────────────────────────────────
- * 原先这里的「余额不足时 + 余额阈值」两行升级成了独立的「限制器」段
- * （余额 / Token 规则列表，见 accounts-dialog-limiter.tsx 与后端
- * `core::limiter`）—— 它是限制器的余额规则，配置入口不再在本段。
+ * ── 「 not 」 already ──────────────────────────────────
+ * this 「 not when + 」 「limit」
+ * （ / Token then ， accounts-dialog-limiter.tsx and after 
+ * `core::limiter`）—— is limit then ，config not in 。
  */
 
 import * as React from 'react'
@@ -33,19 +33,19 @@ import { t } from '../i18n'
 import { type AccountRecord } from './accounts-shared'
 import { usageQueryOf, USAGE_QUERY_MAX_SECONDS, USAGE_QUERY_MIN_SECONDS } from './accounts-domain'
 
-/** 间隔输入的单位（界面辅助；落库统一换算成秒） */
+/** （； 1 seconds） */
 type IntervalUnit = 'seconds' | 'minutes' | 'hours'
 
 const UNIT_MS: Record<IntervalUnit, number> = { seconds: 1, minutes: 60, hours: 3600 }
 
-/** 「查询设置」段的草稿：数字输入框以字符串中转（输入中途允许为空 / 非法） */
+/** 「set」 ： in （ in as empty / ） */
 export type UsageDraft = {
   enabled: boolean
   intervalInput: string
   unit: IntervalUnit
 }
 
-/** 把秒数拆成「数字 + 最大可整除的单位」（900 秒 → 15 分钟）；0 → 5 分钟缺省 */
+/** seconds「 + can 」（900 seconds → 15 minutes）；0 → 5 minutes */
 function splitInterval(seconds: number): { value: string; unit: IntervalUnit } {
   if (seconds > 0 && seconds % 3600 === 0) return { value: String(seconds / 3600), unit: 'hours' }
   if (seconds > 0 && seconds % 60 === 0) return { value: String(seconds / 60), unit: 'minutes' }
@@ -53,10 +53,10 @@ function splitInterval(seconds: number): { value: string; unit: IntervalUnit } {
   return { value: '5', unit: 'minutes' }
 }
 
-/** 账号现有配置 → 草稿（读侧缺省：开启、1 分钟 —— 见 accounts-domain） */
+/** has config → （：、1 minutes —— accounts-domain） */
 export function usageDraftOf(account: AccountRecord | null | undefined): UsageDraft {
   const { enabled, interval } = usageQueryOf(account)
-  // 关着的时候间隔输入给个 5 分钟的落点值：重新拨开时不用面对空输入框
+  // when to 5 minutes ： new when not use for empty
   const intervalDraft = splitInterval(enabled ? interval : 0)
   return {
     enabled,
@@ -69,7 +69,7 @@ export type UsageChanges =
   | { error: string }
   | { patch: { usageQuery?: { enabled: boolean; interval: number } } }
 
-/** 草稿转成完整查询配置；批量设置不与某一条账号的现值比较。 */
+/** config；set not and 1 。 */
 export function readUsageDraft(draft: UsageDraft):
   | { error: string }
   | { value: { enabled: boolean; interval: number } } {
@@ -83,15 +83,15 @@ export function readUsageDraft(draft: UsageDraft):
   return { value: { enabled: true, interval: seconds } }
 }
 
-/** 相同配置不提交，非法间隔先于保存返回错误。 */
+/** config not ，returnerror。 */
 export function readUsageChanges(account: AccountRecord, draft: UsageDraft): UsageChanges | null {
   const result = readUsageDraft(draft)
   if ('error' in result) return result
   const seconds = result.value.interval
   const patch: { usageQuery?: { enabled: boolean; interval: number } } = {}
   const current = usageQueryOf(account)
-  // 间隔输入框只在开启时渲染：关闭状态下的 intervalInput 是挂载时的旧值，
-  // 不拿它当改动（否则未配置过的账号保存一次就会凭空写进一份缺省间隔）
+  // in when ： down intervalInput is when old ，
+  // not （otherwisenot configured 1 will empty 1 ）
   if (draft.enabled !== current.enabled || (draft.enabled && seconds !== current.interval)) {
     patch.usageQuery = { enabled: draft.enabled, interval: draft.enabled ? seconds : current.interval }
   }
@@ -99,7 +99,7 @@ export function readUsageChanges(account: AccountRecord, draft: UsageDraft): Usa
   return { patch }
 }
 
-/** 「查询设置」段（受控组件：草稿在弹窗手里，保存时由 readUsageChanges 汇总） */
+/** 「set」（： in ， when by readUsageChanges total） */
 export function UsageSettingsSection({
   draft, onChange, idPrefix = 'account-usage',
 }: {

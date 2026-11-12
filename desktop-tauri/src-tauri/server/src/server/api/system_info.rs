@@ -1,30 +1,30 @@
-//! `GET /api/system-info` —— 设置页「版本信息」的一站式读数。
+//! `GET /api/system-info` —— set「」 1 。
 //!
-//! ── 为什么合成一条端点，而不是让界面拼七八个现有接口 ───────────
-//! 这个页面的用途是「出问题时截一张图 / 复制一段文本」：它必须**一次取全**，
-//! 而且要能在别的接口都出错时仍然给出一份完整的环境快照。散着拼的话，
-//! 界面得并发打 `/api/session`、`/api/storage`、`/api/update/status`、
-//! `/api/panel/status`、`/api/config` 五条，任何一条失败就得在页面上留个
-//! 「—」——而那个「—」恰恰可能是排障最需要的一项。这里在服务端一次算完，
-//! 失败的分项各自降级成 null，界面只负责显示。
+//! ── Why 1 ， not is has ───────────
+//! this use is 「 when 1 / 1 」：must** 1 **，
+//! and need can in when to 1 。 ，
+//! and `/api/session`、`/api/storage`、`/api/update/status`、
+//! `/api/panel/status`、`/api/config` ， 1 failure in up 
+//! 「—」—— that 「—」 can can is need need 1 。 this in server 1 ，
+//! failure null，。
 //!
-//! ── 挂 protected ────────────────────────────────────────────
-//! 响应里有数据目录、可执行文件路径、Key 数量、是否 fail-closed —— 都是
-//! 管理面信息，与 `/api/storage` 同级。免鉴权会把部署结构暴露给任何能访问
-//! 端口的人。
+//! ── protected ────────────────────────────────────────────
+//! response has directory、 can filepath、Key 、 is fail-closed —— is 
+//! ， and `/api/storage` 。 will to can 
+//! 。
 //!
-//! ── 只报「有没有」，不报值 ──────────────────────────────────
-//! Key 只给条数、GitHub 令牌只给 filled / origin、代理只给「是否指定出口」。
-//! 这条纪律与 `/api/update/token` 一致：这个页面会被截图发到公开 issue 里，
-//! 任何一处回显都会变成一次凭证泄露。
+//! ── 「 has no has 」， not ──────────────────────────────────
+//! Key to 、GitHub to filled / origin、 to 「 is 」。
+//! this and `/api/update/token` 1 ： this will to issue ，
+//! 1 will 1 。
 //!
-//! ── 路径脱敏由后端做 ────────────────────────────────────────
-//! `hideUsername` 走查询参数（`?hideUsername=1`），命中的路径在主目录前缀处
-//! 换成 `~`。放后端是为了让界面「复制全部信息」拿到的也是脱敏后的文本 ——
-//! 前端脱敏容易在剪贴板那条路上漏掉（见 `core::system_info` 的模块头）。
-//! 开关本身是**纯展示偏好**，不落库：它只影响这一次请求的返回，刷新页面
-//! 回到默认（显示完整路径）——「我这次要发给别人」是个一次性决定，记在
-//! 配置里反而会让下次截图悄悄少了信息。
+//! ── path by after ────────────────────────────────────────
+//! `hideUsername` parameter（`?hideUsername=1`）， in path in directory before 
+//! `~`。 after is as 「」 to is after ——
+//! before in that up （ `core::system_info` module header）。
+//! is ****， not ： this 1 request return， new 
+//! to default（path）——「 this need to 」 is 1 ， in 
+//! config will down 。
 
 use std::path::Path;
 
@@ -40,7 +40,7 @@ use crate::server::db;
 use crate::server::http::ok_json;
 use crate::server::ServerState;
 
-/// 查询参数：`hideUsername=1` / `true` 时把主目录前缀替换成 `~`。
+/// parameter：`hideUsername=1` / `true` when directory before `~`。
 #[derive(Default, serde::Deserialize)]
 pub struct Params {
     #[serde(rename = "hideUsername")]
@@ -73,8 +73,8 @@ pub async fn get_system_info(
     let db_available = state.db().is_some();
     let db_bytes = std::fs::metadata(&db_file).map(|meta| meta.len()).unwrap_or(0);
 
-    // 库里的实际 schema 版本：库不可用时为 null（不拿程序常量冒充 —— 那会让
-    // 「库没打开」看起来像「版本对得上」）。
+    // schema ：unavailable when as null（ not —— that will 
+    // 「 no 」「 for up 」）。
     let db_schema = if db_available {
         db::stored_schema_version(&db_file)
     } else {
@@ -117,8 +117,8 @@ pub async fn get_system_info(
 
     ok_json(json!({
         "app": {
-            // 编译期版本：桌面壳会用它自己的运行时 package_info 覆盖显示，
-            // 其余形态这就是唯一真值（与 `/api/update/check` 的缺省口径一致）
+            // ： will use when package_info ，
+            // its this is 1 （ and `/api/update/check` 1 ）
             "version": CURRENT_VERSION,
             "license": "AGPL-3.0-only",
             "sourceUrl": "https://github.com/aimod-cc/Agent2API",
@@ -127,10 +127,10 @@ pub async fn get_system_info(
             "channel": config::update_channels().key(),
             "schemaVersion": db::schema::SCHEMA_VERSION,
             "dbSchemaVersion": db_schema,
-            // 「上游客户端版本 / CLI 版本」两栏已随实现搬到提供商插件：网关
-            // 不再持有任何一家的客户端身份常量，也就无从显示。字段整体移除
-            // （不是给空串）—— 空串会让系统信息页显示一行「—」，看起来像取
-            // 值失败；移除后前端按「没有这个键」跳过该行。
+            // 「 up client / CLI 」 already to ：
+            // not has 1 client，none from 。
+            // （ not is to empty）—— empty will 1 「—」，
+            // failure； after before by 「 no has this 」 this 。
         },
         "runtime": {
             "deployment": system_info::deployment(),
@@ -169,7 +169,7 @@ pub async fn get_system_info(
             "panelGate": access::panel_gate(),
             "githubTokenFilled": token_status.get("filled").and_then(Value::as_bool).unwrap_or(false),
             "githubTokenOrigin": token_status.get("origin").cloned().unwrap_or(Value::Null),
-            // 只报「有没有指定出口」：代理地址里常带账号密码，截图会泄露
+            // 「 has no has 」：， will 
             "updateProxy": has_update_proxy,
         },
         "features": {
@@ -181,8 +181,8 @@ pub async fn get_system_info(
             "autoContinue": config::auto_continue(),
             "autoContinueMaxRounds": config::auto_continue_max_rounds(),
             "modelsDev": config::models_dev_enabled(),
-            // 报当前这一端的开关（桌面壳 / headless 各读各的），与 /api/captcha
-            // 的两个分端字段同源；旧前端只认这个布尔值，保持行为不变
+            // current this 1 （ / headless ）， and /api/captcha
+            // ； old before this ， as not 
             "captchaEnabled": snapshot.captcha_enabled(state.local_panel),
             "updateBeta": config::update_beta(),
         },
@@ -205,8 +205,8 @@ pub async fn get_system_info(
     }))
 }
 
-/// 账号是否处于限流冷却（与前端 `isRateLimited` 同一判据：任一模型的
-/// `resetAt` 晚于当前时刻）。
+/// is （ and before `isRateLimited` 1 ： 1 
+/// `resetAt` current when ）。
 fn is_rate_limited(account: &Value) -> bool {
     let Some(limits) = account.get("rateLimits").and_then(Value::as_object) else {
         return false;

@@ -5,7 +5,7 @@ export type ImageAsset = { id: string; url: string; mime: string; width: number;
 export type ImageToolContext = {
   session: string
   images: string[]
-  /** 最近一条带附件的用户消息里的 JSON / .info 文件（账号导入工具用） */
+  /** 1 use JSON / .info file（ use ） */
   files?: AssistantTextFile[]
   confirmed: boolean
   apiKey?: string

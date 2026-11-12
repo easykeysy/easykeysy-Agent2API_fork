@@ -160,7 +160,7 @@ export function formFromView(view: CloudSyncView): Form {
     provider: view.provider === PROVIDER_S3 ? PROVIDER_S3 : PROVIDER_WEBDAV,
     webdavBaseUrl: view.webdav.baseUrl,
     webdavUsername: view.webdav.username,
-    // 密码不回显：留空 = 沿用后端已保存的那份。
+    // not ：empty = use after already that 。
     webdavPassword: '',
     webdavUserAgent: view.webdav.userAgent,
     s3Region: view.s3.region,

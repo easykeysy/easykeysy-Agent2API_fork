@@ -1,4 +1,4 @@
-/** 单账号设置弹窗与提供商共用连接设置。 */
+/** set and use set。 */
 
 import * as React from 'react'
 import {
@@ -57,7 +57,7 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
   const [name, setName] = React.useState(account?.name || '')
   const [proxyDraft, setProxyDraft] = React.useState<ProxyDraft>(() => draftOfProxy(account?.proxy))
   const [balanceToken, setBalanceToken] = React.useState('')
-  // ZCode 的「使用哪个套餐」草稿（非 ZCode 账号恒为空串，那一段也不渲染）
+  // ZCode 「 use 」（ ZCode as empty， that 1 not ）
   const [planChannel, setPlanChannel] = React.useState(() => zcodePlanOf(account))
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState<React.ReactNode>('')
@@ -65,24 +65,24 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
   const [providerName, setProviderName] = React.useState('')
   const [providerProtocol, setProviderProtocol] = React.useState('chat_completions')
   const [providerBaseUrl, setProviderBaseUrl] = React.useState('')
-  /** 客户端形态伪装草稿（'' = 不伪装；'opencode' = 按官方 CLI 形状补齐请求） */
+  /** client（'' = not ；'opencode' = by CLI request） */
   const [providerEmulation, setProviderEmulation] = React.useState('')
-  /** 自定义账号的凭证草稿：新 Key（留空 = 不改，走「清除」按钮）与「无需鉴权」勾选 */
+  /** ： new Key（empty = not ，「」 by ） and 「none need 」 */
   const [apiKeyDraft, setApiKeyDraft] = React.useState('')
   const [noAuthDraft, setNoAuthDraft] = React.useState(account?.noAuth === true)
-  // 「查询设置」段的草稿（自动查询间隔）：只在真的有余额概念的家渲染，草稿仍
-  // 无条件初始化 —— 与 planChannel 同一形态，省一个条件分支
+  // 「set」 （）： in has ，
+  // none —— and planChannel 1 ， 1 
   const [usageDraft, setUsageDraft] = React.useState<UsageDraft>(() => usageDraftOf(account))
-  // 「查询设置」段里**余额方案要的凭证**（只有登记了方案的自定义家才有字段）：
-  // 草稿同样无条件初始化（没有方案时是一份空草稿，那一段也不渲染）
+  // 「set」** need **（ has has ）：
+  // none（ no has when is 1 empty， that 1 not ）
   const [balanceQueryDraft, setBalanceQueryDraft] = React.useState<Record<string, string>>(
     () => balanceQueryDraftOf(account?.balanceQuery),
   )
-  // 「限制器」段的草稿（余额 / Token 规则列表）：与查询设置同一 gating
+  // 「limit」 （ / Token then ）： and set 1 gating
   const [limiterDraft, setLimiterDraft] = React.useState<LimiterGroup[]>(() => limiterDraftOf(account))
-  // 分组导航的当前页（弹窗按账号 id 挂载，切账号自然回到「基本」）
+  // current（ by id ， to 「」）
   const [pane, setPane] = React.useState<PaneId>(initialPane)
-  // 并发上限草稿（原列表 ⋯ 菜单的 conc-dialog 迁入「基本」分组）：0~999，0 = 不限
+  // and limit（ ⋯ conc-dialog 「」）：0~999，0 = not 
   const [concDraft, setConcDraft] = React.useState(() => String(Number(account?.maxConcurrent) || 0))
   const [confirming, setConfirming] = React.useState(false)
   const actionLock = React.useRef(false)
@@ -111,9 +111,9 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
     setPane(next)
   }
 
-  // 「提供商」那一段：目录里查得到才算自定义家（id 前缀只说明「长得像」，而记录本身
-  // 才带着协议 / Base URL 的现值 —— 三个字段要拿它预填）。
-  // 依赖只取 id：弹窗是按 id 挂载的（父组件给了 key），账号数据刷新不该重置用户的编辑
+  // 「」 that 1 ：directory to （id before 「」，
+  // / Base URL —— need ）。
+  // id： is by id （ to key）， new not this use 
   React.useEffect(() => {
     let alive = true
     setProvider(null)
@@ -126,7 +126,7 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
       setProviderProtocol(found.protocol || 'chat_completions')
       setProviderBaseUrl(found.baseUrl || '')
       setProviderEmulation(typeof found.clientEmulation === 'string' ? found.clientEmulation : '')
-    }).catch(() => { /* 目录不可用：退化成「不是自定义家」，不注入那一段 */ })
+    }).catch(() => { /* directoryunavailable：「 not is 」， not that 1 */ })
     return () => { alive = false }
   }, [id])
 
@@ -142,32 +142,32 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
     )
   }
 
-  // 账号不存在时只给一块提示（列表可能刚被另一端删了）。用局部常量接住窄化后的账号：
-  // 下面几个 async 函数声明会被提升，TS 不会把「早退之后的窄化」带进它们体内
+  // not in when to 1 （ can can 1 ）。 use after ：
+  // down async will ，TS not will 「 after 」
   const target: AccountRecord = account
   const peers = peersOf(target, allAccounts())
   const isCatpaw = providerOf(target) === 'catpaw'
-  // 自定义账号：凭证段（API Key / 无需鉴权）只对它渲染。判据用 provider 前缀 ——
-  // 与后端 `custom_account_provider` 一致（提供商被删后残留的账号同样该能改凭证）
+  // ：（API Key / none need ） for 。 use provider before ——
+  // and after `custom_account_provider` 1 （ after this can ）
   const isCustomAccount = providerOf(target).startsWith('custom-')
-  // 「轮询」档的可见性：只有 OpenCode Zen 免费档（按 IP 限流）。判据用**已读到的
-  // 提供商记录**（上面那个 effect 拉的）而不是目录缓存 —— 这一段的上下文里就有它，
-  // 且与「提供商」段编辑的是同一份现值（改了 emulation / baseUrl 未保存时，
-  // 档位仍按盘上的值给，保存后才变 —— 与后端闸门读盘上记录同一口径）。
-  // 记录本来就是这个档时**恒显示**（哪怕判据此刻为假：目录还没读到 / 提供商被
-  // 改过）：否则用户看不到自己这条账号现在是什么状态；后端只挡「真的改成轮询」
-  // 的保存，原样发回来不会 400。
+  // 「」 can ： has OpenCode Zen （ by IP ）。 use ** already to 
+  // **（ up that effect ） not is directory —— this 1 up down has ，
+  // and and 「」 is 1 （ emulation / baseUrl when ，
+  // by up to ， after —— and after up 1 ）。
+  // is this when ****（ as ：directory no to / 
+  // ）：otherwise use not to this in is ； after 「 」
+  // ， not will 400。
   const allowRotate = isOpencodeZenProvider(provider, target.baseUrl) || proxyDraft.mode === 'rotate'
-  // 余额方案那一段（「查询设置」里的查询凭证）：方案与「已配置」标记都由账号的
-  // 公开形态回答 —— `scheme` 是这一家的方案 id，`has*` 是密字段的存在标记
-  // （值永不回显，见后端 `store_view::balance_query_public`）
+  // that 1 （「set」 ）： and 「 already config」 by 
+  // —— `scheme` is this 1 id，`has*` is in 
+  // （ not ， after `store_view::balance_query_public`）
   const balanceSpec = balanceSpecOf(target.balanceQuery?.scheme)
   const balanceConfigured: Record<string, boolean> = {}
   for (const field of balanceSpec?.fields ?? []) {
     balanceConfigured[field.key] = balanceFieldConfigured(target.balanceQuery, field)
   }
-  // 「要填但还没填全」时给一句中性提示（不是错误：余额列会显示「未配置」，
-  // 用户在那一列看到的就是这句话的后果）
+  // 「 need no 」 when to 1 in （ not is error： will 「not configured」，
+  // use in that 1 to is this after ）
   const balanceNeedsCredentials = Boolean(balanceSpec && balanceSpec.fields.length)
     && !balanceQueryConfigured(target.balanceQuery)
   const providerCount = peers.length + 1
@@ -214,7 +214,7 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
     onClose()
   }
 
-  /** 清除余额凭证（立即落库，不走保存按钮 —— 它是一个独立的撤销动作） */
+  /** （， not by —— is 1 ） */
   async function clearBalanceToken(): Promise<void> {
     if (interactionBusy || actionLock.current) return
     if (!await askConfirmation(t('清除余额查询凭证？'),
@@ -240,9 +240,9 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
   }
 
   /**
-   * 清除 API Key（与余额凭证同一形制：立即落库的独立撤销动作）。
-   * 清掉之后账号变成「未配置凭证」，转发时会被跳过 —— 所以提示语点明这一点，
-   * 而列表上那枚「未配置凭证」徽章会立刻出现，用户看得到后果。
+   * API Key（ and 1 ： ）。
+   * after 「not configured」， when will —— this 1 ，
+   * up that 「not configured」 will ， use to after 。
    */
   async function clearApiKey(): Promise<void> {
     if (interactionBusy || actionLock.current) return
@@ -269,13 +269,13 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
   }
 
   /**
-   * 清除这个账号单独保存的上游地址，改回跟随提供商的 Base URL
-   * （与清除 API Key 同一形制：立即落库的独立撤销动作）。
+   * this up ， Base URL
+   * （ and API Key 1 ： ）。
    *
-   * 早先版本新建提供商时会把当时的地址抄进首个账号，而账号上的地址优先于
-   * 提供商 —— 于是改提供商地址后请求仍打旧地址，界面上还看不到那份旧值
-   * （issue #455）。这个按钮是存量账号的修复入口；新建的提供商不再产生
-   * 这种覆盖项，改提供商地址时后端也会顺手清掉等于旧地址的那份。
+   * new when will when ， up 
+   * —— is after request old ， up not to that old 
+   * （issue #455）。 this by is ； new not 
+   * this ， when after will etc old that 。
    */
   async function clearAccountBaseUrl(): Promise<void> {
     if (interactionBusy || actionLock.current) return
@@ -303,13 +303,13 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
   }
 
   /**
-   * 清除一个已配置的余额查询凭证字段（自定义家：NewAPI 的访问令牌 / 商汤的
-   * 密码 / 智谱的控制台令牌）。
+   * 1 already config （：NewAPI / 
+   * / ）。
    *
-   * 与清除 API Key 同一形制：**立即落库的独立撤销动作**（不进保存按钮那一批）
-   * —— 密字段的值不回显，输入框留空是「不修改」，清除只能靠这个显式动作
-   * （传 null 给后端，语义见 `normalize_balance_query_patch`）。
-   * 清掉之后余额列会显示「未配置」，用户看得到后果。
+   * and API Key 1 ：** **（ not by that 1 ）
+   * —— not ，empty is 「 not 」， can this 
+   * （ null to after ， `normalize_balance_query_patch`）。
+   * after will 「not configured」， use to after 。
    */
   async function clearBalanceQueryField(key: BalanceFieldKey): Promise<void> {
     if (interactionBusy || actionLock.current) return
@@ -336,12 +336,12 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
   }
 
   /**
-   * 读「凭证」那一段的改动：没这一段（内置家）或什么都没改 → null。
+   * 「」 that 1 ： no this 1 （） or no → null。
    *
-   * 三个字段的语义与后端逐条对齐（`update_custom_credentials`）：
-   *   · 输入框填了 → 写新 Key（后端会顺手摘掉「无需鉴权」）；
-   *   · 勾选态变了 → 写 noAuth（开=清 key，后端归一）；
-   *   · 输入框留空且勾选态没变 → 什么都不发（留空是「不修改」，清除走按钮）。
+   * and after for （`update_custom_credentials`）：
+   * · → new Key（ after will 「none need 」）；
+   * · → noAuth（= key， after 1 ）；
+   * · empty and no → not （empty is 「 not 」， by ）。
    */
   function readCredentialPatch(): Record<string, unknown> | null {
     if (!isCustomAccount) return null
@@ -354,13 +354,13 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
     return Object.keys(patch).length ? patch : null
   }
 
-  /** 读「提供商」那一段的改动：没这一段（内置家）或字段都没动 → null（不提交） */
+  /** 「」 that 1 ： no this 1 （） or no → null（ not ） */
   function readProviderPatch(): { error: string } | { id: string; name: string; protocol: string; baseUrl: string; clientEmulation: string } | null {
     if (!provider) return null
     const nextName = providerName.trim()
     const nextBase = providerBaseUrl.trim()
-    // 空名称 / 空 Base URL 后端会 400，而那时**账号已经存下了** —— 用户看到「保存失败」
-    // 却发现账号的改动生效了。所以在账号落库之前先验一遍
+    // empty / empty Base URL after will 400， that when ** already down ** —— use to 「failure」
+    // 。 in before 1 
     if (!nextName) return { error: t('请填写提供商名称') }
     if (!nextBase) return { error: t('请填写提供商的 Base URL') }
     try {
@@ -397,26 +397,26 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
       setStatus(<span className='text-destructive'>{providerPatch.error}</span>)
       return
     }
-    // 查询设置段（自动查询间隔）：与凭证段同一层，跟着这次保存一起落库；
-    // 校验不过先在前端挡住（后端 apply_patch 对同一规则也会 400）
+    // set（）： and 1 ， this 1 ；
+    // not in before （ after apply_patch for 1 then will 400）
     const usageChanges = supportsUsage(target) ? readUsageChanges(target, usageDraft) : null
     if (usageChanges && 'error' in usageChanges) {
       selectPane('query')
       setStatus(<span className='text-destructive'>{usageChanges.error}</span>)
       return
     }
-    // 限制器段（余额 / Token 规则列表）：与查询设置同一层；编辑器保存时已校验过，
-    // 这里只负责「真改了才带上」（对着现状保存不会凭空多一条变更日志，与后端一致）
+    // limit（ / Token then ）： and set 1 ； when already ，
+    // this 「 up 」（ for not will empty 1 ， and after 1 ）
     const limiterChanges = readLimiterChanges(target, limiterDraft)
-    // 查询凭证段（自定义家的余额方案）：按方案读草稿 —— 密字段留空 = 不修改，
-    // 非密字段原样提交（后端判无变化时不写日志）；这一家没有方案时恒 null
+    // （ ）： by —— empty = not ，
+    // （ after none when not ）； this 1 no has when null
     const balanceQueryPatch = readBalanceQueryChanges(target.balanceQuery?.scheme, balanceQueryDraft)
-    // 凭证段（自定义账号）：与代理 / 套餐同一层，跟着这次保存一起落库
-    // （它走的是 PATCH /api/accounts 的自定义分支，见后端 `update_custom_credentials`）
+    // （）： and / 1 ， this 1 
+    // （ is PATCH /api/accounts ， after `update_custom_credentials`）
     const credentialPatch = readCredentialPatch() || {}
-    // 并发上限（「基本」分组）：本地先归一（number 输入挡不住手工脏值），后端
-    // 400 只该是最后防线 —— 与原 conc-dialog 同一套 clamp（0~999，0 = 不限；
-    // CodeArts 家 0 由上游解释成默认并发，见能力表 concurrencyDefault）
+    // and limit（「」）： 1 （number not ）， after 
+    // 400 this is after —— and conc-dialog 1 clamp（0~999，0 = not ；
+    // CodeArts 0 by up default and ， can concurrencyDefault）
     const concRaw = Number(concDraft)
     if (!Number.isFinite(concRaw) || concRaw < 0) {
       selectPane('basic')
@@ -434,20 +434,20 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
     actionLock.current = true
     setBusy(true)
     try {
-      // CatPaw 的余额凭证是**按需附加**的字段（别的家没有这一项，输入框也不存在）：
-      // 空值 = 不修改（后端公开形态只给 hasBalanceToken 真假、不回显原值，所以这个
-      // 输入框永远是空的；若把「空」解释成清除，用户每次保存设置都会把配好的凭证删掉）。
-      // 清除走上面那个显式按钮。
+      // CatPaw is ** by need ** （ no has this 1 ， not in ）：
+      // empty = not （ after to hasBalanceToken 、 not ， this 
+      // is empty ； if 「empty」， use set will ）。
+      // up that by 。
       const balancePatch = isCatpaw && balanceToken.trim() ? { balanceToken: balanceToken.trim() } : {}
-      // 套餐通道：只在**真的改了**时才带上（取值与后端 `zcode::normalize_plan`
-      // 逐字一致）。带一个没变的键不会出错，但会让后端那句「套餐通道 → …」的
-      // 变更提示在每次保存设置时都出现一次，看起来像刚改过
+      // ： in ** ** when up （ and after `zcode::normalize_plan`
+      // 1 ）。 1 no not will ， will after that 「 → …」 
+      // in set when 1 ，
       const planPatch = supportsPlanChannel(target) && planChannel !== zcodePlanOf(target)
         ? { zcodePlan: planChannel }
         : {}
-      // 顺序（priority）**不在这张表单里**：分组模式下它由拖拽整队写（见
-      // accounts-data 的 reorderQueue）。设置弹窗只改「账号自身」的属性，
-      // 一次「改备注名」不该顺手把顺序也提交一遍
+      // （priority）** not in this **： down by （
+      // accounts-data reorderQueue）。set「」 ，
+      // 1 「」 not this 1 
       const nextName = name.trim() || target.name
       const saved = await updateAccountConfirmed(id, {
         ...(nextName !== target.name ? { name: nextName } : {}),
@@ -466,8 +466,8 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
         throw new Error(t('账号更新结果未确认，请刷新后核对设置'))
       }
       setAccount(saved)
-      // 提供商那一段排在账号之后（账号是本弹窗的主角，先落库）。它失败时账号已经存下了，
-      // 所以留在弹窗里把那句话说清楚 —— 笼统报成「保存失败」会把两件事混成一件
+      // that 1 in after （ is ，）。failure when already down ，
+      // in that —— 「failure」 will 1 
       if (providerPatch) {
         try {
           const updateProvider = shared().wbCustomProvidersUi?.update
@@ -482,14 +482,14 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
           return
         }
       }
-      // 先关窗并反馈成功：改动已经落库，刷新只是让列表跟上，不该让用户对着「保存中…」
-      // 再多等一次网络往返
+      // and success： already ， new is up ， not this use for 「 in …」
+      // etc 1 
       onClose()
       toast(t('✅ 账号设置已保存'))
-      // 保存后必须主动刷新列表：以前只关窗不刷新，行上的代理 / 优先级仍是旧数据，
-      // 要等 20 秒那一轮轮询才更新 —— 用户看到的就是「保存完十几秒才变」。
-      // 单独兜一层错：刷新失败只影响本次界面同步（后续轮询会自愈），不能掉进下面的
-      // catch 被报成「保存失败」（保存其实已经成功了）
+      // after must new ： before not new ， up / is old ，
+      // need etc 20 seconds that 1 update —— use to is 「seconds」。
+      // 1 ： new failure（ after will ）， not can down 
+      // catch 「failure」（ its already success）
       try {
         await refreshSavedAccounts()
         await syncBalancesSnapshot()
@@ -497,7 +497,7 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
         toast(t('账号已保存，但列表刷新失败：{error}', { error: errorMessage(error) }), 'err')
       }
     } catch (error) {
-      // 后端校验失败（如优先级冲突）：留在弹窗里显示原因，方便直接改
+      // after failure（）： in Reason，
       setStatus(<span className='text-destructive'>{errorMessage(error)}</span>)
       toast(t('保存失败：{error}', { error: errorMessage(error) }), 'err')
     } finally {
@@ -506,7 +506,7 @@ export function AccountSettingsDialog({ id, onClose, initialAccount, initialPane
     }
   }
 
-  // 内置账号仅在有余额凭证或套餐通道时显示凭证分区。
+  // only in has or when 。
   const concDefault = Number(providerFeatures(providerOf(target)).concurrencyDefault) || 0
   const hasCredentialPane = isCatpaw || isCustomAccount || supportsPlanChannel(target)
   const accountPanes: PaneId[] = ['basic', ...(hasCredentialPane ? ['credential' as const] : []),

@@ -79,7 +79,7 @@ pub(super) fn within(path: &Path, directory: &Path) -> bool {
     }
 }
 
-/// 拒绝非管理员可修改的安装与升级目录；不通过修改整台机器的权限来强行放行。
+/// can and directory； not 。
 pub(super) fn protected(path: &Path) -> Result<(), UpdateError> {
     no_links(path)?;
     let installer_text = wide(std::ffi::OsStr::new("S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"));
@@ -109,7 +109,7 @@ fn check_acl(path: &Path, ancestor: bool, installer: PSID) -> Result<(), UpdateE
     let trusted = |sid: PSID| !sid.0.is_null()
         && (trusted_sid(sid) || (ancestor && unsafe { EqualSid(sid, installer) }.is_ok()));
     if !trusted(owner) || acl.is_null() { return Err(error("目录所有者或访问权限不安全")); }
-    // 父目录的 DELETE_CHILD 可以绕过子项 ACL；只忽略仅向后代继承的规则。
+    // directory DELETE_CHILD can ACL；ignoreonly to after then 。
     const REPLACE_ACCESS: u32 = 0x1000_0000 | 0x0004_0000 | 0x0008_0000 | 0x0001_0000 | 0x0040;
     const WRITE_ACCESS: u32 = REPLACE_ACCESS | 0x4000_0000 | 0x0002 | 0x0004 | 0x0010 | 0x0100;
     let forbidden = if ancestor {

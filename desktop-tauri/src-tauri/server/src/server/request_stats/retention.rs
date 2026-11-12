@@ -53,7 +53,7 @@ impl RetentionBounds {
     }
 }
 
-// 调用方持有事务；正文先于明细删除，按天聚合不受数量裁剪影响。
+// use has ；delete， by not 。
 pub(super) fn trim_requests(conn: &Connection, max: i64) -> rusqlite::Result<usize> {
     let overflow = (sql::count_all(conn)? as i64 - max).max(0);
     if overflow == 0 {

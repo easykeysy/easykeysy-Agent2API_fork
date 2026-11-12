@@ -16,7 +16,7 @@ export type UsageAggregate = {
   unlimited: boolean
 }
 
-/** 汇总由提供商声明；积分包可能互相包含，不能用明细再次求和。 */
+/** total by ； can can ， not can use and 。 */
 export function usageAggregateOf(value: unknown, t: Translate): UsageAggregate | null {
   const usage = object(value)
   if (!usage) return null
@@ -42,13 +42,13 @@ export function usageNumberOrNull(value: unknown): number | null {
   return Number.isFinite(number) ? number : null
 }
 
-/** 钱包当前余额不是套餐发放上限；旧版魔粒钱包没有 snapshot 标记。 */
+/** current not is limit； old no has snapshot 。 */
 export function isSnapshotWallet(value: unknown): boolean {
   const wallet = object(value)
   return wallet?.snapshot === true || wallet?.type === 'magicubes'
 }
 
-/** 旧版魔粒明细把钱包余额和已用次数都写成了 remain，兼容时只转换这一种钱包。 */
+/** old and already use remain， when this 1 。 */
 export function creditPacksOf(value: unknown): UsageObject[] {
   const usage = object(value)
   if (!usage) return []
@@ -86,7 +86,7 @@ export function usageUnitLabel(unit: string, t: Translate): string {
   }
 }
 
-/** 上游 Copilot 的账单单位标签，不称为 Token 或货币。 */
+/** up Copilot ， not as Token or 。 */
 export function usageWindowLabel(value: unknown, t: Translate): string {
   switch (value) {
     case 'Premium requests': return t('高级请求')
@@ -96,7 +96,7 @@ export function usageWindowLabel(value: unknown, t: Translate): string {
   }
 }
 
-/** 网关生成的读数使用模板翻译；任意上游展示串只作文本，不反推余额。 */
+/** use ；any up ， not 。 */
 export function usageWindowView(row: UsageObject, t: Translate, format: (value: number) => string): string {
   const supplied = typeof row.view === 'string' ? row.view.trim() : ''
   const remaining = usageNumberOrNull(row.remaining)
@@ -115,7 +115,7 @@ export function usageWindowView(row: UsageObject, t: Translate, format: (value: 
   return supplied ? t(supplied) : '—'
 }
 
-/** snapshot 读数不表示一份积分包：不计算耗尽、到期或剩余比例。 */
+/** snapshot not 1 ： not 、 to or remaining。 */
 export function snapshotReadingOf(pack: UsageObject, t: Translate, format: (value: number) => string): SnapshotReading | null {
   if (pack.snapshot !== true) return null
   const used = usageNumberOrNull(pack.used)

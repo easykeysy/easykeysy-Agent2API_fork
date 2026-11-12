@@ -1,31 +1,31 @@
-//! 传输抽象：把「读一个文件 / 写一个文件」从「WebDAV 还是 S3」里解耦。
+//! ： 「 1 file / 1 file」 from 「WebDAV is S3」。
 //!
-//! 协议层（`super::mod` 的上传 / 下载 / 远端信息）只认识 [`Transport`] 的三个方法，
-//! 因此加第三种存储（比如 SMB / FTP）只需再实现一个 trait，不必改动协议逻辑。
-//! 与 cc-switch 把 `sync_protocol` 与 `webdav` / `s3` 分层的理由一致。
+//! （`super::mod` up / down / ） [`Transport`] ，
+//! （e.g. SMB / FTP） need 1 trait， not 。
+//! and cc-switch `sync_protocol` and `webdav` / `s3` by 1 。
 
 use super::manifest::{self, ArtifactMeta, MAX_ARTIFACT_BYTES, MAX_MANIFEST_BYTES};
 use super::{s3, settings, webdav};
 
-/// 一次同步要用到的传输实现
+/// 1 need use to 
 pub(crate) enum Transport {
     WebDav {
         base_url: String,
         auth: webdav::WebDavAuth,
-        /// 远端目录段（`remoteRoot/v1/profile`），每次读写都要拼
+        /// directory（`remoteRoot/v1/profile`）， need 
         segments: Vec<String>,
-        /// 自定义 User-Agent；空 = 默认。部分服务按它校验客户端类型
+        /// User-Agent；empty = default。 by client
         user_agent: String,
     },
     S3 {
         credentials: s3::S3Credentials,
-        /// 远端目录（对象键前缀）：`remoteRoot/v1/profile`
+        /// directory（ for before ）：`remoteRoot/v1/profile`
         prefix: String,
     },
 }
 
 impl Transport {
-    /// 从设置构造（密码在这里解出明文，只在本次操作的内存里存活）
+    /// from set（ in this ， in ）
     pub(crate) fn from_settings(settings: &settings::CloudSyncSettings) -> Result<Self, String> {
         let segments = manifest::remote_dir_segments(&settings.remote_root, &settings.profile)?;
         match settings.provider.as_str() {
@@ -52,7 +52,7 @@ impl Transport {
         }
     }
 
-    /// 远端目录的展示路径
+    /// directory path
     pub(crate) fn display_path(&self) -> String {
         match self {
             Transport::WebDav { segments, .. } => format!("/{}", segments.join("/")),
@@ -62,7 +62,7 @@ impl Transport {
         }
     }
 
-    /// 测试连接（顺带把目录建好，避免第一次上传才发现没权限）
+    /// （ directory， 1 up no ）
     pub(crate) async fn test_connection(&self) -> Result<(), String> {
         match self {
             Transport::WebDav {
@@ -78,7 +78,7 @@ impl Transport {
         }
     }
 
-    /// 写一个文件（协议层保证 manifest 最后写，见 `manifest` 模块头）
+    /// 1 file（ manifest after ， `manifest` module header）
     pub(crate) async fn put(
         &self,
         name: &str,
@@ -104,7 +104,7 @@ impl Transport {
         }
     }
 
-    /// 读一个文件；不存在返回 `None`（「远端还没有」是正常状态）
+    /// 1 file； not in return `None`（「 no has 」 is ）
     pub(crate) async fn get(
         &self,
         name: &str,
@@ -129,7 +129,7 @@ impl Transport {
         }
     }
 
-    /// 读 manifest（带体积上限）
+    /// manifest（limit）
     pub(crate) async fn get_manifest(
         &self,
     ) -> Result<Option<(Vec<u8>, manifest::SyncManifest)>, String> {
@@ -142,7 +142,7 @@ impl Transport {
         Ok(Some((bytes, parsed)))
     }
 
-    /// 读一个 artifact 并按 manifest 校验（size + sha256）
+    /// 1 artifact and by manifest （size + sha256）
     pub(crate) async fn get_artifact(
         &self,
         name: &str,

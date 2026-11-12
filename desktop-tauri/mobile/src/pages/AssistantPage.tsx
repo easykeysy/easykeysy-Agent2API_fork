@@ -37,24 +37,24 @@ import { ModelApiKeyField } from '../../../ui-shared/model-api-key-field'
 import { modelApiKeyAllows, modelApiKeyLabel, type ModelApiKey } from '../../../ui-shared/model-api-key'
 
 /**
- * AI 助手（手机端）。
+ * AI （）。
  *
- * ── 请求走网关，不在手机上直连模型 ────────────────────────────
- * 对话发到 `POST /api/assistant/chat`，由**网关**转发到上游：模型路由、账号
- * 选取、429 换号、协议翻译、用量记账全在服务器那一侧（见 `api::assistant`
- * 的模块头）。手机端只做两件事：把消息发出去、把流回来的 delta 画出来。
- * 手机不持有任何上游凭证，也没有直连任何模型服务的代码。
+ * ── request， not in up ────────────────────────────
+ * for to `POST /api/assistant/chat`， by **** to up ： by 、
+ * 、429 、、usage in that 1 （ `api::assistant`
+ * module header）。： 、 delta 。
+ * not has up ， no has 。
  *
- * ── 为什么不再有「快捷查询」那一套 ────────────────────────────
- * 上一版用四个本地写死的查询冒充对话（直接打管理 API，不经过模型），输入框
- * 是个点了只弹提示的假按钮。那套东西的问题是：用户以为在跟模型说话，实际上
- * 只能问那四件事。现在四个快捷入口保留为**提问模板** —— 点一下把话填进输入框
- * 并发出去，走的是真正的对话链路。
+ * ── Why not has 「」 that 1 ────────────────────────────
+ * up 1 use for （ API， not ），
+ * is by 。 that is ： use as in ， up 
+ * can that 。 in as **** —— 1 down 
+ * and ， is for 。
  *
- * ── 模型从哪来 ────────────────────────────────────────────────
- * 默认用桌面端「助手设置」里选的那个（与桌面端共用一份配置）。手机端可以在
- * 顶部临时换一个已启用的模型，只影响本次会话，不写回配置 —— 手机上改全局
- * 设置容易误触，而换模型是个高频的临时动作。
+ * ── from ────────────────────────────────────────────────
+ * default use 「set」 that （ and use 1 config）。 can in 
+ * when 1 already enabled ， will ， not config —— up 
+ * set， is when 。
  */
 
 type QuickAsk = {
@@ -87,15 +87,15 @@ export function AssistantPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [title, setTitle] = useState('')
   const titleRef = useRef('')
-  /** 默认模型（来自网关配置）；null = 还没读到 */
+  /** default（config）；null = no to */
   const [defaultModel, setDefaultModel] = useState<string | null | undefined>(undefined)
-  /** 本次会话临时选的模型；空串 = 跟随配置 */
+  /** will when ；empty = config */
   const [model, setModel] = useState('')
   const { models, ready: modelsReady, loading: modelsLoading, error: modelsError, refresh: refreshModels } = useAssistantModels(selectedKey?.key)
   const [pickerOpen, setPickerOpen] = useState(false)
   const checkingModelRef = useRef(false)
   const [checkingModel, setCheckingModel] = useState(false)
-  /** 网关里勾选过的工具表（空 = 纯聊天，后端也不会注入系统提示词） */
+  /** （empty = ， after not will ） */
   const [tools, setTools] = useState<Array<Record<string, unknown>>>([])
   const enabledToolsRef = useRef<Record<string, boolean>>({})
   const modeRef = useRef<'confirm' | 'full'>('confirm')
@@ -130,7 +130,7 @@ export function AssistantPage() {
     return () => { mountedRef.current = false; abortRef.current?.abort() }
   }, [])
 
-  // 读默认模型与工具勾选表：工具表决定后端注不注入系统提示词，必须一起读
+  // default and ： after not ，must 1 
   useEffect(() => {
     let cancelled = false
     fetchAssistantConfig()
@@ -161,7 +161,7 @@ export function AssistantPage() {
     if (pickerOpen) void refreshModels().catch(() => {})
   }, [pickerOpen, refreshModels])
 
-  // 新内容到达时贴底（用户往上翻看历史时不打扰：只有本来就在底部才跟随）
+  // new to when （ use up when not ： has in ）
   useEffect(() => {
     const node = scrollRef.current
     if (!node) return
@@ -176,7 +176,7 @@ export function AssistantPage() {
     : !modelsReady ? t('正在读取可用模型…')
     : effectiveModel && !currentOption ? unavailableModelMessage(effectiveModel) : ''
 
-  /** 发一条消息（`text` 为空时取输入框） */
+  /** 1 （`text` as empty when ） */
   const send = async (text?: string) => {
     const content = (text ?? draft).trim()
     if ((!content && !attachments.length && !textFiles.length) || busy || readingAttachments || checkingModelRef.current) return
@@ -249,7 +249,7 @@ export function AssistantPage() {
     let unfinishedId = replyId
     try {
       await persist(session, messages, requestModel, identity).catch(() => {})
-      /** 本轮执行过的工具（显示在气泡下方，让用户知道模型查了什么） */
+      /** （ in down ， use ） */
       const usedTools: string[] = []
       const generatedImages: ImageAsset[] = []
       for (let round = 0; round < 6; round++) {
@@ -290,7 +290,7 @@ export function AssistantPage() {
           break
         }
 
-        // 把这一轮的 assistant 消息（含工具调用）与工具结果一起回灌
+        // this 1 assistant （ use ） and 1 
         messages = [
           ...messages,
           { id: roundId, role: 'assistant', model: requestModel, content: roundText, toolCalls: pendingCalls },
@@ -331,7 +331,7 @@ export function AssistantPage() {
             usedTools.push(tool.label)
             patch({ tools: [...usedTools], images: [...generatedImages] })
           } catch (failure) {
-            // 工具失败不中断对话：把错误如实回给模型，让它自己决定怎么解释
+            // failure not in for ： error to ，
             result = JSON.stringify({
               error: failure instanceof Error ? failure.message : String(failure),
             })
@@ -358,7 +358,7 @@ export function AssistantPage() {
           setSessions(previous => previous.map(item => item.id === saved.id ? saved : item))
         }).catch(failure => { if (mountedRef.current && serverIdentity() === identity) store.toast(t('标题总结失败：{message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'warn') })
       }
-      // 流正常结束但一个字都没有：多半是上游只回了 tool_calls 或空响应
+      // 1 no has ： is up tool_calls or emptyresponse
       setBubbles(prev =>
         prev.map(item => {
           if (item.id !== replyId) return item
@@ -478,10 +478,10 @@ export function AssistantPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/*
-        页头必须自己吃下安全区：其他一级页用 `.m-head`，那里带了
-        `calc(var(--m-safe-t) + …)`；这一页是手写的紧凑头（对话页要省纵向空间），
-        漏了 safe-t 就会被刘海 / 状态栏压住。离线时顶部那条通知自己占安全区，
-        这里再让一次会多出一段空白 —— 与 `.m-app[data-offline] .m-head` 同口径。
+        must down ： its 1 use `.m-head`， that 
+        `calc(var(--m-safe-t) + …)`； this 1 is （ for need to empty），
+         safe-t will / 。 when that ，
+         this 1 will 1 empty —— and `.m-app[data-offline] .m-head` 。
       */}
       <div
         className='m-assistant-head'
@@ -665,8 +665,8 @@ export function AssistantPage() {
       <div
         style={{
           flex: 'none',
-          // 不再加 safe-b：底部标签栏（.m-tabbar）是它的兄弟节点，已经用
-          // padding-bottom 吃掉了底部安全区。这里再加一次会多出一条空白。
+          // not safe-b：（.m-tabbar） is ， already use 
+          // padding-bottom 。 this 1 will 1 empty。
           padding: '8px 12px 12px',
           borderTop: '1px solid var(--m-line)',
           background: 'color-mix(in srgb, var(--m-bg) 88%, transparent)',
@@ -717,8 +717,8 @@ export function AssistantPage() {
               if (files.length) { event.preventDefault(); void addAttachments(files) }
             }}
             onKeyDown={event => {
-              // 回车发送、Shift+回车换行（与桌面端同一手感）；输入法组合中的回车
-              // 不算（中文输入时那是在选词，发出去就糟了）
+              // 、Shift+（ and 1 ）； in 
+              // not （ in when that is in ，）
               if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault()
                 void send()

@@ -1,34 +1,34 @@
-//! 「丢弃保活换行分片」开关：`GET/PUT /api/keepalive-strip`。
+//! 「」：`GET/PUT /api/keepalive-strip`。
 //!
-//! ── 这个开关做什么 ──────────────────────────────────────────
-//! WorkBuddy 与 AutoClaw 的上游会在相邻正文分片之间
-//! 插一帧 `delta.content` 只含换行的分片（同一批流里还在发 `: heartbeat` 注释行，
-//! 那才是它的本意保活手段）。生产库两天 58 发 WorkBuddy 200 请求实测：20 发带
-//! 这类分片（34.5%），脏请求里它们占正文分片中位 13.4%（区间 1.2%–30.8%），
-//! 干净请求恒 0；分布是二值的 —— 一条请求要么零个，要么几乎每片之间都插一个。
-//! 客户端按 markdown 渲染时一个换行就是一个 `<br>`，于是正文被排成一行一个词。
-//! 开启后，转发层在**下发**前丢掉这类帧（判据与"宁可不丢"的取向见
+//! ── this ──────────────────────────────────────────
+//! WorkBuddy and AutoClaw up will in 
+//! 1 `delta.content` （ 1 in `: heartbeat` ，
+//! that is ）。 58 WorkBuddy 200 request：20 
+//! this （34.5%），request in 13.4%（ 1.2%–30.8%），
+//! request 0； is —— 1 request need ， need 1 。
+//! client by markdown when 1 is 1 `<br>`， is 1 1 。
+//! after ， in ** down ** before this （ and " can not " to 
 //! [`crate::server::core::upstream::sse::is_newline_keepalive`]）。
 //!
-//! ── 为什么是「能力位 × 开关」两个条件 ───────────────────────
-//! 适配器那位 `sse_strip_newline_chunks()` 回答的是「这家的上游会不会发这种东西」，
-//! 依据只有实测过的两家；本开关回答的是「这台机器要不要为它改写下发字节」。
-//! 两者相与，且**开关只能收窄不能扩张**：打开它不会让一家没实测过的上游开始被丢帧
-//! （见 [`crate::server::core::upstream::sse::FramePolicy::assembled`]）。
+//! ── Why is 「 can × 」 ───────────────────────
+//! that `sse_strip_newline_chunks()` is 「 this up will not will this 」，
+//! has ； is 「 this need not need as down 」。
+//! and ， and ** can not can **： not will 1 no up 
+//! （ [`crate::server::core::upstream::sse::FramePolicy::assembled`]）。
 //!
-//! ── 为什么默认关、又为什么要能在线切 ───────────────────────
-//! 丢帧的代价是"模型真有一个单独成片的换行会被一起吃掉"，收益是"整屏断句没了" ——
-//! 这是一次外观取舍，而且只在带这类节拍的那一类请求上看得见（两天样本里 34.5%）。
-//! 所以编译期不替用户定：
-//! 默认逐字节透传，开关在配置里（`stripNewlineKeepalive`，未设置时环境变量
-//! `AGENT2API_STRIP_NEWLINE_KEEPALIVE` 兜底）。留成在线端点是为了**能在真流量上
-//! 验证并随时撤回**：开一下、看几条请求的下游字节、不对就关掉，不需要重新构建镜像。
-//! 转发层逐请求读快照，改完下一个请求立即生效，不重启进程。
+//! ── Whydefault、Why need can in ───────────────────────
+//! is " has 1 will 1 "， is " no " ——
+//! this is 1 ， and in this that 1 request up （ 34.5%）。
+//! not use ：
+//! default， in config（`stripNewlineKeepalive`，set when 
+//! `AGENT2API_STRIP_NEWLINE_KEEPALIVE` ）。 in is as ** can in up 
+//! and when **： 1 down 、request down 、 not for ， not need need new 。
+//! request， down 1 request， not 。
 //!
-//! ── 与 /api/sanitize、/api/debug 的关系 ─────────────────────
-//! 形状刻意保持一致（GET 读 / PUT 写 / 响应体就是新状态），三者的差别只在默认值
-//! 与代价方向：脱敏默认开（不开会撞 400）、调试模式默认关（报文可达数百 KB）、
-//! 本开关默认关（它改的是下发字节）。设置页的开关因此能共用一套读写模式。
+//! ── and /api/sanitize、/api/debug ─────────────────────
+//! 1 （GET / PUT / response is new ）， in default
+//! and to ：default（ not will 400）、default（ can KB）、
+//! default（ is down ）。set can use 1 。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -41,16 +41,16 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// GET /api/keepalive-strip —— 当前开关状态
+/// GET /api/keepalive-strip —— current
 pub async fn get_keepalive_strip(State(_state): State<ServerState>) -> Response {
     ok_json(state_json())
 }
 
 /// PUT /api/keepalive-strip —— body `{stripNewlineKeepalive: true|false}`
 ///
-/// 写配置，下一个请求立即生效（策略装配逐请求读快照，不重启进程）。
-/// 开与关都记一条事件日志：开的那一刻起，那两家的下发帧不再是上游原样的字节，
-/// 而关的那一刻起又变回去 —— 排查"这个换行怎么没了"时，日志里必须查得到这条线。
+/// config， down 1 request（request， not ）。
+/// and 1 ： that 1 ， that down not is up ，
+/// that 1 —— " this no " when ，must to this 。
 pub async fn put_keepalive_strip(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -80,7 +80,7 @@ pub async fn put_keepalive_strip(State(_state): State<ServerState>, body: Bytes)
     ok_json(state_json())
 }
 
-/// 开关状态（GET 与 PUT 共用，前端直接用响应刷新界面）
+/// （GET and PUT use ， before use response new ）
 fn state_json() -> Value {
     json!({
         config::KEY_STRIP_NEWLINE_KEEPALIVE: config::strip_newline_keepalive(),

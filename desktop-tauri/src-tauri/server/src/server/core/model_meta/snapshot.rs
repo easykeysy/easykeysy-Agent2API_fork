@@ -1,32 +1,32 @@
-//! models.dev 精简索引的装载与查询。
+//! models.dev and 。
 //!
-//! ── 三份形态同一套解析 ──────────────────────────────────────
-//! 索引的**文件形态**只有一种（脚本与运行期刷新产出同一形状，见
-//! `scripts/sync-modelsdev.mjs` 的文件头），三个来源共用这里的 [`parse`]：
-//!   · 内嵌快照（[`EMBEDDED`]，`include_str!` 进二进制，`source = "builtin"`）
-//!   · 统一库 `kv` 里的上一份刷新结果（`source = "cache"`）
-//!   · 本次联网刷新刚拉到的（`source = "network"`，见 `refresh`）
-//! 装载优先级是 **cache > builtin**：内嵌快照是「一份都没有时的地板」，只要
-//! 成功刷新过一次，就一直用那份到下一次成功刷新覆盖它（与
-//! `providers::catalog_cache` 的「缓存不带有效期」同一取向：宁可给一份旧的，
-//! 也不要退回发版时那份更旧的）。
+//! ── 1 ──────────────────────────────────────
+//! **file** has 1 （ and new 1 ，
+//! `scripts/sync-modelsdev.mjs` file）， use this [`parse`]：
+//! · （[`EMBEDDED`]，`include_str!` ，`source = "builtin"`）
+//! · 1 `kv` up 1 new （`source = "cache"`）
+//! · new to （`source = "network"`， `refresh`）
+//! is **cache > builtin**： is 「 1 no has when 」， need 
+//! success new 1 ， 1 use that to down 1 success new （ and 
+//! `providers::catalog_cache` 「 not valid」 1 to ： can to 1 old ，
+//! not need when that old ）。
 //!
-//! ── 归一化口径必须与脚本逐字一致 ────────────────────────────
-//! [`key_of`] 是 `scripts/sync-modelsdev.mjs` 里 `keyOf` 的孪生实现：取 id 的
-//! **末段**（我们各家的模型名基本等同于模型本名，而 models.dev 的 id 一律带
-//! lab 前缀），小写、只留字母数字。两侧任何一处改了，索引就会「刷新后突然
-//! 全不命中」—— 这个症状不会报错，只会让档位悄悄变回通用表，所以两处都写了
-//! 指向对方的注释。
+//! ── 1 must and 1 ────────────────────────────
+//! [`key_of`] is `scripts/sync-modelsdev.mjs` `keyOf` ： id 
+//! ****（ etc ， models.dev id 1 
+//! lab before ），、。 1 ， will 「 new after 
+//! not in 」—— this not will ， will use ，
+//! to for 。
 //!
-//! ── 一次装载、之后只读 ──────────────────────────────────────
-//! 索引是「读多写极少」的共享态：读路径（每次清单成型都要按模型查一次）拿读
-//! 锁，刷新落地时拿写锁整体替换。硬约束与各家目录相同：**持锁期间不做网络
-//! 请求**（刷新先把两份 JSON 拉完、压完，最后才在锁内替换）。
+//! ── 1 、 after ──────────────────────────────────────
+//! is 「」 ：path（ need by 1 ）
+//! ， new when 。 and directory：** not 
+//! request**（ new JSON 、， after in ）。
 //!
-//! ── 硬约束：持锁期间不打日志 ────────────────────────────────
-//! 与 `config::sql` / `providers::catalog_cache` 同一条：`Db::with` 拿的是全局
-//! 唯一的连接锁，而 `logging::log` / `verbose` 要往同一个库写 `logs` 表 ——
-//! `std::sync::Mutex` 不可重入，在闭包里打日志会当场死锁。
+//! ── ： not ────────────────────────────────
+//! and `config::sql` / `providers::catalog_cache` 1 ：`Db::with` is 
+//! 1 ， `logging::log` / `verbose` need 1 `logs` ——
+//! `std::sync::Mutex` not can ， in will 。
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -37,21 +37,21 @@ use serde_json::Value;
 use crate::server::db::Db;
 use crate::server::logging;
 
-/// 内嵌快照：仓库里检入的构建产物（生成方式见 `scripts/sync-modelsdev.mjs`）。
+/// ： （ `scripts/sync-modelsdev.mjs`）。
 const EMBEDDED: &str = include_str!("modelsdev.json");
 
-/// `kv` 表里的键名（保留键，登记在 `db::schema::RESERVED_KV_KEYS`）。
+/// `kv` （， in `db::schema::RESERVED_KV_KEYS`）。
 pub const KV_KEY: &str = "modelsDevCatalog";
 
-/// 一条模型元数据（**只留网关真正会用的字段**，其余在同步阶段就丢掉）。
+/// 1 （** will use **， its in ）。
 ///
-/// 布尔位与数值都是 `Option`：同步阶段理论上六项齐全（models.json 的 schema
-/// 把 `reasoning` / `tool_call` 标成必填），但这份数据来自外部、也可能被手工
-/// 改过的缓存喂进来，读侧一律宽容 —— `None` 的含义是「这份数据没说」，
-/// 调用方据此**不填**，而不是填一个 `false`（那会凭空断言「不支持」）。
+/// and is `Option`： up （models.json schema
+/// `reasoning` / `tool_call` ）， this 、 can can 
+/// ， 1 —— `None` is 「 this no 」，
+/// use ** not **， not is 1 `false`（ that will empty「unsupported」）。
 #[derive(Clone, Debug, Default)]
 pub struct Record {
-    /// canonical id（`zhipuai/glm-5.3`）—— 日志与排障用，网关不据此路由
+    /// canonical id（`zhipuai/glm-5.3`）—— and use ， not by 
     pub canonical: String,
     pub reasoning: Option<bool>,
     pub tool_call: Option<bool>,
@@ -59,42 +59,42 @@ pub struct Record {
     pub video: Option<bool>,
     pub context: Option<u64>,
     pub output: Option<u64>,
-    /// 该模型**认识的命名档位**（由弱到强，models.dev 原始顺序）。
-    /// 空 = 这份数据没给出命名档位（只声明了开关 / 没声明）—— 网关侧回落通用表。
+    /// this ** **（ by to ，models.dev ）。
+    /// empty = this no to （ / no ）—— use 。
     pub levels: Vec<String>,
 }
 
-/// 一份索引 + 它的来历。
+/// 1 + 。
 pub struct Snapshot {
     models: HashMap<String, Record>,
-    /// 这份数据的生成时刻（models.dev 侧没有版本号，用抓取时刻代替）
+    /// this when （models.dev no has ， use when ）
     generated_at: i64,
-    /// `builtin` / `cache` / `network`（管理页与日志据此说明数据新旧）
+    /// `builtin` / `cache` / `network`（ and new old ）
     source: &'static str,
 }
 
 impl Snapshot {
-    /// 组装一份索引（`refresh` 压缩完两份官方 JSON 后调用；`source` 传 `network`）。
+    /// 1 （`refresh` JSON after use ；`source` `network`）。
     pub fn new(models: HashMap<String, Record>, generated_at: i64, source: &'static str) -> Self {
         Self { models, generated_at, source }
     }
 
-    /// 收录的模型条数（刷新结果里的 `count`）。
+    /// （ new `count`）。
     pub fn len(&self) -> usize {
         self.models.len()
     }
 }
 
-/// 进程级快照（懒装载）。`None` 只在「还没读过」时出现；一旦读过就不会退回。
+/// （）。`None` in 「 no 」 when ； 1 not will 。
 static SNAPSHOT: OnceLock<RwLock<Option<Arc<Snapshot>>>> = OnceLock::new();
 
-/// 进程级库句柄（与 `config` / `providers::catalog_cache` 同一模式）。
+/// （ and `config` / `providers::catalog_cache` 1 ）。
 static DB: OnceLock<Option<Db>> = OnceLock::new();
 
-/// 装入库句柄。`bootstrap` 里 `Db` 就绪后调用一次；重复调用忽略。
+/// 。`bootstrap` `Db` after use 1 ； use ignore。
 ///
-/// 收 `Option<Db>` 与 `catalog_cache::install` 同一形态：库打不开时也照常调用，
-/// 那时只读内嵌快照（功能仍在，只是拿不到刷新结果）。
+/// `Option<Db>` and `catalog_cache::install` 1 ： not when use ，
+/// that when （ can in ， is not to new ）。
 pub fn install(db: Option<Db>) {
     let _ = DB.set(db);
 }
@@ -103,7 +103,7 @@ fn db() -> Option<Db> {
     DB.get().and_then(|slot| slot.as_ref()).cloned()
 }
 
-/// 索引键：id 末段 + 小写 + 只留字母数字（脚本 `keyOf` 的孪生，见模块头）。
+/// ：id + + （ `keyOf` ，module header）。
 pub fn key_of(id: &str) -> String {
     id.rsplit('/')
         .next()
@@ -114,10 +114,10 @@ pub fn key_of(id: &str) -> String {
         .to_ascii_lowercase()
 }
 
-/// 按模型 id 查一条元数据（查不到给 `None` = 「这个模型 models.dev 没收录」）。
+/// by id 1 （ not to to `None` = 「 this models.dev no 」）。
 ///
-/// 热路径：每次清单成型对每个模型调用一次，索引在内存里，这里是一次哈希查找
-/// 加一次小记录克隆。
+/// path： for use 1 ， in ， this is 1 
+/// 1 。
 pub fn lookup(model: &str) -> Option<Record> {
     let key = key_of(model.trim());
     if key.is_empty() {
@@ -126,7 +126,7 @@ pub fn lookup(model: &str) -> Option<Record> {
     snapshot().models.get(&key).cloned()
 }
 
-/// 当前索引的状态（管理页与刷新结果展示；**不含**任何体积大的内容）。
+/// current （ and new ；** not ** ）。
 pub fn status() -> Value {
     let snapshot = snapshot();
     serde_json::json!({
@@ -136,13 +136,13 @@ pub fn status() -> Value {
     })
 }
 
-/// 当前索引的来历与生成时刻（日志用；与 [`status`] 同源，避免两处各取一次）。
+/// current and when （ use ； and [`status`] ， 1 ）。
 pub fn origin() -> (&'static str, i64) {
     let snapshot = snapshot();
     (snapshot.source, snapshot.generated_at)
 }
 
-/// 取当前快照，必要时装载（**cache > builtin**，理由见模块头）。
+/// current， need when （**cache > builtin**， by module header）。
 fn snapshot() -> Arc<Snapshot> {
     let lock = SNAPSHOT.get_or_init(|| RwLock::new(None));
     if let Some(loaded) = lock.read().ok().and_then(|slot| slot.clone()) {
@@ -160,13 +160,13 @@ fn snapshot() -> Arc<Snapshot> {
     loaded
 }
 
-/// 首次装载：库里的刷新结果优先，没有（或坏了）才用内嵌快照。
+/// ： new ， no has （ or ） use 。
 fn load() -> Snapshot {
     if let Some(cached) = read_cache() {
         return cached;
     }
-    // 内嵌快照是构建产物，解析不了属于「发版坏了」；这时给一份空索引而不是
-    // panic —— 模型清单本身照常工作，只是所有键都回到「未声明」。
+    // is ， not 「」； this when to 1 empty not is 
+    // panic —— ， is all to 「」。
     match parse(EMBEDDED, "builtin") {
         Some(snapshot) => snapshot,
         None => {
@@ -176,7 +176,7 @@ fn load() -> Snapshot {
     }
 }
 
-/// 用新索引整体替换内存快照（刷新成功后调用）。
+/// use new （ new success after use ）。
 pub fn replace(snapshot: Snapshot) {
     crate::server::core::providers::catalog::invalidate();
     let lock = SNAPSHOT.get_or_init(|| RwLock::new(None));
@@ -187,7 +187,7 @@ pub fn replace(snapshot: Snapshot) {
     crate::server::core::providers::catalog::invalidate();
 }
 
-/// 解析一份快照文本（三份形态共用，见模块头）。
+/// 1 （ use ，module header）。
 pub fn parse(text: &str, source: &'static str) -> Option<Snapshot> {
     let root: Value = serde_json::from_str(text).ok()?;
     let object = root.get("models")?.as_object()?;
@@ -207,11 +207,11 @@ pub fn parse(text: &str, source: &'static str) -> Option<Snapshot> {
     })
 }
 
-/// 序列化成文件形态（刷新落库用；与 [`parse`] 严格互逆）。
+/// file（ new use ； and [`parse`] ）。
 ///
-/// 键**排序后**写出：内嵌快照是脚本按同一顺序（字典序）生成的，两份格式一致
-/// 才谈得上「互相替换」；也让库里那份 JSON 成为可 diff 的文本（HashMap 的随机
-/// 遍历序会让每次刷新的键序都不一样，肉眼比对时全是噪音）。
+/// ** after **： is by 1 （） ， 1 
+/// up 「」； that JSON as can diff （HashMap 
+/// will new not 1 ， for when is ）。
 pub fn serialize(snapshot: &Snapshot) -> String {
     let mut models = serde_json::Map::new();
     let mut keys: Vec<&String> = snapshot.models.keys().collect();
@@ -284,11 +284,11 @@ fn parse_record(value: &Value) -> Option<Record> {
     })
 }
 
-/// 读库里的刷新结果（库不可用 / 没写过 / 值坏了 → `None`，由调用方回落地板）。
+/// new （unavailable / no / → `None`， by use ）。
 fn read_cache() -> Option<Snapshot> {
     let db = db()?;
-    // 只读一次库（整份就是一个键），解析放在闭包外做 —— 闭包里不能打日志，
-    // 而解析失败的 verbose 要在闭包外补
+    // 1 （ is 1 ）， in —— not can ，
+    // failure verbose need in 
     let text = db.with(read_text).flatten();
     let snapshot = text.as_deref().and_then(|text| parse(text, "cache"));
     if snapshot.is_none() && text.is_some() {
@@ -297,8 +297,8 @@ fn read_cache() -> Option<Snapshot> {
     snapshot
 }
 
-/// 把刷新结果写回库（失败只记 verbose：写不进去的后果是「下次启动用内嵌
-/// 快照」，不该让一次成功的刷新因此报错 —— 与 `catalog_cache::save` 同一取舍）。
+/// new （failure verbose： not after is 「 down use 
+/// 」， not this 1 success new —— and `catalog_cache::save` 1 ）。
 pub fn write_cache(text: &str) {
     let Some(db) = db() else { return };
     let written = db.with(|conn| write_text(conn, text)).unwrap_or(false);

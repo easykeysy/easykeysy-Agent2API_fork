@@ -1,18 +1,18 @@
 /**
- * AI 助手的设置抽屉：从对话页右上角「助手设置」打开，落在页面右侧。
+ * AI set： from for up 「set」， in 。
  *
- * ── 为什么从设置页搬到这里 ──────────────────────────────────
- * 这三块（默认行为 / 系统提示词 / 工具）都是**聊着聊着就想改**的东西：
- * 换模型、加一个工具、改一句提示词。放在「设置 → AI 助手」意味着每次调整都
- * 要离开对话页、改完再切回来，而对话本身是有上下文的。搬进来之后不打断会话。
+ * ── Why from set to this ──────────────────────────────────
+ * this （default as / / ） is **** ：
+ * 、 1 、 1 。 in 「set → AI 」
+ * need for 、， for is has up down 。 after not will 。
  *
- * ── 保存语义 ────────────────────────────────────────────────
- * 与设置页其它开关一致：**改动即时保存**（没有「保存」按钮）。只有系统提示词
- * 的正文在弹窗里编辑，弹窗自带取消 / 保存。
+ * ── ────────────────────────────────────────────────
+ * and set its 1 ：** when **（ no has 「」 by ）。 has 
+ * in ， / 。
  *
- * ── 数据流 ──────────────────────────────────────────────────
- * 配置由父组件（assistant-page）持有并透传：聊天框里的选择器也读同一份，
- * 抽屉改了要立刻反映到输入区胶囊上。本文件只负责渲染与发起保存请求。
+ * ── ──────────────────────────────────────────────────
+ * config by （assistant-page） has and ： 1 ，
+ * need to up 。file and request。
  */
 
 import * as React from 'react'
@@ -63,7 +63,7 @@ type Props = {
   apiKeyField: React.ReactNode
 }
 
-/** 一块配置卡 */
+/** 1 config */
 function Section({ title, sub, extra, children }: {
   title: string
   sub?: string
@@ -135,13 +135,13 @@ export function AssistantSettingsDrawer({
               {t('原先在「设置 → AI 助手」的配置都搬到这里了')}
             </div>
 
-            {/* ① 默认行为 */}
+            {/* ① default as */}
             <Section title={t('默认行为')} sub={t('新建对话时使用')}>
               {apiKeyField}
               <div className='asst-field'>
                 <Label>{t('模型')}</Label>
-                {/* 与聊天框里的模型列表同一份数据（父组件透传 names）：两处的
-                    候选口径必须逐字一致，否则会出现「这里能选、聊天框选不到」。 */}
+                {/* and 1 （ names）： 
+                    must 1 ，otherwise will 「 this can 、 not to 」。 */}
                 <Select
                   value={currentModel ?? ''}
                   disabled={!ready || busy || !modelsReady}
@@ -167,9 +167,9 @@ export function AssistantSettingsDrawer({
               </div>
               {modelWarning && <p className='asst-hint bad' role='status'>{modelWarning}</p>}
 
-              {/* 思考等级：与模型选择同一种「列表」形态（一行一项、右侧打勾），
-                  不做成 chips 九宫格 —— 档位是有序的强弱序列，竖排列表读起来
-                  才是「从弱到强」，网格会把它读成一组互不相干的选项。 */}
+              {/* etc ： and 1 「」（ 1 1 、），
+                   not chips —— is has ，
+                   is 「 from to 」， will 1 not 。 */}
               <div className='asst-field col'>
                 <Label>{t('思考等级')}</Label>
                 <div className='asst-level-list'>
@@ -216,7 +216,7 @@ export function AssistantSettingsDrawer({
               </div>
             </Section>
 
-            {/* ② 系统提示词 */}
+            {/* ② */}
             <Section title={t('系统提示词')} sub={t('作为 system 消息注入')}>
               <div className='asst-switchline'>
                 <Switch
@@ -246,7 +246,7 @@ export function AssistantSettingsDrawer({
               </div>
             </Section>
 
-            {/* ③ 工具 */}
+            {/* ③ */}
             <Section
               title={t('工具')}
               sub={t('勾选即注入')}
@@ -290,9 +290,9 @@ export function AssistantSettingsDrawer({
           </SheetBody>
 
           <SheetFooter className='asst-drawer-foot'>
-            {/* 这里只显示**常驻**状态（保存失败 / 配置读不出来）。成功的那类
-                反馈（「已勾选 X」「已切换到完全访问」）由父组件走顶部 toast，
-                不再占这一行 —— 否则每点一下开关，这行字就换一次。 */}
+            {/* this ****（failure / config not ）。success that 
+                （「 already X」「 already to 」） by toast，
+                 not this 1 —— otherwise 1 down ， this 1 。 */}
             <span className={cn('asst-hint', failed && 'bad')}>
               {failed && status ? status : t('会话里的选择优先于这里的默认值')}
             </span>
@@ -302,7 +302,7 @@ export function AssistantSettingsDrawer({
         </SheetContent>
       </Sheet>
 
-      {/* 系统提示词编辑弹窗 */}
+      {/* */}
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className='w-[min(680px,calc(100vw-48px))]'>
           <DialogHeader><DialogTitle>{t('编辑系统提示词')}</DialogTitle></DialogHeader>

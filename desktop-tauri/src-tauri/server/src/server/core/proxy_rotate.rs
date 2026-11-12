@@ -1,5 +1,5 @@
-//! 账号出网代理轮询，候选来自手动地址与 Clash Verge 端点。
-//! 游标按账号存于进程内；展示只读取候选，不推进游标。
+//! ， and Clash Verge 。
+//! by ；， not 。
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -7,22 +7,22 @@ use std::sync::Mutex;
 use serde_json::Value;
 
 use crate::server::core::proxies::ResolvedProxy;
-// 条目的「有效启用」（来源侧启用 ∧ 非本地禁用）直接复用池的判定，不再另写一份
-// —— 只读 `enabled` 的判据会让「在「网络代理」页关掉的节点照样被轮询选中」：
-// 用户按下开关却看不出任何效果，且每次选中都解析失败再顺延。
+// 「validenabled」（enabled ∧ use ） use ， not 1 
+// —— `enabled` will 「 in 「」 in 」：
+// use by down not ， and in failure。
 use crate::server::core::proxy_pool::is_enabled;
 
-/// 指定轮询时**配置里最多留多少条 id**：与 `core::proxies` 的归一上限同源
-/// （两处都写 64 会被改歪一处，所以只在这里定义，归一那边引用它）。
+/// when **config id**： and `core::proxies` 1 limit
+/// （ 64 will 1 ， in this ， 1 that use ）。
 pub const MAX_IDS: usize = 64;
 
-/// 轮询游标表的大小上限（超出时整表清空）。
+/// limit（ when empty）。
 ///
-/// 键是账号 id，正常规模在几十个以内 —— 这个上限只防「账号被反复重建」这类
-/// 病态增长（每条记录一个新 id）。清空是安全的：游标只是一段进度，丢了从头转。
+/// is id， in —— this limit「 」 this 
+/// （ 1 new id）。empty is ： is 1 ， from 。
 const MAX_CURSORS: usize = 512;
 
-/// 账号 id → 下一次从第几个候选开始（进程级，见模块头）
+/// id → down 1 from （，module header）
 static CURSORS: Mutex<Option<HashMap<String, u64>>> = Mutex::new(None);
 
 fn lock_cursors() -> std::sync::MutexGuard<'static, Option<HashMap<String, u64>>> {
@@ -32,9 +32,9 @@ fn lock_cursors() -> std::sync::MutexGuard<'static, Option<HashMap<String, u64>>
     }
 }
 
-/// 取号：返回本次从候选列表的第几位开始，并把游标推到下一位。
+/// ：return from ， and to down 1 。
 ///
-/// `len` 必须非 0（调用方已挡）；条目数变化时取模自然收敛到新列表长度。
+/// `len` must 0（ use already ）； when to new 。
 fn take_cursor(key: &str, len: usize) -> usize {
     let mut guard = lock_cursors();
     let cursors = guard.get_or_insert_with(HashMap::new);
@@ -47,23 +47,23 @@ fn take_cursor(key: &str, len: usize) -> usize {
     start
 }
 
-// ─── 配置读取 ───────────────────────────────────────────────
+// ─── config ───────────────────────────────────────────────
 
-/// `all` 的读法：缺键 / null 当**真**。
+/// `all` ： / null ****。
 ///
-/// 与写入侧（归一恒写显式布尔）配起来，「缺键」只可能来自手工改库；那时按
-/// 「全部」解释比按「一条都不轮」解释安全 —— 前者是这条配置的默认语义，
-/// 后者会让转发直接回退直连。
+/// and （ 1 ），「」 can can ； that when by 
+/// 「」 by 「 1 not 」 —— before is this config default，
+/// after will 。
 fn is_all(config: &Value) -> bool {
     match config.get("all") {
         None | Some(Value::Null) => true,
         Some(Value::Bool(flag)) => *flag,
-        // 脏值（字符串 / 数字）按「不是 false 即为真」的 JS 口径：只认显式 false
+        // （ / ） by 「 not is false as 」 JS ： false
         Some(_) => true,
     }
 }
 
-/// 配置里显式列出的 id（`all: false` 那一支；去空、去重、保序、截断到 [`MAX_IDS`]）
+/// config id（`all: false` that 1 ；empty、、、 to [`MAX_IDS`]）
 fn configured_ids(config: &Value) -> Vec<String> {
     let mut ids: Vec<String> = Vec::new();
     let Some(items) = config.get("proxyIds").and_then(Value::as_array) else {
@@ -87,11 +87,11 @@ fn text_of(value: &Value, key: &str) -> String {
     value.get(key).and_then(Value::as_str).unwrap_or("").to_string()
 }
 
-/// 轮询候选的条目 id（按配置取，见模块头）。
+/// id（ by config，module header）。
 ///
-/// `all: true` → 池里**全部启用**条目（禁用项不参与：它在池里就是「先别用它」
-/// 的意思，而轮询是逐请求选路，没有「这次先跳过」的余地 —— 硬选中它只会每次
-/// 都解析失败再顺延，多绕一圈）。顺序即池的存储顺序（新加的在前）。
+/// `all: true` → **enabled**（ use not and ： in is 「 use 」
+/// ， is request， no has 「 this 」 —— in will 
+/// failure， 1 ）。 （ new in before ）。
 pub fn candidate_ids(config: &Value) -> Vec<String> {
     if !is_all(config) {
         return configured_ids(config);
@@ -106,8 +106,8 @@ pub fn candidate_ids(config: &Value) -> Vec<String> {
         .collect()
 }
 
-/// 条目的**廉价**可用性（不发网络）：用于展示摘要里的
-/// 「可用 N 条」。真正的取用判定在解析那一步（`proxy_pool::resolve_reference`）。
+/// ****available（ not ）：used for need 
+/// 「available N 」。 use in that 1 （`proxy_pool::resolve_reference`）。
 fn entry_ready(item: &Value) -> Result<(), String> {
     if item.get("source").and_then(Value::as_str) == Some("clash") {
         return match crate::server::core::proxy_pool::resolve_item(item) {
@@ -124,12 +124,12 @@ fn entry_ready(item: &Value) -> Result<(), String> {
     Ok(())
 }
 
-// ─── 取用 ───────────────────────────────────────────────────
+// ─── use ───────────────────────────────────────────────────
 
-/// 从 `start` 起绕一圈找第一条能解析的候选；一条都解析不出来时给出**第一条的
-/// 原因**（它最有代表性：坏在哪，用户第一条就该看到那句话）+ 一句总起。
+/// from `start` 1 1 can ； 1 not when to ** 1 
+/// Reason**（ has ： in ， use 1 this to that ）+ 1 total。
 ///
-/// `ids` 由调用方算好传进来（候选要读一次池，一条请求只该读一次）。
+/// `ids` by use （ need 1 ， 1 request this 1 ）。
 fn pick_at(ids: &[String], start: usize, all: bool) -> Result<ResolvedProxy, String> {
     if ids.is_empty() {
         return Err(if all {
@@ -156,13 +156,13 @@ fn pick_at(ids: &[String], start: usize, all: bool) -> Result<ResolvedProxy, Str
     ))
 }
 
-/// 轮询取下一个出口（游标按 `key` 前进；`key` = 账号 id）。
+/// down 1 （ by `key` before ；`key` = id）。
 ///
-/// `key` 为空串时退化为「第一条可用」：没有可归属的账号身份就谈不上轮询进度，
-/// 此时确定性优先（同一个调用方每次拿到同一条，便于复现与排障）。
+/// `key` as empty when as 「 1 available」： no has can not up ，
+/// when （ 1 use to 1 ， and ）。
 pub fn next(config: &Value, key: &str) -> Result<ResolvedProxy, String> {
     let ids = candidate_ids(config);
-    // 空候选时不必取号（`take_cursor` 要求 len 非 0）——直接由 pick_at 报空
+    // empty when not （`take_cursor` need len 0）—— by pick_at empty
     let start = if ids.is_empty() || key.is_empty() {
         0
     } else {
@@ -171,31 +171,31 @@ pub fn next(config: &Value, key: &str) -> Result<ResolvedProxy, String> {
     pick_at(&ids, start, is_all(config))
 }
 
-/// 不前进游标的静态解析：给**展示**与**非转发**链路用（描述账号代理、
-/// 余额查询这类「一次调用不代表一次转发」的地方）。
+/// not before ： to **** and **** use （、
+/// this 「 1 use not 1 」 ）。
 ///
-/// 取第一条可用条目 —— 它回答的是「这条配置现在能不能用、大概走哪儿」，
-/// 而不是「这次该走哪儿」。
+/// 1 available —— is 「 this config in can not can use 、」，
+/// not is 「 this this 」。
 pub fn first_usable(config: &Value) -> Result<ResolvedProxy, String> {
     let ids = candidate_ids(config);
     pick_at(&ids, 0, is_all(config))
 }
 
-// ─── 展示摘要（账号列表 / 日志文案用，不动游标）───────────────
+// ─── need （ / use ， not ）───────────────
 
-/// 摘要读数：候选条数与其中可用的条数（判据见 [`entry_ready`]）
+/// need ： and its in available （ [`entry_ready`]）
 pub struct Summary {
-    /// 是否「全部出口」档
+    /// is 「」
     pub all: bool,
-    /// 候选条数（all=false 时只数**还存在**的条目）
+    /// （all=false when ** in ** ）
     pub total: usize,
-    /// 其中看起来可用的条数（廉价判据，见 [`entry_ready`]）
+    /// its in available （， [`entry_ready`]）
     pub usable: usize,
-    /// 一条候选都不可用时的原因（可用时为 None）
+    /// 1 unavailable when Reason（available when as None）
     pub error: Option<String>,
 }
 
-/// 算一份摘要（读一次池，不做网络请求）。
+/// 1 need （ 1 ， not request）。
 pub fn summary(config: &Value) -> Summary {
     let all = is_all(config);
     let items = crate::server::core::proxy_pool::raw_items();

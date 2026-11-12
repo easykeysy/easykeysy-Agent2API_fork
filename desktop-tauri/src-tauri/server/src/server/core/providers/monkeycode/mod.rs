@@ -1,19 +1,19 @@
-//! MonkeyCode 的**身份与地区**（本仓库保留的部分）。
+//! MonkeyCode ** and **（ ）。
 //!
-//! ── 这份文件为什么这么小 ────────────────────────────────────
-//! 本家的账号探活、模型目录、会话转发（建任务 → WebSocket 任务流 → ACP 事件
-//! 翻译）全部搬到了**提供商插件**（`agent2api-providers` 的 `monkeycode/`），
-//! 不随本仓库发布 —— 那是风险隔离的一部分。
+//! ── this fileWhy this ────────────────────────────────────
+//! 、directory、 will （ → WebSocket → ACP 
+//! ） to ****（`agent2api-providers` `monkeycode/`），
+//! not —— that is 1 。
 //!
-//! 留在这里的只有网关自己需要的那部分身份：
+//! in this has need need that ：
 //! ```text
-//!   Region        两个地区（国内 / 国际）→ provider id / 标签 / 账号 id 前缀
+//! Region （ / ）→ provider id / / id before 
 //! ```
-//! 它是**落盘契约**的一部分：两个 provider id 各自独立成组、账号 id 带地区
-//! 前缀，这些不能随实现一起搬走。
+//! is **** 1 ： provider id 、 id 
+//! before ， this not can 1 。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本模块零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`： unwrap/expect/panic。
 
 pub mod region;
 

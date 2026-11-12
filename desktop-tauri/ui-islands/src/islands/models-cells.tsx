@@ -21,22 +21,22 @@ const formatCredits = (credits: unknown): string => {
   return match ? `${match[1]}x` : String(credits || '')
 }
 
-/* ─── 能力图标（「能力」列的四枚圆点）──────────────────────
-   文字徽章 → 图标圆点：四个键在每一行都出现，文字版是满屏的小框框；
-   图标版扫表时读的是「几个亮圆」，具体语义由悬停提示兜底。几何与 icons.js
-   同一套约定（24 画布 / 描边 2 / 圆头圆角），内联在本文件 —— icons.js 是
-   vanilla 层的字符串表，岛这边拿不到，也不该为四枚图标跨层取。 */
+/* ─── can （「 can 」 ）──────────────────────
+    → ： in 1 ， is ；
+    when is 「 」， by 。 and icons.js
+    1 （24 / 2 / ）， in file —— icons.js is 
+   vanilla ， this not to ， not this as 。 */
 
 const CAP_ICON: Partial<Record<CapabilityKey, React.ReactNode>> = {
   supportsToolCall: (
-    // 扳手（Feather「tool」）
+    // （Feather「tool」）
     <svg viewBox='0 0 24 24' aria-hidden='true'>
       <path fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'
         d='M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z' />
     </svg>
   ),
   supportsImages: (
-    // 相片（Feather「image」：框 + 焦点 + 山形）
+    // （Feather「image」： + + ）
     <svg viewBox='0 0 24 24' aria-hidden='true'>
       <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
         <rect x='3' y='3' width='18' height='18' rx='2.5' /><circle cx='8.5' cy='8.5' r='1.5' />
@@ -45,7 +45,7 @@ const CAP_ICON: Partial<Record<CapabilityKey, React.ReactNode>> = {
     </svg>
   ),
   supportsVideo: (
-    // 播放（圆 + 三角）：「视频」在小尺寸下比摄像机轮廓更可辨
+    // （ + ）：「」 in down can 
     <svg viewBox='0 0 24 24' aria-hidden='true'>
       <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
         <circle cx='12' cy='12' r='9' /><path d='M10 8.5l6 3.5-6 3.5z' />
@@ -53,7 +53,7 @@ const CAP_ICON: Partial<Record<CapabilityKey, React.ReactNode>> = {
     </svg>
   ),
   supportsReasoning: (
-    // 灯泡（Lucide「lightbulb」）
+    // （Lucide「lightbulb」）
     <svg viewBox='0 0 24 24' aria-hidden='true'>
       <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
         <path d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5' />
@@ -72,7 +72,7 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
 }) {
   const state = React.useSyncExternalStore(subscribe, getSnapshot)
   const busyRow = state.pending.has(rowKeyOf(model))
-  /** chip 上那枚等级标（未绑定时也渲染虚线样式，否则「怎么绑等级」会变成一个查不出的问题） */
+  /** chip up that etc （ when ，otherwise「 etc 」 will 1 not ） */
   function levelBadge(alias: string, target: string, providerId: string, busy: boolean) {
     const level = levelOf(alias, target, providerId)
     const model = models().find(item => same(item.provider, providerId) && same(item.id, target))
@@ -86,9 +86,9 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
           ? t('绑定 {requested}，按当前通道将发送 {effective}。', { requested: level, effective })
           : level ? t('思考等级 {level}（点击修改）', { level }) : t('设置思考等级（当前未绑定）')
     return (
-      // 16px 小件（2xs 档）：原来那枚 mono 10px 的小药丸。已绑定走实心档、未绑定走虚线档，
-      // 与旧 CSS 的 `.alias-level` / `.alias-level.unset` 同一套语义（mono 粗体也照旧）；
-      // shadow-none 是清掉通用 button 规则的投影（旧 CSS 同样显式清过）
+      // 16px （2xs ）： that mono 10px 。 already 、，
+      // and old CSS `.alias-level` / `.alias-level.unset` 1 （mono old ）；
+      // shadow-none is use button then （ old CSS ）
       <Button variant={level ? 'secondary' : 'dashed'} size='2xs' disabled={busy}
         className='font-mono font-bold shadow-none'
         title={title}
@@ -99,15 +99,15 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
     )
   }
 
-  /** 映射 chips：每条 chip 属于自己所在的那一行（提供商 × 上游模型），删除时带三元组精确定位 */
+  /** chips： chip in that 1 （ × up ），delete when */
   function aliasCell(model: ManageModel) {
     const providerId = model.provider || ''
     const bindings = bindingsOf(model)
     const [head, ...rest] = bindings
 
     /**
-     * 删除一条映射：同名映射允许多条，按（对外名 + 上游模型 + 提供商）三元组定位。
-     * 不用先弹确认框的那条路（等级标）见下 —— 它只写一个字段，保存前还能取消。
+     * delete 1 ：， by （ for + up + ）。
+     * not use that （ etc ） down —— 1 ， before can 。
      */
     async function confirmUnmap(alias: string): Promise<void> {
       const ok = await shared().wbConfirm?.ask?.({
@@ -131,10 +131,10 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
       const busy = state.pending.has(bindingKeyOf(alias, model.id, providerId))
       return (
         <span className={cn('alias', !on && 'map-off')} key={`${alias}\u0001${binding.isDefault ? 'd' : 'm'}`}>
-          {/* 映射自己的开关（关掉 = 这条别名暂时不存在，可再打开）。行禁用时 chips 随行压淡，
-              映射开关另用 map-off 弱化 —— 两个维度独立，一眼可辨。size='sm' 是 24×14 的小号，
-              与旧 CSS 里 `.alias .switch .track` 同尺寸：标准档（36×21）塞进 22px 的药丸里
-              会把 chip 连同整张表的行高一起撑高 */}
+          {/* （ = this when not in ， can ）。 use when chips ，
+               use map-off —— ， 1 can 。size='sm' is 24×14 ，
+               and old CSS `.alias .switch .track` ：（36×21） 22px 
+               will chip 1 */}
           <Switch size='sm' checked={on} disabled={busy}
             title={on ? t('映射已启用，点击关闭') : conflicts.length
               ? t('启用后将自动关闭该提供商的其他同名绑定：{bindings}', { bindings: conflicts.map(binding => `${binding.alias} → ${binding.target}`).join('、') })
@@ -147,15 +147,15 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
                 next ? (conflicts.length ? t('映射已启用，其他同名绑定已自动关闭') : t('映射已启用')) : t('映射已关闭'),
               )
             }} />
-          {/* 名字本身就是复制入口（data-copy 走 clipboard.js 的全局委托，点一下
-              toast「已复制」）；title 同时承担两件事 —— 提示可点、长名字被
-              ellipsis 截断时悬停能看全 */}
+          {/* is （data-copy clipboard.js ， 1 down 
+              toast「 already 」）；title when —— can 、 
+              ellipsis when can */}
           <span className='t' data-copy={alias} title={t('点击复制：{name}', { name: alias })}>{alias}</span>
           {binding.isDefault ? <span className='binding-default'>{t('默认')}</span> : null}
           {levelBadge(alias, model.id, providerId, busy)}
           {binding.isDefault ? null : (
-            // 16px 的删除小件（icon-2xs 档）：字号 / 行高照旧 CSS 的 `.alias .x` 给，
-            // 免得 × 跟着 chip 的 11px 一起缩水
+            // 16px delete（icon-2xs ）： / old CSS `.alias .x` to ，
+            // × chip 11px 1 
             <Button variant='ghost' size='icon-2xs' className='text-[12px] leading-none'
               disabled={busy} title={t('删除映射 {alias}', { alias })}
               onClick={() => void confirmUnmap(alias)}>×</Button>
@@ -163,14 +163,14 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
         </span>
       )
     }
-    // 「＋ 映射」并排跟在**默认**那条右边（它是这一列的入口，不是一条绑定）：默认绑定永远
-    // 存在（没有映射时是合成出来的那条），所以这一行永远有内容
+    // 「＋ 」 and in **default** that （ is this 1 ， not is 1 ）：default
+    // in （ no has when is that ）， this 1 has 
     return (
       <div className='aliases'>
         <div className='alias-row'>
           {head ? chip(head) : null}
-          {/* dashed = 「这里还能再添一个」的入口语义（对应旧的 .alias-add），与旁边那些
-              实心按钮一眼分开 */}
+          {/* dashed = 「 this can 1 」 （ for old .alias-add）， and that 
+               by 1 */}
           <Button variant='dashed' size='xs'
             onClick={() => openMapping({ target: model.id, provider: providerId })}>{t('＋ 映射')}</Button>
         </div>
@@ -180,17 +180,17 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
   }
 
   /**
-   * 「来源」列：这一家的清单当前是远程拉的还是内置静态表（后端给的 source，前端只做文案映射）。
-   * 呈现为「色点 + 小字」（.src）而不是描边徽标：这一列每行都在重复同一个词，徽标的框
-   * 只会添噪 —— 点色语义见 page-gateway.css（远程 = 品牌蓝 / 内置 = 灰 / 手动 = 琥珀）。
+   * 「」： this 1 current is is （ after to source， before ）。
+   * as 「 + 」（.src） not is ： this 1 in 1 ， 
+   * will —— page-gateway.css（ = / = / = ）。
    */
   function sourceCell(model: ManageModel) {
     if (model.source === 'manual') {
       return <span className='src manual' title={t('手动登记的上游模型；移除它会直接删掉这条登记')}><i aria-hidden='true' />{t('手动')}</span>
     }
-    // 自定义家的行（source 留空串）：只在聚合视图里出现 —— 选中该家时这一列整个
-    // 按视图隐藏。给个明确的「自定义」档而不是落「—」：聚合视图里「—」读起来像
-    // 「来源未知」，而它恰恰是唯一确定的一档（清单就是用户登记的）
+    // （source empty）： in —— in this when this 1 
+    // by 。 to 「」 not is 「—」：「—」
+    // 「unknown」， is 1 1 （ is use ）
     if (!model.source && customSource.isCustom(model.provider)) {
       return <span className='src manual' title={t('用户登记的自定义模型；整份清单只属于这一家')}><i aria-hidden='true' />{t('自定义')}</span>
     }
@@ -204,19 +204,19 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
   }
 
   /**
-   * 「可见性」列：这个模型在**官方客户端**里会不会被列出来。
+   * 「 can 」： this in **client** will not will 。
    *
-   * ── 三档 + 一档「没有判据」──────────────────────────────────
-   *   · **不展示**（`hidden`）：上游说有、官方客户端不列。本仓已默认关闭它的
-   *     默认绑定（`model_rules::seed_hidden_disabled`）—— 也就是说它既不出现在
-   *     `/v1/models`，也不接受点名调用。用户仍可在这一行手动打开（打开就是
-   *     「我知道它不展示，但我要用」）。
-   *   · **可见**（`shown`）：官方客户端会列它。
-   *   · **未声明**（`undeclared`）：这家有判据、但这条上游没表态。
-   *   · **`—`**（没有 `visibility` 字段）：这家**根本没有**可见性判据。
+   * ── + 1 「 no has 」──────────────────────────────────
+   * · ** not **（`hidden`）： up has 、client not 。 already default 
+   * default（`model_rules::seed_hidden_disabled`）—— is not in 
+   * `/v1/models`， not use 。 use can in this 1 （ is 
+   * 「 not ， need use 」）。
+   * · ** can **（`shown`）：client will 。
+   * · ****（`undeclared`）： this has 、 this up no 。
+   * · **`—`**（ no has `visibility` ）： this ** no has ** can 。
    *
-   * 最后两档必须分开显示：`undeclared` 是「这家说不知道」，`—` 是「这家压根
-   * 没这个信息」。混成一个，用户会以为所有没有判据的家都「确认可见」。
+   * after must：`undeclared` is 「 this not 」，`—` is 「 this 
+   * no this 」。 1 ， use will as all no has 「 can 」。
    */
   function visibilityCell(model: ManageModel) {
     const visibility = visibilityOf(model)
@@ -238,23 +238,23 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
     if (visibility === 'undeclared') {
       return <span className='rate' title={t('这家有可见性判据，但这一条上游没有表态 —— 按可见处理')}>—</span>
     }
-    // 没有判据的家：这一格本来就该按视图隐藏吗？不 —— 家是逐行判的（聚合视图里
-    // 有判据的家与没判据的家混在同一张表上），所以给一个带说明的 `—`。
+    // no has ： this 1 this by ？ not —— is （
+    // has and no in 1 up ）， to 1 `—`。
     return <span className='rate' title={t('这家提供商没有可见性判据（目前只有 Antigravity / Qoder / 小浣熊 / CodeArts 有）')}>—</span>
   }
 
   /**
-   * 「上下文 / 输出」列：两个 token 数合在一格（上下文 / 最大输出）。
+   * 「 up down / 」： token in 1 （ up down / ）。
    *
-   * 展示的是**生效值**（清单原值 + 覆盖，归一后读）；被覆盖过的那一项挂一枚
-   * 小点（`.cap-mark`，title 说明），未声明的显示 `—`。整格是一个按钮：
-   * 点它打开能力弹窗（两列入口同一个 —— 能力是一个整体，没必要各开一个）。
+   * is ****（ + ， 1 after ）； that 1 1 
+   * （`.cap-mark`，title ）， `—`。 is 1 by ：
+   * can （ 1 —— can is 1 ， no need 1 ）。
    *
-   * **来源也标出来**：这两个数正是 models.dev 补得最多的地方（上游普遍不给），
-   * 所以它补的那些值带一条虚线底边（`.filled`）—— 文字上加不了圆点那样的环，
-   * 虚线底边是同一套语义里唯一贴得上去的写法；悬停提示里还会逐项写明
-   * 「；其中 最大输出 Token 由 models.dev 补齐」。不标的话，用户没法知道这个数
-   * 是上游说的还是社区库说的 —— 两者的可信度不一样。
+   * ****： this is models.dev （ up not to ），
+   * that 1 （`.filled`）—— up not that ，
+   * is 1 1 up ； will 
+   * 「； its in Token by models.dev 」。 not ， use no this 
+   * is up is —— can not 1 。
    */
   function budgetCell(model: ManageModel) {
     const caps = capabilitiesOf(model)
@@ -280,8 +280,8 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
   }
 
   /**
-   * 悬停提示的**来源尾巴**（只写「不是上游给的」那两档；上游声明/未声明不必写）：
-   * 一格里两个数可能来自不同地方，所以逐项指名，而不是一句笼统的「部分来自
+   * ****（「 not is up to 」 that ； up / not ）：
+   * 1 can can not ，， not is 1 「
    * models.dev」。
    */
   function tokenOriginSuffix(model: ManageModel): string {
@@ -292,13 +292,13 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
   }
 
   /**
-   * 「能力」列：四枚图标圆点（工具 / 图片 / 视频 / 思考），三态各有一副样式 ——
-   * 支持（品牌淡底）/ 明确不支持（灰实底）/ 未声明（虚线圈）。语义全靠悬停提示
-   * （`capabilityTip` 会写明「上游未声明时下游按不支持处理」这类事实），
-   * 图标只负责「扫一眼知道有几项是亮的」。
+   * 「 can 」：（ / / / ）， has 1 ——
+   * supports（）/ unsupported（）/ （）。
+   * （`capabilityTip` will 「 up when down by unsupported」 this ），
+   * 「 1 has is 」。
    *
-   * 图片模型走另一支（[`imageCapsCell`]）：那四枚圆点问的是**对话**模型的能力，
-   * 放在图片模型上是四枚「不支持」，读起来像「这个模型什么都不会」。
+   * 1 （[`imageCapsCell`]）： that is ** for ** can ，
+   * in up is 「unsupported」，「 this not will 」。
    */
   function capsCell(model: ManageModel) {
     if (model.kind === 'image') return imageCapsCell(model)
@@ -326,17 +326,17 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
   }
 
   /**
-   * 图片模型的能力格：两枚标签（图片生成 / 图片编辑）上下层叠、整叠居中。
+   * can ：（ / ） up down 、 in 。
    *
-   * ── 判据用能力位，不用 `kind` ──────────────────────────────
-   * 「图片生成」只在 `supports_image_generation` 为真时出现：只有参考图编辑的
-   * 型号（如 ModelScope 的 Qwen-Image-Edit）不该挂生成标签 —— 改造前那两枚标签
-   * 在模型 ID 后面，`kind === 'image'` 就挂「图片生成」，这类型号被多挂了一枚。
-   * 两个能力位都没表态时退回「图片生成」（与改造前一致），不让这一格变成空白按钮。
+   * ── use can ， not use `kind` ──────────────────────────────
+   * 「」 in `supports_image_generation` as when ： has 
+   * （ ModelScope Qwen-Image-Edit） not this —— before that 
+   * in ID after ，`kind === 'image'` 「」， this 1 。
+   * can no when 「」（ and before 1 ）， not this 1 empty by 。
    *
-   * ── 为什么两枚是竖排 ────────────────────────────────────────
-   * 「能力」列只有 11.5% 宽，横排两枚标签会把这一列顶宽（列表头与数值都跟着让位）；
-   * 竖排的宽度就是最长那枚标签，列宽不用改。层叠与居中在 CSS（`.caps-open.caps-image`）。
+   * ── Why is ────────────────────────────────────────
+   * 「 can 」 has 11.5% ， will this 1 （ and ）；
+   * is that ， not use 。 and in in CSS（`.caps-open.caps-image`）。
    */
   function imageCapsCell(model: ManageModel) {
     const tags: Array<{ key: string; label: string; title: string }> = []
@@ -361,17 +361,17 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
   }
 
   /**
-   * 各列的单元格（不含对齐类）。放在一个 switch 里而不是行内联的三元链，是为了让「某一列长
-   * 什么样」只有一处实现 —— 列设置重排时才不会各画一个样。
+   * （ not for ）。 in 1 switch not is ， is as 「 1 
+   * 」 has 1 —— set when not will 1 。
    *
-   * 操作列只移除「可移除的」：内置家里是手动登记的那些（source=manual，上游目录带来的行由
-   * 清单决定存在性，开关才是它的手段），自定义家里每一行都是用户自己登记进来的、都可以移除。
-   * 对外名称统一在模型映射列切换。
+   * 「 can 」： is that （source=manual， up directory by 
+   * in ， is ）， 1 is use 、 can 。
+   * for 1 in 。
    */
   function cellFor(column: ColumnView, model: ManageModel, busyRow: boolean) {
     /**
-     * 「移除」删掉的是那条**登记**（它的存在完全由这次登记决定，没有「上游刷新会把它带回来」
-     * 这回事，移除后 /v1/models、路由同时消失）。判据用后端给的 source，前端不自己推断。
+     * 「」 is that ****（ in by this ， no has 「 up new will 」
+     * this ， after /v1/models、 by when ）。 use after to source， before not 。
      */
     async function confirmRemoveModel(): Promise<void> {
       const ok = await shared().wbConfirm?.ask?.({
@@ -384,7 +384,7 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
       void runRowAction(
         rowKeyOf(model),
         () => writeRemoveModel(model.provider || '', model.id),
-        // 文案按**行**的归属判（聚合视图里两家的行混在一张表上，视图级 custom 不再适用）
+        // by **** （ in 1 up ， custom not use ）
         customSource.isCustom(model.provider || '') ? t('模型已移除') : t('自定义模型已移除'),
       )
     }
@@ -401,10 +401,10 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
       case 'model':
         return (
           <TableCell className={cellClass('cell-model', column.align)}>
-            {/* 名字本身就是复制入口（data-copy 走 clipboard.js 的全局委托，点一下
-                toast「已复制」）；title 同时承担两件事 —— 提示可点、长 ID 被
-                ellipsis 截断时悬停能看全。曾经这里另挂一颗 ⧉ 小按钮，已去掉：
-                点名字更省事，也少一个悬停才显形的控件 */}
+            {/* is （data-copy clipboard.js ， 1 down 
+                toast「 already 」）；title when —— can 、 ID 
+                ellipsis when can 。 this 1 ⧉ by ， already ：
+                ， 1 */}
             <div className='mid'>
               <span className='t' data-copy={model.id} title={t('点击复制：{name}', { name: model.id })}>{model.id}</span>
               {model.upstreamStatus === 'undeployed' ? (
@@ -434,14 +434,14 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
       case 'alias':
         return <TableCell className={cellClass('cell-alias', column.align)}>{aliasCell(model)}</TableCell>
       case 'act': {
-        // 「测试」的门禁（该家没有可用账号）由 model-test-dialog 统一判定，这里只把
-        // 理由挂到 title 上 —— 禁用而不说原因等于让用户猜。未启用的行**不置灰**：
-        // 「先测通、再决定要不要启用」正是这颗按钮的用法（后端给测试开了直达跳，
-        // 见 model-test-dialog 的 testBlockReason）
+        // 「」 （ this no has available） by model-test-dialog 1 ， this 
+        // by to title up —— use not Reason etc use 。enabled ** not **：
+        // 「、 need not need enabled」 is this by use （ after to ，
+        // model-test-dialog testBlockReason）
         const blocked = testBlockReason(model.provider || '', model)
-        // 移除按钮判据按**行**判（聚合视图里内置与自定义的行混在一张表上，视图级的
-        // custom 布尔不再适用）：内置家只露手动登记的（source=manual，上游目录带来的
-        // 行由清单决定存在性），自定义家的每一行都是用户登记的、都可以移除
+        // by by ****（ and in 1 up ， 
+        // custom not use ）： （source=manual， up directory 
+        // by in ）， 1 is use 、 can 
         const removable = model.source === 'manual' || customSource.isCustom(model.provider || '')
         return (
           <TableCell className={cellClass('cell-act r', column.align)}>

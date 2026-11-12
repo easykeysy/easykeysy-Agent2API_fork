@@ -1,12 +1,12 @@
-//! 管理 API 的 HTTP 客户端。
+//! API HTTP client。
 //!
-//! 职责：
-//!   - 等待本进程后端就绪，再读取凭证并发送管理请求
-//!   - 使用本机壳的独立管理会话，模型测试单独携带显式选择的 Key
-//!   - 统一解包 `{ success, data }` 信封，只把 data 交给前端
-//!   - 超时保护：签到、批量查询这类接口本身较慢，给足 60 秒
+//! ：
+//! - etc after ， and request
+//! - use will ， Key
+//! - 1 `{ success, data }` ， data to before 
+//! - when ： to 、 this ， to 60 seconds
 //!
-//! 只访问 127.0.0.1 上的明文 HTTP，不需要 TLS。
+//! 127.0.0.1 up HTTP， not need need TLS。
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU16, Ordering};
@@ -14,44 +14,44 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-/// 网关默认端口（与 server.mjs 的默认值一致）
+/// default（ and server.mjs default 1 ）
 pub const DEFAULT_PORT: u16 = 3065;
 
-/// 开发版（debug 构建）的默认端口。
+/// （debug ） default。
 ///
-/// ── 为什么开发版要另起一个 ──────────────────────────────────
-/// 本机通常装着正式版并常驻 3065（开机自启 + 托盘），`tauri dev` 起的调试
-/// 副本若也用 3065，bind 必然失败 —— 以前只能靠环境变量、或先退掉正式版。
-/// 默认值按构建形态分岔后，`npm run tauri:dev` 直接就能与正式版并存。
+/// ── Why need 1 ──────────────────────────────────
+/// and 3065（ + ），`tauri dev` 
+/// if use 3065，bind failure —— before can 、 or 。
+/// default by after ，`npm run tauri:dev` can and and 。
 ///
-/// 这是与 `tauri.dev.conf.json`（identifier 隔离）配套的第二道：只换端口
-/// 并不够，单实例锁不隔离的话调试副本会被插件判成重复实例、直接退出
-/// （见 lib.rs 的插件注册）。
+/// this is and `tauri.dev.conf.json`（identifier ） ：
+/// and not ， not will 、
+/// （ lib.rs ）。
 ///
-/// release 构建（唯一的发布形态）行为不变，仍用 [`DEFAULT_PORT`]。
+/// release （ 1 ） as not ， use [`DEFAULT_PORT`]。
 pub const DEV_PORT: u16 = 3066;
 pub const REQUEST_TIMEOUT_MS: u64 = 60_000;
 
-/// 本次运行实际使用的端口。
+/// use 。
 ///
-/// 端口在进程启动时定死（服务端 bind 之后就改不了），但「用户改了设置」这件事
-/// 发生在运行期 —— 保存新端口后要重启进程才生效。这个原子量让**重启之前**的
-/// 读取（界面查状态、管理 API 客户端拼 URL）拿到的仍是当前真正在监听的端口，
-/// 不会因为设置里已经写上新值就指向一个没人监听的端口。
+/// in when （server bind after not ），「 use set」 this 
+/// in —— new after need 。 this ** before ** 
+/// （、 API client URL） to is current in ，
+/// not will as set already up new to 1 no 。
 static ACTIVE_PORT: AtomicU16 = AtomicU16::new(0);
 
-/// 端口选择优先级：环境变量 > 配置文件 > 默认值。
+/// ： > configfile > default。
 ///
-/// 环境变量优先是历史行为（1.x 起就支持用它并行跑第二实例做测试），
-/// 且它只影响本次运行、不写盘，语义清晰。
+/// is as （1.x supports use and ），
+/// and 、 not ，。
 ///
-/// **配置文件里的端口**（`desktop-settings.json` 的 `proxyPort`）是 2.0.4 新增的：
-/// 端口被系统保留段挡住时，改环境变量对普通用户来说门槛太高（要改启动方式），
-/// 而这条故障又只能靠换端口解决 —— 界面上的「更换端口」写的就是这个字段。
+/// **configfile **（`desktop-settings.json` `proxyPort`） is 2.0.4 add ：
+/// when ， for use （ need ），
+/// this can —— up 「」 is this 。
 ///
-/// **最后一级默认值**按构建形态分岔：debug 用 [`DEV_PORT`]、release 用
-/// [`DEFAULT_PORT`]（理由见 [`DEV_PORT`]）。前两级不受影响，所以开发时想
-/// 回到正式端口/正式数据，照旧用环境变量覆盖即可。
+/// ** after 1 default** by ：debug use [`DEV_PORT`]、release use 
+/// [`DEFAULT_PORT`]（ by [`DEV_PORT`]）。 before not ， when 
+/// to /， old use can 。
 pub fn proxy_port() -> u16 {
     let cached = ACTIVE_PORT.load(Ordering::Relaxed);
     if cached != 0 {
@@ -60,7 +60,7 @@ pub fn proxy_port() -> u16 {
     resolve_port()
 }
 
-/// 按优先级解析端口并缓存进 `ACTIVE_PORT`（只在首次调用时真正解析）。
+/// by and `ACTIVE_PORT`（ in use when ）。
 fn resolve_port() -> u16 {
     let port = env_port("AGENT2API_PROXY_PORT")
         .or_else(|| env_port("WORKBUDDY_PROXY_PORT")) // 旧名兼容读（1.x 起沿用）
@@ -70,11 +70,11 @@ fn resolve_port() -> u16 {
     port
 }
 
-/// 没有环境变量、设置里也没写时用的默认端口。
+/// no has 、set no when use default。
 ///
-/// 判据取 `debug_assertions` 而不是 profile 名：与 lib.rs 里「开发态不做
-/// 安装迁移 / 自启刷新」是同一个口径，两处对「什么算开发态」的说法保持一致
-/// （`tauri build --debug` 也因此算开发态，符合直觉）。
+/// `debug_assertions` not is profile ： and lib.rs 「 not 
+/// / new 」 is 1 ， for 「」 1 
+/// （`tauri build --debug` ，）。
 fn default_port() -> u16 {
     if cfg!(debug_assertions) {
         DEV_PORT
@@ -83,10 +83,10 @@ fn default_port() -> u16 {
     }
 }
 
-/// 读设置文件里的端口；未设置 / 非法一律当未设置（回落到下一级）。
+/// setfile ；set / 1 set（ to down 1 ）。
 ///
-/// 用 `settings::load()` 而不是自己读文件：设置文件的路径与容错口径
-/// （缺失、损坏、权限不足都回落默认值）只该有一处实现。
+/// use `settings::load()` not is file：setfile path and 
+/// （、、 not default） this has 1 。
 fn configured_port() -> Option<u16> {
     let port = crate::settings::load().proxy_port;
     if port > 0 {
@@ -96,13 +96,13 @@ fn configured_port() -> Option<u16> {
     }
 }
 
-/// 环境变量是否显式指定了端口（显式指定时界面不该再提供「更换端口」——
-/// 改了设置也不会生效，只会让用户白忙一场）
+/// is （ when not this 「」——
+/// set not will ， will use 1 ）
 pub fn port_from_env() -> Option<u16> {
     env_port("AGENT2API_PROXY_PORT").or_else(|| env_port("WORKBUDDY_PROXY_PORT"))
 }
 
-/// 读环境变量里的端口：未设置 / 非数字 / 0 一律当未设置（回落到下一级）
+/// ：set / / 0 1 set（ to down 1 ）
 fn env_port(name: &str) -> Option<u16> {
     std::env::var(name)
         .ok()
@@ -110,12 +110,12 @@ fn env_port(name: &str) -> Option<u16> {
         .filter(|port| *port > 0)
 }
 
-/// 管理 API 的响应信封：`{ success, data, error }`。
-/// 解析失败时保留原文，便于把上游的真实报错透给用户。
+/// API response：`{ success, data, error }`。
+/// failure when ， up to use 。
 fn unwrap_envelope(text: &str, status: u16) -> Result<Value, String> {
     let payload: Value = match serde_json::from_str(text) {
         Ok(value) => value,
-        // 非 JSON：直接把原文当错误说明（例如反向代理返回的 HTML 错误页）
+        // JSON： error（e.g. to return HTML error）
         Err(_) => {
             if (200..300).contains(&status) {
                 return Err(if text.trim().is_empty() {
@@ -149,7 +149,7 @@ fn unwrap_envelope(text: &str, status: u16) -> Result<Value, String> {
     })
 }
 
-/// 错误字段可能是字符串，也可能是 `{ message }` / `{ error: { message } }`
+/// error can can is ， can can is `{ message }` / `{ error: { message } }`
 fn describe_error(value: &Value) -> String {
     if let Some(text) = value.as_str() {
         return text.to_string();
@@ -163,26 +163,26 @@ fn describe_error(value: &Value) -> String {
     value.to_string()
 }
 
-/// 配置目录：与后端共用 `~/.agent2api`（可用环境变量覆盖）。
+/// configdirectory： and after use `~/.agent2api`（available）。
 ///
-/// 实现已随网关本体迁到独立 crate（`agent2api_server::paths::config_dir`，
-/// 唯一实现），本函数保留为转发 —— 壳侧调用点不必感知 crate 边界，
-/// 「壳读 key」与「服务端读写数据」仍永远指向同一个目录。
+/// already to crate（`agent2api_server::paths::config_dir`，
+/// 1 ）， as —— use not crate ，
+/// 「 key」 and 「server」 to 1 directory。
 ///
-/// 环境变量：`AGENT2API_PROXY_HOME` 优先，旧名 `WORKBUDDY_PROXY_HOME` 兼容读
-/// （1.x 的启动脚本/快捷方式里可能还留着旧名）。
+/// ：`AGENT2API_PROXY_HOME` ， old `WORKBUDDY_PROXY_HOME` 
+/// （1.x / can can old ）。
 pub fn config_dir() -> PathBuf {
     agent2api_server::paths::config_dir()
 }
 
-/// 指定总超时的本机直连 Client。
+/// total when Client。
 ///
-/// 本机管理请求携带凭据，必须绕过系统与环境变量代理。
+/// request，must and 。
 ///
-/// ── 为什么云同步要单独放宽 ──────────────────────────────────
-/// 通用 60 秒是给「管理 API 小请求」定的；云同步的上传 / 下载要打外网传几 MB，
-/// 慢速云盘上 60 秒根本不够。放宽的是**这一条命令**的超时，不是全局 ——
-/// 其它管理请求仍应快速失败（卡住的面板比报错更难排查）。
+/// ── Why need ──────────────────────────────────
+/// use 60 seconds is to 「 API request」 ； up / down need MB，
+/// up 60 seconds not 。 is ** this 1 ** when ， not is ——
+/// its requestfailure（ ）。
 pub(crate) fn local_client(timeout: Duration) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .no_proxy()
@@ -209,8 +209,8 @@ fn request_builder_with_timeout(
     };
     builder = builder.header("Accept", "application/json");
     builder = crate::panel_session::attach(builder)?;
-    // 与原实现一致：POST/PUT/PATCH 即使无参数也发一个空对象，
-    // 后端部分路由按「有 body」判定，省略会让它们走错分支
+    // and 1 ：POST/PUT/PATCH noneparameter 1 empty for ，
+    // after by by 「 has body」， will 
     if let Some(payload) = body {
         builder = builder
             .header("Content-Type", "application/json")
@@ -223,9 +223,9 @@ fn request_builder_with_timeout(
     Ok(builder)
 }
 
-/// 发一次管理请求，返回解包后的 data。
+/// 1 request，return after data。
 ///
-/// 明确的管理鉴权失败只恢复本机会话并重试一次；模型 Key 错误与网络错误不重试。
+/// failure will and 1 ； Key error and error not 。
 pub async fn call(method: &str, path: &str, body: Option<&Value>) -> Result<Value, String> {
     call_with_timeout(method, path, body, REQUEST_TIMEOUT_MS).await
 }
@@ -257,11 +257,11 @@ pub async fn call_with_api_key(method: &str, path: &str, body: Option<&Value>, a
     unwrap_envelope(&first.text, first.status)
 }
 
-/// 与 [`call`] 同形，但用指定的总超时。
+/// and [`call`] ， use total when 。
 ///
-/// 只服务云同步的上传 / 下载（打外网、传几 MB，60 秒不够）。超时值由调用方
-/// 给：壳命令那边是一个具名常量，不在这里写死 —— 将来若别处也需要长请求，
-/// 各自声明自己的预算，比在一个全局旋钮上调大更可控。
+/// up / down （、 MB，60 seconds not ）。 when by use 
+/// to ： that is 1 ， not in this —— will if need need request，
+/// ， in 1 up can 。
 pub async fn call_with_timeout(
     method: &str,
     path: &str,
@@ -277,7 +277,7 @@ pub async fn call_with_timeout(
     unwrap_envelope(&first.text, first.status)
 }
 
-/// 一次请求的原始结果（保留文本与解析值，供鉴权判定与信封解包共用）。
+/// 1 request （ and ， and use ）。
 struct RawResponse {
     status: u16,
     text: String,
@@ -325,8 +325,8 @@ async fn send_once(
     })
 }
 
-/// 取原始文本（导出日志用；call 会按 JSON 解析，不适合）。
-/// 管理会话被拒时同样最多恢复并重试一次。
+/// （ use ；call will by JSON ， not ）。
+/// will when and 1 。
 pub async fn call_text(method: &str, path: &str) -> Result<String, String> {
     crate::startup::wait().await?;
     let first = send_once(method, path, None, REQUEST_TIMEOUT_MS).await?;
@@ -349,9 +349,9 @@ fn checked_text(response: RawResponse) -> Result<String, String> {
 
 fn describe_transport_error(error: &reqwest::Error) -> String {
     if error.is_timeout() {
-        // 「连接超时」这个说法会让人以为网关没起来。实际发生时请求往往已经
-        // 送达、后端还在跑（长操作），只是壳不再等它 —— 文案要说清这一点，
-        // 否则用户会重复点一遍，把同一个慢操作叠第二次。
+        // 「 when 」 this will as no 。 when request already 
+        // 、 after in （）， is not etc —— need this 1 ，
+        // otherwise use will 1 ， 1 。
         "等待本地代理响应超时（网关可能仍在处理，请稍后查看结果）".to_string()
     } else {
         format!("无法连接本地代理（127.0.0.1:{}）: {error}", proxy_port())

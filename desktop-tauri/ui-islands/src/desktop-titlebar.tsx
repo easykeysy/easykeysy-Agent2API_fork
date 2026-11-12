@@ -26,7 +26,7 @@ function WindowIcon({ action, maximized = false }: { action: 'minimize' | 'maxim
 function TitleBar({ api }: { api: WindowBridge }) {
   const [maximized, setMaximized] = React.useState(false)
   const sync = React.useCallback(async () => {
-    try { if (api.windowIsMaximized) setMaximized(await api.windowIsMaximized()) } catch { /* 窗口销毁期间不更新图标。 */ }
+    try { if (api.windowIsMaximized) setMaximized(await api.windowIsMaximized()) } catch { /* not update。 */ }
   }, [api])
   React.useEffect(() => {
     void sync()

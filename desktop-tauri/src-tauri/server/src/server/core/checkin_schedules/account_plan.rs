@@ -126,7 +126,7 @@ pub fn prepare(
                 }
             }
         }
-        // 区间内首次启用或新加入的账号，分配到剩余区间，避免启动时集中执行。
+        // enabled or new ， to remaining， when in 。
         let lower = start.max(now.timestamp_millis().min(end));
         let at = if completed {
             start

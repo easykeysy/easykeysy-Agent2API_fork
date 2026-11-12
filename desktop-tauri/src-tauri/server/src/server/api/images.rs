@@ -1,4 +1,4 @@
-//! OpenAI Images 生成与编辑入口；鉴权、模型绑定、账号重试与记账复用网关主链。
+//! OpenAI Images and ；、、 and use 。
 
 use std::sync::Arc;
 

@@ -1,43 +1,43 @@
-//! 间隔型定时任务注册表与调度循环。
+//! when and 。
 //!
-//! ── 两类任务（区别是**谁来执行**，不是可配性）─────────────────
-//!   - `Runner::Backend`：凭证自动维护、模型目录刷新、软件版本检查。
-//!     后端循环执行，因此有「上次执行 / 下次执行 / 立即执行」这些运行状态。
-//!   - `Runner::Frontend`：日志页 / 请求日志页 / 报表页的自动刷新。定时器天然长在
-//!     页面上（只在页面可见时该走），后端只存开关与间隔，界面自己读。
+//! ── （ is ****， not is can ）─────────────────
+//! - `Runner::Backend`：、directory new 、check。
+//! after ， has 「 up / down / 」 this 。
+//! - `Runner::Frontend`： / request / new 。 when in 
+//! up （ in can when this ）， after and ，。
 //!
-//! ── 本模块只做「何时做」，不做事 ─────────────────────────────
-//! 每条任务的动作在各自模块里（`credential_maintenance` /
-//! `providers::catalog_refresh` / `update::check`），本文件负责把它们按配置的
-//! 开关与间隔串起来 —— 与 `auto_checkin` 同一分工。
+//! ── 「 when 」， not ─────────────────────────────
+//! in （`credential_maintenance` /
+//! `providers::catalog_refresh` / `update::check`），file by config 
+//! and —— and `auto_checkin` 1 。
 //!
-//! ── 余额查询为什么不在这个清单里 ─────────────────────────────
-//! 它已退役成**每账号各自配置**的自动查询（间隔与「余额不足处理」都在账号
-//! 设置里配），调度与判定在 `core::usage_query` / `core::usage_records`：
-//! 「每账号独立间隔」与这里的「全局一条任务」不是同一个形状，硬塞进
-//! `{enabled, interval}` 会逼着两边都变形（与自动签到不在此清单的理由同理）。
+//! ── Why not in this ─────────────────────────────
+//! already **config** （ and 「 not 」 in 
+//! set）， and in `core::usage_query` / `core::usage_records`：
+//! 「」 and this 「 1 」 not is 1 ，
+//! `{enabled, interval}` will （ and to not in by ）。
 //!
-//! ── 排期为什么不在这个模块里 ─────────────────────────────────
-//! 「上次尝试 / 上次成功 / 下次执行 / 失败冷却 / 在途占位」全部委托给
-//! `core::task_state`（落库、跨重启、跨实例）。本模块的循环因此每次 tick 都
-//! 从**持久化状态**重算「到点了吗」，而不是在内存里记 `nextRunAt` —— 改造前
-//! 的形态正是后者，于是每次启动都把首轮排到「现在」，重启几次就把上游打几次。
+//! ── Why not in this ─────────────────────────────────
+//! 「 up / up success / down / failure / in 」 to 
+//! `core::task_state`（、、）。 tick 
+//! from ****「 to 」， not is in `nextRunAt` —— before 
+//! is after ， is to 「 in 」， up 。
 //!
-//! ── 调度方式：轮询判定，不是「睡满间隔」────────────────────────
-//! 与 `auto_checkin` 同一取舍：循环每 `TICK_MS` 醒一次，每次重新判定。两个后果
-//! 都是想要的：
-//!   - **改完设置下一轮就生效**（最多慢一个 tick）：睡满间隔的写法在把间隔从
-//!     60 分钟改到 1 分钟时，最坏要等 60 分钟才醒来 —— 界面显示「已生效」而实际
-//!     没有，正是最难排查的那种不一致；
-//!   - **机器休眠 / 锁屏 / 改时钟后自愈**：单调时钟在休眠期间不推进，
-//!     醒来的第一次 tick 比一下墙上时钟就把错过的时点补上（只补一次，
-//!     不补跑期间的每一轮）。
+//! ── ：， not is 「」────────────────────────
+//! and `auto_checkin` 1 ： `TICK_MS` 1 ， new 。 after 
+//! is need ：
+//! - **set down 1 **（ 1 tick）： in from 
+//! 60 minutes to 1 minutes when ， need etc 60 minutes —— 「 already 」
+//! no has ， is that not 1 ；
+//! - ** / / when after **： when in not ，
+//! 1 tick 1 down up when when up （ 1 ，
+//! not 1 ）。
 //!
-//! ── 自动签到为什么不在这个清单里 ─────────────────────────────
-//! 它是**每天定点**型（可指定 00:01 这类时刻），与本模块的「等间隔重复」不是
-//! 同一个形状：时刻（JSON 字符串）、当天去重（`lastFiredDate`）、启动补签都是
-//! 它独有的语义。硬塞进 `{enabled, interval}` 会逼着两边都变形。
-//! 界面上它仍在同一页展示，只是读改走 `/api/auto-checkin`。
+//! ── to Why not in this ─────────────────────────────
+//! is ****（ can 00:01 this when ）， and 「 etc 」 not is 
+//! 1 ： when （JSON ）、（`lastFiredDate`）、 is 
+//! has 。 `{enabled, interval}` will 。
+//! up in 1 ， is `/api/auto-checkin`。
 
 use std::time::Duration;
 
@@ -50,11 +50,11 @@ use crate::server::core::task_state::{self, Claim, TaskState};
 use crate::server::core::update::UpdateManager;
 use crate::server::logging;
 
-/// 调度循环的判定间隔。
+/// 。
 ///
-/// 10 秒：backend 任务的间隔下限是 1 分钟（见 `INTERVAL_MIN_MINUTES`），
-/// 10 秒的判定粒度意味着「到点后最多晚 10 秒执行」——用户感知不到，
-/// 而空转代价只是每 10 秒一次读库（排期在库里）。不做得更密：没有收益。
+/// 10 seconds：backend down is 1 minutes（ `INTERVAL_MIN_MINUTES`），
+/// 10 seconds 「 to after 10 seconds」—— use not to ，
+/// empty is 10 seconds 1 （ in ）。 not ： no has 。
 pub const TICK_MS: u64 = 10_000;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -203,8 +203,8 @@ fn task_json(task: &TaskDef, state: Result<TaskState, String>) -> Value {
 }
 
 pub fn list() -> Value {
-    // 一次读出全部状态：本接口被「定时任务」页每 20 秒轮询一次，
-    // 逐条任务各读一次库（四次读 + 四次解析）没有意义。
+    // 1 ： 「 when 」 20 seconds 1 ，
+    // 1 （ + ） no has 。
     let states = task_state::read_all();
     json!({
         "tasks": TASKS
@@ -256,13 +256,13 @@ pub fn configure(id: &str, patch: IntervalTaskPatch) -> Result<Value, String> {
     }
     if task.runner == Runner::Backend {
         if !before.enabled && after.enabled {
-            // 刚开启：保留改造前「开启即跑一次」的语义（下一个 tick 就执行），
-            // 而不是按上次尝试时间算出的旧排期干等 —— 那正是用户拨开关时最
-            // 意外的一种反应。失败冷却仍然优先（`due_at` 取两者的较大值）。
+            // ： before 「 1 」 （ down 1 tick ），
+            // not is by up when old etc —— that is use when 
+            // 1 。failure（`due_at` ）。
             task_state::schedule_now(&state_key(id))?;
         } else if before.interval != after.interval {
-            // 改间隔：按**新**间隔从上次尝试起重新计时（不额外提前一次 ——
-            // 要马上跑有「立即执行」按钮）
+            // ： by ** new ** from up new when （ not before 1 ——
+            // need up has 「」 by ）
             task_state::reschedule(&state_key(id), interval_ms(task))?;
         }
         if id == TASK_MODEL_REFRESH && before.interval != after.interval {
@@ -287,22 +287,22 @@ pub async fn run_now(store: &AccountStore, update: &UpdateManager, id: &str) -> 
     run_backend(store, update, task, true).await
 }
 
-/// 「部分账号失败」算不算这一轮失败（`RunGuard::finish` 的 `success`）。
+/// 「failure」 not this 1 failure（`RunGuard::finish` `success`）。
 ///
-/// ── 为什么不算 ──────────────────────────────────────────────
-/// `success = false` 会按失败次数做指数退避（最长 24 小时，见 `core::task_state`
-/// 的 `RunGuard::finish`）。而后端任务的失败常常是**按账号**的：一个账号的登录态
-/// 被上游作废（refreshToken 废了、接口稳定 401）就足以让每一轮都判失败一次，
-/// 整条任务于是被推到几小时后再跑，其余账号跟着一起变旧。失败本身已经如实进了
-/// 结果与日志，不需要再把整轮一起罚掉。
+/// ── Why not ──────────────────────────────────────────────
+/// `success = false` will by failure（ 24 when ， `core::task_state`
+/// `RunGuard::finish`）。 after failure is ** by ** ： 1 
+/// up （refreshToken 、 401） 1 failure 1 ，
+/// is to when after ， its 1 old 。failure already 
+/// and ， not need need 1 。
 ///
-/// 模型目录刷新同理，而且它的失败是**按提供商**的（见 `TASK_MODEL_REFRESH`
-/// 分支的调用点）：一家长期 401 就足以把整条任务按到 24 小时冷却上，界面上
-/// 显示成「冷却中」，看起来就是刷新功能坏了。
+/// directory new ， and failure is ** by ** （ `TASK_MODEL_REFRESH`
+/// use ）： 1 401 by to 24 when up ， up 
+/// 「 in 」， is new can 。
 ///
-/// ── 为什么「一个都没成功」仍算失败 ───────────────────────────
-/// 全失败通常意味着更上游的问题（断网、出口被挡、上游整体故障）：这时保留退避，
-/// 别按原间隔反复打上游。判据因此是「有失败 **且** 一个都没成功」。
+/// ── Why「 1 no success」failure ───────────────────────────
+/// failure up （、 、 up ）： this when ，
+/// by up 。 is 「 has failure ** and ** 1 no success」。
 fn round_succeeded(succeeded: usize, failed: usize) -> bool {
     failed == 0 || succeeded > 0
 }
@@ -313,7 +313,7 @@ async fn run_backend(
     task: &TaskDef,
     manual: bool,
 ) -> Result<String, String> {
-    // 更新管理器同时承接设置页按钮，排期必须属于它而不是外围定时器。
+    // update when set by ，must not is when 。
     if task.id == TASK_UPDATE_CHECK {
         let current = crate::server::core::update::CURRENT_VERSION;
         let info = if manual { update.check(current).await } else { update.check_scheduled(current).await }
@@ -324,21 +324,21 @@ async fn run_backend(
             summary
         } else { "已完成版本检查".to_string() });
     }
-    // 手动执行越不越过失败冷却：按**冷却记的是什么**分两类（见 `ManualBackoff`）。
-    //   · 记「上一轮为什么没成功」的（模型目录刷新、凭证维护）——
-    //     用户按按钮往往正是刚把那个原因修好（换了账号、重新登录、把坏账号删了），
-    //     继续拿旧结论挡着只会让按钮看起来是坏的；
-    //   · 记「上游配额桶什么时候恢复」的（检查更新）—— 提前打一次只会再吃一次
-    //     403 并把恢复时刻重新顶到未来，如实告诉用户还要等多久更有用。
+    // not failure： by ** is **（ `ManualBackoff`）。
+    // · 「 up 1 Why no success」 （directory new 、）——
+    // use by by is that Reason（、 new 、 ），
+    // old will by is ；
+    // · 「 up quota when 」 （checkupdate）—— before 1 will 1 
+    // 403 and when new to ， use need etc has use 。
     let backoff = match task.id {
         TASK_MODEL_REFRESH | TASK_CREDENTIAL_MAINTENANCE => task_state::ManualBackoff::Bypass,
         _ => task_state::ManualBackoff::Respect,
     };
     let guard = match task_state::claim(task.id, interval_ms(task), manual, backoff, 1_000)? {
         Claim::Acquired(guard) => guard,
-        // 被挡住的原因要如实说：走 Bypass 的家（模型刷新 / 凭证维护）在手动
-        // 路径上并不受冷却约束，这时还提示「请在 N 秒后重试」会把用户往几分钟
-        // 甚至几小时后引 —— 而真正挡住这一轮的只是在途占位或一秒的最短间隔。
+        // Reason need ： Bypass （ new / ） in 
+        // path up and not ， this when 「 in N seconds after 」 will use minutes
+        // when after —— this 1 is in or 1 seconds 。
         Claim::Deferred(state) => {
             return Err(if manual && backoff == task_state::ManualBackoff::Bypass {
                 state.waiting_message_bypassing()
@@ -365,22 +365,22 @@ async fn run_backend(
             };
             let count = |status: &str| results.iter().filter(|item| item["status"] == status).count();
             let (refreshed, skipped, failed) = (count("refreshed"), count("skipped"), count("failed"));
-            // 全跳过的轮次（各家的间隔没到 / 没有可用登录态）在自动路径上是常态：
-            // 被动刷新与手动刷新会先把间隔推走，这时「成功 0 家」看着像失败，
-            // 所以这一档单独给一句话说清「本轮无事可做」。
+            // （ no to / no has available） in path up is ：
+            // new and new will ， this when 「success 0 」failure，
+            // this 1 to 1 「none can 」。
             let summary = if refreshed == 0 && failed == 0 {
                 format!("本轮无需刷新（跳过 {skipped} 家：未到间隔或没有可用登录态）")
             } else {
                 format!("成功 {refreshed} 家，跳过 {skipped} 家，失败 {failed} 家")
             };
-            // models.dev 元数据搭同一条任务（它回答的是同一件事的另一半：清单与
-            // 元数据一起才是一份能用的模型表），但**排期独立** —— 各家的目录
-            // 缓存 TTL 与它无关，一方被跳过不该连带另一方也不刷。
+            // models.dev 1 （ is 1 1 ： and 
+            // 1 is 1 can use ），**** —— directory
+            // TTL and none， 1 not this 1 not 。
             //
-            // 它的失败**不改变本任务的成败**：元数据是补充信息，为它把整轮标成
-            // 失败会连带触发凭证那套失败冷却，进而拖住真正重要的模型清单刷新；
-            // 失败原因如实写进摘要（用户看得到），这是「不静默」与「不误伤」的
-            // 折中。
+            // failure** not **： is ， as 
+            // failure will that failure， need new ；
+            // failureReason need （ use to ）， this is 「 not 」 and 「 not 」 
+            // in 。
             let metadata = crate::server::core::model_meta::refresh(manual, interval_ms(task)).await;
             let metadata_note = match metadata.get("status").and_then(Value::as_str) {
                 Some("refreshed") => format!(
@@ -391,18 +391,18 @@ async fn run_backend(
                     "；models.dev 元数据刷新失败（{}）",
                     metadata.get("message").and_then(Value::as_str).unwrap_or("未知原因")
                 ),
-                // skipped（未到间隔 / 设置里关了）不写进摘要：那是常态，写进去只是噪音
+                // skipped（ to / set） not need ： that is ， is 
                 _ => String::new(),
             };
-            // 成败判据与凭证维护同一条（`round_succeeded`）：逐家的失败**不该**
-            // 把整轮一起罚掉。这里的失败是**按家**的 —— 一家的登录态被上游作废
-            // （CatPaw 那种长期 401）就足以让每一轮都判失败一次，于是失败计数
-            // 按指数退避一路顶到 24 小时上限，其余能刷的家跟着一起停在旧清单上，
-            // 界面上显示成「冷却中，N 小时后重试」，看起来就是刷新功能坏了。
-            // 失败的细节已经逐条写进结果与日志，不需要再把整轮也标成失败。
+            // and 1 （`round_succeeded`）： failure** not this **
+            // 1 。 this failure is ** by ** —— 1 up 
+            // （CatPaw that 401） 1 failure 1 ， is failure
+            // by 1 to 24 when limit， its can 1 in old up ，
+            // up 「 in ，N when after 」， is new can 。
+            // failure already and ， not need need failure。
             //
-            // 「一个都没成功」仍算失败：那通常意味着断网 / 出口被挡 / 上游整体
-            // 故障，保留退避才不会被原间隔反复打上游。
+            // 「 1 no success」failure： that / / up 
+            // ， not will up 。
             (format!("{summary}{metadata_note}"), round_succeeded(refreshed, failed))
         }
         _ => return Err("未知后端任务".to_string()),
@@ -411,22 +411,22 @@ async fn run_backend(
     Ok(summary)
 }
 
-/// 调度循环：把后端任务按各自配置的间隔重复执行（由 `ServerState::bootstrap`
-/// 起一次，进程内只有这一个循环）。
+/// ： after by config （ by `ServerState::bootstrap`
+/// 1 ， has this 1 ）。
 ///
-/// 循环体只做三件事：读配置 → 看谁到点了 → 跑它。所有排期状态都在库里
-/// （`core::task_state`），因此**重启不重置节奏**：上次 10:00 查过更新
-/// （间隔 20 分钟），10:05 / 10:10 反复重启都不会再查，仍等到 10:20；
-/// 停机期间错过的那一轮则在启动后补跑一次（只补一次，不补跑每一轮）。
+/// ：config → to → 。all in 
+/// （`core::task_state`），** not **： up 10:00 update
+/// （ 20 minutes），10:05 / 10:10 not will ， etc to 10:20；
+/// that 1 then in after 1 （ 1 ， not 1 ）。
 ///
-/// 每 tick 读一次**全部**任务的状态（而不是逐条各读一次）：一次读库换四条
-/// 任务的判定，空转成本与改造前的「两次读锁」同一量级。数据库不可用时整轮
-/// 跳过 —— 那时发不出任何可信的判定，宁可这一轮什么都不做。
+/// tick 1 **** （ not is 1 ）： 1 
+/// ，empty and before 「」 1 。unavailable when 
+/// —— that when not can ， can this 1 not 。
 pub fn spawn(store: AccountStore, update: UpdateManager) {
     crate::spawn_task(async move {
-        // 首轮先按持久化状态恢复排期：从未跑过的任务排到「现在」（于是全新安装
-        // 启动即跑一次，与改造前一致），跑过的沿用「上次尝试 + 间隔」——
-        // 已经到期的自然落到过去，这一轮就补上。
+        // by ： from to 「 in 」（ is new 
+        // 1 ， and before 1 ）， use 「 up + 」——
+        // already to to ， this 1 up 。
         for task in TASKS.iter().filter(|task| task.runner == Runner::Backend) {
             if let Err(error) = task_state::reschedule(&state_key(task.id), interval_ms(task)) {
                 logging::log("[Tasks]", &format!("恢复「{}」排期失败：{error}", task.label));
@@ -441,14 +441,14 @@ pub fn spawn(store: AccountStore, update: UpdateManager) {
                 if !settings_of(config::scheduled_settings(), task.id).enabled {
                     continue;
                 }
-                // 状态损坏恢复后可能缺少条目，按首次运行交给 claim 重建排期。
+                // after can can ， by to claim 。
                 let state = states.get(&state_key(task.id));
-                // 在跑（长任务）或还没到点（含失败冷却 / 占位租约）都跳过
+                // in （） or no to （failure / ）
                 if state.is_some_and(|state| state.running() || logging::now_ms() < state.due_at()) {
                     continue;
                 }
-                // 到点：跑一次（`run_backend` 内部按当前间隔重新排期）。
-                // 被跳过（另一进程抢到、或在最短间隔内）不算错误，只留 verbose。
+                // to ： 1 （`run_backend` by current new ）。
+                // （ 1 to 、 or in ） not error， verbose。
                 if let Err(error) = run_backend(&store, &update, task, false).await {
                     logging::verbose("[Tasks]", &format!("{}：{error}", task.label));
                 }

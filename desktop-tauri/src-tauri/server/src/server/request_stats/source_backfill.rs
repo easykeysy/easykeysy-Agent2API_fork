@@ -19,7 +19,7 @@ fn usage_fits(total: &DailyEntry, covered: &UsageAccum) -> bool {
         && missing_success <= missing_requests && covered.tokens <= total.tokens
 }
 
-/// 日报与保留明细会重叠，不能直接相加，也不能减少已清理明细的历史贡献。
+/// and will ， not can ， not can already 。
 fn merge_usage(existing: &UsageAccum, incoming: &UsageAccum) -> UsageAccum {
     let mut merged = if incoming.token_details_requests > existing.token_details_requests {
         incoming.clone()
@@ -103,7 +103,7 @@ fn interruption_gap(existing: &DailyEntry, recovered: &RecoveredDay) -> bool {
         && day.cache_hit_tokens == existing.cache_hit_tokens
 }
 
-/// 只用仍保留的明细补来源；已清理明细的历史总量和分类必须保留。
+/// use ； already total and must。
 pub(super) fn backfill_sources(conn: &Connection) -> rusqlite::Result<()> {
     let mut days = daily::select_daily_map(conn)?;
     days.retain(|_, day| day.source_stats_version < SOURCE_STATS_VERSION);
@@ -128,7 +128,7 @@ pub(super) fn backfill_sources(conn: &Connection) -> rusqlite::Result<()> {
     }
     for (key, mut day) in days {
         if let Some(recovered) = rebuilt.get(&key) {
-            // 旧版断线收尾只更新明细；用量全部对齐且差额恰好为断线行时补齐日报。
+            // old update；usage for and as when 。
             if interruption_gap(&day, recovered) {
                 let mut repaired = recovered.daily.clone();
                 repaired.source_stats_version = SOURCE_STATS_VERSION;

@@ -49,7 +49,7 @@ export function useAssistantConfig() {
   const save = React.useCallback((next: AssistantConfig, note?: string) => {
     const revision = ++revisionRef.current
     update(next)
-    // 整块配置必须串行保存，较早的响应不能覆盖后来的模型选择。
+    // configmust， response not can after 。
     savingRef.current = savingRef.current.then(async () => {
       try {
         const saved = await saveAssistantConfig(next)

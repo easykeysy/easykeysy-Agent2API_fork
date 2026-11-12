@@ -1,26 +1,26 @@
-//! GET /health —— 壳侧就绪探测与前端首屏健康摘要。
+//! GET /health —— and before need 。
 //!
-//! shape 逐字段对齐 Node 版 server.mjs handleHealth（562-584 行）：
-//!   status 按「上游是否配置」（configured 才 ok，否则 degraded）/
+//! shape for Node server.mjs handleHealth（562-584 ）：
+//! status by 「 up is config」（configured ok，otherwise degraded）/
 //!   upstreamBaseUrl / authSource / currentAccountId /
-//!   tokenExpiresAt / canRefresh 全来自 `auth.get_config_summary()`；
-//!   login 为 `auth.get_status()` 的完整形态（已登录/未登录两分支）；
-//!   authRequired 表示模型调用始终需要网关 Key / defaultModel / models 数量。
+//! tokenExpiresAt / canRefresh `auth.get_config_summary()`；
+//! login as `auth.get_status()` （ already /）；
+//! authRequired use need need Key / defaultModel / models 。
 //!
-//! `authApiBase` / `chatApiUrl` 两栏已删除（2026-10 拆家）：它们是**上游端点**，
-//! 随「怎么打上游」的知识一起搬到了提供商插件，网关不再持有。字段整体移除
-//! 而不是给 null —— 消费方（壳侧探针、前端）都不读它们。
+//! `authApiBase` / `chatApiUrl` already delete（2026-10 ）： is ** up **，
+//! 「 up 」 1 to ， not has 。
+//! not is to null —— （、 before ） not 。
 //!
-//! 注意 /health 返回**裸对象**（不是 `{success,data}` 信封）—— Node 版这里
-//! 用的是 sendJson 直接发对象，与 /api/* 不同。
+//! Note /health return** for **（ not is `{success,data}` ）—— Node this 
+//! 用的是 sendJson 直接发对象，与 /api/* not 。
 //!
-//! `get_config_summary()` 是纯本地的（只查凭证是否存在，不发网络请求），
-//! 所以 health 不需要等转发链路。
+//! `get_config_summary()` is （ is in ， not request），
+//! health not need need etc 。
 //!
-//! `models` 是目录条数（切片 4 起为真值）：Node 版取 `modelCatalog.list().length`，
-//! 目录未刷新过时就是内置清单的条数，刷新后是远程清单的条数 ——
-//! 这个字段只反映「当前内存里的目录」，不触发刷新（刷新由启动流程与
-//! GET /v1/models 负责，/health 保持纯本地语义）。
+//! `models` is directory（ 4 as ）：Node `modelCatalog.list().length`，
+//! directory new when is ， new after is ——
+//! this 「current directory」， not new （ new by and 
+//! GET /v1/models ，/health ）。
 
 use axum::extract::State;
 use axum::response::Response;
@@ -30,20 +30,20 @@ use crate::server::config;
 use crate::server::http::raw_json;
 use crate::server::ServerState;
 
-/// 上游未配置时的说明文案。
+/// up not configured when 。
 ///
-/// 与 `core::auth::UNCONFIGURED_REASON` 同一份 —— Node 版这条有两处措辞：
-/// `getConfigSummary()` 的「尚未登录（node server.mjs --login）」与启动横幅的
-/// 「暂无可用登录态」。壳内 Rust 版没有那个命令行入口（登录走 UI 的
-/// /api/session/login/*），指向一个不存在的命令只会误导用户，因此统一取后者。
+/// and `core::auth::UNCONFIGURED_REASON` 1 —— Node this has ：
+/// `getConfigSummary()` 「（node server.mjs --login）」 and 
+/// 「noneavailable」。 Rust no has that （ UI 
+/// /api/session/login/*）， to 1 not in will use ， 1 after 。
 pub const UNCONFIGURED_REASON: &str = crate::server::core::auth::UNCONFIGURED_REASON;
 
-/// 处理 GET /health
+/// GET /health
 pub async fn handle(State(state): State<ServerState>) -> Response {
-    // headless 的安全形态（未注册闸门 / /v1 fail-closed）下只回答「进程活着」：
-    // 完整摘要会把上游地址、登录状态、模型数量递给公网上的探测者。
-    // 探活方（Docker HEALTHCHECK / 反代）只看状态码与 status 字段，不受影响；
-    // 桌面壳与面板首屏不受影响 —— 那两种形态下闸门与 fail-closed 都不会开启。
+    // headless （ / /v1 fail-closed） down 「」：
+    // need will up 、、 to up 。
+    // （Docker HEALTHCHECK / ） and status ， not ；
+    // and not —— that down and fail-closed not will 。
     if crate::server::access::panel_gate() || crate::server::access::v1_fail_closed() {
         return raw_json(json!({ "status": "ok" }));
     }
@@ -76,11 +76,11 @@ pub async fn handle(State(state): State<ServerState>) -> Response {
         },
         "authRequired": true,
         "defaultModel": snapshot.default_model(),
-        // 模型目录条数（对照 Node 的 `models: modelCatalog.list().length`）。
-        // 本字段是「唯一上游时代」的契约读数：那时进程里只有 workbuddy 一份
-        // 目录。现在目录由各家适配器在读取时聚合（见 `core::providers::catalog`），
-        // 这里报**国内版**那一家的条数 —— 与旧口径对齐（同一时刻的同一份清单）。
-        // 完整的可用清单看 `/v1/models`（聚合视图）。
+        // directory（ for Node `models: modelCatalog.list().length`）。
+        // is 「 1 up when 」 ： that when has workbuddy 1 
+        // directory。 in directory by in when （ `core::providers::catalog`），
+        // this **** that 1 —— and old for （ 1 when 1 ）。
+        // available `/v1/models`（）。
         "models": crate::server::core::providers::catalog::manifest_for(
             crate::server::core::providers::ProviderKind::WorkBuddy,
         )

@@ -1,18 +1,18 @@
-//! 双通道日志：控制台 + 运行日志库（桌面端「日志」页）。
+//! ： + （「」）。
 //!
-//! 对照 Node 版 server.mjs 174-240 行的 emit/log/logEvent：
-//!   - 控制台保持原格式 `[HH:mm:ss.SSS] TAG text`，时间用 **UTC**
-//!     （对齐 Node 的 `new Date().toISOString().slice(11, 23)`，不是本地时间）
-//!   - 同时追加到日志库，级别由标签/文案推断（inferLevel）
-//!   - `verbose` 级别（debug）只有开了 --verbose 才入库，避免刷屏
+//! for Node server.mjs 174-240 emit/log/logEvent：
+//! - `[HH:mm:ss.SSS] TAG text`， when use **UTC**
+//! （ for Node `new Date().toISOString().slice(11, 23)`， not is when ）
+//! - when to ， by /（inferLevel）
+//! - `verbose` （debug） has --verbose ，
 //!
-//! 为什么用 `eprintln!` 而不是 `println!`：本项目是 GUI 程序，Windows 下
-//! 没有控制台时 `println!` 可能触发 panic（release 是 panic=abort，
-//! 会直接带走整个桌面应用）。stderr 的写入失败只会被忽略，是安全通道。
+//! Why use `eprintln!` not is `println!`： is GUI ，Windows down 
+//! no has when `println!` can can panic（release is panic=abort，
+//! will use ）。stderr failure will ignore， is 。
 //!
-//! 全局实例：日志库在启动时初始化一次，之后所有模块共用（Node 版同样是
-//! 一个模块级 logStore 常量）。用 `OnceLock` 而不是 `Mutex<Option<...>>`，
-//! 读路径无锁；写入的串行化由 LogStore 内部的锁负责。
+//! ： in when 1 ， after all use （Node is 
+//! 1 logStore ）。 use `OnceLock` not is `Mutex<Option<...>>`，
+//! pathnone； by LogStore 。
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -25,37 +25,37 @@ use serde_json::Value;
 use crate::server::db::Db;
 use crate::server::logs_store::{category_for_tag, LogEntry, LogStore, NewEntry};
 
-/// 进程内唯一的日志库实例。启动时由 `init_store` 装入。
+/// 1 。 when by `init_store` 。
 static STORE: OnceLock<LogStore> = OnceLock::new();
 
-/// 是否需要把 debug 级别也上报入库（对应 Node 版 `opts.verbose`）
+/// is need need debug up （ for Node `opts.verbose`）
 static VERBOSE: OnceLock<bool> = OnceLock::new();
 
-/// 日志文件通道：`Some(...)` = 已启用（服务形态），`None` = 不启用（前台形态）。
+/// file：`Some(...)` = already enabled（），`None` = not enabled（ before ）。
 ///
-/// ── 为什么需要它 ────────────────────────────────────────────
-/// Windows 服务进程**没有控制台**：`eprintln!` 写到的是不存在的 stderr，
-/// 内容直接丢弃。服务「起来了但什么都看不见」等于没法排障，所以服务形态
-/// 在进 SCM 之前调用 [`init_file_sink`]，把控制台那份再抄一份到文件。
+/// ── Why need need ────────────────────────────────────────────
+/// Windows ** no has **：`eprintln!` to is not in stderr，
+/// 。「 not 」 etc no ，
+/// in SCM before use [`init_file_sink`]， that 1 to file。
 ///
-/// 用 `OnceLock<Option<Mutex<File>>>` 而不是 `OnceLock<Mutex<File>>`：
-/// 打开失败（目录不可写、路径非法）时服务仍要能起来 —— 降级成「只有
-/// stderr」，而不是让初始化 panic。
+/// use `OnceLock<Option<Mutex<File>>>` not is `OnceLock<Mutex<File>>`：
+/// failure（directory not can 、path） when need can —— 「 has 
+/// stderr」， not is panic。
 static FILE_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 
-/// 日志文件大小上限：超过就轮转成 `.1`（只留一代）。
-/// 入库那份日志由保留天数管，但文件是另一条通道，需要自己的上限。
+/// filelimit： `.1`（ 1 ）。
+/// that by ，file is 1 ， need need limit。
 const LOG_FILE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 
-/// 打开日志文件通道。默认落 `{logs_dir}/server.log`，可用
-/// `AGENT2API_LOG_FILE` 覆盖（相对路径按进程 CWD 解析）。
+/// file。default `{logs_dir}/server.log`，available
+/// `AGENT2API_LOG_FILE` （ for path by CWD ）。
 ///
-/// 重复调用只生效一次（OnceLock 语义）。打开失败不 panic：降级成
-/// 「只有 stderr」——而 stderr 在服务形态下是空的，所以失败时会往 stderr
-/// 补一行提示（前台调试时看得见）。
+/// use 1 （OnceLock ）。failure not panic：
+/// 「 has stderr」—— stderr in down is empty ，failure when will stderr
+/// 1 （ before when ）。
 ///
-/// 为什么按**追加**打开：服务重启（SCM 恢复策略 / systemd Restart=）后
-/// 上一次的运行记录不能丢 —— 排查「为什么反复重启」时那正是要找的东西。
+/// Why by ****：（SCM / systemd Restart=） after 
+/// up 1 not can —— 「Why」 when that is need 。
 pub fn init_file_sink() {
     let path = log_file_path();
     let sink = open_log_file(&path).map(Mutex::new);
@@ -68,32 +68,32 @@ pub fn init_file_sink() {
     let _ = FILE_SINK.set(sink);
 }
 
-/// 初始化日志库。重复调用只生效一次（OnceLock 语义），返回是否本次装入成功。
+/// 。 use 1 （OnceLock ），return is success。
 ///
-/// 在 `ServerState::bootstrap` 里调用 —— 数据库就绪之后、其余模块之前，
-/// 之后其它模块再写日志就能入库。
+/// in `ServerState::bootstrap` use —— after 、 its before ，
+/// after its can 。
 ///
-/// ── 参数为什么从 `directory` 改成 `Db` ─────────────────────
-/// 日志数据现在在统一库的 `logs` 表里（本切片从 `logs.jsonl` 迁过来），
-/// 不再有「日志自己的目录」。与 T2 的 `AccountStore::with_db(db)` 同一形态：
-/// 路径由 `Db` 唯一持有，日志库只是它的一个使用者。
-/// 接 `Option<Db>` 是因为 `ServerState::bootstrap` 手里就是 `Option<Db>`
-/// （库打不开时仍要能启动）：`None` 时日志库照常装起来，但写入静默丢弃、
-/// 读取返回空 —— 降级细节见 `LogStore` 各方法的说明。
+/// ── parameterWhy from `directory` `Db` ─────────────────────
+/// in in 1 `logs` （ from `logs.jsonl` ），
+/// not has 「 directory」。 and T2 `AccountStore::with_db(db)` 1 ：
+/// path by `Db` 1 has ， is 1 use 。
+/// `Option<Db>` is as `ServerState::bootstrap` is `Option<Db>`
+/// （ not when need can ）：`None` when ，、
+/// returnempty —— `LogStore` 。
 ///
-/// 保留天数走**回调**（每次裁剪时动态取 `config::retention_settings()`）：
-/// 于是设置页改完天数，下一次写日志 / 显式 prune 就生效，不需要重启进程
-/// （与 `RequestStats` 的 `get_retention` 同一模式）。
-/// 读的是配置的**内存快照**而不是每次读盘 —— 写日志是相对频繁的路径。
+/// ****（ when `config::retention_settings()`）：
+/// is set， down 1 / prune ， not need need 
+/// （ and `RequestStats` `get_retention` 1 ）。
+/// is config **** not is —— is for path。
 pub fn init_store(db: Option<Db>, verbose: bool) -> bool {
     let _ = VERBOSE.set(verbose);
     if STORE.get().is_some() {
         return false;
     }
-    // fork：Linux + 内存盘时事件行写 `{logs_dir}/events.jsonl`（日志离开
-    // `agent2api.db`）；其余环境（Windows / 容器 / 测试）沿用库后端，行为与
-    // 改造前逐字一致。判断依据是侧目录是否真的被 `/mnt/ramdisk` 接管，
-    // 见 `paths::side_dirs_external`。
+    // fork：Linux + when `{logs_dir}/events.jsonl`（
+    // `agent2api.db`）； its （Windows / / ） use after ， as and 
+    // before 1 。 is directory is `/mnt/ramdisk` ，
+    // `paths::side_dirs_external`。
     let store = if crate::paths::side_dirs_external() {
         crate::paths::ensure_side_dirs();
         LogStore::with_events_file(db, crate::paths::logs_dir().join("events.jsonl"), || {
@@ -109,19 +109,19 @@ pub fn init_store(db: Option<Db>, verbose: bool) -> bool {
     true
 }
 
-/// 取全局日志库；未初始化时返回 None（此时只有控制台通道）
+/// ； when return None（ when has ）
 fn store() -> Option<&'static LogStore> {
     STORE.get()
 }
 
-/// 是否开启 verbose（默认关闭，与 Node 版一致）
+/// is verbose（default， and Node 1 ）
 pub fn is_verbose() -> bool {
     *VERBOSE.get().unwrap_or(&false)
         || crate::server::config::with_raw(|raw| raw.get("debugMode").and_then(Value::as_bool) == Some(true)).unwrap_or(false)
 }
 
-/// 当前毫秒 Unix 时间戳（对应 Node 版 `Date.now()`）。
-/// 日志条目的 `ts` 字段用它；时间戳只用于展示与排序，不能用它做时间基准。
+/// currentms Unix when （ for Node `Date.now()`）。
+/// `ts` use ； when used for and ， not can use when 。
 pub fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -129,17 +129,17 @@ pub fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
-/// 本进程的启动时刻（毫秒 Unix 时间戳；首次取用时钉住）。
+/// when （ms Unix when ； use when ）。
 ///
-/// 请求日志用它区分「本进程正在跑的请求」与「上一次运行遗留的孤儿行」：
-/// 早于本时刻的进行中行不可能再收到收尾通知（见 `request_stats` 的
+/// request use 「 in request」 and 「 up 1 」：
+/// when in not can can to （ `request_stats` 
 /// `sweep_stale_running`）。
 pub fn process_started_at() -> i64 {
     static STARTED: OnceLock<i64> = OnceLock::new();
     *STARTED.get_or_init(now_ms)
 }
 
-/// 控制台时间前缀：`[HH:mm:ss.SSS]`，**UTC**（对齐 Node 的 toISOString）。
+/// when before ：`[HH:mm:ss.SSS]`，**UTC**（ for Node toISOString）。
 fn timestamp_prefix() -> String {
     match Utc.timestamp_millis_opt(now_ms()).single() {
         Some(now) => now.format("[%H:%M:%S%.3f]").to_string(),
@@ -147,17 +147,17 @@ fn timestamp_prefix() -> String {
     }
 }
 
-/// 标签 → 分类；未登记的标签落到 server（对应 Node 版 `TAG_CATEGORY[tag] || 'server'`）
+/// → ； to server（ for Node `TAG_CATEGORY[tag] || 'server'`）
 fn category_of(tag: &str) -> &'static str {
     category_for_tag(tag).unwrap_or("server")
 }
 
-/// 从标签与消息推断级别，照抄 Node 版 inferLevel 的正则语义，但不引入 regex 依赖：
-///   - 消息以 ❌ 开头 / 含「失败」/ 标签以 ❌ 开头 → error
-///   - 消息或标签以 ⚠️ 开头 → warn
-///   - 其余 info
+/// from and ， Node inferLevel then ， not regex ：
+/// - ❌ / 「failure」/ ❌ → error
+/// - or ⚠️ → warn
+/// - its info
 fn infer_level(tag: &str, text: &str) -> &'static str {
-    // Node 的 /\b失败\b/ 在中文里等价于「含失败二字」（中文两侧都是非单词字符）
+    // Node /\bfailure\b/ in in etc 「failure」（ in is ）
     if text.starts_with('❌') || text.contains("失败") || tag.starts_with('❌') {
         return "error";
     }
@@ -167,7 +167,7 @@ fn infer_level(tag: &str, text: &str) -> &'static str {
     "info"
 }
 
-/// 日志文件路径：`AGENT2API_LOG_FILE` 优先，默认 `{logs_dir}/server.log`
+/// filepath：`AGENT2API_LOG_FILE` ，default `{logs_dir}/server.log`
 fn log_file_path() -> PathBuf {
     if let Ok(value) = std::env::var("AGENT2API_LOG_FILE") {
         let trimmed = value.trim();
@@ -178,19 +178,19 @@ fn log_file_path() -> PathBuf {
     crate::paths::logs_dir().join("server.log")
 }
 
-/// 日志文件路径的对外只读形态（设置页「版本信息」展示用）。
+/// filepath for （set「」 use ）。
 ///
-/// 与 [`log_file_path`] 同一份口径：排障时用户要看的就是「日志到底落在哪」，
-/// 而那个位置可能被 `AGENT2API_LOG_FILE` 改过 —— 页面显示约定路径会把人
-/// 引到一个空文件上。
+/// and [`log_file_path`] 1 ： when use need is 「 to in 」，
+/// that can can `AGENT2API_LOG_FILE` —— path will 
+/// to 1 emptyfile up 。
 pub fn log_file_path_public() -> PathBuf {
     log_file_path()
 }
 
-/// 打开（并按需轮转）日志文件。
+/// （ and by need ）file。
 ///
-/// 轮转用 `.1` 后缀覆盖旧的那一代，不做多代滚动 —— 服务日志的主要用途是
-/// 「这次为什么起不来」，一代足够；真要长期留存走数据库里的日志页。
+/// use `.1` after old that 1 ， not —— need use is 
+/// 「 this Why not 」， 1 ； need 。
 fn open_log_file(path: &Path) -> Option<File> {
     if let Some(dir) = path.parent() {
         if !dir.as_os_str().is_empty() {
@@ -199,7 +199,7 @@ fn open_log_file(path: &Path) -> Option<File> {
     }
     let too_big = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0) > LOG_FILE_MAX_BYTES;
     if too_big {
-        // 改名前先确认目标能被覆盖：Windows 上 rename 到已存在文件会失败
+        // before can ：Windows up rename to already in file will failure
         let rotated = path.with_extension("log.1");
         let _ = std::fs::remove_file(&rotated);
         let _ = std::fs::rename(path, &rotated);
@@ -211,8 +211,8 @@ fn open_log_file(path: &Path) -> Option<File> {
         .ok()
 }
 
-/// 往文件写一行。未启用时是空操作；写入失败静默丢弃（不能反过来触发日志，
-/// 那条路会回到 `console_line`，形成递归）。
+/// file 1 。enabled when is empty；failure（ not can ，
+/// that will to `console_line`，）。
 fn write_file_line(line: &str) {
     let Some(Some(sink)) = FILE_SINK.get() else {
         return;
@@ -223,20 +223,20 @@ fn write_file_line(line: &str) {
     }
 }
 
-/// 只写控制台（不写日志库）。日志库自身出错时用它，
-/// 否则「写日志失败」这件事会再触发一次写日志，形成递归。
+/// （ not ）。 when use ，
+/// otherwise「failure」 this will 1 ，。
 ///
-/// 开了文件通道时同时抄一份到文件（服务形态没有控制台）。
+/// file when when 1 to file（ no has ）。
 pub fn console_line(tag: &str, text: &str) {
     let line = format!("{} {tag} {text}", timestamp_prefix());
     eprintln!("{line}");
     write_file_line(&line);
 }
 
-/// 双通道日志（对应 Node 版 log()）。
+/// （ for Node log()）。
 ///
-/// 入库前会做与 Node 版相同的处理：把各段参数用空格连接后 trim，
-/// 空文案直接跳过（只打控制台）。级别由 infer_level 推断。
+/// before will and Node ： parameter use empty after trim，
+/// empty（）。 by infer_level 。
 pub fn log(tag: &str, text: &str) {
     console_line(tag, text);
     let trimmed = text.trim();
@@ -246,7 +246,7 @@ pub fn log(tag: &str, text: &str) {
     let Some(store) = store() else {
         return;
     };
-    // 与 Node 版一致：message 为「标签 + 文案」，前端列表里能直接看到来源
+    // and Node 1 ：message as 「 + 」， before can to 
     let message = format!("{tag} {trimmed}");
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
         level: infer_level(tag, trimmed),
@@ -257,12 +257,12 @@ pub fn log(tag: &str, text: &str) {
     }));
 }
 
-/// 显式指定级别的日志，其余行为与 `log()` 完全一致。
+/// ， its as and `log()` 1 。
 ///
-/// 汇总类文案（「成功 X，跳过 Y，失败 Z」）的级别必须由**结果**决定而不是
-/// 靠文案推断：失败数为 0 的正常轮次里也有「失败」二字，`infer_level`
-/// 会把它误判成 error（导航徽标只统计 error，等于一跑定时任务就亮红标）。
-/// 调用方手里就有失败数，按它选 `"info"` / `"error"` 即可。
+/// total（「success X， Y，failure Z」） must by **** not is 
+/// ：failure as 0 has 「failure」，`infer_level`
+/// will error（statistics error， etc 1 when ）。
+/// use has failure， by `"info"` / `"error"` can 。
 pub fn log_with_level(tag: &str, text: &str, level: &str) {
     console_line(tag, text);
     if matches!(level, "debug" | "verbose" | "trace") && !is_verbose() {
@@ -285,8 +285,8 @@ pub fn log_with_level(tag: &str, text: &str, level: &str) {
     }));
 }
 
-/// 调试日志：只有开关打开时才入库（对应 Node 版 verbose()）。
-/// 控制台始终输出，方便排障时用普通启动也能看到细节。
+/// ： has when （ for Node verbose()）。
+/// ， when use can to 。
 pub fn verbose(tag: &str, text: &str) {
     console_line(tag, text);
     if !is_verbose() {
@@ -309,13 +309,13 @@ pub fn verbose(tag: &str, text: &str) {
     }));
 }
 
-/// 结构化事件上报（对应 Node 版 logEvent）。
+/// up （ for Node logEvent）。
 ///
-/// 429 自动切换这类需要带字段的事件走这里，桌面端日志页能按 category/data
-/// 精确展示与筛选（logs-panel.js 读 `data.from` / `data.to` / `data.resetAtText`）。
+/// 429 this need need this ， can by category/data
+/// and （logs-panel.js `data.from` / `data.to` / `data.resetAtText`）。
 ///
-/// `message` 为空时返回 None 且不落库。控制台不重复打印 —— 这类事件
-/// 调用方通常已经用 `log()` 打过一行可读文案了。
+/// `message` as empty when return None and not 。 not —— this 
+/// use already use `log()` 1 can 。
 pub fn log_event(
     level: &str,
     category: &str,
@@ -335,8 +335,8 @@ pub fn log_event(
     }))
 }
 
-/// 供路由层读取日志库（查询/统计/清空）。未初始化时返回 None，
-/// 路由层据此返回 503「日志模块未启用」，与 Node 版行为一致。
+/// by （/statistics/empty）。 when return None，
+/// by return 503「enabled」， and Node as 1 。
 pub fn store_ref() -> Option<&'static LogStore> {
     store()
 }
@@ -345,27 +345,27 @@ pub fn store_ref() -> Option<&'static LogStore> {
 mod tests {
     use super::infer_level;
 
-    /// 一条**完全成功**的账号导入汇总（`failed == 0`），取自生产库里的真实文案。
-    /// 它照样含「失败」二字 —— 因为「失败 {failed} 条」是无条件拼接的。
+    /// 1 **success** total（`failed == 0`）， 。
+    /// 「failure」 —— as 「failure {failed} 」 is none 。
     const IMPORT_SUMMARY_ALL_OK: &str =
         "📥 账号导入完成: 共 2 条，新增 2 个，更新 0 个，跳过 0 条，失败 0 条\
          （自定义提供商定义：新增 0 家、更新 0 家）";
 
-    /// 这条测试断言的是「文案推断**会**出错」这个事实本身，用来把这个坑钉住。
+    /// this is 「** will **」 this ， use this 。
     ///
-    /// 要修的不是 `infer_level` —— 它按关键词判级别是对的，错的是拿它去判
-    /// **汇总文案**。汇总类文案的级别必须由调用方按结果给（`log_with_level`），
-    /// 见该函数的文档。`core/account_transfer.rs` 的导入汇总曾用 `log()`，
-    /// 于是每成功导入一次账号就写一条 error，而面板导航徽标只统计 error
-    /// （`ui/app.js` 的 `updateLogsBadge`：只有错误值得主动打断）——
-    /// 等于正常操作也亮红标。
+    /// need not is `infer_level` —— by is for ， is 
+    /// **total**。total must by use by to （`log_with_level`），
+    /// this 。`core/account_transfer.rs` total use `log()`，
+    /// is success 1 1 error，statistics error
+    /// （`ui/app.js` `updateLogsBadge`： has error）——
+    /// etc 。
     #[test]
     fn infer_level_misreads_successful_import_summary_as_error() {
         assert_eq!(infer_level("[Accounts]", IMPORT_SUMMARY_ALL_OK), "error");
     }
 
-    /// 真失败必须仍是 error —— 改成 `log_with_level` 后由调用方按 `failed` 给级别，
-    /// 这两条钉住「按结果给」的两端。
+    /// failuremust is error —— `log_with_level` after by use by `failed` to ，
+    /// this 「 by to 」 。
     #[test]
     fn infer_level_keeps_real_failures_as_error() {
         assert_eq!(infer_level("[Accounts]", "❌ 账号导入失败"), "error");
@@ -375,7 +375,7 @@ mod tests {
         );
     }
 
-    /// 正常成功文案不得被判成 error，否则等于常挂红标。
+    /// success not error，otherwise etc 。
     #[test]
     fn infer_level_treats_plain_success_as_info() {
         assert_eq!(infer_level("[Checkin]", "⏰ 定时签到开始（到点触发）"), "info");

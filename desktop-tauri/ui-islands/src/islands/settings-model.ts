@@ -1,42 +1,42 @@
 /**
- * Agent2API · 设置页的**模型层**（桥类型 / 字段表 / 纯函数 / 页面文案）。
+ * Agent2API · set ****（ / / / ）。
  *
- * 从 settings-page.tsx 拆出来：那一份「五个分类 + 十来个面板 + 一个确认框」的视图层装完
- * 已超过项目约定的单文件体量，而这一层的边界很清楚 —— 没有 JSX、没有状态。依赖单向
- * （settings-state.ts 与 settings-page.tsx import 它，它谁都不认识）。
+ * from settings-page.tsx ： that 1 「 + + 1 」 
+ * already file， this 1 —— no has JSX、 no has 。 to 
+ * （settings-state.ts and settings-page.tsx import ， not ）。
  *
- * 它不是岛：文件名是 .ts，不会被 src/index.tsx 的 `islands/*.tsx` glob 加载；设置页的岛
- * 只有 settings-page.tsx 一个（页面级说明与取舍见它的文件头）。
+ * not is ：file is .ts， not will src/index.tsx `islands/*.tsx` glob ；set 
+ * has settings-page.tsx 1 （ and file）。
  *
- * 这里的东西都是「只允许一处说了算」的口径：
- *   · 字段表（保留期 / 重试 / 超时 / 提示词模式）—— 键名必须与后端 config.rs 的常量逐字一致，
- *     散到视图里各写一遍必然漂（旧实现把这份对齐写在 settings-panel.js 的注释里）；
- *   · 页面文案 —— 从 index.html 的静态骨架逐字搬来（提示语 / 说明行 / 开关文字），
- *     静态骨架随本次迁移删除，这些字是页面上唯一的来源；
- *   · 纯函数（校验 / 归一化 / 文案派生）—— 状态层与视图层都要用。
+ * this is 「 1 」 ：
+ * · （ / / when / ）—— must and after config.rs 1 ，
+ * to 1 （ old this for in settings-panel.js ）；
+ * · —— from index.html （ / / ），
+ * delete， this is up 1 ；
+ * · （ / 1 / ）—— and need use 。
  */
 
 import type { SanitizePatch } from './settings-sanitize-model'
 import { t } from '../i18n'
 
 
-// ── 从 HEAD 恢复的类型（桥成员的返回形状）──────────────
+// ── from HEAD （ return）──────────────
 
-/** 机器人校验状态（`/api/captcha`）：两端各一个开关 + 本进程形态 */
+/** （`/api/captcha`）： 1 + */
 export type CaptchaSetting = {
   captchaDesktop?: boolean
   captchaWeb?: boolean
-  /** true = 本进程是桌面壳；false = headless（Docker / 服务端） */
+  /** true = is ；false = headless（Docker / server） */
   localPanel?: boolean
 }
 
-/** 写入机器人校验：两个字段都可选，缺省的那一端不改 */
+/** ： optional， that 1 not */
 export type CaptchaPatch = {
   captchaDesktop?: boolean
   captchaWeb?: boolean
 }
 
-/** 面板账户信息（`/api/panel/account`） */
+/** （`/api/panel/account`） */
 export type PanelAccount = {
   registered?: boolean
   username?: string
@@ -45,7 +45,7 @@ export type PanelAccount = {
 
 export type DatabaseTableStat = { table?: string; rows?: number }
 
-/** 整库导出结果（壳命令 export_database） */
+/** （ export_database） */
 export type DatabaseExportResult = {
   canceled?: boolean
   bytes?: number
@@ -56,20 +56,20 @@ export type DatabaseExportResult = {
 }
 
 export type DatabaseImportResult = {
-  /** 用户在文件框里点了取消（桌面壳 / 网页端选文件都可能是这个出口） */
+  /** use in file（ / file can can is this ） */
   canceled?: boolean
-  /** 恢复后的各表行数 */
+  /** after */
   tables?: DatabaseTableStat[]
-  /** 替换前自动建的安全备份文件名（{config_dir}/backups/ 下） */
+  /** before file（{config_dir}/backups/ down ） */
   safetyBackup?: string
   /**
-   * 密钥指纹不匹配的警告（**只在有问题的恢复里出现**，文案由后端 `db::backup` 的
-   * `account_key_warning` 生成并给全）。
+   * not （** in has **， by after `db::backup` 
+   * `account_key_warning` and to ）。
    *
-   * 它**不是失败**：导入照常完成，但这份备份是用另一把加密密钥做的（或备份时本机
-   * 还没生成过密钥），导入后的账号数据解不开、账号列表会是空的。所以界面**必须**
-   * 把它常驻显示出来（面板内的警告框）—— 只塞进几秒即逝的 toast 等于没提示，
-   * 用户错过后只会对着空账号列表发懵。
+   * ** not is failure**：， this is use 1 （ or when 
+   * no ）， after not 、 will is empty 。**must**
+   * （ ）—— seconds toast etc no ，
+   * use after will for empty。
    */
   warning?: string
   encrypted?: boolean
@@ -79,24 +79,24 @@ export type DatabaseImportResult = {
 }
 
 /**
- * 恢复进度快照（`GET /api/backup/progress`，见 `db::backup` 的 `RestoreProgress`）。
+ * （`GET /api/backup/progress`， `db::backup` `RestoreProgress`）。
  *
- * 字段全部由后端给：`phase` 是「这一步在做什么」的可读文案，`percent` 是阶段
- * 起点的大致位置。前端不自己算百分比 —— 各阶段耗时没有可靠计量（`execute_batch`
- * 不回调），一个只增不减的粗进度比一个乱跳的假进度诚实。
+ * by after to ：`phase` is 「 this 1 in 」 can ，`percent` is 
+ * 。 before not —— when no has can （`execute_batch`
+ * not ）， 1 not 1 。
  */
 export type RestoreProgressSnapshot = {
-  /** 正在跑 */
+  /** in */
   active?: boolean
-  /** 当前阶段文案 */
+  /** current */
   phase?: string
-  /** 大致百分比（0-100） */
+  /** （0-100） */
   percent?: number
   done?: boolean
   failed?: boolean
-  /** 失败原因（`failed` 时才有） */
+  /** failureReason（`failed` when has ） */
   error?: string | null
-  /** 结果（`done` 时才有，形状同 DatabaseImportResult） */
+  /** （`done` when has ， DatabaseImportResult） */
   result?: unknown
   startedAt?: number
   finishedAt?: number
@@ -109,7 +109,7 @@ export type ModelsDevRefreshResult = {
   refreshedAt?: number
 }
 
-/** 面板状态行要的那几个字段（避免这里 import 状态层的类型造成循环依赖） */
+/** need that （ this import ） */
 type ModelsDevView = {
   status: 'loading' | 'ready' | 'unavailable'
   enabled: boolean
@@ -119,11 +119,11 @@ type ModelsDevView = {
 }
 
 /**
- * models.dev 面板的状态行：把「开关 + 数据来历 + 生成时刻 + 条数」写成一句话。
+ * models.dev ： 「 + + when + 」 1 。
  *
- * 为什么不只写「已开启」：这个开关的价值全在**那份元数据是什么时候的、有多少
- * 条** —— 只报开关状态，用户没法判断「我的档位为什么还是老样子」是没开、
- * 是没拉到、还是这份快照本来就旧。
+ * Why not 「 already 」： this in ** that is when 、 has 
+ * ** —— ， use no 「 Why is 」 is no 、
+ * is no to 、 is this old 。
  */
 export function modelsDevStateText(state: ModelsDevView): string {
   if (state.status === 'loading') return STATES.appLoading
@@ -134,10 +134,10 @@ export function modelsDevStateText(state: ModelsDevView): string {
       ? STATES.modelsDevSourceCache
       : state.source === 'network'
         ? STATES.modelsDevSourceNetwork
-        // 后端将来加了档位时原样回显，不显示成空白
+        // after will when ， not empty
         : state.source
   const stamp = state.updatedAt > 0
-    // 与别处的时间展示同源（app.js 提供的 `formatTime`；岛里从共享桥取）
+    // and when （app.js `formatTime`； from ）
     ? String(shared().wbApp?.formatTime?.(state.updatedAt) ?? '')
     : ''
   if (!origin && !stamp && !state.count) return STATES.modelsDevEmpty
@@ -151,27 +151,27 @@ export function modelsDevStateText(state: ModelsDevView): string {
   })
 }
 
-/* ─── 桥与共享全局 ─────────────────────────── */
+/* ─── and ─────────────────────────── */
 
-/** 启动与托盘设置（壳命令 get_app_settings / save_app_settings） */
+/** and set（ get_app_settings / save_app_settings） */
 export type AppSettings = {
   closeToTray: boolean
   autostart: boolean
-  /** 局域网访问：监听 0.0.0.0（改动随「应用重启」生效，见 TIPS.lan） */
+  /** ： 0.0.0.0（「 use 」， TIPS.lan） */
   lanAccess: boolean
-  /** 局域网访问开启时是否同时托管网页管理面板（同样随重启生效） */
+  /** when is when （） */
   lanPanel: boolean
-  /** 轻量模式：关窗销毁界面进程（释放 WebView2 内存），托盘按需重建 */
+  /** ：（ WebView2 ）， by need */
   lightweightMode: boolean
 }
 
 /**
- * 「版本信息」的读数（`GET /api/system-info`，桌面壳命令同名）。
+ * 「」 （`GET /api/system-info`，）。
  *
- * 每个字段都可能是 null / 缺失（后端按分项降级，见 `api::system_info`）：
- * 界面一律按「—」显示，不猜。`deployment` 是后端判定的运行形态
+ * can can is null / （ after by ， `api::system_info`）：
+ * 1 by 「—」， not 。`deployment` is after 
  * （desktop / windows-service / docker / systemd / foreground），
- * `runtime.webviewVersion` 桌面端是 WebView2 / WKWebView、网页端是浏览器内核。
+ * `runtime.webviewVersion` is WebView2 / WKWebView、 is 。
  */
 export type SystemInfo = {
   app?: {
@@ -248,10 +248,10 @@ export type SystemInfo = {
   }
 }
 
-/** 导入失败项：customProvider 标记的那条不是账号，是自定义提供商定义 */
+/** failure：customProvider that not is ， is */
 export type ImportError = { id?: string; message?: string; customProvider?: boolean }
 
-/** 导入结果（壳命令 import_accounts） */
+/** （ import_accounts） */
 export type ImportResult = {
   canceled?: boolean
   total?: number
@@ -260,74 +260,74 @@ export type ImportResult = {
   skipped?: number
   failed?: number
   errors?: ImportError[]
-  /** v2 导出文件附带的自定义提供商定义统计 */
+  /** v2 file statistics */
   customProviders?: { added?: number; updated?: number }
 }
 
-/** 导出结果（壳命令 export_accounts） */
+/** （ export_accounts） */
 export type ExportResult = {
   canceled?: boolean
   count?: number
-  /** v2 导出文件附带的自定义提供商定义条数 */
+  /** v2 file */
   customProviders?: number
   file?: string
 }
 
 /**
- * 网关自带提示词的**三段正文**（身份句 / 稳定段 / 动态段）。
+ * ****（ / / ）。
  *
- * 三段各自成块是上游对身份的**结构**要求（实测：三段并成一段 → 405/3012，
- * 见后端 `zcode::OFFICIAL_PROMPT_NOTE`），所以界面与配置都按段来，不做
- * 「合成一整段」的编辑方式。动态段里的运行值写成占位符（`{cwd}` 等），
- * 发请求时才换成真实值。
+ * is up for **** need （： and 1 → 405/3012，
+ * after `zcode::OFFICIAL_PROMPT_NOTE`）， and config by ， not 
+ * 「 1 」 。 （`{cwd}` etc ），
+ * request when 。
  */
 export type GatewayBlocks = { identity: string; stable: string; dynamic: string }
 
-/** 提示词写入载荷：只传变化的那一项（后端允许部分字段），clearDegrade 是同一端点上的动作位 */
+/** ： that 1 （ after ），clearDegrade is 1 up */
 export type PromptPatch = {
   promptMode?: string
   promptFile?: string
   /**
-   * 界面里编辑的提示词正文（**优先于** `promptFile` 与内置默认）。空串 = 清除
-   * 这一份、回落文件 / 内置默认；缺失 = 这一项不改。
+   * （**** `promptFile` and default）。empty = 
+   * this 1 、file / default； = this 1 not 。
    */
   promptText?: string
   /**
-   * 按提供商的覆盖：`{ "<providerId>": {promptMode?, promptFile?, promptText?} | null }`
-   * （键名与全局那几项、以及响应里每家的字段完全一致，三处只有一套名字）。
-   * 值是 `null` = 删掉这一家的覆盖（回落全局设置）；整张表缺失 = 这一维不改。
+   * by ：`{ "<providerId>": {promptMode?, promptFile?, promptText?} | null }`
+   * （ and that 、 and response 1 ， has 1 ）。
+   * is `null` = this 1 （set）； = this 1 not 。
    */
   promptProviders?: Record<
     string,
     { promptMode?: string; promptFile?: string; promptText?: string } | null
   >
   /**
-   * 网关自带提示词的逐家开关：`{ "<providerId>": true | false | null }`。
-   * 值 `null` = 删键回到默认（装）；整张表缺失 = 这一维不改（与上面那张表同一约定）。
+   * ：`{ "<providerId>": true | false | null }`。
+   * `null` = to default（）； = this 1 not （ and up that 1 ）。
    */
   promptGateway?: Record<string, boolean | null>
   /**
-   * 网关自带提示词的**正文覆盖**：`{ "<providerId>": {identity?, stable?, dynamic?} | null }`。
-   * 段是**部分更新**（未出现的段保持原值，空串 = 这一段回到官方原文）；值 `null` =
-   * 这一家整个回到官方原文。
+   * ****：`{ "<providerId>": {identity?, stable?, dynamic?} | null }`。
+   * is **update**（ ，empty = this 1 to ）； `null` =
+   * this 1 to 。
    */
   promptGatewayText?: Record<string, Partial<GatewayBlocks> | null>
   clearDegrade?: boolean
 }
 
-/** Cline 伪装头接口的响应（GET 与 PUT 同形，键与后端 api/cline_headers.rs 一致） */
+/** Cline response（GET and PUT ， and after api/cline_headers.rs 1 ） */
 export type ClineHeadersData = {
-  /** 用户改过的键（原样回显；空值 = 这个头不发送） */
+  /** use （；empty = this not ） */
   overrides: Record<string, string>
-  /** 默认值（代码里内置的那一套；界面据此判断「改回了默认」） */
+  /** default（ that 1 ；「default」） */
   defaults: Record<string, string>
-  /** 默认值 ∪ 覆盖合并后的生效值（适配器实际会发的那份） */
+  /** default ∪ and after （ will that ） */
   effective: Record<string, string>
 }
 
-/** 本页用到的壳 / HTTP 桥（方法名与 bridge.rs 一一对应，一个都不能改） */
+/** use to / HTTP （ and bridge.rs 1 1 for ， 1 not can ） */
 export type SettingsBridge = {
-  /** 'desktop' | 'web'：面板登录那一块只在网页端有意义 */
+  /** 'desktop' | 'web'： that 1 in has */
   platform?: string
   getAppSettings(): Promise<AppSettings | null | undefined>
   saveAppSettings(patch: AppSettings): Promise<AppSettings | null | undefined>
@@ -360,40 +360,40 @@ export type SettingsBridge = {
   getStorage(): Promise<unknown>
   getCaptchaSetting(): Promise<CaptchaSetting | null | undefined>
   saveCaptchaSetting(patch: CaptchaPatch): Promise<CaptchaSetting | null | undefined>
-  /** 面板账户信息（设置页「账户」分类）；未注册时 registered=false */
+  /** （set「」）； when registered=false */
   getPanelAccount(): Promise<PanelAccount | null | undefined>
-  /** 改密码：要求旧密码；成功后后端撤销其他会话链，本会话保留 */
+  /** ： need old ；success after after its will ， will */
   changePanelPassword(oldPassword: string, newPassword: string): Promise<unknown>
   panelLogout(): Promise<unknown>
-  /** 面板会话状态（桌面壳的登录通道）；网页端由 shim 以 cookie 状态回答 */
+  /** will （ ）； by shim cookie */
   panelSessionStatus?(): Promise<{ registered?: boolean; authenticated?: boolean } | null | undefined>
-  /** 清除本机的面板会话令牌（登出时与 panelLogout 配套） */
+  /** will （ when and panelLogout ） */
   panelSessionClear?(): Promise<unknown>
-  /** 后端就绪状态（局域网地址展示要拼网关端口；其余字段本页不消费） */
+  /** after （ need ； its not ） */
   getBackendStatus?(): Promise<{ port?: number } | null | undefined>
   onBackendReady?(callback: () => void): (() => void) | void
-  // ── 局域网访问（仅桌面端渲染，web 端 shim 不提供这几个方法）──
-  /** 面板管理员是否已注册（开启流程据此决定要不要先走注册步） */
+  // ── （only，web shim not this ）──
+  /** is already （ need not need ） */
   panelAdminStatus?(): Promise<{ registered?: boolean } | null | undefined>
-  /** 注册面板管理员（受信本地路径，不走公开的 HTTP 注册端点） */
+  /** （path， not HTTP ） */
   panelRegister?(username: string, password: string): Promise<{ registered?: boolean; existed?: boolean }>
-  /** 切换局域网访问（写设置并重启应用）；返回里的 createdKey 非空 = 已自动补了首把 Key */
+  /** （set and use ）；return createdKey empty = already Key */
   changeLanAccess?(enabled: boolean, panel: boolean): Promise<unknown>
-  /** 本机在局域网里的地址（查不到为 null） */
+  /** in （ not to as null） */
   localIp?(): Promise<string | null | undefined>
-  /** 打开外链的唯一出口（只放行 http(s)）：桌面走系统浏览器，网页端 shim 是 window.open */
+  /** 1 （ http(s)）：， shim is window.open */
   openReleasePage?(url: string): Promise<unknown>
   /**
-   * 设置页「版本信息」的一次性读数（桌面壳命令 / 网页端 shim 同名方法）。
+   * set「」 1 （ / shim ）。
    *
-   * `hideUsername` 是**纯展示**参数：命中的路径在主目录前缀处换成 `~`，
-   * 脱敏在后端做 —— 这样「复制全部信息」拿到的也是脱敏后的文本。
+   * `hideUsername` is ****parameter： in path in directory before `~`，
+   * in after —— this 「」 to is after 。
    */
   getSystemInfo?(options?: { hideUsername?: boolean }): Promise<SystemInfo | null | undefined>
-  // ── 以下成员从 HEAD 恢复（并行改动移走了定义但 settings-state.ts 仍引用）──
+  // ── down from HEAD （ and settings-state.ts use ）──
     exportDatabase?(includeLogs: boolean, password: string): Promise<DatabaseExportResult | null | undefined>
     importDatabase?(password?: string): Promise<DatabaseImportResult | null | undefined>
-    /** 恢复进度（`GET /api/backup/progress`）：弹窗每 500ms 拉一次 */
+    /** （`GET /api/backup/progress`）： 500ms 1 */
     getBackupProgress?(): Promise<RestoreProgressSnapshot | null | undefined>
     getCaptchaPool(): Promise<unknown>
     saveCaptchaPool(patch: Record<string, number>): Promise<unknown>
@@ -402,9 +402,9 @@ export type SettingsBridge = {
     getModelsDev(): Promise<ModelsDevState | null | undefined>
     saveModelsDev(on: boolean): Promise<ModelsDevState | null | undefined>
     refreshModelsDev(): Promise<{ result?: ModelsDevRefreshResult; status?: ModelsDevState } | null | undefined>
-    // ── 云同步（设置页「数据 → 云同步」，面板见 settings-cloud-sync.tsx）──
-    // 全部可选：网页端 shim 与桌面桥都提供，但老壳（升级前）没有这几个方法 ——
-    // 面板据此显示「不可用」而不是崩掉。
+    // ── （set「 → 」， settings-cloud-sync.tsx）──
+    // optional： shim and ，（ before ） no has this ——
+    // 「unavailable」 not is 。
     getCloudSync?(): Promise<unknown>
     saveCloudSync?(payload: Record<string, unknown>): Promise<unknown>
     testCloudSync?(payload: Record<string, unknown>): Promise<unknown>
@@ -415,35 +415,35 @@ export type SettingsBridge = {
 }
 
 /**
- * window 上由其它脚本 / 其它岛挂载的共享桥。
+ * window up by its / its 。
  *
- * 刻意用「局部窄类型 + 转型」而不是 declare global 往 Window 上加属性：
- * workbuddyDesktop / wbApp / wbUnits 是多个岛共用的桥，各岛各 declare 一份会因同名属性
- * 类型不一致直接报 TS2717（并行迁移时必然撞车）。这里只认本页用到的成员；
- * 设置页独占的 wbSettingsPanel 由 settings-page.tsx 自己 declare。
+ * use 「 + 」 not is declare global Window up ：
+ * workbuddyDesktop / wbApp / wbUnits is use ， declare 1 will 
+ * not 1 TS2717（ and when ）。 this use to ；
+ * set wbSettingsPanel by settings-page.tsx declare。
  */
 export type SharedWindow = {
   workbuddyDesktop?: SettingsBridge
   wbApp?: {
     toast?: (message: string, kind?: 'err' | 'ok') => void
-    /** 账号被导入改动后让主界面重绘（账号列表、导航计数） */
+    /** after （、） */
     refresh?: () => Promise<void> | void
-    /** 当前页标识：脚本加载时若已停在设置页，补一次 load() */
+    /** current： when if already in set， 1 load() */
     readonly currentPage?: string
-    /** 应用显示模式（system / light / dark）：实现与持久化都在 app.js，本页只调用 */
+    /** use （system / light / dark）： and in app.js， use */
     applyTheme?: (mode: string) => void
-    /** 应用界面缩放（传百分数，如 105）：由 app.js 落到 WebView 层并记档 */
+    /** use （， 105）： by app.js to WebView and */
     applyZoom?: (percent: number) => void
-    /** 时间戳 → 本地时间串（app.js 的全局实现；models.dev 面板的「数据是什么时候的」用它） */
+    /** when → when （app.js ；models.dev 「 is when 」 use ） */
     formatTime?: (value: unknown) => string
   }
-  /** Token 计量单位的展示口径（units.js）：本页只负责拨开关，格式化在那边 */
+  /** Token （units.js）：， in that */
   wbUnits?: { isChinese?: () => boolean; setChinese?: (on: boolean) => void }
-  /** 软件更新面板的岛（update-panel.tsx）：切到设置页时让它自己刷新一次 */
+  /** update （update-panel.tsx）： to set when new 1 */
   wbUpdatePanel?: { load?: () => Promise<void> | void }
-  /** 版本信息面板的岛（system-info-pane.tsx）：同上 */
+  /** （system-info-pane.tsx）： up */
   wbSystemInfoPane?: { load?: () => Promise<void> | void }
-  /** 内联图标集（icons.js）：左栏分类图标由它渲染（返回 SVG 串，注入用） */
+  /** （icons.js）： by （return SVG ， use ） */
   wbIcons?: { icon?: (name: string, size?: number) => string }
 }
 
@@ -456,16 +456,16 @@ export function errorMessage(error: unknown): string {
   return message.trim() || t('未知错误')
 }
 
-/** toast 的统一出口（运行期读 wbApp，不在模块顶层解构） */
+/** toast 1 （ wbApp， not in ） */
 export function toast(message: string, kind?: 'err' | 'ok'): void {
   shared().wbApp?.toast?.(message, kind)
 }
 
 /**
- * 打开外链：一律交给系统默认浏览器（桌面走壳命令 `open_release_page`，网页端
- * shim 把它映射成 window.open）—— 与 update-shared 的同名函数是**两份实现**，
- * 不跨族 import 是刻意的：这里服务设置页（反馈与需求），那边服务更新面板一族，
- * 各自只依赖自己那份桥类型；但也别再加第三份，要用先从这两处挑。
+ * ： 1 to default（ `open_release_page`，
+ * shim window.open）—— and update-shared is ****，
+ * not import is ： this set（ and need ）， that update 1 ，
+ * that ；， need use from this 。
  */
 export async function openExternal(url: string): Promise<void> {
   try {
@@ -475,37 +475,37 @@ export async function openExternal(url: string): Promise<void> {
   }
 }
 
-/* ─── 分类与偏好键 ─────────────────────────── */
+/* ─── and ─────────────────────────── */
 
 /**
- * 左侧分类。顺序 = 界面顺序；showCategory 用它校验传进来的值（旧实现是查 DOM，
- * 这里改成查这份表 —— 分类不再由 HTML 声明，而是本页渲染出来的）。
+ * 。 = ；showCategory use （ old is DOM，
+ * this this —— not by HTML ， is ）。
  *
- * 「重试」「超时」从「网关」里拆出来独立成菜单（原先挤在网关一栏里，排在排队等待
- * 两侧）：这两组是**每次转发都会读**的网络行为参数，出问题时最常被翻，单独一栏
- * 少一次翻找。数据加载本就不分分类（settings-state 的 load 一次并行取全部），
- * 拆分只是视图层的两段搬迁。
+ * 「」「 when 」 from 「」（ in 1 ， in etc 
+ * ）： this is ** will ** as parameter， when ， 1 
+ * 1 。 not （settings-state load 1 and ），
+ * is 。
  *
- * 「显示」紧跟「通用」：显示模式 / 界面缩放 / 语言都是**纯前端偏好**（存在
- * localStorage 里，与主题同族），不碰后端配置 —— 放在最前面那几栏里最顺手。
+ * 「」「 use 」： / / is ** before **（ in 
+ * localStorage ， and ）， not after config —— in before that 。
  *
- * 「反馈与需求」是纯跳转面板（三个 GitHub issue 表单入口，见 settings-page 的
- * FeedbackPane），排在「更新」上面 —— 都是「对外」的两栏，挨着放。
+ * 「 and need 」 is （ GitHub issue ， settings-page 
+ * FeedbackPane）， in 「update」 up —— is 「 for 」 ，。
  *
- * `icon` 是 icons.js 里那组设置页分类图标的键（描边风格，见那边的说明）；标签
- * 不再受两字限制，图标负责在窄栏里一眼认出，文字负责说清。
+ * `icon` is icons.js that set （， that ）；
+ * not limit， in 1 ，。
  *
- * 「更新」（原「关于」）**id 保持 `about` 不变**：它同时是 update-panel.tsx 的挂载点
- * 选择器（`.settings-pane[data-cat="about"]`）与用户 localStorage 里存着的分类值，
- * 改名会让两者当场失配 —— 用户看到的只是标签，id 是内部契约。
+ * 「update」（「」）**id `about` not **： when is update-panel.tsx 
+ * （`.settings-pane[data-cat="about"]`） and use localStorage ，
+ * will —— use to is ，id is 。
  */
 export const CATEGORIES = [
   { id: 'account', label: t('账户'), icon: 'accounts' },
   { id: 'general', label: t('通用'), icon: 'sliders' },
-  // 注：AI 助手的配置（对话模型 / 系统提示词 / 工具勾选）已搬到助手页自己的
-  // 「助手设置」抽屉（见 assistant-settings-drawer.tsx）—— 那几项都是聊着聊着
-  // 就想改的，留在这里意味着每次调整都要离开对话页再回来。分类不再保留，
-  // 老用户 localStorage 里存着的 'assistant' 由 settings-state 的兜底回落到首项。
+  // ：AI config（ for / / ） already to 
+  // 「set」（ assistant-settings-drawer.tsx）—— that is 
+  // ， in this need for 。 not ，
+  // use localStorage 'assistant' by settings-state to 。
   { id: 'display', label: t('显示'), icon: 'display' },
   { id: 'gateway', label: t('网关'), icon: 'traffic' },
   { id: 'retry', label: t('重试'), icon: 'refresh' },
@@ -513,56 +513,56 @@ export const CATEGORIES = [
   { id: 'security', label: t('安全'), icon: 'shield' },
   { id: 'data', label: t('数据'), icon: 'database' },
   { id: 'feedback', label: t('反馈与需求'), icon: 'feedback' },
-  // 「版本信息」：软件版本 / 运行环境 / 路径 / 开关状态 / 关键计数，可一键
-  // 复制成纯文本（面板在 system-info-pane.tsx）。紧挨「反馈与需求」—— 两者
-  // 是同一件事的两端：出问题了先来这儿截图，再去那儿提 issue。
-  // `system` 是新的内部 id，不与任何既有分类 / localStorage 取值冲突。
+  // 「」： / / path / / ， can 1 
+  // （ in system-info-pane.tsx）。「 and need 」—— 
+  // is 1 ： this ， that issue。
+  // `system` is new id， not and has / localStorage 。
   { id: 'system', label: t('版本信息'), icon: 'info' },
   { id: 'about', label: t('更新'), icon: 'download' },
 ] as const
 
 /**
- * 「设置页当前分类」的 localStorage 键：纯前端偏好（与主题、计量单位同类），
- * 主进程不参与。键名沿用旧实现的取值，别改 —— 否则用户上次停留的分类会丢。
+ * 「setcurrent」 localStorage ： before （ and 、），
+ * not and 。 use old ， —— otherwise use up will 。
  */
 export const SETTINGS_CAT_KEY = 'workbuddy-desktop-settings-cat'
 
-/* ─── 显示偏好（「显示」分类） ───────────────── */
+/* ─── （「」） ───────────────── */
 
 /**
- * 「显示」分类的三项偏好：显示模式 / 界面缩放 / 语言。
+ * 「」 ： / / 。
  *
- * ⚠ 前两项的**应用入口都不在本页**，而在 ui/app.js（applyTheme / applyZoom）：
- *   · 主题还要同步操作系统标题栏的深浅色，并处理「跟随系统」时窗口主题会污染
- *     WebView 颜色偏好的问题（那段长注释在 app.js）；
- *   · 缩放要走 WebView 层（壳命令 set_zoom），不是页面自己能做完的事。
- * 本页只做两件事：**读** localStorage 把控件摆到当前值上；改动时调
- * `wbApp.applyTheme / applyZoom`，再靠 'wb:theme' / 'wb:zoom' 事件跟随 ——
- * 侧边栏的主题三键与这里的档位是同一个设置的两个入口，必须互相同步。
+ * ⚠ before ** use not in **， in ui/app.js（applyTheme / applyZoom）：
+ * · need ， and 「」 when will 
+ * WebView （ that in app.js）；
+ * · need WebView （ set_zoom）， not is can 。
+ * ：**** localStorage to current up ； when 
+ * `wbApp.applyTheme / applyZoom`， 'wb:theme' / 'wb:zoom' ——
+ * and this is 1 set ，must。
  *
- * 键名与 app.js 里的字面量是同一份契约（两侧各写一份，改一处必然漂）；
- * 事件名同理（app.js 派发，本页监听）。
+ * and app.js is 1 （ 1 ， 1 ）；
+ * （app.js ，）。
  */
 export const THEME_KEY = 'workbuddy-desktop-theme'
 export const ZOOM_KEY = 'workbuddy-desktop-zoom'
 export const THEME_EVENT = 'wb:theme'
 export const ZOOM_EVENT = 'wb:zoom'
 
-/** 缩放档位边界与步长：与 app.js 的 ZOOM_MIN / ZOOM_MAX / ZOOM_STEP 同源 */
+/** and ： and app.js ZOOM_MIN / ZOOM_MAX / ZOOM_STEP */
 export const ZOOM_MIN = 80
 export const ZOOM_MAX = 130
 export const ZOOM_STEP = 5
 
-/** 缩放候选项（80% ~ 130%，5% 一档共 11 档）：下拉的 value 就是百分数本身 */
+/** （80% ~ 130%，5% 1 11 ）： down value is */
 export const ZOOM_PERCENTS: number[] = Array.from(
   { length: (ZOOM_MAX - ZOOM_MIN) / ZOOM_STEP + 1 },
   (_, index) => ZOOM_MIN + index * ZOOM_STEP,
 )
 
 /**
- * 显示模式三档：value 与 app.js / `data-theme` 的取值逐字一致（system / light / dark）。
- * 文案取侧边栏那三个按钮的 title（跟随设备 → 跟随系统，是同一件事的两种叫法，
- * 这里用了更书面的一种）。
+ * ：value and app.js / `data-theme` 1 （system / light / dark）。
+ * that by title（ → ， is 1 ，
+ * this use 1 ）。
  */
 export const THEME_MODES = [
   { value: 'system', label: t('跟随系统') },
@@ -570,16 +570,16 @@ export const THEME_MODES = [
   { value: 'dark', label: t('深色') },
 ] as const
 
-/** 显示模式取值（SegmentedControl 的泛型参数要用它，免得在视图里转字面量联合） */
+/** （SegmentedControl parameter need use ， in ） */
 export type ThemeMode = (typeof THEME_MODES)[number]['value']
 
 /**
- * 语言选项已迁到运行时：界面语言的可选列表由 ui/i18n.js 暴露的 `wbI18n.LOCALES`
- * 提供（label 是各语言自己的写法），持久化键 workbuddy-desktop-locale。
- * 这里不再维护 LANGUAGES —— 两份列表放两处必然漂，语言这件事只有 ui/i18n.js 一个出处。
+ * already to when ： optional by ui/i18n.js `wbI18n.LOCALES`
+ * （label is ）， workbuddy-desktop-locale。
+ * this not LANGUAGES —— ， this has ui/i18n.js 1 。
  */
 
-/** 读当前显示模式（app.js 是写入方）：读到非法值按跟随系统 */
+/** current（app.js is ）： to by */
 export function readThemeMode(): ThemeMode {
   try {
     const mode = localStorage.getItem(THEME_KEY)
@@ -589,12 +589,12 @@ export function readThemeMode(): ThemeMode {
   }
 }
 
-/** 读当前缩放（百分数）：非法 / 越界值回落 100，与 app.js 的 storedZoom 同一口径 */
+/** current（）： / 100， and app.js storedZoom 1 */
 export function readZoomPercent(): number {
   try {
     const text = localStorage.getItem(ZOOM_KEY)
-    // 空串 / 缺失要单独挡：Number('') 与 Number(null) 都是 0（不是 NaN），
-    // 不挡就会被当成「0%」一路夹到 80% —— 「没设过」必须等于默认的 100%
+    // empty / need ：Number('') and Number(null) is 0（ not is NaN），
+    // not will 「0%」 1 to 80% —— 「 no 」must etc default 100%
     if (text === null || text.trim() === '') return 100
     const raw = Number(text)
     if (!Number.isFinite(raw)) return 100
@@ -605,28 +605,28 @@ export function readZoomPercent(): number {
   }
 }
 
-/* ─── 数字字段表 ───────────────────────────── */
+/* ─── ───────────────────────────── */
 
 export type NumberField = {
-  /** 后端 config 的 JSON 键（大小写必须逐字一致，否则 PUT 被静默忽略） */
+  /** after config JSON （must 1 ，otherwise PUT ignore） */
   key: string
-  /** 控件 id：保留旧 id 便于排查（没有任何外部脚本再按 id 读这些控件） */
+  /** id： old id （ no has by id this ） */
   id: string
   label: string
-  /** 输入框右侧的单位 */
+  /** */
   unit: string
   min: number
   max: number
-  /** 行下方的说明（逐字来自 index.html 静态骨架） */
+  /** down （ index.html ） */
   hint: string
 }
 
 export { RETENTION_FIELDS, RETENTION_MIN, RETENTION_MAX } from './settings-retention-model'
 
 /**
- * 三项重试字段。第二项的键名 `retryCrossProviderCount` 是**旧措辞**（配置兼容，
- * 改名会让老配置读不到、静默回落默认值），后端常量已经改叫 KEY_RETRY_ACCOUNT_SWITCH_COUNT
- * —— 这里必须沿用旧字符串，只有展示名跟着真语义走。
+ * 。 `retryCrossProviderCount` is ** old **（config，
+ * will config not to 、default）， after already KEY_RETRY_ACCOUNT_SWITCH_COUNT
+ * —— this must use old ， has 。
  */
 export const RETRY_FIELDS: NumberField[] = [
   {
@@ -658,7 +658,7 @@ export const RETRY_FIELDS: NumberField[] = [
   },
 ]
 
-/** 超时字段：键名与 config.rs 的 KEY_TIMEOUT_* 指向的 JSON 键逐字一致 */
+/** when ： and config.rs KEY_TIMEOUT_* to JSON 1 */
 export const TIMEOUT_FIELDS: NumberField[] = [
   {
     key: 'connectTimeoutSeconds',
@@ -698,7 +698,7 @@ export const TIMEOUT_FIELDS: NumberField[] = [
   },
 ]
 
-/** 排队等待字段：键名与 config.rs 的 KEY_QUEUE_* 指向的 JSON 键逐字一致 */
+/** etc ： and config.rs KEY_QUEUE_* to JSON 1 */
 export const QUEUE_FIELDS: NumberField[] = [
   {
     key: 'queueMaxWaits',
@@ -720,14 +720,14 @@ export const QUEUE_FIELDS: NumberField[] = [
   },
 ]
 
-/** 会话图片压缩的开关键名（与后端 KEY_IMAGE_COMPRESS_ENABLED 逐字一致） */
+/** will （ and after KEY_IMAGE_COMPRESS_ENABLED 1 ） */
 export const IMAGE_COMPRESS_ENABLED_KEY = 'imageCompressEnabled'
 
 /**
- * 图片压缩参数：键名与后端 config.rs 的 KEY_IMAGE_COMPRESS_* 指向的 JSON 键逐字一致。
+ * parameter： and after config.rs KEY_IMAGE_COMPRESS_* to JSON 1 。
  *
- * 三项默认值（长边 2048 / 质量 80 / 阈值 512KB）与 OmniProxy 的默认值一致；
- * 它们只在本面板的输入框里作提示，真正的默认值以后端解析层为准。
+ * default（ 2048 / 80 / 512KB） and OmniProxy default 1 ；
+ * in ， default after as 。
  */
 export const IMAGE_COMPRESS_FIELDS: NumberField[] = [
   {
@@ -759,13 +759,13 @@ export const IMAGE_COMPRESS_FIELDS: NumberField[] = [
   },
 ]
 
-/** 「指定错误码直接换号」：键名、状态码范围与名单上限与后端 retry_api.rs 逐字同源 */
+/** 「error」：、 and limit and after retry_api.rs */
 export const NO_RETRY_CODES_KEY = 'noRetryStatusCodes'
 export const RETRY_CODE_MIN = 100
 export const RETRY_CODE_MAX = 599
 export const RETRY_MAX_CODES = 50
 
-/** 提示词模式：下拉的展示文案（含「（默认）」）与 toast 里用的短名分开 —— 旧实现是两份表 */
+/** ： down （「（default）」） and toast use —— old is */
 export type PromptModeOption = { value: string; optionLabel: string; toastLabel: string }
 
 export const PROMPT_MODES: PromptModeOption[] = [
@@ -774,19 +774,19 @@ export const PROMPT_MODES: PromptModeOption[] = [
   { value: 'append', optionLabel: t('追加网关提示词'), toastLabel: t('追加网关提示词') },
 ]
 
-/* ─── 校验与归一化 ─────────────────────────── */
+/* ─── and 1 ─────────────────────────── */
 
 export type ParseResult = { ok: true; value: number } | { ok: false; message: string }
 
 /**
- * 前端校验：min–max 的整数（后端也会挡，这里先挡省一次往返，且提示更短）。
- * 用 /^\d+$/ 而不是 Number() + Number.isInteger()：后者会把 "1e2" 认成 100、
- * "0x10" 认成 16，这些都不是「用户填了几天 / 几次」的直觉答案，不如直接判非法。
- * `noun` 是提示语的主语：保留期用「天数」，其余面板用自己的标签。
+ * before ：min–max （ after will ， this 1 ， and ）。
+ * use /^\d+$/ not is Number() + Number.isInteger()： after will "1e2" 100、
+ * "0x10" 16， this not is 「 use / 」 ， not 。
+ * `noun` is ： use 「」， its use 。
  */
 export function parseInteger(raw: unknown, min: number, max: number, noun: string): ParseResult {
   const text = String(raw ?? '').trim()
-  // 空串要单独挡：空值过不了下面的正则，但提示语不同（「不能为空」比「必须是整数」更准）
+  // empty need ：empty not down then ， not （「 not can as empty」「must is 」）
   if (!text) return { ok: false, message: t('{noun}不能为空（可填 {min}–{max}）', { noun, min, max }) }
   if (!/^\d+$/.test(text)) return { ok: false, message: t('{noun}必须是整数', { noun }) }
   const value = Number(text)
@@ -797,8 +797,8 @@ export function parseInteger(raw: unknown, min: number, max: number, noun: strin
 }
 
 /**
- * 保存返回值归一化：后端按契约应回传完整设置，但只认它是布尔才采纳，
- * 缺字段时沿用本次提交的值，避免把开关误渲染成「关闭」。
+ * return 1 ： after by set， is ，
+ * when use ， 「」。
  */
 export function normalizeApp(saved: unknown, fallback: AppSettings): AppSettings {
   const result: AppSettings = { ...fallback }
@@ -814,10 +814,10 @@ export function normalizeApp(saved: unknown, fallback: AppSettings): AppSettings
 }
 
 /**
- * 数字面板的响应归一化（保留期 / 重试 / 超时共用同一口径）：
- * 只采纳「范围内的整数」，缺字段 / null / 字符串一概沿用上一轮的有效值 ——
- * 不把线上没给的项清空，也不写 "undefined" 进输入框。
- * 返回 null 表示整块不可用（响应形状不对，或三项都拿不到有效值）。
+ * response 1 （ / / when use 1 ）：
+ * 「 」， / null / 1 use up 1 valid ——
+ * not up no to empty， not "undefined" 。
+ * return null unavailable（response not for ， or not to valid）。
  */
 export function normalizeNumbers(
   fields: NumberField[],
@@ -833,15 +833,15 @@ export function normalizeNumbers(
       next[field.key] = value
     }
   }
-  // 一项有效值都拿不到（换壳后接口形状变了之类）：按不可用处理，
-  // 不让一排空输入框留在页面上
+  // 1 valid not to （ after ）： by unavailable，
+  // not 1 empty in up 
   if (!fields.some(field => Number.isInteger(next[field.key]))) return null
   return next
 }
 
-/* ─── 读数格式化（数据存储面板） ─────────────── */
+/* ─── （） ─────────────── */
 
-/** 字节数 → 可读大小（库主文件通常几百 KB 到几十 MB，四档够用） */
+/** → can （file KB to MB， use ） */
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
   if (bytes < 1024) return `${bytes} B`
@@ -852,16 +852,16 @@ export function formatBytes(bytes: number): string {
   return `${(mb / 1024).toFixed(2)} GB`
 }
 
-/** 条数 → 带千分位的文本（用户对着看更省事）；非法值给「—」 */
+/** → （ use for ）； to 「—」 */
 export function formatCount(value: unknown): string {
   const count = Number(value)
   if (!Number.isFinite(count) || count < 0) return '—'
   return count.toLocaleString('zh-CN')
 }
 
-/* ─── 页面文案（逐字来自 index.html 静态骨架） ─── */
+/* ─── （ index.html ） ─── */
 
-/** 标题右侧问号（`[data-tip]`）的说明全文：desktop-tooltip.tsx 仍在页面上跑，照旧服务这些元素 */
+/** （`[data-tip]`） ：desktop-tooltip.tsx in up ， old this */
 export const TIPS = {
   displayTheme: t('控制界面的深浅色，与左侧边栏底部的三个主题按钮是同一个设置（改哪一处，另一处立刻跟上）。「跟随系统」会随操作系统当前的浅色 / 深色自动切换，并在系统主题变化时即时跟上；选「浅色」或「深色」则把界面固定在该模式，不再随系统变化。窗口标题栏的深浅色会一并同步，不会出现深色界面配一条浅色标题栏的情况。'),
   displayZoom: t('等比放大或缩小整个界面（文字、控件、间距一起变），效果与浏览器按 Ctrl +/- 相同：80%–130%、5% 一档。窗口本身不缩放，变的是页面内容的显示比例，设置立即生效并记住，下次启动直接按这个比例打开。放得越大可视范围越小，窗口较窄或表格较宽时不建议调得太大。'),
@@ -881,18 +881,18 @@ export const TIPS = {
   developerRoleCompat: t('OpenAI 新版 API 用 developer 角色取代 system 承载指令，新版 OpenAI SDK 与部分客户端发的对话里会出现 role 为 developer 的消息；不少 OpenAI 兼容上游（尤其是自定义提供商的透传路径）不认识这个角色，收到就报 400。开启本项后，网关在每次转发前把 developer 角色的消息改写为 system —— 两类角色在 OpenAI 语义上等价（OpenAI 自己的迁移指南也是这么映射的），改写不影响对话内容与语义；对本来就只认 system 的各家内置上游同样无害。默认开启；关掉后 developer 消息会原样发往上游，不认识它的上游会报「角色不存在」一类的错误。'),
   imageCompress: t('对话里内嵌的 base64 大图（截图、照片）既撑大请求体，也拉高按像素折算的上游计费。开启后，网关在转发前把超过阈值的图等比缩到长边上限、重新存成 JPEG —— 只改发给上游的副本，请求日志里保存的仍是你发来的原图。同一张原图在多轮对话里重复出现时复用上一次的压缩结果，不会每轮重算。http 链接图片、GIF 动图、SVG 一律不动；压完反而更大的图也保留原图。只作用在对话场景，生图与图片编辑不受影响。默认开启；不想要的话把开关关掉即可。'),
   clineHeaders: t('Cline 上游按请求头判定「调用方是不是 Cline 自家产品」：X-CLIENT-TYPE: cline-sdk 是硬门槛（缺了它免费池模型一律 403），版本号与平台标识让请求更贴近官方客户端的形态。这里列出的是网关默认会发的头：改某一行的值 = 覆盖默认值（也可以新增默认清单之外的自定义头）；把值清空保存 = 这个头不发送；在界面删掉被改过的行 = 回落默认值。改完点「保存」，下一个 Cline 请求立即生效。不懂某一行的含义就不要动它 —— 伪装头的价值在「与官方客户端逐字一致」。'),
-  cors: t('网关面（/v1/*）默认不应答浏览器跨源请求：页面直连会被预检拦下，只报「无法连接 API」。注意来源是 * —— 未配「网关 Key」时任何网页都能借本机网关打上游，故默认关闭；只给自己用的话，让页面与网关同源（本地反代 /v1）更稳妥。面板接口（/api/*）不受影响。'),
-  zcodeVersion: t('ZCode 的活动套餐（限时体验礼包）由上游按**客户端版本号**决定下不下发：探测接口只在版本号达到当期门槛时才返回套餐列表，版本落后时回一份空列表（不是报错，所以界面上看起来像「没有活动」）。2026-10 那期实测：3.16.0 及以下全空，3.16.1 起才有礼包。插件内置的默认值会随活动更新，但上游每期可能再抬高一档 —— 那时如果官方客户端里能看到活动、这里却探测为空，就在这里填官方客户端当前的版本号（形如 3.16.2）。环境变量 ZCODE_APP_VERSION 优先级更高。'),
-  prompt: t('客户端（Claude Code / Codex 等 CLI）会在 system 提示词里注入几十句固定模板，上游按逐字匹配审核，命中就整单拦截（HTTP 400）。指纹脱敏能改写实测命中过的那几句，但换一个客户端版本就可能冒出新的。这里可以把 system 整段换成网关自己那份：①「透传」= 不动客户端 system（默认，行为与之前完全一致）；②「替换」= 删掉客户端所有 system / developer 消息，换成网关的提示词（客户端项目规范随之消失）；③「追加」= 在开头连续 system 块之后插入一条网关提示词，既有消息逐字不动（客户端规范与网关提示词并用）。那份提示词有两个来源：提示词文件（留空用内置默认），或直接在界面上编辑正文 —— 编辑过就以那份正文为准（优先于文件），清空则回到文件 / 内置默认。另外，透传 / 追加模式下撞了内容拦截（多半是指纹误报）时，网关会自动换一段最小中性提示词重试一次，并把「降级期」开到次日 00:00 —— 期间所有请求直接带中性提示词出门，不再先撞一次 400；这里能看见并提前解除它。上面几项是**默认值**：想给某个提供商单独配，用下面的「按提供商」加一行（带「网关自带」的家默认就列在那里）—— 不同的上游对这些内容的接受程度不一样。'),
-  debug: t('开启后，网关会把每次转发**发给上游的请求**（请求头 + 请求体）与**上游返回的响应**（状态码 + 响应头 + 响应体）完整保存到本地，供请求日志页的「详情」查看。请求头里的 Authorization、Cookie、API Key 等凭据字段一律替换成 [redacted]，不会明文落盘；请求体与响应体按原样保存（可能包含你的对话内容）。报文只保留最近 500 条，超出后丢弃最旧的。这是排障用的临时开关，不需要时建议关闭。'),
-  io: t('导出会把全部账号与自定义提供商定义写入一个 JSON 文件，可以拷到另一台机器上导入后继续使用。导入采用合并策略：同提供商下按业务身份（UID / userId / apiKey 等）去重 —— 已存在的账号只更新凭证，保留本机原有的优先级顺序；新账号追加到转发顺序末尾，不会抢占当前正在使用的账号；自定义提供商定义按 id 合并，本机缺失时自动补建。'),
-  backup: t('将数据库和恢复凭证所需的密钥一起保存为密码加密的 .a2ab 备份，可在 Windows、macOS 或 Linux 上恢复，无需手工复制密钥。恢复时整体替换账号、配置、日志与桌面设置，并使用目标机器的密钥重新加密凭证，不覆盖本机已有钥匙。可取消包含日志以减小文件；旧 .sql 备份仍可导入。恢复前自动保留安全备份，完成后需要重新登录管理面板。'),
-  retention: t('日志与请求日志同时受保留天数和数量上限限制。日志默认 30 天、10000 条，各级别按比例保留；调试详情最多保留 3 天。请求日志默认 99999 天、1000000 条（100 万），超出后从最旧的记录开始清理，并同步删除对应原始正文。按天聚合默认 99999 天，只按天数保留，不受请求日志数量清理影响。天数可填 1–99999，数量可填 1–100000000。调小任一设置并确认后立即清理，且不可恢复。'),
-  storage: t('全部数据（账号、事件日志、请求记录、调试报文、设置）统一保存在配置目录下的 agent2api.db 中，加密密钥单独保存在库外。跨机器备份请使用「整库备份 / 恢复」，不要只复制数据库。更换保存位置请设置环境变量 AGENT2API_PROXY_HOME 后重启程序。'),
-  modelsDev: t('models.dev 是一个开源的模型资料库（社区维护），这里用它补齐「上游没告诉我们」的模型能力：上下文窗口、最大输出、工具调用、图片、视频、是否支持思考，以及这个模型认识哪些思考档位。优先级是：你在「模型能力」里手工改的值 > 上游清单自己声明的值 > models.dev 的值 —— 它只填上游没声明的空位，从不推翻上游已声明的。网关随包内嵌了一份快照，所以离线、首次启动、访问不通时也有数据；开启时会按「模型目录刷新」任务的间隔联网更新（同一轮里一并刷新，也可在这里立即刷新）。关闭只停联网刷新，已经拿到的数据继续用。'),
+  cors: t('网关面（/v1/*）default not request： will down ，「none API」。Note is * —— 「 Key」 when can up ，default； to use ， and （ /v1）。（/api/*） not 。'),
+  zcodeVersion: t('ZCode （ when ） by up by **client** down not down ： in to when return， after when 1 empty（ not is ， up 「 no has 」）。2026-10 that ：3.16.0 and down empty，3.16.1 has 。 default will update， up can can 1 —— that when ifclient can to 、 this as empty， in this clientcurrent （ 3.16.2）。 ZCODE_APP_VERSION 。'),
+  prompt: t('client（Claude Code / Codex etc CLI） will in system ， up by ， in （HTTP 400）。 can in that ， 1 client can can new 。 this can system that ：①「」= not client system（default， as and before 1 ）；②「」= clientall system / developer ， （client）；③「」= in system after 1 ， has not （client and and use ）。 that has ：file（empty use default）， or in up —— that as （file），empty then to file / default。， / down （ is ） when ， will 1 in 1 ， and 「」 to 00:00 —— allrequest in ， not 1 400； this can and before 。 up is **default**： to ， use down 「 by 」 1 （「」 default in that ）—— not up for this not 1 。'),
+  debug: t(' after ， will ** to up request**（request + request） and ** up return response**（ + response + response） to ，request 「」。request Authorization、Cookie、API Key etc 1 [redacted]， not will ；request and response by （ can can for ）。 500 ， after old 。 this is use when ， not need need when 。'),
+  io: t(' will and 1 JSON file， can to 1 up after use 。 use and ： down by （UID / userId / apiKey etc ） —— already in update， has ； new to ， not will current in use ； by id and ， when 。'),
+  backup: t(' will and need 1 as .a2ab ， can in Windows、macOS or Linux up ，none need 。 when 、config、 and set， and use new ， not already has 。 can file； old .sql can 。 before ， after need need new 。'),
+  retention: t(' and request when and limitlimit。default 30 、10000 ， by ； 3 。requestdefault 99999 、1000000 （100 ）， after from old ， and delete for 。 by default 99999 ， by ， not request。 can 1–99999， can 1–100000000。 1 set and after ， and not can 。'),
+  storage: t('（、、request、、set） 1 in configdirectory down agent2api.db in ， in 。 use 「 / 」， not need 。set AGENT2API_PROXY_HOME after 。'),
+  modelsDev: t('models.dev is 1 （）， this use 「 up no 」 can ： up down 、、 use 、、、 is supports， and this 。 is ： in 「 can 」 > up > models.dev —— up no empty， from not up already 。 1 ，、、 not when has ； when will by 「directory new 」 update（ 1 1 and new ， can in this new ）。 new ， already to use 。'),
 } as const
 
-/** 面板底注（`.hint.retention-note`）与各面板内的说明行 */
+/** （`.hint.retention-note`） and */
 export const NOTES = {
   timeouts: t('保存后立即生效，不用重启；超时按上游失败处理（计入请求日志的「错误」列，并按「请求重试」的设置决定是否重试）。'),
   queue: t('等待期间请求日志的状态列会显示「排队中」阶段，详情弹窗的「内部重试」里能逐次看到等待时长；等待用尽后返回 HTTP 503（不是 401/429：既不会刷新凭证，也不会把账号标成限额）。'),
@@ -924,7 +924,7 @@ export const NOTES = {
   backupDanger: t('备份包含账号凭证、网关 Key、GitHub 令牌与云同步凭据的恢复密钥，整个文件受备份密码保护。请分开保管文件与密码；忘记密码无法恢复。'),
 } as const
 
-/** 状态行（`.settings-state`）的派生文案：与旧实现的赋值逐字一致 */
+/** （`.settings-state`） ： and old 1 */
 export const STATES = {
   appLoading: '—',
   appUnavailable: t('主进程未返回启动设置，请更新桌面端后重试'),
@@ -945,16 +945,16 @@ export const STATES = {
   roleCompatOff: t('未开启，developer 角色消息会原样发往上游，不认识该角色的上游会报错（400）。'),
   corsUnavailable: t('未能读取网关跨域访问设置，请稍后重试'),
   corsOn: t('正在应答跨源请求：浏览器跨域请求可直连 /v1/*。'),
-  corsOff: t('未开启，浏览器跨域无法直连网关。'),
-  modelsDevUnavailable: t('未能读取 models.dev 元数据状态，请稍后重试'),
-  /** 数据来历：内嵌快照（发版时那份）/ 上次刷新结果 / 刚拉的 */
+  corsOff: t('，none。'),
+  modelsDevUnavailable: t(' can models.dev ， after '),
+  /** ：（ when that ）/ up new / */
   modelsDevSourceBuiltin: t('随包内嵌的快照（发版时的那份）'),
   modelsDevSourceCache: t('上次成功刷新的结果（存在本机数据库里）'),
   modelsDevSourceNetwork: t('刚刚从 models.dev 拉到的最新数据'),
   modelsDevEmpty: t('还没有装载任何数据。'),
   promptUnavailable: t('未能读取系统提示词设置，请稍后重试'),
   degradeUntilFallback: t('次日 00:00'),
-  // ── 显示分类（本次新增：不来自静态骨架，是新写的文案）──
+  // ── （add： not ， is new ）──
   themeSystem: t('当前跟随操作系统的深浅色设置，系统切换时界面会自动跟上。'),
   themeLight: t('当前固定为浅色模式，不随系统变化。'),
   themeDark: t('当前固定为深色模式，不随系统变化。'),
@@ -965,10 +965,10 @@ export const STATES = {
   groupTotalFilteredOff: t('合计按整组统计（默认）：不受筛选、搜索影响，被筛掉与已禁用的账号也计入。'),
 } as const
 
-// ── 以下成员从 HEAD 恢复 ──────────────────────────────
-// settings-state.ts（上一版拆分前的整体状态层）仍 import 它们；并行改动
-// 移走了定义但没改 import，构建因此断在这里。恢复定义而不是动那份 import，
-// 等那边的迁移完成后可整体搬走。
+// ── down from HEAD ──────────────────────────────
+// settings-state.ts（ up 1 before ） import ； and 
+// no import， in this 。 not is that import，
+// etc that after can 。
 
 export const ROUTE_STRATEGIES = [
   {
@@ -988,7 +988,7 @@ export const ROUTE_STRATEGIES = [
   },
 ] as const
 
-/** 会话粘性档位：同一会话的后续请求是否尽量跟住同一个账号（会话 = 模型 + 首条用户消息） */
+/** will ： 1 will after request is 1 （ will = + use ） */
 
 export const ROUTE_STICKY_OPTIONS = [
   {
@@ -1013,15 +1013,15 @@ export const ROUTE_STICKY_OPTIONS = [
   },
 ] as const
 
-/** 路由档位的取值（SegmentedControl 的泛型参数用它，视图里不必再写字面量联合） */
+/** by （SegmentedControl parameter use ， not ） */
 export type RouteStrategyValue = (typeof ROUTE_STRATEGIES)[number]['value']
 export type RouteStickyValue = (typeof ROUTE_STICKY_OPTIONS)[number]['value']
 
 /**
- * 「路由」分类的三个自愈开关（后端 `/api/routing` 的布尔字段）。
+ * 「 by 」 （ after `/api/routing` ）。
  *
- * `key` 是后端字段名（PUT 的键），`defaultOn` 只用于界面提示「当前是默认值吗」，
- * 真正的兜底在后端。
+ * `key` is after （PUT ），`defaultOn` used for「current is default」，
+ * in after 。
  */
 export const ROUTE_PROTECTION_SWITCHES = [
   {
@@ -1076,17 +1076,17 @@ export const CAPTCHA_POOL_FIELDS: NumberField[] = [
   },
 ]
 
-/** 「指定错误码直接换号」：键名、状态码范围与名单上限与后端 retry_api.rs 逐字同源 */
+/** 「error」：、 and limit and after retry_api.rs */
 
 export type ModelsDevState = {
-  /** 联网刷新开关（关闭后已装载的数据继续用，见后端 `KEY_MODELS_DEV_ENABLED`） */
+  /** new （ after already use ， after `KEY_MODELS_DEV_ENABLED`） */
   modelsDevEnabled?: boolean
-  /** 这份索引的来历：`builtin`（内嵌快照）/ `cache`（上次刷新结果）/ `network`（刚拉的） */
+  /** this ：`builtin`（）/ `cache`（ up new ）/ `network`（ ） */
   source?: string
-  /** 这份数据的生成时刻（毫秒；0 = 未知） */
+  /** this when （ms；0 = unknown） */
   updatedAt?: number
-  /** 收录的模型条数 */
+  /** */
   count?: number
 }
 
-/** 立即刷新的一行结果（字段与各家目录刷新的结果行同形，见后端 `api::model_meta`）。 */
+/** new 1 （ and directory new ， after `api::model_meta`）。 */

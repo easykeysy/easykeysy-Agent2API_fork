@@ -1,33 +1,33 @@
 /**
- * Agent2API · 设置页的**状态与流程层**（快照 store / 取数 / 写入 / 对外契约）。
+ * Agent2API · set ** and **（ store / / / for ）。
  *
- * 从 settings-page.tsx 拆出来：视图层装完「五个分类 + 十来个面板 + 一个确认框」已超过项目
- * 约定的单文件体量，而这一层的边界很清楚 —— 没有 JSX。依赖单向（视图层 import 它，
- * 它只认识 settings-model.ts）。
+ * from settings-page.tsx ：「 + + 1 」 already 
+ * file， this 1 —— no has JSX。 to （ import ，
+ * settings-model.ts）。
  *
- * 它不是岛：文件名是 .ts，不会被 src/index.tsx 的 `islands/*.tsx` glob 加载；设置页的岛只有
- * settings-page.tsx 一个（页面级说明见它的文件头）。
+ * not is ：file is .ts， not will src/index.tsx `islands/*.tsx` glob ；set has 
+ * settings-page.tsx 1 （ file）。
  *
- * ── 状态放模块级快照 + useSyncExternalStore（照 update-panel / models-panel-state）──
- * 对外契约方法（load / renderXxx / showCategory）从 React 之外调用，且必须与界面共用同一份
- * 状态；组件内部的 useState 做不到这一点。所以状态是一份模块级快照，改动一律走 publish()
- * （换新对象再通知订阅者）。
+ * ── + useSyncExternalStore（ update-panel / models-panel-state）──
+ * for （load / renderXxx / showCategory） from React use ， and must and use 1 
+ * ； useState not to this 1 。 is 1 ， 1 publish()
+ * （ new for ）。
  *
- * ── 每个「后端说了算」的块都是三态（LoadStatus）────────────────
- * loading / ready / unavailable —— 首屏徽章是「检测中…」而不是「不可用」，这两件事在旧实现里
- * 也是分开的（静态 HTML 写「检测中…」，读到坏数据才换「不可用」）。available 另有一层含义：
- * 数据存储面板的「数据库不可用」是**读到了但库打不开**，与「读不到」不是一回事。
+ * ── 「 after 」 is （LoadStatus）────────────────
+ * loading / ready / unavailable —— is 「 in …」 not is 「unavailable」， this in old 
+ * is （ HTML 「 in …」， to 「unavailable」）。available has 1 ：
+ * 「unavailable」 is ** to not **， and 「 not to 」 not is 1 。
  *
- * ── 两处与旧实现刻意不同的地方（都写在各函数旁边）────────────
- *   · 忙碌只按归属禁用（快照的 busy 是 'retention' / 'retry' 这样的记号），旧实现是各面板自己
- *     置 DOM disabled —— 界面等价，状态却只有一处；
- *   · 未提交的编辑留在各自控件里（视图层的草稿），流程只读写快照里的「生效值」，不再像旧实现
- *     那样从 DOM 读回正在编辑的数字。
+ * ── and old not （ in ）────────────
+ * · by use （ busy is 'retention' / 'retry' this ）， old is 
+ * DOM disabled —— etc ， has 1 ；
+ * · in （ ）， 「」， not old 
+ * that from DOM in 。
  *
- * ── 数据来源（与旧实现逐条对应，一条都不能少）────────────────
- *   壳命令：getAppSettings / saveAppSettings（启动与托盘）、exportAccounts / importAccounts；
- *   HTTP 桥：retention / retry / timeouts / debug / sanitize / prompt / storage / captcha。
- *   全部经 window.workbuddyDesktop，本文件不自己拼 URL。
+ * ── （ and old for ， 1 not can ）────────────────
+ * ：getAppSettings / saveAppSettings（ and ）、exportAccounts / importAccounts；
+ * HTTP ：retention / retry / timeouts / debug / sanitize / prompt / storage / captcha。
+ * window.workbuddyDesktop，file not URL。
  */
 
 import * as React from 'react'
@@ -69,14 +69,14 @@ import {
 import { t } from '../i18n'
 import { retentionSavedMessage, retentionShrinkHead, type RetentionField } from './settings-retention-model'
 
-/* ─── 快照类型 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
-/** 三态：首屏「检测中…」、读到、读不到（三者对应的界面与旧实现逐一对齐） */
+/** ：「 in …」、 to 、 not to （ for and old 1 for ） */
 export type LoadStatus = 'loading' | 'ready' | 'unavailable'
 
 /**
- * 忙碌归属：决定这一次操作期间哪些控件禁用（旧实现是各面板自己置 disabled，
- * 这里收成一处状态）。null = 空闲。
+ * ： this 1 use （ old is disabled，
+ * this 1 ）。null = empty。
  */
 export type BusyScope =
   | 'app'
@@ -106,65 +106,65 @@ export type BusyScope =
   | null
 
 /**
- * 启动与托盘。unavailable 时开关**仍可拨**（照旧实现：拨了直接发全量 patch，
- * 保存成功即回到 ready），只把徽章与状态行换成提示。
+ * and 。unavailable when ** can **（ old ： patch，
+ * success to ready）， and 。
  *
- * 局域网访问的字段随同一份设置读写；`lanIp` / `port` / `adminRegistered` 是
- * 展示与流程用的**旁路信息**，各自独立查询、各自失败各自保持旧值（都是
- * 「锦上添花」的读数，查询失败不该拖垮设置本身）。
+ * 1 set；`lanIp` / `port` / `adminRegistered` is 
+ * and use ****，、failure old （ is 
+ * 「 up 」 ，failure not this set）。
  */
 export type AppState = {
   status: LoadStatus
   closeToTray: boolean
   autostart: boolean
-  /** 局域网访问：监听 0.0.0.0（改动随「应用重启」生效） */
+  /** ： 0.0.0.0（「 use 」） */
   lanAccess: boolean
-  /** 局域网访问开启时是否同时托管网页管理面板 */
+  /** when is when */
   lanPanel: boolean
-  /** 轻量模式：关窗销毁界面进程（释放 WebView2 内存），托盘按需重建 */
+  /** ：（ WebView2 ）， by need */
   lightweightMode: boolean
-  /** 本机在局域网里的 IP（查不到为 null，地址展示退化为占位符） */
+  /** in IP（ not to as null， as ） */
   lanIp: string | null
-  /** 网关端口（0 = 还没查到），拼局域网地址用 */
+  /** （0 = no to ）， use */
   port: number
-  /** 面板管理员是否已注册（null = 还没查过；流程里会再查一次拿最新值） */
+  /** is already （null = no ； will 1 new ） */
   adminRegistered: boolean | null
 }
 
-/** 数值面板：values 为 null 时（loading / unavailable）各输入框保持禁用 */
+/** ：values as null when （loading / unavailable） use */
 export type NumericState = { status: LoadStatus; values: Record<string, number> | null }
 
 /**
- * 账号路由（策略 + 会话粘性）：两档都是受控枚举，读不到时档位回落后端默认
- * （order / auto，由视图侧按合法值表兜底）。
+ * by （ + will ）： is ， not to when after default
+ * （order / auto， by by ）。
  */
 export type RoutingState = {
   status: LoadStatus
   strategy: string
   sticky: string
-  /** 失败退避：转发失败的账号休息一会儿再回来（后端默认开） */
+  /** failure：failure 1 will （ after default） */
   failoverBackoff: boolean
-  /** 限流垫底：还有额度时被 429 的账号排到队尾（后端默认开） */
+  /** ： has when 429 to （ after default） */
   sink: boolean
-  /** 熔断开关：连续失败到阈值后打开（后端默认关） */
+  /** ：failure to after （ after default） */
   breakerEnabled: boolean
 }
 
 export type DebugState = {
   status: LoadStatus
   on: boolean
-  /** 已保存条数 / 上限；后端没给可用的数时为 null（文案里那一句整个不出现） */
+  /** already / limit； after no to available when as null（ that 1 not ） */
   count: number | null
   limit: number | null
 }
 
-/** 开发者角色兼容开关 */
+/** */
 export type DeveloperRoleCompatState = { status: LoadStatus; on: boolean }
 
 /**
- * 会话图片压缩：一个开关 + 三项参数。`values` 为 null（loading / unavailable）
- * 时三个输入框保持禁用；`enabled` 在读到之前按关显示（与 developerRoleCompat
- * 同款降级口径）。
+ * will ： 1 + parameter。`values` as null（loading / unavailable）
+ * when use ；`enabled` in to before by （ and developerRoleCompat
+ * ）。
  */
 export type ImageCompressState = {
   status: LoadStatus
@@ -172,7 +172,7 @@ export type ImageCompressState = {
   values: Record<string, number> | null
 }
 
-/** Cline 伪装头：三份表（默认 / 覆盖 / 生效）都来自后端，界面据此渲染与判断改动 */
+/** Cline ：（default / / ） after ， and */
 export type ClineHeadersState = {
   status: LoadStatus
   defaults: Record<string, string>
@@ -180,16 +180,16 @@ export type ClineHeadersState = {
   effective: Record<string, string>
 }
 
-/** 网关面（/v1/*）跨域访问开关 */
+/** （/v1/*） */
 export type CorsState = { status: LoadStatus; on: boolean }
 
 /**
- * ZCode 客户端版本号（`/api/zcode/version`）。
+ * ZCode client（`/api/zcode/version`）。
  *
- * `version` 是**设置里存的值**，空串 = 用插件内置默认值。
- * `envOverride` 非空时说明环境变量 `ZCODE_APP_VERSION` 正压着它 ——
- * 界面要如实说出「这里填的值此刻不生效」，否则用户会对着一个改了没反应的
- * 输入框反复重试。
+ * `version` is **set **，empty = use default。
+ * `envOverride` empty when `ZCODE_APP_VERSION` ——
+ * need 「 this not 」，otherwise use will for 1 no 
+ * 。
  */
 export type ZcodeVersionState = {
   status: LoadStatus
@@ -198,10 +198,10 @@ export type ZcodeVersionState = {
 }
 
 /**
- * models.dev 模型元数据：开关 + 「这份数据是什么时候的、有多少条」。
+ * models.dev ： + 「 this is when 、 has 」。
  *
- * `source` 三档与后端同字面量（`builtin` / `cache` / `network`），文案映射在
- * 视图层；未知值原样回显（后端将来加了档位，界面不会显示成空白）。
+ * `source` and after （`builtin` / `cache` / `network`）， in 
+ * ；unknown（ after will ， not will empty）。
  */
 export type ModelsDevPanelState = {
   status: LoadStatus
@@ -215,48 +215,48 @@ export type PromptState = {
   status: LoadStatus
   mode: string
   file: string
-  /** **生效正文**（`passthrough` 下是空串）：界面直接编辑这一段 */
+  /** ****（`passthrough` down is empty）： this 1 */
   text: string
-  /** 后端给的来源：'file' | 'builtin' | 'inline' | ''（文案在视图层映射） */
+  /** after to ：'file' | 'builtin' | 'inline' | ''（ in ） */
   source: string
   lines: number
   fileError: string
   degradeActive: boolean
   degradeUntilText: string
-  /** **按提供商**的覆盖（只含已单独配置的家，后端已按 id 排好序） */
+  /** ** by ** （ already config ， after already by id ） */
   providers: ProviderPromptState[]
-  /** **网关自带提示词**的逐家开关：只含被明确拨过的家（键缺失 = 默认装） */
+  /** **** ： （ = default） */
   gateway: Record<string, boolean>
-  /** **网关自带提示词的正文覆盖**：只含改过的家与段（缺的段 = 官方原文） */
+  /** ** **： and （ = ） */
   gatewayText: Record<string, GatewayBlocks>
-  /** 可配置的家（下拉用）：注册表全量，含网关自带提示词的说明、规模与正文模板 */
+  /** can config （ down use ）：， 、 and */
   options: ProviderPromptOption[]
 }
 
-/** 单一提供商的提示词覆盖（字段与全局那份同构，同一套渲染逻辑） */
+/** 1 （ and that ， 1 ） */
 export type ProviderPromptState = {
   id: string
   mode: string
   file: string
-  /** **生效正文**（同上；`passthrough` 下是空串） */
+  /** ****（ up ；`passthrough` down is empty） */
   text: string
   source: string
   lines: number
   fileError: string
-  /** 这一家的**网关自带提示词**是否装上（缺省 true；只有带 `gatewayNote` 的家有意义） */
+  /** this 1 **** is up （ true； has `gatewayNote` has ） */
   gateway: boolean
-  /** 是否配过模式 / 文件 / 正文；只有网关开关覆盖时，客户端提示词仍跟随全局。 */
+  /** is / file / ； has when ，client。 */
   configured: boolean
 }
 
 /**
- * 可配置的家。
+ * can config 。
  *
- * `gatewayNote` 非空 = 这家有网关提示词装配；手动添加或已有覆盖时显示其开关。
- * `gatewayChars` 是那段装配的字符数（只读子行的「约 N 字符」；0 / 缺失不显示）。
- * `gatewayBlocks` 是那段装配的**正文模板**（三段，Environment 段带占位符）：
- * 编辑器拿它当初始值，也是「恢复官方原文」的目标 —— 资源坏了时是 null，
- * 此时界面不提供编辑入口（免得用户拿一份空文本把官方原文清掉）。
+ * `gatewayNote` empty = this has ； or already has when its 。
+ * `gatewayChars` is that （ 「 N 」；0 / not ）。
+ * `gatewayBlocks` is that ****（，Environment ）：
+ * ， is 「」 —— when is null，
+ * when not （ use 1 empty ）。
  */
 export type ProviderPromptOption = {
   id: string
@@ -268,11 +268,11 @@ export type ProviderPromptOption = {
 
 export type StorageState = {
   status: LoadStatus
-  /** 库能不能打开（false = 「数据库不可用」徽章）；与 status 的「读不到」不同 */
+  /** can not can （false = 「unavailable」）； and status 「 not to 」 not */
   available: boolean
   file: string
   bytes: number
-  /** null 表示后端未提供可用读数。 */
+  /** null after available。 */
   accounts: number | null
   logs: number | null
   requests: number | null
@@ -281,27 +281,27 @@ export type StorageState = {
   upstreamRaw: number | null
 }
 
-/** 导入失败明细（只列前 3 条，more 表示还有更多） */
+/** failure（ before 3 ，more has ） */
 export type IoFailure = { failed: number; detail: string; more: boolean } | null
 
 export type SettingsSnapshot = {
-  /** 当前分类（左侧导航与右侧面板的显隐都由它派生） */
+  /** current（ and by ） */
   category: string
-  /** 每次 showCategory 递增：视图据此把内容栏滚回顶部（旧实现是命令式写 scrollTop） */
+  /** showCategory ： （ old is scrollTop） */
   scrollReset: number
   busy: BusyScope
   app: AppState
   unitsChinese: boolean
   retention: NumericState
   retry: NumericState
-  /** 「指定错误码直接换号」名单；retry.status 为 unavailable 时是 null */
+  /** 「error」；retry.status as unavailable when is null */
   retryCodes: number[] | null
   timeouts: NumericState
   queue: NumericState
-  /** 会话图片压缩：开关 + 三项参数（长边 / 质量 / 阈值） */
+  /** will ： + parameter（ / / ） */
   imageCompress: ImageCompressState
   captchaPool: NumericState
-  /** 账号路由：策略 + 会话粘性（「路由」分类） */
+  /** by ： + will （「 by 」） */
   routing: RoutingState
   debug: DebugState
   sanitize: SanitizeState
@@ -312,94 +312,94 @@ export type SettingsSnapshot = {
   prompt: PromptState
   storage: StorageState
   /**
-   * 机器人校验（ALTCHA）：两端各一个开关，`localPanel` 标出本进程是哪一端
-   * （桌面壳 true / 网页端 false），界面据此把「正在用的这一端」标出来。
+   * （ALTCHA）： 1 ，`localPanel` is 1 
+   * （ true / false）， 「 in use this 1 」。
    *
-   * `available = false` 表示读不到后端状态（端点不可用），两张开关都置灰 ——
-   * 与 retention / cors 的降级口径一致。
+   * `available = false` not to after （unavailable）， ——
+   * and retention / cors 1 。
    */
   captcha: { available: boolean; desktop: boolean; web: boolean; localPanel: boolean }
   /**
-   * 面板账户（设置页「账户」分类）。
+   * （set「」）。
    *
-   * `registered = false` 表示这台机器还没注册管理员 —— 此时面板不需要登录，
-   * 界面照常可用，只是没有「改密码」可改。`username` 只用于展示。
+   * `registered = false` this no —— when not need need ，
+   * available， is no has 「」 can 。`username` used for。
    */
   account: {
     status: 'loading' | 'ready' | 'unavailable'
     registered: boolean
     username: string
-    /** 改密码弹窗（非空 = 开着；busy 时按钮转圈，error 非空显示红字） */
+    /** （empty = ；busy when by ，error empty） */
     password: { busy: boolean; error: string } | null
   }
   /**
-   * models.dev 模型元数据（能力位与逐模型思考档位）。
+   * models.dev （ can and ）。
    *
-   * 与 `captcha` 的三态不同，这里多两项**读数**（来源与生成时刻、条数）：
-   * 这个开关的价值全在「那份元数据是什么时候的、有多少条」，只给一个布尔值
-   * 等于把功能做成一个不知道有没有生效的按钮。
+   * and `captcha` not ， this ****（ and when 、）：
+   * this in 「 that is when 、 has 」， to 1 
+   * etc can 1 not has no has by 。
    */
   modelsDev: ModelsDevPanelState
   ioFailure: IoFailure
-  /** 保留期改小的确认框正文（非空即开着）；确认 / 取消都收口到 resolveRetentionConfirm */
+  /** （empty）； / to resolveRetentionConfirm */
   retentionConfirm: { head: string } | null
   /**
-   * 整库备份 / 恢复（「数据」分类）：`dbIncludeLogs` 是导出复选框的当前值；
-   * `dbBackupConfirm` 非空 = 恢复确认弹窗开着（记录的是确认时要执行的参数集）。
+   * / （「」）：`dbIncludeLogs` is current；
+   * `dbBackupConfirm` empty = （ is when need parameter）。
    */
   dbIncludeLogs: boolean
   dbExportConfirm: boolean
   dbBackupConfirm: { includeLogs: boolean } | null
   /**
-   * 整库恢复返回的密钥警告原文（`DatabaseImportResult.warning`；null = 没有警告）。
+   * return （`DatabaseImportResult.warning`；null = no has ）。
    *
-   * 存进快照而不是只弹 toast：这条警告决定导入后的账号能不能解开（密钥不匹配时
-   * 账号列表是空的），必须**常驻**在面板里等用户看到 —— toast 只亮 3.5 秒（app.js），
-   * 错过就再没有第二次提示。生命周期与 ioFailure 同约定：只反映最近一次恢复，
-   * 下一次恢复开始时清掉。
+   * not is toast： this after can not can （ not when 
+   * is empty ），must**** in etc use to —— toast 3.5 seconds（app.js），
+   * no has 。 and ioFailure ： 1 ，
+   * down 1 when 。
    */
   dbWarning: string | null
   /**
-   * 整库恢复的进度 / 结果（非空 = 那个**不可关闭**的弹窗开着）。
+   * / （empty = that ** not can ** ）。
    *
-   * 恢复是替换语义、中途不能停，所以弹窗没有关闭按钮：进行中不给关，
-   * 完成 / 失败后只给一个「知道了」。进度由后端给（见 `db::backup` 的
-   * `RestoreProgress`），前端每 500ms 拉一次。
+   * is 、 in not can ， no has by ： in not to ，
+   * / failure after to 1 「」。 by after to （ `db::backup` 
+   * `RestoreProgress`）， before 500ms 1 。
    */
   dbRestore: DbRestoreProgress | null
-  /** 局域网访问的确认框（非空即开着）；确认 / 取消都收口到 resolveLanConfirm */
+  /** （empty）； / to resolveLanConfirm */
   lanConfirm: LanConfirm
-  /** 局域网开启流程的注册步（非空 = 弹窗切到注册表单） */
+  /** （empty = to ） */
   lanRegister: LanRegister
-  /** 面板登录整块：仅网页端渲染 */
+  /** ：only */
   panelLogin: boolean
 }
 
 /**
- * 局域网访问确认框的内容。`mode` 决定确认后的动作（enable 还要看注册状态，
- * 可能接注册步）；`panel` 是「网页面板」子开关的目标值（mode 为 panel 时）。
+ * 。`mode` after （enable need ，
+ * can can ）；`panel` is 「」 （mode as panel when ）。
  */
 export type LanConfirm = { mode: 'enable' | 'disable' | 'panel'; panel: boolean } | null
 
-/** 整库恢复的进度与结果（弹窗读它） */
+/** and （） */
 export type DbRestoreProgress = {
-  /** 正在跑（此时弹窗不给关） */
+  /** in （ when not to ） */
   active: boolean
-  /** 成功收口 */
+  /** success */
   done: boolean
-  /** 失败收口 */
+  /** failure */
   failed: boolean
-  /** 当前阶段的可读文案（后端给，前端只显示） */
+  /** current can （ after to ， before ） */
   phase: string
-  /** 大致百分比（只增不减） */
+  /** （ not ） */
   percent: number
-  /** 失败原因（`failed` 时才有） */
+  /** failureReason（`failed` when has ） */
   error: string
-  /** 恢复了多少张表（`done` 时才有） */
+  /** （`done` when has ） */
   tables: number
-  /** 替换前自动备份的文件名（`done` 时才有） */
+  /** before file（`done` when has ） */
   safetyBackup: string
-  /** 密钥指纹不匹配的警告原文（`done` 时可能有） */
+  /** not （`done` when can can has ） */
   warning: string
   reencryptedSecrets: number
   localKeysPreserved: boolean
@@ -407,17 +407,17 @@ export type DbRestoreProgress = {
   finishedAt: number
 }
 
-/** 注册步的状态：busy 时按钮转圈，error 非空时红字显示在表单里 */
+/** ：busy when by ，error empty when in */
 export type LanRegister = { busy: boolean; error: string } | null
 
-/** 是否网页端（桌面壳的面板跟着应用走，没有「登录面板」的概念） */
+/** is （ use ， no has 「」 ） */
 export function readPanelLogin(): boolean {
   return shared().workbuddyDesktop?.platform === 'web'
 }
 
-/** 首屏值：各面板都是「检测中…」，与静态骨架逐字一致 */
+/** ： is 「 in …」， and 1 */
 const INITIAL: SettingsSnapshot = {
-  // 初值取第一个分类：restoreCategory / load 会把 localStorage 里的偏好盖上来
+  // 1 ：restoreCategory / load will localStorage up 
   category: CATEGORIES[0].id,
   scrollReset: 0,
   busy: null,
@@ -479,7 +479,7 @@ const INITIAL: SettingsSnapshot = {
   modelsDev: { status: 'loading', enabled: true, source: '', updatedAt: 0, count: 0 },
   ioFailure: null,
   retentionConfirm: null,
-  // 整库备份：默认包含日志与调试报文（完整备份）；恢复确认弹窗默认关闭
+  // ：default and （）；default
   dbIncludeLogs: true,
   dbExportConfirm: false,
   dbBackupConfirm: null,
@@ -490,7 +490,7 @@ const INITIAL: SettingsSnapshot = {
   panelLogin: false,
 }
 
-/* ─── 快照 store ───────────────────────────── */
+/* ─── store ───────────────────────────── */
 
 let snapshot: SettingsSnapshot = { ...INITIAL, panelLogin: readPanelLogin() }
 
@@ -505,7 +505,7 @@ export function getSnapshot(): SettingsSnapshot {
   return snapshot
 }
 
-/** 视图层订阅入口（useSyncExternalStore 靠引用比较判变化，publish 必须换新对象） */
+/** （useSyncExternalStore use ，publish must new for ） */
 export function useSettings(): SettingsSnapshot {
   return React.useSyncExternalStore(subscribe, getSnapshot)
 }
@@ -516,38 +516,38 @@ function publish(patch: Partial<SettingsSnapshot>): void {
 }
 
 /**
- * 只改 `app` 子树的发布入口（**写 app 的地方一律走这里**）。
+ * `app` （** app 1 this **）。
  *
- * 不能散着写 `publish({ app: { ...snapshot.app, ... } })`：对象字面量的展开发生在
- * **表达式求值那一刻**。调用点只要跨了 await，旧子树就先被展开进字面量、等 await
- * 回来才发布 —— 这段时间里并行的其它来源（`loadSettings` 写 status/lanAccess、
- * 旁路读数写 lanIp/port）已经写好的值会被整块盖回旧值。
+ * not can `publish({ app: { ...snapshot.app, ... } })`： for in 
+ * ** that 1 **。 use need await， old 、 etc await
+ * —— this when and its （`loadSettings` status/lanAccess、
+ * lanIp/port） already will old 。
  *
- * 真实事故（局域网访问上线后）：`loadLanExtras` 把 `...snapshot.app` 与
- * `await api.localIp()` 写在同一行的字面量里，本机网络快、「旁路读数」后落地时，
- * 设置页永远停在「检测中…」、局域网开关显示未开启 —— 设置其实早就写进库了
- * （后端也确实监听了 0.0.0.0），只是被旧子树盖掉。走本函数则展开发生在
- * **发布那一刻**，谁先谁后都不会丢字段。
+ * （ up after ）：`loadLanExtras` `...snapshot.app` and 
+ * `await api.localIp()` in 1 ，、「」 after when ，
+ * set in 「 in …」、 —— set its 
+ * （ after 0.0.0.0）， is old 。 then in 
+ * ** that 1 **， after not will 。
  */
 function publishApp(patch: Partial<AppState>): void {
   publish({ app: { ...snapshot.app, ...patch } })
 }
 
 /**
- * 强制重绘一次（内容不变）。
+ * 1 （ not ）。
  *
- * 用途只有一个：受控开关在「忙碌中被拨动」时要把界面拉回快照的值 —— 旧实现是显式把
- * DOM 的 checked 翻回去，React 这边只要让订阅者重跑一次渲染即可。
+ * use has 1 ： in 「 in 」 when need —— old is 
+ * DOM checked ，React this need 1 can 。
  */
 function repaint(): void {
   publish({})
 }
 
 /**
- * 「一次只干一件事」的互斥锁（旧实现的 panelBusy）。
+ * 「 1 1 」 （ old panelBusy）。
  *
- * 刻意放模块级而不是快照里：流程里要**同步**读到它（同一刻的第二下、disabled 触发的
- * blur 补发 change 都靠它早退）。快照里的 busy 只服务界面禁用，两者不混。
+ * not is ： need **** to （ 1 down 、disabled 
+ * blur change ）。 busy use ， not 。
  */
 let busyScope: BusyScope = null
 
@@ -561,15 +561,15 @@ function endBusy(): void {
   publish({ busy: null })
 }
 
-/* ─── 界面偏好：当前分类 / 计量单位 ─────────── */
+/* ─── ：current / ─────────── */
 
 /**
- * 切换分类。分类表由本页渲染（不再由 HTML 声明），所以校验改成查表；传进来的值可能来自
- * localStorage、也可能来自被改过的调用方，不存在就回落到第一个，保证任何时候都有一类展开。
- * 滚回顶部交给视图层（快照里的 scrollReset）。
+ * 。 by （ not by HTML ），； can can 
+ * localStorage、 can can use ， not in to 1 ， when has 1 。
+ * to （ scrollReset）。
  *
- * 刻意**不写** localStorage：update-panel 的「去更新」深链会调它切到「更新」，
- * 那不该改用户手点的默认分类（写偏好的是 selectCategory）。
+ * ** not ** localStorage：update-panel 「update」 will to 「update」，
+ * that not this use default（ is selectCategory）。
  */
 export function showCategory(category?: string | null): void {
   const target = CATEGORIES.some(item => item.id === category)
@@ -578,13 +578,13 @@ export function showCategory(category?: string | null): void {
   publish({ category: target, scrollReset: snapshot.scrollReset + 1 })
 }
 
-/** 导航项点击：切换并记住偏好 */
+/** ： and */
 export function selectCategory(category: string): void {
   showCategory(category)
-  try { localStorage.setItem(SETTINGS_CAT_KEY, category) } catch { /* 存储不可用只影响下次启动 */ }
+  try { localStorage.setItem(SETTINGS_CAT_KEY, category) } catch { /* unavailable down */ }
 }
 
-/** 按 localStorage 恢复上次所在的分类（非法值由 showCategory 兜底） */
+/** by localStorage up in （ by showCategory ） */
 export function restoreCategory(): void {
   let saved: string | null = null
   try { saved = localStorage.getItem(SETTINGS_CAT_KEY) } catch { saved = null }
@@ -592,9 +592,9 @@ export function restoreCategory(): void {
 }
 
 /**
- * 计量单位是纯前端偏好（值与该存哪、默认是什么由 units.js 说了算），
- * 这里只把开关画成当前状态、并在拨动时写回去。拨一下立即生效：报表页订阅了
- * `wb-units-changed`，收到后用手里那份数据原地重绘。
+ * is before （ and this 、default is by units.js ），
+ * this current、 and in when 。 1 down ：
+ * `wb-units-changed`， to after use that 。
  */
 export function renderUnits(): void {
   publish({ unitsChinese: shared().wbUnits?.isChinese?.() !== false })
@@ -606,12 +606,12 @@ export function applyUnits(on: boolean): void {
   toast(on ? t('✅ 已改用本地量级词（万 / 亿式）') : t('✅ 已改用 k / M / B 缩写'))
 }
 
-/* ─── 启动与托盘 ───────────────────────────── */
+/* ─── and ───────────────────────────── */
 
 /**
- * 铺启动设置。传 undefined 不做事（React 侧本来就是派生渲染，没有「按旧值重绘」这回事）；
- * 传 null / 非对象按「主进程未返回」处理，但**保留当前开关值** —— 旧实现那时也没动 DOM 的
- * checked，刷新失败不该把用户刚拨的开关吞掉。
+ * set。 undefined not （React is ， no has 「 by old 」 this ）；
+ * null / for by 「return」，**current** —— old that when no DOM 
+ * checked， new failure not this use 。
  */
 export function renderSettings(data?: unknown): void {
   if (data === undefined) return
@@ -620,8 +620,8 @@ export function renderSettings(data?: unknown): void {
     return
   }
   const record = data as Record<string, unknown>
-  // 主进程返回的字段一律按「严格 true」判定，缺字段时按关闭处理（与后端默认值一致）。
-  // lanIp / port / adminRegistered 是旁路读数，不在启动设置的响应里 —— 保留当前值。
+  // return 1 by 「 true」， when by （ and after default 1 ）。
+  // lanIp / port / adminRegistered is ， not in set response —— current。
   publishApp({
     status: 'ready',
     closeToTray: record.closeToTray === true,
@@ -642,32 +642,32 @@ async function loadSettings(): Promise<void> {
 }
 
 /**
- * 局域网访问的旁路读数：本机 IP、网关端口、管理员注册状态。
+ * ： IP、、。
  *
- * 三个查询互相独立、各自失败各自保持旧值 —— 它们只服务展示与流程提示，
- * 任何一个是空都不该影响设置开关本身。web 端（shim 没有这组方法）直接跳过：
- * 网页面板不渲染这一块。
+ * 、failure old —— and ，
+ * 1 is empty not this set。web （shim no has this ）：
+ * not this 1 。
  */
 async function loadLanExtras(): Promise<void> {
   const api = shared().workbuddyDesktop
   if (!api?.localIp) return
   try {
     publishApp({ lanIp: (await api.localIp()) || null })
-  } catch { /* 查不到就不显示，地址展示退化成占位符 */ }
+  } catch { /* not to not ， */ }
   try {
     const port = Number((await api.getBackendStatus?.())?.port) || 0
     if (port) publishApp({ port })
-  } catch { /* 端口保持 0，地址展示退化 */ }
+  } catch { /* 0， */ }
   try {
     const registered = (await api.panelAdminStatus?.())?.registered === true
     publishApp({ adminRegistered: registered })
-  } catch { /* 状态保持「未查」；开启流程会再查一次拿最新值 */ }
+  } catch { /* 「」； will 1 new */ }
 }
 
 /**
- * 拨动启动 / 托盘开关。patch 是**全量覆盖**（契约要求），其余项取快照里的
- * 当前值 —— 旧实现读的是 DOM 里那个 checkbox 的 checked，等价。
- * 忙碌中早退时什么都不写：受控开关的 checked 来自快照，界面自动「还原这一下拨动」。
+ * / 。patch is ****（ need ）， its 
+ * current —— old is DOM that checkbox checked， etc 。
+ * in when not ： checked ，「 this 1 down 」。
  */
 export async function saveToggle(kind: 'tray' | 'autostart' | 'lightweight', next: boolean): Promise<void> {
   if (busyScope) { repaint(); return }
@@ -675,8 +675,8 @@ export async function saveToggle(kind: 'tray' | 'autostart' | 'lightweight', nex
   const patch: AppSettings = {
     closeToTray: kind === 'tray' ? next : previous.closeToTray,
     autostart: kind === 'autostart' ? next : previous.autostart,
-    // 局域网访问归「局域网访问」面板管（它有自己的确认与重启流程），
-    // 全量覆盖的 patch 里原样带上磁盘现值，避免把它悄悄抹掉
+    // 「」（ has and ），
+    // patch up ， 
     lanAccess: previous.lanAccess,
     lanPanel: previous.lanPanel,
     lightweightMode: kind === 'lightweight' ? next : previous.lightweightMode,
@@ -692,11 +692,11 @@ export async function saveToggle(kind: 'tray' | 'autostart' | 'lightweight', nex
     const api = shared().workbuddyDesktop
     if (!api) throw new Error(t('主进程桥不可用'))
     const saved = await api.saveAppSettings(patch)
-    // 以主进程返回的设置为准渲染，避免界面与真实状态不一致（旁路读数保留当前值）
+    // return set as ， and not 1 （current）
     publishApp({ status: 'ready', ...normalizeApp(saved, patch) })
     toast(t('✅ 已更新「{label}」', { label }))
   } catch (error) {
-    // 回滚到拨动前的状态（旧实现：已知状态按状态回滚，未知状态只把刚切的这项切回去）
+    // to before （ old ： already by ，unknown this ）
     publishApp(previous)
     toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
   } finally {
@@ -704,26 +704,26 @@ export async function saveToggle(kind: 'tray' | 'autostart' | 'lightweight', nex
   }
 }
 
-/* ─── 局域网访问（仅桌面端；流程说明见各函数） ── */
+/* ─── （only；） ── */
 
 /**
- * 拨动「允许局域网访问」。开与关都先过确认框：开启意味着监听地址出回环
- * （安全语义变化 + 可能要先注册管理员），关闭意味着局域网设备马上断开，
- * 且两者都要**重启应用**才生效 —— 这些都该让用户先知道。
- * 确认前开关不落快照（受控组件自动弹回），保存成功后随重启以新值重来。
+ * 「」。 and ：
+ * （ + can can need ）， up ，
+ * and need ** use ** —— this this use 。
+ * before not （），success after new 。
  */
 export function toggleLan(next: boolean): void {
   if (busyScope) { repaint(); return }
   publish({ lanConfirm: { mode: next ? 'enable' : 'disable', panel: snapshot.app.lanPanel } })
 }
 
-/** 拨动「同时开放网页管理面板」（仅在局域网访问开启时可拨；同样要重启应用） */
+/** 「 when 」（only in when can ； need use ） */
 export function toggleLanPanel(next: boolean): void {
   if (busyScope) { repaint(); return }
   publish({ lanConfirm: { mode: 'panel', panel: next } })
 }
 
-/** 确认框的出口（与 resolveRetentionConfirm 同形）：确认 true / 取消与关窗 false */
+/** （ and resolveRetentionConfirm ）： true / and false */
 export function resolveLanConfirm(accepted: boolean): void {
   const current = snapshot.lanConfirm
   publish({ lanConfirm: null })
@@ -734,9 +734,9 @@ export function resolveLanConfirm(accepted: boolean): void {
 }
 
 /**
- * 开启流程：确认后先查管理员注册状态（现场查一次，不用加载时的旧值 ——
- * 从加载到确认之间状态可能变过）。已注册直接应用；没注册进注册步，
- * 注册成功后无缝继续（就是用户在确认框里读到的那句「将跳转注册」）。
+ * ： after （ 1 ， not use when old ——
+ * from to can can ）。 already use ； no ，
+ * success after none（ is use in to that 「 will 」）。
  */
 async function proceedEnable(): Promise<void> {
   const api = shared().workbuddyDesktop
@@ -760,9 +760,9 @@ async function proceedEnable(): Promise<void> {
 }
 
 /**
- * 注册表单提交：校验 → 注册 → 直接继续开启流程。校验口径与后端一致
- * （账号 64 字符以内、密码至少 8 位）；「管理员已存在」由壳命令折叠成
- * `existed: true`，这里当作成功继续 —— 流程只关心「现在有没有管理员」。
+ * ： → → 。 and after 1 
+ * （ 64 、 8 ）；「 already in 」 by 
+ * `existed: true`， this success —— 「 in has no has 」。
  */
 export async function submitLanRegister(username: string, password: string): Promise<void> {
   if (busyScope) return
@@ -780,8 +780,8 @@ export async function submitLanRegister(username: string, password: string): Pro
   publish({ lanRegister: { busy: true, error: '' } })
   try {
     await api.panelRegister(name, password)
-    // 用户在注册期间关掉了弹窗：中止开启流程（管理员已注册的事实保留，无害，
-    // 下次开启会直接跳过注册步），不能替一个已经取消的用户把应用重启了
+    // use in ： in （ already ，none，
+    // down will ）， not can 1 already use use 
     if (snapshot.lanRegister === null) return
     publish({ lanRegister: null })
     publishApp({ adminRegistered: true })
@@ -791,15 +791,15 @@ export async function submitLanRegister(username: string, password: string): Pro
   }
 }
 
-/** 注册步的取消：整个开启流程中止，开关保持原状（管理员若已注册就留着，无害） */
+/** ： in ，（ if already ，none） */
 export function cancelLanRegister(): void {
   publish({ lanRegister: null })
 }
 
 /**
- * 应用切换：写设置并重启（「自动补首把 Key」的判断在壳命令里，返回值据此提示）。
- * 成功路径上应用马上重启、页面重载，这里的 toast 多半只闪一下 —— 但失败路径
- * （写盘失败、管理员校验被拒）必须如实地把开关弹回去，靠 loadSettings 回滚。
+ * use ：set and （「 Key」 in ，return）。
+ * successpath up use up 、， this toast 1 down —— failurepath
+ * （failure、 ）must ， loadSettings 。
  */
 async function applyLan(enabled: boolean, panel: boolean): Promise<void> {
   if (busyScope) return
@@ -819,11 +819,11 @@ async function applyLan(enabled: boolean, panel: boolean): Promise<void> {
   }
 }
 
-/* ─── 账号导入 / 导出 ──────────────────────── */
+/* ─── / ──────────────────────── */
 
 /**
- * 导出。忙碌守卫与旧实现的 guard() 同形：点下去的那个按钮禁用并换文案（视图按
- * busy === 'export' 派生），另一个按钮保持可点但会被守卫挡下（旧实现也是这样）。
+ * 。 and old guard() ： down that by use and （ by 
+ * busy === 'export' ）， 1 by can will down （ old is this ）。
  */
 export async function exportAccounts(): Promise<void> {
   if (busyScope) return
@@ -835,7 +835,7 @@ export async function exportAccounts(): Promise<void> {
     const count = Number(result?.count) || 0
     const providers = Number(result?.customProviders) || 0
     if (!count && !providers) { toast(t('没有可导出的账号'), 'err'); return }
-    // v2 导出文件附带自定义提供商定义：账号为 0 但有定义时同样值得导
+    // v2 file： as 0 has when 
     const providerNote = providers ? t('、{n} 个自定义提供商', { n: providers }) : ''
     const fileNote = result?.file ? t(' 到 {file}', { file: result.file }) : ''
     toast(t('✅ 已导出 {count} 个账号{note}{file}', { count, note: providerNote, file: fileNote }))
@@ -846,7 +846,7 @@ export async function exportAccounts(): Promise<void> {
   }
 }
 
-/** 导入：合并策略在后端，这里只负责把结果摊成人话（失败明细收进快照，由视图渲染） */
+/** ： and in after ， this （failure， by ） */
 export async function importAccounts(): Promise<void> {
   if (busyScope) return
   publish({ ioFailure: null })
@@ -877,8 +877,8 @@ export async function importAccounts(): Promise<void> {
 
     if (failed) {
       toast(t('导入完成：{summary}', { summary }), 'err')
-      // 失败明细只列前 3 条，与账号页批量操作的展示密度保持一致；
-      // 定义警告（customProvider 标记）没有账号语义，展示时注明归属
+      // failure before 3 ， and 1 ；
+      // （customProvider ） no has ， when 
       const detail = errors.slice(0, 3)
         .map(item => {
           const label = item?.customProvider
@@ -893,8 +893,8 @@ export async function importAccounts(): Promise<void> {
       toast(t('✅ 导入完成：{summary}', { summary }))
     }
 
-    // 账号被改动（新增/更新）后让主界面立刻反映：账号列表、导航计数等；
-    // 自定义提供商定义有变化时同样要刷（分组名、模型清单都会变）
+    // （add/update） after ：、 etc ；
+    // has when need （、 will ）
     if (added || updated || customAdded || customUpdated) await shared().wbApp?.refresh?.()
   } catch (error) {
     toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
@@ -903,16 +903,16 @@ export async function importAccounts(): Promise<void> {
   }
 }
 
-/* ─── 整库备份 / 恢复（替换语义，见 db::backup 的模块头） ──────────────── */
+/* ─── / （， db::backup module header） ──────────────── */
 
-/** 拨动「包含日志与调试报文」复选框（默认勾上；取消后只备业务数据） */
+/** 「 and 」（default up ； after ） */
 export function toggleDbIncludeLogs(on: boolean): void {
   publish({ dbIncludeLogs: on })
 }
 
 /**
- * 整库备份：桌面端由后端直写到壳选的路径（文件不过壳中转），网页端由浏览器
- * 下载附件（见 web_shim.rs），两侧返回值同形。导出没有「空库不导」分支。
+ * ： by after to path（file not in ）， by 
+ * down （ web_shim.rs），return。 no has 「empty not 」。
  */
 export function confirmDbExport(): void {
   if (busyScope || snapshot.dbRestore?.active) return
@@ -949,32 +949,32 @@ export async function exportDatabase(password: string): Promise<void> {
   }
 }
 
-/** 点「恢复」：先弹确认框（整库恢复是替换语义，二次确认后才开始） */
+/** 「」：（ is ， after ） */
 export function confirmDbRestore(): void {
   if (busyScope || snapshot.dbRestore?.active) return
   publish({ dbBackupConfirm: { includeLogs: snapshot.dbIncludeLogs } })
 }
 
-/** 确认框出口（与 resolveRetentionConfirm 同形）：确认后才执行恢复 */
+/** （ and resolveRetentionConfirm ）： after */
 export function resolveDbBackupConfirm(accepted: boolean, password = ''): void {
   publish({ dbBackupConfirm: null })
   if (accepted) void proceedDbRestore(password)
 }
 
 /**
- * 整库恢复本体。
+ * 。
  *
- * ── 为什么整段包在一个「不可关闭的进度弹窗」里 ──────────────
- * 恢复是**替换语义**：主库被整体覆盖。它一旦开始就不能停 —— 中途退出会留下
- * 一个既不是旧库也不是新库的现场（暂存库执行到一半、主库覆盖到一半）。所以：
- *   · 弹窗**没有关闭按钮**，Esc / 点遮罩 / 点空白都不关（`onOpenChange` 忽略）；
- *   · 进度由后端给（`GET /api/backup/progress`，见 `db::backup` 的说明），
- *     前端每 500ms 拉一次 —— 这样即使用户中途刷新页面，重进设置页也能接上
- *     同一次恢复（弹窗按快照重建，而不是靠事件流）。
+ * ── Why in 1 「 not can 」 ──────────────
+ * is ****： 。 1 not can —— in will down 
+ * 1 not is old not is new （ to 1 、 to 1 ）。：
+ * · ** no has by **，Esc / / empty not （`onOpenChange` ignore）；
+ * · by after to （`GET /api/backup/progress`， `db::backup` ），
+ * before 500ms 1 —— this use in new ，set can up 
+ * 1 （ by ， not is ）。
  *
- * ── 结果也显示在这个弹窗里 ──────────────────────────────────
- * 成功给「恢复了 N 张表」+ 安全备份文件名；失败给原因。密钥指纹不匹配的警告
- * 同时写进 `dbWarning`（面板里常驻），因为用户关掉弹窗之后仍需要看到它。
+ * ── in this ──────────────────────────────────
+ * success to 「 N 」+ file；failure to Reason。 not 
+ * when `dbWarning`（）， as use after need need to 。
  */
 async function proceedDbRestore(password: string): Promise<void> {
   if (busyScope) return
@@ -984,23 +984,23 @@ async function proceedDbRestore(password: string): Promise<void> {
     return
   }
   beginBusy('dbImport')
-  // 结果区只反映最近一次操作：上一次恢复留下的密钥警告先清掉（与 ioFailure 同一约定）
+  // 1 ： up 1 down （ and ioFailure 1 ）
   //
-  // ── 为什么这里不先把弹窗挂上 ──────────────────────────────
-  // `importDatabase()` 是「弹系统文件框 → 选完 → 后端开始恢复」的一体调用，
-  // 中间那段可能停很久（用户在文件框里翻目录）。如果这时就把弹窗挂出来，
-  // 用户会看到一个「正在读取备份文件…」的进度条 —— 而他连文件都还没选。
-  // 所以弹窗由**后端进度**驱动：轮询第一次看到 `active: true` 才显示。
+  // ── Why this not up ──────────────────────────────
+  // `importDatabase()` is 「file → → after 」 1 use ，
+  // in that can can （ use in filedirectory）。if this when ，
+  // use will to 1 「 in file…」 —— file no 。
+  // by ** after **： 1 to `active: true` 。
   publish({ dbWarning: null })
-  // 本次尝试的起点：后端 `startedAt` 一定晚于它。用来把「上一次恢复留下的
-  // 已完成快照」和「这一次的结果」区分开（文件对话框可能要开很久，这期间
-  // 后端读到的仍是上一次的 Done）。
+  // ： after `startedAt` 1 。 use 「 up 1 down 
+  // already 」 and 「 this 1 」（file for can can need ， this 
+  // after to is up 1 Done）。
   const attemptStartedAt = Date.now()
   const stop = watchRestoreProgress(attemptStartedAt)
   try {
     const result = await api.importDatabase(password)
-    // 取消（桌面壳的文件框 / 网页端的文件选择器都回 {canceled:true}）：
-    // 不是失败也不是「恢复了 0 张表」，静默收场即可
+    // （ file / file {canceled:true}）：
+    // not is failure not is 「 0 」， can 
     if (result?.canceled) {
       stop()
       publish({ dbRestore: null })
@@ -1008,13 +1008,13 @@ async function proceedDbRestore(password: string): Promise<void> {
       return
     }
     const tables = Array.isArray(result?.tables) ? result.tables.length : 0
-    // 密钥指纹不匹配的警告（账号将无法解密）：后端把文案给全了，这里只负责让它
-    // 在面板里**常驻**显示 —— 光靠弹窗里那一段，用户关掉之后只会对着空账号列表
-    // 发懵，不知道「为什么账号都没了」
+    // not （ will none）： after to ， this 
+    // in **** —— that 1 ， use after will for empty
+    // ， not 「Why no 」
     const warning = typeof result?.warning === 'string' ? result.warning.trim() : ''
     if (warning) publish({ dbWarning: warning })
     stop()
-    // 弹窗留在「完成」态，等用户点「知道了」—— 结果要让人看完再走
+    // in 「」， etc use 「」—— need 
     publish({
       dbRestore: {
         active: false,
@@ -1032,18 +1032,18 @@ async function proceedDbRestore(password: string): Promise<void> {
         finishedAt: Date.now(),
       },
     })
-    // 重拉整页（含启动/托盘设置、保留期、提示词、存储概况等全部面板）。
+    // （/set、、、 etc ）。
     //
-    // ── 这里的失败**不能**当成恢复失败 ────────────────────────
-    // 恢复的最后一件事是清空面板短效令牌（`access::clear_access_tokens`），
-    // 所以紧接着的 `load()` 很可能拿到 401 —— 那是「要重新登录」，不是「恢复
-    // 没成功」。早先这段在 try 里，令牌一清就把一次成功的恢复报成红色失败。
-    // 现在两件事分开：恢复结果以上面的 publish 为准，刷新的失败只静默。
+    // ── this failure** not can **failure ────────────────────────
+    // after 1 is empty（`access::clear_access_tokens`），
+    // `load()` can can to 401 —— that is 「 need new 」， not is 「
+    // no success」。 this in try ， 1 1 success failure。
+    // in ： up publish as ， new failure。
     try {
       await load()
       await shared().wbApp?.refresh?.()
     } catch {
-      /* 刷新失败不影响恢复结果；用户下一次操作会自然重拉 */
+      /* new failure not ； use down 1 will */
     }
   } catch (error) {
     const message = errorMessage(error)
@@ -1051,12 +1051,12 @@ async function proceedDbRestore(password: string): Promise<void> {
       stop()
       return
     }
-    // ── 先别急着报失败 ────────────────────────────────────────
-    // 恢复是一次长调用：壳侧的 HTTP 预算、浏览器的 fetch 都可能先于后端收尾
-    // 而断开（实测 61 秒撞上 60 秒预算）。那时后端照旧在跑，主库正被替换 ——
-    // 报一条「恢复失败」既不是事实，也会诱使用户再点一次恢复，把同一个替换
-    // 叠第二次。所以断开后去问一次后端进度：**还在跑就不收口**，把后续交给
-    // 仍在跑的那个轮询（它会等到后端自己写下 Done / Failed）。
+    // ── failure ────────────────────────────────────────
+    // is 1 use ： HTTP 、 fetch can can after 
+    // （ 61 seconds up 60 seconds）。 that when after old in ， ——
+    // 1 「failure」 not is ， will use 1 ， 1 
+    // 。 after 1 after ：** in not **， after to 
+    // in that （ will etc to after down Done / Failed）。
     if (await restoreStillRunning(api)) {
       publish({
         dbRestore: {
@@ -1095,7 +1095,7 @@ async function proceedDbRestore(password: string): Promise<void> {
   }
 }
 
-/** 后端此刻是否仍在恢复（查不到进度就按「没有」处理，让失败照常上报） */
+/** after is in （ not to by 「 no has 」，failure up ） */
 async function restoreStillRunning(api: ReturnType<typeof shared>['workbuddyDesktop']): Promise<boolean> {
   try {
     const data = await api?.getBackupProgress?.()
@@ -1105,7 +1105,7 @@ async function restoreStillRunning(api: ReturnType<typeof shared>['workbuddyDesk
   }
 }
 
-/** 进度快照的初值（`dbRestore` 为 null 表示「没有恢复在跑」） */
+/** （`dbRestore` as null 「 no has in 」） */
 const EMPTY_RESTORE: DbRestoreProgress = {
   active: false,
   done: false,
@@ -1122,31 +1122,31 @@ const EMPTY_RESTORE: DbRestoreProgress = {
   finishedAt: 0,
 }
 
-/** 进度轮询间隔：500ms。恢复各阶段的耗时以秒计，再快只是白打接口 */
+/** ：500ms。 when seconds， is */
 const RESTORE_POLL_MS = 500
 
 /**
- * 轮询的总时长上限：40 分钟。
+ * total when limit：40 minutes。
  *
- * 比壳侧的请求预算（`commands.rs` 的 `BACKUP_TRANSFER_TIMEOUT_MS`，30 分钟）
- * 多留 10 分钟 —— 壳先断开时后端往往还在跑，轮询要继续等到它写结局。
+ * request（`commands.rs` `BACKUP_TRANSFER_TIMEOUT_MS`，30 minutes）
+ * 10 minutes —— when after in ， need etc to 。
  */
 const RESTORE_POLL_MAX_MS = 40 * 60 * 1000
 
 /**
- * 开始轮询恢复进度，返回「停止」函数。
+ * ，return「」。
  *
- * ── 为什么要容忍拉取失败 ────────────────────────────────────
- * 恢复的最后一件事是 `config::reload()` 与令牌清空，紧接着界面会重拉整页 ——
- * 这中间有一小段请求可能拿到 401 / 连接被拒。那不是恢复失败，只是「界面还没
- * 跟上」，所以轮询里**静默忽略**错误，以 `importDatabase` 的返回值为准。
+ * ── Why need failure ────────────────────────────────────
+ * after 1 is `config::reload()` and empty， will ——
+ * this in has 1 request can can to 401 / 。 that not is failure， is 「 no 
+ * up 」，**ignore**error， `importDatabase` return as 。
  */
 function watchRestoreProgress(attemptStartedAt: number): () => void {
   let stopped = false
   let querying = false
-  // 上限：壳侧预算已放宽到 30 分钟，这里再多给一段余量。到点还等不到收口
-  // 就不再轮询（重建时页面本来也会重来）—— 免得一个没有终点的 interval
-  // 一直挂在后台打接口。
+  // limit： already to 30 minutes， this to 1 。 to etc not to 
+  // not （ when will ）—— 1 no has interval
+  // 1 in after 。
   const deadline = Date.now() + RESTORE_POLL_MAX_MS
   let timer = 0
   const tick = async () => {
@@ -1162,16 +1162,16 @@ function watchRestoreProgress(attemptStartedAt: number): () => void {
       const data = await shared().workbuddyDesktop?.getBackupProgress?.()
       if (stopped || !data) return
       const startedAt = Number(data.startedAt) || 0
-      // 上一次恢复留下的快照（`startedAt` 早于本次尝试）：不是这次的结果，
-      // 一律无视 —— 否则用户还在文件框里挑文件，弹窗就已经显示「恢复完成」了。
+      // up 1 down （`startedAt` ）： not is this ，
+      // 1 none —— otherwise use in filefile， already 「」。
       if (startedAt && startedAt < attemptStartedAt) return
       if (!startedAt) return
       const current = snapshot.dbRestore
-      // ── 后端已收口：由轮询直接写结果 ──────────────────────────
-      // 正常情况下 `importDatabase()` 的返回值也会写同一份结果，两条路径谁先到
-      // 都一样（字段一致）。但**请求断线**时只有这里能收口 —— 壳侧超时之后
-      // 后端仍在跑，靠这一次轮询才能等到真正的结局，否则弹窗会永远停在
-      // 「恢复仍在进行中…」。
+      // ── after already ： by ──────────────────────────
+      // down `importDatabase()` return will 1 ，path to 
+      // 1 （ 1 ）。**request** when has this can —— when after 
+      // after in ， this 1 can etc to ，otherwise will in 
+      // 「 in in …」。
       if (data.active !== true) {
         const body = (data.result ?? {}) as { tables?: unknown; warning?: unknown; safetyBackup?: unknown; reencryptedSecrets?: unknown; localKeysPreserved?: unknown }
         const tables = Array.isArray(body.tables) ? body.tables.length : 0
@@ -1179,7 +1179,7 @@ function watchRestoreProgress(attemptStartedAt: number): () => void {
         const failed = data.failed === true
         if (!failed && data.done !== true) return
         if (failed && !(typeof data.error === 'string' && data.error.trim())) {
-          // 既没收口理由、也不在跑：多半是刚开始就被打断，等下一次轮询
+          // no by 、 not in ： is ， etc down 1 
           return
         }
         publish({
@@ -1202,12 +1202,12 @@ function watchRestoreProgress(attemptStartedAt: number): () => void {
           },
         })
         if (warning) publish({ dbWarning: warning })
-        // 已收口：停表。随后成功的那次还要重拉整页 —— 数据库被整体换掉了，
-        // 配置、账号、保留期等每一块旧快照都失效。
+        // already ：。 after success that need —— ，
+        // config、、 etc 1 old 。
         //
-        // 只在「外层已经不再等这条请求」时刷（`busyScope` 已清）：正常成功路径
-        // 上外层紧接着自己会 `load()`，这里再刷一遍是同一件事做两次。断线的
-        // 场景则相反 —— 外层早已收场，只有这里能补上这次刷新。
+        // in 「 already not etc this request」 when （`busyScope` already ）：successpath
+        // up will `load()`， this 1 is 1 。 
+        // then —— already ， has this can up this new 。
         stopped = true
         window.clearInterval(timer)
         if (!failed && !busyScope) {
@@ -1215,12 +1215,12 @@ function watchRestoreProgress(attemptStartedAt: number): () => void {
             await load()
             await shared().wbApp?.refresh?.()
           } catch {
-            /* 刷新失败不影响恢复结果（理由见 `proceedDbRestore` 的成功分支） */
+            /* new failure not （ by `proceedDbRestore` success） */
           }
         }
         return
       }
-      // 第一次看到后端在跑 = 用户选完文件、恢复真的开始了 → 这时才挂弹窗
+      // 1 to after in = use file、 → this when 
       publish({
         dbRestore: {
           ...EMPTY_RESTORE,
@@ -1229,13 +1229,13 @@ function watchRestoreProgress(attemptStartedAt: number): () => void {
           done: false,
           failed: false,
           phase: typeof data.phase === 'string' && data.phase ? data.phase : (current?.phase ?? t('正在恢复…')),
-          // 进度只增不减：后端给的百分比是阶段起点，这里再兜一层，避免抖动
+          // not ： after to is ， this 1 ，
           percent: Math.max(current?.percent ?? 0, Number(data.percent) || 0),
           startedAt: startedAt || current?.startedAt || Date.now(),
         },
       })
     } catch {
-      /* 静默：见函数头的说明 */
+      /* ： */
     } finally {
       querying = false
     }
@@ -1254,17 +1254,17 @@ async function reconnectDbRestore(): Promise<void> {
     const progress = await shared().workbuddyDesktop?.getBackupProgress?.()
     if (progress?.active) watchRestoreProgress(Number(progress.startedAt) || Date.now())
   } catch {
-    /* 恢复进度不可用不影响其他设置加载。 */
+    /* unavailable not its set。 */
   }
 }
 
-/** 关掉恢复结果弹窗（只在 `done` / `failed` 之后可调） */
+/** （ in `done` / `failed` after can ） */
 export function dismissDbRestore(): void {
   if (snapshot.dbRestore?.active) return
   publish({ dbRestore: null })
 }
 
-/* ─── 数据保留 ──────────────────────────── */
+/* ─── ──────────────────────────── */
 
 export function renderRetention(data?: unknown): void {
   if (data === undefined) return
@@ -1281,10 +1281,10 @@ async function loadRetention(): Promise<void> {
   }
 }
 
-/** 确认弹窗的 Promise resolver；非空即表示弹窗开着 */
+/** Promise resolver；empty */
 let retentionConfirmResolver: ((accepted: boolean) => void) | null = null
 
-/** 关窗并把结果交给等待者（重复调用无副作用：resolver 取走即置空） */
+/** and to etc （ use none use ：resolver empty） */
 export function resolveRetentionConfirm(accepted: boolean): void {
   const resolve = retentionConfirmResolver
   retentionConfirmResolver = null
@@ -1292,11 +1292,11 @@ export function resolveRetentionConfirm(accepted: boolean): void {
   resolve?.(accepted)
 }
 
-/** 弹确认框，返回 Promise<boolean>：确认继续为 true，取消 / 关窗 / Esc 为 false */
+/** ，return Promise<boolean>： as true， / / Esc as false */
 function askRetentionShrink(head: string): Promise<boolean> {
   return new Promise(resolve => {
-    // 理论上同时只有一个问题（saveRetentionField 已挡掉重入），这里仍兜一层：
-    // 万一有第二个问题挤进来，先把旧的按「取消」收尾，而不是让它的 Promise 永远挂着
+    // up when has 1 （saveRetentionField already ）， this 1 ：
+    // 1 has ， old by 「」， not is Promise 
     if (retentionConfirmResolver) resolveRetentionConfirm(false)
     retentionConfirmResolver = resolve
     publish({ retentionConfirm: { head } })
@@ -1304,14 +1304,14 @@ function askRetentionShrink(head: string): Promise<boolean> {
 }
 
 /**
- * 单个输入框的提交流程：校验 → （改小时）确认 → 提交。任一步失败都不写快照，
- * 视图层把草稿收掉，显示回到生效值（旧实现是显式 revert）。
+ * ： → （ when ） → 。 1 failure not ，
+ * ， to （ old is revert）。
  */
 export async function saveRetentionField(field: RetentionField, raw: string): Promise<void> {
   if (busyScope) return
-  // 确认框开着时不再受理新的编辑：一次只问一个问题，否则第二个问题会把第一个顶掉
-  // （resolver 只能存一个），那个输入框就会在没人点过「取消」的情况下被回滚。
-  // 遮罩已经挡住了页面，走到这里只剩键盘 Tab 之类的少数路径，挡一下成本极低。
+  // when not new ： 1 1 ，otherwise will 1 
+  // （resolver can 1 ）， that will in no 「」 down 。
+  // already ， to this Tab path， 1 down 。
   if (snapshot.retentionConfirm) return
 
   const parsed = parseInteger(raw, field.min, field.max, field.kind === 'count' ? t('条数') : t('天数'))
@@ -1319,25 +1319,25 @@ export async function saveRetentionField(field: RetentionField, raw: string): Pr
 
   const known = snapshot.retention.values?.[field.key]
   const previous = typeof known === 'number' && Number.isInteger(known) ? known : null
-  // 值与后端一致就不发请求：数字框里换个写法（如 007）也会触发 change
+  // and after 1 not request： （ 007） will change
   if (previous !== null && parsed.value === previous) return
 
-  // 读不到旧值时无从判断是否改小 —— 只有改小才会删数据，所以这里宁可多问一次：
-  // 白弹一次确认的代价，远小于静默删掉用户的历史数据
+  // not to old when none from is —— has will ， this can 1 ：
+  // 1 ， use 
   const shrinking = previous === null || parsed.value < previous
   if (shrinking && !await askRetentionShrink(retentionShrinkHead(field, previous, parsed.value))) return
 
   await commitRetention(field, parsed.value, shrinking)
 }
 
-/** 只提交变化的字段，避免覆盖其他保留设置。 */
+/** ， its set。 */
 async function commitRetention(field: RetentionField, value: number, shrinking: boolean): Promise<void> {
   if (busyScope) return
   beginBusy('retention')
-  // 乐观写入待保存的值，再禁用输入框（视图按 busy === 'retention' 禁用）。理由：Chromium 里
-  // 「让正在聚焦的输入框 disabled」会触发一次 blur，而 blur 可能补发 change —— 那个重入的
-  // 提交会走忙碌分支早退；不先记新值，用户就会看到「刚改的数字闪回旧值、过一下又变回来」。
-  // 真失败了下面的 catch 会重读后端覆盖，所以这个乐观值不会被留在界面上。
+  // ， use （ by busy === 'retention' use ）。 by ：Chromium 
+  // 「 in disabled」 will 1 blur， blur can can change —— that 
+  // will ； not new ， use will to 「 old 、 1 down 」。
+  // failure down catch will after ， this not will in up 。
   const optimistic = snapshot.retention.values
   if (optimistic) publish({ retention: { status: 'ready', values: { ...optimistic, [field.key]: value } } })
   try {
@@ -1348,11 +1348,11 @@ async function commitRetention(field: RetentionField, value: number, shrinking: 
       toast(retentionSavedMessage(field, values?.[field.key] ?? value, shrinking))
       return
     }
-    // 响应不完整时重新读取，避免把未确认的值当成已生效设置。
+    // response not when new ， already set。
     await loadRetention()
     toast(retentionSavedMessage(field, snapshot.retention.values?.[field.key] ?? value, shrinking))
   } catch (error) {
-    // 400 的 message（点名哪个字段、超出多少）比自造一句更指向具体问题
+    // 400 message（ 、） 1 to 
     toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
     await loadRetention() // 回滚到后端的真实值
   } finally {
@@ -1360,31 +1360,31 @@ async function commitRetention(field: RetentionField, value: number, shrinking: 
   }
 }
 
-/* ─── 数字型设置面板的通用壳（请求重试 / 请求超时共用）── */
+/* ─── set use （request / request when use ）── */
 
 /**
- * 一个「后端存一份全量值 + 页面上若干数字输入框」的面板壳：加载回填、逐框保存、
- * 失败回滚、后端不可用时整块禁用。两处交互**逐字相同**（都是「多字段 + 允许部分更新
- * + 返回全量值」那类端点），各写一份必然漂。数据保留不并入 —— 它有二次确认与清理数据的
- * 副作用，语义不同。
+ * 1 「 after 1 + up if 」 ：、、
+ * failure、 after unavailable when use 。****（ is 「 + update
+ * + return」 that ）， 1 。 not and —— has and 
+ * use ， not 。
  *
- * `syncExtras(data | null)`：本壳只管数字；同一面板里别的控件（重试面板的「指定错误码
- * 直接换号」名单）由各自的代码实现，在数据到达 / 不可用时被回调一次。
+ * `syncExtras(data | null)`：； 1 （ 「error
+ * 」） by ， in to / unavailable when 1 。
  */
 type NumericPanel = {
   scope: 'retry' | 'timeouts' | 'queue' | 'imageCompress' | 'captchaPool'
   fields: NumberField[]
   consoleLabel: string
-  /** 取数 / 写回：桥不在时给 undefined（各调用点按「读不到」处理） */
+  /** / ： not in when to undefined（ use by 「 not to 」） */
   get: () => Promise<unknown> | undefined
   save: (patch: Record<string, number>) => Promise<unknown> | undefined
-  /** 读 / 写快照里的生效值（null = 不可用） */
+  /** / （null = unavailable） */
   read: () => NumericState
   write: (state: NumericState) => void
   syncExtras?: (data: unknown) => void
 }
 
-/** 按响应重铺面板：只采纳范围内的整数，缺字段沿用上一轮；一项都没有则整块不可用 */
+/** by response： ， use up 1 ； 1 no has then unavailable */
 function renderNumericPanel(panel: NumericPanel, data: unknown): void {
   if (data === undefined) return
   const values = normalizeNumbers(panel.fields, data, panel.read().values)
@@ -1401,7 +1401,7 @@ async function loadNumericPanel(panel: NumericPanel): Promise<void> {
   }
 }
 
-/** 单个输入框的提交流程：校验 → 提交，失败回滚（与保留期同款，少一道确认） */
+/** ： → ，failure（ and ， 1 ） */
 async function saveNumericField(panel: NumericPanel, field: NumberField, raw: string): Promise<void> {
   if (busyScope) return
 
@@ -1409,22 +1409,22 @@ async function saveNumericField(panel: NumericPanel, field: NumberField, raw: st
   if (!parsed.ok) { toast(parsed.message, 'err'); return }
 
   const known = panel.read().values?.[field.key]
-  // 值与后端一致就不发请求：数字框里换个写法（如 05）也会触发 change
+  // and after 1 not request： （ 05） will change
   if (Number.isInteger(known) && parsed.value === known) return
 
   beginBusy(panel.scope)
-  // 乐观写入待保存的值（理由同 commitRetention）
+  // （ by commitRetention）
   const current = panel.read().values
   if (current) panel.write({ status: 'ready', values: { ...current, [field.key]: parsed.value } })
   try {
     const saved = await panel.save({ [field.key]: parsed.value })
-    // PUT 契约返回生效后的全量值，正常情况下用响应刷新即可，不必再跑一趟 GET
+    // PUT return after ， down use response new can ， not 1 GET
     renderNumericPanel(panel, saved)
     const applied = panel.read().values?.[field.key]
     const shown = Number.isInteger(applied) ? applied : parsed.value
     toast(t('✅ 已保存：{label} {value}', { label: field.label, value: String(shown) }))
   } catch (error) {
-    // 400 的 message（点名哪个字段、超出多少）比自造一句更指向具体问题
+    // 400 message（ 、） 1 to 
     toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
     await loadNumericPanel(panel) // 回滚到后端的真实值
   } finally {
@@ -1432,7 +1432,7 @@ async function saveNumericField(panel: NumericPanel, field: NumberField, raw: st
   }
 }
 
-/* ─── 排队等待 ─────────────────────────────── */
+/* ─── etc ─────────────────────────────── */
 
 const queuePanel: NumericPanel = {
   scope: 'queue',
@@ -1456,18 +1456,18 @@ export async function saveQueueField(field: NumberField, raw: string): Promise<v
   await saveNumericField(queuePanel, field, raw)
 }
 
-/* ─── 会话图片压缩（开关 + 三项参数）────────────── */
+/* ─── will （ + parameter）────────────── */
 
-/** 从响应里读开关（非对象 / 字段不是字面 true 都算关，与后端「只认字面 true」一致） */
+/** from response（ for / not is true ， and after 「 true」 1 ） */
 function imageCompressEnabledFlag(data: unknown): boolean {
   if (!data || typeof data !== 'object') return false
   return (data as Record<string, unknown>)[IMAGE_COMPRESS_ENABLED_KEY] === true
 }
 
 /**
- * 图片压缩面板：三项数字复用数字面板的取数 / 写入 / 回滚流程；开关另走一条
- * 只改一个布尔值的保存路径（与 developerRoleCompat 同款）。两者共用同一条
- * `/api/image-compress` 端点，响应里同时带开关与三项参数。
+ * ： use / / ； 1 
+ * 1 path（ and developerRoleCompat ）。 use 1 
+ * `/api/image-compress` ，response when and parameter。
  */
 const imageCompressPanel: NumericPanel = {
   scope: 'imageCompress',
@@ -1479,7 +1479,7 @@ const imageCompressPanel: NumericPanel = {
   write: state => publish({
     imageCompress: { ...snapshot.imageCompress, status: state.status, values: state.values },
   }),
-  // 同一份响应里还带开关；数字面板不认布尔值，这里顺手回写
+  // 1 response； not ， this 
   syncExtras: data => {
     publish({ imageCompress: { ...snapshot.imageCompress, enabled: imageCompressEnabledFlag(data) } })
   },
@@ -1497,7 +1497,7 @@ export async function saveImageCompressField(field: NumberField, raw: string): P
   await saveNumericField(imageCompressPanel, field, raw)
 }
 
-/** 开关的保存路径（只改一个布尔值；失败回滚到后端真实值） */
+/** path（ 1 ；failure to after ） */
 export async function saveImageCompressEnabled(next: boolean): Promise<void> {
   if (busyScope) { repaint(); return }
   beginBusy('imageCompress')
@@ -1514,7 +1514,7 @@ export async function saveImageCompressEnabled(next: boolean): Promise<void> {
   }
 }
 
-/* ─── 验证码令牌池 ─────────────────────────── */
+/* ─── ─────────────────────────── */
 
 const captchaPoolPanel: NumericPanel = {
   scope: 'captchaPool',
@@ -1538,22 +1538,22 @@ export async function saveCaptchaPoolField(field: NumberField, raw: string): Pro
   await saveNumericField(captchaPoolPanel, field, raw)
 }
 
-/* ─── 账号路由（策略 + 会话粘性）───────────── */
+/* ─── by （ + will ）───────────── */
 
-/** 后端给的路由配置里我们关心的两个键（与 /api/routing 的长键名逐字对应） */
+/** after to by config （ and /api/routing for ） */
 const ROUTING_STRATEGY_KEY = 'routingStrategy'
 const ROUTING_STICKY_KEY = 'routingSticky'
 const ROUTING_FAILOVER_BACKOFF_KEY = 'routingFailoverBackoff'
 const ROUTING_SINK_KEY = 'routingSink'
 const ROUTING_BREAKER_ENABLED_KEY = 'routingBreakerEnabled'
 
-/** 路由配置的合法取值表（逐字来自 settings-model 的档位表，校验与兜底共用） */
+/** by config （ settings-model ， and use ） */
 const ROUTING_VALID: Record<string, ReadonlySet<string>> = {
   [ROUTING_STRATEGY_KEY]: new Set(ROUTE_STRATEGIES.map(item => item.value)),
   [ROUTING_STICKY_KEY]: new Set(ROUTE_STICKY_OPTIONS.map(item => item.value)),
 }
 
-/** 路由响应 → 快照值：只认合法档位，读不到 / 非法时按该键的默认档兜底 */
+/** by response → ：， not to / when by this default */
 function routingValuesFrom(data: unknown): {
   strategy: string
   sticky: string
@@ -1566,7 +1566,7 @@ function routingValuesFrom(data: unknown): {
     const raw = record[key]
     return typeof raw === 'string' && ROUTING_VALID[key].has(raw) ? raw : fallback
   }
-  // 三个布尔开关：只认字面 true / false（后端返回的一定是布尔），缺字段时回落后端默认值
+  // ： true / false（ after return 1 is ）， when after default
   const pickBool = (key: string, fallback: boolean): boolean => {
     const raw = record[key]
     return typeof raw === 'boolean' ? raw : fallback
@@ -1592,8 +1592,8 @@ export async function loadRouting(): Promise<void> {
 }
 
 /**
- * 保存两档之一：PUT 契约返回生效后的全量值（与超时 / 重试同一模式），直接按响应刷新。
- * 后端只认长键名；未知档位在界面上就发不出来（SegmentedControl 的取值来自档位表）。
+ * 1 ：PUT return after （ and when / 1 ）， by response new 。
+ * after ；unknown in up not （SegmentedControl ）。
  */
 export async function saveRoutingField(patch: {
   routingStrategy?: string
@@ -1614,7 +1614,7 @@ export async function saveRoutingField(patch: {
     if (saved !== undefined) {
       publish({ routing: { status: 'ready', ...routingValuesFrom(saved) } })
     } else {
-      // 老壳不回响应体：回读一次拿真实生效值（loadRouting 会给出 ready / unavailable）
+      // not response： 1 （loadRouting will to ready / unavailable）
       await loadRouting()
     }
     toast(t('✅ 路由设置已保存'))
@@ -1626,7 +1626,7 @@ export async function saveRoutingField(patch: {
   }
 }
 
-/* ─── 请求重试 ─────────────────────────────── */
+/* ─── request ─────────────────────────────── */
 
 const retryPanel: NumericPanel = {
   scope: 'retry',
@@ -1637,9 +1637,9 @@ const retryPanel: NumericPanel = {
   read: () => snapshot.retry,
   write: state => publish({ retry: state }),
   syncExtras: data => {
-    // 「指定错误码直接换号」的名单：只收 100–599 的整数项（后端已排序去重，这里不再排序
-    // —— 顺序就是后端给的）。键缺失（旧后端）时沿用上一轮的值，不误判成「清空」；
-    // data 为 null（整块不可用）时清掉并锁住输入框。
+    // 「error」 ： 100–599 （ after already ， this not 
+    // —— is after to ）。（ old after ） when use up 1 ， not 「empty」；
+    // data as null（unavailable） when and 。
     if (data === null) { publish({ retryCodes: null }); return }
     const raw = (data as Record<string, unknown>)[NO_RETRY_CODES_KEY]
     if (!Array.isArray(raw)) return
@@ -1664,15 +1664,15 @@ export async function saveRetryField(field: NumberField, raw: string): Promise<v
   await saveNumericField(retryPanel, field, raw)
 }
 
-/** 增删后的统一提交：乐观更新本地值 → PUT → 用响应里的生效值重画 */
+/** after 1 ：update → PUT → use response */
 async function saveRetryCodes(codes: number[]): Promise<void> {
   if (busyScope) return
   publish({ retryCodes: codes })
   beginBusy('codes')
   try {
     const saved = await shared().workbuddyDesktop?.saveRetry({ [NO_RETRY_CODES_KEY]: codes })
-    // PUT 契约返回生效后的全量值（含三个数字项），交给面板统一回填，
-    // 顺带把徽章重画成后端确认的形态（排序去重后的结果）
+    // PUT return after （ ）， to 1 ，
+    // after （ after ）
     renderNumericPanel(retryPanel, saved)
     toast(t('✅ 已保存：指定错误码直接换号'))
   } catch (error) {
@@ -1683,7 +1683,7 @@ async function saveRetryCodes(codes: number[]): Promise<void> {
   }
 }
 
-/** 校验并添加一枚：整数、100–599、去重、限量（口径与后端 400 文案同源） */
+/** and 1 ：、100–599、、（ and after 400 ） */
 export async function addRetryCode(raw: string): Promise<void> {
   const codes = snapshot.retryCodes
   if (codes === null) return
@@ -1704,21 +1704,21 @@ export async function addRetryCode(raw: string): Promise<void> {
   await saveRetryCodes([...codes, code])
 }
 
-/** 删除一枚（点徽章上的 ✕） */
+/** delete 1 （ up ✕） */
 export async function removeRetryCode(code: number): Promise<void> {
   const codes = snapshot.retryCodes
   if (!codes || !codes.includes(code)) return
   await saveRetryCodes(codes.filter(item => item !== code))
 }
 
-/** 输入框为空时退格删最后一枚（与 GitHub Topics 一致） */
+/** as empty when after 1 （ and GitHub Topics 1 ） */
 export async function dropLastRetryCode(): Promise<void> {
   const codes = snapshot.retryCodes
   if (!codes?.length) return
   await saveRetryCodes(codes.slice(0, -1))
 }
 
-/* ─── 请求超时 ─────────────────────────────── */
+/* ─── request when ─────────────────────────────── */
 
 const timeoutsPanel: NumericPanel = {
   scope: 'timeouts',
@@ -1738,7 +1738,7 @@ export async function saveTimeoutField(field: NumberField, raw: string): Promise
   await saveNumericField(timeoutsPanel, field, raw)
 }
 
-/* ─── 调试模式 / 指纹脱敏 ── */
+/* ─── / ── */
 
 export function renderDebug(data?: unknown): void {
   if (data === undefined) return
@@ -1769,7 +1769,7 @@ async function loadDebug(): Promise<void> {
 }
 
 export async function saveDebug(next: boolean): Promise<void> {
-  // 忙碌中早退：受控开关的 checked 来自快照，不写快照即等于「还原这一下拨动」
+  // in ： checked ， not etc 「 this 1 down 」
   if (busyScope) { repaint(); return }
   beginBusy('debug')
   publish({ debug: { ...snapshot.debug, on: next } })
@@ -1831,7 +1831,7 @@ export async function saveSanitizeConfig(patch: SanitizePatch, message?: string)
   }
 }
 
-/* ─── 开发者角色兼容（developer 角色消息归一为 system）── */
+/* ─── （developer 1 as system）── */
 
 export function renderDeveloperRoleCompat(data?: unknown): void {
   if (data === undefined) return
@@ -1868,9 +1868,9 @@ export async function saveDeveloperRoleCompat(next: boolean): Promise<void> {
   }
 }
 
-/* ─── Cline 伪装头（转发头的逐键覆盖）── */
+/* ─── Cline （ ）── */
 
-/** 非字符串值一律丢弃（后端只会给字符串，这里是给「形状不对的响应」兜底） */
+/** 1 （ after will to ， this is to 「 not for response」） */
 function asStringTable(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object') return {}
   const out: Record<string, string> = {}
@@ -1912,9 +1912,9 @@ export async function refreshClineHeaders(): Promise<void> {
 }
 
 /**
- * 整体替换覆盖表（与后端 PUT 同语义）：伪装头面板把编辑后的整张表提交 ——
- * 默认行「值改回了默认」就不进表、值留空 = 该头不发、删掉的行 = 回落默认。
- * 空表 = 全部回落默认（「恢复默认」按钮就是存一份空表）。
+ * （ and after PUT ）： after ——
+ * default「default」 not 、empty = this not 、 = default。
+ * empty = default（「default」 by is 1 empty）。
  */
 export async function saveClineHeaders(overrides: Record<string, string>): Promise<void> {
   if (busyScope) { repaint(); return }
@@ -1931,7 +1931,7 @@ export async function saveClineHeaders(overrides: Record<string, string>): Promi
   }
 }
 
-/* ─── ZCode 客户端版本号（上游按它决定活动套餐下不下发）── */
+/* ─── ZCode client（ up by down not down ）── */
 
 export function renderZcodeVersion(data?: unknown): void {
   if (data === undefined) return
@@ -1944,7 +1944,7 @@ export function renderZcodeVersion(data?: unknown): void {
     zcodeVersion: {
       status: 'ready',
       version: typeof source.version === 'string' ? source.version : '',
-      // null / 缺失统一成空串：视图层只需判「非空 = 环境变量压着」
+      // null / 1 empty： need 「empty = 」
       envOverride: typeof source.envOverride === 'string' ? source.envOverride : '',
     },
   })
@@ -1965,11 +1965,11 @@ export async function refreshZcodeVersion(): Promise<void> {
 }
 
 /**
- * 保存版本号（空串 = 清空覆盖、回落插件内置默认值）。
+ * （empty = empty、default）。
  *
- * 后端只校验长度与字符集，**不校验「这个版本存在」** —— 上游的版本号对我们
- * 是黑盒。填错的表现是「还是探不到套餐」，所以保存后如实回读后端值，
- * 让用户看到落库的到底是什么。
+ * after and ，** not 「 this in 」** —— up for 
+ * is 。 is 「 is not to 」， after after ，
+ * use to to is 。
  */
 export async function saveZcodeVersion(version: string): Promise<void> {
   if (busyScope) { repaint(); return }
@@ -1986,7 +1986,7 @@ export async function saveZcodeVersion(version: string): Promise<void> {
   }
 }
 
-/* ─── 网关面跨域访问（/v1/* 的 CORS，默认关）── */
+/* ─── （/v1/* CORS，default）── */
 
 export function renderCors(data?: unknown): void {
   if (data === undefined) return
@@ -2023,9 +2023,9 @@ export async function saveCors(next: boolean): Promise<void> {
   }
 }
 
-/* ─── 机器人校验（面板登录 / 注册的 ALTCHA 开关，分两端）── */
+/* ─── （ / ALTCHA ，）── */
 
-/** 把 `/api/captcha` 的响应折成快照（读与写后的回读共用一份解析） */
+/** `/api/captcha` response（ and after use 1 ） */
 function captchaState(state: CaptchaSetting | null | undefined): SettingsSnapshot['captcha'] {
   if (!state || typeof state !== 'object') {
     return { available: false, desktop: false, web: false, localPanel: false }
@@ -2043,17 +2043,17 @@ async function loadCaptcha(): Promise<void> {
     const state = await shared().workbuddyDesktop?.getCaptchaSetting()
     publish({ captcha: captchaState(state) })
   } catch (error) {
-    // 读失败降级禁用开关（照 retention 的模式）
+    // failure use （ retention ）
     publish({ captcha: captchaState(null) })
     console.warn('读取机器人校验设置失败:', errorMessage(error))
   }
 }
 
-/** 拨动某一端的开关（`side` 决定写哪个字段，另一端原样不动） */
+/** 1 （`side` ， 1 not ） */
 export async function saveCaptcha(side: 'desktop' | 'web', next: boolean): Promise<void> {
   if (busyScope) { repaint(); return }
   beginBusy('captcha')
-  // 乐观更新：只改拨动的那一端
+  // update： that 1 
   publish({ captcha: { ...snapshot.captcha, [side]: next } })
   const label = side === 'desktop' ? t('桌面端') : t('网页端')
   try {
@@ -2070,7 +2070,7 @@ export async function saveCaptcha(side: 'desktop' | 'web', next: boolean): Promi
   }
 }
 
-/* ─── 面板账户（设置页「账户」分类）── */
+/* ─── （set「」）── */
 
 async function loadAccount(): Promise<void> {
   try {
@@ -2089,21 +2089,21 @@ async function loadAccount(): Promise<void> {
   }
 }
 
-/** 打开改密码弹窗（表单值由弹窗自己持有，这里只管开关与忙碌态） */
+/** （ by has ， this and ） */
 export function openPasswordDialog(): void {
   if (!snapshot.account.registered) return
   publish({ account: { ...snapshot.account, password: { busy: false, error: '' } } })
 }
 
-/** 关闭改密码弹窗（忙碌中不允许关 —— 请求还在路上，关掉就看不到结果） */
+/** （ in not —— request in up ， not to ） */
 export function closePasswordDialog(): void {
   if (snapshot.account.password?.busy) return
   publish({ account: { ...snapshot.account, password: null } })
 }
 
 /**
- * 提交改密码。校验口径与后端一致（新密码至少 8 位、不能与旧密码相同），
- * 前端先挡一道只是为了少一次往返；真正的判据在 `panel_change_password`。
+ * 。 and after 1 （ new 8 、 not can and old ），
+ * before 1 is as 1 ； in `panel_change_password`。
  */
 export async function submitPasswordChange(oldPassword: string, newPassword: string): Promise<void> {
   const current = snapshot.account.password
@@ -2123,7 +2123,7 @@ export async function submitPasswordChange(oldPassword: string, newPassword: str
   publish({ account: { ...snapshot.account, password: { busy: true, error: '' } } })
   try {
     await shared().workbuddyDesktop?.changePanelPassword(oldPassword, newPassword)
-    // 其他会话已被后端撤销，本机这条仍然有效 —— 关掉弹窗、提示即可
+    // its will already after ， this valid —— 、 can 
     publish({ account: { ...snapshot.account, password: null } })
     toast(t('✅ 密码已修改，其他设备的登录已失效'))
   } catch (error) {
@@ -2136,17 +2136,17 @@ export async function submitPasswordChange(oldPassword: string, newPassword: str
   }
 }
 
-/* ─── models.dev 模型元数据（能力位与逐模型思考档位）── */
+/* ─── models.dev （ can and ）── */
 
-/** 把后端的响应折成面板状态（两处调用共用：读设置与刷新后的回读） */
+/** after response（ use use ：set and new after ） */
 function modelsDevState(state: ModelsDevState | null | undefined): ModelsDevPanelState {
   if (!state || typeof state !== 'object') {
     return { status: 'unavailable', enabled: true, source: '', updatedAt: 0, count: 0 }
   }
   return {
     status: 'ready',
-    // 缺字段时按「开」处理：这个开关默认开（后端同理），显示成关会让用户以为
-    // 自己没开过，而去拨一个本来已经生效的开关
+    // when by 「」： this default（ after ）， will use as 
+    // no ， 1 already 
     enabled: state.modelsDevEnabled !== false,
     source: typeof state.source === 'string' ? state.source : '',
     updatedAt: Number(state.updatedAt) || 0,
@@ -2181,10 +2181,10 @@ export async function saveModelsDev(next: boolean): Promise<void> {
 }
 
 /**
- * 「立即刷新」：真去拉一次 models.dev（不是重读设置）。
+ * 「 new 」： 1 models.dev（ not is set）。
  *
- * 与别处的刷新按钮语义不同 —— 那些按钮重读的是**本机配置**，这一个打的是
- * **公网**，结果行按各家目录刷新那套三档文案讲清楚（成功 / 本次没刷 / 失败）。
+ * and new by not —— that by is **config**， this 1 is 
+ * ****， by directory new that （success / no / failure）。
  */
 export async function refreshModelsDev(): Promise<void> {
   if (busyScope) { repaint(); return }
@@ -2199,7 +2199,7 @@ export async function refreshModelsDev(): Promise<void> {
     } else if (status === 'failed') {
       toast(t('刷新失败：{message}', { message: String(result?.message || '') }), 'err')
     } else {
-      // skipped：未到间隔 / 设置里关着 —— 原因由后端给，原样透出
+      // skipped： to / set —— Reason by after to ，
       toast(String(result?.message || t('本次无需刷新')))
     }
   } catch (error) {
@@ -2210,7 +2210,7 @@ export async function refreshModelsDev(): Promise<void> {
   }
 }
 
-/* ─── 系统提示词（模式 + 文件 + 降级状态） ───── */
+/* ─── （ + file + ） ───── */
 
 export function renderPrompt(data?: unknown): void {
   if (data === undefined) return
@@ -2240,15 +2240,15 @@ export function renderPrompt(data?: unknown): void {
 }
 
 /**
- * 逐家覆盖的归一化：
+ * 1 ：
  * `{"<id>": {mode, promptFile, promptText, promptSource, promptLines, promptFileError}}`。
  *
- * 缺项一律给「中性默认」而不是 undefined：视图层对着这些字段直接渲染，
- * 少一个字段就少一行提示，而那正是用户排查「这家到底生效了没有」的依据。
+ * 1 to 「 in default」 not is undefined： for this ，
+ * 1 1 ， that is use 「 this to no has 」 。
  *
- * `gateway` 从**另一张表**（`promptGateway`）取，键缺失 = 默认装 —— 两张表在
- * 后端也是分开的（见 `KEY_PROMPT_GATEWAY`），这里保持同样的边界：
- * 「客户端 system 怎么处理」与「网关自己装什么」互不牵连。
+ * `gateway` from ** 1 **（`promptGateway`）， = default —— in 
+ * after is （ `KEY_PROMPT_GATEWAY`）， this ：
+ * 「client system 」 and 「」 not 。
  */
 function providerPrompts(raw: unknown, gateway: Record<string, boolean>): ProviderPromptState[] {
   if (!raw || typeof raw !== 'object') return []
@@ -2268,11 +2268,11 @@ function providerPrompts(raw: unknown, gateway: Record<string, boolean>): Provid
         configured: true,
       }
     })
-    // 后端已按 id 排序（BTreeMap），这里保持原序：前端再排一次只会多一套顺序规则
+    // after already by id （BTreeMap）， this ： before 1 will 1 then 
     .sort((a, b) => a.id.localeCompare(b.id))
 }
 
-/** 可配置的家的清单（后端给什么就是什么，认不出的项直接丢掉 —— 宁缺勿错） */
+/** can config （ after to is ， not —— ） */
 function providerOptions(raw: unknown): ProviderPromptOption[] {
   if (!Array.isArray(raw)) return []
   return raw
@@ -2290,9 +2290,9 @@ function providerOptions(raw: unknown): ProviderPromptOption[] {
 }
 
 /**
- * 网关自带提示词的开关表归一化：`{"<id>": true|false}`；认不出的项丢掉。
+ * 1 ：`{"<id>": true|false}`； not 。
  *
- * 键**缺失 = 默认装**：表里只出现被明确拨过的家，界面按 `[id] ?? true` 取。
+ * ** = default**： ， by `[id] ?? true` 。
  */
 function gatewayPrompts(raw: unknown): Record<string, boolean> {
   if (!raw || typeof raw !== 'object') return {}
@@ -2306,11 +2306,11 @@ function gatewayPrompts(raw: unknown): Record<string, boolean> {
 }
 
 /**
- * 网关自带提示词的**正文覆盖**归一化：`{"<id>": {identity?, stable?, dynamic?}}`。
+ * **** 1 ：`{"<id>": {identity?, stable?, dynamic?}}`。
  *
- * 只保留**真给了文本的段**：缺的段由视图层用官方原文补齐（后端也是这个口径 ——
- * 「没写这一段」就是「这段用官方原文」）。三段的段名只在这里出现一次，
- * 与后端的 `GatewayBlocks::FIELDS` 逐字对齐。
+ * ** to **： by use （ after is this ——
+ * 「 no this 1 」 is 「 this use 」）。 in this 1 ，
+ * and after `GatewayBlocks::FIELDS` for 。
  */
 function gatewayTexts(raw: unknown): Record<string, GatewayBlocks> {
   if (!raw || typeof raw !== 'object') return {}
@@ -2331,7 +2331,7 @@ function gatewayTexts(raw: unknown): Record<string, GatewayBlocks> {
   return table
 }
 
-/** 三段正文（配置 / 模板）的归一化；三段都没给就给 null */
+/** （config / ） 1 ； no to to null */
 function gatewayBlocks(raw: unknown): GatewayBlocks | null {
   if (!raw || typeof raw !== 'object') return null
   const entry = raw as Record<string, unknown>
@@ -2354,13 +2354,13 @@ async function loadPrompt(): Promise<void> {
 }
 
 /**
- * 保存一个字段（模式 / 文件 / 正文）。与旧实现的一处**有意偏差**：只传变化的那一项。
- * 旧实现把两个控件的 DOM 值都带上（那是它唯一能读到「当前值」的地方）；React 这边未提交的
- * 编辑留在各自控件的草稿里，而失焦提交先于点击另一控件发生，所以不存在「漏带」，
- * 后端本来就允许部分字段（未出现的项保持原值）。
+ * 1 （ / file / ）。 and old 1 ** has **： that 1 。
+ * old DOM up （ that is 1 can to 「current」 ）；React this 
+ * in ， 1 ， not in 「」，
+ * after （ ）。
  *
- * 返回值 = 这次写入是否成功：编辑器（提示词正文那个弹窗）据此决定关不关窗 ——
- * 保存失败时留在原地，用户不必重新把整段文本再敲一遍。
+ * return = this is success：（ that ） not ——
+ * failure when in ， use not new 1 。
  */
 async function savePromptField(label: string, patch: PromptPatch): Promise<boolean> {
   if (busyScope) {
@@ -2395,10 +2395,10 @@ export async function savePromptFile(raw: string): Promise<void> {
 }
 
 /**
- * 保存**全局提示词正文**（界面里编辑的那一份）。空文本 = 清除这一份、
- * 回落提示词文件 / 内置默认（`savePrompt` 的空串语义）。
+ * ****（ that 1 ）。empty = this 1 、
+ * file / default（`savePrompt` empty）。
  *
- * 保存成功返回 true，供编辑器决定是否关窗。
+ * successreturn true， is 。
  */
 export async function savePromptText(text: string): Promise<boolean> {
   const empty = !text.trim()
@@ -2408,22 +2408,22 @@ export async function savePromptText(text: string): Promise<boolean> {
   )
 }
 
-/* ─── 系统提示词：按提供商 ─────────────────────── */
+/* ─── ： by ─────────────────────── */
 
-/** 这一家在界面上的名字（清单里查不到就回显 id —— 与后端的兜底同一取向） */
+/** this 1 in up （ not to id —— and after 1 to ） */
 export function promptProviderLabel(prompt: PromptState, id: string): string {
   return prompt.options.find(item => item.id === id)?.label || id
 }
 
 /**
- * 校验一家 id 是否**登记在清单里**，认不出就返回空串（调用方直接什么都不做）。
+ * 1 id is ** in **， not returnempty（ use not ）。
  *
- * 两层防线里的第二层。第一层在视图（下拉的 `onValueChange` 刨掉 null）：Base UI
- * 的 Select 在「清空 / 取消选择」时回调 `null`，而 `String(null)` 是**字面量
- * "null"** —— 那会被当成一家叫 `null` 的提供商发给后端，后端如实回一句
- * 「未知的提供商 id：null」，用户看到的就是一次莫名其妙的保存失败。
- * 这一层则保证：不管 id 从哪儿来（旧响应、手改的数据、以后新增的调用点），
- * 未登记的家**永远发不出去** —— 与后端 `is_known_provider_id` 同一口径。
+ * 。 1 in （ down `onValueChange` null）：Base UI
+ * Select in 「empty / 」 when `null`， `String(null)` is **
+ * "null"** —— that will 1 `null` to after ， after 1 
+ * 「unknown id：null」， use to is 1 its failure。
+ * this 1 then ： not id from （ old response、 、 after add use ），
+ * ** not ** —— and after `is_known_provider_id` 1 。
  */
 function knownProviderId(id: unknown): string {
   const text = id == null ? '' : String(id).trim()
@@ -2431,7 +2431,7 @@ function knownProviderId(id: unknown): string {
   return snapshot.prompt.options.some(item => item.id === text) ? text : ''
 }
 
-/** 写一家（`patch` 里未给的字段由后端保持原值） */
+/** 1 （`patch` to by after ） */
 async function saveProviderPrompt(
   label: string,
   id: string,
@@ -2441,14 +2441,14 @@ async function saveProviderPrompt(
 }
 
 /**
- * 「这一行屏幕上显示的那几个值」→ 这一家自己的覆盖（**所见即所存**）。
+ * 「 this 1 up that 」→ this 1 （****）。
  *
- * 模式与文件一起落：这一行可能原本「跟随全局」（界面上显示的是全局那份），只改
- * 一个值时，另一个若不带就落到「内置默认」—— 一次改动，两个后果，第二个还看不见
- * （`saveProviderPromptMode` 早先就为这件事这么做了）。
+ * and file 1 ： this 1 can can 「」（ up is that ），
+ * 1 when ， 1 if not to 「default」—— 1 ， after ， not 
+ * （`saveProviderPromptMode` as this this ）。
  *
- * 正文保留已有的界面覆盖（含透传模式下存着但未生效的文本）；跟随全局时同理。
- * 文件内容与内置默认不复制进配置，否则后续改文件会被这份副本遮住。
+ * already has （ down ）； when 。
+ * file and default not config，otherwise after file will this 。
  */
 function providerPatch(
   prompt: PromptState,
@@ -2463,7 +2463,7 @@ function providerPatch(
   }
 }
 
-/** 给这一家加一条覆盖（初始值 = 全局那份：屏幕上显示的几项都照抄当前的全局值） */
+/** to this 1 1 （ = that ： up current ） */
 export async function addProviderPrompt(rawId: string): Promise<void> {
   const id = knownProviderId(rawId)
   if (!id) return
@@ -2507,17 +2507,17 @@ export async function saveProviderPromptFile(item: ProviderPromptState, raw: str
       ? t('「{label}」的提示词文件已更新', { label: promptProviderLabel(snapshot.prompt, id) })
       : t('「{label}」改用内置默认提示词', { label: promptProviderLabel(snapshot.prompt, id) }),
     id,
-    // 同上：与文件一起把当前显示的模式落定，避免「改文件把模式改回去」
+    // up ： and file 1 current ，「file 」
     { ...providerPatch(snapshot.prompt, item), promptFile: raw },
   )
 }
 
 /**
- * 保存**某一家**的提示词正文（界面里编辑的那一份）。空文本 = 这一家清掉正文、
- * 回落它自己的文件 / 内置默认。
+ * ** 1 ** （ that 1 ）。empty = this 1 、
+ * file / default。
  *
- * 与上面两个动作同一套「所见即所存」：一次保存把这行显示的模式 / 文件 / 正文
- * 三个值一起落定，免得改正文时把另两项改回去。
+ * and up 1 「」： 1 this / file / 
+ * 1 ， when 。
  */
 export async function saveProviderPromptText(
   item: ProviderPromptState,
@@ -2534,7 +2534,7 @@ export async function saveProviderPromptText(
   )
 }
 
-/** 删掉这一家的覆盖（回落全局设置；传 null 是后端的「删除这一家」语义） */
+/** this 1 （set； null is after 「delete this 1 」） */
 export async function removeProviderPrompt(rawId: string): Promise<void> {
   const id = knownProviderId(rawId)
   if (!id) return
@@ -2546,13 +2546,13 @@ export async function removeProviderPrompt(rawId: string): Promise<void> {
 }
 
 /**
- * 拨动**网关自带提示词**的开关（这一家要不要装官方那段装配）。
+ * **** （ this 1 need not need that ）。
  *
- * 与模式 / 文件走**另一维**（`promptGateway`），理由见后端
- * `KEY_PROMPT_GATEWAY`：拨一下开关不该把这家的模式钉成显式值。
+ * and / file** 1 **（`promptGateway`）， by after 
+ * `KEY_PROMPT_GATEWAY`： 1 down not this this 。
  *
- * 关掉是「用户主动放弃上游要求」的动作：只在明确关掉时提示后果，打开时
- * 提示语是普通的中性文案 —— 对着一件恢复正常的事喊警告只会让人脱敏。
+ * is 「 use up need 」 ： in when after ， when 
+ * is in —— for 1 will 。
  */
 export async function saveProviderGatewayPrompt(rawId: string, enabled: boolean): Promise<void> {
   const id = knownProviderId(rawId)
@@ -2581,15 +2581,15 @@ export async function saveProviderGatewayPrompt(rawId: string, enabled: boolean)
 }
 
 /**
- * 保存**某一家**的网关自带提示词**正文**（三段一起提交；`null` = 回到官方原文）。
+ * ** 1 ** ****（ 1 ；`null` = to ）。
  *
- * 与开关（`saveProviderGatewayPrompt`）走**另一维**（`promptGatewayText`）：
- * 改文本不该顺带把开关拨回去 —— 用户在编辑框里清掉自己那段、想回到官方原文时，
- * 更不该连「装不装」也一起变。
+ * and （`saveProviderGatewayPrompt`）** 1 **（`promptGatewayText`）：
+ * not this —— use in that 、 to when ，
+ * not this 「 not 」 1 。
  *
- * 三段一起传是有意的：它们是一个整体（上游认的是「三段各自成块」这个形状），
- * 编辑器里也是三段并排显示，保存时按屏幕上看到的那份原样落下来。
- * 保存成功返回 true，供编辑器决定是否关窗。
+ * 1 is has ： is 1 （ up is 「」 this ），
+ * is and ， when by up to that down 。
+ * successreturn true， is 。
  */
 export async function saveProviderGatewayText(
   rawId: string,
@@ -2598,8 +2598,8 @@ export async function saveProviderGatewayText(
   const id = knownProviderId(rawId)
   if (!id) return false
   const label = promptProviderLabel(snapshot.prompt, id)
-  // 三段全空白 = 没有覆盖（后端也是这个口径：空段不落盘、三段全空就把这家删掉）。
-  // 归一成 `null` 只是为了提示语说得准：用户清空了三段，看到的是「已改回官方原文」。
+  // empty = no has （ after is this ：empty not 、empty this ）。
+  // 1 `null` is as ： use empty， to is 「 already 」。
   const emptied = !blocks
     || !(blocks.identity.trim() || blocks.stable.trim() || blocks.dynamic.trim())
   return savePromptField(
@@ -2610,7 +2610,7 @@ export async function saveProviderGatewayText(
   )
 }
 
-/** 立即解除降级（后端把状态机清零；配置项一个都不动） */
+/** （ after ；config 1 not ） */
 export async function clearDegrade(): Promise<void> {
   if (busyScope) return
   beginBusy('prompt')
@@ -2626,9 +2626,9 @@ export async function clearDegrade(): Promise<void> {
   }
 }
 
-/* ─── 数据存储概况（只读） ─────────────────── */
+/* ─── （） ─────────────────── */
 
-/** 数值归一：非有限数一律 null（视图据此显示「—」） */
+/** 1 ： has 1 null（「—」） */
 function finiteOrNull(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
   const num = Number(value)
@@ -2636,10 +2636,10 @@ function finiteOrNull(value: unknown): number | null {
 }
 
 /**
- * 渲染概况。形状是后端的**单库语义**：
+ * 。 is after ****：
  * `{ configDir, database: { file, bytes, available, accounts, logs, requests, dailyDays, downstreamRaw, upstreamRaw } }`。
- * 后端起不来（网络 / 桥失败）与库打不开是两件事，但对这一页的结论相同：读不到存储概况就
- * 展示「不可用」而不是一排看着正常的 0。
+ * after not （ / failure） and not is ， for this 1 ： not to 
+ * 「unavailable」 not is 1 0。
  */
 export function renderStorage(data?: unknown): void {
   if (data === undefined) return
@@ -2676,21 +2676,21 @@ async function loadStorage(): Promise<void> {
   }
 }
 
-/* ─── 面板登录（仅网页端） ─────────────────── */
+/* ─── （only） ─────────────────── */
 
 /**
- * 「退出登录」撤销本设备的整条会话链（30 天自动续期一并失效），其他已登录设备不受影响；
- * 成功后整页跳回登录页。返回 false 表示失败（按钮要解禁）。
+ * 「」 will （30 1 and ）， its already not ；
+ * success after 。return false failure（ by need ）。
  */
 export async function panelLogout(): Promise<boolean> {
   try {
     await shared().workbuddyDesktop?.panelLogout()
-    // 桌面壳里壳自己也存着一份令牌（panel_session），必须一并清掉 ——
-    // 只撤销服务端会话而不清本地，下次启动壳仍会拿着死令牌去试，
-    // 表现为「每次开机都要多绕一次登录页」。
+    // 1 （panel_session），must 1 and ——
+    // server will not ， down will ，
+    // as 「 need 1 」。
     await shared().workbuddyDesktop?.panelSessionClear?.()
-    // 桌面窗口的页面来自 tauri://，站内路径 `/login` 不存在（那是 headless
-    // 静态托管的路径）。两种形态各回各的登录页。
+    // tauri://，path `/login` not in （ that is headless
+    // path）。 。
     const desktop = shared().workbuddyDesktop?.platform !== 'web'
     window.location.href = desktop ? 'login.html' : '/login'
     return true
@@ -2700,11 +2700,11 @@ export async function panelLogout(): Promise<boolean> {
   }
 }
 
-/* ─── 加载入口 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
 /**
- * 设置页数据入口（app.js 切入该页时调用，upgrade-panel 迁移完成后也调）。
- * 九个取数并行，各自失败各自降级 —— 一个接口挂了不该把整页拖成空白。
+ * set（app.js this when use ，upgrade-panel after ）。
+ * and ，failure —— 1 not this empty。
  */
 export async function load(): Promise<void> {
   restoreCategory()
@@ -2732,15 +2732,15 @@ export async function load(): Promise<void> {
     loadAccount(),
     loadModelsDev(),
     reconnectDbRestore(),
-    // 软件更新面板是另一个岛（update-panel.tsx），切进设置页时让它自己刷新一次
+    // update is 1 （update-panel.tsx），set when new 1 
     shared().wbUpdatePanel?.load?.(),
-    // 「版本信息」也是独立岛（system-info-pane.tsx）：同样在切进设置页时重拉 ——
-    // 版本 / 运行时长 / 在途请求这些读数会随时间变，缓存一份旧的没有意义
+    // 「」 is （system-info-pane.tsx）： in set when ——
+    // / when / in request this will when ， 1 old no has 
     shared().wbSystemInfoPane?.load?.(),
   ])
 }
 
-/* ─── 刷新按钮（各自的 toast 文案照旧） ─────── */
+/* ─── new by （ toast old ） ─────── */
 
 export async function refreshRetention(): Promise<void> {
   await loadRetention()

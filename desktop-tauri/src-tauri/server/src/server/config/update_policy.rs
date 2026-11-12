@@ -92,7 +92,7 @@ pub(crate) fn sync_installed_update_channel(version: &str) -> bool {
     if previous.as_deref() == Some(version) {
         return false;
     }
-    // 连续升级 beta 保留用户手动关闭通道的选择。
+    // beta use 。
     let entering_beta = is_prerelease_version(version)
         && !previous.as_deref().is_some_and(is_prerelease_version);
     let changed = entering_beta && !update_channels().beta;

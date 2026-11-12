@@ -1,23 +1,23 @@
-//! 流式帧的网关侧消费者。
+//! 。
 //!
-//! ── 这个类型解决什么 ────────────────────────────────────────
-//! `ForwardOutcome::Stream` 要求一个**活的** `Stream`，而插件的字节在另一个
-//! 进程里。跨进程把它拉平之后，网关这侧拿到的是「一条无界通道 + 一个额度
-//! 计数器」，本类型把那两样重新装成一条 `Stream` —— 上层（`chat.rs` 的
-//! `RecordingStream`、协议翻译、续写）看到的形状与内置家完全一致。
+//! ── this ────────────────────────────────────────
+//! `ForwardOutcome::Stream` need 1 ** ** `Stream`， in 1 
+//! 。 after ， this to is 「 1 none + 1 
+//! 」， that new 1 `Stream` —— up （`chat.rs` 
+//! `RecordingStream`、、） to and 1 。
 //!
-//! ── 背压在这里发生 ──────────────────────────────────────────
-//! 插件侧的窗口是 [`proto::DEFAULT_WINDOW_BYTES`]，每发一个 chunk 就
-//! `forget()` 掉等量额度（见 SDK 的 `StreamSink`）。额度只有网关发
-//! `credit{n}` 才补回来。所以本类型**每消费一个 chunk 就归还等量额度**：
-//! 客户端读得慢 → 上层不 poll 我们 → 我们不归还 → 插件停在 `send` 上。
-//! 这条链断了的话症状是「插件把整段回答缓冲进自己的内存」，背压形同虚设。
+//! ── in this ──────────────────────────────────────────
+//! is [`proto::DEFAULT_WINDOW_BYTES`]， 1 chunk 
+//! `forget()` etc （ SDK `StreamSink`）。 has 
+//! `credit{n}` 。** 1 chunk etc **：
+//! client → up not poll → not → in `send` up 。
+//! this is 「 」，。
 //!
-//! ── 为什么收尾要合成错误帧 ──────────────────────────────────
-//! 客户端此时已经收到 HTTP 200 与部分内容，唯一能告诉它「这条流是失败的」
-//! 的办法就是在流里写一条错误帧（内置家的 `ForwardStream` 是同一处置）。
-//! 插件自己可能已经写过一条 —— 所以合成前先看尾巴：末尾已经有 `[DONE]`
-//! 就不再补，避免客户端收到两个终止信号。
+//! ── Why need error ──────────────────────────────────
+//! client when already to HTTP 200 and ， 1 can 「 this is failure 」
+//! is in 1 error（ `ForwardStream` is 1 ）。
+//! can can already 1 —— before ： already has `[DONE]`
+//! not ，client to 。
 
 use std::collections::VecDeque;
 use std::pin::Pin;
@@ -40,7 +40,7 @@ pub(crate) type PrivateFailureSlot = Arc<Mutex<Option<Value>>>;
 use super::errors::strict;
 use super::{Host, StreamEvent};
 
-/// 标准 Chat SSE 的只读用量旁路；跨分片缓冲有界，不改写下发字节。
+/// Chat SSE usage； has ， not down 。
 #[derive(Default)]
 struct UsageSniffer {
     strict_provider: Option<&'static str>,
@@ -73,7 +73,7 @@ impl UsageSniffer {
                 if self.event_bytes > Self::MAX_EVENT_BYTES {
                     self.line.clear();
                     self.data.clear();
-                    // 超大事件只在下一个空行恢复，余段不能被误认成新事件。
+                    // in down 1 empty， not can new 。
                     self.skipping_event = true;
                 }
                 if !self.skipping_event { self.line.push(byte); }
@@ -159,22 +159,22 @@ impl UsageSniffer {
     }
 }
 
-/// 一条插件流在网关侧的形态。
+/// 1 in 。
 pub(crate) struct RpcStream {
-    /// 宿主（Drop 时要发 abort / 清登记）。
+    /// （Drop when need abort / ）。
     host: Arc<Host>,
     lease: Option<Arc<super::activity::UsageLease>>,
-    /// 本次调用的 RPC id。
+    /// use RPC id。
     id: i64,
-    /// 插件的 chunk / 收尾事件。
+    /// chunk / 。
     events: tokio::sync::mpsc::UnboundedReceiver<StreamEvent>,
-    /// 归还额度的发送端（见模块头）。通道关闭 = 本流结束，泵任务自行退出。
+    /// （module header）。 = ，。
     credit: tokio::sync::mpsc::UnboundedSender<usize>,
-    /// 待下发的合成帧（错误帧 / 补的 `[DONE]`）。
+    /// down （error / `[DONE]`）。
     pending: VecDeque<Bytes>,
-    /// 已经排好收尾帧，下一次 poll 直接返回 `None`。
+    /// already ， down 1 poll return `None`。
     ended: bool,
-    /// usage / 首响旁路槽。
+    /// usage / 。
     telemetry: Arc<RequestTelemetry>,
     usage: UsageSniffer,
     failure: Option<FailureSlot>,
@@ -182,15 +182,15 @@ pub(crate) struct RpcStream {
 }
 
 impl RpcStream {
-    /// 建一条流，并起一个**额度泵**。
+    /// 1 ， and 1 ****。
     ///
-    /// ── 为什么额度要单独一个任务 ────────────────────────────────
-    /// `poll_next` 是同步的，而归还额度要写 stdin（异步）。在 `poll_next`
-    /// 里 `tokio::spawn` 一个写任务会让每个 chunk 起一个任务（高频流上是
-    /// 每秒几十个），而泵任务是一条流一个：它阻塞在 `recv` 上，来一个还一个。
+    /// ── Why need 1 ────────────────────────────────
+    /// `poll_next` is ， need stdin（）。 in `poll_next`
+    /// `tokio::spawn` 1 will chunk 1 （ up is 
+    /// seconds ）， is 1 1 ： in `recv` up ， 1 1 。
     ///
-    /// `pending` 是「已经从通道里取出来、但还没下发」的正文（见
-    /// [`Self::with_pending`] 的说明）。
+    /// `pending` is 「 already from 、 no down 」 （
+    /// [`Self::with_pending`] ）。
     pub(super) fn with_pending(
         provider: &'static str,
         host: Arc<Host>,
@@ -236,7 +236,7 @@ impl RpcStream {
     fn capture_failure(&self, error: GatewayError) {
         if let Some(slot) = &self.failure {
             let mut slot = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            // 已确认的取消/超时/清理失败不能被更早的额度帧覆盖。
+            // already / when /failure not can 。
             if slot.is_none() || self.usage.strict_provider.is_some() && strict::stopped(&error)
                 && !slot.as_ref().is_some_and(|prior| matches!(prior.status_code, 499 | 504)) {
                 *slot = Some(error);
@@ -268,7 +268,7 @@ impl RpcStream {
         self.capture_failure(failure);
     }
 
-    /// 排上「错误帧 + [DONE]」收尾。
+    /// up 「error + [DONE]」。
     fn finish_with_error(&mut self, message: &str) {
         self.usage.finish(&self.telemetry);
         self.capture_frame_failure();
@@ -282,7 +282,7 @@ impl RpcStream {
         logging::console_line("[Model]", &format!("❌ {message}"));
         self.telemetry.note_error(message);
         if self.usage.done {
-            // 插件自己已经收尾过了：再写一条会让客户端收到两个终止信号
+            // already ： 1 will client to 
             return;
         }
         self.pending.push_back(crate::server::core::upstream::sse::sse_frame(&json!({
@@ -329,15 +329,15 @@ impl Stream for RpcStream {
             }
             match this.events.poll_recv(context) {
                 Poll::Pending => return Poll::Pending,
-                // 通道关了却没有 `Done`：宿主被清表（进程没了 / 主动关停）。
-                // 不合成错误的话，客户端会把截断当成正常结束。
+                // no has `Done`： （ no / ）。
+                // not error ，client will 。
                 Poll::Ready(None) => this.finish_with_error("插件流在收尾信号之前中断"),
-                // 重复的 head（插件协议违规）：消费者只认第一条，后续丢弃。
-                // 不报错是因为它不影响正文 —— 一条多余的控制帧不该毁掉整条流。
+                // head（）： 1 ， after 。
+                // not is as not —— 1 not this 。
                 Poll::Ready(Some(StreamEvent::Head(_))) => {}
                 Poll::Ready(Some(StreamEvent::Chunk(bytes))) => {
-                    // 归还等量额度：载荷 + 帧开销（与插件侧计费口径逐字一致，
-                    // 差一个常量就会让窗口缓慢泄漏或溢出）
+                    // etc ： + （ and 1 ，
+                    // 1 will or ）
                     let _ = this.credit.send(bytes.len() + proto::FRAME_OVERHEAD_BYTES);
                     this.usage.feed(&bytes, &this.telemetry);
                     this.capture_frame_failure();
@@ -354,8 +354,8 @@ impl Stream for RpcStream {
                 Poll::Ready(Some(StreamEvent::Done(Ok(_)))) => {
                     this.usage.finish(&this.telemetry);
                     this.capture_frame_failure();
-                    // 插件正常结束。它本该自己写 `[DONE]`；漏了就在这里补上
-                    // —— 少一个终止帧会让客户端一直等（连接挂着不关）。
+                    // 。 this `[DONE]`； in this up 
+                    // —— 1 will client 1 etc （ not ）。
                     if !this.usage.done {
                         if this.failure.is_some() {
                             this.finish_with_error("辅助程序流缺少真实 [DONE]，未补成功终态");

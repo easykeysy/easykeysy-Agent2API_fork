@@ -27,22 +27,22 @@ function NavList({ className, render, children, ...props }: useRender.ComponentP
 }
 
 /**
- * 导航 / 列表项（项目扩展，shadcn 标准里没有对应件）。
+ * / （，shadcn no has for ）。
  *
- * 用 Button 承接交互，集中维护导航选中态、图标与计数的布局。
+ * use Button ， in in 、 and 。
  *
- * 形态取自侧边栏的 `.nav-item` 与模型管理页左栏的 `.pv`（两者本来就是同一形态）：
- * 行高由 padding 撑、圆角 --r-md —— 条目是 30px 高，与同样 30px 高的普通按钮
- * 取同一档，用户说的「侧栏和按钮圆角不一样」就是这两处（阶梯见 styles/theme.css）。
+ * `.nav-item` and `.pv`（ is 1 ）：
+ * by padding 、 --r-md —— is 30px ， and 30px by 
+ * 1 ， use 「 and by not 1 」 is this （ styles/theme.css）。
  *
- * 三种变体：
- *   · default  普通条目（可选中）
- *   · add      虚线描边的「＋ 新建…」入口：它不是一家、点了也不会有选中态，
- *              虚线正是为了与上面那些真条目分开
+ * ：
+ * · default （optional in ）
+ * · add 「＋ new …」： not is 1 、 not will has in ，
+ * is as and up that 
  *
- * 注意：条目本身是 `<button>`，**里面不能再嵌按钮**。要在右侧挂一枚独立的
- * 操作按钮（如删除 ×），请由调用方在它外面套一层定位容器、把那枚按钮放成兄弟节点
- * —— HTML 不允许 button 嵌套，硬塞进去浏览器会把内层拆出来。
+ * Note: is `<button>`，** not can by **。 need in 1 
+ * by （delete ×）， by use in 1 、 that by 
+ * —— HTML not button ， will 。
  */
 
 const navItemVariants = cva(
@@ -62,9 +62,9 @@ const navItemVariants = cva(
           'cursor-pointer px-2.5 py-2',
           'text-[12.5px] font-medium text-sidebar-fg',
           'hover:bg-nav-hover hover:text-foreground',
-          // 选中态：主色实心块（底色 / 描边 / 文字色三个取值统一在
-          // styles/nav.css 与 theme.css 的 --ui-nav-selected-* 里，见那里的说明）。
-          // 字重只从 400 到 500：再加粗会让整行宽度跳一档。
+          // in ：（ / / 1 in 
+          // styles/nav.css and theme.css --ui-nav-selected-* ， that ）。
+          // from 400 to 500： will 1 。
           'data-[active]:border-nav-selected-border data-[active]:bg-nav-selected-bg data-[active]:font-medium data-[active]:text-nav-selected-fg',
         ],
         add: [
@@ -81,13 +81,13 @@ const navItemVariants = cva(
 
 type NavItemProps = Omit<React.ComponentProps<'button'>, 'className'> &
   VariantProps<typeof navItemVariants> & {
-    /** 选中态。写成 data-active 而不是类名切换，是为了让 Tailwind 变体能命中它 */
+    /** in 。 data-active not is ， is as Tailwind can in */
     active?: boolean
-    /** 右侧计数（家数 / 条数）；传 undefined 不渲染 */
+    /** （ / ）； undefined not */
     count?: number | string
-    /** 左侧图标 */
+    /** */
     icon?: React.ReactNode
-    /** 右侧附加内容（计数之外的东西，如状态点） */
+    /** （ ，） */
     trailing?: React.ReactNode
     className?: string
   }
@@ -124,7 +124,7 @@ function NavItem({
           data-slot='nav-item-count'
           className={cn(
             'flex-none text-[10.5px] text-sidebar-muted [font-variant-numeric:tabular-nums]',
-            // 选中态下计数跟随文字色，否则它在深色底上会糊成一团
+            // in down ，otherwise in up will 1 
             active && 'text-inherit'
           )}
         >

@@ -73,8 +73,8 @@ export function CheckinSchedules({ center, busy, action }: {
                 aria-label={entry.displayLabel || entry.time} onCheckedChange={enabled => toggle(entry, enabled)} />
             </div>
             <p className='m-ck-note'>{entry.providers.map(id => t(options.find(item => item.id === id)?.label || id)).join('、')}</p>
-            {/* 各家按自己的窗口时刻签（Qoder 10:01 / ZCode 19:01），
-                这一行说明「还没到点的是哪几家」——手机上最需要看到的一格 */}
+            {/* by when （Qoder 10:01 / ZCode 19:01），
+                 this 1 「 no to is 」—— up need need to 1 */}
             {(entry.providerRows || []).length
               ? <p className='m-ck-note'>
                   {entry.providerRows.map(row => {
@@ -85,8 +85,8 @@ export function CheckinSchedules({ center, busy, action }: {
                   }).join(' · ')}
                   {entry.retryTime ? t(' · 补签在主签到区间结束后执行') : ''}
                   {Number(entry.retryCount) > 0 ? t(' · {n} 个账号等窗口重试', { n: entry.retryCount }) : ''}
-                  {/* 次数用完的账号已不在 retryCount 里：不单独说一句，这一行归零
-                      会被读成「都签完了」 */}
+                  {/* use already not in retryCount ： not 1 ， this 1 
+                       will 「」 */}
                   {Number(entry.retryExhausted?.length ?? 0) > 0
                     ? t(' · {n} 个账号今日重试已用完', { n: entry.retryExhausted?.length ?? 0 }) : ''}
                 </p>
@@ -146,7 +146,7 @@ function ScheduleEditor({ entry, options, busy, action, onClose }: {
   const [time, setTime] = useState(entry?.time || '00:01')
   const [timeEnd, setTimeEnd] = useState(checkinEnd(entry?.time || '00:01', entry?.timeEnd))
   const [providers, setProviders] = useState(entry?.providers || options.map(item => item.id))
-  // 逐家时刻覆盖（空串 = 撤销）与补签轮：与桌面端同一套字段
+  // when （empty = ） and ： and 1 
   const [providerTimes, setProviderTimes] = useState<Record<string, string>>(entry?.providerTimes || {})
   const [retryTime, setRetryTime] = useState(entry?.retryTime ?? '00:10')
   const [retryGap, setRetryGap] = useState(String(entry?.retryGapMinutes ?? 10))

@@ -4,27 +4,27 @@ import { cn } from './lib/cn'
 import { t } from './i18n'
 
 /**
- * 多选下拉。
+ * down 。
  *
- * 形态与 shadcn/ui 的 Combobox 一致（shadcn 的多选就是 Combobox 加 `multiple`，
- * 没有另一个叫 MultiSelect 的组件）—— 部件名沿用 Combobox 的叫法，
- * 这里只是把「触发器当表单控件、搜索框放进浮层」那套样板封成一个组件。
+ * and shadcn/ui Combobox 1 （shadcn is Combobox `multiple`，
+ * no has 1 MultiSelect ）—— use Combobox ，
+ * this is 「、」 that 1 。
  *
- * 为什么是 Combobox 而不是 Select 加 multiple：Base UI 的 Select 是单选原语，
- * 多选只能自己拿 Checkbox 拼，键盘与 aria 都得手写。Combobox 原生支持
- * `multiple`，并且**内建按标签筛选** —— 提供商一多，能在浮层里打字过滤是刚需。
+ * Why is Combobox not is Select multiple：Base UI Select is ，
+ * can Checkbox ， and aria 。Combobox supports
+ * `multiple`，and** by ** —— 1 ， can in is need 。
  *
- * 视觉对齐既有的多选下拉（ui/css/select.css 的 `.select-shell-multi`）：
- * 触发器与 SelectTrigger 同一张脸，一项都没选时显示 `placeholder`
- * （空选的语义通常是「不限制」，必须说清 —— 留一个空框会让人以为「不选＝全都不能用」）；
- * 选中多项时按 `、` 连接（与 select.js 的 selectedText 同一口径）。
+ * for has down （ui/css/select.css `.select-shell-multi`）：
+ * and SelectTrigger 1 ， 1 no when `placeholder`
+ * （empty is 「unlimited」，must —— 1 empty will as 「 not ＝ not can use 」）；
+ * in when by `、` （ and select.js selectedText 1 ）。
  *
- * 用法：
+ * use ：
  *   <MultiSelect
  *     value={ids}
  *     onValueChange={setIds}
  *     options={[{ value: 'wb', label: 'WorkBuddy' }]}
- *     placeholder='留空 = 不限制'
+ * placeholder='empty = unlimited'
  *   />
  */
 
@@ -32,37 +32,37 @@ type MultiSelectOption<Value extends string = string> = {
   value: Value
   label: string
   /**
-   * 置灰不可选（仍显示在清单里）。
+   * not optional（ in ）。
    *
-   * 用来说明「这一项存在、但现在不能选」—— 比如账号表单里「网络代理」页已禁用
-   * 的池条目：直接从选项里删掉会让用户以为它被删了，而选了才报错又太晚。
-   * 与 SelectItem 的 `disabled` 同一语义。
+   * use 「 this 1 in 、 in not can 」—— e.g.「」 already use 
+   * ： from will use as ，。
+   * and SelectItem `disabled` 1 。
    */
   disabled?: boolean
 }
 
 type MultiSelectProps<Value extends string = string> = {
-  /** 受控选中值；本组件不持有状态 */
+  /** in ； not has */
   value: readonly Value[]
   onValueChange: (value: Value[]) => void
   options: readonly MultiSelectOption<Value>[]
-  /** 一项都没选时触发器上的文案 */
+  /** 1 no when up */
   placeholder?: string
-  /** 浮层里搜不到匹配项时的文案 */
+  /** not to when */
   emptyHint?: string
-  /** 浮层里搜索框的占位文案 */
+  /** */
   searchPlaceholder?: string
   disabled?: boolean
   className?: string
-  /** 触发器上的原生 id：给可见 `<label htmlFor>` 关联用（没有可见 label 时用 aria-label 也行） */
+  /** up id： to can `<label htmlFor>` use （ no has can label when use aria-label ） */
   id?: string
-  /** 触发器的悬停提示 */
+  /** */
   title?: string
-  /** 无障碍名（触发器上没有可见 label 时必填） */
+  /** none（ up no has can label when ） */
   'aria-label'?: string
 }
 
-/** 选中项的连接符（与 select.js 的 selectedText 逐字一致） */
+/** in （ and select.js selectedText 1 ） */
 const JOINER = '、'
 
 function MultiSelect<Value extends string = string>({
@@ -79,11 +79,11 @@ function MultiSelect<Value extends string = string>({
   ...props
 }: MultiSelectProps<Value>) {
   /**
-   * 组件对外收的是 value 字符串数组，Base UI 内部收的是选项对象数组。
-   * 两个方向都在这里翻译，调用方不必关心选项对象的引用是否稳定 ——
-   * 所以 `isItemEqualToValue` 必须按 value 比，不能用默认的 Object.is：
-   * 调用方每次 render 重建 options 数组时，Object.is 会认不出「还是那一项」，
-   * 选中态会闪没。
+   * for is value ，Base UI is for 。
+   * to in this ， use not for use is ——
+   * `isItemEqualToValue` must by value ， not can use default Object.is：
+   * use render options when ，Object.is will not 「 is that 1 」，
+   * in will no 。
    */
   const selected = React.useMemo(
     () => options.filter(option => value.includes(option.value)),
@@ -118,7 +118,7 @@ function MultiSelect<Value extends string = string>({
           className
         )}
       >
-        {/* 一项都没选时走 data-placeholder 的弱化色，与 Select 的占位观感一致 */}
+        {/* 1 no when data-placeholder ， and Select 1 */}
         <span
           data-slot='multi-select-value'
           className='min-w-0 flex-1 truncate text-left data-[placeholder]:text-muted-foreground'
@@ -146,16 +146,16 @@ function MultiSelect<Value extends string = string>({
           <ComboboxPrimitive.Popup
             data-slot='multi-select-content'
             className={cn(
-              // 宽度跟随触发器（--anchor-width），但给一个下限：触发器常常很窄，
-              // 而选项文字（提供商全名 / 模型名）比触发器长得多
+              // （--anchor-width）， to 1 down ：，
+              // （ / ）
               'flex max-h-[280px] w-[max(var(--anchor-width),220px)] flex-col overflow-hidden',
               'rounded-lg border border-border-strong bg-raised shadow-3 outline-none',
               'data-open:animate-in data-open:fade-in-0',
               'data-closed:animate-out data-closed:fade-out-0'
             )}
           >
-            {/* 搜索框在浮层里（input-inside-popup）：触发器保持「选择器」的样子，
-                而不是变成一个能打字的输入框 —— 那会让人以为可以随便填。 */}
+            {/* in （input-inside-popup）：「」 ，
+                 not is 1 can —— that will as can 。 */}
             <div className='flex flex-none items-center gap-1.5 border-b border-hairline px-2.5 py-1.5'>
               <svg viewBox='0 0 12 12' className='size-3 flex-none text-muted-foreground' aria-hidden='true'>
                 <circle cx='5' cy='5' r='3.4' stroke='currentColor' strokeWidth='1.3' fill='none' />
@@ -182,9 +182,9 @@ function MultiSelect<Value extends string = string>({
                     'text-[12.5px] leading-[1.4] text-foreground select-none outline-none',
                     'transition-colors duration-[120ms] ease-out',
                     'data-[highlighted]:bg-nav-hover',
-                    // 选中项走品牌浅底 + 字重（与 SelectItem 同一观感）。
-                    // 用 data-[selected] 而不是 shadcn 的 data-selected 变体：
-                    // Base UI 输出的是 data-selected=""，空串匹配不上 true。
+                    // in + （ and SelectItem 1 ）。
+                    // use data-[selected] not is shadcn data-selected ：
+                    // Base UI is data-selected=""，empty not up true。
                     'data-[selected]:bg-primary-soft data-[selected]:font-semibold data-[selected]:text-primary-fg',
                     'data-[highlighted]:data-[selected]:bg-primary-tint',
                     'data-disabled:pointer-events-none data-disabled:text-muted-foreground'

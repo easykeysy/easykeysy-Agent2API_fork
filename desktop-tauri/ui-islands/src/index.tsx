@@ -2,7 +2,7 @@ import { mountInput, observeInputs } from './input'
 import { mountSegmented } from './segmented'
 import './uikit'
 import './styles/islands.css'
-// 外壳须先同步创建页面挂载点，业务岛才能接管各 section。
+// create， can section。
 import './desktop-shell'
 import './desktop-tooltip'
 import './desktop-titlebar'
@@ -19,10 +19,10 @@ window.wbSegmented = { mount: mountSegmented }
 window.wbInput = { mount: mountInput }
 observeInputs()
 
-// 首屏页现在就先挂上：`app.js` 的第一次 `showPage` 要等 DOMContentLoaded，
-// 而页面岛改成按需挂载后，首次绘制到那一刻之间内容区会是空的。这里按与
-// app.js `PAGE_KEY` 相同的 localStorage 键提前派发一次；之后 `showPage`
-// 再派发相同页面时，island-lazy 对已挂载的入口是幂等的。
+// in up ：`app.js` 1 `showPage` need etc DOMContentLoaded，
+// by need after ， to that 1 will is empty 。 this by and 
+// app.js `PAGE_KEY` localStorage before 1 ； after `showPage`
+// when ，island-lazy for already is etc 。
 const initialPage = (() => {
   try {
     return localStorage.getItem('workbuddy-desktop-page') || 'overview'

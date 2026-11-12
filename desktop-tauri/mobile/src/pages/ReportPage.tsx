@@ -16,15 +16,15 @@ import { DateRangeFilter } from '../components/DateRangeFilter'
 import { readCustomRange, saveCustomRange, type CustomDates } from '../../../ui-shared/date-range'
 
 /**
- * 报表。
+ * 。
  *
- * 桌面端的六块图（排行 / 环形 / 热力图 / 趋势）在手机上按「先结论后细节」
- * 重排：四张 KPI 卡 → 按天趋势 → 模型排行 → 提供商排行。
+ * （ / / / ） in up by 「 after 」
+ * ： KPI → by → → 。
  *
- * 两处有意的取舍：
- *   · 环形图改横向条 —— 390px 宽里环形的可读面积太小，条形的排序与占比
- *     一眼可比；
- *   · 365 天热力图不进手机端 —— 每格不到 2px，没有信息量，桌面端看。
+ * has ：
+ * · to —— 390px can ， and 
+ * 1 can ；
+ * · 365 not —— not to 2px， no has ，。
  */
 
 const CUSTOM_RANGE_KEY = 'agent2api-mobile-report-custom-range'
@@ -222,8 +222,8 @@ export function ReportPage() {
 function pickCacheRate(data: StatsSummary | null): number | null {
   const rates = data?.cacheRates
   if (!rates) return null
-  // 后端给的是「命中 Token / 输入 Token」的比值（可能 >1，合法），
-  // 手机上展示 24 小时窗口的那一档
+  // after to is 「 in Token / Token」 （ can can >1，），
+  // up 24 when that 1 
   const value = rates.last24h ?? rates.last1h ?? rates.last10m ?? rates.last7d
   if (value && typeof value === 'object') return (value.inputTokens || 0) > 0 && typeof value.rate === 'number' ? value.rate : null
   return typeof value === 'number' && Number.isFinite(value) ? value : null

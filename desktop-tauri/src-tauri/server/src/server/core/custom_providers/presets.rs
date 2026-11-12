@@ -19,7 +19,7 @@ pub(super) fn key_of_record(object: &Map<String, Value>) -> String {
     if object.contains_key("presetKey") {
         return validate(object.get("presetKey")).unwrap_or_default();
     }
-    // 旧记录只按显式保存的适配方案补标识，不根据展示名或自建站点域名猜模板。
+    // old by ， not or 。
     let key = match object.get("balanceScheme").and_then(Value::as_str) {
         Some("new_api") => "newapi",
         Some("sub2api") => "sub2api",

@@ -41,7 +41,7 @@ export function diagnosticText(value: unknown, t: Translate, max = 800): string 
   return safeText(raw, max)
 }
 
-// 只允许选定字段上的标量；新增后端字段不会自动进入模型上下文。
+// up ；add after not will up down 。
 export function fields(value: unknown, keys: readonly string[], max = 256): Record<string, unknown> {
   const source = object(value)
   const out: Record<string, unknown> = {}

@@ -1,5 +1,5 @@
-//! 出站请求体脱敏：按配置顺序执行字面替换与正则规则，只修改发送副本。
-//! 规则在配置读取 / 保存时编译，同一次请求的词表与提供商范围使用同一份快照。
+//! request： by config and then then ，。
+//! then in config / when ， 1 request and use 1 。
 
 mod rules;
 
@@ -62,7 +62,7 @@ fn sanitize_text(text: &str, rules: &RuleSet, hits: &mut Hits, scope: TextScope)
                     if count == 0 {
                         break;
                     }
-                    // 替换内容始终是原文，不把用户文本里的 $ 当成捕获组引用。
+                    // is ， not use $ use 。
                     (
                         regex
                             .replace_all(&out, NoExpand(&rule.replacement))

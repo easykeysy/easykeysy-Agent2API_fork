@@ -17,19 +17,19 @@ export type CredentialExpiryRow = {
 }
 
 /**
- * 真正持有**两份各自独立到期**凭证的提供商（白名单）。
+ * has ** to ** （）。
  *
- * ── 为什么不能按「有 accessToken 且有 refreshToken」判 ────────
- * OAuth 类提供商本来就同时有这两枚令牌，但那是**一条凭证链**：access token
- * 到期后由 refresh token 续期，用户只关心「还能用多久」这一个读数。按字段
- * 存在性判会让它们全部渲染成两行，把一条凭证链说成两份凭证。
+ * ── Why not can by 「 has accessToken and has refreshToken」 ────────
+ * OAuth when has this ， that is ** 1 **：access token
+ * to after by refresh token ， use 「 can use 」 this 1 。 by 
+ * in will ， 1 。
  *
- * ── 判据 ────────────────────────────────────────────────────
- * 只有该家**同时上报两个互不相干的到期时刻**才算，且必须逐个确认后登记：
- *   · codearts —— STS 临时凭据（`accessTokenExpiresAt`）与刷新令牌
- *     （`refreshTokenExpiresAt`，从 refresh JWT 载荷解出）是两条时间线，
- *     续期会换掉整对 AK/SK/STS。
- * 未登记的家一律走单行（只有主凭证那一个读数），即使它们也有 refreshToken。
+ * ── ────────────────────────────────────────────────────
+ * has this ** when up not to when **， and must after ：
+ * · codearts —— STS when （`accessTokenExpiresAt`） and new 
+ * （`refreshTokenExpiresAt`， from refresh JWT ） is when ，
+ * will for AK/SK/STS。
+ * 1 （ has that 1 ）， has refreshToken。
  */
 const DUAL_CREDENTIAL_PROVIDERS: readonly string[] = ['codearts']
 
@@ -42,13 +42,13 @@ export function credentialExpiryMillis(value: unknown): number | null {
 }
 
 export function credentialExpiryRowsOf(account: CredentialAccount, accessExpiry: unknown): CredentialExpiryRow[] {
-  // 先按白名单收口：没登记的家即使字段齐全也走单行（见 DUAL_CREDENTIAL_PROVIDERS）
+  // by ： no （ DUAL_CREDENTIAL_PROVIDERS）
   if (!DUAL_CREDENTIAL_PROVIDERS.includes(String(account.provider ?? ''))) return []
   if (account.hasAccessToken !== true || account.hasRefreshToken !== true) return []
   const refreshExpiry = credentialExpiryMillis(account.refreshTokenExpiresAt ?? account.refreshExpiresAt)
-  // 第二行必须真有独立读数：两个到期时刻相同（或都读不到）时，两行说的是同一件事，
-  // 只留主凭证那行 —— 否则会出现「Access Token 317 天后 / Refresh Token 317 天后」
-  // 这种把一条凭证链拆成两行的画面。
+  // must has ： to when （ or not to ） when ， is 1 ，
+  // that —— otherwise will 「Access Token 317 after / Refresh Token 317 after 」
+  // this 1 。
   if (refreshExpiry === null && account.refreshTokenLongLived !== true) return []
   const accessMillis = credentialExpiryMillis(account.accessTokenExpiresAt) ?? credentialExpiryMillis(accessExpiry)
   if (refreshExpiry !== null && accessMillis !== null && refreshExpiry === accessMillis) return []

@@ -25,8 +25,8 @@ export function traceCandidates(row: ReplayRow): TraceCandidate[] {
   const blocked = Array.isArray(row.route?.blocked) ? row.route.blocked : []
   const ordered = Array.isArray(row.route?.ordered) ? row.route.ordered : []
   const seen = new Set<string>()
-  // 候选队列要完整呈现当时的顺位；已尝试的账号仍留在这里（尝试明细单独记录），
-  // 否则单候选失败时会出现「1 个候选」但列表为空的自相矛盾。
+  // need when ； already in this （），
+  // otherwisefailure when will 「1 」 as empty 。
   return [...ordered.map(entry => ({ ...entry, kind: 'available' as const })),
     ...blocked.map(entry => ({ ...entry, kind: entry.state === 'tried' ? 'available' as const : 'skipped' as const }))]
     .filter(entry => { const key = entry.candidateId || `${entry.memberId || ''}:${entry.id}`; if (seen.has(key)) return false; seen.add(key); return true })
@@ -58,7 +58,7 @@ export function attemptDuration(row: ReplayRow, attempt: TraceAttempt): string {
 export function relativeTime(row: ReplayRow, time?: number | null): string {
   return time != null ? formatDuration(Math.max(0, time - row.ts)) : t('未记录')
 }
-/** 上游错误常带整段 HTML，摘要只留可读文字；完整原文在请求详情里。 */
+/** up error HTML， need can ； in request。 */
 export function errorText(value?: string | null, limit = 0): string {
   const plain = (value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
   return limit > 0 && plain.length > limit ? `${plain.slice(0, limit)}…` : plain

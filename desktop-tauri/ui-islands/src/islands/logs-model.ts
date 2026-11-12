@@ -68,7 +68,7 @@ export function readFilters(): Filters {
     const storedRange = localStorage.getItem(RANGE_KEY)
     if (RANGE_OPTIONS.some(option => option.value === storedRange)) range = storedRange!
     aggregate = localStorage.getItem(AGGREGATE_KEY) !== '0'
-  } catch { /* 存储不可用不影响当前会话。 */ }
+  } catch { /* unavailable not current will 。 */ }
   return {
     view, range, aggregate, dates: readCustomRange(CUSTOM_RANGE_KEY),
     level: LEVEL_OPTIONS.some(option => option.value === saved?.level) ? saved!.level : '',
@@ -83,7 +83,7 @@ export function persistFilters(filters: Filters): void {
     localStorage.setItem(VIEW_KEY, filters.view)
     localStorage.setItem(RANGE_KEY, filters.range)
     localStorage.setItem(AGGREGATE_KEY, filters.aggregate ? '1' : '0')
-  } catch { /* 存储不可用不影响当前会话。 */ }
+  } catch { /* unavailable not current will 。 */ }
 }
 
 export function autoConfig(task: IntervalTask | null | undefined): AutoConfig {

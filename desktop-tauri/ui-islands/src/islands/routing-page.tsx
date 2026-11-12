@@ -105,7 +105,7 @@ export function RoutingPage() {
       try {
         const next = await bridge().getRoutingTraceRequest({ id: selected.id, ts: selected.ts })
         if (alive) setSelected(current => current && requestKey(current) === requestKey(next) ? next : current)
-      } catch { /* 下个周期再试 */ }
+      } catch { /* down */ }
       finally { pending = false }
     }, 2500)
     return () => { alive = false; window.clearInterval(timer) }
@@ -126,7 +126,7 @@ export function RoutingPage() {
     try {
       const next = await bridge().getRoutingTraceRequest({ id: selected.id, ts: selected.ts })
       setSelected(current => current && requestKey(current) === requestKey(next) ? next : current)
-    } catch { /* 列表下次刷新会带回新状态 */ }
+    } catch { /* down new will new */ }
   }
   const close = () => { setModal(null); refreshRouting() }
   const reloadConfig = async () => {

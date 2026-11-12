@@ -1,6 +1,6 @@
-//! 系统事件与调试日志共用 SQLite 表，按级别预留容量，合计不超过配置上限。
-//! 查询可按重要事件、全部事件、调试详情筛选，并在分页前折叠重复记录。
-//! 原始记录不因折叠删除；日志 id 高水位只在显式全清时重置。
+//! and use SQLite ， by ， not configlimit。
+//! can by need 、、， and in before 。
+//! not delete； id in when 。
 
 mod presentation;
 mod sql;
@@ -63,21 +63,21 @@ pub const CATEGORIES: [(&str, &str); 11] = [
 const MAX_MESSAGE_LENGTH: usize = 1000;
 const MAX_DATA_KEYS: usize = 24;
 
-/// 写入多少条才做一次保留期 / 容量裁剪。
+/// 1 / 。
 ///
-/// 原先每写一条日志都要做两次 `COUNT(*)` + 两次 DELETE 来判断是否超限；
-/// 日志页空闲时也会持续写心跳类日志，这几次全表扫描没有意义。按批裁剪把
-/// 写入路径压成「一条 INSERT」，最多让容量超出 63 条（下一次裁剪抹平）。
+/// 1 need `COUNT(*)` + DELETE is ；
+/// empty when will ， this no has 。 by 
+/// path「 1 INSERT」， 63 （ down 1 ）。
 const MAINTENANCE_EVERY: u64 = 64;
 
-/// 日志内容版本：任何会改变查询/统计结果的写入（追加、裁剪、清空）都 +1。
+/// ： will /statistics （、、empty） +1。
 ///
-/// 缓存只服务「同一次读取反复发生」的场景（日志页 1 秒轮询、统计与列表
-/// 同一轮里各读一次）；版本变了就必须重新读库。用进程级原子而不是每个
-/// `LogStore` 字段，是为了覆盖迁移代码绕过 store 直接写表的那条路径
-/// （`sql_trim_capacity` 在模块内，能顺带 bump）。
+/// 「 1 」 （ 1 seconds、statistics and 
+/// 1 1 ）；must new 。 use not is 
+/// `LogStore` ， is as store that path
+/// （`sql_trim_capacity` in ， can bump）。
 static CACHE_EPOCH: AtomicU64 = AtomicU64::new(0);
-/// 距离上次容量裁剪已经写入了多少条（进程级，单例 store 无冲突）。
+/// up already （， store none）。
 static APPENDS_SINCE_TRIM: AtomicU64 = AtomicU64::new(0);
 
 fn bump_cache_epoch() {
@@ -140,14 +140,14 @@ pub struct Query {
     pub offset: usize,
     pub aggregate: bool,
     pub view: LogView,
-    /// 固定读取水位，新增条目不会移动正在阅读的历史分页。
+    /// ，add not will in 。
     pub until_id: Option<u64>,
     pub level: Option<String>,
     pub category: Option<String>,
     pub keyword: Option<String>,
     pub since_id: Option<u64>,
     pub start: Option<i64>,
-    /// 时间区间为 [start, end)，单位毫秒。
+    /// when as [start, end)，ms。
     pub end: Option<i64>,
 }
 
@@ -210,8 +210,8 @@ pub(crate) fn sql_raise_next_id(conn: &rusqlite::Connection, value: u64) -> rusq
 
 pub(crate) fn sql_trim_capacity(conn: &rusqlite::Connection) -> rusqlite::Result<usize> {
     let removed = sql::trim_to_capacity(conn, retention_capacity())?;
-    // 迁移路径会直接改表、不经过 LogStore；调用点就在导入之后，无论本次裁剪
-    // 有没有删行都要让可能已存在的列表 / 统计缓存失效（导入的正是新内容）。
+    // path will 、 not LogStore； use in after ，none
+    // has no has need can can already in / statistics（ is new ）。
     bump_cache_epoch();
     Ok(removed)
 }
@@ -221,26 +221,26 @@ pub struct LogStore {
     file_path: PathBuf,
     get_retention_days: Arc<dyn Fn() -> i64 + Send + Sync>,
     inner: Mutex<()>,
-    /// 最近几次列表查询的结果。日志页会「主查询 + 增量探测」交替发，
-    /// 只缓存一条会让两者互相挤掉；两条足够覆盖这个节奏。
+    /// 。 will 「 + 」，
+    /// 1 will ； this 。
     query_cache: Mutex<VecDeque<CachedQuery>>,
-    /// 全局统计（级别 / 分类条数）。日志页与导航角标都读它；没有新日志时
-    /// 直接复用，避免每秒重扫整表。
+    /// statistics（ / ）。 and ； no has new when 
+    /// use ，seconds。
     stats_cache: Mutex<Option<(u64, Stats)>>,
-    /// fork：事件行写到文件时的目标（`{logs_dir}/events.jsonl`）。
-    /// `None` = 原来的库后端（非 Linux / 没有内存盘 / 测试环境）。
+    /// fork： to file when （`{logs_dir}/events.jsonl`）。
+    /// `None` = after （ Linux / no has / ）。
     events_file: Option<PathBuf>,
-    /// 文件内容的代际号：每次写文件 +1，内存镜像据此判断要不要重载。
+    /// file ：file +1， need not need 。
     file_gen: AtomicU64,
-    /// 文件模式下的 id 分配器（种子 = 库高水位与文件最大 id 的较大值）。
+    /// file down id （ = and file id ）。
     next_id: AtomicU64,
-    /// 文件内容的内存镜像（内存 SQLite 的 `logs` 表）。查询 / 统计 / 折叠
-    /// 全部复用 `sql` 层，不再写第二套筛选逻辑。
+    /// file （ SQLite `logs` ）。 / statistics / 
+    /// use `sql` ， not 。
     mirror: Mutex<Option<Mirror>>,
 }
 
-/// 文件内容的内存镜像。`gen` 是装载时的代际号，与 `LogStore::file_gen` 不同
-/// 就说明文件已经变了（本进程写入 / 清空），下次读之前要重载。
+/// file 。`gen` is when ， and `LogStore::file_gen` not 
+/// file already （ / empty）， down before need 。
 struct Mirror {
     conn: Connection,
     gen: u64,
@@ -275,22 +275,22 @@ impl LogStore {
         }
     }
 
-    /// fork：事件行写文件的后端（Linux + `/mnt/ramdisk` 时由
-    /// `logging::init_store` 选用；没有内存盘时仍走 [`with_db`] 的库后端）。
+    /// fork：file after （Linux + `/mnt/ramdisk` when by 
+    /// `logging::init_store` use ； no has when [`with_db`] after ）。
     ///
-    /// ── 为什么行不在库里 ────────────────────────────────────
-    /// 日志是「高频写、可丢弃、长得快」的一类数据，与主库的账号 / 配置不是
-    /// 同一寿命。`events.jsonl` 落在 `{logs_dir}`（默认内存盘），重启即清 ——
-    /// 这正是「日志离开 `agent2api.db`」这一步的含义。
+    /// ── Why not in ────────────────────────────────────
+    /// is 「、 can 、」 1 ， and / config not is 
+    /// 1 。`events.jsonl` in `{logs_dir}`（default）， ——
+    /// this is 「 `agent2api.db`」 this 1 。
     ///
-    /// ── 为什么查询没有重写一套 ──────────────────────────────
-    /// 读路径把文件载入内存 SQLite 的 `logs` 表（代际号没变就复用），之后仍调
-    /// `sql` 层：`Query` 的筛选、`presentation` 的折叠、`Stats` 的口径全部与
-    /// 库后端共用同一份实现，不会漂。
+    /// ── Why no has 1 ──────────────────────────────
+    /// path file SQLite `logs` （ no use ）， after 
+    /// `sql` ：`Query` 、`presentation` 、`Stats` and 
+    /// after use 1 ， not will 。
     ///
-    /// ── 启动迁移 ────────────────────────────────────────────
-    /// 库里已有遗留日志行（改造前写入的）时，先全部搬进文件再从库里删掉；
-    /// 搬不动就留在库里（宁可 `.db` 暂时不瘦，也不丢日志）。
+    /// ── ────────────────────────────────────────────
+    /// already has （ before ） when ，file from ；
+    /// not in （ can `.db` when not ， not ）。
     pub fn with_events_file(
         db: Option<Db>,
         events_file: PathBuf,
@@ -363,7 +363,7 @@ impl LogStore {
         }
     }
 
-    /// fork：读路径的统一入口 —— 库后端走 [`with_conn`]，文件后端走内存镜像。
+    /// fork：path 1 —— after [`with_conn`]，file after 。
     fn with_source<T>(
         &self,
         guard: &MutexGuard<'_, ()>,
@@ -401,7 +401,7 @@ impl LogStore {
         slot.as_ref()
     }
 
-    /// 文件后端：追加一行。失败只打控制台（写日志失败不能反过来刷屏）。
+    /// file after ： 1 。failure（failure not can ）。
     fn file_append(&self, record: &LogEntry) -> bool {
         if !append_entries(self.events_file.as_deref().unwrap_or(Path::new("")), &[record.clone()]) {
             return false;
@@ -410,7 +410,7 @@ impl LogStore {
         true
     }
 
-    /// 文件后端：把内存镜像整体写回（原子替换）。
+    /// file after ： （）。
     fn file_dump(&self, conn: &Connection, path: &Path) -> bool {
         let Ok(entries) = sql::select_all_asc(conn) else {
             return false;
@@ -434,7 +434,7 @@ impl LogStore {
         true
     }
 
-    /// 文件后端：按保留期 / 分级容量裁剪（每 `MAINTENANCE_EVERY` 条一次）。
+    /// file after ： by / （ `MAINTENANCE_EVERY` 1 ）。
     fn file_trim(
         &self,
         _guard: &MutexGuard<'_, ()>,
@@ -462,7 +462,7 @@ impl LogStore {
         self.file_dump(conn, &path);
     }
 
-    /// 文件后端：显式裁剪（启动 / 改保留期）。
+    /// file after ：（ / ）。
     fn file_prune(&self, _guard: &MutexGuard<'_, ()>) -> usize {
         let Some(path) = self.events_file.clone() else {
             return 0;
@@ -489,7 +489,7 @@ impl LogStore {
         before.saturating_sub(after)
     }
 
-    /// 文件后端：按筛选条件删除（先精确筛出 id，再删、再回写）。
+    /// file after ： by delete（ id，、）。
     fn file_clear_where(&self, _guard: &MutexGuard<'_, ()>, plan: &sql::FilterPlan) -> usize {
         let Some(path) = self.events_file.clone() else {
             return 0;
@@ -516,7 +516,7 @@ impl LogStore {
         removed
     }
 
-    /// 文件后端：全清（连同 id 高水位一起重置，与库后端语义一致）。
+    /// file after ：（ id 1 ， and after 1 ）。
     fn file_clear(&self, _guard: &MutexGuard<'_, ()>) -> bool {
         let Some(path) = self.events_file.as_ref() else {
             return false;
@@ -564,9 +564,9 @@ impl LogStore {
             })
             .unwrap_or(0)
         };
-        // 显式裁剪（启动 / 改保留期 / 手动清空）之后重置批次计数：下一次写入
-        // 不必再从头攒 64 条才检查一次。即便这次没有删行，保留期上限本身可能
-        // 已经变了（`Stats.max` 读的是配置），缓存也要失效。
+        // （ / / empty） after ： down 1 
+        // not from 64 check 1 。 this no has ，limit can can 
+        // already （`Stats.max` is config）， need 。
         APPENDS_SINCE_TRIM.store(0, Ordering::Relaxed);
         bump_cache_epoch();
         removed
@@ -584,11 +584,11 @@ impl LogStore {
         let level = normalize_level(entry.level);
         let category = normalize_category(entry.category);
         let data = normalize_data(entry.data);
-        // 保留期 / 容量裁剪按批做，见 `MAINTENANCE_EVERY` 的说明。
+        // / by ， `MAINTENANCE_EVERY` 。
         let trim_now = should_trim_now();
-        // fork：文件后端 —— 行只进 `events.jsonl`，库不再写（库里的遗留行
-        // 已在 `with_events_file` 里搬走）。id 由内存计数器分配：种子同时考虑
-        // 库高水位与文件最大 id，ramdisk 被清空后仍单调不回退。
+        // fork：file after —— `events.jsonl`， not （ 
+        // already in `with_events_file` ）。id by ： when 
+        // and file id，ramdisk empty after not 。
         if self.events_file.is_some() {
             let record = presentation::prepare(LogEntry {
                 id: self.next_id.fetch_add(1, Ordering::Relaxed),
@@ -712,7 +712,7 @@ impl LogStore {
             .query_cache
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        // 旧版本（epoch 不同）的结果一律丢掉：它们可能对应已被裁剪 / 清空的表。
+        // old （epoch not ） 1 ： can can for already / empty 。
         cache.retain(|entry| entry.epoch == epoch);
         if let Some(index) = cache.iter().position(|entry| entry.key == key) {
             cache.remove(index);
@@ -734,8 +734,8 @@ impl LogStore {
             } else {
                 self.with_conn_mut(&guard, |conn| {
                     let tx = conn.transaction()?;
-                    // 分类 / 级别在 SQL 里只做了「超集」过滤（旧插件日志读取时会
-                    // 改判），所以删除仍要经过 Rust 侧 matches 精确筛一遍。
+                    // / in SQL 「」（ old when will 
+                    // ），delete need Rust matches 1 。
                     let ids: Vec<u64> = sql::select_matching_desc(&tx, &plan)?
                         .iter()
                         .map(|entry| entry.id)
@@ -907,10 +907,10 @@ pub struct NewEntry<'a> {
     pub ts: Option<i64>,
 }
 
-/// 文件 → 内存镜像（`logs` 表的最小 DDL，与 `db::schema` 的列一致）。
+/// file → （`logs` DDL， and `db::schema` 1 ）。
 ///
-/// 索引不建：镜像只服务单次查询，行数上限就是日志容量（几千行），全表扫
-/// 比维护索引更直接。空行 / 坏行跳过 —— 日志读路径不允许因为一行写坏而炸。
+/// not ：，limit is （），
+/// 。empty / —— path not as 1 。
 fn build_mirror(path: &Path) -> Option<Connection> {
     let conn = Connection::open_in_memory().ok()?;
     conn.execute_batch(
@@ -924,7 +924,7 @@ fn build_mirror(path: &Path) -> Option<Connection> {
     Some(conn)
 }
 
-/// 文件里的全部条目（解析失败的行跳过）。
+/// file （failure ）。
 fn read_entries(path: &Path) -> Vec<LogEntry> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Vec::new();
@@ -948,7 +948,7 @@ fn max_file_id(path: &Path) -> u64 {
         .unwrap_or(0)
 }
 
-/// 追加一批条目；目录不存在时补建。失败返回 false（调用方不删源数据）。
+/// 1 ；directory not in when 。failurereturn false（ use not ）。
 fn append_entries(path: &Path, entries: &[LogEntry]) -> bool {
     if path.as_os_str().is_empty() {
         return false;
@@ -976,10 +976,10 @@ fn append_entries(path: &Path, entries: &[LogEntry]) -> bool {
     true
 }
 
-/// 启动迁移：把库里遗留的日志行搬进文件，再从库里删掉。
+/// ： file， from 。
 ///
-/// 返回搬完之后文件里的最大 id（用于给内存计数器播种）。
-/// 文件写不进去时**不删**库里的行 —— 宁可 `.db` 暂时不瘦，也不丢日志。
+/// return after file id（used for to ）。
+/// file not when ** not ** —— can `.db` when not ， not 。
 fn migrate_rows_to_file(db: &Option<Db>, path: &Path) -> u64 {
     let Some(db) = db else {
         return max_file_id(path);

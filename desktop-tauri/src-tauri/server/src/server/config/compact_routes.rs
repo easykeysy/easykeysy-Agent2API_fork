@@ -1,4 +1,4 @@
-//! 上下文压缩路由配置：整块保存、按修订号防覆盖，请求读取同一份运行期快照。
+//! up down by config：、 by ，request 1 。
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -96,7 +96,7 @@ pub fn save(settings: CompactRoutes, expected: &str) -> Result<(), GatewayError>
     validate(&settings).map_err(GatewayError::bad_request)?;
     let value = serde_json::to_value(settings).map_err(|error| GatewayError::new(error.to_string()))?;
     super::try_update_raw_field(KEY_COMPACT_ROUTES, |raw| {
-        // 缺键时更新入口给 Null；它与读取端的初始修订号一致。
+        // when update to Null； and 1 。
         if revision(Some(raw)) != expected {
             return Err(GatewayError::with_status(409, "压缩路由已在其他位置修改，请重新读取后再保存；当前草稿未丢失"));
         }

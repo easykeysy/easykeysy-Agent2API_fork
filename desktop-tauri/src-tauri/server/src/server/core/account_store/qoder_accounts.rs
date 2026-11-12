@@ -1,24 +1,24 @@
-//! Qoder 账号以 provider（地区身份）+ userId 识别；凭证与其它提供商共享存储键名。
+//! Qoder provider（）+ userId ； and its 。
 //!
-//! ── 拆家（2026-10）──────────────────────────────────────────
-//! 两个地区是**两家 provider**（`qoder` 中国版 / `qoder-intl` 国际版），地区由
-//! provider id 推导（`Region::from_provider_id`），不再从账号的 `mode` 字段猜。
-//! 记录里仍写 `mode`（凭证落盘的既有字段，公开形态的 `edition` 也由它派生），
-//! 但**归属判定只认 provider id** —— 与 AutoClaw / Accio / ZCode 同一口径。
+//! ── （2026-10）──────────────────────────────────────────
+//! is ** provider**（`qoder` in / `qoder-intl` ）， by 
+//! provider id （`Region::from_provider_id`）， not from `mode` 。
+//! `mode`（ has ， `edition` by ），
+//! ** provider id** —— and AutoClaw / Accio / ZCode 1 。
 //!
-//! ── 实现搬走之后（2026-10 插件化）───────────────────────────
-//! 设备授权登录、PAT 换证、续期、目录、额度这些**上游协议知识**已随实现搬到
-//! 提供商插件，本文件保留账号层的网关职责：
+//! ── after （2026-10 ）───────────────────────────
+//! 、PAT 、、directory、 this ** up ** already to 
+//! ，file ：
 //!
-//! 1. **归属判定**（`qoder_account_record`）：续期分派靠它认出「这条记录属于
-//!    本家」，否则会落到 workbuddy 兜底链路、给出与本家无关的错误。
-//! 2. **存量记录的公开形态**（`to_qoder_public_account`）：升级上来的老账号没有
-//!    `pluginSecret`，走不到插件投影；不在这里补形状就会被渲染成 WorkBuddy 的
-//!    空壳（uid 空、tokenTail 空），账号明明能用界面却像坏了。
-//! 3. **地区迁移与身份匹配**：缺少地区字段不能作为国际版的证据；同一 userId
-//!    在两个地区是两条账号，重新登录复用原主键以保留请求历史。
+//! 1. ****（`qoder_account_record`）：「 this 
+//! 」，otherwise will to workbuddy 、 to and none error。
+//! 2. ** **（`to_qoder_public_account`）： up no has 
+//! `pluginSecret`， not to ； not in this will WorkBuddy 
+//! empty（uid empty、tokenTail empty）， can use 。
+//! 3. ** and **： not can as ； 1 userId
+//! in is ， new use request。
 //!
-//! 新落的账号由插件写入（凭证在 `pluginSecret` 里），公开形态直接走插件投影。
+//! new by （ in `pluginSecret` ），。
 
 use std::sync::MutexGuard;
 
@@ -42,7 +42,7 @@ fn explicit_region(fields: &Map<String, Value>) -> Option<Region> {
 }
 
 fn plugin_region(record: &StoredAccount) -> Option<Region> {
-    // 公开快照可能在错分后的续期中被重写，恢复时优先取凭证原有的地区。
+    // can can in after in ， when has 。
     record.get("pluginSecret").and_then(Value::as_object).and_then(explicit_region)
         .or_else(|| record.get("pluginPublic").and_then(Value::as_object).and_then(explicit_region))
 }
@@ -52,7 +52,7 @@ pub(crate) fn migrated_region(record: &StoredAccount) -> Option<Region> {
     if !record.has_plugin_secret() {
         return explicit_region(record.fields()).or(Some(region));
     }
-    // 插件账号的 provider 是权威；只对有明确国内版证据的错分国际版记录归位。
+    // provider is ； for has 。
     if region == Region::Global && plugin_region(record) == Some(Region::Cn) {
         Some(Region::Cn)
     } else {
@@ -120,14 +120,14 @@ impl AccountStore {
         Ok((id, None))
     }
 
-    /// 某一地区的账号记录：非空 id 按 id 直查（核对归属），空 id 取该地区
-    /// **队首可用**账号（启用 + 有令牌，按全局优先级序）—— 与
-    /// `autoclaw_account_record` 同一款形状（拆家后「队首」必须限定在本地区）。
+    /// 1 ：empty id by id （ for ），empty id this 
+    /// **available**（enabled + has ， by ）—— and 
+    /// `autoclaw_account_record` 1 （ after 「」must in ）。
     pub fn qoder_account_record(&self, region: Region, account_id: &str) -> Option<Value> {
         let guard = self.guard();
         let provider = region.provider_id();
         if !account_id.is_empty() {
-            // 按 id 直查一行后确认归属（同 id 只会有一条，provider 判定是保险）
+            // by id 1 after （ id will has 1 ，provider is ）
             let record = self.record_by_id(&guard, account_id)?;
             return (record.provider() == provider).then(|| record.to_value());
         }
@@ -139,15 +139,15 @@ impl AccountStore {
     }
 
     pub fn to_qoder_public_account(&self, record: &StoredAccount) -> Value {
-        // 地区先看 provider 身份（拆家后的权威来源），payload 里的 `mode` 只是
-        // 旧数据的兼容读取 —— 记录缺 `mode` 时 `from_payload` 会默认 Global，
-        // 那个默认对中国版记录是错的，不能当首选。
+        // provider （ after ），payload `mode` is 
+        // old —— `mode` when `from_payload` will default Global，
+        // that default for in is ， not can 。
         let region = Region::from_provider_id(&record.provider())
             .or_else(|| Region::from_payload(&record.to_value()).ok());
         let available = record.has_token() && region.is_some();
-        // 能不能自动续期只看记录里有没有 refreshToken —— 网关不再解析这家的
-        // 凭据形状（`Credentials` 随实现搬到插件了）。判据与插件侧
-        // `credentials.can_refresh()` 等价：非空即算。
+        // can not can has no has refreshToken —— not this 
+        // （`Credentials` to ）。 and 
+        // `credentials.can_refresh()` etc ：empty。
         let can_refresh = !record.refresh_token().trim().is_empty();
         let mut public = Map::new();
         for key in ["id", "provider", "name", "userId", "email", "nickname", "mode", "source", "tokenTail", "expiresAt"] {
@@ -164,9 +164,9 @@ impl AccountStore {
         public.insert("rateLimits".to_string(), record.get("rateLimits").cloned().unwrap_or_else(|| json!({})));
         public.insert("desktop".to_string(), Value::Bool(false));
         public.insert("available".to_string(), Value::Bool(available));
-        // `chatSupported` / `maxConcurrent` **刻意不在这里写**：它们是跨家的统一
-        // 事实，由 `store_view::public_account` 在分派点注入（前者按适配器的
-        // `supports_chat()`，后者按 `store_util::max_concurrent_public_for`）。
+        // `chatSupported` / `maxConcurrent` ** not in this **： is 1 
+        // ， by `store_view::public_account` in （ before by 
+        // `supports_chat()`， after by `store_util::max_concurrent_public_for`）。
         Value::Object(public)
     }
 }

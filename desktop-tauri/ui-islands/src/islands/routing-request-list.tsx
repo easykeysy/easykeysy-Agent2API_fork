@@ -20,7 +20,7 @@ type Props = {
   onSearch(search: string): void
 }
 
-/** 请求回放左栏：最近请求列表 + 模型 / 时间 / 范围 / 搜索。 */
+/** request：request + / when / / 。 */
 export function RoutingRequestList({ active, query, selectedKey, refreshToken, onOpenRequest,
   onModel, onMinutes, onScope, onSearch }: Props) {
   const [entries, setEntries] = React.useState<ReplayRow[]>([])
@@ -32,7 +32,7 @@ export function RoutingRequestList({ active, query, selectedKey, refreshToken, o
   const sequence = React.useRef(0)
   const [models, setModels] = React.useState<string[]>([])
   const tableQuery: FlowQuery = { ...query, detail: 'requests', offset, limit: 30 }
-  // 模型候选只看时间窗与活动范围，与列表同一口径：窗口内没请求过的模型不列出。
+  // when and ， and 1 ： no request not 。
   const modelWindow = `${query.minutes}:${query.scope}`
 
   React.useEffect(() => { setOffset(0); setEntries([]); setError('') }, [queryKey])
@@ -45,7 +45,7 @@ export function RoutingRequestList({ active, query, selectedKey, refreshToken, o
         const next = await bridge().getRoutingFlow({ minutes: query.minutes, scope: query.scope, detail: 'models' }) as unknown as FlowModels
         if (!alive || next.available === false) return
         setModels(next.models || [])
-      } catch { /* 候选清单失败不影响列表，保留上一次结果 */ }
+      } catch { /* failure not ， up 1 */ }
     }
     void load()
     const timer = window.setInterval(() => {

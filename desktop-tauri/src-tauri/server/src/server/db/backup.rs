@@ -1,13 +1,13 @@
-//! 整库备份 / 恢复：数据库与必要密钥装进密码加密包。
+//! / ： and need 。
 //!
-//! `archive` 负责版本化容器、Argon2id 与分段认证加密；`keys` 校验并将
-//! 备份凭证重新加密到本机密钥；`restore` 负责暂存校验、覆盖与失败回滚。
-//! 旧 SQL 仍可导入，但它不包含密钥，指纹不匹配时保留明确警告。
+//! `archive` 、Argon2id and ；`keys` and will 
+//! new to ；`restore` 、 and failure。
+//! old SQL can ， not ， not when 。
 //!
-//! 导出先用 SQLite Backup 取得一致性内存快照，再按批写入 SQL，避免
-//! 长时间占用主连接锁。导入 SQL 的 authorizer 拒绝 ATTACH、文件后端
-//! 虚拟表和未知动作，所有校验都在私有暂存库完成，不能写到主库之外。
-//! 替换前用 Backup API 保留原数据库；目标机器密钥不会被覆盖。
+//! use SQLite Backup 1 ， by SQL，
+//! when use 。 SQL authorizer ATTACH、file after 
+//! and unknown，all in has ， not can to 。
+//! before use Backup API ； not will 。
 //!
 use std::io::Write;
 use std::path::Path;
@@ -35,30 +35,30 @@ pub use archive::{BACKUP_EXTENSION, MAX_BACKUP_BYTES};
 pub use temp::transfer_file;
 use temp::TempRestoreDb;
 
-/// 导出文件的第一行。导入端只认带这个前缀的文件 —— 用户的其它 SQL
-/// （手写、别处导出）即便语法正确也拒绝，避免「恢复成了半份陌生数据」。
+/// file 1 。 this before file —— use its SQL
+/// （、），「」。
 pub const BACKUP_SQL_HEADER: &str = "-- Agent2API SQLite 导出";
 
-/// 文件头里记录「导出时账号加密密钥指纹」的注释行前缀（值在冒号之后）。
-/// 放在 `BACKUP_SQL_HEADER` 之后，是**注释行**，不影响「以头部前缀开头」的判定。
+/// file「 when 」 before （ in after ）。
+/// in `BACKUP_SQL_HEADER` after ， is ****， not 「 before 」 。
 const KEY_FINGERPRINT_LINE: &str = "-- account-key-fingerprint:";
 
-/// 导出时账号密钥尚不存在时写入的明确标记（对应 `crypto::key_fingerprint` 返回
-/// `None` 的情形）。写一个可读的词而不是留空：留空会让「没这一行」与「有但为空」
-/// 两种含义混在一起，导入侧无法区分「旧备份没记」和「记了但没有密钥」。
+/// when not in when （ for `crypto::key_fingerprint` return
+/// `None` ）。 1 can not is empty：empty will 「 no this 1 」 and 「 has as empty」
+/// in 1 ，none「 old no 」 and 「 no has 」。
 const KEY_FINGERPRINT_ABSENT: &str = "(未生成)";
 
-/// 解析指纹时只扫文件开头这几行 —— 头部是固定几行注释，为一行标记去遍历整份
-/// 上百 MB 的正文毫无必要。留足余量以容忍将来在前面再加一两行头部注释。
+/// when file this —— is ， as 1 
+/// up MB none need 。 will in before 1 。
 const HEADER_SCAN_LINES: usize = 16;
 
-/// 账号域密钥文件名，只用于给用户的警告文案（「把这个文件一起带过来」）。
-/// 事实来源与 `crypto::SecretScope::key_file` 保持一致。
+/// file，used for to use （「 this file 1 」）。
+/// and `crypto::SecretScope::key_file` 1 。
 const ACCOUNT_KEY_FILE: &str = "account.key";
 
-/// 精简导出（不带日志）跳过的表：事件日志、请求明细/聚合、调试报文与请求
-/// 原始报文。业务数据（kv、accounts、account_usage_records）无论哪种口径
-/// 都导出 —— 账号与配置是「换机器」真正要带的东西。
+/// （ not ） ：、request/、 and request
+/// 。（kv、accounts、account_usage_records）none
+/// —— and config is 「」 need 。
 const LOG_TABLES: &[&str] = &[
     "logs",
     "requests",
@@ -67,64 +67,64 @@ const LOG_TABLES: &[&str] = &[
     "request_raw",
 ];
 
-/// 暂存库执行完外部 SQL 后必须存在的表。只卡业务底线两张：精简备份合法地
-/// 没有日志类表（导入时由 `schema::migrate` 补建），而这两张若缺说明文件
-/// 被截断或根本不是本程序的库。
+/// SQL after must in 。：
+/// no has （ when by `schema::migrate` ）， this if file
+/// or not is 。
 const REQUIRED_TABLES: &[&str] = &["kv", "accounts"];
 
-/// 恢复执行中的互斥（含暂存库校验到覆盖主库全程）。两个恢复并发没有意义
-/// （后到的把先到的覆盖掉，用户看到的统计却各说各话），也不必细化到读写锁。
+/// in （ to ）。 and no has 
+/// （ after to to ， use to statistics）， not to 。
 static RESTORE_MUTEX: Mutex<()> = Mutex::new(());
 
-// ─── 进度（恢复 / 导出，供前端轮询）──────────────────────────
+// ─── （ / ， before ）──────────────────────────
 //
-// ── 为什么要有这个 ──────────────────────────────────────────
-// 整库恢复是**一次同步的长调用**：读几百 MB 的 SQL、在暂存库上执行、校验
-// schema、拍安全备份、用 Backup API 覆盖主库。整个过程在 30 秒到几分钟之间，
-// 而接口在结束时才返回 —— 界面上只有一个「恢复中…」的灰按钮，用户既看不到
-// 进展，也不知道还要等多久。
+// ── Why need has this ──────────────────────────────────────────
+// is ** 1 use **： MB SQL、 in up 、
+// schema、、 use Backup API 。 in 30 seconds to minutes，
+// in when return —— up has 1 「 in …」 by ， use not to 
+// ， not need etc 。
 //
-// ── 为什么是「全局快照 + 轮询」而不是事件推送 ────────────────
-// 与 `/api/update/progress`、`/api/storage/progress` 同一套：进度写入进程内的
-// 一个静态快照，前端每 500ms 拉一次。理由是不必为一条低频进度引入事件通道
-// （桌面壳与网页端两种形态都要接），而且刷新页面后仍能接上同一次恢复 ——
-// 弹窗按快照重建即可，事件流做不到（断了就丢）。
+// ── Why is 「 + 」 not is ────────────────
+// and `/api/update/progress`、`/api/storage/progress` 1 ： 
+// 1 ， before 500ms 1 。 by is not as 1 
+// （ and need ）， and new after can up 1 ——
+// by can ， not to （）。
 //
-// ── 为什么没有「取消」────────────────────────────────────────
-// 覆盖主库与重载状态不能从界面中断；错误还原由恢复流程统一处理。
+// ── Why no has 「」────────────────────────────────────────
+// and not can from in ；error by 1 。
 
-/// 恢复进度的一个阶段。
+/// 1 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RestorePhase {
-    /// 空闲（没有恢复在跑）
+    /// empty（ no has in ）
     Idle,
-    /// 读备份文件 + 头部校验
+    /// file + 
     Reading,
     Decrypting,
     Reencrypting,
     RollingBack,
-    /// 在暂存库上执行备份 SQL
+    /// in up SQL
     Applying,
-    /// 校验 schema 版本 / 必需表 / 对齐
+    /// schema / required / for 
     Validating,
-    /// 给当前主库拍安全备份
+    /// to current
     SafetyBackup,
-    /// 用 Backup API 覆盖主库
+    /// use Backup API 
     Replacing,
-    /// 重装内存态（config / 令牌）
+    /// （config / ）
     Reloading,
-    /// 完成
+    /// 
     Done,
-    /// 失败
+    /// failure
     Failed,
 }
 
 impl RestorePhase {
-    /// 阶段 → 界面文案。
+    /// → 。
     ///
-    /// 文案写在后端：它是「这一步在做什么」的唯一权威（步骤顺序由这里决定），
-    /// 前端只负责显示。两处各写一份必然漂 —— 早先的「恢复中…」就是因为
-    /// 只有一句话，才说不出任何进展。
+    /// in after ： is 「 this 1 in 」 1 （ by this ），
+    /// before 。 1 —— 「 in …」 is as 
+    /// has 1 ， not 。
     fn label(self) -> &'static str {
         match self {
             Self::Idle => "",
@@ -142,12 +142,12 @@ impl RestorePhase {
         }
     }
 
-    /// 这个阶段占整条进度的百分比（起点）。
+    /// this （）。
     ///
-    /// 各阶段的耗时比例差得很远（读文件几秒、执行 SQL 可能几十秒、覆盖主库
-    /// 与库大小成正比），但**没有可靠的细粒度计量**（`execute_batch` 不回调）。
-    /// 所以给的是「大致位置」而不是精确百分比 —— 一个稳定的、只增不减的
-    /// 进度条比一个乱跳的假进度好。数值在 `DONE` 处收口到 100。
+    /// when （fileseconds、 SQL can can seconds、
+    /// and ），** no has can **（`execute_batch` not ）。
+    /// to is 「」 not is —— 1 、 not 
+    /// 1 。 in `DONE` to 100。
     fn percent(self) -> u8 {
         match self {
             Self::Idle => 0,
@@ -166,17 +166,17 @@ impl RestorePhase {
     }
 }
 
-/// 恢复进度快照（前端轮询读它）。
+/// （ before ）。
 #[derive(Clone, Debug)]
 struct RestoreProgress {
     phase: RestorePhase,
-    /// 失败时的原因（`Failed` 阶段才有）
+    /// failure when Reason（`Failed` has ）
     error: Option<String>,
-    /// 完成时的结果（`Done` 阶段才有；形状与 `import_from_file` 的返回值一致）
+    /// when （`Done` has ； and `import_from_file` return 1 ）
     result: Option<Value>,
-    /// 开始时刻（毫秒）：界面据此显示「已用时」
+    /// when （ms）：「 already use when 」
     started_at: i64,
-    /// 结束时刻（毫秒；进行中为 0）
+    /// when （ms； in as 0）
     finished_at: i64,
 }
 
@@ -217,10 +217,10 @@ impl RestoreProgress {
     }
 }
 
-/// 全局进度槽。`None` = 从没跑过恢复（界面据此不显示任何东西）。
+/// 。`None` = from no （ not ）。
 static RESTORE_PROGRESS: Mutex<Option<RestoreProgress>> = Mutex::new(None);
 
-/// 写一个阶段（内部用；锁失败时静默 —— 进度是锦上添花，不该让恢复本身失败）。
+/// 1 （ use ；failure when —— is up ， not this failure）。
 fn set_phase(phase: RestorePhase) {
     if let Ok(mut guard) = RESTORE_PROGRESS.lock() {
         if let Some(progress) = guard.as_mut() {
@@ -229,7 +229,7 @@ fn set_phase(phase: RestorePhase) {
     }
 }
 
-/// 读当前进度（前端轮询）。从没跑过 → `{"active": false, "phase": ""}`。
+/// current（ before ）。 from no → `{"active": false, "phase": ""}`。
 pub fn restore_progress() -> Value {
     match RESTORE_PROGRESS.lock() {
         Ok(guard) => guard
@@ -240,13 +240,13 @@ pub fn restore_progress() -> Value {
     }
 }
 
-/// 开始一次恢复：重置进度槽。`finish` 负责收口（成功 / 失败）。
+/// 1 ：。`finish` （success / failure）。
 ///
-/// ── 为什么没有 Drop 兜底 ────────────────────────────────────
-/// `import_from_file` 里 `finish` 是**唯一出口**（`let result = …` 先接住结果，
-/// 无论 Ok / Err 都会走到它），所以不存在「没收口就返回」的路径。而 release 是
-/// `panic=abort` —— 真到进程异常那一步 `Drop` 本身也不会执行，兜底代码是死的。
-/// 留着它只会让「失败时进度槽会怎样」看起来比实际复杂。
+/// ── Why no has Drop ────────────────────────────────────
+/// `import_from_file` `finish` is ** 1 **（`let result = …` ，
+/// none Ok / Err will to ）， not in 「 no return」 path。 release is 
+/// `panic=abort` —— to that 1 `Drop` not will ， is 。
+/// will 「failure when will 」。
 struct RestoreRun;
 
 impl RestoreRun {
@@ -282,23 +282,23 @@ impl RestoreRun {
     }
 }
 
-/// 多行 VALUES 批的上限：行数封顶 + 字节封顶（大行单独成批，因为它拆不开）。
-/// 批量把「每行一次语句解析」摊薄成每批一次，cc-switch 实测 2 万行
-/// 21 秒 → <100ms。
+/// VALUES limit： + （， as not ）。
+/// 「 1 」 1 ，cc-switch 2 
+/// 21 seconds → <100ms。
 const INSERT_BATCH_MAX_ROWS: usize = 200;
 const INSERT_BATCH_MAX_BYTES: usize = 1024 * 1024;
 
-/// authorizer 放行的 PRAGMA：dump 的产物只含这两条（头部与结尾各一次）。
-/// 其余一律拒绝 —— `temp_store_directory` 能把临时文件重定向到任意目录，
-/// `writable_schema` 能绕过 schema 完整性检查。
+/// authorizer PRAGMA：dump this （ and 1 ）。
+/// its 1 —— `temp_store_directory` can when file to to anydirectory，
+/// `writable_schema` can schema check。
 const IMPORT_ALLOWED_PRAGMAS: &[&str] = &["foreign_keys", "user_version"];
 
-// ── 导出 ────────────────────────────────────────────────────────
+// ── ────────────────────────────────────────────────────────
 
-/// 导出密码加密完整包到用户指定路径。
+/// to use path。
 ///
-/// `include_logs = false` 为精简导出（跳过日志与调试报文五张表）。
-/// 返回 `{ bytes, tables: {表名: 行数} }` 给前端展示。
+/// `include_logs = false` as （ and ）。
+/// return `{ bytes, tables: {: } }` to before 。
 pub fn export_to_file(
     db: &Db,
     target: &Path,
@@ -348,7 +348,7 @@ pub fn export_to_writer(
     )
 }
 
-/// 主库 → 内存库的一致性快照（主连接锁只持拷贝那一下，见模块头）。
+/// → 1 （ that 1 down ，module header）。
 fn snapshot_to_memory(db: &Db) -> Result<Connection, String> {
     db.with(|conn| {
         let mut snapshot =
@@ -363,8 +363,8 @@ fn snapshot_to_memory(db: &Db) -> Result<Connection, String> {
     .unwrap_or_else(|| Err("数据库连接不可用，导出未执行".to_string()))
 }
 
-/// SQLite Backup 的收尾：`step(-1)` 必须以 Done 结束，Busy/Locked/More 都是
-/// 「没拷完」—— 当成功返回会留下半截库，比直接报错严重得多。
+/// SQLite Backup ：`step(-1)` must Done ，Busy/Locked/More is 
+/// 「 no 」—— successreturn will down ，。
 fn complete_backup(backup: &Backup<'_, '_>, context: &str) -> Result<(), String> {
     let result = backup.step(-1).map_err(|e| format!("{context}失败: {e}"))?;
     match result {
@@ -373,7 +373,7 @@ fn complete_backup(backup: &Backup<'_, '_>, context: &str) -> Result<(), String>
     }
 }
 
-/// 把整库按多行 VALUES 批写入 SQL。
+/// by VALUES SQL。
 fn dump_sql_into(
     conn: &Connection,
     skip_tables: &[&str],
@@ -388,15 +388,15 @@ fn dump_sql_into(
         "{BACKUP_SQL_HEADER}\n-- 生成时间: {}\n-- user_version: {user_version}\n",
         Local::now().format("%Y-%m-%d %H:%M:%S"),
     ));
-    // SQL 保留指纹兼容旧导入；密钥本体只存放在外层加密清单中。
+    // SQL old ； in in 。
     output.push_str(&account_key_fingerprint_line());
     output.push_str("PRAGMA foreign_keys=OFF;\n");
     output.push_str(&format!("PRAGMA user_version={user_version};\n"));
     output.push_str("BEGIN TRANSACTION;\n");
 
-    // schema：表/索引/视图的 DDL 先出（`type='table' DESC` 保证建表在索引前），
-    // trigger 挪到数据装载之后 —— 提前建的 trigger 会在 INSERT 时触发，
-    // 篡改 dump 出来的行，甚至打断多行 INSERT 的剩余部分。
+    // schema：// DDL （`type='table' DESC` in before ），
+    // trigger to after —— before trigger will in INSERT when ，
+    // dump ， INSERT remaining。
     let mut stmt = conn
         .prepare(
             "SELECT type, name, sql FROM sqlite_master
@@ -455,18 +455,18 @@ fn dump_sql_into(
         .map_err(|error| format!("写入备份 SQL 失败: {error}"))
 }
 
-/// 文件头那行账号密钥指纹注释（含结尾换行）。
+/// file that （）。
 ///
-/// SQL 头部只记录指纹；完整包的密钥本体位于外层加密清单。
-/// 读指纹用 `crypto::key_fingerprint`（只读），**不会**因为有这个调用就生成密钥 ——
-/// 导出是纯读动作，不能在用户机器上凭空造出一把 `account.key`。
+/// SQL ； 。
+/// use `crypto::key_fingerprint`（），** not will ** as has this use ——
+/// is ， not can in use up empty 1 `account.key`。
 fn account_key_fingerprint_line() -> String {
     let fingerprint = crypto::key_fingerprint(crypto::SecretScope::Accounts)
         .unwrap_or_else(|| KEY_FINGERPRINT_ABSENT.to_string());
     format!("{KEY_FINGERPRINT_LINE} {fingerprint}\n")
 }
 
-/// 一张表的数据 → 多行 VALUES 的 INSERT 批。
+/// 1 → VALUES INSERT 。
 fn dump_table_rows(conn: &Connection, table: &str, writer: &mut impl Write) -> Result<(), String> {
     let quoted_table = quote_identifier(table);
     let columns = table_columns(conn, table)?;
@@ -537,8 +537,8 @@ fn dump_table_rows(conn: &Connection, table: &str, writer: &mut impl Write) -> R
     Ok(())
 }
 
-/// 自增水位（sqlite_sequence）单独重放：数据 INSERT 会把它推到 MAX(rowid)，
-/// 丢掉「删过的高水位」。导出期间 sequence 表不存在（没用 AUTOINCREMENT）就跳过。
+/// （sqlite_sequence）： INSERT will to MAX(rowid)，
+/// 「 」。 sequence not in （ no use AUTOINCREMENT）。
 fn dump_sqlite_sequences(
     conn: &Connection,
     skip_tables: &[&str],
@@ -600,13 +600,13 @@ fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>, String> 
     Ok(columns)
 }
 
-/// 表名/列名入 SQL：双引号包裹 + 内部双引号翻倍，杜绝拼串注入。
+/// / SQL： + ，。
 fn quote_identifier(identifier: &str) -> String {
     format!("\"{}\"", identifier.replace('"', "\"\""))
 }
 
-/// SQL 字面量格式化：与 SQLite 自身规则对齐（NaN 归 NULL、整数 REAL 补小数点、
-/// 含 NUL 的文本用 hex CAST —— SQL 解析器把 NUL 当语句结束，字面量放不下它）。
+/// SQL ： and SQLite then for （NaN NULL、 REAL 、
+/// NUL use hex CAST —— SQL NUL ， not down ）。
 fn format_sql_value(value: rusqlite::types::ValueRef<'_>) -> Result<String, String> {
     match value {
         rusqlite::types::ValueRef::Null => Ok("NULL".to_string()),
@@ -651,7 +651,7 @@ fn format_sql_blob(bytes: &[u8]) -> String {
     s
 }
 
-/// 快照里各业务表的行数（导出统计；只数被导出的表）。
+/// （statistics； ）。
 fn table_row_counts(conn: &Connection, skip: &[&str]) -> Vec<Value> {
     let known = [
         "kv",
@@ -683,12 +683,12 @@ fn table_row_counts(conn: &Connection, skip: &[&str]) -> Vec<Value> {
         .collect()
 }
 
-// ── 导入 ────────────────────────────────────────────────────────
+// ── ────────────────────────────────────────────────────────
 
-/// 从备份文件头部解析 `-- account-key-fingerprint:` 行的值。
+/// from file `-- account-key-fingerprint:` 。
 ///
-/// 只扫开头 `HEADER_SCAN_LINES` 行（头部是固定几行注释），不为一行标记遍历正文。
-/// 旧版本导出的文件没有这一行 → `None`（无法比对，调用方按「无信息」处理）。
+/// `HEADER_SCAN_LINES` （ is ）， not as 1 。
+/// old file no has this 1 → `None`（none for ， use by 「none」）。
 fn parse_account_key_fingerprint(sql: &str) -> Option<String> {
     sql.lines()
         .take(HEADER_SCAN_LINES)
@@ -696,20 +696,20 @@ fn parse_account_key_fingerprint(sql: &str) -> Option<String> {
         .map(|value| value.trim().to_string())
 }
 
-/// 比对备份头部记录的密钥指纹与本机现状，返回**给用户看的警告**（未比对出问题 →
+/// for and ，return** to use **（ for →
 /// `None`）。
 ///
-/// 场景与结论：
-///   · 两边指纹一致（最常见：同机恢复）→ 不警告；
-///   · 备份写的是「未生成」→ 警告（导出时那把钥匙还是「不存在」状态，本机若已有
-///     密钥，备份里的账号密文多半解不开）；
-///   · 指纹不同 / 本机没有密钥 → 警告（这份备份是**另一把密钥**加密的）。
+/// and ：
+/// · 1 （：）→ not ；
+/// · is 「」→ （ when that is 「 not in 」， if already has 
+/// ， not ）；
+/// · not / no has → （ this is ** 1 ** ）。
 ///
-/// **绝不因此阻断导入**：用户常常就是要「先把数据导回来，再单独处理密钥」
-/// （例如先导数据、再把 `account.key` 拷过来重导，或先看看数据再决定）。
-/// 所以这里只产出文案，由调用方放进返回值冒泡给界面 / 日志。
+/// ** not **： use is need 「 ，」
+/// （e.g.、 `account.key` ， or ）。
+/// this ， by use return to / 。
 fn account_key_warning(backup_marker: Option<String>) -> Option<String> {
-    // 旧备份没有这一行：没有任何可比较的信息，静默（不拿「没记」当「不匹配」报）
+    // old no has this 1 ： no has can ，（ not 「 no 」「 not 」）
     let backup_marker = backup_marker?;
     if backup_marker == KEY_FINGERPRINT_ABSENT {
         return Some(format!(
@@ -727,9 +727,9 @@ fn account_key_warning(backup_marker: Option<String>) -> Option<String> {
     ))
 }
 
-/// 从加密包或旧 SQL 恢复整库，失败时尝试从安全备份还原。
+/// from or old SQL ，failure when from 。
 ///
-/// 返回表统计、安全备份和凭证迁移结果；旧 SQL 密钥不匹配时附加警告。
+/// returnstatistics、 and ； old SQL not when 。
 pub fn import_from_file(
     db: &Db,
     source: &Path,
@@ -749,8 +749,8 @@ pub fn import_from_file(
     result
 }
 
-/// 导入期间挂到暂存库上的守卫：拒绝一切能**离开暂存库文件**的动作。
-/// 按解析结果在 prepare 阶段拦截（见模块头「导入的信任模型」）。
+/// to up ： 1 can **file** 。
+/// by in prepare （module header「 」）。
 fn import_authorizer(context: AuthContext<'_>) -> Authorization {
     let escapes_temp_db = match context.action {
         AuthAction::Attach { .. } | AuthAction::Detach { .. } => true,

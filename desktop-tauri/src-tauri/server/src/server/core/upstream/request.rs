@@ -1,23 +1,23 @@
-//! 对话转发的**传输层**：请求发送、上游错误解析、追踪 id 生成。
+//! for ****：request、 up error、 id 。
 //!
-//! ── 本文件为什么只做传输（Agent2API 改造 W2b-T3）────────────
-//! 改造前这里还有头集合、URL 拼接、system 注入与 11128/6004 的判定 ——
-//! 那些全是 **workbuddy 专属知识**（X-IDE-* 头、`/v2/chat/completions`、
-//! 首条消息必须是 system、11128 敏感词拦截码），已整体搬进
-//! `core::providers::workbuddy`。改造后 provider 差异全部收在适配器里，
-//! 本文件对「上游是哪一家」一无所知：它只认 `TransportRequest` 这个
-//! **协议无关**的形态（URL + 头 + 已序列化的 body + 出口）。
+//! ── fileWhy（Agent2API W2b-T3）────────────
+//! before this has 、URL 、system and 11128/6004 ——
+//! that is **workbuddy **（X-IDE-* 、`/v2/chat/completions`、
+//! must is system、11128 ）， already 
+//! `core::providers::workbuddy`。 after provider in ，
+//! file for 「 up is 1 」 1 none： `TransportRequest` this 
+//! **none** （URL + + already body + ）。
 //!
-//! 只保留的三件事：
-//!   1. `send_chat_request`：按出口取 reqwest Client 发一次请求，
-//!      不读 body（SSE 需要 `bytes_stream()`）；
-//!   2. `read_upstream_error`：把上游错误响应归一化成 `{code, message}`
-//!      —— 「怎么读一个 HTTP 错误体」是协议层的事，与哪一家无关；
-//!   3. `new_request_id`：一轮对话的追踪 id（适配器拼追踪头时用）。
+//! ：
+//! 1. `send_chat_request`： by reqwest Client 1 request，
+//! not body（SSE need need `bytes_stream()`）；
+//! 2. `read_upstream_error`： up errorresponse 1 `{code, message}`
+//! —— 「 1 HTTP error」 is ， and 1 none；
+//! 3. `new_request_id`： 1 for id（ when use ）。
 //!
-//! ── 出网 ────────────────────────────────────────────────────
-//! 只走 `core::egress::client_for`：同一出口共用一个连接池，
-//! 客户端上的 connect/read 超时也一并复用（见 egress 头部的旋钮映射）。
+//! ── ────────────────────────────────────────────────────
+//! `core::egress::client_for`： 1 use 1 ，
+//! client up connect/read when 1 and use （ egress ）。
 
 use std::time::Duration;
 
@@ -27,60 +27,60 @@ use crate::server::core::egress;
 use crate::server::core::proxies::ResolvedProxy;
 use crate::server::errors::GatewayError;
 
-/// 单次对话请求的总超时（除退避重试外的等待时间）。
+/// for request total when （ etc when ）。
 ///
-/// 与 Node 版的差别：Node 的 proxyFetch 不设总超时（bodyTimeout: 0），
-/// 完全靠客户端断开与上游主动结束。Rust 侧的 reqwest client 用
-/// `read_timeout(600s)` 限制「两次数据之间」的间隔（见 core::egress 的说明），
-/// 这里不再叠加总超时 —— 那会掐断长回答的 SSE 流。
+/// and Node ：Node proxyFetch not total when （bodyTimeout: 0），
+/// client and up 。Rust reqwest client use 
+/// `read_timeout(600s)` limit「」 （ core::egress ），
+/// this not total when —— that will SSE 。
 pub const NO_TOTAL_TIMEOUT: Option<u64> = None;
 
-/// 单次尝试**等待上游响应头**的上限（毫秒）。
+/// ** etc up response** limit（ms）。
 ///
-/// 与 OmniProxy 的 `headers_timeout`（默认 300 秒）同义：连接建立之后、
-/// 响应头到达之前的静默等待必须有个上限 —— `read_timeout` 管的是「两次数据
-/// 之间」，虽然首包之前的等待也计入它，但分钟级的等待 × 重试链（同账号重发 ×
-/// 换号）会把一条请求拖到几十分钟，而客户端早就等不及了。
+/// and OmniProxy `headers_timeout`（default 300 seconds）： after 、
+/// response to before etc must has limit —— `read_timeout` is 「
+/// 」， before etc ，minutes etc × （ ×
+/// ） will 1 request to minutes，client etc not and 。
 ///
-/// 现在是**配置项**（设置页「请求超时 → 等待响应超时」，默认 300 秒，
-/// 1–3600）：每次发送时从内存快照取一次，改完设置下一个请求就生效。
+/// in is **config**（set「request when → etc response when 」，default 300 seconds，
+/// 1–3600）： when from 1 ，set down 1 request。
 ///
-/// 为什么默认 300 秒是安全的：网关请求上游**恒带 `stream: true`**（见
-/// `UpstreamService::forward` 的说明），响应头在 SSE 建立时就到达，
-/// 与「模型思考多久」无关；非流式的长回答也走这条路径（本地聚合）。
-/// 超时按传输层失败处理（502 + 既有退避重试），与连接失败同一档。
+/// Whydefault 300 seconds is ：request up ** `stream: true`**（
+/// `UpstreamService::forward` ），response in SSE when to ，
+/// and 「」none； this path（）。
+/// when by failure（502 + has ）， and failure 1 。
 fn headers_timeout() -> Duration {
     Duration::from_millis(crate::server::config::timeout_settings().headers_ms())
 }
 
-/// 「连接中超时」的设定值（秒）：连接超时文案标注实际生效的秒数用，
-/// 与设置页「请求超时 → 连接中超时」同一份配置。
+/// 「 in when 」 （seconds）： when seconds use ，
+/// and set「request when → in when 」 1 config。
 fn connect_timeout_seconds() -> u64 {
     crate::server::config::timeout_settings().connect_ms() / 1000
 }
 
-/// 一次上游请求的全部素材（协议无关形态；provider 差异在构造阶段已消解）
+/// 1 up request （none；provider in already ）
 #[derive(Clone)]
 pub struct TransportRequest {
-    /// 上游完整 URL（由适配器给出）
+    /// up URL（ by to ）
     pub url: String,
-    /// 请求头（由适配器给出；不含出网代理相关）
+    /// request（ by to ； not ）
     pub headers: Vec<(String, String)>,
-    /// 已序列化的请求体（由编排层从适配器的 `plan.body` 序列化而来）
+    /// already request（ by from `plan.body` ）
     pub payload: String,
-    /// 出网代理（账号级；与 provider 无关，由编排层解析后带上）
+    /// （； and provider none， by after up ）
     pub proxy: Option<ResolvedProxy>,
-    /// 账号未配代理时本家是否**跟随系统代理**出网（编排层按适配器的能力位填，
-    /// 默认 false = 直连）。为 true 的家见 `ProviderAdapter::system_proxy_when_unset`。
+    /// when is ****（ by can ，
+    /// default false = ）。 as true `ProviderAdapter::system_proxy_when_unset`。
     pub system_proxy_when_unset: bool,
 }
 
-/// 归一化后的上游错误：`{code, message}`
+/// 1 after up error：`{code, message}`
 ///
-/// 非调试请求的 `message` 兜底取响应前 500 个字符，调试请求保留完整文本。
-/// 适配器的 `classify_error` 收的就是本结构的 JSON 形态（`to_value`）——
-/// 于是「上游错误怎么读」与「这条错误属于哪一档」彻底分开：
-/// 前者是本文件（协议层），后者是适配器（provider 层）。
+/// request `message` response before 500 ，request。
+/// `classify_error` is JSON （`to_value`）——
+/// is 「 up error」 and 「 this error 1 」：
+/// before is file（）， after is （provider ）。
 pub struct UpstreamErrorDetail {
     pub code: Option<i64>,
     pub message: String,
@@ -88,8 +88,8 @@ pub struct UpstreamErrorDetail {
 }
 
 impl UpstreamErrorDetail {
-    /// 适配器入参形态：`{code, message}`（键名与上游 JSON 一致，
-    /// 于是适配器可以直接用 `error_body.get("code")` 读，不需要中间结构体）
+    /// ：`{code, message}`（ and up JSON 1 ，
+    /// is can use `error_body.get("code")` ， not need need in ）
     pub fn to_value(&self) -> Value {
         let mut body = self.payload.clone().filter(Value::is_object).unwrap_or_else(|| json!({}));
         if let Some(object) = body.as_object_mut() {
@@ -100,11 +100,11 @@ impl UpstreamErrorDetail {
     }
 }
 
-/// 上游错误响应 → `{code, message}`（对照 Node 的 readUpstreamError）。
+/// up errorresponse → `{code, message}`（ for Node readUpstreamError）。
 ///
-/// `capture`：调试模式的采集器（None = 未开启）。**必须在这里采** —— 本函数
-/// 用 `response.text()` 把响应体整个吃掉，调用方拿不到第二份；不在这里顺手
-/// 旁路，错误响应体就永远进不了调试报文（而失败现场恰恰是最需要看的那一半）。
+/// `capture`： （None = ）。**must in this ** —— 
+/// use `response.text()` response ， use not to ； not in this 
+/// ，errorresponse not （failure is need need that 1 ）。
 pub async fn read_upstream_error(
     response: reqwest::Response,
     capture: Option<&crate::server::core::debug_traffic::TrafficCapture>,
@@ -151,15 +151,15 @@ pub async fn read_upstream_error(
     UpstreamErrorDetail { code, message, payload: parsed }
 }
 
-/// 发一次上游请求（不读 body，保留原始响应给流式转发与错误解析）。
+/// 1 up request（ not body，response to and error）。
 ///
-/// 与 `core::auth_http::send_raw` 的分工：那个把响应读成文本，用于管理接口；
-/// 这个把 `reqwest::Response` 原样交给调用方，SSE 需要 `bytes_stream()`。
+/// and `core::auth_http::send_raw` ： that response，used for；
+/// this `reqwest::Response` to use ，SSE need need `bytes_stream()`。
 pub async fn send_chat_request(
     plan: &TransportRequest,
 ) -> Result<reqwest::Response, UpstreamRequestError> {
-    // 客户端三选一：账号级代理 → 跟随系统代理（本家能力位，见
-    // `TransportRequest::system_proxy_when_unset`）→ 直连
+    // client 1 ： → （ can ，
+    // `TransportRequest::system_proxy_when_unset`）→ 
     let client = match plan.proxy.as_ref() {
         Some(proxy) => egress::client_for(Some(proxy)),
         None if plan.system_proxy_when_unset => egress::client_for_system_proxy(),
@@ -198,27 +198,27 @@ pub(super) async fn send_chat_with_client(
     if let Some(timeout) = NO_TOTAL_TIMEOUT {
         builder = builder.timeout(Duration::from_millis(timeout));
     }
-    // 出口说明（失败文案用）：文案照抄 Node 的 fetchViaProxy
+    // （failure use ）： Node fetchViaProxy
     let via = match &plan.proxy {
         Some(proxy) if !proxy.label.is_empty() => format!("经代理 {}", proxy.label),
         Some(proxy) => format!("经代理 {}", proxy.host),
-        // 跟随系统代理的家（Antigravity）在账号未配代理时走的是系统代理，
-        // 文案不能再说「直连」—— 诊断时要能一眼看出流量从哪出去（见
+        // （Antigravity） in when is ，
+        // not can 「」—— when need can 1 from （
         // `ProviderAdapter::system_proxy_when_unset`）
         None if plan.system_proxy_when_unset => "跟随系统代理".to_string(),
         None => "直连".to_string(),
     };
-    // 等待响应头有上限（见 headers_timeout 的说明）：超时后 future 被丢弃，
-    // 上游连接随之关闭（与客户端断开时的取消是同一机制）
+    // etc response has limit（ headers_timeout ）： when after future ，
+    // up （ and client when is 1 ）
     let headers_budget = headers_timeout();
     match tokio::time::timeout(headers_budget, builder.send()).await {
         Ok(Ok(response)) => Ok(response),
         Ok(Err(error)) => {
-            // `send()` 阶段的超时只可能来自连接（等待响应头由外层计时器管，
-            // 它的预算 ≤ 客户端 read_timeout，见 egress 的说明）：此时错误链
-            // 对用户没有信息量（就是「没连上」），文案直接给设置页的旋钮名
-            // 与实际生效的秒数；其余（ECONNREFUSED、代理鉴权失败、DNS…）
-            // 保留根因与出口说明，便于判断是不是代理配错了
+            // `send()` when can can （ etc response by when ，
+            // ≤ client read_timeout， egress ）： when error
+            // for use no has （ is 「 no up 」）， to set 
+            // and seconds； its （ECONNREFUSED、failure、DNS…）
+            // and ， is not is 
             let reason = if error.is_timeout() {
                 format!("连接中超时({}秒)", connect_timeout_seconds())
             } else {
@@ -256,15 +256,15 @@ pub(super) async fn send_chat_with_client(
     }
 }
 
-/// 传输层失败（统一收敛成 502，与 Node 的 fetchViaProxy 一致）
+/// failure（ 1 502， and Node fetchViaProxy 1 ）
 #[derive(Clone, Debug)]
 pub struct UpstreamRequestError {
     pub message: String,
-    /// 简短原因（重试链里「这次为什么重试」的展示文案）：
-    /// 「连接中超时(N秒)」/「等待响应超时(N秒)」/「上游连接失败」。
-    /// `message` 是最终失败的详细文案（带出口说明），这里是它的简短形态。
+    /// Reason（「 this Why」 ）：
+    /// 「 in when (Nseconds)」/「 etc response when (Nseconds)」/「 up failure」。
+    /// `message` is failure （）， this is 。
     pub reason: String,
-    /// 只有请求尚未写出（建连或构造失败）才允许非幂等的生图自动重试。
+    /// has request（ or failure） etc 。
     pub safe_to_retry: bool,
     pub network_failure: bool,
 }
@@ -275,12 +275,12 @@ impl UpstreamRequestError {
     }
 }
 
-/// 生成一轮对话的追踪 id（对应 Node 的 `randomUUID()`）。
+/// 1 for id（ for Node `randomUUID()`）。
 ///
-/// 用 RFC 4122 v4 形态：上游会把 X-Request-ID 记进服务端日志，
-/// 保持标准 UUID 形态便于与官方客户端的行为对齐（也便于下游按 UUID 解析）。
-/// 随机源取自 `RandomState`（由 OS 随机种子初始化）+ 进程内计数器 + 纳秒时钟，
-/// 三者拼出的 id 在单机排障场景足够唯一 —— 它不是安全凭证，不用引 rand 依赖。
+/// use RFC 4122 v4 ： up will X-Request-ID server，
+/// UUID and client as for （ down by UUID ）。
+/// `RandomState`（ by OS ）+ + seconds when ，
+/// id in 1 —— not is ， not use rand 。
 pub fn new_request_id() -> String {
     use std::hash::{BuildHasher, Hasher};
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -304,7 +304,7 @@ pub fn new_request_id() -> String {
     let second = mix(b"wb-request-id-b", counter.wrapping_mul(0x9E37_79B9_7F4A_7C15));
     bytes[..8].copy_from_slice(&first.to_be_bytes());
     bytes[8..].copy_from_slice(&second.to_be_bytes());
-    // 版本位 4 + 变体位 10xx（RFC 4122）
+    // 4 + 10xx（RFC 4122）
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     format!(
@@ -314,22 +314,22 @@ pub fn new_request_id() -> String {
     )
 }
 
-// ─── UUIDv7 家族（WorkBuddy 对话链路的会话/消息/链路 id）──────
+// ─── UUIDv7 （WorkBuddy for will // id）──────
 //
-// 2026-10-16 对国际版桌面客户端 5.8.4 的抓包结论（参考实现
-// workbuddy2api-hub #381，本仓与之对齐）：官方客户端的请求 / 消息 id 是
-// 32 位无连字符 hex、会话 id 是带连字符的 UUID，都是 UUIDv7 家族
-// （48 位毫秒时间戳打头，时间有序）。上游不校验版本位 —— 抓包里主对话的
-// X-Conversation-ID 实际是 v4、辅助请求是 v7，两种都被正常接受 —— 所以
-// 形态只求贴近，不承担语义。上游也不拿这些 id 存对话历史（同一 id 连发两轮、
-// 第二轮只带 system+user，模型仍答不出上一轮），因此**每次请求现生成**，
-// 不按会话维护映射；缺了整个头族才会触发渠道校验（400 / code 11-128，
+// 2026-10-16 for client 5.8.4 （
+// workbuddy2api-hub #381， and for ）：client request / id is 
+// 32 none hex、 will id is UUID， is UUIDv7 
+// （48 ms when ， when has ）。 up not —— for 
+// X-Conversation-ID is v4、request is v7， —— 
+// ， not 。 up not this id for （ 1 id 、
+// system+user， not up 1 ），**request**，
+// not by will ； will （400 / code 11-128，
 // `conversation id missing`）。
 
-/// 生成 16 字节的 UUIDv7（RFC 9562）：毫秒时间戳 + 版本位 7 + 变体位 10。
+/// 16 UUIDv7（RFC 9562）：ms when + 7 + 10。
 ///
-/// 随机源与 [`new_request_id`] 同款（`RandomState` 种子 + 进程内计数器），
-/// 不为此引入新的随机依赖。
+/// and [`new_request_id`] （`RandomState` + ），
+/// not as new 。
 fn uuid7_bytes() -> [u8; 16] {
     use std::hash::{BuildHasher, Hasher};
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -358,8 +358,8 @@ fn uuid7_bytes() -> [u8; 16] {
     int.to_be_bytes()
 }
 
-/// 请求 / 消息 id（`X-Request-ID` / `X-Conversation-Message-ID` /
-/// `X-Conversation-Request-ID` / `X-Root-Request-ID`）：32 位无连字符 hex。
+/// request / id（`X-Request-ID` / `X-Conversation-Message-ID` /
+/// `X-Conversation-Request-ID` / `X-Root-Request-ID`）：32 none hex。
 pub fn new_message_id() -> String {
     let bytes = uuid7_bytes();
     let mut id = String::with_capacity(32);
@@ -369,7 +369,7 @@ pub fn new_message_id() -> String {
     id
 }
 
-/// 会话 id（`X-Conversation-ID`）：带连字符的 UUID 形态。
+/// will id（`X-Conversation-ID`）： UUID 。
 pub fn new_conversation_id() -> String {
     let bytes = uuid7_bytes();
     format!(
@@ -379,7 +379,7 @@ pub fn new_conversation_id() -> String {
     )
 }
 
-/// 链路追踪的 span id（`traceparent` / b3 / `X-B3-SpanId`）：16 位 hex。
+/// span id（`traceparent` / b3 / `X-B3-SpanId`）：16 hex。
 pub fn new_span_id() -> String {
     let bytes = uuid7_bytes();
     let mut id = String::with_capacity(16);

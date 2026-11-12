@@ -1,24 +1,24 @@
 /**
- * AI 助手的工具集：定义（给模型看的 JSON Schema）+ 执行器（调既有的管理接口）。
+ * AI ：（ to JSON Schema）+ （ has ）。
  *
- * ── 为什么工具全在前端 ───────────────────────────────────────
- * 每只工具做的都是界面本来就会做的事（模型启停、映射、能力位、顺序、余额、
- * 模型测试），而这些动作在**桥**上已有现成入口（`window.workbuddyDesktop`
- * 的同名方法，桌面壳与 headless 面板各有一份实现）。工具放在这里 = 加一只工具
- * 不用加 Rust 业务接口；执行走既有桥 = 与界面按钮走同一条链。
- * 后端校验工具 ID 与权限后转给上游、把 `tool_calls` 原样流回来（见
- * `api::assistant` 模块头）。
+ * ── Why in before ───────────────────────────────────────
+ * is will （、、 can 、、、
+ * ）， this in **** up already has （`window.workbuddyDesktop`
+ * ， and headless has 1 ）。 in this = 1 
+ * not use Rust ； has = and by 1 。
+ * after ID and after to up 、 `tool_calls` （
+ * `api::assistant` module header）。
  *
- * ── 三类工具（决定确认流程）──────────────────────────────────
- *   read  只读：读完直接把结果回给模型，不打扰用户；
- *   write 改动：**先渲染确认卡**，用户点「执行」才落库；
- *   run   会真打上游 / 消耗额度（模型测试）：同 write，且卡上说清代价。
- * 「要不要确认」不看工具自己，看用户点的是哪张卡 —— 这里的 `kind` 是唯一的
- * 判据，别在页面里另写一套。
+ * ── （）──────────────────────────────────
+ * read ： to ， not use ；
+ * write ：****， use 「」；
+ * run will up / （）： write， and up 。
+ * 「 need not need 」 not ， use is —— this `kind` is 1 
+ * ， in 1 。
  *
- * ── 工具 id 是与设置页的契约 ─────────────────────────────────
- * `tools` 勾选表存的是这些 id（后端默认集见 `config::DEFAULT_ENABLED_TOOLS`，
- * 同一份字符串）。改名 = 用户存过的勾选失效，加工具 = 两边各加一处。
+ * ── id is and set ─────────────────────────────────
+ * `tools` is this id（ after default `config::DEFAULT_ENABLED_TOOLS`，
+ * 1 ）。 = use ， = 1 。
  */
 
 import { t } from '../i18n'
@@ -39,20 +39,20 @@ import { safeText } from '../../../ui-shared/assistant-read-data'
 
 export type { ModelOption } from './assistant-models'
 
-/** 工具结果：`text` 回给模型（走 role:"tool" 的消息体），`summary` 给卡片显示 */
+/** ：`text` to （ role:"tool" ），`summary` to */
 export type ToolResult = {
   text: string
   summary: string
   images?: ImageAsset[]
 }
 
-/** 确认卡上的计划（改动类工具在用户确认前渲染它） */
+/** up （ in use before ） */
 export type ToolPlan = {
-  /** 一句话说清将要做什么（含数量） */
+  /** 1 will need （） */
   lead: string
-  /** 明细表（可选；列数任意，行数由调用方截断显示） */
+  /** （optional；any， by use ） */
   table?: { head: string[]; rows: string[][] }
-  /** 底部的补充说明（风险 / 生效时机 / 失败语义） */
+  /** （ / when / failure） */
   note?: string
 }
 
@@ -60,17 +60,17 @@ export type AssistantTool = {
   id: string
   label: string
   kind: 'read' | 'write' | 'run'
-  /** 给模型看的说明（中文 —— 上游模型对中文的理解足够，且与界面文案同源） */
+  /** to （ in —— up for in ， and and ） */
   desc: string
   params: Record<string, unknown>
-  /** 改动类 / 消耗类：渲染确认卡（只读工具不实现） */
+  /** / ：（ not ） */
   plan?: (args: Record<string, unknown>) => ToolPlan
-  /** 参数在工具卡里展开显示时的遮蔽形态（凭证原文不长期显示） */
+  /** parameter in when （ not ） */
   redactArgs?: (args: Record<string, unknown>) => Record<string, unknown>
   run: (args: Record<string, unknown>, context?: ImageToolContext) => Promise<ToolResult>
 }
 
-/* ─── 桥（只声明用到的那些方法，缺失时按「这条链在当前形态不可用」处理）── */
+/* ─── （ use to that ， when by 「 this in currentunavailable」）── */
 
 type Bridge = {
   platform?: string
@@ -93,13 +93,13 @@ function bridge(): Bridge {
   return api
 }
 
-/** 改动类工具落库后刷新全局状态（其它页面的数据依赖它） */
+/** after new （ its ） */
 function refreshApp(): void {
   const app = (window as unknown as { wbApp?: { refresh?: () => void } }).wbApp
   void app?.refresh?.()
 }
 
-/* ─── 入参读取小工具（模型给的东西不一定守规矩，坏值一律当缺）── */
+/* ─── （ to not 1 ， 1 ）── */
 
 function str(value: unknown, max = 256): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -118,7 +118,7 @@ function errorText(error: unknown): string {
   return message.replace(/^Error:\s*/, '')
 }
 
-/* ─── 数据形状（只声明用到的字段）── */
+/* ─── （ use to ）── */
 
 type ModelRow = {
   id?: unknown
@@ -130,7 +130,7 @@ type ModelRow = {
   kind?: unknown
   supports_image_generation?: unknown
   supports_image_editing?: unknown
-  /** 生效能力位（`/api/models/manage` 的 capabilities，见 core::providers::catalog::view） */
+  /** can （`/api/models/manage` capabilities， core::providers::catalog::view） */
   capabilities?: unknown
 }
 type MappingRow = {
@@ -144,15 +144,15 @@ type MappingRow = {
 }
 
 /**
- * 一份与 `/api/models/manage` 同形的视图（内置家来自后端，自定义家由
- * `models-custom-source` 的 `buildView` 现造 —— 那层适配的取舍见其文件头）。
+ * 1 and `/api/models/manage` （ after ， by 
+ * `models-custom-source` `buildView` —— that its file）。
  */
 type ManageViewLike = {
   models?: ModelRow[]
   mappings?: MappingRow[]
 }
 
-/** 自定义提供商目录里的一条记录（`providers.js` 的 `customList`） */
+/** directory 1 （`providers.js` `customList`） */
 type CustomProviderRecord = {
   id?: unknown
   name?: unknown
@@ -160,34 +160,34 @@ type CustomProviderRecord = {
   mappings?: unknown
 }
 
-/** 目录模块（`ui/providers.js`）在本模块用到的部分 */
+/** directory（`ui/providers.js`） in use to */
 type ProvidersBridge = {
   customList?: () => CustomProviderRecord[]
   refreshCustom?: () => Promise<unknown>
 }
 
 /**
- * 自定义提供商的判定与「记录 → 管理视图」的适配都复用模型管理页那一份。
+ * and 「 → 」 use that 1 。
  *
- * ── 为什么要复用而不是在助手这边另写一份 ────────────────────
- * 那层适配（默认绑定现造、同名映射并入、能力位稀疏表、legacy 条目剔除）是
- * 模型管理页的**渲染契约**，助手读到的形状必须与它逐字一致，否则同一个模型
- * 在「管理页看到的启用状态」与「助手说它是启用的」之间会分叉。两份实现
- * 只会让这种分叉迟早发生。
+ * ── Why need use not is in this 1 ────────────────────
+ * that （default、 and 、 can 、legacy ） is 
+ * ****， to must and 1 ，otherwise 1 
+ * in 「 to enabled」 and 「 is enabled 」 will 。
+ * will this 。
  */
 type CustomSourceModule = {
   isCustom: (id: unknown) => boolean
   buildView: (id: string) => { models?: ModelRow[]; mappings?: MappingRow[] } | null
-  /** 改一条绑定的开关 / 思考等级（`alias == target` 即默认绑定） */
+  /** 1 / etc （`alias == target` default） */
   setBinding: (
     id: string,
     alias: string,
     target: string,
     patch?: { enabled?: boolean; reasoning?: string },
   ) => Promise<void>
-  /** 删除一条映射（默认绑定不可删 —— 与内置家同口径） */
+  /** delete 1 （default not can —— and ） */
   removeMapping: (id: string, alias: string, target: string) => Promise<void>
-  /** 覆盖某条模型的能力位；`null` = 清除该项 */
+  /** can ；`null` = this */
   setCapabilities: (
     id: string,
     modelId: string,
@@ -200,11 +200,11 @@ function customSource(): CustomSourceModule | undefined {
 }
 
 /**
- * 取自定义家的写入模块；缺了就明确报错。
+ * ；。
  *
- * 不静默跳过：`window.wbModelsCustom` 由模型管理页那个岛在模块顶层挂上（同一个
- * bundle、加载即注册），缺它只可能是页面形态变了 —— 那时「说改动成功、其实
- * 什么都没写」比一条明确的错误糟得多。
+ * not ：`window.wbModelsCustom` by that in up （ 1 
+ * bundle、）， can can is —— that when 「success、 its 
+ * no 」 1 error。
  */
 function customWriter(): CustomSourceModule {
   const source = customSource()
@@ -212,7 +212,7 @@ function customWriter(): CustomSourceModule {
   return source
 }
 
-/** 改自定义家一条绑定的开关 / 思考等级 */
+/** 1 / etc */
 async function customBinding(
   provider: string,
   alias: string,
@@ -222,7 +222,7 @@ async function customBinding(
   await customWriter().setBinding(provider, alias, target, patch)
 }
 
-/** 目录缓存（`providers.js` 在页面 head 之后加载，所以只能运行期取） */
+/** directory（`providers.js` in head after ， can ） */
 function customRecords(): CustomProviderRecord[] {
   const providers = (window as unknown as { wbProviders?: ProvidersBridge }).wbProviders
   const list = providers?.customList?.()
@@ -230,12 +230,12 @@ function customRecords(): CustomProviderRecord[] {
 }
 
 /**
- * 读目录缓存；**空表时先补拉一次**。
+ * directory；**empty when 1 **。
  *
- * `providers.js` 在加载期就拉过一份，所以正常情况下缓存总是有值。但面板形态
- * 首屏那次请求可能还没回来（用户刚打开页面就问助手），此时空表会被读成
- * 「一家自定义提供商都没有」—— 那是一次静默的错误答案。补拉一次再读，
- * 失败就按空表处理（目录偶发打不通不该让整条工具失败）。
+ * `providers.js` in 1 ， down total is has 。
+ * that request can can no （ use ）， when empty will 
+ * 「 1 no has 」—— that is 1 error。 1 ，
+ * failure by empty（directory not not this failure）。
  */
 async function customRecordsFresh(): Promise<CustomProviderRecord[]> {
   const cached = customRecords()
@@ -243,15 +243,15 @@ async function customRecordsFresh(): Promise<CustomProviderRecord[]> {
   const providers = (window as unknown as { wbProviders?: ProvidersBridge }).wbProviders
   try {
     await providers?.refreshCustom?.()
-  } catch { /* 目录偶发打不通：按现有缓存（空）继续 */ }
+  } catch { /* directory not ： by has （empty） */ }
   return customRecords()
 }
 
 /**
- * 自定义家是否在目录里（判据与后端 `is_custom_provider_id` 同向前缀）。
+ * is in directory（ and after `is_custom_provider_id` to before ）。
  *
- * 这里**不看** `isCustom`（它只判前缀）：目录里没有的 `custom-xxx` 是残留
- * 账号指向的家，管理页那边同样只认目录里存在的那些。
+ * this ** not ** `isCustom`（ before ）：directory no has `custom-xxx` is 
+ * to ， that directory in that 。
  */
 function isCustomProvider(id: string): boolean {
   const source = customSource()
@@ -260,24 +260,24 @@ function isCustomProvider(id: string): boolean {
 }
 
 /**
- * 一家自定义提供商的管理视图；目录里没有这家时 `buildView` 自己回 null。
+ * 1 ；directory no has this when `buildView` null。
  *
- * 注意 `buildView` 读的是**同步**目录缓存 —— 调用方必须先 await 过一次
- * `customRecordsFresh()`（`readModels` 就是这么做的），否则首屏那一刻会拿到
- * 一份还没到的空目录。
+ * Note `buildView` is ****directory —— use must await 1 
+ * `customRecordsFresh()`（`readModels` is this ），otherwise that 1 will to 
+ * 1 no to emptydirectory。
  */
 function customView(id: string): ManageViewLike | null {
   return customSource()?.buildView(id) ?? null
 }
 
 /**
- * 全部模型行 + 映射（内置家 + 自定义家）。
+ * + （ + ）。
  *
- * ── 为什么必须合并 ──────────────────────────────────────────
- * `GET /api/models/manage` 只遍历内置注册表（`catalog::manage_view` 的
- * `active_manifests`），自定义家一个都不在里面 —— 它们的清单存在提供商记录里、
- * 由模型管理页在前端适配。助手若只读那一条接口，回答「有哪些模型」时会漏掉
- * 用户自建的全部上游，且 `set_model_*` 系列拿不到自定义家的启用状态。
+ * ── Whymust and ──────────────────────────────────────────
+ * `GET /api/models/manage` （`catalog::manage_view` 
+ * `active_manifests`）， 1 not in —— in 、
+ * by in before 。 if that 1 ，「 has 」 when will 
+ * use up ， and `set_model_*` not to enabled。
  */
 async function readModels(): Promise<{ models: ModelRow[]; mappings: MappingRow[] }> {
   const read = bridge().getModelManage
@@ -286,8 +286,8 @@ async function readModels(): Promise<{ models: ModelRow[]; mappings: MappingRow[
   if (!Array.isArray(data?.models) || !Array.isArray(data?.mappings)) throw new Error(t('读取模型清单失败'))
   const models: ModelRow[] = data.models.slice()
   const mappings: MappingRow[] = data.mappings.slice()
-  // 自定义家逐个适配后追加。目录缓存缺失（面板形态未注入 / 还没拉到）时
-  // 只是少这一块 —— 内置家那部分照常可用，不因此整条工具失败。
+  // after 。directory（ / no to ） when 
+  // is this 1 —— that available， not failure。
   const known = new Set(models.map(row => `${str(row.provider)}\u0001${str(row.id)}`.toLowerCase()))
   for (const record of await customRecordsFresh()) {
     const id = str(record.id)
@@ -305,25 +305,25 @@ async function readModels(): Promise<{ models: ModelRow[]; mappings: MappingRow[
   return { models, mappings }
 }
 
-/** 模型行的可读标识（模型名一律带提供商，免得同名映射下说不清是哪一条） */
+/** can （ 1 ， down not is 1 ） */
 function modelLabel(row: ModelRow): string {
   const provider = str(row.providerLabel) || str(row.provider)
   return provider ? `${provider} / ${str(row.id)}` : str(row.id)
 }
-/* ─── 模型工具与余额查询 ───────────────────────────────────── */
+/* ─── and ───────────────────────────────────── */
 
-/** 分页的默认页大小与上限（`list_models` 用；上限防一次把上下文打爆） */
+/** default and limit（`list_models` use ；limit 1 up down ） */
 const PAGE_DEFAULT = 100
 const PAGE_MAX = 500
 
-/** 一页的元信息：总数 / 本页区间 / 是否还有下一页（模型与映射各一份） */
+/** 1 ：total / / is has down 1 （ and 1 ） */
 type PageMeta = {
   total: number
   offset: number
   limit: number
   returned: number
   hasMore: boolean
-  /** 下一页的 offset（`hasMore` 为 false 时不出现） */
+  /** down 1 offset（`hasMore` as false when not ） */
   nextOffset?: number
 }
 
@@ -345,7 +345,7 @@ function paginate<T>(rows: T[], offset: number, limit: number): { items: T[]; me
   }
 }
 
-/** 1 · 获取模型列表（只读，分页） */
+/** 1 · get（，） */
 const listModels: AssistantTool = {
   id: 'list_models',
   label: t('获取模型列表'),
@@ -403,8 +403,8 @@ const listModels: AssistantTool = {
     }
 
     if (section !== 'models') {
-      // 映射单列一段（含目标不在清单里的「未挂载」条目）：模型行上的 aliases 只
-      // 覆盖挂得上的那些，而「某个名字挂在哪」这类问题要的正是映射表本身。
+      // 1 （ not in 「」）： up aliases 
+      // up that ，「 in 」 this need is 。
       const rows = data.mappings.filter(row => {
         if (provider && str(row.provider).toLowerCase() !== provider) return false
         if (enabledOnly && row.enabled !== true) return false
@@ -449,7 +449,7 @@ const listAccountBalance: AssistantTool = createBalanceTool({
   },
 }, t)
 
-/** 3 · 启用 / 禁用模型（改动） */
+/** 3 · enabled / use （） */
 const setModelEnabled: AssistantTool = {
   id: 'set_model_enabled',
   label: t('启用 / 禁用模型'),
@@ -509,9 +509,9 @@ const setModelEnabled: AssistantTool = {
   },
 }
 
-/** 4 · 设置模型映射 ID（改动）—— 两类用法的公共入口：
- *   「同名合并」（多家各挂同一个新名字）与「前缀区分」（各家挂各自前缀的名字），
- *   都只是同一批 alias 的两组参数。 */
+/** 4 · set ID（）—— use ：
+ * 「 and 」（ 1 new ） and 「 before 」（ before ），
+ * is 1 alias parameter。 */
 const setModelMapping: AssistantTool = {
   id: 'set_model_mapping',
   label: t('设置模型映射 ID'),
@@ -583,7 +583,7 @@ const setModelMapping: AssistantTool = {
   },
 }
 
-/** 5 · 修改模型能力（改动） */
+/** 5 · can （） */
 const CAPABILITY_KEYS = ['maxInputTokens', 'maxOutputTokens', 'supportsToolCall', 'supportsImages', 'supportsVideo', 'supportsReasoning'] as const
 const CAPABILITY_LABELS: Record<string, string> = {
   maxInputTokens: t('上下文窗口'),
@@ -657,9 +657,9 @@ const setModelCapability: AssistantTool = {
     }
     if (!provider || !id || !Object.keys(caps).length) throw new Error(t('参数不完整（需要 provider / id / capabilities）'))
     if (isCustomProvider(provider)) {
-      // 自定义家的能力位存在提供商记录的 models[] 条目里，写入口是整表保存
-      // （后端 `POST /api/models/capabilities` 对 custom- id 明确 400，见
-      // `api::model_manage::set_capabilities` 的说明）。
+      // can in models[] ， is 
+      // （ after `POST /api/models/capabilities` for custom- id 400，
+      // `api::model_manage::set_capabilities` ）。
       await customWriter().setCapabilities(provider, id, caps as Record<string, number | boolean | null>)
     } else {
       const write = bridge().setModelCapabilities
@@ -671,7 +671,7 @@ const setModelCapability: AssistantTool = {
   },
 }
 
-/** 6 · 发起模型测试（消耗额度） */
+/** 6 · （） */
 const testModel: AssistantTool = {
   id: 'test_model',
   label: t('发起模型测试'),
@@ -732,7 +732,7 @@ const testModel: AssistantTool = {
   },
 }
 
-/** 附件读取与账号文件导入：定义在 `ui-shared`，桌面端只注入管理请求与刷新。 */
+/** and file： in `ui-shared`，request and new 。 */
 const readAttachment = createAttachmentReadTool(t)
 const importAccount = createAccountImportTool({
   post: (path, body, signal) => callJson('POST', path, body, signal),
@@ -740,7 +740,7 @@ const importAccount = createAccountImportTool({
 }, t)
 const ACCOUNT_IMPORT_META = accountImportMeta(t)
 
-/** 全部工具（顺序 = 设置页清单顺序：只读在前，改动在后，高危最后） */
+/** （ = set： in before ， in after ， after ） */
 export const ASSISTANT_TOOLS: AssistantTool[] = [
   ...ASSISTANT_READ_TOOLS,
   readAttachment,
@@ -759,7 +759,7 @@ export function toolById(id: string): AssistantTool | undefined {
   return ASSISTANT_TOOLS.find(tool => tool.id === id)
 }
 
-/** 按勾选表组装 OpenAI tools 数组（顺序固定 = ASSISTANT_TOOLS 的顺序） */
+/** by OpenAI tools （ = ASSISTANT_TOOLS ） */
 export function toolsPayload(enabled: Record<string, boolean>): Array<Record<string, unknown>> {
   return ASSISTANT_TOOLS.filter(tool => enabled[tool.id]).map(tool => ({
     type: 'function',
@@ -767,9 +767,9 @@ export function toolsPayload(enabled: Record<string, boolean>): Array<Record<str
   }))
 }
 
-/** 设置页清单与文案（工具 id → 中文名 / 一句话 / 风险标签）。
- *  文案在这里就用 `t()` 包好（定义时求值）：页面直接取 `meta.label` 即可，
- *  不会再出现「把变量喂给 t()」那种扫描器提不到键的写法。 */
+/** set and （ id → in / 1 / ）。
+ * in this use `t()` （ when ）： `meta.label` can ，
+ * not will 「 to t()」 that not to 。 */
 export const TOOL_META: Array<{ id: string; label: string; desc: string; tag?: 'danger' | 'cost' }> = [
   ...ASSISTANT_READ_META,
   ...ASSISTANT_IMAGE_META,
@@ -787,7 +787,7 @@ export const TOOL_META: Array<{ id: string; label: string; desc: string; tag?: '
 
 export { errorText }
 
-/** 助手选择器只列出网关当前对外提供的名字，不使用管理目录推算可用性。 */
+/** current for ， not use directoryavailable。 */
 export async function loadModelNames(): Promise<string[]> {
   return (await loadModelOptions()).map(option => option.name)
 }

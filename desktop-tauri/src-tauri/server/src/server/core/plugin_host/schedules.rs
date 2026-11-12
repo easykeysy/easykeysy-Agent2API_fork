@@ -1,4 +1,4 @@
-//! 插件申报的定时管理动作；默认值归插件，用户配置与执行记录归宿主。
+//! when ；default， use config and 。
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -12,7 +12,7 @@ use tokio::sync::Notify;
 use super::{registry, Host};
 use crate::server::logging;
 
-// 可选 RPC 扩展：旧 SDK 返回 NO_METHOD，不改变握手协议与既有插件的兼容性。
+// optional RPC ： old SDK return NO_METHOD， not and has 。
 const LIST_METHOD: &str = "schedules.list";
 pub const MAX_TIMES: usize = 6;
 
@@ -20,7 +20,7 @@ pub const MAX_TIMES: usize = 6;
 pub struct Definition {
     pub id: String,
     pub enabled: bool,
-    /// 北京时间的每日时刻（HH:MM）。
+    /// when daily when （HH:MM）。
     pub times: Vec<String>,
     pub action: String,
 }
@@ -174,7 +174,7 @@ pub fn pause_reason(provider: &str, id: &str) -> Option<String> {
     entry.suspended.get(id).cloned()
 }
 
-/// 能力缺失只在插件重新加载后重试，不能让每天定点的动作退化为 30 秒轮询。
+/// can in new after ， not can as 30 seconds。
 pub fn suspend(provider: &str, id: &str, message: String) {
     if let Ok(mut map) = table().lock() {
         if let Some(entry) = map.get_mut(provider) {

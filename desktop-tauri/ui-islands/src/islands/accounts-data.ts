@@ -24,18 +24,18 @@ export * from './accounts-usage'
 
 export { refreshList } from './accounts-refresh'
 
-// 状态层原样再导出：视图侧（accounts-page / panels / dialogs）只认本文件这一条路径
+// ：（accounts-page / panels / dialogs）file this 1 path
 export * from './accounts-store'
 export { saveGroupSortRules as setGroupSortRules } from './accounts-sort'
 
-/* ─── 代理池（「网络代理」页的命名代理，账号页的代理下拉）─── */
+/* ─── （「」 ， down ）─── */
 
 export {
   acceptProxyPool, ensureProxyPoolOptions, invalidateProxyPoolCache, poolError,
   proxyPoolOptions, proxyPoolSnapshot, refreshProxyPool, subscribeProxyPool,
 } from './proxy-pool-cache'
 
-/* ─── 弹窗 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 export function openSettingsDialog(id: string): void {
   if (!findAccount(id)) { toast(t('账号不存在，请刷新后重试'), 'err'); return }
@@ -53,20 +53,20 @@ export function openBatchDialog(ids: string[], action = 'enable'): void {
 }
 
 /**
- * 打开某一家的**分组设置**弹窗（分组带上齿轮那颗按钮）。
+ * 1 **set**（ up that by ）。
  *
- * 不做「这一家还在不在」的存在性校验：分组带本身是从分组视图渲染出来的，
- * 打不开的组根本点不到；而设置里有些项（将来的默认展开 / 新账号落点）在
- * 账号被删光之后仍然有意义，硬拦一次反而让弹窗随账号数闪没。
+ * not 「 this 1 in not in 」 in ： is from ，
+ * not not to ；set has （ will default / new ） in 
+ * after has ， 1 no 。
  */
 export function openGroupDialog(provider: string): void {
   if (!provider) return
   patch({ dialog: { kind: 'group', provider } })
 }
 
-/* ─── 删除账号后的缓存清理 ───────────────────── */
+/* ─── delete after ───────────────────── */
 
-/** 清掉已删除账号的本地缓存（app.js 每次 refresh 后调用） */
+/** already delete （app.js refresh after use ） */
 export function refreshCaches(validIds: Set<string>): void {
   let touched = pruneUsageCache(validIds)
   const connections = new Map(getStore().connections)
@@ -78,13 +78,13 @@ export function refreshCaches(validIds: Set<string>): void {
   if (touched) patch({ connections, usageInflight: inflight, selected })
 }
 
-/* ─── 连接数（实时，2 秒一轮）────────────────────
- * 口径与 OmniProxy 上游管理页的「连接」列一致：**此刻正在使用这个账号的请求数**
- * （一个请求在账号间轮换时计数跟着走，见后端 core::upstream::connections）。
- * 单独一条 2 秒轮询而不是跟着 app.js 那 20 秒一轮：连接数的全部意义就在「现在」。
- * 后端那边是进程内计数（不读盘、不出网），所以这条链路的代价足够低。 */
+/* ─── （ when ，2 seconds 1 ）────────────────────
+ * and OmniProxy up 「」 1 ：** in use this request**
+ * （ 1 request in when ， after core::upstream::connections）。
+ * 1 2 seconds not is app.js that 20 seconds 1 ： in 「 in 」。
+ * after that is （ not 、 not ）， this 。 */
 
-/** 2 秒：够快看得出「正在跑」，又不至于让 DevTools 的网络面板刷屏 */
+/** 2 seconds：「 in 」， not DevTools */
 export const CONNECTIONS_POLL_MS = 2000
 
 export function connectionsOf(id: string): number {
@@ -92,18 +92,18 @@ export function connectionsOf(id: string): number {
 }
 
 /**
- * 拉一次连接数。失败静默：2 秒一次的轮询，后端不可达时 toast 会变成刷屏；
- * 且缓存保留上一轮的值比清空更贴近事实（用户看到的是「刚才还在跑」）。
+ * 1 。failure：2 seconds 1 ， after not can when toast will ；
+ * and up 1 empty（ use to is 「 in 」）。
  *
- * ── 数值没变就不写 store（本次改造）──────────────────────────
- * 这条链路每 2 秒跑一次，而「有请求在跑」是少数时刻：绝大多数轮次里
- * `connections` 都是同一份空表。原实现照写不误，而 store 的每次 `patch` 都会换一份
- * 新快照（`useSyncExternalStore` 按引用判「变了没」）—— 于是账号页每 2 秒整体重渲染
- * 一次，43 个账号 × 十几列的单元格全部重建，屏幕上却一个数字都没变。这里先比一遍，
- * 相同就直接返回：那 2 秒一次的「重渲染整页」在空闲时彻底消失。
+ * ── no not store（）──────────────────────────
+ * this 2 seconds 1 ，「 has request in 」 is when ：
+ * `connections` is 1 empty。 not ， store `patch` will 1 
+ * new （`useSyncExternalStore` by use 「 no 」）—— is 2 seconds
+ * 1 ，43 × ， up 1 no 。 this 1 ，
+ * return： that 2 seconds 1 「」 in empty when 。
  *
- * 比较口径与写入口径必须一致（都是「只放 count > 0 的项」）—— 两个 Map 的构造
- * 走的是同一段代码，所以「key 集合 + 每个值」全等都等价于「这份读数与上一份相同」。
+ * and must 1 （ is 「 count > 0 」）—— Map 
+ * is 1 ，「key + 」 etc etc 「 this and up 1 」。
  */
 export async function syncConnections(): Promise<boolean> {
   try {
@@ -118,12 +118,12 @@ export async function syncConnections(): Promise<boolean> {
     patch({ connections })
     return true
   } catch {
-    // 静默：下一次轮询自然重试（与 app.js 的 refresh / syncLogsBadge 同一取舍）
+    // ： down 1 （ and app.js refresh / syncLogsBadge 1 ）
     return false
   }
 }
 
-/** 两份连接数读数是否完全相同（key 集合与每个值；见 syncConnections 的说明） */
+/** is （key and ； syncConnections ） */
 function sameConnections(
   next: ReadonlyMap<string, number>,
   prev: ReadonlyMap<string, number>,
@@ -136,8 +136,8 @@ function sameConnections(
 }
 
 /**
- * 起轮询定时器（只起一次）。只在**账号页可见**时真发请求：切到别的页、或窗口被
- * 最小化时不打后端 —— 与 requests-page / logs-panel 的轮询同一取舍。
+ * when （ 1 ）。 in ** can ** when request： to 、 or 
+ * when not after —— and requests-page / logs-panel 1 。
  */
 let connectionsTimer: ReturnType<typeof setInterval> | null = null
 export function startConnectionsPolling(): void {
@@ -148,17 +148,17 @@ export function startConnectionsPolling(): void {
   }, CONNECTIONS_POLL_MS)
 }
 
-/* ─── 行内动作（启用 / 顺序 / 限流 / 代理）─────
- * 「优先级」那一组动作随分组化下线：顺序不再由数字表达，改由拖拽整队
- * （`reorderQueue`）。后端 `PATCH priority` / `move` 端点仍在（别的客户端在用），
- * 只是账号页不再调它们。 */
+/* ─── （enabled / / / ）─────
+ * 「」 that 1 down ： not by ， by 
+ * （`reorderQueue`）。 after `PATCH priority` / `move` in （ client in use ），
+ * is not 。 */
 
 /**
- * 启用 / 禁用单个账号（状态列的开关与 ⋯ 菜单的第一项走同一条链）。
+ * enabled / use （ and ⋯ 1 1 ）。
  *
- * 为什么不用 app.js 的 runAccountAction：那个入口的 switch 分支只认
- * switch / refresh / remove，别的 action 会静默走完不做事。
- * 用 updateAccount 走 PATCH —— 后端 apply_patch 只改显式传入的字段，这里只传 enabled。
+ * Why not use app.js runAccountAction： that switch 
+ * switch / refresh / remove， action will not 。
+ * use updateAccount PATCH —— after apply_patch ， this enabled。
  */
 export async function setAccountEnabled(id: string, enabled: boolean): Promise<void> {
   try {
@@ -168,20 +168,20 @@ export async function setAccountEnabled(id: string, enabled: boolean): Promise<v
     catch (error) { toast(t('账号已保存，但列表刷新失败：{error}', { error: errorMessage(error) }), 'err') }
   } catch (error) {
     toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
-    // 失败时把开关拨回去：界面上不能留一个「已改」的假象
+    // failure when ： up not can 1 「 already 」 
     void shared().wbApp?.refresh?.()
   }
 }
 
 /**
- * **整队重排**（分组模式唯一的顺序写入通道）：把新队列整条交给后端。
+ * ****（ 1 ）： new to after 。
  *
- * 调用方给的是「组顺位 → 组内顺位」展开后的账号 id 列表（从队首到队尾），后端按
- * 顺序把全局 priority 编成 0、1、2… —— 一次请求落地一条队列，不存在逐条 PATCH
- * 的中间态（中途失败会留下重号，那会破坏「优先级唯一」这条不变量）。
+ * use to is 「 → 」 after id （ from to ）， after by 
+ * priority 0、1、2… —— 1 request 1 ， not in PATCH
+ * in （ in failure will down ， that will 「 1 」 this not ）。
  *
- * 失败必须刷新：界面此时显示的是**用户拖出来的顺序**，而库里还是旧顺序，
- * 不拉回事实的话，下一次刷新会看到顺序「自己跳回去」。
+ * failuremust new ： when is ** use **， is old ，
+ * not ， down 1 new will to 「」。
  */
 export async function reorderQueue(ids: string[], note?: string): Promise<boolean> {
   if (!ids.length) return false
@@ -198,8 +198,8 @@ export async function reorderQueue(ids: string[], note?: string): Promise<boolea
 }
 
 /**
- * 整组启用 / 禁用（分组带的 ⋯ 菜单）：走既有的批量端点，一次改一组。
- * 与单行开关同一口径（`PATCH enabled`），只是把 ids 换成一组的成员。
+ * enabled / use （ ⋯ ）： has ， 1 1 。
+ * and 1 （`PATCH enabled`）， is ids 1 。
  */
 export async function setGroupEnabled(ids: string[], enabled: boolean): Promise<void> {
   if (!ids.length) return
@@ -227,7 +227,7 @@ export async function setGroupEnabled(ids: string[], enabled: boolean): Promise<
   }
 }
 
-/** 清除限流标记：单条（model）或全部。后端返回新快照，交给全局刷新对齐。 */
+/** ：（model） or 。 after return new ， to new for 。 */
 export async function clearLimits(id: string, model?: string): Promise<void> {
   try {
     await shared().workbuddyDesktop?.clearRateLimits?.(id, model || null)
@@ -239,29 +239,29 @@ export async function clearLimits(id: string, model?: string): Promise<void> {
 }
 
 /**
- * 代理列选中即保存（`value` 是下拉的值）。下拉的选项只有三类：
- *   ''                     → 直连（proxy = null）
- *   `pool:<proxyId>`       → 引用「网络代理」页的池条目
- *   两个 `__proxy_*__` 占位值 → 「当前值的显示项」与「打开设置弹窗」，
- *                             都不是一次修改（在前两个分支里拦掉）
+ * in （`value` is down ）。 down has ：
+ * '' → （proxy = null）
+ * `pool:<proxyId>` → use 「」 
+ * `__proxy_*__` → 「current 」 and 「set」，
+ * not is 1 （ in before ）
  *
- * 出口统一走代理池之后，这里**不再**产生 `{source:'clash'}` —— 存量里那种
- * 记录仍照原样转发，用户在这个下拉里选一条池条目或切回直连就会改写它。
+ * 1 after ， this ** not ** `{source:'clash'}` —— that 
+ * ， use in this down 1 or will 。
  *
- * ── 禁用条目为什么在这里再挡一次 ─────────────────────────────
- * 视图层已经把禁用条目置灰（`disabled`），但下拉的选项来自缓存，极端情况下
- * （缓存刚被别处刷新、弹层已经展开）仍可能点到一条已禁用的。后端
- * `normalize_account_proxy` 有意**不**校验池的当下状态（保存账号不依赖池的
- * 读库结果），所以这里不挡的话会「保存成功 → 解析失败 → 回退直连」，用户只
- * 看到一句「代理已禁用」。挡在这里，提示与视图上的置灰是同一个事实。
+ * ── use Why in this 1 ─────────────────────────────
+ * already use （`disabled`）， down ， down 
+ * （ new 、 already ） can can to 1 already use 。 after 
+ * `normalize_account_proxy` has ** not ** down （ not 
+ * ）， this not will 「success → failure → 」， use 
+ * to 1 「 already use 」。 in this ， and up is 1 。
  */
 export async function applyProxyPick(id: string, value: string, fallback: string): Promise<void> {
   if (value === PROXY_CUSTOM_EDIT) {
-    // 动作项：开弹窗（下拉的原值由调用方在渲染层恢复 —— 它是受控的，重绘即回原值）
+    // ：（ down by use in —— is ，）
     openSettingsDialog(id)
     return
   }
-  // 当前自定义配置的显示项：选它自己不是一次修改
+  // currentconfig ： not is 1 
   if (value === PROXY_CUSTOM_CURRENT) return
   if (value === fallback) return
   if (value.startsWith(POOL_VALUE_PREFIX)) {
@@ -283,34 +283,34 @@ export async function applyProxyPick(id: string, value: string, fallback: string
   } catch (error) {
     toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
   } finally {
-    // 成败都重拉：成功让这格显示落库后的值，失败把下拉拨回原值
+    // ：success this after ，failure down 
     try { await refreshSavedAccounts() }
     catch (error) { toast(t('刷新账号列表失败：{message}', { message: errorMessage(error) }), 'err') }
   }
 }
 
-/** 代理下拉里两个「不是出口 uid」的特殊值：代表当前自定义配置的显示项、打开设置弹窗的动作项 */
+/** down 「 not is uid」 ：currentconfig 、set */
 export const PROXY_CUSTOM_CURRENT = '__proxy_custom__'
 export const PROXY_CUSTOM_EDIT = '__proxy_custom_edit__'
 
 /**
- * CodeArts 的「领福利」入口已整体迁到「签到中心」的活动福利卡（checkin-page.tsx
- * 直接调 legacy 脚本 `ui/codearts-welfare.js` 的 `wbCodeArtsWelfare.start`），
- * 账号页不再有这颗按钮 —— 这里不再中转。
+ * CodeArts 「」 already to 「 to in 」 （checkin-page.tsx
+ * legacy `ui/codearts-welfare.js` `wbCodeArtsWelfare.start`），
+ * not has this by —— this not in 。
  *
- * ZCode 的「领套餐」同一场收敛：账号页那颗按钮已撤（套餐明细与逐份领取在
- * 签到中心的「活动福利」卡，那一行点开的就是同一个 `wbZcodePlans` 弹窗），
- * 原先只服务它的 `openZcodePlans` 一并删掉。
+ * ZCode 「」 1 ： that by already （ and in 
+ * to in 「」， that 1 is 1 `wbZcodePlans` ），
+ * `openZcodePlans` 1 and 。
  */
 
-/* ─── 对外契约（window）────────────────────── */
+/* ─── for （window）────────────────────── */
 
-/** 一行账号的渲染上下文（视图层按它取位置、勾选、余额与连接数） */
+/** 1 up down （ by 、、 and ） */
 export type RowContext = {
-  /** 全局队列位置（1 起）：⋯ 菜单的「已在第一位」判定、模型测试候选清单用它。
-   *  分组模式下**不再直接显示**（行上是组内序号），见 accounts-domain 模块头 */
+  /** （1 ）：⋯ 「 already in 1 」、 use 。
+   * down ** not **（ up is ）， accounts-domain module header */
   seat: { position: number; total: number }
-  /** 组内序号（1 起）：顺序列的 `#N` 就是它 */
+  /** （1 ）： `#N` is */
   rank: number
   picked: boolean
   usageEntry: UsageEntry
@@ -337,11 +337,11 @@ export type AccountsViewApi = {
   refreshCaches(validIds: Set<string>): void
   syncConnections(): Promise<boolean>
   /**
-   * 强制重读「网络代理」页的代理池（切回本页时调）。
+   * 「」 （ when ）。
    *
-   * 代理列的下拉读的是共享缓存，平时由网络代理页的写操作就地更新；这一条是
-   * 兜底 —— 池可能在应用外被改过（另一个窗口、手工改库），而本页在切页前
-   * 可能一次都没重新读过。失败不抛，界面按 `poolError()` 显示「读取失败」。
+   * down is ， when by update； this 1 is 
+   * —— can can in use （ 1 、）， in before 
+   * can can 1 no new 。failure not ， by `poolError()` 「failure」。
    */
   refreshProxyPool(): Promise<void>
   applyBalances(
@@ -367,12 +367,12 @@ export type AccountsPanelApi = {
 }
 
 /**
- * `window.wbAccountsModel` 的公开面：与原 ui/accounts-model.js 的**方法清单逐字一致**，
- * 只少了五个**生成 HTML 字符串**的成员（statusTag / accountTags / moreMenuHtml /
- * limitPanelHtml / checkinPanelHtml）—— 它们随表格一起变成了 React 组件，页外无任何
- * 引用（见最终报告）。accountTags 的等价物在域层（返回结构化标签，由视图渲染成 Badge）。
- * 后补的 `isLimited`（顶栏「已限流」计数从 isRateLimited 换过来）是唯一的加项：
- * 余额读数缓存在本文件里，域层拿不到 —— 逐字清单只对「迁移时点」负责，口径演进在此处接线。
+ * `window.wbAccountsModel` ： and ui/accounts-model.js ** 1 **，
+ * ** HTML ** （statusTag / accountTags / moreMenuHtml /
+ * limitPanelHtml / checkinPanelHtml）—— 1 React ，none
+ * use （）。accountTags etc in （return， by Badge）。
+ * after `isLimited`（「 already 」 from isRateLimited ） is 1 ：
+ * in file， not to —— for 「 when 」， in 。
  */
 type AccountsModelApi = {
   DEFAULT_PROVIDER_ID: string
@@ -389,7 +389,7 @@ type AccountsModelApi = {
   typeLabel: typeof domain.typeLabel
   isEnabled: typeof domain.isEnabled
   isRateLimited: typeof domain.isRateLimited
-  /** 「已限流」的完整口径（isLimitedNow：模型限流或限制器跳过档），余额与 Token 读数由本文件的缓存出 */
+  /** 「 already 」 （isLimitedNow： or limit）， and Token by file */
   isLimited: (account: AccountRecord | null | undefined) => boolean
   accountEdition: typeof domain.accountEdition
   matchEnabled: typeof domain.matchEnabled
@@ -404,16 +404,16 @@ type AccountsModelApi = {
 
 declare global {
   interface Window {
-    /** 账号列表视图（替换 ui/accounts-view.js；app.js / providers.js / tasks-panel 的调用点逐字保留） */
+    /** （ ui/accounts-view.js；app.js / providers.js / tasks-panel use ） */
     wbAccountsView?: AccountsViewApi
-    /** 账号的领域判定（替换 ui/accounts-model.js；app.js / report.js / models-fetch-modal 的调用点逐字保留） */
+    /** （ ui/accounts-model.js；app.js / report.js / models-fetch-modal use ） */
     wbAccountsModel?: AccountsModelApi
-    /** 账号设置 / 批量操作弹窗（替换 ui/account-panel.js；app.js:623 / :645 的调用点逐字保留） */
+    /** set / （ ui/account-panel.js；app.js:623 / :645 use ） */
     wbAccountPanel?: AccountsPanelApi
   }
 }
 
-/** 域层的对外面（方法清单同上；显式列名而不是 `export *`，免得把内部辅助也挂上去） */
+/** for （ up ； not is `export *`， up ） */
 const ACCOUNTS_MODEL_API: AccountsModelApi = {
   DEFAULT_PROVIDER_ID: domain.DEFAULT_PROVIDER_ID,
   RACCOON_PROVIDER_ID: domain.RACCOON_PROVIDER_ID,
@@ -446,9 +446,9 @@ const ACCOUNTS_MODEL_API: AccountsModelApi = {
 }
 
 /**
- * 注册对外契约。**必须在模块求值时完成**：app.js 的 refresh() 是异步的（首个 await
- * 之后才轮到渲染），但 report.js / add-account.js 这些同步脚本紧随其后执行 —— 它们
- * 拿不到就会退化成静默不生效。
+ * for 。**must in when **：app.js refresh() is （ await
+ * after to ）， report.js / add-account.js this its after —— 
+ * not to will not 。
  */
 export function installAccountsApi(): void {
   installListRefresh()
@@ -474,11 +474,11 @@ export function installAccountsApi(): void {
     close: closeDialog,
     openBatch: openBatchDialog,
     closeBatch: closeDialog,
-    /** 「添加账号」弹窗打开时可用：按 providers 摘要重建选项并复位到 WorkBuddy */
+    /** 「」 when available： by providers need and to WorkBuddy */
     syncAddProvider: () => shared().wbAccountAddForms?.syncAddProvider?.(),
     
-    // 只失效缓存，不立刻出网：refresh() 每次轮询都会调这里，而代理池只有
-    // 账号页真正用得到。切到账号页时 showPage 会调 refreshProxyPool() 强制重读。
+    // ， not ：refresh() will this ， has 
+    // use to 。 to when showPage will refreshProxyPool() 。
     invalidate: () => { invalidateProxyPoolCache() },
   }
 }

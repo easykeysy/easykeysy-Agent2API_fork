@@ -157,8 +157,8 @@ impl AutoCheckin {
             let due = times::retry_due_providers(&schedule, now, &today);
             if !due.is_empty() {
                 let reason = format!("补签（{}）", checkin_schedules::display_label(&schedule));
-                // 来源用 makeup 而不是 schedule：记录页的「定时补签」筛选靠它
-                // 与主轮区分（reason 前缀只用于兼容旧行，见 core::checkin_records）
+                // use makeup not is schedule： 「 when 」
+                // and （reason before used for old ， core::checkin_records）
                 self.fire_scoped(
                     &reason,
                     Some(&schedule.id),
@@ -181,7 +181,7 @@ impl AutoCheckin {
         let service = self.clone();
         inner.task = Some(crate::spawn_task(async move {
             loop {
-                // 不持有跨区间的睡眠任务：重启、休眠和改时钟后重新按持久化计划判断。
+                // not has ：、 and when after new by 。
                 let delay = if super::master_enabled() {
                     service
                         .planned_schedules()

@@ -1,21 +1,21 @@
-//! 调试报文**载荷**的落盘侧（fork）：SQLite 的 `debug_traffic` 只留台账
-//! （id / ts / url / provider / status / size），请求头、请求体、响应头、响应体
-//! 写 `{cache_dir}/debug-traffic/{id 的十六进制}`。
+//! **** （fork）：SQLite `debug_traffic` 
+//! （id / ts / url / provider / status / size），request、request、response、response
+//! `{cache_dir}/debug-traffic/{id }`。
 //!
-//! ── 为什么台账留库、载荷走文件 ──────────────────────────────
-//! 这张表是 `.db` 会长大的主因：留存 500 条、每条是一整个上游请求 +
-//! 一整段 SSE 响应，几百 MB 很正常。而它同时被三处 SQL 依赖：
-//! `request_stats` 的「原始报文条数」UNION、按请求筛选清理、以及按条数裁剪。
-//! 把**行**留在库里、只把载荷搬走，这些 SQL 一条都不用改（与
-//! `request_raw` / `assistant_images` 同一取舍）。
+//! ── Why、file ──────────────────────────────
+//! this is `.db` will ： 500 、 is 1 up request +
+//! 1 SSE response， MB 。 when SQL ：
+//! `request_stats` 「」UNION、 by request、 and by 。
+//! **** in 、 ， this SQL 1 not use （ and 
+//! `request_raw` / `assistant_images` 1 ）。
 //!
-//! ── 文件名 ──────────────────────────────────────────────────
-//! 请求 id 来自外部（可能含 `/`、`..`、冒号），不能直接当文件名；按字节做
-//! 十六进制编码得到只含 `[0-9a-f]` 的名字，`sweep` 再反向解码回 id 对台账。
+//! ── file ──────────────────────────────────────────────────
+//! request id （ can can `/`、`..`、）， not can file； by 
+//! to `[0-9a-f]` ，`sweep` to id for 。
 //!
-//! ── 原子性 ──────────────────────────────────────────────────
-//! 先写 `{name}.tmp` 再 `rename` 覆盖：读侧看不到写了一半的 JSON。写文件失败
-//! 时调用方回落到「载荷照旧进库」，宁可多占一点 `.db` 也不丢这条报文。
+//! ── ──────────────────────────────────────────────────
+//! `{name}.tmp` `rename` ： not to 1 JSON。filefailure
+//! when use to 「 old 」， can 1 `.db` not this 。
 
 use std::collections::HashSet;
 use std::fs;
@@ -26,8 +26,8 @@ use serde_json::Value;
 
 use super::TrafficEntry;
 
-/// 载荷文件的 JSON 形状。状态码 / 截断标记留在台账里（它们是列表和统计要用的
-/// 小字段），这里只放真正占体积的那四份文本。
+/// file JSON 。 / in （ is and statistics need use 
+/// ）， this that 。
 #[derive(Deserialize, Serialize)]
 pub(super) struct Payload {
     #[serde(rename = "requestHeaders", default)]
@@ -52,7 +52,7 @@ fn path(id: &str) -> PathBuf {
     dir().join(file_name(id))
 }
 
-/// 文件名 → 报文 id（不是本模块写的文件给 `None`，`sweep` 据此清掉）
+/// file → id（ not is file to `None`，`sweep` ）
 fn id_from_name(name: &str) -> Option<String> {
     if name.is_empty() || name.len() % 2 != 0 {
         return None;
@@ -67,7 +67,7 @@ fn id_from_name(name: &str) -> Option<String> {
     String::from_utf8(decoded).ok()
 }
 
-/// 从一条报文里取出要落盘的那半（请求头 / 请求体 / 响应头 / 响应体）。
+/// from 1 need that （request / request / response / response）。
 fn payload_of(entry: &TrafficEntry) -> Payload {
     Payload {
         request_headers: entry.request_headers.clone(),
@@ -77,7 +77,7 @@ fn payload_of(entry: &TrafficEntry) -> Payload {
     }
 }
 
-/// 写一条载荷（同 id 覆盖）。失败只返回错误，由调用方决定要不要回落。
+/// 1 （ id ）。failurereturnerror， by use need not need 。
 pub(super) fn write(entry: &TrafficEntry) -> std::io::Result<()> {
     let dir = dir();
     fs::create_dir_all(&dir)?;
@@ -88,13 +88,13 @@ pub(super) fn write(entry: &TrafficEntry) -> std::io::Result<()> {
     fs::rename(&tmp, dir.join(name))
 }
 
-/// 按 id 读载荷；文件不在（ramdisk 被清）或内容损坏都按「未保留」处理。
+/// by id ；file not in （ramdisk ） or by 「」。
 pub(super) fn read(id: &str) -> Option<Payload> {
     let bytes = fs::read(path(id)).ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
-/// 把载荷并回台账行（台账里的那四列此时是空的）。
+/// and （ that when is empty ）。
 pub(super) fn hydrate(entry: &mut TrafficEntry) {
     let Some(payload) = read(&entry.id) else {
         return;
@@ -105,10 +105,10 @@ pub(super) fn hydrate(entry: &mut TrafficEntry) {
     entry.response_body = payload.response_body;
 }
 
-/// 按台账清孤儿：不在 `keep` 里的载荷文件、以及所有 `*.tmp` 残留。
+/// by ： not in `keep` file、 and all `*.tmp` 。
 ///
-/// 调用方必须**成功读到台账 id 集合之后**才调；读不出来时不要调
-/// （空集合会把全部载荷误删）。
+/// use must**success to id after **； not when not need 
+/// （empty will ）。
 pub(super) fn sweep(keep: &HashSet<String>) {
     let Ok(entries) = fs::read_dir(dir()) else {
         return;

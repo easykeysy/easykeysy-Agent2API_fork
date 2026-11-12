@@ -1,38 +1,38 @@
-//! 账号「限制器」：每账号可自定义的限制规则列表（余额 / Token 两类）与
-//! Token 周期消耗的内存事实表。
+//! 「limit」： can limit then （ / Token ） and 
+//! Token 。
 //!
-//! ── 这个模块解决什么问题 ─────────────────────────────────────
-//! 旧的「余额不足处理」每账号只有一组写死的配置（`lowBalance {mode, threshold}`），
-//! 表达不了「这账号每小时最多用 50 万 Token」。限制器把它升级成规则数组
-//! （账号记录上的 `limiters` 键）：每条规则 = 类型（余额 / Token）+ 阈值 +
-//! 触发动作（跳过 / 禁用）+ 启用开关，Token 规则另带**重置方式** —— 固定周期
-//! （对齐自然时间的固定窗口，30 分钟 ~ 24 小时）或自然日（每天本地时区 0 点
-//! 重置，有的账号过了 0 点额度就回来）。
+//! ── this ─────────────────────────────────────
+//! old 「 not 」 has 1 config（`lowBalance {mode, threshold}`），
+//! not 「 this when use 50 Token」。limit then 
+//! （ up `limiters` ）： then = （ / Token）+ +
+//! （ / use ）+ enabled，Token then **** —— 
+//! （ for when ，30 minutes ~ 24 when ） or （ when 0 
+//! ， has 0 ）。
 //!
-//! ── 与旧 `lowBalance` 的关系（读侧推导 + 写侧同步）──────────
-//! 记录上**没有** `limiters` 键时（旧版本写入的记录），有效规则由
-//! `lowBalance` / provider 缺省**推导**出至多一条余额规则 —— 行为与升级前
-//! 完全一致（见 [`effective_rules`]）。写入侧（`store_crud::apply_patch`）
-//! 保存 `limiters` 时顺手把首条余额规则回写进 `lowBalance`：用户降级回旧版
-//! 时余额限制不丢（Token 规则旧版不认识，忽略即可）。
+//! ── and old `lowBalance` （ + ）──────────
+//! up ** no has ** `limiters` when （ old ），valid then by 
+//! `lowBalance` / provider **** 1 then —— as and before 
+//! 1 （ [`effective_rules`]）。（`store_crud::apply_patch`）
+//! `limiters` when then `lowBalance`： use old 
+//! when limit not （Token then old not ，ignore can ）。
 //!
-//! ── Token 周期消耗怎么算 ────────────────────────────────────
-//! 「当前窗口内消耗了多少」从 `requests` 表按账号聚合
-//! （`SUM(total_tokens) WHERE ts >= 窗口起点`，schema v9 的复合索引撑着）。
-//! 聚合结果住**内存事实表**（`TokenFact`，键 = 账号 × 周期秒数），两个写入口：
-//!   - **全量刷新**：`usage_query` 的心跳循环每轮（10 秒）把当前启用中的全部
-//!     Token 周期重算一遍，整表替换 —— 窗口翻页（对齐自然时间）后旧读数
-//!     自动归零；
-//!   - **增量记账**：请求收尾（`api::pipeline::record_entry`）把本次消耗当场
-//!     加进当前窗口 —— 选路跳过的判定不必等下一轮刷新，转发热路径上没有 IO。
+//! ── Token ────────────────────────────────────
+//! 「current」 from `requests` by 
+//! （`SUM(total_tokens) WHERE ts >= `，schema v9 ）。
+//! ****（`TokenFact`， = × seconds）， ：
+//! - ** new **：`usage_query` （10 seconds） currentenabled in 
+//! Token 1 ， —— （ for when ） after old 
+//! ；
+//! - ****：request（`api::pipeline::record_entry`） 
+//! current —— not etc down 1 new ，path up no has IO。
 //!
-//! 选路跳过（[`token_skip_blocked`]）与余额跳过同一形态：读内存、零 IO、
-//! 严格按「拿得出证据才拦」—— 窗口读数缺（事实表没有这个键、或窗口已翻页）
-//! 按 0 算，不拦。
+//! （[`token_skip_blocked`]） and 1 ：、 IO、
+//! by 「」—— （ no has this 、 or already ）
+//! by 0 ， not 。
 //!
-//! ── 硬约束：持锁（连接锁）期间不打日志 ──────────────────────
-//! 与 `usage_records` 同一条：`Db::with*` 拿的是全局唯一的连接锁，闭包里打
-//! 日志会当场死锁。日志一律在闭包之外打。
+//! ── ：（） not ──────────────────────
+//! and `usage_records` 1 ：`Db::with*` is 1 ，
+//! will 。 1 in 。
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -46,18 +46,18 @@ use crate::server::db::Db;
 use crate::server::logging;
 use agent2api_provider_protocol as proto;
 
-/// Cline 免费池的 provider id（与 `usage_records::CLINE_FREE_PROVIDER` 同源推导）。
+/// Cline provider id（ and `usage_records::CLINE_FREE_PROVIDER` ）。
 const CLINE_FREE_PROVIDER: &str = kind_id(ProviderKind::ClineFree);
-/// Token 规则重置周期的上下限（秒）：30 分钟 ~ 24 小时。与写入侧
-/// （`store_crud::apply_patch`）共用这一对常量 —— 两处各写一份「迟早会漂」。
-/// 下限与查询间隔下限（30 秒）不同：固定窗口按自然时间对齐，窗口太短会让
-/// 「刚恢复又被拦」反复出现，30 分钟是可用性与保护性的折中（原型评审定的）。
+/// Token then up down （seconds）：30 minutes ~ 24 when 。 and 
+/// （`store_crud::apply_patch`） use this 1 for —— 1 「 will 」。
+/// down and down （30 seconds） not ： by when for ， will 
+/// 「 」，30 minutes is available and in （ ）。
 pub const MIN_TOKEN_PERIOD_SECONDS: i64 = 1_800;
 pub const MAX_TOKEN_PERIOD_SECONDS: i64 = 86_400;
 
 static DB: OnceLock<Option<Db>> = OnceLock::new();
 
-/// 装库句柄（`ServerState::bootstrap` 调一次，与 `usage_records::install` 并排）。
+/// （`ServerState::bootstrap` 1 ， and `usage_records::install` and ）。
 pub fn install(db: Option<Db>) {
     let _ = DB.set(db);
 }
@@ -66,52 +66,52 @@ fn database() -> Option<&'static Db> {
     DB.get().and_then(Option::as_ref)
 }
 
-// ─── 规则的形状与解析 ────────────────────────────────────────
+// ─── then and ────────────────────────────────────────
 
-/// 规则类型。
+/// then 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LimiterKind {
-    /// 余额：读数低于阈值触发（与旧「余额不足处理」同一口径，严格小于）。
+    /// ：（ and old 「 not 」 1 ，）。
     Balance,
-    /// Token：重置窗口内累计消耗达到阈值触发（大于等于）。
+    /// Token： to （ etc ）。
     Token,
 }
 
-/// Token 规则的重置方式。
+/// Token then 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LimiterReset {
-    /// 固定周期：窗口对齐自然时间（整点 / 整 N 分钟一轮回），长度 = `period`。
+    /// ： for when （ / N minutes 1 ）， = `period`。
     Fixed,
-    /// 自然日：每天本地时区 0 点重置（有的账号过了 0 点额度就回来，
-    /// 固定周期的「每 N 小时」表达不了这个）。不使用 `period`。
+    /// ： when 0 （ has 0 ，
+    /// 「 N when 」 not this ）。 not use `period`。
     Daily,
 }
 
-/// 触发动作：语义与旧两档一致 —— 跳过自动恢复（余额回升 / 窗口重置），
-/// 禁用不自动恢复（需手动启用）。
+/// ： and old 1 —— （ / ），
+/// use not （ need enabled）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LimiterAction {
     Skip,
     Disable,
 }
 
-/// 一条限制规则（读侧形状；`period` 仅「固定周期」的 Token 规则有效，其余恒 0）。
+/// 1 limit then （；`period` only「」 Token then valid， its 0）。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LimiterRule {
     pub kind: LimiterKind,
     pub action: LimiterAction,
-    /// 阈值：余额 = 余额数字下限；Token = 窗口内消耗上限。恒 > 0。
+    /// ： = down ；Token = limit。 > 0。
     pub threshold: f64,
-    /// 重置周期（秒）；仅「固定周期」的 Token 规则有效。
+    /// （seconds）；only「」 Token then valid。
     pub period: i64,
-    /// 重置方式；余额规则恒 Fixed（跟随余额读数，无窗口概念）。
+    /// ； then Fixed（，none）。
     pub reset: LimiterReset,
     pub enabled: bool,
 }
 
 impl LimiterRule {
-    /// 公开形态的一个规则对象（字段恒齐，前端不必判「键缺失」）。
-    /// daily 不带 period：它没有周期长度，只有「每天 0 点」这一个锚点。
+    /// 1 then for （， before not 「」）。
+    /// daily not period： no has ， has 「 0 」 this 1 。
     pub fn to_json(self) -> Value {
         let kind = match self.kind {
             LimiterKind::Balance => "balance",
@@ -139,9 +139,9 @@ impl LimiterRule {
     }
 }
 
-/// 从账号记录的 `limiters` 键解析规则（**容错**：脏条目整条丢弃，不让一条
-/// 手改的坏数据把其余规则全废掉）。非数组 / 缺失返回 `None` —— 调用方据此
-/// 走「旧 lowBalance / provider 缺省」的推导。
+/// from `limiters` then （****：， not 1 
+/// its then ）。 / return `None` —— use 
+/// 「 old lowBalance / provider 」 。
 fn parse_rules(value: Option<&Value>) -> Option<Vec<LimiterRule>> {
     let entries = value?.as_array()?;
     Some(
@@ -159,7 +159,7 @@ fn parse_rules(value: Option<&Value>) -> Option<Vec<LimiterRule>> {
                     Some("disable") => LimiterAction::Disable,
                     _ => return None,
                 };
-                // reset 缺省 = fixed（旧记录没有这个键，行为与升级前一致）
+                // reset = fixed（ old no has this ， as and before 1 ）
                 let reset = match fields.get("reset").and_then(Value::as_str) {
                     Some("daily") => LimiterReset::Daily,
                     _ => LimiterReset::Fixed,
@@ -168,9 +168,9 @@ fn parse_rules(value: Option<&Value>) -> Option<Vec<LimiterRule>> {
                 if !threshold.is_finite() || threshold <= 0.0 {
                     return None;
                 }
-                // period 只对「固定周期」的 Token 规则要求；越界（手改脏值）整条
-                // 丢弃，不夹逼 —— 「把 90 天夹成 24 小时」会悄悄改变用户配好的
-                // 语义，宁可不生效。daily 规则没有周期长度，period 恒 0。
+                // period for 「」 Token then need ；（）
+                // ， not —— 「 90 24 when 」 will use 
+                // ， can not 。daily then no has ，period 0。
                 let period = if kind == LimiterKind::Token && reset == LimiterReset::Fixed {
                     let period = fields.get("period").and_then(Value::as_i64)?;
                     if !(MIN_TOKEN_PERIOD_SECONDS..=MAX_TOKEN_PERIOD_SECONDS).contains(&period) {
@@ -187,19 +187,19 @@ fn parse_rules(value: Option<&Value>) -> Option<Vec<LimiterRule>> {
     )
 }
 
-/// 记录字段上**没有** `limiters` 键时的推导：由 `lowBalance`（显式配置）或
-/// provider 缺省档得出至多一条余额规则 —— 与限制器上线前的行为逐字一致。
-/// 显式 `limiters`（含空数组）原样尊重：空数组 = 用户删光了规则 = 不限制。
-/// 各 provider 的**缺省限制规则**（记录上没有 `limiters` 也没有显式 `lowBalance`
-/// 配置时用）。
+/// up ** no has ** `limiters` when ： by `lowBalance`（config） or 
+/// provider 1 then —— and limit up before as 1 。
+/// `limiters`（empty）：empty = use then = unlimited。
+/// provider **limit then **（ up no has `limiters` no has `lowBalance`
+/// config when use ）。
 ///
-/// ── 判据顺序：插件申报优先，注册表兜底 ──────────────────────
-/// 缺省规则是「这一家的额度形态长什么样」的结论，属于 provider 知识，所以
-/// 插件在握手时申报（`AccountFeatures::default_limiters`）。这里先问插件：
-/// 申报了就照它执行（含「明确声明为空」这一档），没申报才走下面的内置表 ——
-/// 于是没升级的旧插件照旧工作，升级后行为由插件自己说了算。
+/// ── ：， ──────────────────────
+/// then is 「 this 1 」 ， provider ，
+/// in when （`AccountFeatures::default_limiters`）。 this ：
+/// （「 as empty」 this 1 ）， no down ——
+/// is no old old ， after as by 。
 ///
-/// 未申报时：Cline 免费池无规则，其余 provider 按总余额 < 1 跳过。
+/// when ：Cline none then ， its provider by total < 1 。
 pub fn default_rules(provider: &str) -> Vec<LimiterRule> {
     if let Some(declared) = declared_rules(provider) {
         if provider != kind_id(ProviderKind::CodeArts) || declared.iter().all(|rule| rule.kind == LimiterKind::Balance) {
@@ -219,11 +219,11 @@ pub fn default_rules(provider: &str) -> Vec<LimiterRule> {
     }]
 }
 
-/// 插件申报的缺省规则（`None` = 这一家没申报，调用方走内置表）。
+/// then （`None` = this 1 no ， use ）。
 ///
-/// 协议里的 `DefaultLimiter` 与这里的 `LimiterRule` 是同一件事的两份表达：
-/// 前者是过线形态（字段少、枚举封闭），后者是网关内部形态（带 `reset`
-/// 这类展示口径）。转换只在这一处，别处不要再写一遍。
+/// `DefaultLimiter` and this `LimiterRule` is 1 ：
+/// before is （、）， after is （ `reset`
+/// this ）。 in this 1 ， not need 1 。
 fn declared_rules(provider: &str) -> Option<Vec<LimiterRule>> {
     let features = crate::server::core::plugin_host::account_features_of(provider)?;
     let declared = features.default_limiters?;
@@ -237,7 +237,7 @@ fn declared_rules(provider: &str) -> Option<Vec<LimiterRule>> {
                         (LimiterKind::Balance, LimiterReset::Fixed)
                     }
                     proto::DefaultLimiterKind::Token => {
-                        // `period_seconds == 0` = 自然日；否则是固定周期窗口
+                        // `period_seconds == 0` = ；otherwise is 
                         let reset = if rule.period_seconds == 0 {
                             LimiterReset::Daily
                         } else {
@@ -263,8 +263,8 @@ fn declared_rules(provider: &str) -> Option<Vec<LimiterRule>> {
     )
 }
 
-/// 记录字段上**没有** `limiters` 键时的推导：有显式 `lowBalance`（用户 / 旧版
-/// 配过）就原样尊重；两者都没有时按 provider 给缺省规则（[`default_rules`]）。
+/// up ** no has ** `limiters` when ： has `lowBalance`（ use / old 
+/// ）； no has when by provider to then （[`default_rules`]）。
 fn derive_from_legacy(fields: &serde_json::Map<String, Value>) -> Vec<LimiterRule> {
     let provider = fields
         .get("provider")
@@ -290,10 +290,10 @@ fn derive_from_legacy(fields: &serde_json::Map<String, Value>) -> Vec<LimiterRul
     vec![LimiterRule { kind, action, threshold, period: 0, reset: LimiterReset::Fixed, enabled: true }]
 }
 
-/// 这条账号的**有效限制规则**：显式 `limiters` 优先，缺失时按旧配置推导。
-/// 选路过滤（`rotate`）、自动禁用钩子（`usage_query`）、公开形态
-/// （`store_view`）与写入侧比较基准（`store_crud`）共用这一个入口 ——
-/// 「什么算一条规则」只有这一份答案。字段映射版（账号记录的 fields 直取）。
+/// this **validlimit then **： `limiters` ， when by old config。
+/// （`rotate`）、 use （`usage_query`）、
+/// （`store_view`） and （`store_crud`） use this 1 ——
+/// 「 1 then 」 has this 1 。（ fields ）。
 pub fn effective_rules_in(fields: &serde_json::Map<String, Value>) -> Vec<LimiterRule> {
     match parse_rules(fields.get("limiters")) {
         Some(rules) => rules,
@@ -301,29 +301,29 @@ pub fn effective_rules_in(fields: &serde_json::Map<String, Value>) -> Vec<Limite
     }
 }
 
-/// [`effective_rules_in`] 的账号 JSON 版（选路 / 钩子手里是整个账号对象）。
+/// [`effective_rules_in`] JSON （ / is for ）。
 pub fn effective_rules(account: &Value) -> Vec<LimiterRule> {
     match account.as_object() {
         Some(fields) => effective_rules_in(fields),
-        // 形态异常（非对象）的账号没有任何可判定的配置：不给规则（不拦），
-        // 与「拿不出证据就不拦」的总体口径一致
+        // （ for ） no has can config： not to then （ not ），
+        // and 「 not not 」 total 1 
         None => Vec::new(),
     }
 }
 
-/// 规则列表 → 公开形态的 JSON 数组（写入侧存放 / 比较共用）。
+/// then → JSON （ / use ）。
 pub fn rules_to_json(rules: &[LimiterRule]) -> Value {
     Value::Array(rules.iter().map(|rule| rule.to_json()).collect())
 }
 
-/// 有效规则 → 公开形态的 JSON 数组（`store_view` 注入 / 写入侧比较共用）。
+/// valid then → JSON （`store_view` / use ）。
 pub fn effective_rules_json_in(fields: &serde_json::Map<String, Value>) -> Value {
     rules_to_json(&effective_rules_in(fields))
 }
 
-/// 写入侧的严格归一化（校验即权威）：每条都必须是完整合法的规则对象，
-/// 否则整条报错（不静默丢 —— 用户在界面上一条条配的，配错了要让他看见）。
-/// 非数组按「恢复缺省」处理（返回推导规则），与 `lowBalance` 非对象同一形态。
+/// 1 （）：must is then for ，
+/// otherwise（ not —— use in up 1 ， need ）。
+/// by 「」（return then ）， and `lowBalance` for 1 。
 pub fn normalize_rules(
     value: &Value,
     fields: &serde_json::Map<String, Value>,
@@ -353,7 +353,7 @@ pub fn normalize_rules(
         if !threshold.is_finite() || threshold <= 0.0 {
             return Err("限制阈值必须是大于 0 的数字".to_string());
         }
-        // reset 缺省 = fixed（前端旧草稿不带这个键也能存）；只认两值，不猜
+        // reset = fixed（ before old not this can ）；， not 
         let reset = match fields.get("reset").and_then(Value::as_str) {
             None | Some("fixed") => LimiterReset::Fixed,
             Some("daily") => LimiterReset::Daily,
@@ -379,12 +379,12 @@ pub fn normalize_rules(
     Ok(rules)
 }
 
-// ─── 判定（选路 / 自动禁用共用的口径）───────────────────────
+// ─── （ / use use ）───────────────────────
 
-/// 余额跳过判定：任一启用的余额 skip 规则满足「读数严格小于阈值」即拦。
-/// `facts` 是 `usage_records::balance_facts()` 的内存读数（判不出 = 放行，
-/// 那条口径不变）。取代旧版按 `lowBalance.mode` 单配置的读法 —— 推导规则
-/// 让旧记录拿到同一个结论。
+/// ： 1 enabled skip then 「」。
+/// `facts` is `usage_records::balance_facts()` （ not = ，
+/// that not ）。 old by `lowBalance.mode` config —— then 
+/// old to 1 。
 pub fn balance_skip_blocked(account: &Value, facts: &HashMap<String, crate::server::core::usage_records::BalanceFact>) -> bool {
     let Some(id) = account.get("id").and_then(Value::as_str) else { return false };
     let fact = facts.get(id);
@@ -396,9 +396,9 @@ pub fn balance_skip_blocked(account: &Value, facts: &HashMap<String, crate::serv
     })
 }
 
-/// 余额自动禁用的阈值：任一启用的余额 disable 规则满足「读数 < 阈值」就该禁，
-/// 等价于取其中**最大**的阈值（`remaining < max` ⇔ 至少一条命中）。
-/// `None` = 没有这条规则（缺省不启用禁用的口径不变）。
+/// use ： 1 enabled disable then 「 < 」 this ，
+/// etc its in **** （`remaining < max` ⇔ 1 in ）。
+/// `None` = no has this then （ not enabled use not ）。
 pub fn balance_disable_threshold(account: &Value) -> Option<f64> {
     effective_rules(account)
         .iter()
@@ -414,18 +414,18 @@ pub fn balance_disable_threshold(account: &Value) -> Option<f64> {
         })
 }
 
-/// 当前时刻所在窗口的起点（毫秒）：对齐自然时间（整点 / 整 N 分钟一轮回）。
-/// 固定窗口的「重置」因此可预测（界面能给出倒计时）。
+/// current when in （ms）： for when （ / N minutes 1 ）。
+/// 「」 can （ can to when ）。
 pub fn window_start(now_ms: i64, period_seconds: i64) -> i64 {
     let period_ms = period_seconds * 1000;
     now_ms - now_ms.rem_euclid(period_ms)
 }
 
-/// 本地时区**当日 0 点**的毫秒值（自然日窗口的锚点）。
+/// when ** 0 ** ms（ ）。
 ///
-/// 时区口径与 `request_stats::clock` / 签到中心同一套（`chrono::Local`）：用户
-/// 心智里的「过了 0 点就重置」是本机时区的 0 点。DST 模糊时段取 `single()`
-/// 失败时回落整点对齐（极端情形读数偏一小时，好过 panic —— release 无 unwrap）。
+/// when and `request_stats::clock` / to in 1 （`chrono::Local`）： use 
+/// 「 0 」 is when 0 。DST when `single()`
+/// failure when for （ 1 when ， panic —— release none unwrap）。
 fn local_midnight_ms(now_ms: i64) -> i64 {
     use chrono::{Local, TimeZone};
     let Some(local) = Local.timestamp_millis_opt(now_ms).single() else {
@@ -437,13 +437,13 @@ fn local_midnight_ms(now_ms: i64) -> i64 {
         .and_then(|naive| Local.from_local_datetime(&naive).single());
     match midnight {
         Some(midnight) => midnight.timestamp_millis(),
-        // DST 跳变日 0 点不存在（极罕见）：回落到该时刻所在的小时窗
+        // DST 0 not in （）： to this when in when 
         None => window_start(now_ms, 3600),
     }
 }
 
-/// 规则 → 事实表 / 读数行的**窗口种类键**：固定周期 = 周期秒数（最小 1800，
-/// 不会撞 0），自然日 = 0。同键的规则共享同一次聚合与同一条读数。
+/// then → / ****： = seconds（ 1800，
+/// not will 0）， = 0。 then 1 and 1 。
 fn rule_kind(rule: &LimiterRule) -> i64 {
     match rule.reset {
         LimiterReset::Daily => 0,
@@ -451,7 +451,7 @@ fn rule_kind(rule: &LimiterRule) -> i64 {
     }
 }
 
-/// 种类键 → 当前窗口起点（毫秒）：0 = 本地自然日 0 点，其余按固定周期对齐。
+/// → current（ms）：0 = 0 ， its by for 。
 fn kind_window_start(kind: i64, now_ms: i64) -> i64 {
     if kind == 0 {
         local_midnight_ms(now_ms)
@@ -460,9 +460,9 @@ fn kind_window_start(kind: i64, now_ms: i64) -> i64 {
     }
 }
 
-/// Token 跳过判定：任一启用的 Token skip 规则在**当前窗口**内消耗达到阈值即拦。
-/// 窗口读数缺（事实表没有 / 窗口已翻页）按 0 算 —— 拦是对「这个账号这个窗口
-/// 已经用超」的断言，拿不出证据就不拦（与余额跳过同一句口径）。
+/// Token ： 1 enabled Token skip then in **current** to 。
+/// （ no has / already ） by 0 —— is for 「 this this 
+/// already use 」 ， not not （ and 1 ）。
 pub fn token_skip_blocked(
     account: &Value,
     facts: &HashMap<(String, i64), TokenFact>,
@@ -483,9 +483,9 @@ pub fn token_skip_blocked(
     })
 }
 
-/// Token 自动禁用的判定（自动禁用钩子用）：返回命中「当前窗口消耗 ≥ 阈值」
-/// 的规则与实际消耗（打日志要把「用了多少 / 上限多少」说全）。同一账号多条
-/// 命中时返回阈值最小的那条 —— 报告「最先压线的那条」最接近用户的心智。
+/// Token use （ use use ）：return in 「current ≥ 」
+/// then and （ need 「 use / limit」）。 1 
+/// in when return that —— 「 that 」 use 。
 pub fn token_disable_hit(
     account: &Value,
     facts: &HashMap<(String, i64), TokenFact>,
@@ -509,9 +509,9 @@ pub fn token_disable_hit(
         .min_by(|(a, _), (b, _)| a.threshold.partial_cmp(&b.threshold).unwrap_or(std::cmp::Ordering::Equal))
 }
 
-/// 秒数 → 人能读的周期 / 间隔文案（`每 90 分钟` 这类）：整小时 / 整分钟进位，
-/// 其余按秒。变更提示（store_crud）与自动禁用日志（usage_query）共用这一份，
-/// 与前端的 `formatIntervalSeconds` 同一口径。
+/// seconds → can / （` 90 minutes` this ）： when / minutes，
+/// its by seconds。（store_crud） and use （usage_query） use this 1 ，
+/// and before `formatIntervalSeconds` 1 。
 pub fn describe_period(seconds: i64) -> String {
     if seconds > 0 && seconds % 3600 == 0 {
         format!("{} 小时", seconds / 3600)
@@ -522,8 +522,8 @@ pub fn describe_period(seconds: i64) -> String {
     }
 }
 
-/// 一条规则 → 人能读的一句话（变更提示用）。f64 的 Display 打整数不带小数点
-/// （`100.0` → `100`），与余额列的数字口径一致。
+/// 1 then → can 1 （ use ）。f64 Display not 
+/// （`100.0` → `100`）， and 1 。
 pub fn describe_rule(rule: &LimiterRule) -> String {
     let action = match rule.action {
         LimiterAction::Skip => "跳过",
@@ -531,7 +531,7 @@ pub fn describe_rule(rule: &LimiterRule) -> String {
     };
     match rule.kind {
         LimiterKind::Balance => format!("余额 < {} 时{action}", rule.threshold),
-        // 自然日不带周期：「每日」本身就是窗口说明
+        // not ：「daily」 is 
         LimiterKind::Token if rule.reset == LimiterReset::Daily => {
             format!("每日消耗 ≥ {} Token 时{action}", rule.threshold)
         }
@@ -543,7 +543,7 @@ pub fn describe_rule(rule: &LimiterRule) -> String {
     }
 }
 
-/// 规则列表 → 变更提示的一句话。
+/// then → 1 。
 pub fn describe_rules(rules: &[LimiterRule]) -> String {
     if rules.is_empty() {
         return "限制器 → 无规则（不限制）".to_string();
@@ -557,15 +557,15 @@ pub fn describe_rules(rules: &[LimiterRule]) -> String {
     format!("限制器 → {}", parts.join("；"))
 }
 
-// ─── Token 周期消耗的内存事实表 ──────────────────────────────
+// ─── Token ──────────────────────────────
 
-/// 一个 (账号, 周期) 的窗口读数。
+/// 1 (, ) 。
 #[derive(Clone, Copy, Debug)]
 pub struct TokenFact {
-    /// 这个读数所属窗口的起点（毫秒）。与当前窗口对不上 = 旧窗口的读数，
-    /// 判定按 0 算（窗口已翻页、新窗口还没刷新到）。
+    /// this （ms）。 and current for not up = old ，
+    /// by 0 （ already 、 new no new to ）。
     pub window_start: i64,
-    /// 窗口内的累计消耗（`requests.total_tokens` 之和）。
+    /// （`requests.total_tokens` and ）。
     pub used: i64,
 }
 
@@ -574,7 +574,7 @@ fn facts_slot() -> &'static Mutex<HashMap<(String, i64), TokenFact>> {
     FACTS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Token 事实快照（选路 / 快照接口读；调用方克隆一份小 Map）。
+/// Token （ / ； use 1 Map）。
 pub fn token_facts() -> HashMap<(String, i64), TokenFact> {
     facts_slot()
         .lock()
@@ -582,8 +582,8 @@ pub fn token_facts() -> HashMap<(String, i64), TokenFact> {
         .unwrap_or_default()
 }
 
-/// 启用中的 Token 规则的**去重窗口种类**集合（全量刷新按它跑 —— 固定周期同
-/// 周期 / 全部自然日规则共享一次聚合查询；自然日的种类键是 0）。
+/// enabled in Token then ****（ new by —— 
+/// / then 1 ； is 0）。
 pub fn enabled_token_kinds(accounts: &[Value]) -> Vec<i64> {
     let mut kinds: Vec<i64> = accounts
         .iter()
@@ -596,20 +596,20 @@ pub fn enabled_token_kinds(accounts: &[Value]) -> Vec<i64> {
     kinds
 }
 
-/// 全量刷新：把给定窗口种类在**当前窗口**的每账号消耗重算一遍，整表替换。
+/// new ： to in **current** 1 ，。
 ///
-/// 为什么整表替换而不是增量合并：翻页后的旧窗口读数必须清掉（判定按旧窗口
-/// 算会把「刚重置」误判成「已用超」），而「逐条判断哪条过期」比整表重算
-/// 更容易漏。心跳循环每 10 秒跑一次，每次按 distinct 种类一条聚合 SQL，
-/// 走 schema v9 的 `(account_id, ts)` 索引 —— 常规库规模下是毫秒级小查询。
+/// Why not is and ： after old must（ by old 
+/// will 「」「 already use 」），「」
+/// 。 10 seconds 1 ， by distinct 1 SQL，
+/// schema v9 `(account_id, ts)` —— down is ms。
 pub fn refresh_token_facts(kinds: &[i64]) {
     let Some(db) = database() else { return };
     let now = logging::now_ms();
     let mut fresh: HashMap<(String, i64), TokenFact> = HashMap::new();
     for &kind in kinds {
         let start = kind_window_start(kind, now);
-        // 闭包返回 Vec（库不可用 / 语句失败给空表 —— 上层按「没消耗」降级，
-        // 与余额事实的库不可用口径一致）；持锁期间不打日志。
+        // return Vec（unavailable / failure to empty —— up by 「 no 」，
+        // and unavailable 1 ）； not 。
         let rows = db.with(|conn| {
             let Ok(mut statement) = conn.prepare(
                 "SELECT account_id, COALESCE(SUM(total_tokens), 0) FROM requests \
@@ -633,12 +633,12 @@ pub fn refresh_token_facts(kinds: &[i64]) {
     }
 }
 
-/// 增量记账：请求收尾把本次消耗当场加进当前窗口。
+/// ：request current。
 ///
-/// 事实表里**已有**的 (账号, 种类) 才更新 —— 新配的规则要等下一轮全量刷新
-/// 才进表（≤ 10 秒），请求热路径不为它膨胀。窗口在两次请求之间翻页时
-/// （固定周期跨过整点 / 自然日跨过 0 点），本次消耗就是新窗口的第一笔
-/// （从零开始记）。
+/// ** already has ** (, ) update —— new then need etc down 1 new 
+/// （≤ 10 seconds），requestpath not as 。 in request when 
+/// （ / 0 ）， is new 1 
+/// （ from ）。
 pub fn note_request_tokens(account_id: &str, tokens: i64, now_ms: i64) {
     if account_id.is_empty() || tokens <= 0 {
         return;
@@ -662,10 +662,10 @@ pub fn note_request_tokens(account_id: &str, tokens: i64, now_ms: i64) {
     }
 }
 
-/// 单个账号的 Token 读数 → 快照出口的 JSON 行（每条启用中的 Token 规则窗口
-/// 种类一项，`kind` = 固定周期的秒数或 0（自然日）；事实缺 / 旧窗口按 0 算
-/// 但 `windowStart` 恒是**当前**窗口起点，前端的倒计时与「已用多少」因此永远
-/// 是同一窗口的语义）。
+/// Token → JSON （enabled in Token then 
+/// 1 ，`kind` = seconds or 0（）； / old by 0 
+/// `windowStart` is **current**， before when and 「 already use 」
+/// is 1 ）。
 pub fn token_usage_rows(account: &Value, facts: &HashMap<(String, i64), TokenFact>, now_ms: i64) -> Vec<Value> {
     let id = match account.get("id").and_then(Value::as_str) {
         Some(id) if !id.is_empty() => id.to_string(),

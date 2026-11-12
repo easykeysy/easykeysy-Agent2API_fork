@@ -35,15 +35,15 @@ import { Switch as UiSwitch } from '@ui'
 import { Toggle as UiToggle } from '@ui'
 
 /**
- * 账号。
+ * 。
  *
- * ── 为什么是分组卡片而不是表格 ────────────────────────────────
- * 桌面端账号表有 10 列（顺序 / 账号 / 代理 / 连接数 / 状态 / 限流 / 有效期 /
- * 余额 / 操作…），压不进 390px。手机上只留五个关键读数：邮箱、状态、有效期、
- * 余额、代理；提供商信息上移到分组头，行里不再重复。
+ * ── Why is not is ────────────────────────────────
+ * has 10 （ / / / / / / valid /
+ * / …）， not 390px。 up ：、、valid、
+ * 、； up to ， not 。
  *
- * ── 分组口径 ──────────────────────────────────────────────────
- * 组内使用网关的全局消耗顺序，组顺位仍由账号库的手动优先级决定。
+ * ── ──────────────────────────────────────────────────
+ * use ， by 。
  */
 
 type Filter = 'all' | 'enabled' | 'limited' | 'disabled'
@@ -63,8 +63,8 @@ export function AccountsPage() {
   const sorting = (usage?.sorting?.updatedAt || 0) > (sessionSorting?.updatedAt || 0) ? usage?.sorting : sessionSorting
 
   const load = async () => {
-    // 余额快照与账号刷新并行：快照失败不影响账号列表（余额查不到是常态，
-    // 静默降级成「未查询」，不弹 toast 也不进页内错误条）
+    // and new and ：failure not （ not to is ，
+    // 「」， not toast not error）
     void fetchUsageSnapshot()
       .then(setUsage)
       .catch(() => {})
@@ -80,10 +80,10 @@ export function AccountsPage() {
 
   const pull = usePullToRefresh({ onRefresh: load })
 
-  // 快照行按 id 索引：每次 render 重建 Map 太浪费，且行组件会因此白白重渲
+  // by id ： render Map ， and will 
   const usageById = useMemo(() => usageIndex(usage), [usage])
 
-  /** 这家有没有「有效期」概念、是不是长期有效、到期时刻 —— 筛选与行渲染共用 */
+  /** this has no has 「valid」、 is not is valid、 to when —— and use */
   const expiryInfo = (account: Account) => {
     const at = expiryOf(account)
     return {
@@ -94,7 +94,7 @@ export function AccountsPage() {
     }
   }
 
-  /** 余额读数归成三档（未查询 / 失败 / 有数）—— 与 usageText 的 kind 对应 */
+  /** （ / failure / has ）—— and usageText kind for */
   const usageState = (account: Account): 'has' | 'unqueried' | 'failed' => {
     if (!supportsUsage(account)) return 'unqueried'
     const row = usageById.get(account.id)
@@ -103,7 +103,7 @@ export function AccountsPage() {
     return 'has'
   }
 
-  /** 各维度选项的计数：基于**搜索词过滤后**的集合，数字与点进去看到的一致 */
+  /** ：** after ** ， and to 1 */
   const counts = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     const base = accounts.filter(item => {
@@ -152,10 +152,10 @@ export function AccountsPage() {
         failed: base.filter(item => usageOfAccount(item) === 'failed').length,
       },
     }
-    // usageById 变化（余额刷新）要重算余额那组计数
+    // usageById （ new ） need that 
   }, [accounts, query, usageById])
 
-  /** 可选的提供商（按当前账号里出现过的去重，保持后端给的先后） */
+  /** optional （ by current ， after to after ） */
   const providerOptions = useMemo(() => {
     const seen = new Set<string>()
     const list: Array<{ id: string; label: string }> = []
@@ -171,17 +171,17 @@ export function AccountsPage() {
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return accounts.filter(item => {
-      // ① 状态（单选）
+      // ① （）
       if (filters.status === 'enabled' && !item.enabled) return false
       if (filters.status === 'disabled' && item.enabled) return false
       if (filters.status === 'limited' && !(item.enabled && isRateLimited(item))) return false
       if (filters.status === 'relogin' && !item.needsRelogin) return false
       if (filters.status === 'expired' && !expiryInfo(item).expired) return false
-      // ② 提供商（多选，空 = 不限）
+      // ② （，empty = not ）
       if (filters.providers.length && !filters.providers.includes(String(item.provider || 'unknown'))) {
         return false
       }
-      // ③ 有效期
+      // ③ valid
       if (filters.expiry !== 'all') {
         const info = expiryInfo(item)
         if (filters.expiry === 'longlived' && !info.longLived) return false
@@ -190,9 +190,9 @@ export function AccountsPage() {
           if (!(info.at > Date.now() && info.at - Date.now() <= 7 * 86_400_000)) return false
         }
       }
-      // ④ 余额
+      // ④ 
       if (filters.usage !== 'all' && usageState(item) !== filters.usage) return false
-      // ⑤ 搜索词
+      // ⑤ 
       if (!keyword) return true
       const haystack = [item.name, item.nickname, item.email, item.id, item.provider]
         .filter(Boolean)
@@ -200,7 +200,7 @@ export function AccountsPage() {
         .toLowerCase()
       return haystack.includes(keyword)
     })
-    // expiryInfo / usageState 是纯函数（只读 Date.now 与 props），不必进依赖
+    // expiryInfo / usageState is （ Date.now and props）， not 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts, filters, query, usageById])
 
@@ -304,8 +304,8 @@ export function AccountsPage() {
         </InputGroup>
       </div>
 
-      {/* 生效中的条件用一条摘要显示：横排 chip 只留「全部」与当前选中的，
-          避免四颗常驻 chip 与面板里的选项各说一套 */}
+      {/* in use 1 need ： chip 「」 and current in ，
+           chip and 1 */}
       <div className='m-chips' style={{ padding: '10px 16px 12px' }}>
         <UiToggle size='default' variant='outline'
           type='button'
@@ -325,7 +325,7 @@ export function AccountsPage() {
       </div>
       </div>
 
-      {/* 只有这一块跟着手指滚：筛选条常驻，换筛选不用先滑回顶部 */}
+      {/* has this 1 ：， not use */}
       <div className='m-body'>
       {error || state.sessionError ? <ErrorNote text={error || state.sessionError} /> : null}
       <HiddenAccountsNotice hidden={state.session?.accounts?.hiddenAccounts} />
@@ -411,9 +411,9 @@ function AccountRow({
   busy,
 }: {
   account: Account
-  /** 组内序号（1 起）：后端 priority 是全局唯一队列里的绝对位次，手机上按组内序号读 */
+  /** （1 ）： after priority is 1 for ， up by */
   rank: number
-  /** 该账号在余额快照里的那一行；快照没有这个账号时是 undefined（= 未查询） */
+  /** this in that 1 ； no has this when is undefined（= ） */
   usageRow?: UsageRow
   onOpen: () => void
   onToggle: (next: boolean) => void
@@ -447,13 +447,13 @@ function AccountRow({
             : expired
               ? t('已过期')
               : t('正常')
-  // 有效期：这家没有这个概念时不显示，而不是显示「—」（少一行噪音）；
-  // 长期有效的家写「长期有效」—— 与「—」（读不到到期时间）是两件事
+  // valid： this no has this when not ， not is 「—」（ 1 ）；
+  // valid 「valid」—— and 「—」（ not to to when ） is 
   const credentialRows = credentialExpiryRowsOf(account, expiresAt)
   const expiryText = credentialRows.length ? '' : isLongLivedCredential(account.provider)
     ? t('长期有效')
     : hasExpiry(account.provider) ? formatExpiry(expiresAt) : ''
-  // 余额：只有这家有查询能力时才占一行；快照里没有这一行 = 还没查过
+  // ： has this has can when 1 ； no has this 1 = no 
   const usageView = usageText(usageRow, now)
   const showUsage = supportsUsage(account)
   const usageColor =
@@ -487,7 +487,7 @@ function AccountRow({
             {accountName(account)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 11.5, color: 'var(--m-text-3)', minWidth: 0 }}>
-            {/* 状态 + 有效期这一截可以截断，余额读数不能被挤掉 */}
+            {/* + valid this 1 can ， not can */}
             <span
               style={{
                 display: 'flex',
@@ -505,7 +505,7 @@ function AccountRow({
               {expiryText ? (
                 <>
                   <span>·</span>
-                  {/* 有效期这一截允许吃掉省略号，余额读数（flex:none）始终完整 */}
+                  {/* valid this 1 ，（flex:none） */}
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {expiryText}
                   </span>
@@ -557,7 +557,7 @@ function AccountRow({
   )
 }
 
-/** 小号开关：账号行里用它，尺寸比设置页的档位小一档 */
+/** ： use ，set 1 */
 function SwitchSmall({
   checked,
   onChange,

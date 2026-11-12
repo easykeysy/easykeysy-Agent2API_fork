@@ -1,8 +1,8 @@
 /**
- * 「工具服务」页的数据层：类型、网关请求与少量展示映射。
+ * 「」 ：、request and 。
  *
- * 所有管理请求都走 `callJson`（与其它岛同一套网关基址 / 凭证 / 错误信封），
- * 运行时地址只在展示与安装配置里出现，不在前端直接调用。
+ * allrequest `callJson`（ and its 1 / / error），
+ * when in and config， not in before use 。
  */
 
 import { callJson, gatewayBase } from './assistant-state'
@@ -108,10 +108,10 @@ export type InstallInfo = {
 export const PROTOCOL_LABELS: Record<ToolProtocol, string> = { skill: 'Skill', mcp: 'MCP', api: 'API' }
 
 /**
- * 服务 id → 名称 / 描述（后端只回固定元数据，文案由前端映射）。
+ * id → / （ after ， by before ）。
  *
- * 在**模块加载期**就取好译文：与侧边栏菜单表同一做法 —— `t('中文')` 的字面量
- * 调用同时是 i18n 扫描器的登记点，写成运行期变量查表会让五份词典永远缺这几条。
+ * in ****： and 1 —— `t(' in ')` 
+ * use when is i18n ， will this 。
  */
 export const SERVICE_NAME: Record<string, string> = {
   'web-search': t('网络搜索'),
@@ -123,14 +123,14 @@ export const SERVICE_DESC: Record<string, string> = {
   vision: t('把图片与提示词交给后台配置的视觉模型分析，并把模型回复返回给调用方的大模型。'),
 }
 
-/** 接入协议说明（列表页与详情页共用同一份文案） */
+/** （ and use 1 ） */
 export const PROTOCOL_DESC: Record<ToolProtocol, string> = {
   skill: t('打包为 Agent Skill，由 Agent2API 面板安装到本机客户端目录。'),
   mcp: t('作为远程 MCP 服务，在支持 MCP 的客户端配置里填写地址即可接入。'),
   api: t('提供 REST API，任何能发 HTTP 请求的程序都可以携带网关 Key 直接调用。'),
 }
 
-/** 各提供商官方 API Key 页面（新标签页打开） */
+/** API Key （ new ） */
 export const PROVIDER_KEY_PAGES: Record<string, string> = {
   tavily: 'https://app.tavily.com/home',
   querit: 'https://app.querit.ai/en/dashboard/api-keys',
@@ -138,7 +138,7 @@ export const PROVIDER_KEY_PAGES: Record<string, string> = {
   ollama: 'https://ollama.com/settings/keys',
 }
 
-/** 是否运行在桌面壳里（浏览器 / 网关托管的网页端不显示「本机接入」） */
+/** is in （ / not 「」） */
 export function isDesktopShell(): boolean {
   const bridge = (window as unknown as { workbuddyDesktop?: { platform?: string } }).workbuddyDesktop
   return bridge ? bridge.platform !== 'web' : false
@@ -153,7 +153,7 @@ export function formatTime(value: number | null): string {
   }
 }
 
-/* ─── 管理 API ─────────────────────────────────────────────── */
+/* ─── API ─────────────────────────────────────────────── */
 
 export const fetchServices = async (protocol?: ToolProtocol): Promise<ToolService[]> =>
   callJson<ToolService[]>('GET', `/api/tools/servers${protocol ? `?protocol=${protocol}` : ''}`)
@@ -211,5 +211,5 @@ export const uninstallSkill = (body: { service_id: string; clients: string[] }) 
 export const uninstallMcp = (body: { service_id: string; clients: string[] }) =>
   callJson<{ results: InstallOutcome[] }>('POST', '/api/tools/uninstall-mcp', body)
 
-/** 网关基址（MCP 配置示例与 API 文档使用） */
+/** （MCP config and API use ） */
 export { gatewayBase }

@@ -1,21 +1,21 @@
 /**
- * 账号表的**行与单元格**（替换 ui/accounts-table.js 的单元格渲染 + ui/accounts-model.js
- * 的 ⋯ 菜单 / 行内面板 HTML + ui/accounts-view.js 的菜单交互）。
+ * ** and **（ ui/accounts-table.js + ui/accounts-model.js
+ * ⋯ / HTML + ui/accounts-view.js ）。
  *
- * ── 为什么还留着 legacy 类名 ─────────────────────────────────
- * 表格的每一格都有 page-accounts-table.css 里量出来的尺寸与排版（列宽预算、
- * `.acct-actions` 的四颗按钮预算…）。迁移只换**控件**，布局类名原样保留：
- * 换掉的控件走组件库（Button / Badge / Switch / Checkbox / Select / Popover），
- * 而 `.usage-sum`（读数，不可点）与 `.order-cell`（分组模式的拖动把手 + 组内序号）
- * 这两处组件库没有对应件，保持原标记形态 —— 见最终报告的「组件库缺口」。
+ * ── Why legacy ─────────────────────────────────
+ * 1 has page-accounts-table.css and （、
+ * `.acct-actions` by …）。****，：
+ * （Button / Badge / Switch / Checkbox / Select / Popover），
+ * `.usage-sum`（， not can ） and `.order-cell`（ + ）
+ * this no has for ， —— 「」。
  *
- * ── 分组化（2026-10）删掉的两块 ────────────────────────────────
- *   · `PriorityStepper`（数字框 + 两枚箭头的优先级控件）：顺序改由拖拽表达，
- *     连它承载的「↑ = 数值变小」那套方向语义一起下线 —— 现在只有「拖到哪一行」
- *     一种表达（落在目标行上方 / 下方，由 accounts-queue-drag 判定）。
- *   · `ProviderCell`（按 provider 上色的徽章）：家名与图标搬到了分组带
- *     （`GroupBandRow`），行里不再重复。`.pbadge` 这一族样式留在 CSS 里 ——
- *     报表页的账号行还在用（report-page.tsx 自己的那一枚）。
+ * ── （2026-10） ────────────────────────────────
+ * · `PriorityStepper`（ + ）： by ，
+ * 「↑ = 」 that to 1 down —— in has 「 to 1 」
+ * 1 （ in up / down ， by accounts-queue-drag ）。
+ * · `ProviderCell`（ by provider up ）： and to 
+ * （`GroupBandRow`）， not 。`.pbadge` this 1 in CSS ——
+ * in use （report-page.tsx that 1 ）。
  */
 
 import * as React from 'react'
@@ -75,30 +75,30 @@ import { PROVIDER_ICONS } from './add-provider-pick'
 import { t } from '../i18n'
 import { Empty } from '@ui'
 
-/** 图标（icons.js 的内联 SVG 串）：整站共用一份图标集，这里只做注入 */
+/** （icons.js SVG ）： use 1 ， this */
 function iconHtml(name: string, size: number): string {
   return shared().wbIcons?.icon?.(name, size) || ''
 }
 
-/* ─── 顺序列（组内）──────────────────────────── */
+/* ─── （）──────────────────────────── */
 
 /**
- * 顺序格：`⠿ #N` —— 左边是拖动把手，右边是**组内序号**。
+ * ：`⠿ #N` —— is ， is ****。
  *
- * ── 为什么不再有数字输入与 ↑↓ ────────────────────────────────
- * 顺序改由拖拽表达（组序拖分组带、组内拖这一格），数字本身不再是用户要维护的东西：
- * 全局 `priority` 由「组顺位 → 组内顺位」编译出来（后端 `reorder_accounts` 整队重编号），
- * 界面上留一个可编辑的号码栏，等于给同一件事留了两个口径。旧的优先级列（数字 + 两枚
- * 箭头）因此整体下线，`commitPriority` / `moveAccount` 两个动作也随之不再被调用。
+ * ── Why not has and ↑↓ ────────────────────────────────
+ * by （、 this 1 ）， not is use need ：
+ * `priority` by 「 → 」（ after `reorder_accounts` ），
+ * up 1 can ， etc to 1 。 old （ + 
+ * ） down ，`commitPriority` / `moveAccount` not use 。
  *
- * 把手是**唯一**的拖动起点（不是整行都能拖）：行里还有开关、下拉、按钮，整行可拖会
- * 让「点一下开关」变成「拖走了一行」。序号显示的是它在**本组内**的位次，组与组之间的
- * 先后由分组带的顺位表达 —— 两者合起来才是真实的尝试顺序。
+ * is ** 1 ** （ not is can ）： has 、 down 、 by ， can will 
+ * 「 1 down 」「 1 」。 is in **** ， and 
+ * after by —— is 。
  *
- * ── `sortActive`：这一组开着排序规则时把手锁定 ────────────────
- * 顺序此时由规则算出来，拖它没有意义（松手之后一次重排又会按规则排回去）。
- * 把手压淡、光标换成禁止，点击给一次说明（由 accounts-queue-drag 的 onLockedAttempt
- * 统一提示）—— 静默不响应会让人以为界面卡了。
+ * ── `sortActive`： this 1 then when ────────────────
+ * when by then ， no has （ after 1 will by then ）。
+ * 、， to 1 （ by accounts-queue-drag onLockedAttempt
+ * 1 ）—— not response will as 。
  */
 export function OrderCell({ account, rank, sortActive }: {
   account: AccountRecord
@@ -120,20 +120,20 @@ export function OrderCell({ account, rank, sortActive }: {
   )
 }
 
-/* ─── 分组带 ────────────────────────────────── */
+/* ─── ────────────────────────────────── */
 
 /**
- * 分组带的 ⋯ 菜单：整组启用 / 禁用、批量操作本组、折叠本组。
+ * ⋯ ：enabled / use 、、。
  *
- * 「整组启用 / 禁用」直接落批量端点（一次改一组，与单行开关同一口径）；
- * 「批量操作本组」打开既有那一个批量弹窗（改代理、设置并发上限这类要挑参数的
- * 动作用它）—— 挑参数的动作个个都要在弹窗里给一档，但**入口只留这一个**，
- * 不为每件参数化动作在菜单里再各开一项；折叠那一项与组头那颗箭头同一个状态 ——
- * **它是个开关**，所以文案必须跟着当前状态变：已经收起的那一组，这一项写
- * 「展开这一组」才是它真做的事。
+ * 「enabled / use 」（ 1 1 ， and 1 ）；
+ * 「」 has that 1 （、set and limit this need parameter 
+ * use ）—— parameter need in to 1 ，** this 1 **，
+ * not as parameter in 1 ； that 1 and that 1 ——
+ * ** is **，mustcurrent： already that 1 ， this 1 
+ * 「 this 1 」 is 。
  *
- * 这一项**不带省略号**（别照「开弹窗就加 …」的惯例补回来）：同菜单其余项都不带，
- * 而它后面还空着半截宽度，尾巴上那一个 … 只会被读成「文字被截断了」。
+ * this 1 ** not **（「 …」 ）： its not ，
+ * after empty， up that 1 … will 「 」。
  */
 function GroupMenu({ group, ids, collapsed }: { group: AccountGroup; ids: string[]; collapsed: boolean }) {
   const [open, setOpen] = React.useState(false)
@@ -174,97 +174,97 @@ function GroupMenu({ group, ids, collapsed }: { group: AccountGroup; ids: string
   )
 }
 
-/* ─── 组头读数（可用合计 / 可用最低）────────────── */
+/* ─── （available / available）────────────── */
 
 /**
- * 组头读数的中间产物（`groupBalanceOf` 的产物）。
+ * in （`groupBalanceOf` ）。
  *
- * 各计数项分开记的理由在 tooltip：`counted` 是真正给出读数的账号数，其余几项
- * （没查 / 失败 / 没有可用读数）都是「为什么它没算进来」的答案 —— 一个组头数字
- * 最怕的是「看着像全组的，其实只代表三分之一」。
+ * by in tooltip：`counted` is to ， its 
+ * （ no / failure / no has available） is 「Why no 」 —— 1 
+ * is 「 ， its 1 」。
  *
- * 两种口径分开表达：绝对数量（积分 / 额度 / 次）走 `sum`；百分比读数走
- * `lowest` / `ratioWindows` —— 百分比不能相加，见 `groupBalanceOf` 的
- * 「百分比不能相加」一节。
+ * ： for （ / / ） `sum`；
+ * `lowest` / `ratioWindows` —— not can ， `groupBalanceOf` 
+ * 「 not can 」 1 。
  */
 type GroupBalance = {
-  /** 给出读数的账号数（绝对数量或百分比都算） */
+  /** to （ for or ） */
   counted: number
-  /** 参与统计的账号数（整组口径 = 组内全部；按筛选口径 = 可见的那些） */
+  /** and statistics （ = ； by = can that ） */
   total: number
-  /** 绝对数量的合计；一个都加不起来时 null（百分比读数不用它） */
+  /** for ； 1 not when null（ not use ） */
   sum: number | null
-  /** 不限额度的账号数（>0 时合计记 ∞） */
+  /** not （>0 when ∞） */
   unlimited: number
-  /** 合计的单位（取第一个计入的账号；空 = 没读到单位） */
+  /** （ 1 ；empty = no to ） */
   unit: string
-  /** 整次查询失败的账号数（「未配置凭证」是中性状态，不算失败） */
+  /** failure （「not configured」 is in ， not failure） */
   failed: number
-  /** 读到了、但既没有绝对数也没有可用比例的账号数 */
+  /** to 、 no has for no has available */
   uncountable: number
-  /** 还没查到（未查询 / 查询中）的账号数 */
+  /** no to （ / in ） */
   pending: number
-  /** 半次失败（两台网关有一台没回话）：读数计入，但要点 ⚠ */
+  /** failure（ has 1 no ）：， need ⚠ */
   partial: number
-  /** 统计口径：整组（默认）还是当前筛选后的可见行 —— tooltip 要照着说 */
+  /** statistics：（default） is current after can —— tooltip need */
   scope: 'group' | 'filtered'
-  /** 读数是否可相加：绝对数量可加，百分比不可加 */
+  /** is can ： for can ， not can */
   additive: boolean
-  /** 不可加时的最低读数（窗口名 + 百分比；label 为空 = 账号主读数） */
+  /** not can when （ + ；label as empty = ） */
   lowest: GroupRatioReading | null
-  /** 不可加时逐窗口的最低读数（tooltip 逐条列出；按首次出现的窗口顺序） */
+  /** not can when （tooltip ； by ） */
   ratioWindows: GroupRatioReading[]
   expiring: CreditExpirySummary
 }
 
-/** 一条百分比读数：窗口名 + 剩余比例（0–100） */
+/** 1 ： + remaining（0–100） */
 type GroupRatioReading = {
-  /** 窗口名（含模型组前缀，如 `Claude · 5 小时`）；空 = 账号主读数 */
+  /** （ before ， `Claude · 5 when `）；empty = */
   label: string
-  /** 剩余百分比 */
+  /** remaining */
   percent: number
 }
 
-/** 百分比单位：这类读数是「某一档还剩百分之几」，不是可以相加的额度 */
+/** ： this is 「 1 」， not is can */
 function isRatioUnit(unit: string): boolean {
   return unit.trim() === '%'
 }
 
 /**
- * 组头读数：这一组账号的可用余额之和（绝对数量）或组内最低剩余比例（百分比）。
+ * ： this 1 available and （ for ） or remaining（）。
  *
- * ── 两种口径（设置 → 显示 → 账号列表 的开关切）──────────────
- *   · **整组**（默认）：算这一组**全部**账号，不受筛选 / 搜索 / 分页影响。
- *     组头回答的是「这一家有多少家底」，而组折叠起来之后行都没了，组头这个
- *     合计是唯一还看得见的余额读数 —— 它要是随筛选跳，收起来连个稳当的数都没有。
- *   · **按筛选**（用户显式打开）：只算当前可见的行，与筛选徽标所见即所得。
- *     总量口径会让人困惑：明明只显示一行 100，合计却是 1,000（另一行的 900
- *     被筛掉了却仍计入）—— 打开这个开关就得到 100。
+ * ── （set → → ）──────────────
+ * · ****（default）： this 1 ****， not / / 。
+ * is 「 this 1 has 」， after no ， this 
+ * is 1 —— need is ， no has 。
+ * · ** by **（ use ）：current can ， and 。
+ * total will ： 1 100， is 1,000（ 1 900
+ * ）—— this to 100。
  *
- * 分页**不**参与这个开关：口径说的是「筛选 / 搜索」，翻页只是看同一份结果的
- * 不同屏，把合计切成「当前页之和」会让同一个筛选下每翻一页数字都变。
+ * ** not ** and this ： is 「 / 」， is 1 
+ * not ， 「current and 」 will 1 down 1 。
  *
- * ── 为什么禁用账号也算 ────────────────────────────────────
- * 余额是**资产**不是流量：禁用只表示不参与转发，额度仍在账上。只算启用的话，
- * 合计会与旁边那行「启用 10 · 禁用 0」自相矛盾。百分比口径同理：算哪些账号只由
- * 设置里的「只统计当前筛选出来的账号」决定，这里不再另加一层启用 / 禁用过滤。
+ * ── Why use ────────────────────────────────────
+ * is **** not is ： use not and ， in up 。enabled ，
+ * will and that 「enabled 10 · use 0」。： by 
+ * set 「statisticscurrent 」， this not 1 enabled / use 。
  *
- * ── 什么算「计入」──────────────────────────────────────────
- * 读到一个**可用读数**：`totalLeft`（WorkBuddy 的既有形状）、`available`
- * （其余家），或至少一条逐窗口百分比（Antigravity 刻意不写 `available`）。
- * 下面三类都不计入，但理由分开记（tooltip 逐条说）：
- *   · 还没查询 / 查询中（`undefined` / `null`）；
- *   · 查询失败（`usageFailureOf` 的判据，与余额列同源）；
- *   · 读数里既没有绝对数，也没有可用比例。
- * 单位不同的不相加：同一家理论上不会出现，真出现就按第一个计入的单位记账，
- * 其余算「没计入」—— 把两种单位加成一个数才是真正的谎。
+ * ── 「」──────────────────────────────────────────
+ * to 1 **available**：`totalLeft`（WorkBuddy has ）、`available`
+ * （ its ）， or 1 （Antigravity not `available`）。
+ * down not ， by （tooltip ）：
+ * · no / in （`undefined` / `null`）；
+ * · failure（`usageFailureOf` ， and ）；
+ * · no has for ， no has available。
+ * not not ： 1 up not will ， by 1 ，
+ * its 「 no 」—— 1 is 。
  *
- * ── 百分比不能相加 ───────────────────────────────────────
- * `available` 不都是「还剩多少积分」：OpenCode Go / SenseNova 给的是剩余百分比，
- * Antigravity 只给 `windows[].remainingPercent`。百分比求和没有意义（94% + 2%
- * 不是 96% 的额度，三家各 90% 更不该是 270%），所以这类组不求和，改取**组内
- * 最低的剩余比例**：它回答的是「这一组最紧的那条线还剩多少」。有 `windows[]`
- * 时逐窗口取最低（tooltip 全列出来），没有时退回账号主读数。
+ * ── not can ───────────────────────────────────────
+ * `available` not is 「」：OpenCode Go / SenseNova to is remaining，
+ * Antigravity to `windows[].remainingPercent`。 and no has （94% + 2%
+ * not is 96% ， 90% not this is 270%）， this not and ，**
+ * remaining**： is 「 this 1 that 」。 has `windows[]`
+ * when （tooltip ）， no has when 。
  */
 function groupBalanceOf(members: AccountRecord[], scope: 'group' | 'filtered' = 'group', now = Date.now()): GroupBalance {
   const out: GroupBalance = {
@@ -274,16 +274,16 @@ function groupBalanceOf(members: AccountRecord[], scope: 'group' | 'filtered' = 
   }
   const expiring: ExpiringCredit[] = []
   let sum = 0
-  /** 这一组的读数形态：第一份有效读数决定，后面不一致的算「没计入」 */
+  /** this 1 ： 1 valid， after not 1 「 no 」 */
   let mode: 'additive' | 'ratio' | null = null
-  /** 逐窗口最低值：键是窗口名（含模型组前缀），值是这批账号里的最低剩余比例 */
+  /** ： is （ before ）， is this remaining */
   const windowMin = new Map<string, GroupRatioReading>()
   for (const account of members) {
     const entry = usageEntryOf(account)
     if (entry === undefined || entry === null) { out.pending++; continue }
     const failure = usageFailureOf(entry)
     if (failure) {
-      // 「未配置查询凭证」在余额列里是中性灰字（不是故障），这里同样不点 ⚠
+      // 「not configured」 in is in （ not is ）， this not ⚠
       if (!failure.notConfigured) out.failed++
       continue
     }
@@ -291,28 +291,28 @@ function groupBalanceOf(members: AccountRecord[], scope: 'group' | 'filtered' = 
     const data = entry as Record<string, unknown>
     if (data.statisticsError || usageWarningsOf(data).length > 0) out.partial++
     if (supportsCreditDetail(account)) expiring.push(...expiringCreditsOf(entry, now))
-    // 不限额度：这组根本花不完，合计只能是 ∞（`totalLeft` 形状里它是布尔位）
+    // not ： this not ， can is ∞（`totalLeft` is ）
     if (data.unlimited === true) { out.unlimited++; continue }
     const hasTotalLeft = Object.prototype.hasOwnProperty.call(data, 'totalLeft')
     const raw = hasTotalLeft ? data.totalLeft : data.available
-    // null / undefined 必须显式拦下：`Number(null)` 是 0，照直转会把「没读到」
-    // 算成 0（与 accounts-domain 的 balanceBlockedOf 同一条纪律）
+    // null / undefined must down ：`Number(null)` is 0， will 「 no to 」
+    // 0（ and accounts-domain balanceBlockedOf 1 ）
     const rawNumber = raw === null || raw === undefined || raw === ''
       ? null
       : Number(raw)
     const rawValue = rawNumber !== null && Number.isFinite(rawNumber) ? rawNumber : null
     const windows = usageWindows(entry).filter(row => row.percent !== null)
     const unit = String(data.unit || t('积分')).trim()
-    // 读数形态：绝对数量可加；百分比 / 只有窗口比例的读数不可加。
-    // 「只有窗口」也算比例形态 —— Antigravity 的 available 是刻意不写的，
-    // 只看 available 会把整家都判成「没有绝对数」而漏掉它的逐窗口读数。
+    // ： for can ； / has not can 。
+    // 「 has 」 —— Antigravity available is not ，
+    // available will 「 no has for 」 。
     const entryMode: 'additive' | 'ratio' | null =
       rawValue === null && windows.length === 0
         ? null
         : isRatioUnit(unit) || rawValue === null ? 'ratio' : 'additive'
     if (entryMode === null) { out.uncountable++; continue }
     if (mode === null) mode = entryMode
-    // 同一组里量纲必须一致：绝对值与百分比混在一组时不相加
+    // 1 must 1 ： for and in 1 when not 
     if (mode !== entryMode) { out.uncountable++; continue }
     if (entryMode === 'additive' && out.unit && unit !== out.unit) { out.uncountable++; continue }
     if (!out.unit) out.unit = unit
@@ -341,8 +341,8 @@ function groupBalanceOf(members: AccountRecord[], scope: 'group' | 'filtered' = 
   return out
 }
 
-/** 合计的读数：一万以内给精确值（整数带千分位），再往上按万 / 亿（或 k / M）缩写
- *  —— 与 units.js 的「一万以内不用缩写」同一口径，ZCode 那种九位数才不至于挤爆组头 */
+/** ： 1 to （）， up by / （ or k / M）
+ * —— and units.js 「 1 not use 」 1 ，ZCode that not */
 function balanceAmountText(value: number): string {
   const api = (window as unknown as { wbUnits?: UnitsBridge }).wbUnits
   if (value < 10_000) {
@@ -352,8 +352,8 @@ function balanceAmountText(value: number): string {
 }
 
 /**
- * 组头读数的悬停全文：先讲口径（求和 / 取最低，整组 / 按筛选），
- * 再把逐窗口最低与没算进来的账号逐条交代。
+ * ：（ and / ， / by ），
+ * and no 。
  */
 function groupBalanceTitle(balance: GroupBalance): string {
   const parts = [
@@ -386,14 +386,14 @@ function groupBalanceTitle(balance: GroupBalance): string {
 }
 
 /**
- * 组头上的读数徽标：`可用合计 1,347 · 计入 8/10 ⚠`；
- * 百分比读数改为 `可用最低 每周 2% · 计入 2/2`（见 `groupBalanceOf` 的
- * 「百分比不能相加」一节）。
+ * up ：`available 1,347 · 8/10 ⚠`；
+ * as `available 2% · 2/2`（ `groupBalanceOf` 
+ * 「 not can 」 1 ）。
  *
- * 语义色与行内 `.usage-sum` 对齐：绿 = 读到了，黄 = 读到了但有账号没算进来 /
- * 只读到一半 / 最低比例已低于 20%（与行内窗口条的告警阈值一致），灰 = 一个都
- * 没读到（`—`）。`—` 不是 0 —— 「没读到」与「用光了」在这一列是两件事，
- * 与余额列同一条规矩。
+ * and `.usage-sum` for ： = to ， = to has no /
+ * to 1 / already 20%（ and 1 ）， = 1 
+ * no to （`—`）。`—` not is 0 —— 「 no to 」 and 「 use 」 in this 1 is ，
+ * and 1 。
  */
 function GroupBalanceBadge({ balance }: { balance: GroupBalance }) {
   const expiryText = creditExpiryText(balance.expiring, t, balanceAmountText, balance.unit === t('积分') ? '积分' : balance.unit)
@@ -401,20 +401,20 @@ function GroupBalanceBadge({ balance }: { balance: GroupBalance }) {
   const empty = balance.additive
     ? balance.sum === null && balance.unlimited === 0
     : balance.lowest === null && balance.unlimited === 0
-  // 百分比读数没有「合计」，只剩最低值：低于 20% 与行内窗口条同一档黄色，
-  // 免得组头把一条快见底的窗口涂成绿色
+  // no has 「」，： 20% and 1 ，
+  // 1 
   const low = !balance.additive && balance.lowest !== null && balance.lowest.percent < 20
-  // 有失败时黄色优先于灰色：一个都没读到 + 有账号查询失败，读作「这次没读到」
-  // （⚠ 与黄字），不是「这家没有余额概念」那档中性灰
+  // has failure when ： 1 no to + has failure，「 this no to 」
+  // （⚠ and ）， not is 「 this no has 」 that in 
   const tone = warned || low ? 'warn' : empty ? 'muted' : 'ok'
   const amount = balance.unlimited > 0
     ? '∞'
     : balance.sum === null ? '—' : balanceAmountText(balance.sum)
-  // 单位只在不是「积分」时拼出来：绝大多数家的单位就是积分，写出来只是把组头撑长
+  // in not is 「」 when ： is ， is 
   const unit = balance.additive && balance.unit && balance.unit !== '积分' && balance.unit !== t('积分')
     ? usageUnitLabel(balance.unit, t)
     : ''
-  // 有 ∞ 时不报「计入 x/y」：那会让人以为 ∞ 也是加出来的
+  // has ∞ when not 「 x/y」： that will as ∞ is 
   const note = balance.unlimited === 0 && balance.counted < balance.total
     ? t('计入 {counted}/{total}', { counted: balance.counted, total: balance.total })
     : ''
@@ -444,15 +444,15 @@ function GroupBalanceBadge({ balance }: { balance: GroupBalance }) {
 }
 
 /**
- * 分组带：一家的分隔横幅（`<tbody>` 的第一行，通栏一格）。
+ * ： 1 （`<tbody>` 1 ， 1 ）。
  *
- * 从左到右：拖动把手（整组顺位的唯一拖动起点）→ 顺位 → 家图标 + 家名 → 统计
- * （N 个账号 · 启用 x · 禁用 y · 限流 z）→ 组头读数 → 右侧折叠箭头与 ⋯ 菜单。
- * 统计读的永远是**整组**（「这一家有多少账号」不随筛选变）；读数的口径由设置里
- * 的开关决定（见 `groupBalanceOf`）：默认整组，打开后只算当前可见的行。
+ * from to ： （ 1 ）→ → + → statistics
+ * （N · enabled x · use y · z）→ → and ⋯ 。
+ * statistics is ****（「 this 1 has 」 not ）； by set
+ * （ `groupBalanceOf`）：default， after current can 。
  *
- * 样式刻意保持中性（surface 底 + 一条 hairline）：一家一色会让整页像调色板，
- * 而「哪一段是哪一家」由家名与图标已经说清楚了。
+ * in （surface + 1 hairline）： 1 1 will ，
+ * 「 1 is 1 」 by and already 。
  */
 export function GroupBandRow({ group, collapsed, colSpan }: {
   group: AccountGroup
@@ -461,27 +461,27 @@ export function GroupBandRow({ group, collapsed, colSpan }: {
 }) {
   const now = useDisplayClock()
   const icon = PROVIDER_ICONS[group.provider]
-  // 合计口径：默认整组（`members`），设置里打开「按筛选」后改用可见行（`accounts`）。
-  // 分页不参与 —— 见 groupBalanceOf 的说明。
+  // ：default（`members`），set「 by 」 after use can （`accounts`）。
+  // not and —— groupBalanceOf 。
   const filtered = getStore().groupTotalFiltered
   const members = filtered ? group.accounts : group.members
-  // 「值不值得画合计」看的是**整组**有几个账号（一个账号的组，合计与下面那行读数
-  // 逐字重复）；而**加哪些账号**看的是当前口径。两者不能合成一个判据：按筛选口径下
-  // 筛出唯一一行时，合计正是用户要的那个数（100），不能因为「可见只剩一行」就藏掉。
+  // 「 not 」 is **** has （ 1 ， and down that 
+  // ）；**** is current。 not can 1 ： by down 
+  // 1 1 when ， is use need that （100）， not can as 「 can 1 」。
   const worthSumming = group.members.length > 1 && members.length > 0
   const balance = worthSumming && members.some(supportsUsage)
     ? groupBalanceOf(members, filtered ? 'filtered' : 'group', now)
     : null
   /**
-   * 整条分组带可点折叠。
+   * can 。
    *
-   * 判定「这一下算不算点击带宽」交给事件目标：落在按钮 / 拖动把手 / 链接 / 表单控件
-   * 上的点击都有各自的动作，不能顺手把组收起来。放在容器上而不是每个子元素上，
-   * 是因为带宽里还有家名、统计、合计这些纯文本 —— 用户点它们时心里想的就是「收起来」。
+   * 「 this 1 down not 」 to ： in by / / / 
+   * up has ， not can 。 in up not is up ，
+   * is as has 、statistics、 this —— use when is 「」。
    */
   const onBandClick = (event: React.MouseEvent<HTMLTableCellElement>) => {
     if ((event.target as Element | null)?.closest?.('button, a, input, select, label, .queue-grip')) return
-    // 拖选文字时（正在复制账号名）不折叠：那一下是选择而不是点击
+    // when （ in ） not ： that 1 down is not is 
     if (String(window.getSelection?.() || '').length > 0) return
     toggleGroupCollapsed(group.provider)
   }
@@ -533,20 +533,20 @@ export function GroupBandRow({ group, collapsed, colSpan }: {
   )
 }
 
-/* ─── 状态列 ────────────────────────────────── */
+/* ─── ────────────────────────────────── */
 
 /**
- * 状态：启用 / 禁用开关（+ 需要留意时的健康徽章）。
- * 开关直接落 `PATCH { enabled }`，不做二次确认 —— 这个动作可逆，且关掉后账号记录仍在
- * 列表里。徽章只在需要留意时出现（一切正常时 accountTags 返回空）—— 启用状态由开关的
- * 轨道位置与滑块表达，再补一枚「启用」是同一格里的第二次说明。
+ * ：enabled / use （+ need need when ）。
+ * `PATCH { enabled }`， not —— this can ， and after in 
+ * 。 in need need when （ 1 when accountTags returnempty）—— enabled by 
+ * and ， 1 「enabled」 is 1 。
  */
 export function StatusCell({ account }: { account: AccountRecord }) {
   const enabled = isEnabled(account)
   const tags = accountTags(account)
-  // Token 限额的禁用档命中且账号已被禁用：补一枚红色徽章回答「为什么是禁的」
-  // —— 禁用动作本身不带「为什么」的标记，当前窗口的消耗读数就是证据（与后端
-  // 自动禁用钩子同判据，见 tokenDisableTriggeredOf）。
+  // Token use in and already use ： 1 「Why is 」
+  // —— use not 「Why」 ，current is （ and after 
+  // use ， tokenDisableTriggeredOf）。
   if (!enabled && tokenDisableTriggeredOf(account, tokenUsageOf(account))) {
     tags.push({
       text: t('Token 限额 · 已禁用'),
@@ -572,20 +572,20 @@ export function StatusCell({ account }: { account: AccountRecord }) {
   )
 }
 
-/* ─── 限流列 ────────────────────────────────── */
+/* ─── ────────────────────────────────── */
 
 /**
- * 限流：这个账号**当前限流中的模型**。限额在后端按「账号 × 模型」记，四家通用 ——
- * 所以这一列对四家都成立，不再需要「选个模型看队列」的筛选器。
- * 有限流时是一枚可点的读数条（点开行下的明细弹层，见 accounts-limit-detail），
- * 正常时是绿点「正常」。
+ * ： this **current in **。 in after by 「 × 」， use ——
+ * this 1 for ， not need need 「 」 。
+ * has when is 1 can （ down ， accounts-limit-detail），
+ * when is 「」。
  *
- * 「已限流」分段把限制器的跳过档也算进来（isLimitedNow 的口径），这一列必须同口径：
- * 没有模型限额但被限制器拦下的账号不亮绿点，给一枚黄色「余额不足 / Token 限额」
- * 说明它为何归入已限流（跳过的细节仍由余额列的徽章承载，这里不复述）。
+ * 「 already 」 limit （isLimitedNow ）， this 1 must：
+ * no has limit down not ， to 1 「 not / Token 」
+ * as already （ by ， this not ）。
  *
- * 三家形态的判据都是「有没有生效中的限额记录」，不为任何一家开特例 ——
- * 记录怎么来（429 / 限额码 / 上游的 Retry-After）是转发层的事，界面只认这一份。
+ * is 「 has no has in 」， not as 1 ——
+ * （429 / / up Retry-After） is ， this 1 。
  */
 export function LimitsCell({ account, onClear }: {
   account: AccountRecord
@@ -635,24 +635,24 @@ export function LimitsCell({ account, onClear }: {
   )
 }
 
-/* ─── 有效期 / 连接数 / 余额列 ──────────────── */
+/* ─── valid / / ──────────────── */
 
 /**
- * 有效期：按「这家有没有版本概念」选字段（workbuddy 是 expiresAt，其余是
- * tokenExpiresAt），与域层的 tokenExpiryOf 同口径。文案收短成「30 天后」，
- * 完整句留在 title —— 列宽有限。
+ * valid： by 「 this has no has 」（workbuddy is expiresAt， its is 
+ * tokenExpiresAt）， and tokenExpiryOf 。「30 after 」，
+ * in title —— has 。
  *
- * 读数经域层 `expiryMillis` **先归一到毫秒**再判：落盘的到期值在秒与毫秒之间漂过
- * （Trae 的凭据是从 CPA 的 auth 文件与手工粘贴进来的，那里是 10 位秒；别家与上游
- * 刷新响应都是 13 位毫秒），不归一时 `1791009732` 当毫秒读就是 1970-01-21，账号一进
- * 面板就红着显示「已过期」。归一规则与理由写在 accounts-domain.ts 那一处，
- * 后端 `providers::trae::Credential::expires_at_ms` 是同一个口径。
+ * `expiryMillis` ** 1 to ms**： to in seconds and ms
+ * （Trae is from CPA auth file and ， that is 10 seconds； and up 
+ * new response is 13 ms）， not 1 when `1791009732` ms is 1970-01-21， 1 
+ * 「expired」。 1 then and by in accounts-domain.ts that 1 ，
+ * after `providers::trae::Credential::expires_at_ms` is 1 。
  *
- * ── 「长期有效」与「—」是两件事 ────────────────────────────
- * 主凭证本来就没有到期时刻的家（Antigravity 的 Google refresh token、智谱清言、
- * ModelScope、Command Code）显示「长期有效」—— 它回答的是「要不要担心过期」。
- * 而「—」只表示「这条记录里读不到到期时间」（KukuAI 的 BDUSS 就是这种：读不出
- * 时刻，但上游随时可能作废）。判据是能力表的 `longLived` 位，不是「字段为空」。
+ * ── 「valid」 and 「—」 is ────────────────────────────
+ * no has to when （Antigravity Google refresh token、、
+ * ModelScope、Command Code）「valid」—— is 「 need not need 」。
+ * 「—」「 this not to to when 」（KukuAI BDUSS is this ： not 
+ * when ， up when can can ）。 is can `longLived` ， not is 「 as empty」。
  */
 export function ExpiryCell({ account }: { account: AccountRecord }) {
   const features = providerFeatures(providerOf(account))
@@ -670,21 +670,21 @@ export function ExpiryCell({ account }: { account: AccountRecord }) {
   const text = left < 3600e3 ? t('{n} 分钟后', { n: Math.max(1, Math.round(left / 60e3)) })
     : left < 48 * 3600e3 ? t('{n} 小时后', { n: (left / 3600e3).toFixed(1) })
       : t('{n} 天后', { n: Math.floor(left / 24 / 3600e3) })
-  // 完整时间点只在解析得出时补进 title：formatTime 对非法时间戳返回空串，
-  // 直接拼会留下一个空的「（）」
+  // when in when title：formatTime for when returnempty，
+  // will down 1 empty 「（）」
   const full = formatTime(expiresAt)
   return <span title={full ? t('{text}过期（{full}）', { text, full }) : t('{text}过期', { text })}>{text}</span>
 }
 
 /**
- * 双凭证的一行：标签与读数紧挨着居中排（`Access Token · 317 天后`）。
+ * 1 ： and in （`Access Token · 317 after `）。
  *
- * 刻意**不用** `justify-between` 把标签推到最左、读数推到最右 —— 那样会在
- * 列里拉出一条横跨整列的空白，与同表其余列（状态 / 限流 / 余额）的居中口径
- * 也不一致。标签与读数紧挨、整体居中，读起来才是「一个账号的两种凭证」。
+ * ** not use ** `justify-between` to 、 to —— that will in 
+ * 1 empty， and its （ / / ） in 
+ * not 1 。 and 、 in ， is 「 1 」。
  *
- * 标签字号压到 9px 是为了让「Refresh Token + 读数」在 132px 列里同排放得下；
- * 完整凭证名与到期时刻都在 title 里，读不全也不会丢信息。
+ * to 9px is as 「Refresh Token + 」 in 132px down ；
+ * and to when in title ， not not will 。
  */
 function CredentialExpiryLine({ row }: { row: CredentialExpiryRow }) {
   const expired = row.expiresAt !== null && row.expiresAt <= Date.now()
@@ -697,11 +697,11 @@ function CredentialExpiryLine({ row }: { row: CredentialExpiryRow }) {
 }
 
 /**
- * 连接数：此刻正在使用这个账号的请求数（2 秒一轮的实时计数）。
- * 口径与 OmniProxy 上游管理页的「连接」列一致 —— 有连接时显示数字、为 0 时**什么都不
- * 显示**（留空）。满屏的 0 会把少数几个真正在跑的账号淹没；要看「谁是 0」时空白本身
- * 就是答案。计数缺失（还没拉到、后端不可达）与 0 同样处理：把一个尚未知的值渲染成 0
- * 会读成「这个账号没在用」，而事实可能是「数据还没到」。
+ * ： in use this request（2 seconds 1 when ）。
+ * and OmniProxy up 「」 1 —— has when 、 as 0 when ** not 
+ * **（empty）。 0 will in no ； need 「 is 0」 when empty
+ * is 。（ no to 、 after not can ） and 0 ： 1 unknown 0
+ * will 「 this no in use 」， can can is 「 no to 」。
  */
 export function ConnectionsCell({ account }: { account: AccountRecord }) {
   const value = connectionsOf(account.id)
@@ -714,11 +714,11 @@ export function ConnectionsCell({ account }: { account: AccountRecord }) {
 }
 
 /**
- * 余额读数 → 明细弹层头部那一行（套餐 / 状态 / 到期 / 余量）。
+ * → that 1 （ / / to / ）。
  *
- * 与悬停提示共用 `subscriptionText`：那一行的措辞是既有产物，弹层里再写一份
- * 迟早会与悬停说的不一样（同一份数据两种说法，用户只能猜哪个对）。
- * 形状判据照旧按字段探测（不是按 provider）。
+ * and use `subscriptionText`： that 1 is has ， 1 
+ * will and not 1 （ 1 ， use can for ）。
+ * old by （ not is by provider）。
  */
 function creditSubscriptionOf(entry: UsageEntry): string {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return ''
@@ -726,9 +726,9 @@ function creditSubscriptionOf(entry: UsageEntry): string {
 }
 
 /**
- * 订阅信息 → 摘要 title 里的一段文字（统一形状的 `subscription`）。
- * `expireAt` 各家的类型不同（小浣熊给的是上游原样的字符串日期，AutoClaw 可能给时间戳）：
- * 能解析成日期的按本地时间格式化，否则原样显示 —— 不猜、不丢。
+ * → need title 1 （ 1 `subscription`）。
+ * `expireAt` not （ to is up ，AutoClaw can can to when ）：
+ * can by when ，otherwise —— not 、 not 。
  */
 function subscriptionText(subscription: unknown): string {
   if (!subscription || typeof subscription !== 'object') return ''
@@ -736,8 +736,8 @@ function subscriptionText(subscription: unknown): string {
   const parts: string[] = []
   if (info.planName) parts.push(t('套餐 {name}', { name: String(info.planName) }))
   if (info.status) parts.push(t('状态 {status}', { status: String(info.status) }))
-  // 三态里的非「生效中」档要说清楚：代表套餐可能是**待生效**的（刚领到还没到生效
-  // 时间的活动包，见后端 `plan_state`），只写「套餐 X 到期 …」会被读成现在就在用
+  // 「 in 」 need ： can can is **** （ to no to 
+  // when ， after `plan_state`），「 X to …」 will in in use 
   if (info.state && String(info.state) !== 'active') {
     parts.push(zcodePlanStateLabel(info.state))
   }
@@ -753,12 +753,12 @@ function subscriptionText(subscription: unknown): string {
 }
 
 /**
- * 读数里**待生效**的套餐（`plans` 数组里 `state === 'pending'` 的那些）。
- * 没有这个数组的家（其余全部）与旧后端一律返回空数组 —— 判据只看字段，不看 provider。
+ * **** （`plans` `state === 'pending'` that ）。
+ * no has this （ its ） and old after 1 returnempty —— ， not provider。
  *
- * 为什么单独把这一档拎出来：活动套餐常常不是立刻生效的（官方客户端显示
- * 「待生效 今天 23:00 · 过期时间 10月12日 09:00」），刚领到的那笔额度还没开始算。
- * 余额列上什么都不显示，用户会以为没领上；一条徽章回答「领到了、还没到生效时间」。
+ * Why this 1 ： not is （client
+ * 「 23:00 · expiration time 1012 09:00」）， to that no 。
+ * up not ， use will as no up ； 1 「 to 、 no to when 」。
  */
 export function pendingPlans(entry: UsageEntry): Array<Record<string, unknown>> {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return []
@@ -769,11 +769,11 @@ export function pendingPlans(entry: UsageEntry): Array<Record<string, unknown>> 
 }
 
 /**
- * 待生效套餐的悬停说明：逐份列「名字（生效时间）」——时间可能在读数里缺失，那就只说名字。
+ * ：「（ when ）」—— when can can in ， that 。
  *
- * 用后端的 `pendingUntil`（最早一条还没到点的**权益生效时间**，口径见后端
- * `plan_effective_times`）；它缺失时才退回 `startsAt`（那是领取时间，只在没有
- * 权益的套餐上才等于生效时间）。
+ * use after `pendingUntil`（ 1 no to ** when **， after 
+ * `plan_effective_times`）； when `startsAt`（ that is when ， in no has 
+ * up etc when ）。
  */
 export function pendingPlansTitle(plans: Array<Record<string, unknown>>): string {
   const lines = plans.map(plan => {
@@ -787,13 +787,13 @@ export function pendingPlansTitle(plans: Array<Record<string, unknown>>): string
 }
 
 /**
- * 余额结果 → 一行摘要（`{text, kind, title}`）。
+ * → 1 need （`{text, kind, title}`）。
  *
- * 形状探测按**字段**而不是按 provider（`totalLeft` 键 = workbuddy 既有形状，否则看
- * `available` / `wallets`）：provider 只决定「谁去查」，不决定「查回来长什么样」。
- * 失败与「未配置」的分流走 usageFailureOf（判据的唯一入口，与查询动作那边的 toast 同源）。
- * 摘要文案刻意压到「数字 + 单位」，完整句（各钱包 / 套餐 / 到期）放进 title ——
- * 余额列是这张表里最窄的几列之一。
+ * by **** not is by provider（`totalLeft` = workbuddy has ，otherwise
+ * `available` / `wallets`）：provider 「」， not 「」。
+ * failure and 「not configured」 usageFailureOf（ 1 ， and that toast ）。
+ * need to 「 + 」，（ / / to ） title ——
+ * is this 1 。
  */
 export function usageSummary(entry: UsageEntry): { text: string; kind: string; title: string } {
   if (entry === undefined) return { text: t('未查询'), kind: 'muted', title: t('尚未查询该账号的余额') }
@@ -828,7 +828,7 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
   if (Object.prototype.hasOwnProperty.call(data, 'available') || Array.isArray(data.wallets)) {
     const unit = usageUnitLabel(String(data.unit || t('积分')), t)
     const wallets = creditStatisticsWalletsOf(data) ?? (Array.isArray(data.wallets) ? data.wallets as Array<Record<string, unknown>> : [])
-    // 上游给的展示串优先（带千分位 / 单位的格式化），没有才按数值拼
+    // up to （ / ）， no has by 
     const detail = wallets
       .filter(wallet => !isSnapshotWallet(wallet))
       .map(wallet => `${wallet?.displayName || wallet?.type || t('明细')} `
@@ -838,12 +838,12 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
       .map(reading => `${reading.name} ${reading.view}`)
       .join(' · ')
     const subscription = subscriptionText(data.subscription)
-    // ── 没有额度桶时的口径说明（两档，判据都是**结构**不是文案）───────
-    // 这种账号（额度记在活动套餐那条通道上）余额列会退回套餐权益：权益里带着
-    // 已用/总量就画真条，只有发放额就报「权益 x」不画条 —— 两种情况都要说明，
-    // 否则「权益 3亿 token」会被读成「还剩 3 亿」。
-    // 另外：额度窗口若是从开放平台监控通道补来的（`walletsFrom`），也要说一句
-    // ——那是**另一条通道**的口径（每 N 小时 / 每周的剩余比例），与套餐到期无关。
+    // ── no has when （， is **** not is ）───────
+    // this （ in that up ） will ：
+    // already use /total， has 「 x」 not —— need ，
+    // otherwise「 3 token」 will 「 3 」。
+    // ： if is from （`walletsFrom`）， need 1 
+    // —— that is ** 1 ** （ N when / remaining）， and to none。
     const notes: string[] = []
     if (wallets.length === 0 && Array.isArray(data.plans) && data.plans.length > 0) {
       const plan = leadPlan(data)
@@ -854,13 +854,13 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
     if (String(data.walletsFrom || '') === 'monitor') {
       notes.push(t('额度窗口读数来自开放平台监控通道（套餐 JWT 那条通道没有额度桶）：读的是每 N 小时 / 每周窗口的剩余比例'))
     }
-    // 展示串优先：ZCode 的额度单位是 token（1 亿 = 9 位数字），而余额列只有几十
-    // 像素宽 —— 后端因此给了 `availableView`（`1亿 token` 这类紧凑串）。没有这个
-    // 字段的家（其余全部）走的仍是「数值 + 单位」那条老路，行为一字未变。
-    // `available` 为 null 是「上游只有比例、没有绝对剩余量」的形状（Accio 的
-    // `usagePercent`：issue #242 的「可用 — %」）—— 此时读**钱包里的实际读数**
-    // （`balance` + 自己的 `unit`），有可读的钱包就不再拼「—」。钱包也没有
-    // （真读空了）才落回「—」，如实说没读到。
+    // ：ZCode is token（1 = 9 ）， has 
+    // —— after to `availableView`（`1 token` this ）。 no has this 
+    // （ its ） is 「 + 」 that ， as 1 。
+    // `available` as null is 「 up has 、 no has for remaining」 （Accio 
+    // `usagePercent`：issue #242 「available — %」）—— when ** **
+    // （`balance` + `unit`）， has can not 「—」。 no has 
+    // （empty）「—」， no to 。
     const fallbackWallet = data.available == null
       ? wallets.find(wallet => numberOrNull(wallet?.balance) !== null)
       : undefined
@@ -872,7 +872,7 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
             unit: usageUnitLabel(String(fallbackWallet.unit || unit), t),
           })
         : t('可用 {value} {unit}', { value: numberText(data.available), unit })
-    // 部分读数缺失时保留已知余额，并显示查询警告。
+    // when already ， and 。
     const missing = [
       ...usageWarningsOf(data).map(line => t(line)),
       data.statisticsError ? t('订阅统计未读到：{error}', { error: String(data.statisticsError) }) : '',
@@ -890,9 +890,9 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
 }
 
 /**
- * 读数里「代表这个账号」的套餐：生效中优先，其次待生效（与后端 `pick_plan` 同一
- * 优先级 —— 一份刚领到、还没生效的套餐比一份已经不提供权益的旧套餐更该代表这个
- * 账号）。认不出状态的条目（缺失 / 上游新取值）放在最后 —— 有总比没有强。
+ * 「 this 」 ： in ， its （ and after `pick_plan` 1 
+ * —— 1 to 、 no 1 already not old this this 
+ * ）。 not （ / up new ） in after —— has total no has 。
  */
 function leadPlan(data: Record<string, unknown>): Record<string, unknown> | null {
   const plans = Array.isArray(data.plans) ? data.plans as Array<Record<string, unknown>> : []
@@ -904,10 +904,10 @@ function leadPlan(data: Record<string, unknown>): Record<string, unknown> | null
 }
 
 /**
- * 套餐里最大的一笔**发放额度**（`{units, unit}`；一笔可读的都没有时 null）。
+ * 1 ****（`{units, unit}`； 1 can no has when null）。
  *
- * 只用来给「没有额度桶」的账号在余额列兜一个读数 —— 那是**权益额度**不是剩余量，
- * 所以调用处把它标成「权益」并且不画进度条（见 `usagePool` 的兜底分支）。
+ * use to 「 no has 」 in 1 —— that is **** not is remaining，
+ * use 「」and not （ `usagePool` ）。
  */
 function biggestGrant(plan: Record<string, unknown>): { units: number; unit: string } | null {
   const items = Array.isArray(plan.entitlements) ? plan.entitlements as Array<Record<string, unknown>> : []
@@ -922,12 +922,12 @@ function biggestGrant(plan: Record<string, unknown>): { units: number; unit: str
 }
 
 /**
- * 套餐权益里**能算比例**的用量（`{used, total, unit}`；给不出时 null）。
+ * ** can ** usage（`{used, total, unit}`； to not when null）。
  *
- * 上游并不一定给（`used_units` / `total_units` / `remaining_units` 都是可选键，
- * 后端原样带出来，缺失是 null）—— 给了就画一条真进度条，没给就退回「权益额度」
- * 那种干读数（见 `usagePool` 的兜底分支）。取**第一笔总量为正**的权益：
- * 多笔权益各画各的条是明细弹窗的事，这一列只回答「主额度还剩多少」。
+ * up and not 1 to （`used_units` / `total_units` / `remaining_units` is optional，
+ * after ， is null）—— to 1 ， no to 「」
+ * that （ `usagePool` ）。** 1 total as ** ：
+ * is ， this 1 「」。
  */
 function grantUsage(plan: Record<string, unknown>): { used: number; total: number; unit: string } | null {
   const items = Array.isArray(plan.entitlements) ? plan.entitlements as Array<Record<string, unknown>> : []
@@ -946,30 +946,30 @@ function grantUsage(plan: Record<string, unknown>): { used: number; total: numbe
 }
 
 /**
- * 余额里的「主额度桶」：界面用它画套餐名与进度条（`UsageCell` 的两行形态）。
+ * 「」： use and （`UsageCell` ）。
  *
- * ── 三档取值（按「能画出什么」排）────────────────────────────
- *   ① **有总量的桶**里取总量最大的那个（现状）；
- *   ② 一个「有总量」的都没有时，取**只有比例**的窗口里剩余最少（最紧张）的那个
- *      —— 监控通道那条链回的常是纯比例（2026-02 起上游大多不再给绝对量，
- *      见后端 `monitor.rs`），而这一列问的是「还够不够用」，最紧张的那个才是答案；
- *   ③ 连比例都没有（活动套餐的额度不落在任何桶里）时，退回套餐的权益：
- *      权益里带着已用/总量就画**真**进度条（读数「剩 x / y」），只有发放额
- *      就只报「权益 x」并且**不画条** —— 那是发放额不是剩余量，画一条满格的
- *      条会被读成「还剩这么多」。
- * 三档都取不到（免费账号没领过）返回 null，那一列显示「无额度」是对的。
+ * ── （ by 「 can 」）────────────────────────────
+ * ① ** has total **total that （）；
+ * ② 1 「 has total」 no has when ，** has ** remaining（） that 
+ * —— that is （2026-02 up not to for ，
+ * after `monitor.rs`）， this 1 is 「 not use 」， that is ；
+ * ③ no has （ not in ） when ， ：
+ * already use /total****（「 x / y」）， has 
+ * 「 x」and** not ** —— that is not is remaining， 1 
+ * will 「 this 」。
+ * not to （ no ）return null， that 1 「none」 is for 。
  *
- * ── 为什么取「总量最大的那个桶」──────────────────────────────
- * 一个账号常常同时挂着好几份额度：活动发的大额包（ZCode Trust Build 的 1 亿）
- * 与每天续发的小额包（Start Plan 的 300 万）。用户点开这一列想看的是**大额那份**
- * 还剩多少，而「总量最大」正是它 —— 也顺带避开了每日桶在一天之内反复回满
- * 导致进度条乱跳。总量缺一个都不参与这一档的比较（没有总量就画不出「用了多少」），
- * 于是没有结构化验数据的家（其余全部）自然退回上面那套纯读数呈现。
+ * ── Why「total that 」──────────────────────────────
+ * 1 when ： （ZCode Trust Build 1 ）
+ * and （Start Plan 300 ）。 use this 1 is ** that **
+ * ，「total」 is —— daily in 1 
+ * 。total 1 not and this 1 （ no has total not 「 use 」），
+ * is no has （ its ） up that 。
  *
- * ── 缺失一律当「不知道」─────────────────────────────────────
- * `remainingPercent` 缺失时**不画进度条**（但名字与读数照给），
- * 不拿 0 或 100 冒充 —— 一条满格的进度条与一条空进度条读起来是相反的意思，
- * 而它们都可能是错的。
+ * ── 1 「 not 」─────────────────────────────────────
+ * `remainingPercent` when ** not **（ and to ），
+ * not 0 or 100 —— 1 and 1 empty is ，
+ * can can is 。
  */
 export function usagePool(entry: UsageEntry): { planName: string; text: string; percent: number | null } | null {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null
@@ -987,7 +987,7 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
     ? data.subscription
     : {}) as Record<string, unknown>
   if (!lead) {
-    // ② 只有比例的窗口（监控通道）：取剩余最少的那个
+    // ② has （）：remaining that 
     let tightest: { wallet: Record<string, unknown>; percent: number } | null = null
     for (const wallet of wallets) {
       const percent = numberOrNull(wallet?.remainingPercent)
@@ -996,10 +996,10 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
     }
     if (tightest) {
       const percent = Math.max(0, Math.min(100, tightest.percent))
-      // 单元格只要**前半句**：监控通道的展示串是「剩 72% · 10-11 03:00 重置」，
-      // 重置时刻那一半在悬停提示里（`usageSummary` 的 detail 用完整串）——
-      // 这一格只有几十像素宽，塞进去会把列挤变形。分隔符「 · 」是后端
-      // `monitor::wallet_view` 拼的（那两段之间唯一的那个），前面那段就是读数。
+      // need ** before **： is 「 72% · 10-11 03:00 」，
+      // when that 1 in （`usageSummary` detail use ）——
+      // this 1 has ， will 。「 · 」 is after 
+      // `monitor::wallet_view` （ that 1 that ）， before that is 。
       const view = String(tightest.wallet.balanceView || '').split(' · ')[0].trim()
       return {
         planName: String(tightest.wallet.planName || subscription.planName || ''),
@@ -1007,7 +1007,7 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
         percent,
       }
     }
-    // ③ 连比例都没有：退回套餐权益（有已用/总量就画真条，只有发放额就只报数）
+    // ③ no has ：（ has already use /total， has ）
     const plan = leadPlan(data)
     if (!plan) return null
     const usage = grantUsage(plan)
@@ -1031,12 +1031,12 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
       text: grant.unit
         ? t('权益 {value} {unit}', { value: compactNumber(grant.units), unit: grant.unit })
         : t('权益 {value}', { value: compactNumber(grant.units) }),
-      // 权益额度不是剩余量：不画条（口径见上面那段文档）
+      // not is remaining： not （ up that ）
       percent: null,
     }
   }
-  // 套餐名优先取这个桶自己的（`wallet.planName`），退回账号级那份 ——
-  // 桶认不出归属时（上游没给 plan_id）至少还有订阅里的名字可显示
+  // this （`wallet.planName`）， that ——
+  // not when （ up no to plan_id） has can 
   const planName = String(lead.planName || subscription.planName || lead.displayName || '')
   const remaining = numberOrNull(lead.balance)
   const total = numberOrNull(lead.total)
@@ -1053,11 +1053,11 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
 }
 
 /**
- * 数值字段 → number 或 null。
+ * → number or null。
  *
- * 必须显式判 null/undefined/空串：`Number(null)` 是 0（不是 NaN），照直转换会把
- * 「上游没给这个数」变成「这个数是 0」—— 进度条会画成一条空条，与「剩余 0%」
- * 读起来一模一样，而那是两件事（见 `usagePool` 的缺失口径）。
+ * must null/undefined/empty：`Number(null)` is 0（ not is NaN）， will 
+ * 「 up no to this 」「 this is 0」—— will 1 empty， and 「remaining 0%」
+ * 1 1 ， that is （ `usagePool` ）。
  */
 function numberOrNull(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
@@ -1065,51 +1065,51 @@ function numberOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-/* ─── 余额明细弹层（usageDetail 能力位的那几家，现役只有 CodeArts）─── */
+/* ─── （usageDetail can that ， has CodeArts）─── */
 
-/** 明细弹层里的一行读数（`UsageDetailCell` 的渲染输入） */
+/** 1 （`UsageDetailCell` ） */
 type UsageDetailRow = {
   name: string
-  /** 右侧读数：积分类「剩 x / y」，token 类用后端的 balanceView（口径在后端） */
+  /** ：「 x / y」，token use after balanceView（ in after ） */
   view: string
   tone: 'ok' | 'warn' | 'bad' | 'muted'
-  /** **剩余**百分比（条画的是剩余，与 usage-pool 同方向）；null = 不画条 */
+  /** **remaining**（ is remaining， and usage-pool to ）；null = not */
   percent: number | null
-  /** 超额：条画满走红 + 数值变红（上游到达上限后仍继续计数，如实显示） */
+  /** ： + （ up to limit after ，） */
   over: boolean
-  /** 悬停说明（为什么没条 / 超额口径 / 4004 的含义 —— 界面上不放长句的原因） */
+  /** （Why no / / 4004 —— up not Reason） */
   title?: string
 }
 
 /**
- * 余额格里的一条读数（逐窗口读数、token 池、主额度桶共用这一种形状）。
+ * 1 （、token 、 use this 1 ）。
  *
- * 标签与读数分成两段：**标签可省**（同一家的几条共用一个组名时只写一次），
- * **窗口码与读数不吃压缩** —— 同一组下几条唯一的差别就在窗口码那半段，
- * 跟组名拼成一串一起省略会让它们长得一样、分不出哪条是哪条。
+ * and ：** can **（ 1 use 1 when 1 ），
+ * ** and not ** —— 1 down 1 in that ，
+ * 1 1 will 1 、 not is 。
  */
 type UsageFlatRow = {
-  /** 组名（专名原样；无组名的档留空 —— 比如 OpenCode 只有窗口没有组） */
+  /** （；none empty —— e.g. OpenCode has no has ） */
   name: string
-  /** 窗口码短名（`5h` / `每周` / `每月`），单独一段 */
+  /** （`5h` / `` / ``）， 1 */
   win?: string
-  /** 读数（万/亿缩写；没有百分比时直接显示它） */
+  /** （/； no has when ） */
   view: string
-  /** 百分比读数（`72%`）：与线同源，有就优先于 `view` */
+  /** （`72%`）： and ， has `view` */
   percentText?: string
   tone: 'ok' | 'warn' | 'bad' | 'muted'
-  /** **剩余**百分比（线画的是剩余，与读数同向）；null = 上游没给，不画线 */
+  /** **remaining**（ is remaining， and to ）；null = up no to ， not */
   percent: number | null
-  /** 超额：线走红 */
+  /** ： */
   over: boolean
-  /** 悬停全文（后端 balanceView + 行的口径说明） */
+  /** （ after balanceView + ） */
   title?: string
-  /** React 键：窗口的稳定标识（后端 `windows[].key`，如 `gemini-5h`）。
-   *  没有 id 的档退回 name —— 键只用在一处，缺了也不报错 */
+  /** React ： （ after `windows[].key`， `gemini-5h`）。
+   * no has id name —— use in 1 ， not */
   id?: string
 }
 
-/** 没有剩余比例时只显示读数，不用空轨道代替未知值。 */
+/** no has remaining when ， not use emptyunknown。 */
 function UsageFlatRowView({ row }: { row: UsageFlatRow }) {
   const value = row.percentText || row.view
   return (
@@ -1127,40 +1127,40 @@ function UsageFlatRowView({ row }: { row: UsageFlatRow }) {
   )
 }
 
-/** 明细弹层的数据形状（`usageDetailOf` 的产物） */
+/** （`usageDetailOf` ） */
 type UsageDetail = {
   credit: UsageDetailRow[]
-  /** 可用合计（各积分池剩余之和；读不出数时 null，不画合计行） */
+  /** available（remaining and ； not when null， not ） */
   total: number | null
   unit: string
-  /** 套餐徽标文案（试用版 / 免费版 / 原名）与积分重置日期 */
+  /** （ use / / ） and */
   plan: string
-  /** 上游原始套餐名是否 free（`plan-chip.free` 样式类按它判 —— 不能比 plan 展示文案，
-   *  后者随界面语言变，见 accounts-domain 的 isFreePlan） */
+  /** up is free（`plan-chip.free` by —— not can plan ，
+   * after ， accounts-domain isFreePlan） */
   free: boolean
   resetDate: string
-  /** 部分读数缺失的说明。 */
+  /** 。 */
   missing: string[]
 }
 
-/** units.js 的公开面（本文件只读 formatTokens / formatInt）：量级词（万 / 亿 与 k / M）
- *  已按界面语言在那边一处处理，这里不再自己拼字面量。局部窄类型 + 转型而不是
- *  declare global —— wbUnits 是多页共享的桥，各岛各 declare 一份会撞 TS2717
- *  （同 report-charts 的处理）。 */
+/** units.js （file formatTokens / formatInt）：（ / and k / M）
+ * already by in that 1 ， this not 。 + not is 
+ * declare global —— wbUnits is ， declare 1 will TS2717
+ * （ report-charts ）。 */
 type UnitsBridge = {
   formatTokens?: (value: unknown) => string
-  /** 千分位整数（组头合计在一万以内用它，与报表读数同一套数字分组） */
+  /** （ in 1 use ， and 1 ） */
   formatInt?: (value: unknown) => string
 }
 
 /**
- * 数值 → 紧凑读数（token 数常是七位八位的整数，余额列只有 148px，读的是量级）：
- * 量级词与分档全交给 units.js 的 formatTokens（简体「354万」、英文「354k」，
- * 设置页那个开关拨一下两处一起变）；拿不到桥时退回裸数字。
+ * → （token is ， has 148px， is ）：
+ * and to units.js formatTokens（「354」、「354k」，
+ * set that 1 down 1 ）； not to when 。
  *
- * 进桥之前先按两位小数归一次：`formatTokens` 对一万以内的数走千分位，而
- * `toLocaleString` 保留三位小数（`39.4321` → 「39.432」）—— 与 `numberText`
- * 的小数上限口径不一致，同一份读数在两处会显示成不同位数。
+ * before by 1 ：`formatTokens` for 1 ，
+ * `toLocaleString` （`39.4321` → 「39.432」）—— and `numberText`
+ * limit not 1 ， 1 in will not 。
  */
 function compactNumber(value: number): string {
   const rounded = Number.isFinite(value) ? Number(value.toFixed(2)) : value
@@ -1169,18 +1169,18 @@ function compactNumber(value: number): string {
 }
 
 /**
- * 余额文档 → 积分明细。只做字段归一，提供商能力由调用方判定。
+ * → 。 1 ， can by use 。
  *
- * ── 为什么积分类的读数在前端拼 ─────────────────────────────
- * 后端 `Meter::view()` 对「只有剩余没有总量」的行（赠送积分常这样）会回落成
- * 「已用 0%」—— 那是它的已知边界（见 balance.rs 那边的 TODO 注释）。弹层这边
- * 自行按 creditTotal / creditRemaining 拼「剩 x / y」，把口径收拢在积分字段上，
- * 不依赖那条展示串。
+ * ── Why in before ─────────────────────────────
+ * after `Meter::view()` for 「 has remaining no has total」 （ this ） will 
+ * 「 already use 0%」—— that is already （ balance.rs that TODO ）。 this 
+ * by creditTotal / creditRemaining 「 x / y」， in up ，
+ * not that 。
  *
- * ── 语义色的口径 ───────────────────────────────────────────
- * 条画**剩余**比例（与 usage-pool 同向）：≥20% 绿、<20% 黄（贴底要留意）、
- * 超额红。剩 0 而没有超额的（按需付费积分未开通）是灰 —— 「0 但不是故障」；
- * 无总量不画条（画不出比例就不装作有），上游没给就是没给。
+ * ── ───────────────────────────────────────────
+ * **remaining**（ and usage-pool to ）：≥20% 、<20% （ need ）、
+ * 。 0 no has （ by need ） is —— 「0 not is 」；
+ * nonetotal not （ not not has ）， up no to is no to 。
  */
 function usageDetailOf(entry: UsageEntry): UsageDetail | null {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null
@@ -1195,7 +1195,7 @@ function usageDetailOf(entry: UsageEntry): UsageDetail | null {
     const total = numberOrNull(wallet.creditTotal)
     if (remaining === null && total === null && wallet.creditUsed == null) continue
     if (remaining !== null) {
-      // 积分类（套餐赠送积分口径）：总量缺失时不画条
+      // （）：total when not 
       const hasTotal = total !== null && total > 0
       const percent = hasTotal ? Math.max(0, Math.min(100, remaining / total * 100)) : null
       credit.push({
@@ -1230,25 +1230,25 @@ function usageDetailOf(entry: UsageEntry): UsageDetail | null {
 }
 
 /**
- * 余额列：**只放读数**（不可点）—— 查询按钮住在操作列，这一列纯粹是
- * 「一眼看出还剩多少」。刻意不换成组件库的 Badge：它是读数而不是状态徽章，
- * 样式全在 `.usage-sum` 里（四档语义色：ok / bad / muted / warn —— `warn` 是
- * 「读到了但不完整」那一档，见上面 `usageSummary` 的半次失败分支）。
+ * ：****（ not can ）—— by in ， this 1 is 
+ * 「 1 」。 not Badge： is not is ，
+ * in `.usage-sum` （：ok / bad / muted / warn —— `warn` is 
+ * 「 to not 」 that 1 ， up `usageSummary` failure）。
  *
- * ── 两行形态一：主额度桶（`usagePool`，ZCode 那家）──────────
- * 第一行是套餐名（用户问得最多的一句是「这 1 亿是哪个活动给的」），
- * 第二行是进度条 + 「剩余 / 总量」。进度条画的是**剩余**比例 ——
- * 与相邻的读数同一方向，否则「条快满了」与「剩 8800 万」会互相打架。
- * 完整明细（每个桶、到期、可用合计）仍在悬停提示里，这里只抢最基本的两个问题：
- * 哪个套餐、还剩多少。
+ * ── 1 ：（`usagePool`，ZCode that ）──────────
+ * 1 is （ use 1 is 「 this 1 is to 」），
+ * is + 「remaining / total」。 is **remaining** ——
+ * and 1 to ，otherwise「」 and 「 8800 」 will 。
+ * （ 、 to 、available） in ， this ：
+ * 、。
  *
- * ── 两行形态二：套餐徽标 + 明细弹层（`usageDetail` 能力位，CodeArts）──
- * 套餐徽标说明权益，总积分读数可点击查看各项积分的构成。
+ * ── ： + （`usageDetail` can ，CodeArts）──
+ * ，total can 。
  */
 /**
- * 余额格里 Token 限制器的**第二行读数**：配了 Token 规则的账号显示
- * 「周期 Token 已用 / 上限 · 剩 N 分」。多条规则取「最值得关注的那条」——
- * 已触发的优先，否则取用量比例最高的一条；其余规则在设置弹窗里看全貌。
+ * Token limit ****： Token then 
+ * 「 Token already use / limit · N 」。 then 「 that 」——
+ * already ，otherwiseusage 1 ； its then in set。
  */
 function prominentTokenLimit(account: AccountRecord): React.ReactNode {
   const readings = tokenUsageOf(account)
@@ -1305,9 +1305,9 @@ export function UsageCell({ account }: { account: AccountRecord }) {
 function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: UsageEntry }) {
   const now = useDisplayClock()
   if (!supportsUsage(account)) {
-    // 访客账号与「这家没有余额概念」是两件不同的事，文案要分开：前者是
-    // 「这条账号本来就没有积分」，后者是「这一家没有查询能力」。写成同一句
-    // 会让用户以为智谱清言整家不支持余额（登录账号其实能查）。
+    // and 「 this no has 」 is not ， need ： before is 
+    // 「 this no has 」， after is 「 this 1 no has can 」。 1 
+    // will use as unsupported（ its can ）。
     return (
       <span className='muted'
         title={account.isGuest === true
@@ -1320,9 +1320,9 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
   const expiring = creditExpirySummaryOf(creditRows.flatMap(row => row.expiry ? [row.expiry] : []), now)
   const expiryText = creditExpiryText(expiring, t, numberText, creditExpiryUnitOf(entry))
   const summary = expiryText.detail ? { ...rawSummary, title: [rawSummary.title, expiryText.detail].filter(Boolean).join(' · ') } : rawSummary
-  // 限制器的跳过徽章：与后端选路过滤同一判据（balanceBlockedOf / tokenBlockedOf），
-  // 让「为什么这个账号不接请求」在界面上有处可看。禁用档不标 —— 那一档
-  // 状态列的「已禁用」开关就是答案；跳过档账号仍是启用的，不标就看不出。
+  // limit ： and after 1 （balanceBlockedOf / tokenBlockedOf），
+  // 「Why this not request」 in up has can 。 use not —— that 1 
+  // 「 already use 」 is ； is enabled ， not not 。
   const blockedBadge = Array.isArray(account.limiterGroups) ? (
     <LimiterStatus account={account} onOpen={() => openSettingsDialog(account.id)} />
   ) : balanceBlockedOf(account, entry) ? (
@@ -1337,16 +1337,16 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
     </Badge>
   ) : null
   const tokenSub = prominentTokenLimit(account)
-  // 「待生效 N 份」徽章：注意力只在读数可用（ok / warn）时才有意义 —— 查询失败 /
-  // 未配置那几档连读数都没有，挂一条「领到了几份」反而更让人糊涂。usageDetail 那一支
-  // （CodeArts）没有套餐清单，不画。
+  // 「 N 」：Note in available（ok / warn） when has —— failure /
+  // not configured that no has ， 1 「 to 」。usageDetail that 1 
+  // （CodeArts） no has ， not 。
   const pending = summary.kind === 'ok' || summary.kind === 'warn' ? pendingPlans(entry) : []
   const pendingBadge = pending.length ? (
     <Badge variant='warning' shape='tag' title={pendingPlansTitle(pending)}>
       {t('待生效 {n} 份', { n: pending.length })}
     </Badge>
   ) : null
-  // 明细可能有到期时间但没有总余额；保留这类入口，失败和未配置时不挂空明细。
+  // can can has to when no has total； this ，failure and not configured when not empty。
   const creditDetail = creditRows.length
     ? {
       rows: creditRows,
@@ -1377,7 +1377,7 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
     if (detail) {
       return <UsageDetailCell summary={summary} detail={detail} blockedBadge={blockedBadge} tokenSub={tokenSub} />
     }
-    // 还没查到 / 查询失败 / 没拼出明细：维持单行读数的老样子
+    // no to / failure / no ： 
     return (
       <span className='usage-sum-wrap'>
         <span className={`usage-sum ${summary.kind}`} title={summary.title}>{summary.text}</span>
@@ -1387,12 +1387,12 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
       </span>
     )
   }
-  // 失败 / 未配置那些档不画进度条：读数本身就不是「还剩多少」，
-  // 给它配个进度条会把一句错误装饰成一条可信的读数
+  // failure / not configured that not ： not is 「」，
+  // to will 1 error 1 can 
   const pool = summary.kind === 'ok' || summary.kind === 'warn' ? usagePool(entry) : null
   if (!pool) {
-    // 有明细时读数整行就是按钮（`.usage-toggle`，与 CodeArts 那格同款）；
-    // 没有时仍是那条不可点的纯读数
+    // has when is by （`.usage-toggle`， and CodeArts that ）；
+    // no has when is that not can 
     return (
       <span className='usage-sum-wrap'>
         {creditDetail ? (
@@ -1406,10 +1406,10 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
       </span>
     )
   }
-  // ── 主额度桶：与逐窗口读数同一形态（标签 …… 读数 + 细线）──────────
-  // 原来是组件库 Progress（6px 主色条）挤在一行里，与旁边那些窗口读数的
-  // 3px 语义色细线不是一套；现在统一：套餐名单独一行（用户问得最多的那句
-  // 「这 1 亿是哪个活动给的」），下面一行读数 + 细线。
+  // ── ： and 1 （ …… + ）──────────
+  // is Progress（6px ） in 1 ， and that 
+  // 3px not is 1 ； in 1 ： 1 （ use that 
+  // 「 this 1 is to 」）， down 1 + 。
   const poolRow: UsageFlatRow = {
     name: pool.planName || '',
     view: pool.text,
@@ -1420,8 +1420,8 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
   }
   return (
     <span className='usage-cell' title={summary.title}>
-      {/* 读数与细线一起住在按钮里：点哪都开明细（只让读数可点的话，
-          这一格里最显眼的那条又变成了难点中的东西） */}
+      {/* and 1 in by ：（ can ，
+           this 1 that in ） */}
       {creditDetail ? (
         <CreditDetailButton variant='pool' {...creditDetail}>
           <UsageFlatRowView row={poolRow} />
@@ -1438,18 +1438,18 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
 }
 
 /**
- * 余额格的明细形态（`usageDetail` 能力位）。
+ * （`usageDetail` can ）。
  *
- * hooks 只住在这个子组件里：`UsageCell` 对失败 / 未查询档有早退分支，
- * 把 useState 留在这里才不会踩「条件渲染后调 hook」的规则。
+ * hooks in this ：`UsageCell` for failure / has ，
+ * useState in this not will 「 after hook」 then 。
  *
- * 积分构成放进弹层，余额格保留套餐和总积分；锚点使用整行读数按钮。
+ * ， and total； use by 。
  */
 function UsageDetailCell({ summary, detail, blockedBadge, tokenSub }: {
   summary: { text: string; kind: string; title: string }
   detail: UsageDetail
   blockedBadge: React.ReactNode
-  /** Token 限制器的周期读数（余额格第二行；配了规则才有） */
+  /** Token limit （； then has ） */
   tokenSub: React.ReactNode
 }) {
   const [open, setOpen] = React.useState(false)
@@ -1472,8 +1472,8 @@ function UsageDetailCell({ summary, detail, blockedBadge, tokenSub }: {
           <span className='val'>{summary.text}</span>
           <span className='caret' aria-hidden>▾</span>
         </PopoverTrigger>
-        {/* `align='center'`：与 accounts-credit-detail / accounts-limit-detail
-            同一处置 —— 余额格的按钮靠右，'end' 会把弹层甩到表格右外侧。 */}
+        {/* `align='center'`： and accounts-credit-detail / accounts-limit-detail
+             1 —— by ，'end' will to 。 */}
         <PopoverContent align='center' sideOffset={6} className='usage-pop w-[288px]'>
           {detail.total !== null ? (
             <div className='usage-pop-total'>
@@ -1501,9 +1501,9 @@ function UsageDetailCell({ summary, detail, blockedBadge, tokenSub }: {
   )
 }
 
-/** 明细弹层里的一行（名称 + 读数 + 可选的剩余细线；长说明只在悬停里）。
- *  线与余额格里的读数是同一种形态（3px、语义色），弹层里只是字号大一号 ——
- *  同一个「剩余比例」在格子里与弹层里不该是两种长相。 */
+/** 1 （ + + optional remaining； in ）。
+ * and is 1 （3px、）， is 1 ——
+ * 1 「remaining」 in and not this is 。 */
 function UsageDetailRowView({ row }: { row: UsageDetailRow }) {
   return (
     <div className='usage-pop-row' title={row.title}>
@@ -1519,31 +1519,31 @@ function UsageDetailRowView({ row }: { row: UsageDetailRow }) {
   )
 }
 
-/* ─── 账号 / 提供商 / 代理列 ─────────────────── */
+/* ─── / / ─────────────────── */
 
 /**
- * 账号：第一行名称，第二行邮箱（有才渲染），第三行只在异常时出现（代理不可用原因）。
+ * ： 1 ，（ has ）， in when （unavailableReason）。
  *
- * 主名走 displayNameOf 的纯 nameCustom 分流：显式设置过备注名（打标）的账号
- * 备注名恒为主名；未打标的账号维持历史口径 —— 邮箱系三家（Qoder / AutoClaw
- * 国际版 / Accio）邮箱当主名，其余昵称优先。更新前设置的旧备注没有标记，
- * 到设置里把备注名改一次值（同值提交不打标）即生效。
+ * displayNameOf nameCustom ：set（） 
+ * as ； —— （Qoder / AutoClaw
+ * / Accio）， its 。update before set old no has ，
+ * to set 1 （ not ）。
  *
- * 悬停气泡就是这一列的「详细信息」面板：**一行一条**，组件库 Tooltip 即现
- * （原生 title 由浏览器控制出现时机与断行，两样都不合用），带指向箭头 ——
- * 邮箱、标识、备注名（未生效时气泡可查）、上游昵称、更新时间、来源。
- * 标识（UID / userId）与 Token 尾号不上屏也不进气泡：对「这条账号能不能用」
- * 没有信息量（Token 尾号曾试过放在气泡里，用户实测反馈去掉）。
- * 隐藏账号名开关打开时邮箱 / 昵称在气泡里同样打码 ——
- * 不给「悬停一下就绕过打码」的口子。
+ * is this 1 「」：** 1 1 **， Tooltip 
+ * （ title by when and ， not use ）， to ——
+ * 、、（ when can ）、 up 、update when 、。
+ * （UID / userId） and Token not up not ： for 「 this can not can use 」
+ * no has （Token in ， use ）。
+ * when / in ——
+ * not to 「 1 down 」 。
  */
 export function AccountCell({ account, namesHidden }: { account: AccountRecord; namesHidden: boolean }) {
   const ident = identifierOf(account)
   const name = displayNameOf(account) || t('未命名账号')
   const email = String(account.email || '').trim()
   const nickname = String(account.nickname || '').trim()
-  // 记录里原样的备注名（未经 displayNameOf 的兜底链）：未设备注时它建号时就有种子值，
-  // 主名被邮箱 / 昵称占着，这里让它在气泡里可查
+  // （ displayNameOf ）： when when has ，
+  // / ， this in can 
   const rawName = String(account.name || '').trim()
   const mask = (value: string): string => (namesHidden ? maskName(value) : value)
   const titleLines = [
@@ -1561,9 +1561,9 @@ export function AccountCell({ account, namesHidden }: { account: AccountRecord; 
 
   const showEmail = email && email !== name
   const proxyError = account.proxy?.error
-  // 原生 title 的出现时机由浏览器/系统定（悬停约一秒才出，改不了），换成组件库
-  // Tooltip：Provider delay=0 悬停即现；Portal 渲染不被表格滚动容器裁剪；
-  // 内容一行一个 div（用户要的「一行一个信息」）。
+  // title when by /（ 1 seconds， not ），
+  // Tooltip：Provider delay=0 ；Portal not ；
+  // 1 1 div（ use need 「 1 1 」）。
   const nameNode = titleLines.length ? (
     <TooltipProvider delay={0}>
       <Tooltip>
@@ -1607,21 +1607,21 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
   const pool = proxyPoolSnapshot()
   const poolItems = Array.isArray(pool) ? pool : []
 
-  // 当前值映射回下拉的值域：池条目用 `pool:<id>`、其余（Clash 直引 / custom /
-  // 轮询 / 坏形状）落到补位项 —— 绝不能回落成「直连」：那会把「配置坏了」显示成「没配」
+  // current down ： use `pool:<id>`、 its （Clash / custom /
+  // / ） to —— not can 「」： that will 「config」「 no 」
   let current = ''
   if (source === 'pool' && proxy?.config?.proxyId) current = `${POOL_VALUE_PREFIX}${proxy.config.proxyId}`
   else if (proxy) current = PROXY_CUSTOM_CURRENT
 
   const items: Array<{ value: string; label: string; disabled?: boolean }> = [{ value: '', label: t('直连') }]
   for (const item of poolItems) {
-    // 文案是「名字（协议 主机:端口）」—— 名字是用户在「网络代理」页起的，
-    // 地址是后端解析出来的实时值（见 poolItemLabel）。同一格里多条目同名时
-    // 地址是唯一能分辨它们的读数，不能只写名字。
+    // is 「（ :）」—— is use in 「」 ，
+    // is after when （ poolItemLabel）。 1 when 
+    // is 1 can ， not can 。
     //
-    // 禁用项**置灰不可选**：选它只会「保存成功 → 解析失败 → 回退直连」，
-    // 用户看到的是「代理已禁用」这种事后解释。要改就去「网络代理」页启用它。
-    // （当前值恰好是禁用项时照常显示 —— 触发器读的是这一项的 label，含「已禁用」）
+    // use ** not optional**： will 「success → failure → 」，
+    // use to is 「 already use 」 this after 。 need 「」enabled。
+    // （current is use when —— is this 1 label，「 already use 」）
     items.push({
       value: `${POOL_VALUE_PREFIX}${item.id}`,
       label: poolItemLabel(item),
@@ -1629,12 +1629,12 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
     })
   }
   if (pool === null) {
-    // 还没读到（首帧 / 自愈 effect 尚未跑完）：给一句「读取中」而不是
-    // 「还没有代理」—— 后者会让用户以为池是空的
+    // no to （ / effect ）： to 1 「 in 」 not is 
+    // 「 no has 」—— after will use as is empty 
     items.push({ value: '__hint_pool__', label: t('正在读取代理列表…'), disabled: true })
   } else if (!poolItems.length) {
-    // 池为空 / 读取失败各说明一句：后者是故障（页面侧在节流重试），前者是
-    // 「还没配」—— 两种都不该静默成「只有直连」
+    // as empty / failure 1 ： after is （ in ）， before is 
+    // 「 no 」—— not this 「 has 」
     items.push({
       value: '__hint_pool__',
       label: poolError() ? t('代理列表读取失败（重试中）') : t('还没有代理（去「网络代理」页添加）'),
@@ -1642,13 +1642,13 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
     })
   }
   if (current === PROXY_CUSTOM_CURRENT) {
-    // 补位项：不带动任何写操作（PROXY_CUSTOM_CURRENT 在 applyProxyPick 里被忽略），
-    // 只是把当前值原样显示出来。轮询档不加前缀 —— 后端给的 label 本身就是
-    // 「轮询全部代理（N 个出口）」这种完整一句话（见 describe_account_proxy）
+    // ： not （PROXY_CUSTOM_CURRENT in applyProxyPick ignore），
+    // is current。 not before —— after to label is 
+    // 「（N ）」 this 1 （ describe_account_proxy）
     const prefix = source === 'clash' ? t('Clash 出口：') : source === 'custom' ? t('自定义：') : ''
     items.push({ value: PROXY_CUSTOM_CURRENT, label: `${prefix}${label}${broken ? t('（不可用）') : ''}` })
   } else if (source === 'pool' && !poolItems.some(item => `${POOL_VALUE_PREFIX}${item.id}` === current)) {
-    // 池引用但条目已不在池里（被删 / Clash 侧删了出口）：补位显示当前值
+    // use already not in （ / Clash ）：current
     items.push({ value: current, label: `${label}${broken ? t('（不可用）') : ''}` })
   }
   items.push({ value: PROXY_CUSTOM_EDIT, label: t('自定义代理…') })
@@ -1668,9 +1668,9 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
 
   return (
     <Select value={current} onValueChange={value => void applyProxyPick(account.id, String(value), current)}>
-      {/* 代理解析失败时整格标红：旧实现靠 `.cell-proxy.err .select-trigger` 那条 CSS，
-          换成组件库的 Select 之后触发器没有 .select-trigger 这个类名（它走 data-slot），
-          所以把描边色直接写在工具类上（见最终报告里变死的 CSS） */}
+      {/* failure when ： old `.cell-proxy.err .select-trigger` that CSS，
+           Select after no has .select-trigger this （ data-slot），
+           in up （ CSS） */}
       <SelectTrigger className={cn('w-full', broken && 'border-destructive-bd')}
         title={title} aria-label={t('出网代理')}>
         <SelectValue>{selected?.label || t('直连')}</SelectValue>
@@ -1684,21 +1684,21 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
   )
 }
 
-/* ─── 操作列 ────────────────────────────────── */
+/* ─── ────────────────────────────────── */
 
 /**
- * 操作：余额 / 设置 / ⋯，顺序固定。
+ * ： / set / ⋯，。
  *
- * 顺序按「点的频次」排，按钮的显隐会随账号状态变，但**顺序不跟着变**。
- * 「设为首选」不在这里：它在 ⋯ 菜单的第二项（行上留一颗按钮去重复隔壁优先级列的
- * 信息，代价是操作列多留 50px，而那 50px 全是从账号列挤出来的）。
+ * by 「 」， by will ，** not **。
+ * 「 as 」 not in this ： in ⋯ （ up 1 by 
+ * ， is 50px， that 50px is from ）。
  *
- * （签到曾是这排的第一颗按钮，已随签到功能整体迁到「签到中心」——
- * checkin-page.tsx 的每日签到卡承接了它的职责，含单账号签到与重签。
- * CodeArts 的「领福利」同一场收敛：入口只留签到中心的「活动福利」卡
- * （领取状态也在那里标记），账号页不再放第二颗一样的按钮。
- * ZCode 的「领套餐」同理：签到中心「活动福利」卡的那一行既是状态（今天领了几份）
- * 也是入口（点开同一个套餐明细弹窗），账号页这颗是重复的。）
+ * （ to is this 1 by ， already to can to 「 to in 」——
+ * checkin-page.tsx daily to ， to and 。
+ * CodeArts 「」 1 ： to in 「」
+ * （ in that ）， not 1 by 。
+ * ZCode 「」： to in 「」 that 1 is （）
+ * is （ 1 ）， this is 。）
  */
 export function ActionsCell({ account, atFront }: { account: AccountRecord; atFront: boolean }) {
   const [usageBusy, setUsageBusy] = React.useState(false)
@@ -1721,19 +1721,19 @@ export function ActionsCell({ account, atFront }: { account: AccountRecord; atFr
   )
 }
 
-/* ─── ⋯ 菜单 ───────────────────────────────── */
+/* ─── ⋯ ───────────────────────────────── */
 
 /**
- * ⋯ 菜单（原先是「点击才把 div.more-menu 插进 .cell-actions」的命令式实现，还要自己
- * 量几何决定向上还是向下弹）。现在走组件库的 Popover：锚点、翻转、贴边、点外部关闭、
- * Esc、焦点归位都由 Base UI 的 floating-ui 那层负责，滚动时自动跟位。
+ * ⋯ （ is 「 div.more-menu .cell-actions」 ， need 
+ * to up is to down ）。 in Popover：、、、、
+ * Esc、 by Base UI floating-ui that ， when 。
  *
- * 菜单按「对转发的影响面」从大到小排：启用/禁用最重，故在最前；「设为首选」只改队列
- * 顺序（不改启用状态），排在它之后；「并发上限」是账号属性（标签里带当前值）；
- * 「删除账号」同样最重，排在最后并加一条分隔线。首尾两项都标 danger：它们会立刻改变
- * 转发可用性。
- * 「刷新 Token」按 `hasRefreshToken` 决定（桌面端账号的记录里不落 refreshToken，
- * 所以这一项对它不出现 —— 手动刷新走的是「不过期就原样返回」的路径）。
+ * by 「 for 」 from to ：enabled/ use ， in before ；「 as 」
+ * （ not enabled）， in after ；「 and limit」 is （current）；
+ * 「delete」， in after and 1 。 danger： will 
+ * available。
+ * 「 new Token」 by `hasRefreshToken` （ not refreshToken，
+ * this 1 for not —— new is 「 not return」 path）。
  */
 export function MoreMenu({ account, atFront }: { account: AccountRecord; atFront: boolean }) {
   const [open, setOpen] = React.useState(false)
@@ -1788,17 +1788,17 @@ export function MoreMenu({ account, atFront }: { account: AccountRecord; atFront
   )
 }
 
-/* ─── 表头 ──────────────────────────────────── */
+/* ─── ──────────────────────────────────── */
 
 /**
- * 表头行。**字面量 JSX、顺序固定、不随任何状态变化**：列的显隐与顺序由
- * `wbColSettings.syncStaticHead` 就地重排既有元素（隐藏的列是从 DOM 里摘掉而不是
- * display:none），不能按状态重建 —— `<col>` 上带着列宽拖拽的 inline 宽度，`<th>` 里
- * 插着列宽把手，重建会把两者一起丢掉。React 只在「同一位置、同一类型的子节点」上做
- * 属性 diff，这些 th 的 props 与文本逐字不变，重渲染时一次 DOM 写都不会发生。
+ * 。** JSX、、 not **： and by 
+ * `wbColSettings.syncStaticHead` has （ is from DOM not is 
+ * display:none）， not can by —— `<col>` up inline ，`<th>` 
+ * ， will 1 。React in 「 1 、 1 」 up 
+ * diff， this th props and not ， when 1 DOM not will 。
  *
- * 各列的对齐类（ta-*）由 syncStaticHead 统一贴（它按用户配置给），所以这里不写 ——
- * 写了反而会与它的结果打架。数据行相反：完全按 visibleColumns() 逐列渲染。
+ * for （ta-*） by syncStaticHead 1 （ by use config to ）， this not ——
+ * will and 。： by visibleColumns() 。
  */
 export function TableHead({ namesHidden, allPicked, somePicked, disabled, onToggleAll }: {
   namesHidden: boolean
@@ -1812,7 +1812,7 @@ export function TableHead({ namesHidden, allPicked, somePicked, disabled, onTogg
     <TableHeader>
       <TableRow>
         <UiTableHead className='cell-pick' data-col='pick'>
-          {/* 表头这颗「全选」与批量栏那颗是**同一个选择**（表头入口是表格化之后补的） */}
+          {/* this 「」 and that is ** 1 **（ is after ） */}
           <Checkbox id='acct-select-all' checked={allPicked} indeterminate={!allPicked && somePicked}
             disabled={disabled} aria-label={t('全选当前筛选结果')}
             title={t('全选 / 取消全选当前筛选结果（与批量栏同一个选择）')}
@@ -1854,7 +1854,7 @@ export function TableHead({ namesHidden, allPicked, somePicked, disabled, onTogg
         <UiTableHead className='cell-usage' data-col='usage'>
           <span className='th-label'>{t('余额')}</span>{grip}
         </UiTableHead>
-        {/* 最后一列不给把手：它绝对定位在右缘，钉在表格右缘会顶出一条横向滚动条 */}
+        {/* after 1 not to ： for in ， in will 1 to */}
         <UiTableHead className='cell-actions' data-col='actions'><span className='th-label'>{t('操作')}</span></UiTableHead>
       </TableRow>
     </TableHeader>
@@ -1862,9 +1862,9 @@ export function TableHead({ namesHidden, allPicked, somePicked, disabled, onTogg
 }
 
 /**
- * 表头的「隐藏账号名」眼睛（只在账号列出现）：点一下整列名字变星号，
- * 截图 / 演示时不必逐个打码。图标随状态换睁眼 / 闭眼，隐藏生效时常亮主色 ——
- * 「现在处于打码状态」不用悬停就能看出来。
+ * 「」（ in ）： 1 down ，
+ * / when not 。 / ， when ——
+ * 「 in 」 not use can 。
  */
 export function NameEyeButton({ hidden }: { hidden: boolean }) {
   const label = hidden ? t('显示账号名') : t('隐藏账号名（名字显示为星号）')

@@ -1,22 +1,22 @@
 /**
- * Agent2API · 「登录 / 添加账号」弹窗的共享桥（window 读取 / 提交 / 草稿 / 偏好）。
+ * Agent2API · 「 / 」 （window / / / ）。
  *
- * 从 add-account.js + add-provider-forms.js 合并而来的一层：这两份旧脚本都直接
- * 解构 app.js 的顶层全局（$ / toast / esc / refresh）与 window 上的引擎，迁到岛上
- * 之后这些读取集中在这里一处，各表单块只 import 本模块的函数。
+ * from add-account.js + add-provider-forms.js and 1 ： this old 
+ * app.js （$ / toast / esc / refresh） and window up ， to up 
+ * after this in in this 1 ， import 。
  *
- * 为什么不用 declare global 往 Window 上加属性：workbuddyDesktop / wbApp /
- * wbProviders 是多个岛共用的桥，每个岛各 declare 一份会因同名属性类型不一致
- * 报 TS2717（并行迁移必然撞车）。这里只声明本子系统**独占**的那几个接口
- * （见 add-account-modal.tsx 末尾）。
+ * Why not use declare global Window up ：workbuddyDesktop / wbApp /
+ * wbProviders is use ， declare 1 will not 1 
+ * TS2717（ and ）。 this **** that 
+ * （ add-account-modal.tsx ）。
  */
 
 import { isSuspendedProvider } from '../../../ui-shared/provider-availability'
 import { t } from '../i18n'
 
-/* ─── window 上的共享桥（窄类型 + 转型读取）────────────── */
+/* ─── window up （ + ）────────────── */
 
-/** 账号记录里本子系统用到的字段（其余不关心） */
+/** use to （ its not ） */
 export type AccountRecord = {
   id?: string
   name?: string
@@ -25,7 +25,7 @@ export type AccountRecord = {
   provider?: string
 }
 
-/** 只使用当前运行时摘要中的 provider；旧握手元数据若已下发，供 501 兼容路径读取。 */
+/** use current when need in provider； old if already down ， 501 path。 */
 export type RuntimeProviderRecord = {
   id?: string
   label?: string
@@ -39,13 +39,13 @@ export type RuntimeProviderRecord = {
 }
 
 export type LoginOptions = {
-  /** 动态方法索引；缺省 = 旧入口（没有动态方法清单的家，例如内置表单） */
+  /** ； = old （ no has ，e.g.） */
   methodIndex?: number
   inputs?: Record<string, string>
   proxy?: unknown
 }
 
-/** 共享登录桥推送的公开进度；设备授权只展示 userCode，不展示 device_code 或凭证。 */
+/** ； userCode， not device_code or 。 */
 export type LoginProgress = {
   active?: boolean
   provider?: string
@@ -57,7 +57,7 @@ export type LoginProgress = {
   userCode?: string
 }
 
-/** 桌面 ok/payload、网页登录 session 的统一终态；未结束/空响应绝不补成成功。 */
+/** ok/payload、 session 1 ；/emptyresponse not success。 */
 export type LoginResult = {
   ok: boolean
   canceled: boolean
@@ -69,7 +69,7 @@ export type LoginResult = {
   instructions?: string
 }
 
-/** 目录条目：自定义提供商（wbProviders.customList）与预置目录（wbPresetProviders）共用形状 */
+/** directory：（wbProviders.customList） and directory（wbPresetProviders） use */
 export type CustomProviderRecord = {
   id: string
   name?: string
@@ -77,12 +77,12 @@ export type CustomProviderRecord = {
   baseUrl?: string
   presetKey?: string
   accountCount?: number
-  /** 客户端形态伪装（预置卡写入的记录字段）：'opencode' = 按官方 CLI 形状补齐请求 */
+  /** client（ ）：'opencode' = by CLI request */
   clientEmulation?: string
   /**
-   * 余额查询方案（预置卡写入的记录字段，见 `custom_providers::BALANCE_SCHEMES`）：
-   * 有它 = 这一家能查余额，且账号设置里会出现「查询设置」的凭证字段。
-   * **只读**：方案是「这一家是谁」的派生事实，界面上不给用户改。
+   * （ ， `custom_providers::BALANCE_SCHEMES`）：
+   * has = this 1 can ， and set will 「set」 。
+   * ****： is 「 this 1 is 」 ， up not to use 。
    */
   balanceScheme?: string
   quirks?: {
@@ -98,14 +98,14 @@ export type PresetRecord = {
   protocol?: string
   baseUrl?: string
   hint?: string
-  /** Base URL 输入框的占位提示（自建面板没有固定地址时给一句「填你自己的站点」） */
+  /** Base URL （ no has when to 1 「 」） */
   placeholder?: string
   quirks?: CustomProviderRecord['quirks']
-  /** 客户端形态伪装：随创建写进提供商记录（OpenCode Zen 用它过免费档的三道校验） */
+  /** client：create（OpenCode Zen use ） */
   clientEmulation?: string
-  /** 该家账号的默认取值（表单初始勾选态）：noAuth = 预勾「该上游无需鉴权」 */
+  /** this default（）：noAuth = 「 this up none need 」 */
   account?: { noAuth?: boolean }
-  /** 余额查询方案：创建时随记录写入 `balanceScheme`（见 `CustomProviderRecord`） */
+  /** ：create when `balanceScheme`（ `CustomProviderRecord`） */
   balance?: { scheme?: string }
 }
 
@@ -116,7 +116,7 @@ export type WebLoginView = {
   waiting: boolean
 }
 
-/** web-login.js 的控制器（只列本子系统用到的成员） */
+/** web-login.js （ use to ） */
 export type WebLoginController = {
   provider: string
   syncTexts(): void
@@ -126,7 +126,7 @@ export type WebLoginController = {
   dispose(): void
 }
 
-/** autoclaw-oauth.js 的控制器 */
+/** autoclaw-oauth.js */
 export type OauthController = {
   provider: string
   start(vendor: 'zai' | 'google'): void
@@ -136,7 +136,7 @@ export type OauthController = {
 
 export type SharedWindow = {
   workbuddyDesktop?: {
-    /** 壳的编译目标平台（'macos' / 'windows' / 'linux' / 'web'） */
+    /** （'macos' / 'windows' / 'linux' / 'web'） */
     readonly platform?: string
     startLogin(edition: string, mode: string, provider: string, socialRestore?: boolean, options?: LoginOptions): Promise<unknown>
     submitLoginCallback?: (state: string, callbackUrl: string) => Promise<unknown>
@@ -150,10 +150,10 @@ export type SharedWindow = {
     getState?: () => {
       accounts?: { accounts?: AccountRecord[]; providers?: RuntimeProviderRecord[] }
     } | null | undefined
-    /** 切页（app.js 的出口）：空态里「去安装插件包」用它跳到插件页 */
+    /** （app.js ）：empty「」 use to */
     showPage?: (page: string) => void
   }
-  /** 网页登录引擎（web-login.js）：本子系统只调 create / refresh / cancelIfActive */
+  /** （web-login.js）： create / refresh / cancelIfActive */
   wbWebLogin?: {
     create(config: {
       provider: string
@@ -171,11 +171,11 @@ export type SharedWindow = {
     activeProvider?: () => string
     cancelIfActive?: (provider: string) => Promise<boolean>
   }
-  /** 手机验证码引擎（sms-login.js）：只调 create，交互全在引擎里 */
+  /** （sms-login.js）： create， in */
   wbSmsLogin?: {
     create(config: { provider: string; onSuccess: (data?: unknown) => unknown }): unknown
   }
-  /** AutoClaw 国际版 OAuth 引擎（autoclaw-oauth.js）：create / cancel（模块级遍历） */
+  /** AutoClaw OAuth （autoclaw-oauth.js）：create / cancel（） */
   wbAutoclawOauth?: {
     create(config: {
       provider: string
@@ -186,13 +186,13 @@ export type SharedWindow = {
     }): OauthController | null | undefined
     cancel?: () => void
   }
-  /** 自定义提供商的目录操作（custom-provider-ui.js，账号页那一侧的实现） */
+  /** directory（custom-provider-ui.js， that 1 ） */
   wbCustomProvidersUi?: {
     remove?: (providerId: string) => Promise<boolean>
   }
-  /** 本弹窗的命令式外壳（本文件所在子系统提供，跨模块调用走它） */
+  /** （file in ， use ） */
   wbAddAccountModal?: { open?: () => void; close?: () => void }
-  /** 各家表单块的注册表（本子系统提供；account-panel / 模型管理页要调它的两个入口） */
+  /** （；account-panel / need ） */
   wbAccountAddForms?: {
     syncAddProvider?: () => void
     openNewCustomForm?: () => void
@@ -211,7 +211,7 @@ export type SharedWindow = {
     presetOf?: (key: string) => PresetRecord | null
     iconOf?: (key: string) => string
   }
-  /** 壳的原始 IPC：POST /api/accounts 在桥里没有具名方法，只能直连 */
+  /** IPC：POST /api/accounts in no has ， can */
   __TAURI_INTERNALS__?: { invoke?: (cmd: string, args: unknown) => Promise<unknown> }
 }
 
@@ -219,13 +219,13 @@ export function shared(): SharedWindow {
   return window as unknown as SharedWindow
 }
 
-/* ─── 通用小工具 ─────────────────────────────── */
+/* ─── use ─────────────────────────────── */
 
 export function toast(message: string, kind?: 'err' | 'ok' | 'warn'): void {
   shared().wbApp?.toast?.(message, kind)
 }
 
-/** 错误只取文字字段，不序列化整个响应（其中可能带凭证）。 */
+/** error， not response（ its in can can ）。 */
 function errorText(error: unknown, depth = 0): string {
   if (typeof error === 'string') return error.trim()
   if (error instanceof Error) return error.message.trim()
@@ -238,13 +238,13 @@ function errorText(error: unknown, depth = 0): string {
   return ''
 }
 
-/** Tauri rejection 可能是裸字符串；结构化错误只取 message/error 等文字。 */
+/** Tauri rejection can can is ；error message/error etc 。 */
 export function describeError(error: unknown): string {
   const text = errorText(error)
   return text ? t(text) : t('未知错误')
 }
 
-/** 优先读取 HTTP 状态；原生桥仅返回文字时，只认网关明确的能力缺失文案。 */
+/** HTTP ；onlyreturn when ， can 。 */
 export function isMethodsUnavailable(error: unknown, depth = 0): boolean {
   if (error && typeof error === 'object' && depth < 4) {
     const record = error as Record<string, unknown>
@@ -267,15 +267,15 @@ export function runtimeProviderOf(provider: string): RuntimeProviderRecord | und
   return list.find(item => item.id === provider)
 }
 
-/** 该提供商此刻名下的账号数（读主状态的全量列表，不跟筛选走） */
+/** this down （ ， not ） */
 export function accountCountOf(providerId: string): number {
   const accounts = shared().wbApp?.getState?.()?.accounts?.accounts || []
   return accounts.filter(account => (account?.provider || 'workbuddy') === providerId).length
 }
 
-/* ─── 提交与收尾 ─────────────────────────────── */
+/* ─── and ─────────────────────────────── */
 
-/** 统一管理 API 入口，兼容原始 data 与 success/data 信封，不把失败信封当成功。 */
+/** 1 API ， data and success/data ， not failuresuccess。 */
 export async function accountRequest(method: string, path: string, body?: unknown): Promise<unknown> {
   const internals = shared().__TAURI_INTERNALS__
   if (!internals || typeof internals.invoke !== 'function') {
@@ -292,7 +292,7 @@ export async function accountRequest(method: string, path: string, body?: unknow
   return result
 }
 
-/** 统一提交入口：POST /api/accounts，保留各提供商自己的凭证字段。 */
+/** 1 ：POST /api/accounts， 。 */
 export function postAccount(payload: Record<string, unknown>): Promise<unknown> {
   return accountRequest('POST', '/api/accounts', payload)
 }
@@ -302,7 +302,7 @@ function resultRecord(value: unknown): Record<string, unknown> | undefined {
     ? value as Record<string, unknown> : undefined
 }
 
-/** 只抽取公开的账号标识，不把原始凭证响应留在组件状态。 */
+/** ， not response in 。 */
 function publicAccount(value: unknown): AccountRecord | undefined {
   const record = resultRecord(value)
   if (!record) return undefined
@@ -354,23 +354,23 @@ export function normalizeLoginResult(value: unknown): LoginResult {
   return {
     ok: true, canceled: false, account, warning: text('warning'), instructions: text('instructions'),
     ...(typeof proxySaved === 'boolean' ? { proxySaved } : {}),
-    // 会话只保留公开标识字段，不搬整个响应。
+    // will ， not response。
     session: summary ? Object.fromEntries(['accountUid', 'accountId', 'nickname', 'edition', 'provider']
       .filter(key => typeof summary[key] === 'string').map(key => [key, summary[key]])) : undefined,
   }
 }
 
 /**
- * provider-first 的岛内入口；现有 window bridge 保持 edition/mode/provider 的旧顺序。
- * 新 options 只能在第 5 个参数，不能顶掉第 4 个 socialRestore。
- * 动态方法在桌面直接交给 start_login 的 options 参数；等待与回调由现有桥负责。
+ * provider-first ； has window bridge edition/mode/provider old 。
+ * new options can in 5 parameter， not can 4 socialRestore。
+ * in to start_login options parameter； etc and by has 。
  */
 export async function startLogin(
   provider: string, edition = 'cn', mode = 'embedded', socialRestore?: boolean, options?: LoginOptions,
 ): Promise<LoginResult> {
-  // 只有带 methodIndex 的才是动态方法；只带 proxy 的是旧入口加代理
-  // （内置表单的网页登录，见 add-provider-blocks 的 WebLoginSection）。
-  // 两者的收尾判定不同：动态方法必须回来一个账号 id，旧入口照旧不看。
+  // has methodIndex is ； proxy is old 
+  // （ ， add-provider-blocks WebLoginSection）。
+  // not ：must 1 id， old old not 。
   const dynamic = options !== undefined && options.methodIndex !== undefined
   if (isSuspendedProvider(provider) || (dynamic && !runtimeProviderOf(provider))) {
     throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
@@ -400,41 +400,41 @@ export async function startLogin(
   } catch (failure) {
     const record = resultRecord(failure)
     if (record?.canceled === true) return { ok: false, canceled: true, silent: record.silent === true }
-    // web-login.js 按 error.message 展示错误；原始 invoke 的 rejection 可能只是 String。
+    // web-login.js by error.message error； invoke rejection can can is String。
     throw new Error(describeError(failure))
   }
 }
 
-/** 添加成功后展示的账号名：公开形态里 name 一定在，标识字段按各家兜底 */
+/** success after ： name 1 in ， by */
 export function addedLabelOf(account?: AccountRecord | null): string {
   return account?.name || account?.uid || account?.userId || ''
 }
 
 /**
- * 关掉弹窗。真正的关闭动作（含登录等待的取消）归岛的命令式外壳
- * （add-account-modal.tsx 的 closeModal），这里只是把它统一叫出来 ——
- * 脚本 / 模块顺序被改坏时退回直接摘 window 引用。
+ * 。 （ etc ） 
+ * （add-account-modal.tsx closeModal）， this is 1 ——
+ * / when window use 。
  */
 export function closeAddModals(): void {
   shared().wbAddAccountModal?.close?.()
 }
 
-/** 添加成功后统一收尾：关窗、刷新列表、提示 */
+/** success after 1 ：、 new 、 */
 export async function afterAdd(name: string, label: string): Promise<void> {
   closeAddModals()
   await shared().wbApp?.refresh?.()
   toast(t('✅ {label}账号已添加{name}', { label, name: name ? `：${name}` : '' }))
 }
 
-/* ─── 表单草稿（非受控输入的「关掉再打开还在」）──────────────
+/* ─── （ 「 in 」）──────────────
  *
- * 旧实现的表单块在加载期注入 DOM 后就再也不卸载：值由浏览器持有，关掉表单弹窗
- * （甚至关掉整个弹窗）再打开时输入框里还是上次的内容，只有添加成功才清空。
- * 岛的表单块会随弹窗卸载，这份模块级草稿就是那份状态的替身 ——
- * 非受控输入（defaultValue + onChange 回写）在重新挂载时从这里取初值。
+ * old in DOM after not ： by has ，
+ * （ ） when is up ， has successempty。
+ * will ， this is that ——
+ * （defaultValue + onChange ） in new when from this 。
  *
- * 引擎（web-login / sms-login / autoclaw-oauth）按 id 现读 `.value`，
- * 所以控件仍必须是真实的原生 input / textarea，且 id 与旧实现逐字一致。 */
+ * （web-login / sms-login / autoclaw-oauth） by id `.value`，
+ * must is input / textarea， and id and old 1 。 */
 
 const draft = new Map<string, string>()
 
@@ -452,7 +452,7 @@ export function draftProps(id: string): {
   }
 }
 
-/** 手动设值（预置家预填）：草稿与 DOM 一起写，两处不能分叉 */
+/** （）： and DOM 1 ， not can */
 export function setDraftValue(id: string, value: string): void {
   if (value) draft.set(id, value)
   else draft.delete(id)
@@ -460,23 +460,23 @@ export function setDraftValue(id: string, value: string): void {
   if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) node.value = value
 }
 
-/** 读当前值：优先 DOM（用户可能刚改过），取不到退回草稿 */
+/** current： DOM（ use can can ）， not to */
 export function readField(id: string): string {
   const node = document.getElementById(id)
   if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) return node.value.trim()
   return (draft.get(id) ?? '').trim()
 }
 
-/** 清空若干字段（添加成功后调用；失败时保留内容方便改动重试） */
+/** empty if （success after use ；failure when ） */
 export function clearFields(ids: string[]): void {
   for (const id of ids) setDraftValue(id, '')
 }
 
-/* ─── 弹窗里的登录偏好 ─────────────────────────
+/* ─── ─────────────────────────
  *
- * 旧实现里这三处住在静态 DOM 与模块级 segState 上，随页面存活 ——
- * 关掉弹窗再打开仍是上次的选择（resetAddStep 只复位提供商与步骤，不动它们）。
- * 迁到岛上后用这份模块级对象保真：组件以它为初值，改动同时写回。 */
+ * old this in DOM and segState up ， ——
+ * is up （resetAddStep and ， not ）。
+ * to up after use this for ： as ， when 。 */
 
 export type Edition = 'cn' | 'intl'
 export type LoginMode = 'embedded' | 'external'

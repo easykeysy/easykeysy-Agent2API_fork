@@ -1,9 +1,9 @@
 /**
- * 网关 API 的类型与薄封装。
+ * API and 。
  *
- * 只声明**移动端真正读到**的字段（后端还会给更多，这里按 unknown 收）。
- * 字段名一律照后端契约（`record.rs` / `session.rs` / `checkin_center.rs`），
- * 不在前端另起一套命名 —— 改口径要能一眼看出改的是哪一边。
+ * ** to ** （ after will to ， this by unknown ）。
+ * 1 after （`record.rs` / `session.rs` / `checkin_center.rs`），
+ * not in before 1 —— need can 1 is 1 。
  */
 
 import { apiCall } from './client'
@@ -17,7 +17,7 @@ export type { LogEntry, LogPage } from '../../../ui-shared/logs'
 
 export type { CheckinAccount, CheckinCenter, ProviderGroup as CheckinProviderRow } from '../../../ui-shared/checkin'
 
-/* ─── 会话 / 账号 ─────────────────────────────── */
+/* ─── will / ─────────────────────────────── */
 
 export type ProviderSummary = { id?: string; label?: string; count?: number; category?: 'agent' | 'web'; source?: 'builtin' | 'plugin' }
 
@@ -52,9 +52,9 @@ export type Account = {
   refreshTokenExpiresAt?: number | null
   needsRelogin?: boolean
   needsReloginReason?: string
-  /** 智谱清言：这条账号是不是访客（后端只对本家注入；访客没有积分体系，不查余额） */
+  /** ： this is not is （ after for ； no has ， not ） */
   isGuest?: boolean
-  /** 按模型记的限流记录 */
+  /** by */
   rateLimits?: Record<string, RateLimitInfo>
   upstreamCooldownUntil?: number | null
   upstreamBlockedReason?: string
@@ -89,7 +89,7 @@ export function fetchSession(signal?: AbortSignal): Promise<SessionPayload> {
   return apiCall<SessionPayload>('/api/session', { signal })
 }
 
-/** 账号列表（`GET /api/accounts` 返回的就是快照形状） */
+/** （`GET /api/accounts` return is ） */
 export function fetchAccounts(signal?: AbortSignal): Promise<{
   accounts?: Account[]
   providers?: ProviderSummary[]
@@ -117,7 +117,7 @@ export function refreshExpiringAccounts(): Promise<unknown> {
   return apiCall('/api/accounts/refresh-expiring', { method: 'POST' })
 }
 
-/* ─── 报表 ─────────────────────────────────────── */
+/* ─── ─────────────────────────────────────── */
 
 export type StatsOverview = {
   requests?: number
@@ -181,7 +181,7 @@ export function fetchStatsSummary(range: StatsRange, signal?: AbortSignal, optio
   return apiCall<StatsSummary>(`/api/stats/summary?${query}`, { signal })
 }
 
-/* ─── 请求日志 ─────────────────────────────────── */
+/* ─── request ─────────────────────────────────── */
 
 export type AttemptDetail = { provider?: string; status?: number; error?: string }
 
@@ -225,7 +225,7 @@ export function fetchRequests(
   params: {
     offset?: number
     limit?: number
-    /** 后端只认这三个值，其余忽略（见 report::normalize_status_filter） */
+    /** after this ， its ignore（ report::normalize_status_filter） */
     status?: 'ok' | 'error' | 'running'
     model?: string
     provider?: string
@@ -252,19 +252,19 @@ export function fetchRequests(
   return apiCall<RequestPage>(`/api/stats/requests${suffix ? `?${suffix}` : ''}`, { signal })
 }
 
-/* ─── 运行日志 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 export function fetchLogs(params: LogQuery, signal?: AbortSignal): Promise<LogPage> {
   return apiCall<LogPage>(`/api/logs?${logQueryString({ limit: 60, ...params })}`, { signal })
 }
 
-/* ─── 签到中心 ─────────────────────────────────── */
+/* ─── to in ─────────────────────────────────── */
 
 export function fetchCheckinCenter(signal?: AbortSignal): Promise<CheckinCenter> {
   return apiCall<CheckinCenter>('/api/checkin-center', { signal })
 }
 
-/* ─── 模型管理 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 export type ManageModel = {
   id?: string
@@ -295,9 +295,9 @@ export type ManageMapping = {
   enabled?: boolean
   isDefault?: boolean
   /**
-   * 这条映射**挂不到任何模型行**（目标上游不在清单里 = `dangling`，
-   * `carried: false` 时说明该上游已下线 / 改了 ID）。见桌面端
-   * `models-dangling.tsx` 的说明 —— 手机端只在模型页顶部提示 + 清理。
+   * this ** not to **（ up not in = `dangling`，
+   * `carried: false` when this up already down / ID）。
+   * `models-dangling.tsx` —— in + 。
    */
   dangling?: boolean
   carried?: boolean
@@ -317,8 +317,8 @@ export function setModelEnabled(payload: {
 }
 
 /**
- * 删除一条映射（三元组定位）。手机端只用于清理「未挂载映射」——
- * 常规的映射编辑仍在桌面端「模型管理」里做。
+ * delete 1 （）。used for「」——
+ * in 「」。
  */
 export function removeModelMapping(payload: {
   alias: string
@@ -332,7 +332,7 @@ export function refreshModels(): Promise<unknown> {
   return apiCall('/api/models/refresh', { method: 'POST' })
 }
 
-/* ─── 网关 Key ─────────────────────────────────── */
+/* ─── Key ─────────────────────────────────── */
 
 export type GatewayKey = {
   id?: string
@@ -364,7 +364,7 @@ export function deleteKey(id: string): Promise<KeysPayload> {
   return apiCall<KeysPayload>(`/api/keys/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-/* ─── 网络代理 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 export type PoolItem = ProxyUsage & {
   id: string
@@ -433,7 +433,7 @@ export function saveProxySettings(testUrl: string): Promise<ProxySettings> {
   return apiCall('/api/proxies/settings', { method: 'POST', body: { testUrl } })
 }
 
-/* ─── 定时任务 ─────────────────────────────────── */
+/* ─── when ─────────────────────────────────── */
 
 export type ScheduledTask = {
   id?: string
@@ -470,7 +470,7 @@ export function runScheduledTask(id: string): Promise<unknown> {
   return apiCall(`/api/scheduled-tasks/${encodeURIComponent(id)}/run`, { method: 'POST' })
 }
 
-/* ─── Agent 接管 ───────────────────────────────── */
+/* ─── Agent ───────────────────────────────── */
 
 export type AgentClient = {
   resources?: import('../../../ui-shared/agent-resources').ResourceCapabilities
@@ -507,36 +507,36 @@ export function restoreAgentClient(clientId: string, token: string): Promise<unk
   return apiCall('/api/agents/restore', { method: 'POST', body: { clientId, operation: 'restore', token } })
 }
 
-/* ─── 账号余额 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
 export type UsageRow = import('../../../ui-shared/usage-query-state').UsageQueryRow
 
 export type UsageSnapshot = {
   sorting?: AccountSorting
-  /** 全部行里最新的结论时刻 */
+  /** new when */
   at?: number
   results?: UsageRow[]
   skipped?: number
 }
 
-/** 最近一次查询结果的快照（只读记录表，不触发上游查询） */
+/** 1 （， not up ） */
 export function fetchUsageSnapshot(signal?: AbortSignal): Promise<UsageSnapshot> {
   return apiCall<UsageSnapshot>('/api/accounts/usage/snapshot', { signal })
 }
 
-/** 手动查询单个账号余额（会真的打上游，可能慢） */
+/** （ will up ， can can ） */
 export function fetchAccountUsage(id: string): Promise<{ results?: UsageRow[]; skipped?: number }> {
   return apiCall<{ results?: UsageRow[]; skipped?: number }>(
     `/api/accounts/usage?id=${encodeURIComponent(id)}`,
   )
 }
 
-/** 改备注名（后端 PATCH 支持 name 字段，空串会被 400 拒绝） */
+/** （ after PATCH supports name ，empty will 400 ） */
 export function renameAccount(id: string, name: string): Promise<unknown> {
   return apiCall(`/api/accounts/${encodeURIComponent(id)}`, { method: 'PATCH', body: { name } })
 }
 
-/** 不传 model 时清除账号冷却与全部模型限流标记。 */
+/** not model when and 。 */
 export function clearAccountRateLimits(id: string, model?: string): Promise<unknown> {
   return apiCall(`/api/accounts/${encodeURIComponent(id)}/rate-limits/clear`, {
     method: 'POST',
@@ -544,7 +544,7 @@ export function clearAccountRateLimits(id: string, model?: string): Promise<unkn
   })
 }
 
-/** 把账号设为全局队列第一位（设为首选） */
+/** as 1 （ as ） */
 export function promoteAccount(id: string): Promise<unknown> {
   return apiCall('/api/accounts/current', { method: 'POST', body: { id } })
 }

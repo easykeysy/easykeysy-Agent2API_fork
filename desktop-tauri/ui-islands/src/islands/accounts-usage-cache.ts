@@ -27,7 +27,7 @@ function saveUsageRow(row: UsageQueryRow): void {
   } : row.usage ?? undefined)
 }
 
-/** 查询中只改变显示状态，上次成功的余额和时间仍保存在查询记录中。 */
+/** in ， up success and when in in 。 */
 export function putUsage(id: string, entry: UsageEntry, at: number): void {
   if (entry === null || entry === undefined) {
     usageMap.set(id, entry)
@@ -58,7 +58,7 @@ export function putUsageRow(value: Record<string, unknown>, at: number): boolean
   return true
 }
 
-/** 凭证或账号资料变化后，旧失败不再成立；历史读数不随之作废。 */
+/** or after ， old failure not ； not 。 */
 export function usageEntryOf(account: AccountRecord): UsageEntry {
   if (account.isGuest === true) return undefined
   const entry = usageMap.get(account.id)

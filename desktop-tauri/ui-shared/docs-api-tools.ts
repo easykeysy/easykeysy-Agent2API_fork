@@ -3,11 +3,11 @@ import { buildWebSearchApiDoc } from './tools-api-doc'
 import type { ApiSection } from './docs-api-content'
 
 /**
- * 工具服务的 REST 接口文档。
+ * REST 。
  *
- * 「工具服务」页只保留 Skill / MCP 两种可管理协议；网络搜索的 REST API 是固定
- * 接口，不参与服务开关，文档放在这里。正文沿用 `tools-api-doc` 的中英两套
- * （其它语言回落英文）：接口文档长、随上游演进，不适合塞进五语词典。
+ * 「」 Skill / MCP can ； REST API is 
+ * ， not and ， in this 。 use `tools-api-doc` in 
+ * （ its ）：、 up ， not 。
  */
 export function toolApiSections(origin: string): ApiSection[] {
   const locale = (window as unknown as { wbI18n?: { locale(): string } }).wbI18n?.locale() || 'zh-Hans'

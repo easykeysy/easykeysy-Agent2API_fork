@@ -1,4 +1,4 @@
-//! 客户端用户级提示词、Skill 与 MCP：路径在服务端确定，写入必须匹配读到的文件版本。
+//! client use 、Skill and MCP：path in server，must to file。
 
 mod mcp;
 mod paths;
@@ -24,15 +24,15 @@ pub fn capabilities(def: &ClientDef) -> Value {
     json!({ "prompt": paths.prompt.is_some(), "skills": !paths.skills.is_empty(), "mcp": paths.mcp.is_some(), "note": paths.note })
 }
 
-/// 该客户端可安装 Skill 的根目录（按配置文件里的优先级排列）。
+/// this client can Skill directory（ by configfile ）。
 ///
-/// 工具服务的「本机接入」要用它把 Skill 包写进客户端；与「Agent 配置」页的
-/// Skill 资源面板同一份事实（都来自 `paths::for_client`），不另抄一份。
+/// 「」 need use Skill client； and 「Agent config」 
+/// Skill 1 （ `paths::for_client`）， not 1 。
 pub fn skill_roots(def: &ClientDef) -> Vec<std::path::PathBuf> {
     paths::for_client(def).skills
 }
 
-/// 该客户端 MCP 配置文件的路径（不支持 MCP 的客户端返回 None）。
+/// this client MCP configfile path（unsupported MCP clientreturn None）。
 pub fn mcp_config_path(def: &ClientDef) -> Option<std::path::PathBuf> {
     paths::for_client(def).mcp.as_ref().map(|(path, _, _)| path.clone())
 }

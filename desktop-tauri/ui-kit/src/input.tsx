@@ -3,17 +3,17 @@ import { Input as InputPrimitive } from '@base-ui/react/input'
 import { cn } from './lib/cn'
 
 /**
- * 输入框（标准形态，与 shadcn/ui 的 Input 一致）。
+ * （， and shadcn/ui Input 1 ）。
  *
- * 就是原生 `<input>` 的样式化封装：`data-slot="input"`、props 全透传，
- * 不额外发明 prop。要带图标 / 文字 / 按钮的前后缀，用 InputGroup —— 那是 shadcn
- * 给这类需求准备的标准组件（本组件此前有过一个自造的 `icon` prop，已移除）。
+ * is `<input>` ：`data-slot="input"`、props ，
+ * not prop。 need / / by before after ， use InputGroup —— that is shadcn
+ * to this need （ before has 1 `icon` prop， already ）。
  *
- * 样式值取项目令牌：30px 高、控件底、1px 控件描边、12.5px 字号，hover 加深描边、
- * focus 换主色描边并压焦点环 —— 对齐 ui/css/components.css 的 `input[type=…]` 一族。
+ * ：30px 、、1px 、12.5px ，hover 、
+ * focus and —— for ui/css/components.css `input[type=…]` 1 。
  *
- * 用 Base UI 的 Input 而不是裸 `<input>`：它带 data-disabled / data-valid 等
- * 状态属性，将来接 Field 做校验时不用换组件。
+ * use Base UI Input not is `<input>`： data-disabled / data-valid etc 
+ * ， will Field when not use 。
  */
 
 function Input({ className, type, ref, ...props }: React.ComponentProps<'input'>) {

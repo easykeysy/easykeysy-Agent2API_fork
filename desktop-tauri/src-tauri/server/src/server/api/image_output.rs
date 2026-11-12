@@ -1,4 +1,4 @@
-//! 生图响应格式归一；链接下载不带提供商凭证，编码使用有界解码器。
+//! response 1 ； down not ， use has 。
 
 use std::io::Cursor;
 use std::net::{IpAddr, SocketAddr};

@@ -27,28 +27,28 @@ import {
 } from './settings-cloud-sync-model'
 
 /**
- * 设置 → 数据 → 云同步（对标 cc-switch 的 WebDAV / S3 同步区块）。
+ * set → → （ for cc-switch WebDAV / S3 ）。
  *
- * ── 为什么独立成文件、自带数据流 ────────────────────────────
- * settings-page.tsx 已经 2300 多行，而这一块与设置页的其它面板**没有状态交集**
- * （它自己读写 `/api/cloud-sync`）。与 `settings-prompt-editor.tsx` 同一先例：
- * 面板独立成文件、自己在挂载时取数，宿主只负责放一个 `<CloudSyncPanel />`。
+ * ── Whyfile、 ────────────────────────────
+ * settings-page.tsx already 2300 ， this 1 and set its ** no has **
+ * （ `/api/cloud-sync`）。 and `settings-prompt-editor.tsx` 1 ：
+ * file、 in when ， 1 `<CloudSyncPanel />`。
  *
- * ── 表单为什么不复用 settings-state 的快照 ──────────────────
- * 那一层服务的是「读一次、整页共享」的设置项；本面板是**一份可编辑表单**
- * （用户改一半切走再回来、保存前不能丢），用局部 state 更直接。密码类字段
- * 按「留空 = 沿用」的语义处理 —— 这条判断在**后端**做（空串即沿用库里那份），
- * 前端不需要另存「是否触碰过」，少一个会与后端不一致的状态。
+ * ── Why not use settings-state ──────────────────
+ * that 1 is 「 1 、」 set； is ** 1 can **
+ * （ use 1 、 before not can ）， use state 。
+ * by 「empty = use 」 —— this in ** after **（empty use that ），
+ * before not need need 「 is 」， 1 will and after not 1 。
  *
- * ── 两种服务商共用一套流程 ──────────────────────────────────
- * 后端把两套配置都存在同一个 `cloudSync` 键里（切换不丢已填内容），所以这里
- * 只切表单的 `provider`，不隐藏 / 不互斥。测试、保存、上传、下载都只作用于
- * 当前选中的那一家。
+ * ── use 1 ──────────────────────────────────
+ * after config in 1 `cloudSync` （ not already ）， this 
+ * `provider`， not / not 。、、 up 、 down used for
+ * current in that 1 。
  *
- * ── 下载是「替换」语义 ──────────────────────────────────────
- * 与整库恢复一致：本机业务数据会被远端快照整体替换（日志、请求记录、面板
- * 登录态不在同步范围，保持原样）。所以下载前必须有二次确认，并把「会先自动
- * 备份」写清楚。
+ * ── down is 「」 ──────────────────────────────────────
+ * and 1 ： will （、request、
+ * not in ，）。 down before must has ， and 「 will 
+ * 」。
  */
 
 type Busy = 'load' | 'test' | 'save' | 'upload' | 'download' | 'remote' | 'key' | null
@@ -74,7 +74,7 @@ export function CloudSyncPanel() {
   const webdavPreset = WEBDAV_PRESETS.find(item => item.baseUrl && form.webdavBaseUrl.includes(new URL(item.baseUrl).host))
   const s3Preset = S3_PRESETS.find(item => item.id !== 'custom' && item.label === 'Cloudflare R2' && form.s3Region === 'auto') ?? S3_PRESETS[0]
 
-  /** 取一次设置并铺进表单（保留用户正在编辑的密码输入） */
+  /** 1 set and （ use in ） */
   const load = React.useCallback((keepPassword = false, silent = false): Promise<void> => {
     if (loadingRef.current) return loadingRef.current
     const reading = (async () => {
@@ -132,7 +132,7 @@ export function CloudSyncPanel() {
 
   const disabled = busy !== null
 
-  /* ─── 动作 ─────────────────────────────────────────────── */
+  /* ─── ─────────────────────────────────────────────── */
 
   const test = async () => {
     if (!bridge?.testCloudSync) return
@@ -164,7 +164,7 @@ export function CloudSyncPanel() {
     } finally {
       setBusy(null)
     }
-    // 保存后自动测一次连接（与 cc-switch 同款：保存成功 ≠ 凭据可用）
+    // after 1 （ and cc-switch ：success ≠ available）
     await test()
   }
 
@@ -224,8 +224,8 @@ export function CloudSyncPanel() {
     }
     setRemote(info)
     if (info.keyRequired) {
-      // 远端说用了另一把密钥，但文件却没传上来（旧版本上传 / 手删了文件）：
-      // 这时输入密码也解不出来，直接说清楚，别让用户白输一次
+      // use 1 ，file no up （ old up / file）：
+      // this when not ，， use 1 
       if (info.hasKeyArtifact === false) {
         toast(
           t('远端快照使用了另一把账号密钥，但没有携带密钥文件，无法在本机解密。请在原来那台机器上重新上传一次。'),
@@ -251,7 +251,7 @@ export function CloudSyncPanel() {
         : ''
       toast(t('✅ 已从云端恢复{note}', { note }))
       await load()
-      // 账号、配置、签到 / 余额记录都换了 —— 主界面（账号列表、导航计数）要重绘
+      // 、config、 to / —— （、） need 
       await shared().wbApp?.refresh?.()
     } catch (error) {
       toast(t('下载失败：{message}', { message: errorMessage(error) }), 'err')
@@ -284,7 +284,7 @@ export function CloudSyncPanel() {
     }
   }
 
-  /* ─── 渲染 ─────────────────────────────────────────────── */
+  /* ─── ─────────────────────────────────────────────── */
 
   const status = view?.status || {}
   const showAutoError = Boolean(status.lastError) && status.lastErrorSource === 'auto'
@@ -627,7 +627,7 @@ export function CloudSyncPanel() {
         </CardContent>
       </Card>
 
-      {/* ─── 上传确认 ─── */}
+      {/* ─── up ─── */}
       <Dialog open={dialog === 'upload'} onOpenChange={next => { if (!next) setDialog(null) }}>
         <DialogContent className='w-[min(460px,calc(100vw-48px))]'>
           <DialogHeader>
@@ -664,7 +664,7 @@ export function CloudSyncPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── 下载确认 ─── */}
+      {/* ─── down ─── */}
       <Dialog open={dialog === 'download'} onOpenChange={next => { if (!next) setDialog(null) }}>
         <DialogContent className='w-[min(480px,calc(100vw-48px))]'>
           <DialogHeader>
@@ -694,7 +694,7 @@ export function CloudSyncPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── 同步密码（远端密钥与本机不一致时） ─── */}
+      {/* ─── （ and not 1 when ） ─── */}
       <Dialog open={dialog === 'key'} onOpenChange={next => { if (!next) setDialog(null) }}>
         <DialogContent className='w-[min(440px,calc(100vw-48px))]'>
           <DialogHeader>

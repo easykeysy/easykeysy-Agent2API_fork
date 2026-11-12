@@ -5,28 +5,28 @@ import { Button } from './button'
 import { t } from './i18n'
 
 /**
- * 底部抽屉（Sheet）—— 与 shadcn/ui 的 Sheet 同形，但**贴底展开**而不是侧滑。
+ * （Sheet）—— and shadcn/ui Sheet ，**** not is 。
  *
- * 部件划分照 shadcn 标准：Sheet / SheetTrigger / SheetClose / SheetPortal /
+ * shadcn ：Sheet / SheetTrigger / SheetClose / SheetPortal /
  * SheetOverlay / SheetContent / SheetHeader / SheetTitle / SheetDescription /
- * SheetBody / SheetFooter。SheetContent 默认自带遮罩与右上角关闭按钮。
+ * SheetBody / SheetFooter。SheetContent default and up by 。
  *
- * ── 为什么要它 ────────────────────────────────────────────────
- * 桌面端的 Dialog 是居中弹窗，在手机上够不到上半屏、还会把上下文整个遮掉。
- * 移动端二级动作（账号详情、请求详情、模型设置）一律走这条从底部升起的抽屉：
- * 拇指可及、上下文保留、拖拽手柄明确表达「可以关掉」。
+ * ── Why need ────────────────────────────────────────────────
+ * Dialog is in ， in up not to up 、 will up down 。
+ * （、request、set） 1 this from ：
+ * can and 、 up down 、「 can 」。
  *
- * ── 与 Dialog 的三处差异 ──────────────────────────────────────
- *   · 位置：`inset-x-0 bottom-0`，圆角只留上两角（`rounded-t-xl`）；
- *   · 高度：`max-h-[85svh]`，正文区自己滚（SheetBody），头尾常驻；
- *   · 手柄：顶部一条 38×4 的把手，是「抽屉」而非「弹窗」的唯一视觉线索。
- *     `showHandle={false}` 可关掉（嵌套在另一抽屉里时用）。
+ * ── and Dialog ──────────────────────────────────────
+ * · ：`inset-x-0 bottom-0`， up （`rounded-t-xl`）；
+ * · ：`max-h-[85svh]`，（SheetBody），；
+ * · ： 1 38×4 ， is 「」「」 1 。
+ * `showHandle={false}` can （ in 1 when use ）。
  *
- * 交互仍交给 Base UI 的 Dialog：焦点陷阱、Esc、滚动锁定、关闭后焦点归位全部内建。
- * 入场/出场动画挂 `fill-mode-forwards` —— 理由与 DialogContent 相同（见那边注释）。
+ * to Base UI Dialog：、Esc、、 after 。
+ * / `fill-mode-forwards` —— by and DialogContent （ that ）。
  *
- * `side` 只在桌面端宽屏有意义：`side='center'` 时按普通弹窗居中显示，
- * 用于同一份代码在桌面浏览器里打开时的观感（移动端不传即可）。
+ * `side` in has ：`side='center'` when by in ，
+ * used for 1 in when （ not can ）。
  */
 
 function Sheet(props: DialogPrimitive.Root.Props) {
@@ -70,21 +70,21 @@ function SheetOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {
 }
 
 type SheetContentProps = DialogPrimitive.Popup.Props & {
-  /** 是否自带右上角关闭按钮，默认 true */
+  /** is up by ，default true */
   showCloseButton?: boolean
-  /** 顶部拖拽手柄，默认 true。嵌套抽屉里关掉，避免两层手柄叠在一起 */
+  /** ，default true。， in 1 */
   showHandle?: boolean
   /**
-   * 形态：`bottom` 贴底（手机默认）；`center` 居中（桌面浏览器打开时用）；
-   * `right` 贴右侧（筛选面板这类「列一组条件」的抽屉）。
+   * ：`bottom` （default）；`center` in （ when use ）；
+   * `right` （ this 「 1 」 ）。
    *
-   * 默认 `bottom` —— 这份组件的存在理由就是移动端。
+   * default `bottom` —— this in by is 。
    */
   side?: 'bottom' | 'center' | 'right' | 'left'
   /**
-   * 关闭后是否把 Portal 留在 DOM 里（内容保留、只是隐藏），默认 false。
-   * 语义与 DialogContent 的 keepMounted 相同：内容里挂着有状态的第三方 DOM
-   * （登录引擎的容器、发码冷却）时需要它。
+   * after is Portal in DOM （、 is ），default false。
+   * and DialogContent keepMounted ： has DOM
+   * （ 、） when need need 。
    */
   keepMounted?: boolean
 }
@@ -118,7 +118,7 @@ function SheetContent({
               ]
             : right
               ? [
-                  // 侧边抽屉最多占 86vw，保留关闭与上下文区域。
+                  // 86vw， and up down 。
                   'top-0 right-0 bottom-0 h-full w-[min(340px,86vw)] rounded-l-xl',
                   'data-open:animate-in data-open:slide-in-from-right data-open:fade-in-0',
                   'data-closed:animate-out data-closed:slide-out-to-right data-closed:fade-out-0 data-closed:fill-mode-forwards',
@@ -167,7 +167,7 @@ function SheetContent({
   )
 }
 
-/** 抽屉标题栏：标题左、操作右，底部一条 hairline。右侧留 40px 给自带关闭按钮 */
+/** ：、， 1 hairline。 40px to by */
 function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -182,7 +182,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-/** 抽屉正文：唯一可滚动的区域，超高时自己滚、头尾常驻 */
+/** ： 1 can ， when 、 */
 function SheetBody({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -193,7 +193,7 @@ function SheetBody({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-/** 抽屉底栏：按钮靠右；手机端常用「整行大按钮」，调用方传 flex-col 覆盖 */
+/** ： by ； use 「 by 」， use flex-col */
 function SheetFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div

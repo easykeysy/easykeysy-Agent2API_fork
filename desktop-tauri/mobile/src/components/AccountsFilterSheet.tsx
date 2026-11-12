@@ -6,21 +6,21 @@ import { t } from '../i18n'
 import { Toggle as UiToggle } from '@ui'
 
 /**
- * 账号筛选面板（账号页右上角那颗「筛选」按钮打开）。
+ * （ up that 「」 by ）。
  *
- * ── 为什么从横排 chip 换成侧边面板 ────────────────────────────
- * 原来只有「全部 / 启用 / 限流 / 禁用」四颗横排 chip。四颗还放得下，但账号
- * 页真正要筛的维度不止这一个：提供商、有效期、余额状态各自都是一组。全都
- * 横排会变成一条要左右滑动的长条 —— 手机上滑条本身比内容还难操作，而且
- * 用户看不出「现在到底筛了什么」。
+ * ── Why from chip ────────────────────────────
+ * has 「 / enabled / / use 」 chip。 down ，
+ * need not this 1 ：、valid、 is 1 。
+ * will 1 need —— up ， and 
+ * use not 「 in to 」。
  *
- * 面板里每个维度占一行、各自单选（提供商多选），底部常驻「重置」与「完成」。
- * 条件**即时生效**：关掉面板就能看到结果，不需要先点应用再看 —— 手机上多
- * 一步确认只会让人怀疑自己点没点对。
+ * 1 、（），「」 and 「」。
+ * ** when **： can to ， not need need use —— up 
+ * 1 will no for 。
  *
- * ── 为什么是右侧而不是底部 ────────────────────────────────────
- * 底部抽屉会盖住列表的下半部分，而筛选恰恰是「边看结果边调条件」的动作。
- * 右侧抽屉只占 340px（窄屏 86vw），左边还能看到列表在变。
+ * ── Why is not is ────────────────────────────────────
+ * will down ， is 「」 。
+ * 340px（ 86vw）， can to in 。
  */
 
 export type StatusFilter = 'all' | 'enabled' | 'disabled' | 'limited' | 'relogin' | 'expired'
@@ -29,7 +29,7 @@ export type UsageFilter = 'all' | 'has' | 'unqueried' | 'failed'
 
 export type AccountFilters = {
   status: StatusFilter
-  /** 选中的提供商 id；空数组 = 不限制 */
+  /** in id；empty = unlimited */
   providers: string[]
   expiry: ExpiryFilter
   usage: UsageFilter
@@ -42,7 +42,7 @@ export const DEFAULT_FILTERS: AccountFilters = {
   usage: 'all',
 }
 
-/** 生效中的筛选维度个数（按钮上的角标；提供商按一个维度算） */
+/** in （ by up ； by 1 ） */
 export function activeFilterCount(filters: AccountFilters): number {
   let count = 0
   if (filters.status !== 'all') count++
@@ -64,9 +64,9 @@ export function AccountsFilterSheet({
   onClose: () => void
   filters: AccountFilters
   onChange: (next: AccountFilters) => void
-  /** 当前账号里出现过的提供商（id + 展示名） */
+  /** current （id + ） */
   providers: Array<{ id: string; label: string }>
-  /** 各状态的账号数，显示在选项右侧 */
+  /** ， in */
   counts: {
     status: Record<StatusFilter, number>
     expiry: Record<ExpiryFilter, number>

@@ -1,19 +1,19 @@
-//! `request_daily` 表（按天聚合）的**行级 SQL** —— 从 `sql.rs` 拆出的一支。
+//! `request_daily` （ by ） ** SQL** —— from `sql.rs` 1 。
 //!
-//! ── 为什么独立成文件 ────────────────────────────────────────
-//! `sql.rs` 同时装明细（`requests`）与聚合（`request_daily`）两张表的语句，
-//! 「进行中行」与「原始正文」两轮改造后行数越过 800。聚合那一支天然自洽：
-//! 一套列顺序常量、一对编解码、一组读-改-写语句，与明细侧唯一的耦合是
-//! 「都在 `Db` 那把锁里跑」。拆开后 `sql.rs` 专注明细，本文件专注聚合 ——
-//! 「聚合行的每个字段只由 `fold_into_daily` 累加而来」这条不变式的语句侧
-//! 全部落点就在这一个文件（可见性同为 `pub(super)`，调用方与拆分前相同）。
+//! ── Whyfile ────────────────────────────────────────
+//! `sql.rs` when （`requests`） and （`request_daily`） ，
+//! 「 in 」 and 「」 after 800。 that 1 ：
+//! 1 、 1 for 、 1 --， and 1 is 
+//! 「 in `Db` that 」。 after `sql.rs` ，file ——
+//! 「 by `fold_into_daily` 」 this not 
+//! in this 1 file（ can as `pub(super)`， use and before ）。
 //!
-//! ── 三个 JSON 列为什么整体读写 ──────────────────────────────
-//! `model_tokens` / `provider_stats` / `account_stats` 是 JSON 数组文本，
-//! 累计必须**先读出整行、在 Rust 里累加、再整行写回**（见 `sql.rs` 模块头的
-//! 「聚合行的读-改-写」）：总量列与三个维度列是同一批字段，增量 UPDATE 只
-//! 推进总量会让「各维之和 = 当天总量」变成两处维护。一天只有一行、数组通常
-//! 几十条，一个事务里读-改-写的代价可以接受。
+//! ── JSON Why ──────────────────────────────
+//! `model_tokens` / `provider_stats` / `account_stats` is JSON ，
+//! must**、 in Rust 、**（ `sql.rs` module header 
+//! 「 --」）：total and is 1 ， UPDATE 
+//! total will 「 and = total」。 1 has 1 、
+//! ， 1 -- can 。
 
 use std::collections::BTreeMap;
 
@@ -22,28 +22,28 @@ use rusqlite::{params, Connection};
 use super::record::{AccountAccum, DailyEntry, ModelAccum, ProviderAccum};
 use super::source::{ApiKeyAccum, ClientAccum};
 
-/// `request_daily` 的列顺序（所有 SELECT 都按这个顺序取，`decode_daily`
-/// 依赖它；不写 `SELECT *` 的理由同 `sql::REQUEST_COLUMNS`）
+/// `request_daily` （all SELECT by this ，`decode_daily`
+/// ； not `SELECT *` by `sql::REQUEST_COLUMNS`）
 const DAILY_COLUMNS: &str = "date, requests, successful, tokens, cache_hit_tokens, \
      cache_input_tokens, model_tokens, provider_stats, account_stats, client_stats, api_key_stats, \
      source_stats_version";
 
-/// JSON 数组列 → `Vec<T>`。解析失败或内容不是数组时退化成空表。
+/// JSON → `Vec<T>`。failure or not is when empty。
 ///
-/// 与旧实现读文件时的取向一致（坏行跳过、坏字段回落）：这三个列是**整体读写**
-/// 的补充维度，一个坏值不该让整天的报表读不出来 —— 退化成空表只是那一维少一段，
-/// 而总量列还在。
+/// and old file when to 1 （、）： this is ****
+/// ， 1 not this not —— empty is that 1 1 ，
+/// total in 。
 fn decode_accum<T: serde::de::DeserializeOwned>(text: &str) -> Vec<T> {
     serde_json::from_str(text).unwrap_or_default()
 }
 
-/// JSON 数组列 ← `Vec<T>`。序列化失败给 `'[]'`（与 DDL 的默认值同一形态，
-/// 于是「这一列没有数据」在库里只有一种表示）。
+/// JSON ← `Vec<T>`。failure to `'[]'`（ and DDL default 1 ，
+/// is 「 this 1 no has 」 in has 1 ）。
 fn encode_accum<T: serde::Serialize>(items: &[T]) -> String {
     serde_json::to_string(items).unwrap_or_else(|_| "[]".to_string())
 }
 
-/// 行 → `DailyEntry`
+/// → `DailyEntry`
 fn decode_daily(row: &rusqlite::Row<'_>) -> rusqlite::Result<DailyEntry> {
     let model_tokens: String = row.get(6)?;
     let provider_stats: String = row.get(7)?;
@@ -64,10 +64,10 @@ fn decode_daily(row: &rusqlite::Row<'_>) -> rusqlite::Result<DailyEntry> {
     })
 }
 
-/// 全部聚合行 → `BTreeMap`（报表的纯函数要的就是这个形状）。
+/// → `BTreeMap`（ need is this ）。
 ///
-/// 「聚合寿命独立于明细」这条契约在这里成立：报表的区间统计只读这张表，
-/// 明细被手动清理之后历史曲线不会出现空洞。
+/// 「」 this in this ： statistics this ，
+/// after not will empty。
 pub(super) fn select_daily_map(conn: &Connection) -> rusqlite::Result<BTreeMap<String, DailyEntry>> {
     let sql = format!("SELECT {DAILY_COLUMNS} FROM request_daily ORDER BY date ASC");
     let mut stmt = conn.prepare(&sql)?;
@@ -80,7 +80,7 @@ pub(super) fn select_daily_map(conn: &Connection) -> rusqlite::Result<BTreeMap<S
     Ok(out)
 }
 
-/// 取某一天的聚合行（`record` 的读-改-写的「读」）
+/// 1 （`record` -- 「」）
 pub(super) fn select_daily_row(
     conn: &Connection,
     date: &str,
@@ -94,11 +94,11 @@ pub(super) fn select_daily_row(
     }
 }
 
-/// 整行写入（存在即覆盖）。
+/// （ in ）。
 ///
-/// `date` 是主键，所以「同一天重复记账」天然是覆盖而不是插入两行 ——
-/// 这正是选它当主键的理由（见 `schema.rs`）。三个 JSON 列由
-/// [`encode_accum`] 编码，总量列直接取 `DailyEntry` 的字段值。
+/// `date` is ，「 1 」 is not is ——
+/// this is by （ `schema.rs`）。 JSON by 
+/// [`encode_accum`] ，total `DailyEntry` 。
 pub(super) fn upsert_daily(conn: &Connection, day: &DailyEntry) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO request_daily (date, requests, successful, tokens, cache_hit_tokens, \
@@ -130,24 +130,24 @@ pub(super) fn upsert_daily(conn: &Connection, day: &DailyEntry) -> rusqlite::Res
     Ok(())
 }
 
-/// 删掉某一天的聚合行（重算后发现那天一条明细都不剩）
+/// 1 （ after that 1 not ）
 pub(super) fn delete_daily(conn: &Connection, date: &str) -> rusqlite::Result<usize> {
     conn.execute("DELETE FROM request_daily WHERE date = ?1", params![date])
 }
 
-/// 删掉 `date < cutoff_key` 的聚合行（时间维度保留；定长日期串字典序即时间序）。
-/// 保留期裁剪用：`record` 每次记账与 `prune` 都走它（边界由调用方算好传入）。
+/// `date < cutoff_key` （ when ； when ）。
+/// use ：`record` and `prune` （ by use ）。
 pub(super) fn delete_daily_before(conn: &Connection, cutoff_key: &str) -> rusqlite::Result<usize> {
     conn.execute("DELETE FROM request_daily WHERE date < ?1", params![cutoff_key])
 }
 
-/// 聚合行数（存储概况的 `dailyDays` 读数）
+/// （ `dailyDays` ）
 pub(super) fn count_daily(conn: &Connection) -> rusqlite::Result<usize> {
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM request_daily", [], |row| row.get(0))?;
     Ok(count.max(0) as usize)
 }
 
-/// 清空全部聚合行（`clear()` 用）
+/// empty（`clear()` use ）
 pub(super) fn delete_all_daily(conn: &Connection) -> rusqlite::Result<usize> {
     conn.execute("DELETE FROM request_daily", [])
 }

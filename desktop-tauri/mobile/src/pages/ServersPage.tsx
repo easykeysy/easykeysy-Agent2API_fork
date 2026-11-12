@@ -9,20 +9,20 @@ import { Button, Card, Label, Input } from '@ui'
 import { Badge } from '@ui'
 
 /**
- * 服务器配置（仅 APK）。
+ * config（only APK）。
  *
- * ── 为什么单独一屏而不是塞进设置页 ────────────────────────────
- * 首次启动时还没有任何服务器，所有页面都拿不到数据 —— 这时设置页本身也
- * 是空的。所以它必须是**前置**的一屏：没配置就进不去主界面。
+ * ── Why 1 not is set ────────────────────────────
+ * when no has ，all not to —— this when set
+ * is empty 。must is ** before ** 1 ： no config not 。
  *
- * ── 为什么先探活再保存 ────────────────────────────────────────
- * 地址填错（少写端口、多写 `/m`、网关没开局域网访问）是最高频的失败。
- * 保存前打一次 `/health`，把「连不上」当场说清楚，比存进去之后每个页面
- * 各报一次错要好得多。探活成功顺带显示网关版本，用户能确认连的是对的那台。
+ * ── Why ────────────────────────────────────────
+ * （、 `/m`、 no ） is failure。
+ * before 1 `/health`， 「 not up 」， after 
+ * 1 need 。success， use can is for that 。
  */
 export function ServersPage() {
   const { servers, server, stack } = useStore()
-  /** 压栈进来（登录层的「换一台服务器」）而不是首次启动时的整屏 */
+  /** （ 「 1 」） not is when */
   const stacked = stack.length > 0
   const [editing, setEditing] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -78,17 +78,17 @@ export function ServersPage() {
     setEditing(null)
     setProbed(null)
     store.toast(t('已保存'))
-    // 换到新服务器后立刻拉一次会话；没登录会弹登录层
+    // to new after 1 will ； no will 
     void store.refresh(true).then(() => {
-      // 这一屏是从登录层的「换一台服务器」压进来的：保存完退回原页，
-      // 登录层（需要的话）会重新盖上来，用户不会卡在服务器列表里
+      // this 1 is from 「 1 」 ：，
+      // （ need need ） will new up ， use not will in 
       if (store.get().stack.length > 0) store.back()
     })
   }
 
   return (
     <div className='m-page'>
-      {/* 作为二级页压栈进来时顶部已有返回栏，标题不再重复一遍 */}
+      {/* as when already has return， not 1 */}
       {stacked ? (
         <PageIntro
           subtitle={servers.length ? t('已添加 {n} 台', { n: servers.length }) : t('先添加一台网关')}
@@ -114,7 +114,7 @@ export function ServersPage() {
 
       {error ? <ErrorNote text={error} /> : null}
 
-      {/* 编辑表单：新增与修改共用 */}
+      {/* ：add and use */}
       {editing ? (
         <div className='m-section' style={{ marginTop: 0 }}>
           <Card className='m-card m-card-pad'>
@@ -209,7 +209,7 @@ export function ServersPage() {
                     onClick={() => {
                       store.switchServer(entry.id)
                       void store.refresh(true).then(() => {
-                        // 从登录层压进来的：选完这台就退回原页，登录层按新服务器重新弹
+                        // from ： this ， by new new 
                         if (store.get().stack.length > 0) store.back()
                       })
                     }}

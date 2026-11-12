@@ -58,7 +58,7 @@ export type FlowDetails = {
   unknownRequests?: number
   now: number
 }
-/** `detail=models`：当前时间窗内真的发过请求的模型（筛选下拉用）。 */
+/** `detail=models`：current when request （ down use ）。 */
 export type FlowModels = { available: boolean; models: string[]; now: number }
 export type FlowSelection =
   | { kind: 'client' | 'model' | 'provider' | 'account'; id: string }

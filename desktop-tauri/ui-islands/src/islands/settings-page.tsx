@@ -135,8 +135,8 @@ import {
   type SettingsSnapshot,
   type StorageState,
 } from './settings-state'
-// 账号列表的两项偏好与账号页共用同一份 store：设置页写、账号页订阅，
-// 因此两边读写必须走同一组函数（别在这里自己 localStorage.setItem 一份字面量）
+// and use 1 store：set、，
+// must 1 （ in this localStorage.setItem 1 ）
 import {
   readGroupTotalFiltered, readNamesHidden, setGroupTotalFiltered, setNamesHidden, subscribe,
 } from './accounts-store'
@@ -146,73 +146,73 @@ import {
   PromptTextButton,
   gatewayEditedText,
 } from './settings-prompt-editor'
-// 云同步面板（设置 → 数据）：独立成文件、自带一份数据流（/api/cloud-sync），
-// 与设置页的快照 store 没有交集，见该文件的模块头
+// （set → ）：file、 1 （/api/cloud-sync），
+// and set store no has ， this file module header
 import { CloudSyncPanel } from './settings-cloud-sync'
 import { DbRestoreDialog } from './settings-db-restore'
 import { DatabaseBackupDialogs, DatabaseBackupPanel } from './settings-database-backup'
 import { SanitizePanel } from './settings-sanitize'
 import { ClientIdentificationPanel } from '../../../ui-shared/client-identification-panel'
 import { clientIdentificationApi } from './settings-client-identification'
-// 侧边栏菜单面板（设置 → 显示）：显隐 / 顺序 / 分组。布局模型在
-// ui/sidebar-layout.js（经典脚本，主侧边栏渲染与这里共用同一份），见该文件的模块头
+// （set → ）： / / 。 in 
+// ui/sidebar-layout.js（， and this use 1 ）， this file module header
 import { SidebarPane } from './sidebar-pane'
 import { t } from '../i18n'
 import { Alert } from '@ui'
 
 /**
- * Agent2API · 设置页（React 岛）。
+ * Agent2API · set（React ）。
  *
- * 替换 ui/settings-panel.js（那份自持状态、按 id 读写 DOM、用 innerHTML 拼导入失败明细的
- * 老实现）。对外接口与原实现**逐字一致**（见文件末尾）：调用点一行都不用改 ——
+ * ui/settings-panel.js（ that 、 by id DOM、 use innerHTML failure 
+ * ）。 for and ** 1 **（file）： use 1 not use ——
  * app.js:135 load()、upgrade-panel.js:74 load()、islands/update-panel.tsx:972 showCategory('about')。
  *
- * ── 三块文件的分工 ──────────────────────────
- * settings-page.tsx（本文件）= 视图 + 挂载 + 对外契约；settings-state.ts = 快照 store 与全部
- * 读写流程；settings-model.ts = 桥类型 / 字段表 / 页面文案。后两个是 .ts，不会被
- * `islands/*.tsx` 的 glob 当岛加载 —— 设置页的岛只有本文件一个。
+ * ── file ──────────────────────────
+ * settings-page.tsx（file）= + + for ；settings-state.ts = store and 
+ * ；settings-model.ts = / / 。 after is .ts， not will 
+ * `islands/*.tsx` glob —— set has file 1 。
  *
- * ── ⚠ 「更新」分类（原「关于」）的面板不归本文件 ───────────
- * `.settings-pane[data-cat="about"]` 是**另一个岛**（update-panel.tsx）的挂载点：它在模块
- * 加载期就 `document.querySelector('.settings-pane[data-cat="about"]')`，找到才把 React root
- * 建上去。所以这里必须做到两件事：
- *   ① 原样渲染出一个**空的** `<div class="settings-pane" data-cat="about" />` —— 里面一个子
- *      节点都不能放（会被那个岛清掉），React 也不能在后续渲染里动它的 DOM 子树。React 对
- *      「没有 children 的宿主元素」不会去碰它的子节点，所以只要**始终**渲染这个 div、
- *      不给它 children、不改变它在兄弟中的位置，它的内容就一直是那个岛的；
- *   ② 让它在**模块加载期就同步存在于 DOM 里** —— 见 mount() 的注释（flushSync）。
- * 分类切换（`.active`）走 React 的 className：切到「更新」时这个 div 会拿到 active，
- * 那个岛的面板跟着显示，与旧实现命令式切 class 等价。
+ * ── ⚠ 「update」（「」） not file ───────────
+ * `.settings-pane[data-cat="about"]` is ** 1 **（update-panel.tsx） ： in 
+ * `document.querySelector('.settings-pane[data-cat="about"]')`， to React root
+ * up 。 this must to ：
+ * ① 1 **empty ** `<div class="settings-pane" data-cat="about" />` —— 1 
+ * not can （ will that ），React not can in after DOM 。React for 
+ * 「 no has children 」 not will ， need **** this div、
+ * not to children、 not in in ， 1 is that ；
+ * ② in ** in DOM ** —— mount() （flushSync）。
+ * （`.active`） React className： to 「update」 when this div will to active，
+ * that ， and old class etc 。
  *
- * ── 页面骨架照抄 index.html，只换控件 ────────────
- * 布局类名原样保留（`.settings-layout` / `.settings-nav` / `.settings-nav-item` /
+ * ── index.html， ────────────
+ * （`.settings-layout` / `.settings-nav` / `.settings-nav-item` /
  * `.settings-panes` / `.settings-pane` / `.panel` / `.panel-head` / `.panel-body` /
  * `.head-actions` / `.settings-switches` / `.settings-state` / `.retention-list` /
  * `.retention-row` / `.retention-input` / `.unit` / `.hint` / `.retention-note` /
  * `.prompt-input` / `.tag-input` / `.tag-chip` / `.tag-x` / `.storage-line` /
  * `.storage-path` / `.storage-counts` / `.storage-count` / `.danger-zone` / `.io-result`），
- * 它们是这一页的排版而不是「组件」（样式在 ui/css/page-settings.css）。
- * 控件换组件库：原生 input → Input、原生 checkbox → Switch、原生 select → Select 一族、
+ * is this 1 not is 「」（ in ui/css/page-settings.css）。
+ * ： input → Input、 checkbox → Switch、 select → Select 1 、
  * button → Button、`.badge` → Badge、`#retention-modal` → Dialog。
- * 左栏分类项带**图标**（icons.js 里那组描边风格的设置页图标，17px 图标盒与主侧栏
- * 同款）—— 标签因此不再受「两字」限制：图标负责一眼认出、文字负责说清。
+ * ****（icons.js that set，17px and 
+ * ）—— not 「」limit： 1 、。
  *
- * 问号的 `[data-tip]` 由公共提示桥接入组件库 Tooltip；数字框仅保留业务宽度约束。
- * 分类面板通过显隐保留各自草稿，不让切换分类重置编辑态。
+ * `[data-tip]` by Tooltip；only。
+ * ， not 。
  */
 
-/* ─── 小组件 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 /**
- * 图标（icons.js 的内联 SVG 串）：整站共用一份图标集，这里只做注入。
- * 图标在 set（左栏分类）里都已存在于 icons.js；取不到时返回空串（图标位留空，
- * 不影响文字与点击 —— 按名字取不到是开发期错误，不该把页面弄崩）。
+ * （icons.js SVG ）： use 1 ， this 。
+ * in set（） already in icons.js； not to when returnempty（empty，
+ * not and —— by not to is error， not this ）。
  */
 function iconHtml(name: string, size: number): string {
   return shared().wbIcons?.icon?.(name, size) || ''
 }
 
-/** 三态徽章：`.badge`（检测中…）/ `.badge.ok` / `.badge.bad` → Badge 的 variant */
+/** ：`.badge`（ in …）/ `.badge.ok` / `.badge.bad` → Badge variant */
 function StatusBadge({ tone, children }: { tone: 'idle' | 'ok' | 'bad'; children: React.ReactNode }) {
   const variant = tone === 'ok' ? 'success' : tone === 'bad' ? 'destructive' : 'outline'
   return <Badge variant={variant}>{children}</Badge>
@@ -220,13 +220,13 @@ function StatusBadge({ tone, children }: { tone: 'idle' | 'ok' | 'bad'; children
 
 type PanelHeadProps = {
   title: string
-  /** 标题右侧问号的说明全文（沿用 `[data-tip]`） */
+  /** （ use `[data-tip]`） */
   tip?: string
   badge?: React.ReactNode
   actions?: React.ReactNode
 }
 
-/** 面板标题栏：标题 + 问号 + 徽章 + 右侧操作（DOM 顺序与静态骨架一致） */
+/** ： + + + （DOM and 1 ） */
 function PanelHead({ title, tip, badge, actions }: PanelHeadProps) {
   return (
     <CardHeader className='panel-head'>
@@ -238,7 +238,7 @@ function PanelHead({ title, tip, badge, actions }: PanelHeadProps) {
   )
 }
 
-/** 折叠不卸载正文，避免丢失尚未提交的设置草稿。 */
+/** not ， set。 */
 function CollapsiblePanel({ title, tip, badge, actions, children }: PanelHeadProps & { children: React.ReactNode }) {
   return <Collapsible render={<Card />} className='panel panel-fold group/fold'>
     <CardHeader className='panel-head'>
@@ -259,14 +259,14 @@ type SwitchRowProps = {
   label: string
   checked: boolean
   disabled?: boolean
-  /** 行内问号提示（与 PanelHead 同款 `[data-tip]`，desktop-tooltip.tsx 统一服务） */
+  /** （ and PanelHead `[data-tip]`，desktop-tooltip.tsx 1 ） */
   tip?: string
   onCheckedChange: (next: boolean) => void
 }
 
 /**
- * 一行开关。开关与文字同在一个 `<label class="switch">` 里（与旧模板同构）：Base UI 的
- * Switch 会渲染一个隐藏 checkbox，label 的原生激活行为照样把点击转给它 —— 点文字也能拨动。
+ * 1 。 and in 1 `<label class="switch">` （ and old ）：Base UI 
+ * Switch will 1 checkbox，label as to —— can 。
  */
 function SwitchRow({ id, label, checked, disabled, tip, onCheckedChange }: SwitchRowProps) {
   return (
@@ -280,19 +280,19 @@ function SwitchRow({ id, label, checked, disabled, tip, onCheckedChange }: Switc
 
 type NumberRowProps = {
   field: NumberField
-  /** 生效值；null = 没读到（输入框保持禁用，旧实现同） */
+  /** ；null = no to （ use ， old ） */
   value: number | null
-  /** 面板忙碌（提交在途）：本次操作期间禁用，与旧实现置 DOM disabled 等价 */
+  /** （ in ）： use ， and old DOM disabled etc */
   disabled: boolean
   onCommit: (raw: string) => Promise<void>
 }
 
 /**
- * 一行数字设置（保留期 / 重试 / 超时共用）。
+ * 1 set（ / / when use ）。
  *
- * 未提交的编辑是**本组件的草稿**：聚焦时把生效值抄进草稿，失焦 / 回车提交，提交结束
- * （无论成败）把草稿收掉、显示回到生效值 —— 这就是旧实现那套「正在编辑的那一项不回填 +
- * 失败回滚 + 保存后按后端值规范化」的等价物，只是状态只存在于这一处。
+ * is ** **： when ， / ，
+ * （none） 、 to —— this is old that 「 in that 1 not +
+ * failure + after by after 」 etc ， is in this 1 。
  */
 function NumberRow({ field, value, disabled, onCommit }: NumberRowProps) {
   const [draft, setDraft] = React.useState<string | null>(null)
@@ -323,8 +323,8 @@ function NumberRow({ field, value, disabled, onCommit }: NumberRowProps) {
           onChange={event => setDraft(event.target.value)}
           onFocus={() => setDraft(String(value ?? ''))}
           onBlur={() => void commit()}
-          // 回车等价于「失焦提交」：不同内核里 Enter 是否派发 change 并不一致，
-          // 这里主动 blur 一次把它统一成「值已提交」这一条路径
+          // etc 「」： not Enter is change and not 1 ，
+          // this blur 1 1 「 already 」 this 1 path
           onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }}
         />
         <span className='unit'>{field.unit}</span>
@@ -334,21 +334,21 @@ function NumberRow({ field, value, disabled, onCommit }: NumberRowProps) {
   )
 }
 
-/** 数字面板的徽章：首屏「检测中…」、读到「已生效」、读不到「不可用」 */
+/** ：「 in …」、 to 「 already 」、 not to 「unavailable」 */
 function numericBadge(state: NumericState): React.ReactNode {
   if (state.status === 'ready') return <StatusBadge tone='ok'>{t('已生效')}</StatusBadge>
   if (state.status === 'unavailable') return <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
   return <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>
 }
 
-/** 刷新按钮（无修饰的 button → Button 的 outline 档，与静态骨架的观感一致） */
+/** new by （none button → Button outline ， and 1 ） */
 function RefreshButton({ id, onClick }: { id: string; onClick: () => void }) {
   return <Button id={id} variant='outline' onClick={onClick}>{t('刷新')}</Button>
 }
 
-/* ─── 通用分类 ─────────────────────────────── */
+/* ─── use ─────────────────────────────── */
 
-/** 「局域网访问」面板的状态行：开着时给出局域网设备该填的 API 地址 */
+/** 「」 ： when to this API */
 function lanStateText(snap: SettingsSnapshot): string {
   const { lanAccess, lanPanel, lanIp, port } = snap.app
   if (!lanAccess) return t('未开启：网关只监听 127.0.0.1，仅本机可以访问。')
@@ -359,8 +359,8 @@ function lanStateText(snap: SettingsSnapshot): string {
 
 function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
   const app = snap.app
-  // 轻量模式只挂在「关闭到托盘」上（关闭即退出时没有窗口可轻量），
-  // 状态行按 未开启托盘 → 开启托盘 → 轻量模式 三级派生
+  // in 「 to 」 up （ when no has can ），
+  // by → → 
   const appState = app.status === 'unavailable'
     ? STATES.appUnavailable
     : app.status === 'loading'
@@ -383,8 +383,8 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
         />
         <CardContent className='panel-body'>
           <div className='settings-switches'>
-            {/* 主进程没返回启动设置时开关仍可拨（照旧实现）：拨了直接发全量 patch，
-                保存成功即回到「已应用」，不必让用户重开程序 */}
+            {/* no returnset when can （ old ）： patch，
+                success to 「 already use 」， not use */}
             <SwitchRow
               id='settings-close-to-tray'
               label={t('关闭窗口时最小化到托盘')}
@@ -392,7 +392,7 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
               disabled={snap.busy === 'app'}
               onCheckedChange={next => void saveToggle('tray', next)}
             />
-            {/* 轻量模式依赖「关闭到托盘」：关掉托盘时该开关无意义，置灰并提示 */}
+            {/* 「 to 」： when this none， and */}
             <SwitchRow
               id='settings-lightweight'
               label={t('轻量模式（关窗释放界面内存）')}
@@ -418,8 +418,8 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
           <PanelHead title={t('局域网访问')} tip={TIPS.lan} />
           <CardContent className='panel-body'>
             <div className='settings-switches'>
-              {/* 开 / 关都不直接落盘：走确认框（→ 需要时注册管理员 → 写设置并重启），
-                  流程与文案在 settings-state 的 toggleLan / resolveLanConfirm */}
+              {/* / not ：（→ need need when → set and ），
+                   and in settings-state toggleLan / resolveLanConfirm */}
               <SwitchRow
                 id='settings-lan-access'
                 label={t('允许局域网内的设备访问网关')}
@@ -460,9 +460,9 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
   )
 }
 
-/* ─── 显示分类 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
-/** 显示模式三档的状态行文案（三条文案在 settings-model 的 STATES 里） */
+/** （ in settings-model STATES ） */
 function themeStateText(mode: ThemeMode): string {
   if (mode === 'light') return STATES.themeLight
   if (mode === 'dark') return STATES.themeDark
@@ -470,31 +470,31 @@ function themeStateText(mode: ThemeMode): string {
 }
 
 /**
- * 显示分类：显示模式 / 界面缩放 / 语言。
+ * ： / / 。
  *
- * 三项都是**纯前端偏好** —— 与后端配置无关，所以不参与 settings-state 的 load
- * （那边一次并行取全部后端设置），这里自己持两个受控值就够了。
+ * is ** before ** —— and after confignone， not and settings-state load
+ * （ that 1 and after set）， this 。
  *
- * 主题与缩放的**唯一应用入口都在 app.js**（见 settings-model 的显示偏好一节）：
- * 这里改完只调 wbApp.applyTheme / applyZoom，再靠 'wb:theme' / 'wb:zoom' 事件
- * 跟随 —— 侧边栏底部的主题三键是同一个设置的另一个入口，两边必须互相同步；
- * 谁也不去读对方的状态，只认事件里带的新值。
+ * and ** 1 use in app.js**（ settings-model 1 ）：
+ * this wbApp.applyTheme / applyZoom， 'wb:theme' / 'wb:zoom' 
+ * —— is 1 set 1 ，must；
+ * not for ， new 。
  *
- * 网页端：主题照常可用（data-theme 是纯 CSS 生效，窗口主题在 shim 里是空实现）；
- * 界面缩放禁用 —— 浏览器里的缩放归浏览器自己的 Ctrl +/- 管。
+ * ：available（data-theme is CSS ， in shim is empty）；
+ * use —— Ctrl +/- 。
  */
 function DisplayPane() {
   const [theme, setTheme] = React.useState<ThemeMode>(readThemeMode)
   const [zoom, setZoom] = React.useState<number>(readZoomPercent)
-  // 账号列表的两项「怎么看这张表」偏好：合计口径与账号名掩码。
-  // 与主题 / 缩放同属纯前端偏好（localStorage），不经过 settings-state 的快照。
+  // 「 this 」： and 。
+  // and / before （localStorage）， not settings-state 。
   const [groupTotalFiltered, setGroupTotalFilteredState] = React.useState<boolean>(readGroupTotalFiltered)
   const [namesHidden, setNamesHiddenState] = React.useState<boolean>(readNamesHidden)
-  // 端别取自桥（platform）而不是 navigator：与设置页其它端别判断同一口径
+  // （platform） not is navigator： and set its 1 
   const isWeb = shared().workbuddyDesktop?.platform === 'web'
 
-  // 跟随别人的改动（侧边栏三键、index.html 头部内联脚本的抢先应用、或本页自身）：
-  // 事件里带着新值，直接采纳，不必回头读 localStorage
+  // （、index.html use 、 or ）：
+  // new ，， not localStorage
   React.useEffect(() => {
     const onTheme = (event: Event) => setTheme(String((event as CustomEvent).detail || 'system') as ThemeMode)
     const onZoom = (event: Event) => setZoom(Number((event as CustomEvent).detail) || 100)
@@ -506,11 +506,11 @@ function DisplayPane() {
     }
   }, [])
 
-  // 账号列表的两项偏好：设置页写、账号页订阅同一份 store。这里同时听两路变化 ——
-  //   · store 订阅：账号页表头那颗眼睛（toggleNamesHidden）/ 另一个入口写入时，
-  //     本页的开关要跟着拨过去（同文档内的 localStorage 写入不触发 storage 事件，
-  //     只靠那一路会漏）；
-  //   · storage 事件：另一个窗口 / 另一份面板改了偏好。
+  // ：set、 1 store。 this when ——
+  // · store ： that （toggleNamesHidden）/ 1 when ，
+  // need （ localStorage not storage ，
+  // that 1 will ）；
+  // · storage ： 1 / 1 。
   React.useEffect(() => {
     const sync = () => {
       setGroupTotalFilteredState(readGroupTotalFiltered())
@@ -524,13 +524,13 @@ function DisplayPane() {
     }
   }, [])
 
-  /** 改合计口径：落盘 + 通知账号页（同一个 store，订阅者一起重画） */
+  /** ： + （ 1 store， 1 ） */
   function applyGroupTotalFiltered(next: boolean): void {
     setGroupTotalFiltered(next)
     setGroupTotalFilteredState(next)
   }
 
-  /** 改账号名掩码：与账号页表头那颗眼睛走同一个写入函数 */
+  /** ： and that 1 */
   function applyNamesHidden(next: boolean): void {
     setNamesHidden(next)
     setNamesHiddenState(next)
@@ -562,9 +562,9 @@ function DisplayPane() {
             <div className='retention-row'>
               <Label htmlFor='settings-zoom'>{t('缩放比例')}</Label>
               <span className='prompt-input'>
-                {/* 档位是 80%–130% 的 11 个定值，用下拉而不是滑块：每一档都要能精确
-                    复述（用户问「我现在多少」时答案是个整数），且组件库目前没有 Slider。
-                    展示文案显式给 SelectValue，不依赖 value 自动显示。 */}
+                {/* is 80%–130% 11 ， use down not is ： 1 need can 
+                    （ use 「 in 」 when is ）， and before no has Slider。
+                     to SelectValue， not value 。 */}
                 <Select
                   value={String(zoom)}
                   onValueChange={next => shared().wbApp?.applyZoom?.(Number(next))}
@@ -605,11 +605,11 @@ function DisplayPane() {
         </CardContent>
       </Card>
 
-      {/* 账号列表：合计口径 / 账号名掩码。与上面三项同属「怎么看这张表」的纯前端
-          偏好（localStorage，见 accounts-store 的 GROUP_TOTAL_FILTERED_KEY 与
-          NAMES_HIDDEN_KEY）—— 不碰转发、不碰账号数据，所以也不进 settings-state
-          的后端快照。账号页有自己的入口改这两项（表头那颗眼睛、合计徽标本身），
-          两边读写的是同一份键。 */}
+      {/* ： / 。 and up 「 this 」 before 
+          （localStorage， accounts-store GROUP_TOTAL_FILTERED_KEY and 
+          NAMES_HIDDEN_KEY）—— not 、 not ， not settings-state
+           after 。 has this （ that 、），
+           is 1 。 */}
       <Card render={<section />} className='panel'>
         <PanelHead title={t('账号列表')} tip={TIPS.accountList} />
         <CardContent className='panel-body'>
@@ -633,28 +633,28 @@ function DisplayPane() {
         </CardContent>
       </Card>
 
-      {/* 侧边栏菜单：显隐 / 顺序 / 分组。权威副本在库里（kv 的 sidebarLayout
-          键，经 /api/sidebar-layout 读写），localStorage 只是首帧缓存 ——
-          它走自己的键、不经过 settings-state 的快照，所以放在「显示」分类里。
-          布局的唯一真相在 ui/sidebar-layout.js 那个经典脚本里 ——
-          app.js 渲染主侧边栏时读的是同一份。 */}
+      {/* ： / / 。 in （kv sidebarLayout
+          ， /api/sidebar-layout ），localStorage is ——
+           、 not settings-state ， in 「」。
+           1 in ui/sidebar-layout.js that ——
+          app.js when is 1 。 */}
       <SidebarPane />
     </>
   )
 }
 
 /**
- * 「界面语言」一行：下拉选 auto 或某个具体语言，选中即整页刷新。
+ * 「」 1 ： down auto or ， in new 。
  *
- * ── 为什么不进 settings-state 的后端模型 ──────────────────────
- * 语言只改本机界面文案：不碰转发、不碰账号，跟「主题 / 缩放 / 计量单位」同属纯前端
- * 偏好。所以它只读写 localStorage（键 workbuddy-desktop-locale，见 ui/i18n.js），
- * 与后端 desktop-settings.json 无关，也正因如此这里不需要受控 state —— 切换会
- * location.reload()，重载后本行自然按新值重新渲染。
+ * ── Why not settings-state after ──────────────────────
+ * ： not 、 not ，「 / / 」 before 
+ * 。 localStorage（ workbuddy-desktop-locale， ui/i18n.js），
+ * and after desktop-settings.json none， this not need need state —— will 
+ * location.reload()， after by new new 。
  *
- * ── 选项文案为什么不都走 t() ─────────────────────────────────
- * 'auto' 的标签是中文键（跟随系统），要翻译；其余语言的 label 是**各语言自己的写法**
- * （English / 日本語 / 한국어 …），选之前就该看得懂，所以照搬 wbI18n.LOCALES，不翻译。
+ * ── Why not t() ─────────────────────────────────
+ * 'auto' is in （）， need ； its label is ** **
+ * （English / / 한국어 …）， before this ， wbI18n.LOCALES， not 。
  */
 function LanguageRow() {
   const api = window.wbI18n
@@ -669,8 +669,8 @@ function LanguageRow() {
       <div className='retention-row'>
         <Label htmlFor='settings-language'>{t('界面语言')}</Label>
         <span className='prompt-input'>
-          {/* 与「界面缩放」同一个 Select 形态：展示文案显式给 SelectValue，不依赖 value 自动显示。
-              组件的 onValueChange 可能给 null（被清空），这里只在拿到非空值时切换 */}
+          {/* and 「」 1 Select ： to SelectValue， not value 。
+               onValueChange can can to null（ empty）， this in to empty when */}
           <Select value={value} onValueChange={next => { if (next) api?.setLocale(next) }}>
             <SelectTrigger id='settings-language' className='w-[200px]' aria-label={t('界面语言')}>
               <SelectValue>{labelOf(value)}</SelectValue>
@@ -688,9 +688,9 @@ function LanguageRow() {
   )
 }
 
-/* ─── 网关分类 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
-/** 「指定错误码直接换号」的标签输入（GitHub Topics 同款：徽章 + 行内输入框） */
+/** 「error」 （GitHub Topics ： + ） */
 function RetryCodesField({ codes, status, busy }: {
   codes: number[] | null
   status: LoadStatus
@@ -698,14 +698,14 @@ function RetryCodesField({ codes, status, busy }: {
 }) {
   const [text, setText] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement | null>(null)
-  // 读不到重试设置时整框禁用（旧实现：field.disabled + .disabled 类 + 占位符换「—」）
+  // not to set when use （ old ：field.disabled + .disabled + 「—」）
   const locked = status === 'unavailable'
 
   return (
     <div className='retention-row'>
       <Label htmlFor='settings-retry-no-codes-input'>{t('指定错误码直接换号')}</Label>
       <div className='retention-input'>
-        {/* 点框体空白处 = 聚焦输入框（整框是一个输入控件的观感，旧实现同） */}
+        {/* empty = （ is 1 ， old ） */}
         <InputGroup
           className={`h-auto w-[320px] max-w-full flex-wrap gap-1.5 px-2 py-1${locked ? ' opacity-55' : ''}`}
           onClick={() => inputRef.current?.focus()}
@@ -713,8 +713,8 @@ function RetryCodesField({ codes, status, busy }: {
           {(codes || []).map(code => (
             <Badge variant='brand' className='tag-chip' key={code}>
               <span className='v'>{code}</span>
-              {/* 徽章上的 ✕：小号圆角热区，悬停加深 —— 用组件库的小件档 + 语义色，
-                  「能点删」的视觉暗示与旧实现一致 */}
+              {/* up ✕：， —— use + ，
+                  「 can 」 and old 1 */}
               <Button
                 type='button'
                 variant='ghost'
@@ -746,7 +746,7 @@ function RetryCodesField({ codes, status, busy }: {
                 setText('') // 提交后立即清空输入框（旧实现同）
                 return
               }
-              // 与 GitHub Topics 一致：输入框为空时退格删掉最后一枚
+              // and GitHub Topics 1 ： as empty when after 1 
               if (event.key === 'Backspace' && !text) void dropLastRetryCode()
             }}
           />
@@ -757,7 +757,7 @@ function RetryCodesField({ codes, status, busy }: {
   )
 }
 
-/** 系统提示词：文件路径输入框（草稿机制与数字框同款，失焦 / 回车才提交） */
+/** ：filepath（ and ， / ） */
 function PromptFileRow({ prompt, locked, busy }: {
   prompt: PromptState
   locked: boolean
@@ -792,7 +792,7 @@ function PromptFileRow({ prompt, locked, busy }: {
   )
 }
 
-/** 提示词状态行：模式说明 + 来源与行数 + 文件读取告警 */
+/** ： + and + file */
 function promptStateText(prompt: PromptState): string {
   if (prompt.status === 'loading') return STATES.appLoading
   if (prompt.status === 'unavailable') return STATES.promptUnavailable
@@ -813,7 +813,7 @@ function promptStateText(prompt: PromptState): string {
   return parts.join('')
 }
 
-/** 正文来源的中文说法（三处状态行共用；'' = 没有正文可讲） */
+/** in （ use ；'' = no has can ） */
 function promptSourceText(source: string): string {
   if (source === 'inline') return t('界面里编辑的正文')
   if (source === 'file') return t('提示词文件')
@@ -821,7 +821,7 @@ function promptSourceText(source: string): string {
   return ''
 }
 
-/** 降级行的说明：只在真的处于降级期时出现（平时它是一行与用户无关的状态噪音） */
+/** ： in when （ when is 1 and use none ） */
 function degradeHint(prompt: PromptState): string {
   return t('已自动切换到最小中性提示词（撞了上游内容拦截，多半是 system 指纹误报），到 {until} 自动解除。', {
     until: prompt.degradeUntilText || STATES.degradeUntilFallback,
@@ -830,7 +830,7 @@ function degradeHint(prompt: PromptState): string {
 }
 
 /**
- * 提示词文件输入框（草稿机制与上面那个全局的同款，按 id 提交到对应那一家）
+ * file（ and up that ， by id to for that 1 ）
  */
 function ProviderFileRow({ item, label, locked, busy }: {
   item: ProviderPromptState
@@ -844,8 +844,8 @@ function ProviderFileRow({ item, label, locked, busy }: {
     const raw = draft
     if (raw === null) return
     try {
-      // 只在与「显示值」真的不同时才提交：这一行可能是「跟随全局」的（显示的是
-      // 全局那两份），点进去再点出来不该凭空生成一条覆盖
+      // in and 「」 not when ： this 1 can can is 「」 （ is 
+      // that ）， not this empty 1 
       if (raw !== item.file) await saveProviderPromptFile(item, raw)
     } finally { setDraft(null) }
   }
@@ -868,10 +868,10 @@ function ProviderFileRow({ item, label, locked, busy }: {
   )
 }
 
-/** 一家的状态行：模式说明 + 来源与行数 + 文件读取告警（与全局那行同一套措辞） */
+/** 1 ： + and + file（ and that 1 ） */
 function providerStateText(item: ProviderPromptState, configured: boolean): string {
-  // 没单独配过的家（只在「有网关自带提示词」时才会被列出来）走全局那份 ——
-  // 不说这一句的话，用户会以为这一行显示的就是「这家的设置」
+  // no （ in 「 has 」 when will ） that ——
+  // not this 1 ， use will as this 1 is 「 this set」
   if (!configured) return t('未单独配置：模式、提示词文件与正文都跟随上面的全局配置（当前「{mode}」）。', {
     mode: PROMPT_MODES.find(option => option.value === item.mode)?.toastLabel ?? item.mode,
   })
@@ -885,17 +885,17 @@ function providerStateText(item: ProviderPromptState, configured: boolean): stri
 }
 
 /**
- * 一家的**网关自带提示词**那一行（只有 registry 里标了 `gatewayNote` 的家才有）。
+ * 1 **** that 1 （ has registry `gatewayNote` has ）。
  *
- * 这段文本不来自客户端、也不来自提示词文件，是网关自己装上去的（ZCode 活动套餐
- * 通道的官方三段身份块）。它默认开、可以关，**也可以改正文** —— 关掉后还能不能跑
- * 取决于上游当前的校验口径，所以关掉时把这一行**换成警示语气**（`tone` 为非 ok
- * 的徽章 + 粗体），而不是留一个看起来无害的灰开关。
+ * this not client、 not file， is up （ZCode 
+ * ）。default、 can ，** can ** —— after can not can 
+ * up current ， when this 1 ****（`tone` as ok
+ * + ）， not is 1 none 。
  */
 function ProviderGatewayRow({ item, option, over, locked, busy }: {
   item: ProviderPromptState
   option: ProviderPromptOption
-  /** 这一家已存的正文覆盖（只含改过的段；缺省 = 全是官方原文） */
+  /** this 1 already （ ； = is ） */
   over: GatewayBlocks | undefined
   locked: boolean
   busy: boolean
@@ -915,8 +915,8 @@ function ProviderGatewayRow({ item, option, over, locked, busy }: {
           disabled={locked || busy}
           onCheckedChange={next => void saveProviderGatewayPrompt(item.id, next)}
         />
-        {/* 正文编辑与开关并排：两件事（装不装 / 长什么样）在同一个可视范围里，
-            但各走各的接口字段，改一个不会动另一个（见 settings-state 两个动作） */}
+        {/* and and ：（ not / ） in 1 can ，
+             ， 1 not will 1 （ settings-state ） */}
         <GatewayTextButton item={item} option={option} over={over} locked={locked} busy={busy} />
       </span>
       <div className={on ? 'hint' : 'hint prompt-gateway-off'}>
@@ -927,7 +927,7 @@ function ProviderGatewayRow({ item, option, over, locked, busy }: {
   )
 }
 
-/** 只列已保存的模式、网关开关或正文覆盖；未配置的提供商从下拉手动添加。 */
+/** already 、 or ；not configured from down 。 */
 function ProviderPromptRows({ prompt, locked, busy }: {
   prompt: PromptState
   locked: boolean
@@ -957,9 +957,9 @@ function ProviderPromptRows({ prompt, locked, busy }: {
                 <Select
                   value={item.mode}
                   onValueChange={next => {
-                    // 同上：null = 没选（清空 / 取消），不是一个叫 "null" 的模式。
-                    // 模式与文件一起提交：这一行可能还在「跟随全局」，只写模式会让
-                    // 它的文件从屏幕上的路径变成内置默认（见 saveProviderPromptMode）
+                    // up ：null = no （empty / ）， not is 1 "null" 。
+                    // and file 1 ： this 1 can can in 「」， will 
+                    // file from up pathdefault（ saveProviderPromptMode）
                     if (next != null && String(next)) {
                       void saveProviderPromptMode(item, String(next))
                     }
@@ -981,8 +981,8 @@ function ProviderPromptRows({ prompt, locked, busy }: {
                 </Select>
                 <ProviderFileRow item={item} label={label} locked={locked} busy={busy} />
                 <ProviderPromptTextButton item={item} label={label} locked={locked} busy={busy} />
-                {/* 「跟随默认」只在**单独配过**的行上出现：没配过的行点了它也删不掉
-                    任何东西（后端此时没有这一项），留一颗无效按钮只会让人以为点坏了 */}
+                {/* 「default」 in **** up ： no not 
+                    （ after when no has this 1 ）， 1 invalid by will as */}
                 {item.configured ? (
                   <Button
                     variant='outline'
@@ -995,8 +995,8 @@ function ProviderPromptRows({ prompt, locked, busy }: {
               </span>
               <div className='hint'>{providerStateText(item, item.configured)}</div>
             </div>
-            {/* 网关自带那段（只有 registry 标了 note 的家有）——单独一行开关，
-                与上面那行不是一回事：那个管客户端 system、这个管网关自己装什么 */}
+            {/* that （ has registry note has ）—— 1 ，
+                 and up that not is 1 ： that client system、 this */}
             {option && note ? (
               <ProviderGatewayRow
                 item={item}
@@ -1013,12 +1013,12 @@ function ProviderPromptRows({ prompt, locked, busy }: {
       <div className='retention-row'>
         <Label htmlFor='settings-prompt-provider-add'>{t('添加提供商')}</Label>
         <span className='prompt-input'>
-          {/* 组件的 Select 不支持占位（必须有一个 value），所以第一个选项就是
-              「选择要配置的提供商」这个动作本身；选完立刻重置回它。
-              `next` 可能是 null（Base UI 在「清空 / 取消选择」时回调的就是它，
-              见 @base-ui 的 `onValueChange` 类型）：照 `String(next)` 走会把它
-              变成字符串 "null"，而后端会如实回一句「未知的提供商 id：null」——
-              一次「没选」不该变成一次失败的保存。 */}
+          {/* Select unsupported（must has 1 value）， 1 is 
+              「 need config 」 this ；。
+              `next` can can is null（Base UI in 「empty / 」 when is ，
+               @base-ui `onValueChange` ）： `String(next)` will 
+               "null"， after will 1 「unknown id：null」——
+               1 「 no 」 not this 1 failure 。 */}
           <Select
             value={pending}
             onValueChange={next => {
@@ -1070,9 +1070,9 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
       />
       <CardContent className='panel-body'>
         <div className='retention-list'>
-          {/* 两个分组条把「默认」与「某家的例外」分开：上面那几行是所有未单独配置的
-              家共用的默认值，下面那张表是逐家的例外 —— 不分开时它们是一串同构的行，
-              用户读不出哪几行管全部、哪几行只管一家（见 page-settings.css 的 .prompt-group）。 */}
+          {/* 「default」 and 「 」： up that is allconfig 
+               use default， down that is —— not when is 1 ，
+               use not 、 1 （ page-settings.css .prompt-group）。 */}
           <div className='prompt-group'>
             {t('全局配置')}<span className='note'>{t('所有未单独配置的提供商都用这一份')}</span>
           </div>
@@ -1080,13 +1080,13 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
           <div className='retention-row'>
             <Label htmlFor='settings-prompt-mode'>{t('模式')}</Label>
             <span className='prompt-input'>
-              {/* 旧实现是原生 <select>（select.js 增强 + wbSelect.sync）；这里换成组件库的
-                  Select：触发器是按钮，page-settings.css 的 `.prompt-input select{width:240px}`
-                  不再命中，宽度得用工具类补回（否则触发器按内容宽度缩成一团）。
-                  展示文案显式给 SelectValue，不依赖 value 自动显示。 */}
+              {/* old is <select>（select.js + wbSelect.sync）； this 
+                  Select： is by ，page-settings.css `.prompt-input select{width:240px}`
+                   not in ， use （otherwise by 1 ）。
+                   to SelectValue， not value 。 */}
               <Select
                 value={prompt.mode}
-                // 同「添加提供商」那条：null = 没选，不当作一个模式名（见那里的说明）
+                // 「」 that ：null = no ， not 1 （ that ）
                 onValueChange={next => { if (next != null && String(next)) void savePromptMode(String(next)) }}
               >
                 <SelectTrigger
@@ -1109,8 +1109,8 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
 
           <PromptFileRow prompt={prompt} locked={locked} busy={busy} />
 
-          {/* 提示词正文：与文件是同一件事的两个来源（正文优先），所以紧挨着文件那一行。
-              行里只放按钮与状态 —— 几百行文本塞进行内输入框既看不清也没法编辑 */}
+          {/* ： and file is 1 （），file that 1 。
+               by and —— not no */}
           <div className='retention-row'>
             <Label htmlFor='btn-prompt-edit-body'>{t('提示词正文')}</Label>
             <span className='prompt-input'>
@@ -1132,7 +1132,7 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
 
           <ProviderPromptRows prompt={prompt} locked={locked} busy={busy} />
 
-          {/* 降级行只在真的处于降级期时渲染（旧实现是切 hidden） */}
+          {/* in when （ old is hidden） */}
           {prompt.status === 'ready' && prompt.degradeActive ? (
             <div className='retention-row'>
               <Label>{t('内容拦截降级')}</Label>
@@ -1157,7 +1157,7 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
   )
 }
 
-/** 调试模式的状态行：条数只在后端给了两个整数时才提 */
+/** ： in after to when */
 function debugStateText(debug: DebugState): string {
   if (debug.status === 'loading') return STATES.appLoading
   if (debug.status === 'unavailable') return STATES.debugUnavailable
@@ -1167,9 +1167,9 @@ function debugStateText(debug: DebugState): string {
   return debug.on ? `${STATES.debugOn}${stored}${t('凭据类请求头已脱敏。')}` : STATES.debugOff
 }
 
-/* ─── 重试 / 超时分类（从「网关」拆出的两个独立菜单）── */
+/* ─── / when （ from 「」 ）── */
 
-/** 请求超时（拆出理由见 settings-model 的 CATEGORIES 说明） */
+/** request when （ by settings-model CATEGORIES ） */
 function TimeoutPane({ snap }: { snap: SettingsSnapshot }) {
   return (
     <Card render={<section />} className='panel'>
@@ -1197,7 +1197,7 @@ function TimeoutPane({ snap }: { snap: SettingsSnapshot }) {
   )
 }
 
-/** 请求重试：数字参数 + 「指定错误码」名单（两段共用同一份保存流程） */
+/** request：parameter + 「error」（ use 1 ） */
 function RetryPane({ snap }: { snap: SettingsSnapshot }) {
   return (
     <Card render={<section />} className='panel'>
@@ -1230,7 +1230,7 @@ function RetryPane({ snap }: { snap: SettingsSnapshot }) {
   )
 }
 
-/* ─── 网关分类 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
 function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<string> }) {
   return (
@@ -1275,7 +1275,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
               id='settings-image-compress'
               label={t('转发前压缩对话里内嵌的大图（只改发给上游的副本，生图与图片编辑不受影响）')}
               checked={snap.imageCompress.enabled}
-              // 读到后端值之前不许切（与 developerRoleCompat 同一取舍）
+              // to after before not （ and developerRoleCompat 1 ）
               disabled={snap.imageCompress.status !== 'ready' || snap.busy === 'imageCompress'}
               onCheckedChange={next => void saveImageCompressEnabled(next)}
             />
@@ -1295,8 +1295,8 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
         </CardContent>
       </Card>
 
-      {/* 验证码令牌池：池子本体在 ZCode 插件里，网关只有节奏设置。
-          插件没申报（没装 / 没装 ZCode）时这块不出现。 */}
+      {/* ： in ZCode ， has set。
+           no （ no / no ZCode） when this not 。 */}
       {panels.has('captcha_pool') ? (
         <Card render={<section />} className='panel'>
           <PanelHead
@@ -1371,7 +1371,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
               id='settings-developer-role-compat'
               label={t('转发前将 developer 角色消息转换为 system，兼容不支持 developer 角色的 OpenAI 兼容上游')}
               checked={snap.developerRoleCompat.on}
-              // 读到后端值之前不许切（否则会出现「切了但不知道后端原本是什么」，回滚也没依据）
+              // to after before not （otherwise will 「 not after is 」， no ）
               disabled={snap.developerRoleCompat.status !== 'ready' || snap.busy === 'developerRoleCompat'}
               onCheckedChange={next => void saveDeveloperRoleCompat(next)}
             />
@@ -1387,13 +1387,13 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
         </CardContent>
       </Card>
 
-      {/* Cline 伪装头：实现与默认值都在插件里，插件没申报就不画。
-          放在「网关」分类下是历史位置，语义上它属于插件面板。 */}
+      {/* Cline ： and default in ， no not 。
+           in 「」 down is ， up 。 */}
       {panels.has('upstream_headers') ? <ClineHeadersPanel snap={snap} /> : null}
 
-      {/* ZCode 客户端版本号：上游按它决定活动套餐下不下发。与上面那块不同，
-          这一格**不依赖插件申报** —— 它是网关自己的配置（见
-          api::zcode_version 的模块头），插件没装也要能改。 */}
+      {/* ZCode client： up by down not down 。 and up that not ，
+           this 1 ** not ** —— is config（
+          api::zcode_version module header）， no need can 。 */}
       <ZcodeVersionPanel snap={snap} />
 
       <PromptPanel snap={snap} />
@@ -1427,15 +1427,15 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
   )
 }
 
-/* ─── Cline 伪装头（网关分类）───────────────── */
+/* ─── Cline （）───────────────── */
 
-/** 伪装头面板的可编辑行：默认行的键锁定，自定义行的键可写 */
+/** can ：default ， can */
 type ClineHeaderRow = { key: string; value: string; isDefault: boolean }
 
 /**
- * 从快照拼出可编辑的行：默认清单全量在前（保持后端给的顺序），覆盖表里
- * 多出来的自定义头跟在后面。默认行的值取「覆盖值优先」（空串 = 用户显式
- * 删了这个头），自定义行原样来自覆盖表。
+ * from can ：default in before （ after to ），
+ * in after 。default 「」（empty = use 
+ * this ），。
  */
 function clineRowsFrom(state: ClineHeadersState): ClineHeaderRow[] {
   const rows: ClineHeaderRow[] = Object.entries(state.defaults).map(([key, value]) => ({
@@ -1449,7 +1449,7 @@ function clineRowsFrom(state: ClineHeadersState): ClineHeaderRow[] {
   return rows
 }
 
-/** 两张覆盖表是否等价（键集合 + 每个键的值，与键序无关） */
+/** is etc （ + ， and none） */
 function sameOverrides(a: Record<string, string>, b: Record<string, string>): boolean {
   const keys = Object.keys(a)
   if (keys.length !== Object.keys(b).length) return false
@@ -1457,12 +1457,12 @@ function sameOverrides(a: Record<string, string>, b: Record<string, string>): bo
 }
 
 /**
- * Cline 伪装头面板：一张「头名 → 头值」的行编辑器。
+ * Cline ： 1 「 → 」 。
  *
- * 编辑都在**本组件的草稿**里进行（与 NumberRow 同一取向，只是整张表一份草稿）；
- * 后端值一变（加载完成 / 保存成功 / 刷新 / 失败回滚）草稿整体重置。「保存」把
- * 草稿折算成覆盖表交给状态层 —— 默认行改回了默认不进表（后端存的是「改过的
- * 键」，不是全量配置）、默认行值留空 = 这个头不发、自定义行必须有名有值。
+ * in ** **（ and NumberRow 1 to ， is 1 ）；
+ * after 1 （ / success / new / failure）。「」 
+ * to —— defaultdefault not （ after is 「 
+ * 」， not is config）、defaultempty = this not 、must has has 。
  */
 function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
   const state = snap.clineHeaders
@@ -1490,10 +1490,10 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
     return out
   }
 
-  // 与后端的覆盖表比「键值是否相同」，**不比对键序**：草稿按行顺序产出（默认行
-  // 在前、自定义行追加在后），而后端的 BTreeMap 是字典序 —— 串起来比字符串会让
-  // 「覆盖了某个默认头 + 加了一个排序在它前面的自定义头」这种组合在保存成功后
-  // 仍被判定为「有未保存的修改」，保存按钮一直亮着。
+  // and after 「 is 」，** not for **： by （default
+  // in before 、 in after ）， after BTreeMap is —— will 
+  // 「 default + 1 in before 」 this in success after 
+  // as 「 has 」， by 1 。
   const dirty = ready && !sameOverrides(buildOverrides(), state.overrides)
 
   return (
@@ -1583,16 +1583,16 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
 }
 
 /**
- * ZCode 客户端版本号（上游按它决定活动套餐下不下发）。
+ * ZCode client（ up by down not down ）。
  *
- * ── 为什么需要用户自己填 ────────────────────────────────────
- * 活动套餐的探测接口只在 `app_version` 达到当期门槛时才返回套餐列表；
- * 版本落后时上游回的是一份**空列表**（`code: 0`，不是错误）。于是症状是
- * 「活动明明在，界面上一片空白」—— 看起来像上游没这活动，实际是客户端
- * 被判太旧（2026-10 实测：3.16.0 及以下全空，3.16.1 起才有 1024 礼包）。
+ * ── Why need need use ────────────────────────────────────
+ * in `app_version` to when return；
+ * after when up is 1 **empty**（`code: 0`， not is error）。 is is 
+ * 「 in ， up 1 empty」—— up no this ， is client
+ * old （2026-10 ：3.16.0 and down empty，3.16.1 has 1024 ）。
  *
- * 插件里那份默认值是编译期常量，每期活动都要跟着改、跟着发版。这一格是
- * 那条链的旁路：用户在这里填一个更新的版本号即可，不必等我们发版。
+ * that default is ， need 、。 this 1 is 
+ * that ： use in this 1 update can ， not etc 。
  */
 function ZcodeVersionPanel({ snap }: { snap: SettingsSnapshot }) {
   const state = snap.zcodeVersion
@@ -1602,8 +1602,8 @@ function ZcodeVersionPanel({ snap }: { snap: SettingsSnapshot }) {
   const busy = snap.busy === 'zcodeVersion'
   const ready = state.status === 'ready'
   const dirty = ready && draft.trim() !== state.version
-  // 环境变量优先级最高（见后端模块头）：它压着时界面上的值不生效，
-  // 必须说出来，否则用户会对着一个「改了没反应」的输入框反复重试。
+  // （ after module header）： when up not ，
+  // must，otherwise use will for 1 「 no 」 。
   const envShadowed = state.envOverride !== ''
 
   return (
@@ -1660,9 +1660,9 @@ function ZcodeVersionPanel({ snap }: { snap: SettingsSnapshot }) {
   )
 }
 
-/* ─── 安全分类 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
-  // 「退出登录」成功后整页跳回登录页，那时组件已不在；只有失败才需要把按钮解禁
+  // 「」success after ， that when already not in ； has failure need need by 
   const [loggingOut, setLoggingOut] = React.useState(false)
 
   async function onLogout(): Promise<void> {
@@ -1678,8 +1678,8 @@ function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
           title={t('网关跨域访问（CORS）')}
           tip={TIPS.cors}
           badge={snap.cors.status === 'ready'
-            // 极性与指纹脱敏相反：这个开关「关闭」才是不扩大暴露面的常态，
-            // 所以开着时给提醒色（bad），关着才是 ok
+            // and ： this 「」 is not ，
+            // when to （bad）， is ok
             ? (snap.cors.on ? <StatusBadge tone='bad'>{t('已开启')}</StatusBadge> : <StatusBadge tone='ok'>{t('已关闭')}</StatusBadge>)
             : snap.cors.status === 'unavailable'
               ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
@@ -1692,7 +1692,7 @@ function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
               id='settings-cors'
               label={t('允许浏览器里的页面跨来源调用网关（/v1/*）')}
               checked={snap.cors.on}
-              // 读到后端值之前不许切（同指纹脱敏：切了也不知道后端原本是什么）
+              // to after before not （： not after is ）
               disabled={snap.cors.status !== 'ready' || snap.busy === 'cors'}
               onCheckedChange={next => void saveCors(next)}
             />
@@ -1708,10 +1708,10 @@ function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
         </CardContent>
       </Card>
 
-      {/* 机器人校验搬到「账户」分类（与管理员账号、登录开关同层）。
-          这里保留「退出登录」—— 它属于「当前这一端的会话」，与安全分类的
-          其它项（跨域、脱敏）不是一类。 */}
-      {/* 面板登录：仅网页端（桌面壳的面板跟着应用走，没有「登录面板」的概念） */}
+      {/* to 「」（ and 、）。
+           this 「」—— 「current this 1 will 」， and 
+           its （、） not is 1 。 */}
+      {/* ：only（ use ， no has 「」 ） */}
       {snap.panelLogin ? (
         <Card render={<section />} className='panel' id='panel-login-section'>
           <PanelHead title={t('面板登录')} />
@@ -1734,9 +1734,9 @@ function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
   )
 }
 
-/* ─── 数据分类 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
-/** 数据存储面板的一格计数（键在上、值在下） */
+/** 1 （ in up 、 in down ） */
 function StorageCount({ label, value }: { label: string; value: string }) {
   return (
     <div className='storage-count'>
@@ -1749,26 +1749,26 @@ function StorageCount({ label, value }: { label: string; value: string }) {
 function storageBadge(state: StorageState): React.ReactNode {
   if (state.status === 'loading') return <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>
   if (state.status === 'unavailable') return <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-  // 「数据库不可用」是读到了概况但库打不开，与「读不到」不是一回事（旧实现同）
+  // 「unavailable」 is to not ， and 「 not to 」 not is 1 （ old ）
   return <StatusBadge tone={state.available ? 'ok' : 'bad'}>
     {state.available ? t('已生效') : t('数据库不可用')}
   </StatusBadge>
 }
 
 /**
- * 「账户」分类：管理员账号（改密码）、机器人校验（两端各一张开关）、重置说明。
+ * 「」：（）、（ 1 ）、。
  *
- * ── 为什么登录开关做成只读 ────────────────────────────────────
- * 「是否要求登录」由「库里有没有管理员」决定（见 `access::panel_auth_enabled`），
- * 不是一个独立开关。做成可拨的话，用户关掉它就是在删除管理员记录 —— 那与
- * 「重置管理员」是同一个动作，只是换了名字，却会让人以为「只是暂时关掉」。
- * 所以这里只显示状态，要关就按下面的重置说明走，语义清楚、后果可见。
+ * ── Why ────────────────────────────────────
+ * 「 is need 」 by 「 has no has 」（ `access::panel_auth_enabled`），
+ * not is 1 。 can ， use is in delete —— that and 
+ * 「」 is 1 ， is ， will as 「 is when 」。
+ * this ， need by down ，、 after can 。
  */
 function AccountPane({ snap }: { snap: SettingsSnapshot }) {
   const account = snap.account
   const captcha = snap.captcha
   const switchDisabled = !captcha.available || snap.busy === 'captcha'
-  // 本进程是哪一端：用于给两张开关加「正在使用」标记
+  // is 1 ：used for to 「 in use 」
   const here = captcha.localPanel ? 'desktop' : 'web'
 
   return (
@@ -1864,8 +1864,8 @@ function AccountPane({ snap }: { snap: SettingsSnapshot }) {
 function DataPane({ snap }: { snap: SettingsSnapshot }) {
   const io = snap.busy
   const storage = snap.storage
-  // 库打不开时各计数都是后端回落出来的 0，与「真的没有数据」在数字上无法区分 ——
-  // 整排显示「—」，不误导用户以为数据丢了；路径仍然照显（文件位置是已知的）
+  // not when is after 0， and 「 no has 」 in up none ——
+  // 「—」， not use as ；path（file is already ）
   const ready = storage.status === 'ready'
   const counts = ready && storage.available
   const path = ready && storage.file ? storage.file : '—'
@@ -1873,10 +1873,10 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
 
   return (
     <>
-      {/* 云同步（对标 cc-switch 的 WebDAV / S3 同步区块）：独立成文件、自带
-          数据流（它只读写 /api/cloud-sync，与设置页其它面板没有状态交集）。
-          排在「整库备份 / 恢复」之前 —— 两者都是「整份数据搬来搬去」的语义，
-          云同步更常用，放上面。 */}
+      {/* （ for cc-switch WebDAV / S3 ）：file、
+          （ /api/cloud-sync， and set its no has ）。
+           in 「 / 」 before —— is 「」 ，
+           use ， up 。 */}
       <CloudSyncPanel />
 
       <DatabaseBackupPanel />
@@ -1887,8 +1887,8 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
           tip={TIPS.io}
           actions={
             <>
-              {/* 忙碌守卫与旧实现的 guard() 同形：点下去的那个按钮禁用并换文案，
-                  另一个保持可点但会被守卫挡下 */}
+              {/* and old guard() ： down that by use and ，
+                   1 can will down */}
               <Button
                 id='btn-settings-export'
                 variant='outline'
@@ -1913,7 +1913,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
             <strong>{t('导出文件内含 accessToken / refreshToken / apiKey 等凭证与自定义提供商定义')}</strong>
             {t('，可直接用于登录。请妥善保管，不要外传或上传到公共位置。')}
           </Alert>
-          {/* 失败明细（旧实现写 innerHTML 并 display:none 收起空结果，这里条件渲染） */}
+          {/* failure（ old innerHTML and display:none empty， this ） */}
           {snap.ioFailure ? (
             <div className='io-result'>
               <span className='text-destructive'>
@@ -1960,7 +1960,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
             <div className='retention-row'>
               <Label htmlFor='storage-db-path'>{t('数据库文件')}</Label>
               <span className='storage-line'>
-                {/* 悬停看完整路径（元素上是折行显示的，长路径会被截成好几行） */}
+                {/* path（ up is ，path will ） */}
                 <span className='storage-path' id='storage-db-path' title={path}>{path}</span>
               </span>
               <div className='hint'>{NOTES.storageFile}</div>
@@ -1990,12 +1990,12 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
   )
 }
 
-/* ─── 反馈与需求分类 ───────────────────────── */
+/* ─── and need ───────────────────────── */
 
 /**
- * 三个入口，分别指向仓库里预设好模板的 GitHub issue 表单。
- * 用系统默认浏览器打开（`openExternal` → 壳命令 `open_release_page`，只放行
- * http(s)）：应用内 webview 打开会白屏，而且提交 issue 需要用户自己的 GitHub 登录态。
+ * ， to GitHub issue 。
+ * use default（`openExternal` → `open_release_page`，
+ * http(s)）： use webview will ， and issue need need use GitHub 。
  */
 const FEEDBACK_LINKS = [
   {
@@ -2047,21 +2047,21 @@ function FeedbackPane() {
   )
 }
 
-/* ─── 保留期改小的确认框 ───────────────────── */
+/* ─── ───────────────────── */
 
 /**
- * 缩短保留天数的二次确认（旧实现是 index.html 的 `#retention-modal` + 一堆 class 开关）。
+ * （ old is index.html `#retention-modal` + 1 class ）。
  *
- * 用 Dialog 而不是 AlertDialog：旧实现的五条出口（确认 / 取消 / 右上角 ✕ / 点遮罩 / Esc）里
- * 有四条都算「取消」，即它是**可以糊弄过去**的普通弹窗，不是 AlertDialog 那种必须表态的框。
- * 焦点落在「取消」而不是危险键：这是不可恢复的删除操作，敲回车不该等于同意删除。
+ * use Dialog not is AlertDialog： old （ / / up ✕ / / Esc）
+ * has 「」， is ** can ** ， not is AlertDialog that must 。
+ * in 「」 not is ： this is not can delete， not this etc delete。
  */
 function RetentionConfirmDialog({ confirm }: { confirm: { head: string } | null }) {
   const cancelRef = React.useRef<HTMLButtonElement | null>(null)
 
   return (
     <Dialog open={confirm !== null} onOpenChange={next => { if (!next) resolveRetentionConfirm(false) }}>
-      {/* 旧 .modal-confirm 把宽度收到 440px（这类框只有一段话加两个按钮，620px 太宽） */}
+      {/* old .modal-confirm to 440px（ this has 1 by ，620px ） */}
       <DialogContent className='w-[min(440px,calc(100vw-48px))]' initialFocus={cancelRef}>
         <DialogHeader>
           <DialogTitle>{t('确认缩减数据保留')}</DialogTitle>
@@ -2086,9 +2086,9 @@ function RetentionConfirmDialog({ confirm }: { confirm: { head: string } | null 
   )
 }
 
-/* ─── 局域网访问的确认 / 注册弹窗 ─────────────── */
+/* ─── / ─────────────── */
 
-/** 三种确认（开启 / 关闭 / 面板子开关）各自的标题、正文与确认键文案 */
+/** （ / / ） 、 and */
 const LAN_CONFIRM_COPY: Record<
   NonNullable<LanConfirm>['mode'],
   { title: string; body: (panel: boolean) => React.ReactNode; label: string }
@@ -2133,12 +2133,12 @@ const LAN_CONFIRM_COPY: Record<
 }
 
 /**
- * 「修改密码」弹窗：当前密码 + 新密码 + 确认新密码。
+ * 「」：current + new + new 。
  *
- * 三个字段都是**非受控**再取 ref 读值？不 —— 这里用受控 state：需要在提交前
- * 比较「两次新密码是否一致」，而那一比发生在点击那一刻，读 ref 与读 state 等价，
- * 但受控写法能让「两次不一致」的提示在输入时就消失（错误文案清空）。
- * 焦点落在「取消」：改密码不该因为敲回车就提交（与危险操作确认框同一取向）。
+ * is **** ref ？ not —— this use state： need need in before 
+ * 「 new is 1 」， that 1 in that 1 ， ref and state etc ，
+ * can 「 not 1 」 in when （errorempty）。
+ * in 「」： not this as （ and 1 to ）。
  */
 function PasswordDialog({ password }: { password: { busy: boolean; error: string } | null }) {
   const cancelRef = React.useRef<HTMLButtonElement | null>(null)
@@ -2148,7 +2148,7 @@ function PasswordDialog({ password }: { password: { busy: boolean; error: string
   const open = password !== null
   const busy = password?.busy === true
 
-  // 关窗即清空三个输入：密码不该留在组件的 state 里等下一次打开
+  // empty ： not this in state etc down 1 
   React.useEffect(() => {
     if (!open) {
       setOldValue('')
@@ -2172,7 +2172,7 @@ function PasswordDialog({ password }: { password: { busy: boolean; error: string
           <DialogTitle>{t('修改密码')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
-          {/* form 让浏览器的密码管理器能识别「旧密码 → 新密码」这一组 */}
+          {/* form can 「 old → new 」 this 1 */}
           <form
             onSubmit={event => { event.preventDefault(); submit() }}
             autoComplete='on'
@@ -2233,13 +2233,13 @@ function PasswordDialog({ password }: { password: { busy: boolean; error: string
 }
 
 /**
- * 局域网访问的两段式弹窗（骨架照 RetentionConfirmDialog）：
- *   · 确认段（`confirm` 非空）：开 / 关 / 面板子开关各自的后果与「需重启」；
- *   · 注册段（`register` 非空）：确认开启但还没有管理员时接着出现的表单 ——
- *     就是确认文案里说的「注册管理员账号」那一步，注册成功由流程层直接继续
- *     开启（`submitLanRegister`），用户不需要再点一次确认。
- * 取消 / 右上角 ✕ / 点遮罩 / Esc 都算「不继续」：开关保持原状（受控组件自动弹回）。
- * 注册段焦点落在取消键：表单里有未提交的输入，敲回车该走提交而不是关闭。
+ * （ RetentionConfirmDialog）：
+ * · （`confirm` empty）： / / after and 「 need 」；
+ * · （`register` empty）： no has when ——
+ * is 「」 that 1 ，success by 
+ * （`submitLanRegister`）， use not need need 1 。
+ * / up ✕ / / Esc 「 not 」：（）。
+ * in ： has ， this not is 。
  */
 function LanDialog({ confirm, register }: { confirm: LanConfirm; register: LanRegister }) {
   const cancelRef = React.useRef<HTMLButtonElement | null>(null)
@@ -2267,12 +2267,12 @@ function LanDialog({ confirm, register }: { confirm: LanConfirm; register: LanRe
               <div>
                 {t('局域网开放后，管理接口要求登录。请设置管理员账号与密码，注册完成会直接继续开启流程。')}
               </div>
-              {/* 允许浏览器自带的账号密码记忆：autoComplete 与登录页同款 */}
+              {/* ：autoComplete and */}
               <form
                 onSubmit={event => { event.preventDefault(); if (!register.busy) submitRegister() }}
               >
                 <Label htmlFor='lan-admin-name' className='mt-3.5 mb-[5px] block text-[12.5px]'>{t('账号')}</Label>
-                {/* 提交时壳侧按 ref 读值（submitLanRegister），ref 必须真的挂上 */}
+                {/* when by ref （submitLanRegister），ref must up */}
                 <Input ref={nameRef} id='lan-admin-name' autoComplete='username' placeholder={t('管理员账号')} disabled={register.busy} />
                 <Label htmlFor='lan-admin-password' className='mt-3.5 mb-[5px] block text-[12.5px]'>{t('密码')}</Label>
                 <Input
@@ -2322,23 +2322,23 @@ function LanDialog({ confirm, register }: { confirm: LanConfirm; register: LanRe
   )
 }
 
-/* ─── 页面 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 /**
- * 当前已装插件申报了哪些管理面板。
+ * current already 。
  *
- * ── 为什么设置页要问插件 ────────────────────────────────────
- * 伪装头编辑器这类面板的**实现**在插件里（走 `admin.action`），网关只存
- * 用户改过的键。插件没装时它既没有默认值也没有合并语义，面板点开是一屏
- * 「读取失败」。所以按插件的申报决定渲染：没申报就整块不出现。
+ * ── Whyset need ────────────────────────────────────
+ * this **** in （ `admin.action`），
+ * use 。 no when no has default no has and ， is 1 
+ * 「failure」。 by ： no not 。
  *
- * ── 为什么不用 useSettings 的快照 ──────────────────────────
- * 那份快照来自 `getAppSettings`（应用设置），面板声明是插件面的数据，
- * 两者来源不同。单独拉一次 `/api/plugins` 更直白，且失败时按「没有面板」
- * 处理 —— 宁可少画，也不要画一个读不出数的空面板。
+ * ── Why not use useSettings ──────────────────────────
+ * that `getAppSettings`（ use set）， is ，
+ * not 。 1 `/api/plugins` ， and failure when by 「 no has 」
+ * —— can ， not need 1 not empty。
  *
- * 依赖 `category`：切到「网关」分类时重拉一次，用户刚装完插件切回来
- * 就能看到新面板。
+ * `category`： to 「」 when 1 ， use 
+ * can to new 。
  */
 function useAdminPanels(category: string): Set<string> {
   const [panels, setPanels] = React.useState<Set<string>>(() => new Set())
@@ -2359,7 +2359,7 @@ function useAdminPanels(category: string): Set<string> {
         const list = envelope?.data?.adminPanels
         if (!cancelled && Array.isArray(list)) setPanels(new Set(list))
       } catch {
-        // 读不到按「没有面板」处理：隐藏比画一个空面板好
+        // not to by 「 no has 」： 1 empty
       }
     })()
     return () => { cancelled = true }
@@ -2369,25 +2369,25 @@ function useAdminPanels(category: string): Set<string> {
 
 function SettingsPage() {
   const snap = useSettings()
-  // 插件申报的管理面板（见 useAdminPanels 的说明）
+  // （ useAdminPanels ）
   const adminPanels = useAdminPanels(snap.category)
   const panesRef = React.useRef<HTMLDivElement | null>(null)
   /**
-   * 窄屏「一级菜单 / 二级页面」的当前层。
+   * 「 1 / 」 current。
    *
-   * 桌面与平板（≥768px）永远是 false：左栏导航常驻、右侧直接显示选中分类，
-   * 与改动前逐像素一致 —— 这条状态只在 CSS 的 767px 断点内起作用，
-   * 桌面端由 `.settings-layout.is-detail` 的规则排除，不产生任何视觉差异。
+   * and （≥768px） is false：、 in ，
+   * and before 1 —— this in CSS 767px use ，
+   * by `.settings-layout.is-detail` then excluding， not 。
    *
-   * 手机上的语义：false = 分类列表（一级），true = 某个分类的设置面板（二级）。
-   * 点分类进二级、点返回回一级。初始为 false（每次进设置页都从列表开始，
-   * 不沿用上次停留的分类 —— 手机上「上次看的那一页」没有上下文，列表更符合预期）。
+   * up ：false = （ 1 ），true = set（）。
+   * 、return 1 。 as false（set from ，
+   * not use up —— up 「 up that 1 」 no has up down ，）。
    */
   const [mobileDetail, setMobileDetail] = React.useState(false)
 
-  // 切换分类后把内容栏滚回顶部（旧实现是命令式写 scrollTop）：否则上一类的滚动位置会
-  // 带到新分类上，打开「更新」却停在半截。scrollReset 每次 showCategory 都递增，
-  // 于是「切回同一分类」（页面重入时 load → restoreCategory）同样会滚回顶部。
+  // after （ old is scrollTop）：otherwise up 1 will 
+  // to new up ，「update」 in 。scrollReset showCategory ，
+  // is 「 1 」（ when load → restoreCategory） will 。
   React.useEffect(() => {
     const panes = panesRef.current
     if (panes) panes.scrollTop = 0
@@ -2416,10 +2416,10 @@ function SettingsPage() {
         ))}
       </NavList>
 
-      {/* 二级页顶部返回栏：只在手机（≤767px）且已进入某一分类时显示，
-          桌面由 CSS 排除。文案里的分类名跟着当前分类走，让用户知道自己在哪。
-          图标复用 caretRight 并水平翻转（icons.js 里没有专用的 back 箭头，
-          为这一个按钮新增图标不值得）。 */}
+      {/* return： in （≤767px） and already 1 when ，
+           by CSS excluding。 current， use in 。
+           use caretRight and （icons.js no has use back ，
+           as this 1 by add not ）。 */}
       <div className='settings-back-bar'>
         <Button size='default' variant='ghost' type='button' className='settings-back-btn' onClick={() => setMobileDetail(false)}>
           <span className='ico' dangerouslySetInnerHTML={{ __html: iconHtml('caretRight', 17) }} />
@@ -2432,9 +2432,9 @@ function SettingsPage() {
         <div className={paneClass('general')} data-cat='general'>
           <GeneralPane snap={snap} />
         </div>
-        {/* AI 助手的配置已搬到助手页自己的「助手设置」抽屉
-            （assistant-settings-drawer.tsx）—— 换模型 / 调工具都是聊天当中会做的
-            事，留在设置页意味着每次都要离开对话再切回来。 */}
+        {/* AI config already to 「set」
+            （assistant-settings-drawer.tsx）—— / is in will 
+            ， in set need for 。 */}
         <div className={paneClass('display')} data-cat='display'>
           <DisplayPane />
         </div>
@@ -2461,27 +2461,27 @@ function SettingsPage() {
           <FeedbackPane />
         </div>
         {/*
-          「版本信息」同样由独立岛接管（system-info-pane.tsx，选择器
-          `.settings-pane[data-cat="system"]`）。约束与下面「更新」那条完全一样：
-          必须是**空的**、且永远保持同一个元素 —— 那个岛在自己的模块加载期就把
-          React root 建在这个 div 上，React 这边只要不去动它的子树，渲染结果就留得住。
-          拆成独立岛而不是塞进本文件：本文件已经 2300 多行，而这块与设置项
-          没有任何状态交集（它自己拉 `/api/system-info`）。
+          「」 by （system-info-pane.tsx，
+          `.settings-pane[data-cat="system"]`）。 and down 「update」 that 1 ：
+          must is **empty **、 and 1 —— that in 
+          React root in this div up ，React this need not ，。
+           not is file：file already 2300 ， this and set
+           no has （ `/api/system-info`）。
         */}
         <div className={paneClass('system')} data-cat='system' />
         {/*
-          「更新」的面板（原「关于」，id 仍是 about）由另一个岛（update-panel.tsx）接管：
-          它按这个选择器找挂载点，找到就把 React root 建在这个 div 上。所以这里必须是
-          **空的**、且永远保持同一个元素（不给 children、不改它在兄弟中的位置、不条件渲染）——
-          React 对没有 children 的宿主元素不会去动它的 DOM 子树，那个岛的渲染结果才留得住。
-          显隐照旧：className 上的 active 由本文件按当前分类切。
+          「update」 （「」，id is about） by 1 （update-panel.tsx）：
+           by this ， to React root in this div up 。 this must is 
+          **empty **、 and 1 （ not to children、 not in in 、 not ）——
+          React for no has children not will DOM ， that 。
+           old ：className up active by file by current。
         */}
         <div className={paneClass('about')} data-cat='about' />
       </div>
 
       <RetentionConfirmDialog confirm={snap.retentionConfirm} />
       <DatabaseBackupDialogs />
-      {/* 恢复进度弹窗：**不可关闭**，直到恢复收口（见该文件的说明） */}
+      {/* ：** not can **， to （ this file ） */}
       <DbRestoreDialog />
       <PasswordDialog password={snap.account.password} />
       <LanDialog confirm={snap.lanConfirm} register={snap.lanRegister} />
@@ -2489,25 +2489,25 @@ function SettingsPage() {
   )
 }
 
-/* ─── 挂载：接管 index.html 里既有的设置页 section ─── */
+/* ─── ： index.html has set section ─── */
 
 const PAGE_SELECTOR = '.page[data-page="settings"]'
 
 let pageRoot: ReturnType<typeof createRoot> | null = null
 
 /**
- * 把 React root 直接建在 `.page[data-page="settings"]` 上（不套宿主 div：页面 CSS 用
- * `.page[data-page="settings"]` 的直接子选择器分配高度与滚动归属）。
+ * React root in `.page[data-page="settings"]` up （ not div： CSS use 
+ * `.page[data-page="settings"]` and ）。
  *
- * ── 为什么必须 flushSync ──────────────────────
- * `.settings-pane[data-cat="about"]` 是 update-panel.tsx 的挂载点，它在**自己的模块加载期**
- * 就 `document.querySelector` 这个选择器，找到才建 root。React 19 的 `createRoot().render()`
- * 是并发调度，提交可能落在下一个宏任务 —— 那一刻这个 pane 还没进 DOM，update-panel 只会
- * 退化成等 DOMContentLoaded，而那时它早已过了注册窗口，「设置 → 更新」会整块空白。
- * 两个岛的求值顺序由 glob 的文件名字典序决定（settings-page.tsx 排在 update-panel.tsx 前），
- * 所以这里同步提交之后，它一定能查到。
+ * ── Whymust flushSync ──────────────────────
+ * `.settings-pane[data-cat="about"]` is update-panel.tsx ， in ** **
+ * `document.querySelector` this ， to root。React 19 `createRoot().render()`
+ * is and ， can can in down 1 —— that 1 this pane no DOM，update-panel will 
+ * etc DOMContentLoaded， that when already ，「set → update」 will empty。
+ * by glob file（settings-page.tsx in update-panel.tsx before ），
+ * this after ， 1 can to 。
  *
- * 先 replaceChildren()：React 不替我们清容器，留着静态骨架会与它的接管打架。
+ * replaceChildren()：React not ， will and 。
  */
 function mount(): void {
   if (pageRoot) return
@@ -2518,25 +2518,25 @@ function mount(): void {
   flushSync(() => { pageRoot?.render(<SettingsPage />) })
 }
 
-// 首屏就按上次的选择展开（旧实现在模块加载期做同一件事），不必等 load() 回来；
-// load() 里还会再校准一次，覆盖「页面切回来时状态被重置」的情况。
+// by up （ old in 1 ）， not etc load() ；
+// load() will 1 ，「 when 」 。
 restoreCategory()
 
-// 首次切到本页时才挂载（见 island-lazy）：隐藏页不在首屏渲染，也不拉数据。
+// to when （ island-lazy）： not in ， not 。
 mountOnPage('settings', PAGE_SELECTOR, mount)
 
-/* ─── 注册：对外契约 ─────────────────────────── */
+/* ─── ： for ─────────────────────────── */
 
 declare global {
   interface Window {
     /**
-     * 设置页（替换 ui/settings-panel.js，九个方法与原实现逐字一致）。
-     * 调用点：app.js:135 切到设置页时 load()；upgrade-panel.js:74 迁移完成后 load()；
-     * update-panel.tsx:972 的「去更新」showCategory('about')。
+     * set（ ui/settings-panel.js， and 1 ）。
+     * use ：app.js:135 to set when load()；upgrade-panel.js:74 after load()；
+     * update-panel.tsx:972 「update」showCategory('about')。
      */
     wbSettingsPanel?: {
       load(): Promise<void>
-      /** 铺启动与托盘设置（旧实现叫 renderSettings，对外名字是 render） */
+      /** and set（ old renderSettings， for is render） */
       render(data?: unknown): void
       renderRetention(data?: unknown): void
       renderRetry(data?: unknown): void
@@ -2561,6 +2561,6 @@ window.wbSettingsPanel = {
   showCategory,
 }
 
-// 首屏自持加载：app.js 的 showPage 在脚本加载前已执行过，若上次停留在设置页，
-// 这里补一次加载，避免徽标一直停在「检测中…」
+// ：app.js showPage in before already ， if up in set，
+// this 1 ， 1 in 「 in …」
 if (shared().wbApp?.currentPage === 'settings') void load()

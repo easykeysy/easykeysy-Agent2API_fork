@@ -1,37 +1,37 @@
-//! AI 助手 API（侧边栏「AI 助手」页的对话入口 + 设置页「AI 助手」分类的读写）。
+//! AI API（「AI 」 for + set「AI 」 ）。
 //!
-//!   GET  /api/assistant/config   → `{ config: {...} }`（含默认值展开，见下）
-//!   PUT  /api/assistant/config   `{ config: {...} }` → 校验后整块保存
+//! GET /api/assistant/config → `{ config: {...} }`（default， down ）
+//! PUT /api/assistant/config `{ config: {...} }` → after 
 //!   POST /api/assistant/chat     `{ model?: {provider,id}, messages, tools? }`
-//!                                → **SSE 流**（OpenAI 格式 delta，含 tool_calls）
+//! → **SSE **（OpenAI delta， tool_calls）
 //!
-//! ── 为什么对话不在前端直接打 /v1/chat/completions ─────────────
-//! 桌面壳的页面来自 Tauri 自定义协议（`tauri://localhost`），前端 fetch 到
-//! `http://127.0.0.1:{port}/v1/*` 是**跨源**请求，而网关面默认不应答 CORS
-//! （见 `KEY_CORS_ENABLED` 的说明）—— 那条路要求用户先打开 CORS 开关，
-//! 等于让「用助手」依赖一个与它无关的安全开关。挂到面板路由（`/api/*`，
-//! 无条件 CORS）就不必动那个开关，且对话框本来就是管理面的一部分。
+//! ── Why for not in before /v1/chat/completions ─────────────
+//! Tauri （`tauri://localhost`）， before fetch to 
+//! `http://127.0.0.1:{port}/v1/*` is ****request，default not CORS
+//! （ `KEY_CORS_ENABLED` ）—— that need use CORS ，
+//! etc 「 use 」 1 and none 。 to by （`/api/*`，
+//! none CORS） not that ， and for is 1 。
 //!
-//! ── 与 /v1/chat/completions 的关系 ─────────────────────────
-//! **共用同一条转发链路**（`UpstreamService::forward`）：token 刷新、429 换号、
-//! 出站脱敏、协议翻译、调试报文都在那条链路上。本文件只做三件事：
-//!   ① 把「用户选的模型」解析成上游名 —— 模型是对外名（`/v1/models` 的
-//!      `data[].id`，映射名也算），走公共管道的 `resolve_model`（默认模型回落 /
-//!      映射别名 / 目录校验与 /v1/* 同源）；**不钉提供商**，同名在多家时按账号
-//!      优先级主备 —— 助手的路由语义与普通客户端完全一致；
-//!   ② 按设置拼系统提示词（开关 × 工具是否为空，口径见 `AssistantConfig::system_prompt`）；
-//!   ③ 流式回传（OpenAI 格式原样，前端自己解析 delta / tool_calls）。
+//! ── and /v1/chat/completions ─────────────────────────
+//! ** use 1 **（`UpstreamService::forward`）：token new 、429 、
+//! 、、 in that up 。file：
+//! ① 「 use 」 up —— is for （`/v1/models` 
+//! `data[].id`，）， `resolve_model`（default /
+//! / directory and /v1/* ）；** not **， in when by 
+//! —— by and client 1 ；
+//! ② by set（ × is as empty， `AssistantConfig::system_prompt`）；
+//! ③ （OpenAI ， before delta / tool_calls）。
 //!
-//! ── 工具定义与执行都在前端 ───────────────────────────────────
-//! `tools` 是前端按勾选过滤好的 OpenAI tools 数组；后端核对工具 ID 与权限后
-//! 原样送给上游，不解析工具参数。`tool_calls` 流回前端，由前端执行、再把
-//! `role: "tool"` 的结果作为下一轮的 messages 发上来。工具实现调用已有的
-//! /api/* 管理接口；新增工具须同步配置中的 ID，参数与执行仍在前端。
+//! ── and in before ───────────────────────────────────
+//! `tools` is before by OpenAI tools ； after for ID and after 
+//! to up ， not parameter。`tool_calls` before ， by before 、 
+//! `role: "tool"` as down 1 messages up 。 use already has 
+//! /api/* ；addconfig in ID，parameter and in before 。
 //!
-//! ── 记账 ────────────────────────────────────────────────────
-//! 与模型测试同一口径：进请求日志（用户在「请求日志」里看得到助手的每一次
-//! 消耗），`is_test = true` 使报表聚合排除它（人工反复发起的样本混进趋势图
-//! 会把真实流量读歪）。来源为 `assistant`，实际 Key 身份随请求记入日志。
+//! ── ────────────────────────────────────────────────────
+//! and 1 ：request（ use in 「request」 to 1 
+//! ），`is_test = true` excluding（ 
+//! will ）。 as `assistant`， Key request。
 
 use std::sync::Arc;
 
@@ -54,33 +54,33 @@ use crate::server::ServerState;
 use super::disconnect_guard::DisconnectGuard;
 use super::pipeline::{self, json_response, RecordContext, RecordingStream, sse_response};
 
-/// 对外模型名的长度上限（与 `model_test` 的 `text_field` 上限同一量级）
+/// for limit（ and `model_test` `text_field` limit 1 ）
 const MAX_MODEL_CHARS: usize = 128;
-/// 单次对话里 messages 的条数上限。
+/// for messages limit。
 ///
-/// 不是防用户，是防「前端 bug 把上下文堆到几千条」把网关的内存与上游的
-/// 上下文窗口一起打爆：200 条足够一场长会话（每条都是完整一问一答）。
+/// not is use ， is 「 before bug up down to 」 and up 
+/// up down 1 ：200 1 will （ is 1 1 ）。
 const MAX_MESSAGES: usize = 200;
-/// tools 数组的长度上限（前端目前最多 15 只，留足余量）
+/// tools limit（ before before 15 ，）
 const MAX_TOOLS: usize = 64;
-/// 思考等级的长度上限（与 `model_rules::normalize_reasoning` 同一口径）
+/// etc limit（ and `model_rules::normalize_reasoning` 1 ）
 const MAX_REASONING_CHARS: usize = 32;
 
-/* ─── 设置（助手页的「助手设置」抽屉）───────────────────────── */
+/* ─── set（ 「set」）───────────────────────── */
 
 /// GET /api/assistant/config
 ///
-/// 出站用 `status_value`：工具表展开成完整 15 项（缺省值在后端兜底，界面不必
-/// 也维护一份默认集，见 `AssistantConfig::status_value`）。
+/// use `status_value`： 15 （ in after ， not 
+/// 1 default， `AssistantConfig::status_value`）。
 pub async fn get_config(State(_state): State<ServerState>) -> Response {
     ok_json(json!({ "config": config::assistant_config().status_value() }))
 }
 
 /// PUT /api/assistant/config
 ///
-/// 整块替换：前端拿 GET 的响应改一改变量再发回来，所以缺字段按默认值处理
-/// （**不是**「缺字段 = 保留原值」—— 前端永远发全量，两条约定混用只会让
-/// 「我明明删了这一项」变成解不开的谜）。
+/// ： before GET response 1 ， by default
+/// （** not is **「 = 」—— before ， use will 
+/// 「 this 1 」 not ）。
 pub async fn put_config(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(payload) => payload,
@@ -99,12 +99,12 @@ pub async fn put_config(State(_state): State<ServerState>, body: Bytes) -> Respo
             "⚠️  AI 助手设置写入失败（本次运行内仍生效）",
         );
     }
-    // 回给前端的形态与 GET 完全一致（展开过的工具表）——「存了什么」与
-    // 「界面看到什么」用同一个序列化口，免得前端保存后自己那那份与后端分叉
+    // to before and GET 1 （ ）——「」 and 
+    // 「 to 」 use 1 ， before after that that and after 
     ok_json(json!({ "config": config::assistant_config().status_value() }))
 }
 
-/// 解析并校验设置体（校验失败给人话，不静默丢弃）
+/// and set（failure to ， not ）
 fn parse_config(block: &Map<String, Value>) -> Result<AssistantConfig, String> {
     let model = match block.get("model") {
         None | Some(Value::Null) => None,
@@ -182,8 +182,8 @@ fn parse_config(block: &Map<String, Value>) -> Result<AssistantConfig, String> {
         reasoning,
         title_model,
         title_prompt,
-        // 权限模式：只认 confirm / full，缺失与未知值都回落到「变更前确认」
-        // （解析取向与 assistant_config::from_raw 一致）
+        // ： confirm / full， and unknown to 「 before 」
+        // （ to and assistant_config::from_raw 1 ）
         mode: match block.get("mode") {
             None | Some(Value::Null) => PermissionMode::default(),
             Some(Value::String(text)) => PermissionMode::from_str_lenient(text),
@@ -198,7 +198,7 @@ fn parse_config(block: &Map<String, Value>) -> Result<AssistantConfig, String> {
     })
 }
 
-/* ─── 对话（SSE）────────────────────────────────────────── */
+/* ─── for （SSE）────────────────────────────────────────── */
 
 /// POST /api/assistant/chat
 pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
@@ -219,10 +219,10 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
     if messages.len() > MAX_MESSAGES {
         return errors::management_error(400, format!("messages 最多 {MAX_MESSAGES} 条"));
     }
-    // 本次请求点名的模型优先；没点名用设置里的。两者都没有时说清下一步 ——
-    // 「去助手页选一个」比「模型未指定」这种网关腔有用得多。
-    // 这里的 model 是**对外模型名**（/v1/models 的 data[].id，映射名也算），
-    // 路由交给公共管道解析 —— 同名在多家时按账号优先级主备，与普通客户端一致。
+    // request ； no use set 。 no has when down 1 ——
+    // 「 1 」「」 this has use 。
+    // this model is ** for **（/v1/models data[].id，），
+    // by to —— in when by ， and client 1 。
     let config = config::assistant_config();
     let model = match model_from(&payload) {
         Ok(Some(model)) => model,
@@ -256,8 +256,8 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
         Some(_) => return errors::management_error(400, "tools 必须是数组"),
     };
 
-    // 系统提示词：开关 × 工具是否为空的四态口径全在 config 侧（含「一只工具都
-    // 没勾就不注入」这条产品约定）；这里只负责把它摆到 messages 最前面
+    // ： × is as empty in config （「 1 
+    // no not 」 this ）； this to messages before 
     let system = config.system_prompt(!tools.is_empty());
     let mut outbound_messages = Vec::with_capacity(messages.len() + 1);
     if let Some(text) = system {
@@ -265,16 +265,16 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
     }
     outbound_messages.extend(messages);
 
-    // 思考等级：本次请求点名的优先，没点名就用设置里存的（与模型同一套「本次
-    // 覆盖 > 默认值」语义）。写进 `reasoning_effort` —— 那是客户端显式指定的
-    // 形态，按既有口径**优先于映射上绑定的等级**（见 `model_rules::reasoning`
-    // 的模块头）；各家适配器再把它翻译成本家上游认识的档位字段。
+    // etc ：request ， no use set （ and 1 「
+    // > default」）。 `reasoning_effort` —— that is client 
+    // ， by has ** up etc **（ `model_rules::reasoning`
+    // module header）； up 。
     let reasoning = reasoning_from(&payload).or_else(|| config.reasoning.clone());
 
     let mut upstream = json!({
         "model": model,
         "messages": outbound_messages,
-        // 助手固定流式：工具调用与正文都要边到边渲染，非流式对对话界面没有意义
+        // ： use and need to ， for for no has 
         "stream": true,
     });
     if !tools.is_empty() {
@@ -284,7 +284,7 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
         upstream["reasoning_effort"] = Value::String(level.to_string());
     }
 
-    // 模型路由：对外名 → 上游名（默认值 / 映射别名 / 目录校验与 /v1/* 同源）
+    // 模型路由：对外名 → 上游名（默认值 / 映射别名 / 目录校验与 /v1/* ）
     let started_at = logging::now_ms();
     let requested_model = match super::request_prepare::resolve_model(&state, &mut upstream, access.scope.as_ref()).await {
         Ok(name) => name,
@@ -308,8 +308,8 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
     }
     let telemetry = Arc::new(RequestTelemetry::with_id());
     let telemetry_id = telemetry.snapshot().id;
-    // 进行中行：与真实请求同一时点。`is_test = true` —— 报表排除、请求日志标记
-    // （与模型测试同一口径，见模块头）；下游模型名记用户点名的那个对外名
+    // in ： and request 1 when 。`is_test = true` —— excluding、request
+    // （ and 1 ，module header）； down use that for 
     super::request_prepare::record_started(
         state.request_stats(),
         &telemetry_id,
@@ -330,17 +330,17 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
         .forward_assistant(ForwardRequest {
             body: upstream,
             stream: true,
-            // 不去重：对话不是「同 body 的快速重试」，同一句再问一次就该再发一次
+            // not ： for not is 「 body 」， 1 1 this 1 
             dedupe_key: String::new(),
-            // 空头：助手不是某个客户端发来的，也不该把面板的管理头透传给上游
+            // empty： not is client ， not this to up 
             client_headers: HeaderMap::new(),
             telemetry: telemetry.clone(),
-            // **不钉提供商**：对话模型是对外名，路由语义与 /v1/chat/completions
-            // 完全一致 —— 同名在多家时按账号优先级主备，失败自动落下一家
+            // ** not **： for is for ， by and /v1/chat/completions
+            // 1 —— in when by ，failure down 1 
             allowed_providers: access.scope.clone(),
             pinned_account: None,
-            // 尊重模型启停：助手用的是「已启用的模型」，用户关掉的模型不该
-            // 因为助手而继续消耗额度（与生产请求同一道门禁）
+            // ： use is 「 already enabled 」， use not this 
+            // as （ and request 1 ）
             ignore_model_gate: false,
             proxy_override: None,
         })
@@ -362,7 +362,7 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
                 is_test: true,
                 source: access.source.clone(),
             };
-            // 记账移交给响应流（它与流的生命周期同长）；守卫不再兜底
+            // to response（ and ）； not 
             guard.handoff();
             sse_response(
                 status,
@@ -374,8 +374,8 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
             )
             .into_response()
         }
-        // 固定要求了流式，聚合体这条理论上到不了；真到了就按 JSON 原样回，
-        // 前端对非 SSE 响应也有一套降级（把整段当一条 assistant 消息）
+        // need ， this up to not ； to by JSON ，
+        // before for SSE response has 1 （ 1 assistant ）
         Ok(ForwardOutcome::Completion { body }) => {
             let raw_response = pipeline::capture_raw_json(&body);
             pipeline::record_entry(
@@ -435,12 +435,12 @@ fn chat_error(error: errors::GatewayError) -> Response {
         .into_response()
 }
 
-/// 从请求体读本次点名的思考等级（字符串；缺失 / null / 空串 → None）。
+/// from request etc （； / null / empty → None）。
 ///
-/// 只做长度与空白处理，**不校验取值**：等级表（`model_rules::REASONING_LEVELS`）
-/// 是「界面上的候选」，不是白名单 —— 用户可以在模型管理页填表外的自定义等级，
-/// 这里若只放行表内的值，同一个值在「映射绑定」与「本次覆盖」两条路上就会有
-/// 两种命运。真正的合法性由各适配器的翻译层判定（不认识的档位不会注入）。
+/// and empty，** not **： etc （`model_rules::REASONING_LEVELS`）
+/// is 「 up 」， not is —— use can in etc ，
+/// this if ， 1 in 「」 and 「」 up will has 
+/// 。 by （ not not will ）。
 fn reasoning_from(payload: &Value) -> Option<String> {
     let text = payload.get("reasoning").and_then(Value::as_str)?.trim();
     if text.is_empty() || text.chars().count() > 32 {
@@ -449,38 +449,38 @@ fn reasoning_from(payload: &Value) -> Option<String> {
     Some(text.to_string())
 }
 
-/// 从请求体读本次点名的模型：**对外模型名**（字符串；缺失 / null → None）。
+/// from request ：** for **（； / null → None）。
 ///
-/// 兼容旧版前端发来的 `{provider, id}` 对象 —— 取 `id`，provider 不再参与路由
-/// （对话模型的语义已与 /v1/models 对齐，同名在多家按账号优先级）。
+/// old before `{provider, id}` for —— `id`，provider not and by 
+/// （ for already and /v1/models for ， in by ）。
 fn model_from(payload: &Value) -> Result<Option<String>, String> {
     match payload.get("model") {
         None | Some(Value::Null) => Ok(None),
         Some(Value::String(text)) => {
             let id = text.trim();
             if id.is_empty() {
-                return Err("model 不能为空".to_string());
+                return Err("model not can as empty".to_string());
             }
             Ok(Some(id.to_string()))
         }
         Some(Value::Object(model)) => {
             let id = model.get("id").and_then(Value::as_str).unwrap_or("").trim();
             if id.is_empty() {
-                return Err("model.id 不能为空".to_string());
+                return Err("model.id not can as empty".to_string());
             }
             Ok(Some(id.to_string()))
         }
-        Some(_) => Err("model 必须是字符串".to_string()),
+        Some(_) => Err("model must is ".to_string()),
     }
 }
 
-/* ─── 会话（左边那列历史对话）────────────────────────────── */
+/* ─── will （ that for ）────────────────────────────── */
 
 /// GET /api/assistant/sessions → `{sessions: [{id, title, model, reasoning,
-/// createdAt, updatedAt}, …]}`（按最近更新倒序）。
+/// createdAt, updatedAt}, …]}`（ by update）。
 ///
-/// **不带 messages**：侧边栏只用得到标题与时间，把几十条会话的全部消息体都
-/// 拉一遍是纯浪费。打开某一条时再走下面的单条接口。
+/// ** not messages**： use to and when ， will 
+/// 1 is 。 1 when down 。
 pub async fn list_sessions(State(_state): State<ServerState>) -> Response {
     ok_json(json!({ "sessions": assistant_sessions::list() }))
 }
@@ -493,11 +493,11 @@ pub async fn get_session(State(_state): State<ServerState>, Path(id): Path<Strin
     }
 }
 
-/// POST /api/assistant/sessions → `{session: {…}}`（新建或覆盖同 id 的会话）。
+/// POST /api/assistant/sessions → `{session: {…}}`（ new or id will ）。
 ///
-/// body：`{id, title?, messages, model?, reasoning?}`。id 由前端生成（见
-/// `core::assistant_sessions` 的模块头），所以这条接口同时承担「新建」与
-/// 「保存」—— 前端每轮回答结束后都调它，不必区分是第几次。
+/// body：`{id, title?, messages, model?, reasoning?}`。id by before （
+/// `core::assistant_sessions` module header）， this when 「 new 」 and 
+/// 「」—— before after ， not is 。
 pub async fn save_session(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(payload) => payload,
@@ -518,10 +518,10 @@ pub async fn delete_session(State(_state): State<ServerState>, Path(id): Path<St
     }
 }
 
-/// DELETE /api/assistant/sessions → `{removed: n}`（清空全部会话）。
+/// DELETE /api/assistant/sessions → `{removed: n}`（empty will ）。
 ///
-/// 与单条删除分开成两条路由（同前缀的 DELETE 落到这里）：前端「清空历史」
-/// 走它，免得发几十条单删请求。
+/// and delete by （ before DELETE to this ）： before 「empty」
+/// ，request。
 pub async fn clear_sessions(State(_state): State<ServerState>) -> Response {
     let removed = assistant_sessions::clear();
     ok_json(json!({ "removed": removed }))

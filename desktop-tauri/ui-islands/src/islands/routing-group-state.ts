@@ -6,7 +6,7 @@ import { bridge, errorMessage, host, notify, type RouteGroup, type RouteGroups }
 type GroupDraft = { group: RouteGroup; baseline: RouteGroup | null; revision: string }
 export const groupDirty = (draft: GroupDraft) => JSON.stringify(draft.group) !== JSON.stringify(draft.baseline)
 
-/** 按组保留草稿。新组在保存前不发布到模型目录。 */
+/** by 。 new in before not to directory。 */
 export function useRouteGroups(onSaved: () => void, onRemoved: () => void) {
   const [data, setData] = React.useState<RouteGroups | null>(null)
   const [drafts, setDrafts] = React.useState<Record<string, GroupDraft>>({})

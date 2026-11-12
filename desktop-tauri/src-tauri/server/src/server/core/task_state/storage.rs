@@ -7,7 +7,7 @@ use super::{database, TaskState};
 use crate::server::logging;
 
 const KV_KEY: &str = "backgroundTaskState";
-// 本机诊断快照不参与配置或云同步；只保留最近一次，避免无限增长。
+// not and config or ； 1 ，none。
 const RECOVERY_KEY: &str = "backgroundTaskStateRecovery";
 
 type States = HashMap<String, TaskState>;
@@ -101,7 +101,7 @@ pub(super) fn read_all() -> Result<States, String> {
             let tx = conn
                 .transaction_with_behavior(TransactionBehavior::Immediate)
                 .map_err(|error| format!("锁定任务状态失败: {error}"))?;
-            // 读锁交还后其他实例可能已修复或更新，必须在写事务内重新读取。
+            // after its can can already or update，must in new 。
             let stored = read_states(&tx)?;
             let recovered = preserve_damage(&tx, &stored)?;
             if recovered.is_some() {

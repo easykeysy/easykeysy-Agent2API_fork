@@ -1,45 +1,45 @@
-//! 账号导入 / 导出（对照 src/workbuddy-account-transfer.mjs）。
+//! / （ for src/workbuddy-account-transfer.mjs）。
 //!
-//! 这里是**纯逻辑模块**：不碰磁盘、不持状态，读盘/落盘/号段分配全部由 store 提供
-//! （`AccountStore` 的 load_locked / save_locked / with_lock）。
+//! this is ****： not 、 not ，// by store 
+//! （`AccountStore` load_locked / save_locked / with_lock）。
 //!
-//! 导出形态刻意保留 accessToken / refreshToken：换机器后靠它们直接沿用登录态，
-//! 不必再走一遍登录流程。反之 rateLimits 是本机的运行时限额标记、下划线开头的是
-//! 内部字段，换机器都没有意义，一律不导出。
+//! accessToken / refreshToken： after use ，
+//! not 1 。 rateLimits is when 、 down is 
+//! ， no has ， 1 not 。
 //!
-//! ── 导入的隔离规则（多提供商）────────────────────────────────
-//!   1. **匹配必须同 provider**：identity 为「provider + 业务身份」（WorkBuddy
-//!      uid / CatPaw uid|loginName / raccoon、AutoClaw userId / Qoder 地区+userId /
-//!      Cline account / 自定义家 apiKey）。跨家绝不合并，也绝不改写他人
-//!      provider —— 各家的 id 与 uid 空间互相独立，只按 uid 匹配会把别家记录
-//!      整条覆写（连凭证一起丢）。
-//!   2. 导入文件**显式**写了 provider 就必须是注册表已知 id 或 `custom-` 前缀的
-//!      自定义提供商（后者还要求定义真实存在，见下）；缺 provider（旧导出文件）
-//!      按 WorkBuddy 兼容，不继承命中记录的 provider。
-//!   3. **id 与业务身份在本机一一对应**：更新按身份命中后保留本机 id（导出文件里
-//!      的 id 只是新增时的取名建议，本机可能因全局冲突改过名）；新增时若 id 已被
-//!      同 provider 的另一身份占用则该条失败（不覆盖、不静默改名），被别家
-//!      占用则视为全局 id 冲突，分配真正唯一的新 id。
-//!   4. **priority 与 addedAt 一律取本机值**：本机的转发顺序由本机决定，回灌一份
-//!      导出文件不该把别人的顺序搬过来。新账号的优先级排在**全局队列末尾**
-//!      （优先级唯一性的作用域是全部账号共用的一条队列，与添加路径的
-//!      `next_free_priority` 同口径；满号段明确失败，不回落默认值造成冲突）。
-//!   5. **桌面端实时登录态**（`desktop: true` 或各家的固定桌面 id）不导入：它的
-//!      凭证按设计不落账号文件，通用导入若凭空建一条「有身份无凭证」的账号只会
-//!      得到 401。这类记录计 skipped 并说明改走已有的 importDesktop 入口。
+//! ── then （）────────────────────────────────
+//! 1. **must provider**：identity as 「provider + 」（WorkBuddy
+//! uid / CatPaw uid|loginName / raccoon、AutoClaw userId / Qoder +userId /
+//! Cline account / apiKey）。 not and ， not 
+//! provider —— id and uid empty， by uid will 
+//! （ 1 ）。
+//! 2. file**** provider must is already id or `custom-` before 
+//! （ after need in ， down ）； provider（ old file）
+//! by WorkBuddy ， not in provider。
+//! 3. **id and in 1 1 for **：update by in after id（file
+//! id is add when ， can can ）；add when if id already 
+//! provider 1 use then this failure（ not 、 not ）， 
+//! use then as id ， 1 new id。
+//! 4. **priority and addedAt 1 **： by ， 1 
+//! file not this 。 new in ****
+//! （ 1 use is use 1 ， and path 
+//! `next_free_priority` ；failure， not default）。
+//! 5. ** when **（`desktop: true` or id） not ： 
+//! by not file， use if empty 1 「 has none」 will 
+//! to 401。 this skipped and already has importDesktop 。
 //!
-//! ── 自定义提供商（`custom-` 前缀）───────────────────────────
-//! 定义与账号是**两层数据**：账号的 `provider` 字段指向提供商定义（外键）。
-//! v2 起导出文件多一段 `customProviders`（提供商定义，不含凭证 —— apiKey 在
-//! 账号记录里），导入时**先合并定义、再导账号**，外键才不悬空。自定义账号
-//! 的凭证是 apiKey（可空，与添加路径同口径）、身份是 apiKey（缺则账号 id）；
-//! 文件里有定义但本机合并后仍不存在的（理论上只有「文件被手改删了定义」），
-//! 对应账号逐条失败并说明原因。
+//! ── （`custom-` before ）───────────────────────────
+//! and is ****： `provider` to （）。
+//! v2 file 1 `customProviders`（， not —— apiKey in 
+//! ）， when ** and 、**， not empty。
+//! is apiKey（ can empty， and path）、 is apiKey（ then id）；
+//! file has and after not in （ up has 「file 」），
+//! for failure and Reason。
 //!
-//! 单条坏数据只记一条 failed / skipped 并继续，不让一条脏数据毁掉整批导入。
-//! 返回 `{ total, added, updated, skipped, failed, errors, customProviders }`。
+//! 1 failed / skipped and ， not 1 。
+//! return `{ total, added, updated, skipped, failed, errors, customProviders }`。
 //!
-//! 子模块：identity.rs 身份判定与 id 分配；normalize.rs 字段归一。
+//! ：identity.rs and id ；normalize.rs 1 。
 
 mod export;
 mod identity;
@@ -61,25 +61,25 @@ use identity::{
 };
 use normalize::normalize_imported;
 
-/// 导出文件格式版本（导入端据此兼容后续格式变化）。
+/// file（ after ）。
 ///
-/// v2：新增 `customProviders` 段（自定义提供商定义）。v1 文件没有这一段，
-/// 导入端按「没有定义可合并」处理 —— 自定义账号在 v1 文件里本就导不回，
-/// 不存在兼容负担。
+/// v2：add `customProviders` （）。v1 file no has this 1 ，
+/// by 「 no has can and 」 —— in v1 file not ，
+/// not in 。
 pub const EXPORT_VERSION: i64 = 2;
 
-/// 单条导入的处理结果
+/// 
 enum ImportOutcome {
     Updated(String),
     Added(String),
     Skipped(String),
 }
 
-/// 导入统计。
+/// statistics。
 ///
-/// 跳过（桌面端引用等）与失败（坏数据）分开记：结果里的 `failed` 只数真正的
-/// 失败，`errors` 先列失败、再列跳过（跳过项带 `skipped: true` 标记），
-/// 于是前端「失败明细」不会把跳过原因当成失败展示。
+/// （ use etc ） and failure（）： `failed` 
+/// failure，`errors` failure、（ `skipped: true` ），
+/// is before 「failure」 not will Reasonfailure。
 #[derive(Default)]
 struct ImportStats {
     added: usize,
@@ -90,35 +90,35 @@ struct ImportStats {
     imported_ids: Vec<String>,
 }
 
-/// 单条账号记录 → 导出形态：原样输出全部业务字段，剔除 rateLimits（本机运行时
-/// 限额标记）与下划线内部字段。
+/// → ：， rateLimits（ when 
+/// ） and down 。
 fn to_export_record(record: &StoredAccount) -> Value {
     let mut item = Map::new();
     for (key, value) in record.fields() {
         if key.starts_with('_') || key == "rateLimits" {
             continue;
         }
-        // `value === undefined ? null : value`：JSON 里不存在 undefined，
-        // 因此这里只需原样搬运（缺键就是缺键）
+        // `value === undefined ? null : value`：JSON not in undefined，
+        // this need （ is ）
         item.insert(key.clone(), value.clone());
     }
-    // 统一形状：token 与代理即使缺失也显式给出，方便导入端与用户核对
+    // 1 ：token and to ， and use for 
     let access_token = record.access_token();
     let refresh_token = record.refresh_token();
     item.insert("accessToken".to_string(), Value::String(access_token));
     item.insert("refreshToken".to_string(), Value::String(refresh_token));
     item.insert("proxy".to_string(), record.proxy());
-    // provider 是匹配身份的一部分：显式写出，且以记录的实际归属为准
-    // （字段缺失的历史记录按 provider() 的兜底口径写出 WorkBuddy）
+    // provider is 1 ：， and as 
+    // （ by provider() WorkBuddy）
     item.insert("provider".to_string(), Value::String(record.provider()));
     Value::Object(item)
 }
 
-/// 导出全部账号（换机器后导入继续用），并附上自定义提供商的定义。
+/// （ after use ）， and up 。
 ///
-/// 定义在账号锁**外**读取：`custom_providers::list()` 走 config 自己的锁，
-/// 两把锁绝不嵌套（与导入端「先并定义、后进账号锁」同一纪律）。
-/// 定义不含任何凭证 —— apiKey 是账号的属性，已随账号记录导出。
+/// in ****：`custom_providers::list()` config ，
+/// not （ and 「 and 、 after 」 1 ）。
+/// not —— apiKey is ， already 。
 pub fn export_accounts(store: &AccountStore) -> Value {
     let accounts = store.with_lock(|guard| {
         let state = store.load_locked(guard);
@@ -132,9 +132,9 @@ pub fn export_accounts(store: &AccountStore) -> Value {
     })
 }
 
-/// 导入账号（导出文件的回流），merge 语义见文件头。
+/// （file ），merge file。
 ///
-/// 返回 `{ total, added, updated, skipped, failed, errors, customProviders }`。
+/// return `{ total, added, updated, skipped, failed, errors, customProviders }`。
 pub fn import_accounts(store: &AccountStore, payload: &Value) -> Result<Value, AccountStoreError> {
     let Some(root) = payload.as_object() else {
         return Err(AccountStoreError::new("导入内容必须是 JSON 对象", 400));
@@ -146,12 +146,12 @@ pub fn import_accounts(store: &AccountStore, payload: &Value) -> Result<Value, A
         return Err(AccountStoreError::new("accounts 为空，没有可导入的账号", 400));
     }
 
-    // 定义段的逐条警告（坏条目跳过不毁整批），最后并进 errors 给前端展示
+    // （ not ）， after and errors to before 
     let mut definition_warnings: Vec<Value> = Vec::new();
-    // ── 自定义提供商定义先于账号合并 ──
-    // 账号记录的 provider 字段指向这些定义（外键）；且合并动作只写 config、
-    // 不碰账号锁 —— 放在 with_lock 之前，两把锁绝不嵌套。带了这个键但不是
-    // 数组按整体 400（显式性：坏形状不该被静默吞掉）。
+    // ── and ──
+    // provider to this （）； and and config、
+    // not —— in with_lock before ， not 。 this not is 
+    // by 400（： not this ）。
     let (providers_added, providers_updated) = match root.get("customProviders") {
         Some(Value::Array(definitions)) => {
             let report = crate::server::core::custom_providers::transfer::merge_imported(
@@ -181,7 +181,7 @@ pub fn import_accounts(store: &AccountStore, payload: &Value) -> Result<Value, A
             .iter()
             .map(|item| item.id().to_string())
             .collect();
-        // 需要作废会话的 CatPaw 账号（锁内只收集，落盘并释放锁后再调用注册表）
+        // need need will CatPaw （， and after use ）
         let mut catpaw_invalidations: Vec<String> = Vec::new();
 
         for item in items {
@@ -217,15 +217,15 @@ pub fn import_accounts(store: &AccountStore, payload: &Value) -> Result<Value, A
         crate::server::core::account_store::codearts_accounts::migrate_limiters(&mut state.accounts);
         store.save_locked(&state, guard)?;
         let failed = stats.failures.len();
-        // errors 顺序：失败 → 跳过 → 定义警告（跳过项带 skipped 标记、定义警告带
-        // customProvider 标记，前端可区分展示）
+        // errors ：failure → → （ skipped 、
+        // customProvider ， before can ）
         let mut errors = stats.failures.clone();
         errors.extend(stats.skipped_items.iter().cloned());
         errors.extend(definition_warnings.iter().cloned());
-        // 级别按**结果**给，不靠文案推断：`失败 {failed} 条` 是无条件拼接的，
-        // 于是「失败 0 条」这种完全成功的导入也含「失败」二字，会被
-        // infer_level 判成 error —— 面板导航徽标只统计 error，等于每导入一次
-        // 就亮红标。（与 scheduled_tasks.rs 的凭证维护汇总同一处理。）
+        // by **** to ， not ：`failure {failed} ` is none ，
+        // is 「failure 0 」 this success 「failure」， will 
+        // infer_level error —— statistics error， etc 1 
+        // 。（ and scheduled_tasks.rs total 1 。）
         crate::server::logging::log_with_level(
             "[Accounts]",
             &format!(
@@ -256,15 +256,15 @@ pub fn import_accounts(store: &AccountStore, payload: &Value) -> Result<Value, A
         Ok::<_, AccountStoreError>((result, catpaw_invalidations))
     })?;
 
-    // 落盘已完成、账号锁已释放：再作废 CatPaw 会话映射（两把锁不嵌套，
-    // 与 store_crud 的 remove_account / update_account 同一纪律）
+    // already 、 already ： CatPaw will （ not ，
+    // and store_crud remove_account / update_account 1 ）
     for id in catpaw_invalidations {
         store.invalidate_catpaw_sessions(&id, kind_id(ProviderKind::CatPaw));
     }
     Ok(result)
 }
 
-/// 失败条目回显用的标识：优先 id，其次 uid / userId
+/// failure use ： id， its uid / userId
 fn error_id_of(item: &Value) -> String {
     let text = |key: &str| {
         item.get(key)
@@ -282,9 +282,9 @@ fn error_id_of(item: &Value) -> String {
     String::new()
 }
 
-/// 处理单条导入记录。
+/// 。
 ///
-/// 返回 `Ok(Updated/Added/Skipped)` 或 `Err(原因)`（该条失败，批次继续）。
+/// return `Ok(Updated/Added/Skipped)` or `Err(Reason)`（ this failure，）。
 fn import_one_item(
     state: &mut crate::server::core::account_store::state::AccountState,
     item: &Value,
@@ -304,9 +304,9 @@ fn import_one_item(
         return Err("缺少 id".to_string());
     }
 
-    // ── 桌面端实时登录态的引用：不导入（见文件头第 5 条）──
-    // 这道判定放在 provider 校验之前：桌面引用本来就不是可迁移账号，
-    // 无论它的 provider 写的是什么，都按「跳过」而不是「失败」处理。
+    // ── when use ： not （file 5 ）──
+    // this in provider before ： use not is can ，
+    // none provider is ， by 「」 not is 「failure」。
     if is_desktop_item(object) || is_reserved_desktop_id(&item_id) {
         return Ok(ImportOutcome::Skipped(
             "桌面端实时登录态账号不随导出文件迁移（凭证在本机客户端存储，不落账号文件）；\
@@ -315,13 +315,13 @@ fn import_one_item(
         ));
     }
 
-    // ── provider 校验：显式 provider 必须是注册表已知 id 或已存在的自定义家 ──
+    // ── provider ： provider must is already id or already in ──
     let provider = resolve_provider(object)?;
 
-    // 自定义提供商的**存在性**校验（注册表不认识它，校验只能在这里做）：
-    // 定义段的合并在进账号循环之前已完成，文件里带定义的到这里必然存在；
-    // 仍找不到 = 文件没有该定义、本机也没建过 —— 账号收进来就是个孤儿
-    // （界面挂着、转发必然失败），明确失败比静默埋雷好。
+    // ** in **（ not ， can in this ）：
+    // and in before already ，file to this in ；
+    // not to = file no has this 、 no —— is 
+    // （、failure），failure。
     if provider.starts_with(crate::server::core::custom_providers::ID_PREFIX)
         && crate::server::core::custom_providers::get(&provider).is_none()
     {
@@ -330,18 +330,18 @@ fn import_one_item(
         ));
     }
 
-    // ── 凭证：至少要有一个可用的凭证字段（只有引用字段的记录不构成可迁移账号）──
+    // ── ： need has 1 available （ has use not can ）──
     //
-    // ── 为什么不能只认 accessToken / refreshToken ─────────────────
-    // 各家的凭证键不同：自定义账号是 `apiKey`（且可空 —— 与添加路径同口径，
-    // 部分上游不需要 key）、OfficeAce 是 `modelAppKey` + `modelAppSecret` 那一对、
-    // ZCode 还带 `jwt`、Command Code 把 key 落在 `accessToken`。旧实现只认
-    // 前两个键，于是 OfficeAce 的账号**导得出去、导不回来**（每条都报
-    // 「缺少 accessToken 与 refreshToken」）—— 每加一家就要回来补一次，正是
-    // 这套逻辑要根治的维护负担。
+    // ── Why not can accessToken / refreshToken ─────────────────
+    // not ： is `apiKey`（ and can empty —— and path，
+    // up not need need key）、OfficeAce is `modelAppKey` + `modelAppSecret` that 1 for 、
+    // ZCode `jwt`、Command Code key in `accessToken`。 old 
+    // before ， is OfficeAce **、 not **（
+    // 「 accessToken and refreshToken」）—— 1 need 1 ， is 
+    // this need 。
     //
-    // 现在按「记录里有没有**任何**一个已知凭证键」判：判据来自同一张表
-    // （`CREDENTIAL_KEYS`），新增一家时只要凭证落在这几个键上就不用改这里。
+    // in by 「 has no has **** 1 already 」： 1 
+    // （`CREDENTIAL_KEYS`），add 1 when need in this up not use this 。
     let is_custom_provider =
         provider.starts_with(crate::server::core::custom_providers::ID_PREFIX);
     let access_token = object
@@ -364,7 +364,7 @@ fn import_one_item(
                 .and_then(Value::as_str)
                 .is_some_and(|value| !value.trim().is_empty())
         });
-    // 自定义账号的 apiKey 可空（`noAuth` 形态），不强制要求凭证
+    // apiKey can empty（`noAuth` ）， not need 
     if !is_custom_provider && !has_any_credential {
         return Err("缺少凭证（accessToken / refreshToken / apiKey / modelAppKey 等均为空）"
             .to_string());
@@ -375,11 +375,11 @@ fn import_one_item(
         return Err("token 过长".to_string());
     }
 
-    // ── 身份：provider + 业务身份（四家字段不同，见 identity.rs）──
+    // ── ：provider + （ not ， identity.rs）──
     identity_of_item(&provider, object)?;
 
-    // 本机 id 撞上桌面端实时登录态时跳过：固定桌面 id 不可被普通导入记录顶替
-    // （它的凭证在客户端存储，改写只会把实时登录态变成一份过期副本）
+    // id up when when ： id not can 
+    // （ in client， will when 1 ）
     if state
         .accounts
         .iter()
@@ -391,9 +391,9 @@ fn import_one_item(
         )));
     }
 
-    // 同 provider 内业务身份匹配（带 provider 作用域：跨家同 uid 不会相遇）。
-    // 桌面端记录不参与匹配：它与普通账号可以是同一个人的两份记录，
-    // 拿它当合并目标就会把「实时登录态」改写掉。
+    // provider （ provider use ： uid not will ）。
+    // not and ： and can is 1 ，
+    // and will 「 when 」。
     let matched = state.accounts.iter().position(|record| {
         !is_desktop_item(record.fields())
             && record.provider() == provider
@@ -405,8 +405,8 @@ fn import_one_item(
             && !crate::server::core::account_store::account_identity::conflicts(&provider, record.fields(), object)
     }));
     if let Some(index) = matched {
-        // 同 provider 内「id ↔ 业务身份」必须一致：导入 id 若已指向本 provider 的
-        // 另一条身份，说明导出文件与本地状态自相矛盾 —— 该条失败，不覆盖也不改名
+        // provider 「id ↔ 」must 1 ： id if already to provider 
+        // 1 ，file and —— this failure， not not 
         if state.accounts[index].id() != item_id {
             let points_elsewhere = state.accounts.iter().any(|record| {
                 record.id() == item_id
@@ -417,9 +417,9 @@ fn import_one_item(
                 return Err("导入的账号 ID 在本提供商内指向另一条业务身份，未覆盖原账号".to_string());
             }
         }
-        // 同 provider + 同业务身份 → 合并到本机记录，**保留本机 id**：
-        // 导出文件里的 id 只是新增时的取名建议（本机可能因全局冲突改过名），
-        // 按它去改写本机 id 会破坏「id 全局唯一」与重导的幂等性。
+        // provider + → and to ，** id**：
+        // file id is add when （ can can ），
+        // by id will 「id 1 」 and etc 。
         let before = state.accounts[index].clone();
         let normalized = normalize_imported(object, &provider, Some(&before))?;
         {
@@ -428,9 +428,9 @@ fn import_one_item(
                 target.insert(key, value);
             }
         }
-        // 非 WorkBuddy 记录不该带腾讯端点字段：旧版导入曾把它们注入别家记录。
-        // 判据只问「是不是 WorkBuddy 系」，**不枚举别家** —— 新增一家 provider
-        // 时不需要回来加一行（这正是旧实现最费维护的地方）。
+        // WorkBuddy not this ： old 。
+        // 「 is not is WorkBuddy 」，** not ** —— add 1 provider
+        // when not need need 1 （ this is old ）。
         if !crate::server::core::providers::workbuddy::is_workbuddy_family(&provider) {
             for key in ["edition", "prefixPath", "endpoint", "platform"] {
                 state.accounts[index].remove(key);
@@ -438,22 +438,22 @@ fn import_one_item(
         }
         state.accounts[index].set("updatedAt", Value::from(crate::server::logging::now_ms()));
         if provider == kind_id(ProviderKind::CatPaw) {
-            // 凭证被更新：该账号的 CatPaw 会话映射必须在锁外作废
+            // update： this CatPaw will must in 
             catpaw_invalidations.push(state.accounts[index].id().to_string());
         }
         return Ok(ImportOutcome::Updated(state.accounts[index].id().to_string()));
     }
 
-    // ── 新增 ──
-    // 走到这里说明本 provider 没有同身份的普通账号：若该 id 仍被本 provider 的
-    // 别的身份占用，就是导出文件自相矛盾 —— 失败而不是覆盖，也不静默改名
+    // ── add ──
+    // to this provider no has ： if this id provider 
+    // use ， is file —— failure not is ， not 
     if let Some(existing) = state.accounts.iter().find(|record| record.id() == item_id) {
         if existing.provider() == provider {
             return Err("导入的账号 ID 在本提供商内已属于另一条业务身份，未覆盖原账号".to_string());
         }
     }
-    // 本机 id 空间是**全局**的（四家共用一份列表）：导入原值被别家记录占用时，
-    // 分配一个真正唯一的 id（绝不覆盖他人，也不回落成同样可能冲突的派生值）
+    // id empty is **** （ use 1 ）： use when ，
+    // 1 1 id（ not ， not can can ）
     let taken: std::collections::HashSet<String> = taken_ids.iter().cloned().collect();
     let Some(new_id) = allocate_unique_id(&item_id, &taken) else {
         return Err("导入账号 ID 冲突，无法分配独立 ID，未覆盖原账号".to_string());
@@ -463,14 +463,14 @@ fn import_one_item(
     let now = crate::server::logging::now_ms();
     let mut record = Map::new();
     record.insert("id".to_string(), Value::String(new_id.clone()));
-    // provider 与身份字段（uid / loginName / userId）已由 normalize 保留
+    // provider and （uid / loginName / userId） already by normalize 
     for (key, value) in normalized {
         record.insert(key, value);
     }
-    // priority 排在**全局队列末尾**：优先级唯一性的作用域是全部账号共用的一条
-    // 队列（见 `priority.rs` 模块头），号段计算必须把所有账号都传进来 ——
-    // 只取同 provider 的优先级会算出与别家冲突的值（转发顺序悄悄串号）。
-    // 满号段明确失败（不冲突不覆盖，也不回落默认值）
+    // priority in ****： 1 use is use 1 
+    // （ `priority.rs` module header），must all ——
+    // provider will and （）。
+    // failure（ not not ， not default）
     let used: Vec<i64> = state.accounts.iter().map(StoredAccount::priority).collect();
     let Some(priority) = allocate_priority(&used) else {
         return Err("优先级号段（0-9999）已用满，无法为新账号分配优先级".to_string());
@@ -478,7 +478,7 @@ fn import_one_item(
     record.insert("priority".to_string(), Value::from(priority));
     record.insert("addedAt".to_string(), Value::from(now));
     record.insert("updatedAt".to_string(), Value::from(now));
-    // 导入的普通账号没有桌面端标记：避免被当成本机实时登录态
+    // no has ： when 
     record.remove("desktop");
     let mut saved = StoredAccount::from_map(record);
     if saved.name().is_empty() {
@@ -493,7 +493,7 @@ fn import_one_item(
         saved.set("name", Value::String(fallback));
     }
     state.accounts.push(saved);
-    // id 记入占用集合：同批后续记录不会分到同一个 id
+    // id use ： after not will to 1 id
     taken_ids.push(new_id.clone());
     Ok(ImportOutcome::Added(new_id))
 }

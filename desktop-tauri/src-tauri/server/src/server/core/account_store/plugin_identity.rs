@@ -1,4 +1,4 @@
-//! 插件账号落库前的身份解析与主键分配。旧账号保留原 ID，新账号按 provider 隔离。
+//! before and 。 old ID， new by provider 。
 
 use std::sync::MutexGuard;
 
@@ -26,25 +26,25 @@ pub(super) fn incoming(provider: &str, identity: &str, secret: &Value, public: &
     record
 }
 
-/// 身份 / 端点字段从 `pluginSecret` / `pluginPublic` 镜像到**记录顶层**。
+/// / from `pluginSecret` / `pluginPublic` to ****。
 ///
-/// ── 为什么必须镜像（issue #380）──────────────────────────────
-/// 网关有一批读路径只认顶层字段，最典型的是计费侧
+/// ── Whymust（issue #380）──────────────────────────────
+/// has 1 path， is 
 /// （`billing::account_of` → `session_from_record` → `record.uid()`）。
-/// 插件落库时把凭证与展示字段都塞进 `pluginSecret` / `pluginPublic`，
-/// 顶层什么都没有 —— 于是「网页登录新建的账号」对话正常（插件自己从
-/// `pluginSecret` 取凭证）但签到 / 余额全报「找不到该会话对应的账号记录」。
+/// when and `pluginSecret` / `pluginPublic`，
+/// no has —— is 「 new 」 for （ from 
+/// `pluginSecret` ） to / 「 not to this will for 」。
 ///
-/// 内置实现的落库路径显式写顶层 `uid`（`store_crud`），插件路径必须遵守
-/// 同一契约。`edition` 也要一起写：缺了它 `resolve_edition(None)` 会回落
-/// `cn`，国际版账号被当成国内版反查，即使补了 uid 也匹配不上。
+/// path `uid`（`store_crud`），pathmust
+/// 1 。`edition` need 1 ： `resolve_edition(None)` will 
+/// `cn`， ， uid not up 。
 ///
-/// ── 键集合怎么定 ────────────────────────────────────────────
-/// 取「网关会读、插件会写」的交集：身份（uid / nickname / type / 企业两段）
-/// 与端点四件套（edition / endpoint / prefixPath / platform）。这些都是
-/// **非敏感**字段（`pluginPublic` 里本来就原样下发），镜像不扩大暴露面。
-/// 凭证类（accessToken / refreshToken）不在这里 —— 它们有独立的
-/// `MIRROR_KEYS` 契约（只在记录本来就有该键时写）。
+/// ── ────────────────────────────────────────────
+/// 「 will 、 will 」 ：（uid / nickname / type / ）
+/// and （edition / endpoint / prefixPath / platform）。 this is 
+/// ****（`pluginPublic` down ）， not 。
+/// （accessToken / refreshToken） not in this —— has 
+/// `MIRROR_KEYS` （ in has this when ）。
 const MIRRORED_IDENTITY_KEYS: [&str; 9] = [
     "uid",
     "nickname",
@@ -57,20 +57,20 @@ const MIRRORED_IDENTITY_KEYS: [&str; 9] = [
     "platform",
 ];
 
-/// 从 `pluginPublic`（优先）与 `pluginSecret` 取身份字段写到顶层。
+/// from `pluginPublic`（） and `pluginSecret` to 。
 ///
-/// `pluginPublic` 优先：那是插件的 `account_view` 产出，已经做过归一
-/// （例如 `edition` 被翻成 `cn` / `intl` 的稳定 id，而 secret 里可能是
-/// 用户随手填的 `international`）。
+/// `pluginPublic` ： that is `account_view` ， already 1 
+/// （e.g. `edition` `cn` / `intl` id， secret can can is 
+/// use `international`）。
 ///
-/// ── 只在顶层缺失时才写 ──────────────────────────────────────
-/// 顶层是**网关的权威字段**：用户可以在账号设置里改 `endpoint`（指向
-/// staging / 自建网关），也可以手工修 `uid`。无条件用插件快照覆盖会让
-/// 「重新登录一次」把用户的手工配置洗掉，而症状（打回默认站点）与
-/// 「登录态过期」极像，很难查。
+/// ── in when ──────────────────────────────────────
+/// is ** **： use can in set `endpoint`（ to 
+/// staging / ）， can `uid`。none use will 
+/// 「 new 1 」 use config，（default） and 
+/// 「」，。
 ///
-/// 代价是「插件侧改了值、顶层不跟着变」—— 那种情况由用户显式改账号
-/// 设置来表达，不是本函数该猜的。
+/// is 「、 not 」—— that by use 
+/// set， not is this 。
 pub(super) fn mirror_identity(record: &mut StoredAccount, provider: &str) {
     let public = record.get("pluginPublic").cloned().unwrap_or(Value::Null);
     let secret = record.get("pluginSecret").cloned().unwrap_or(Value::Null);
@@ -83,16 +83,16 @@ pub(super) fn mirror_identity(record: &mut StoredAccount, provider: &str) {
             .filter(|value| !value.is_null())
             .or_else(|| secret.get(key).filter(|value| !value.is_null()));
         let Some(value) = value else { continue };
-        // 空串是「插件没给这个字段」，不是有效值：写进顶层会让 `uid()` 之类的
-        // 读取拿到 `Some("")`，反查照样失败却看不出是缺失。
+        // empty is 「 no to this 」， not is valid： will `uid()` 
+        // to `Some("")`，failure not is 。
         let empty = value.as_str().is_some_and(|text| text.trim().is_empty());
         if empty {
             continue;
         }
         record.set(key, value.clone());
     }
-    // WorkBuddy 系：插件没给 edition 时按 provider 补一次。判据是「这家有没有
-    // 地区概念」，不看插件是否实现——缺 edition 会让国际版账号被反查成国内版。
+    // WorkBuddy ： no to edition when by provider 1 。 is 「 this has no has 
+    // 」， not is —— edition will 。
     if !has_text_value(record, "edition") {
         if let Some(region) = crate::server::core::providers::workbuddy::Region::from_provider_id(provider) {
             record.set("edition", Value::String(region.edition().id.to_string()));
@@ -100,7 +100,7 @@ pub(super) fn mirror_identity(record: &mut StoredAccount, provider: &str) {
     }
 }
 
-/// 顶层是否已有一个**非空**的同名字段。
+/// is already has 1 **empty** 。
 fn has_text_value(record: &StoredAccount, key: &str) -> bool {
     record
         .get(key)
@@ -208,7 +208,7 @@ impl AccountStore {
         } else {
             self.with_conn(guard, |conn| sql::load_by_id(conn, identity)).map_err(|error| error.message)?
         };
-        // 同 ID 仍要核对身份；插件 ID 不带域或地区时不能覆盖已存在的另一条账号。
+        // ID need for ； ID not or when not can already in 1 。
         if let Some(record) = occupied.as_ref().filter(|record| record.provider() == provider) {
             if account_identity::conflicts(provider, record.fields(), account.fields()) {
                 return Err("插件账号 ID 与已有账号的业务身份冲突，未覆盖原账号".to_string());

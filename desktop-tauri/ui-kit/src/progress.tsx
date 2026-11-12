@@ -3,18 +3,18 @@ import { Progress as ProgressPrimitive } from '@base-ui/react/progress'
 import { cn } from './lib/cn'
 
 /**
- * 进度条（标准形态，与 shadcn/ui 的 Progress 一致）。
+ * （， and shadcn/ui Progress 1 ）。
  *
- * 部件划分照标准：Progress 是容器，默认自带一条 ProgressTrack + ProgressIndicator
- * （传 value 就能用）；要自定义结构或加百分比文字时，用 ProgressLabel /
- * ProgressValue，或自己组装 Track 与 Indicator。
+ * ：Progress is ，default 1 ProgressTrack + ProgressIndicator
+ * （ value can use ）； need or when ， use ProgressLabel /
+ * ProgressValue， or Track and Indicator。
  *
- * 样式值取项目令牌：6px 高胶囊、轨道取 surface-3、条体主色、宽度变化 0.3s 缓动 ——
- * 对齐 ui/css/components.css 的 `.progress`。
+ * ：6px 、 surface-3、、 0.3s ——
+ * for ui/css/components.css `.progress`。
  *
- * 用 Base UI 的 Progress 而不是自绘 div：它补上 `role="progressbar"` 与
- * `aria-valuenow/valuemin/valuemax`，读屏能播报百分比。`value` 传 null 表示
- * 不确定进度（会省略 aria-valuenow）。
+ * use Base UI Progress not is div： up `role="progressbar"` and 
+ * `aria-valuenow/valuemin/valuemax`， can 。`value` null 
+ * not （ will aria-valuenow）。
  */
 
 function Progress({

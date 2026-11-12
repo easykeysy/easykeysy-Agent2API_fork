@@ -87,7 +87,7 @@ export function UpdateSettingsDialog({ open, onClose }: { open: boolean; onClose
         ? t('通道已切换，但写入磁盘失败（重启后会回到原设置）') : t('更新通道已保存'),
       result.saved === false ? 'err' : 'ok')
       await forwardUpdateResult()
-      try { await shared().workbuddyDesktop?.checkUpdate() } catch { /* 检查仍遵守请求间隔和冷却 */ }
+      try { await shared().workbuddyDesktop?.checkUpdate() } catch { /* checkrequest and */ }
       await forwardUpdateResult()
     } catch (error) {
       toast(t('保存失败：{error}', { error: errorMessage(error) }), 'err')

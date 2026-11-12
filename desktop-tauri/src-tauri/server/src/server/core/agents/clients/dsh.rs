@@ -1,23 +1,23 @@
-//! DeepSeek Harness（`dsh`）的适配。
+//! DeepSeek Harness（`dsh`） 。
 //!
-//! 模型提供商写在用户设置 `~/.dsh/settings.yaml` 的 `llm-pi-ai.providers.<路由>` 下；密钥不在
-//! 这里 —— DSH 的设置只存凭据引用（`apiKeyEnv` 是环境变量名），值放在同目录的
-//! `.credentials.yaml` 的 `refs` 下，因此接入要同时改两个文件。两处都是 DSH 运行时按需读取的
-//! 用户层，改完不需要重启，刷新已打开的页面即可看到新提供商。
+//! in use set `~/.dsh/settings.yaml` `llm-pi-ai.providers.< by >` down ； not in 
+//! this —— DSH set use （`apiKeyEnv` is ）， in directory 
+//! `.credentials.yaml` `refs` down ， need when file。 is DSH when by need 
+//! use ， not need need ， new already can to new 。
 //!
-//! 字段与取值依据是 DSH 0.1.2-rc.1 的 `@deepseek-ai/dsh-llm-pi-ai`（已装在本机，直接读的类型
-//! 定义）与 `dsh-credentials-local`：
+//! and is DSH 0.1.2-rc.1 `@deepseek-ai/dsh-llm-pi-ai`（ already in ， 
+//! ） and `dsh-credentials-local`：
 //!
-//! - 自定义路由必须自己给出 `api` / `baseURL` / `models`，可用的 `api` 只有
+//! - by must to `api` / `baseURL` / `models`，available `api` has 
 //!   `openai-completions`、`openai-responses`、`anthropic-messages`；
-//! - 模型档只认 `id` / `name` / `contextWindow` / `maxTokens` / `input[]` / `reasoningEfforts`，
-//!   `input` 的取值只有 `text` 与 `image`；思考档位只有
+//! - `id` / `name` / `contextWindow` / `maxTokens` / `input[]` / `reasoningEfforts`，
+//! `input` has `text` and `image`； has 
 //!   `off` / `minimal` / `low` / `medium` / `high` / `xhigh` / `max`；
-//! - 无法服务的字段会让 DSH 在写入时拒绝**整段** `llm-pi-ai` 命名空间，所以这里只写它认的字段，
-//!   网关目录里对不上的思考档位直接丢掉，不猜；
-//! - `.credentials.yaml` 必须是 `version: 1` 且顶层只有 `version` / `refs` / `records`，
-//!   否则 DSH 自己会拒绝启动，本页也就拒绝改写；
-//! - 官方设置页派生的凭据名是 `<路由转大写、非字母数字转下划线>_API_KEY`，这里沿用同一口径。
+//! - none will DSH in when **** `llm-pi-ai` empty， this ，
+//! directory for not up ， not ；
+//! - `.credentials.yaml` must is `version: 1` and has `version` / `refs` / `records`，
+//! otherwise DSH will ，；
+//! - set is `< by 、 down >_API_KEY`， this use 1 。
 
 use super::super::{
     files::{self, Change},
@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 
 const NAMESPACE: &str = "llm-pi-ai";
 const DEFAULT_MODEL: &str = "agent-default-model";
-/// DSH 允许列出的思考档位，顺序即设置页的展示顺序。
+/// DSH ，set 。
 const LEVELS: [&str; 7] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 fn api_of(protocol: &str) -> Option<&'static str> {
@@ -50,7 +50,7 @@ fn protocol_of(api: &str) -> &'static str {
     }
 }
 
-/// 路由键是 DSH 设置里的字典键，统一成小写连字符标识符。
+/// by is DSH set ， 1 。
 fn route_of(source: &str, profile: &Profile) -> String {
     if !source.trim().is_empty() {
         return source.trim().to_string();
@@ -72,7 +72,7 @@ fn route_of(source: &str, profile: &Profile) -> String {
     }
 }
 
-/// 凭据引用名：与 DSH 设置页的派生口径一致（`<路由>_API_KEY`）。
+/// use ： and DSH set 1 （`< by >_API_KEY`）。
 fn credential_ref(route: &str) -> String {
     let mut name = String::new();
     for ch in route.chars() {
@@ -85,7 +85,7 @@ fn credential_ref(route: &str) -> String {
     format!("{}_API_KEY", name.trim_matches('_'))
 }
 
-/// 凭据文件跟 DSH 自己的解析口径走：`$DSH_HOME/.credentials.yaml`，没设变量时就在设置文件旁边。
+/// file DSH ：`$DSH_HOME/.credentials.yaml`， no when in setfile。
 pub fn credential_path(path: &Path) -> PathBuf {
     match std::env::var_os("DSH_HOME").filter(|value| !value.is_empty()) {
         Some(home) => PathBuf::from(home).join(".credentials.yaml"),
@@ -102,7 +102,7 @@ fn references(path: &Path) -> Result<Map<String, Value>, String> {
     if text.trim().is_empty() {
         return Ok(Map::new());
     }
-    // 读侧宽容：凭据文件格式不对时按「没有可用密钥」处理，写入侧仍会拒绝改写。
+    // ：file not for when by 「 no has available」， will 。
     let Ok(value) = yaml_editing::parse(&text) else {
         return Ok(Map::new());
     };
@@ -214,7 +214,7 @@ fn read_models(value: Option<&Value>) -> Vec<Model> {
         .collect()
 }
 
-/// 网关目录里的思考档位映射到 DSH 认的档位；对不上的直接丢掉，不猜取值。
+/// directory to DSH ； for not up ， not 。
 fn efforts(levels: &[String]) -> Map<String, Value> {
     let mut offered: Vec<(&'static str, Option<&'static str>)> = Vec::new();
     for level in levels {
@@ -243,7 +243,7 @@ fn efforts(levels: &[String]) -> Map<String, Value> {
     ordered
 }
 
-/// 模型条目：沿用文件里同名条目的未知字段（`compat` 之类），本页认识的字段以方案为准。
+/// ： use file unknown（`compat` ）， as 。
 fn model_entry(model: &Model, existing: Option<&Value>) -> Result<Value, String> {
     if model.id.trim().is_empty() {
         return Err("模型 ID 不能为空".into());
@@ -267,7 +267,7 @@ fn model_entry(model: &Model, existing: Option<&Value>) -> Result<Value, String>
         Some(value) => set(&mut entry, &["maxTokens"], json!(value))?,
         None => remove(&mut entry, &["maxTokens"]),
     }
-    // 少报比多报安全：DSH 会因为多报的模态在会话中途被上游拒绝，而少报只是提前拒绝。
+    // ：DSH will as in will in up ， is before 。
     set(
         &mut entry,
         &["input"],
@@ -345,7 +345,7 @@ pub fn write(
     let mut pending = None;
     match validate::credential(profile)?.as_deref() {
         Some(key) if !key.is_empty() => {
-            // 导入来的条目沿用它自己的引用名，本页新写的用派生名，便于断开时清理。
+            // use use ， new use ， when 。
             let reference = if profile.auth_mode == "preserve" && !existing_ref.is_empty() {
                 existing_ref.clone()
             } else {
@@ -369,7 +369,7 @@ pub fn write(
     if (operation == "default" || selected) && !profile.model.trim().is_empty() {
         set(value, &[DEFAULT_MODEL, "provider"], json!(route))?;
         set(value, &[DEFAULT_MODEL, "model"], json!(profile.model.trim()))?;
-        // 网关目录把「关闭思考」写作 off / none 两档，DSH 只有 off。
+        // directory 「」 off / none ，DSH has off。
         let effort = match profile.effort.trim() {
             "" | "default" => None,
             "none" => Some("off"),
@@ -414,8 +414,8 @@ fn credential_change(path: &Path, reference: &str, key: Option<&str>) -> Result<
     Ok(change)
 }
 
-/// DSH 对凭据文件的形状是硬要求：缺 `version`（旧扁平布局）或出现未知顶层字段时它自己会拒绝
-/// 启动，这里跟着拒绝，避免把它写坏。
+/// DSH for file is need ： `version`（ old ） or unknown when will 
+/// ， this ， 。
 fn supported(store: &Value, path: &Path) -> Result<(), String> {
     match store.get("version").and_then(Value::as_u64) {
         Some(1) => {}
@@ -452,7 +452,7 @@ pub fn delete(path: &Path, value: &mut Value, profile: &Profile) -> Result<Vec<C
         .and_then(Value::as_str)
         == Some(route.as_str());
     if selected {
-        // 默认模型指向被删的提供商时 DSH 会解析不出模型；移除这段让它回到自带默认。
+        // default to when DSH will not ； this to default。
         remove(value, &[DEFAULT_MODEL]);
     }
     let mut extra = Vec::new();

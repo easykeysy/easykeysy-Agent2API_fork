@@ -1,4 +1,4 @@
-//! GitHub 请求在源切换时保留选定的出网代理；失效代理不能静默改走直连。
+//! GitHub request in when ； not can 。
 
 use std::time::Duration;
 
@@ -16,19 +16,19 @@ use super::token;
 use super::version::UpdateError;
 use super::USER_AGENT;
 
-/// GitHub API 要求的头部集合（对应 Node 版 githubHeaders）。
+/// GitHub API need （ for Node githubHeaders）。
 ///
-/// 令牌来自 `token::effective_token`（「更新设置」里保存的 > 环境变量
-/// `GITHUB_TOKEN` / 旧名 `WORKBUDDY_GITHUB_TOKEN`）。配了 token 则限额更高
-/// （匿名 60 次/小时，带 token 5000）；两个环境变量名是项目早期（还叫
-/// WorkBuddy 网关时）与后来的两套写法，按同一惯例兼容读。
+/// `token::effective_token`（「updateset」 > 
+/// `GITHUB_TOKEN` / old `WORKBUDDY_GITHUB_TOKEN`）。 token then 
+/// （ 60 / when ， token 5000）； is （
+/// WorkBuddy when ） and after ， by 1 。
 pub fn github_headers() -> Vec<(String, String)> {
     let mut headers = vec![
         (
             "Accept".to_string(),
             "application/vnd.github+json".to_string(),
         ),
-        // UA 与下载走同一个常量（mod.rs 的 USER_AGENT）：项目改名时只改一处
+        // UA and down 1 （mod.rs USER_AGENT）： when 1 
         ("User-Agent".to_string(), USER_AGENT.to_string()),
         ("X-GitHub-Api-Version".to_string(), "2022-11-28".to_string()),
     ];
@@ -38,12 +38,12 @@ pub fn github_headers() -> Vec<(String, String)> {
     headers
 }
 
-/// 出网候选：`(标签, 代理配置)`；`proxy` 为 None 表示直连。
+/// ：`(, config)`；`proxy` as None 。
 ///
-/// 对应 Node 版 resolveEgressCandidates —— Clash 配置不可读时只有一个候选，
-/// 行为与纯直连一致（这里不吞掉整条链路：探测失败只在 verbose 里留痕）。
+/// for Node resolveEgressCandidates —— Clash config not can when has 1 ，
+/// as and 1 （ this not ：failure in verbose ）。
 pub(super) fn resolve_egress_candidates() -> Result<Vec<(String, Option<ResolvedProxy>)>, String> {
-    // 设置里指定了更新出口：只用它（理由见模块头「候选顺序」）
+    // setupdate： use （ by module header「」）
     if let Some(configured) = config::update_proxy() {
         match resolve_account_proxy(Some(&configured)) {
             Some(ProxyResolution::Resolved(proxy)) if proxy.port.is_some() => {
@@ -77,7 +77,7 @@ pub(super) fn resolve_egress_candidates() -> Result<Vec<(String, Option<Resolved
                     candidates.push((label, Some(proxy.clone())));
                 }
             } else if let Some(error) = resolution.error() {
-                // Node 在这条分支上静默（try/catch 吞掉），这里留 verbose 便于排障
+                // Node in this up （try/catch ）， this verbose 
                 logging::verbose(
                     "[Update]",
                     &format!("Clash 出口不可用（{error}），仅用直连"),
@@ -250,7 +250,7 @@ pub async fn fetch_candidate(
     Err(last_error)
 }
 
-/// 非 GitHub 公网端点只复用出网代理，不改写地址或发送 GitHub 凭证。
+/// GitHub use ， not or GitHub 。
 pub async fn fetch_public(
     url: &str,
     headers: &[(String, String)],
@@ -268,8 +268,8 @@ pub async fn fetch_public(
         .map_err(|detail| format!("无法连接 {host}：{detail}"))
 }
 
-/// 候选出口依次尝试的共用实现：返回第一个连上的响应，全部失败时把最后一条
-/// 错误链作为 `Err(String)` 交给调用方去拼自己的文案（见上面两个函数）。
+/// use ：return 1 up response，failure when after 1 
+/// error as `Err(String)` to use （ up ）。
 async fn fetch_via_candidates(
     tag: &str,
     url: &str,
@@ -282,9 +282,9 @@ async fn fetch_via_candidates(
     for (label, proxy) in &candidates {
         let client = egress::client_for(proxy.as_ref());
         let mut builder = client.get(url);
-        // 请求级总超时只给 API 探测用（响应是小 JSON）。reqwest 0.12 的
-        // `.timeout()` 覆盖到 body 读完为止 —— 下载传 None，安装包几十上百 MB
-        // 不可能 30 秒内下完；卡死场景由 egress 客户端的 read_timeout 兜底
+        // requesttotal when to API use （response is JSON）。reqwest 0.12 
+        // `.timeout()` to body as —— down None， up MB
+        // not can can 30 seconds down ； by egress client read_timeout 
         if let Some(timeout_ms) = timeout_ms {
             builder = builder.timeout(Duration::from_millis(timeout_ms));
         }
@@ -319,9 +319,9 @@ async fn fetch_via_candidates(
     })
 }
 
-/// 出网候选的展示形态（供日志/排障；不含凭证）。
-/// 对应 Node 版 workbuddy-update.mjs 内部的 `resolveEgressCandidates()` 结果形态
-/// （Node 侧为内部细节，这里作为排障口暴露，保留）。
+/// （/； not ）。
+/// for Node workbuddy-update.mjs `resolveEgressCandidates()` 
+/// （Node as ， this as ，）。
 #[allow(dead_code)]
 pub fn describe_candidates() -> Value {
     let candidates = match resolve_egress_candidates() {

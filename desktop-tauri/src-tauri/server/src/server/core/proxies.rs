@@ -1,6 +1,6 @@
-//! 出网代理：手动配置、Clash Verge 端点与代理池引用的归一、解析和展示。
-//! 旧订阅来源保留记录，但明确解析为不可用。
-//! 真实网络请求由 `core::egress` 负责；账号轮询复用 `core::proxy_rotate`。
+//! ：config、Clash Verge and use 1 、 and 。
+//! old ， as unavailable。
+//! request by `core::egress` ； use `core::proxy_rotate`。
 
 use serde_json::{json, Map, Value};
 
@@ -10,18 +10,18 @@ const MAX_HOST_LENGTH: usize = 255;
 const MAX_USER_LENGTH: usize = 200;
 const MAX_LABEL_LENGTH: usize = 100;
 
-/// 轮询档的 source 值（`core::proxy_rotate` 的配置形状）
+/// source （`core::proxy_rotate` config）
 pub const ROTATE_SOURCE: &str = "rotate";
 
-/// 这条 proxy 配置是不是轮询档（判据只看 source；形状是否完整由归一侧保证）
+/// this proxy config is not is （ source； is by 1 ）
 pub fn is_rotate_config(config: &Value) -> bool {
     config.get("source").and_then(Value::as_str) == Some(ROTATE_SOURCE)
 }
 
-/// 代理配置错误（对应 Node 版 ProxyConfigError，状态码固定 400）。
+/// configerror（ for Node ProxyConfigError， 400）。
 ///
-/// 单独一个类型而不是塞进 GatewayError：账号路由要按它给出 400，
-/// 而 GatewayError 的默认语义是 500（上游/内部错误）。
+/// 1 not is GatewayError： by need by to 400，
+/// GatewayError default is 500（ up /error）。
 #[derive(Clone, Debug)]
 pub struct ProxyConfigError {
     pub message: String,
@@ -40,9 +40,9 @@ impl std::fmt::Display for ProxyConfigError {
     }
 }
 
-// ─── 归一与解析 ─────────────────────────────────────────────
+// ─── 1 and ─────────────────────────────────────────────
 
-/// 去空白并截断长度（对照 Node 版 `cleanString`：非字符串一律当空串）
+/// empty and （ for Node `cleanString`： 1 empty）
 fn clean_string(value: Option<&Value>, max: usize) -> String {
     let Some(Value::String(text)) = value else {
         return String::new();
@@ -51,11 +51,11 @@ fn clean_string(value: Option<&Value>, max: usize) -> String {
     trimmed.chars().take(max).collect()
 }
 
-/// Node 的 `Number(value)` 语义下「是 1..65535 的整数」
+/// Node `Number(value)` down 「 is 1..65535 」
 fn valid_port(value: Option<&Value>) -> Option<u16> {
     let number = match value {
         Some(Value::Number(number)) => number.as_f64()?,
-        // 与 Node 的 Number('8080') 一致：数字字符串也接受
+        // and Node Number('8080') 1 ：
         Some(Value::String(text)) => text.trim().parse::<f64>().ok()?,
         _ => return None,
     };
@@ -65,11 +65,11 @@ fn valid_port(value: Option<&Value>) -> Option<u16> {
     Some(number as u16)
 }
 
-/// 归一账号代理配置（来自 API 的原始输入）。
+/// 1 config（ API ）。
 ///
-/// 返回 `Ok(None)`（无代理）或 `Ok(Some(标准形态))`；非法输入抛 ProxyConfigError
-/// （→ HTTP 400）。`source` 缺省时按字段推断，便于手工编辑账号记录
-/// （库里的 `data` 列，或导出文件的 JSON）。
+/// return `Ok(None)`（none） or `Ok(Some())`； ProxyConfigError
+/// （→ HTTP 400）。`source` when by ，
+/// （ `data` ， or file JSON）。
 pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConfigError> {
     if input.is_null() || input.as_str() == Some("") {
         return Ok(None);
@@ -107,9 +107,9 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
         ));
     }
 
-    // 轮询档：只存「怎么挑」（全部 or 指定哪几条），出口本身仍然全在池里。
-    // 与 pool 引用同一条纪律：条目是否存在 / 是否禁用留给**解析**时报错，
-    // 保存账号不依赖代理池当下的读库结果（池还没建好时也存得下这条配置）。
+    // ：「」（ or ）， in 。
+    // and pool use 1 ： is in / is use to **** when ，
+    // not down （ no when down this config）。
     if source == ROTATE_SOURCE {
         let all = match object.get("all") {
             None | Some(Value::Null) => true,
@@ -117,8 +117,8 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
             Some(_) => return Err(ProxyConfigError::new("轮询的 all 必须是布尔值")),
         };
         if all {
-            // 「全部」恒不带 proxyIds：留着它会让「以后池里新增的条目要不要进轮询」
-            // 变成一个没人回答的问题（两处状态取谁为准）。归一即收口成唯一形态
+            // 「」 not proxyIds： will 「 after add need not need 」
+            // 1 no （ as ）。 1 1 
             return Ok(Some(json!({ "source": ROTATE_SOURCE, "all": true })));
         }
         let mut ids: Vec<String> = Vec::new();
@@ -159,8 +159,8 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
         }
         return Ok(Some(json!({ "source": "clash", "listenerUid": listener_uid })));
     }
-    // 代理池引用：只存条目 id（形状校验；条目是否存在 / 是否禁用留给**解析**时
-    // 报错 —— 与本模块的纯逻辑定位一致，也不让「保存账号」依赖代理池的读库）
+    // use ： id（； is in / is use to **** when 
+    // —— and 1 ， not 「」 ）
     if source == "pool" {
         let proxy_id = clean_string(object.get("proxyId"), MAX_LABEL_LENGTH);
         if proxy_id.is_empty() {
@@ -187,7 +187,7 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
         return Err(ProxyConfigError::new("代理端口必须是 1-65535 的整数"));
     };
     let label = clean_string(object.get("label"), MAX_LABEL_LENGTH);
-    // label 缺失时按 `协议://主机:端口` 生成，前端直接展示这个串
+    // label when by `://:` ， before this 
     let label = if label.is_empty() {
         format!("{protocol}://{host}:{port}")
     } else {
@@ -211,12 +211,12 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
     Ok(Some(Value::Object(normalized)))
 }
 
-/// 解析结果：成功时给出可用的出口，失败时 `error` 说明原因
-/// （调用方据此回退直连并记日志，对应 Node 版 `{ error }` 分支）。
+/// ：success when to available ，failure when `error` Reason
+/// （ use and ， for Node `{ error }` ）。
 ///
-/// `port` 是 `Option<u16>`：Node 的 custom 分支直接写 `Number(config.port)`，
-/// 手工编辑出的非法端口会变成 `NaN` → JSON `null`。这里如实保留那个 null，
-/// 而不是伪造一个 0 —— 前端拿到 null 才知道「这条记录本来就坏」。
+/// `port` is `Option<u16>`：Node custom `Number(config.port)`，
+/// will `NaN` → JSON `null`。 this that null，
+/// not is 1 0 —— before to null 「 this 」。
 #[derive(Clone, Debug)]
 pub struct ResolvedProxy {
     pub source: String,
@@ -229,22 +229,22 @@ pub struct ResolvedProxy {
 }
 
 impl ResolvedProxy {
-    /// 端口的 JSON 形态（非法/缺失 → null，与 Node 的 NaN → null 一致）
+    /// JSON （/ → null， and Node NaN → null 1 ）
     pub fn port_json(&self) -> Value {
         self.port.map(Value::from).unwrap_or(Value::Null)
     }
 
-    /// 从 JSON 形态还原（会话里的 `proxy` 字段就是这个形态，
-    /// 由 account_store 的 `session_from_record` 用 `to_json` 的成功分支写出）。
+    /// from JSON （ will `proxy` is this ，
+    /// by account_store `session_from_record` use `to_json` success）。
     ///
-    /// 三态：`Ok(None)` = 没有代理（直连）；`Ok(Some(...))` = 可用出口；
-    /// `Err(原因)` = **配了代理但数据坏了**（缺主机 / 端口非法）。
-    /// 第三态必须与「没配代理」分开：手工编辑账号记录（库里 `data` 列的
-    /// `proxy` 字段，或导出文件）写出 `port: "abc"` 时，Node 会带着 `NaN`
-    /// 端口去建 ProxyAgent 并失败（出口测试显示「❌ 无法连接」）—— 若这里
-    /// 静默按直连处理，用户会看到「✅ 出口可用」，那是在骗人。
-    /// 出网侧的调用方遇到 Err 时按直连兜底（可用性优先），
-    /// 但**出口测试**要把原因如实报出来。
+    /// ：`Ok(None)` = no has （）；`Ok(Some(...))` = available；
+    /// `Err(Reason)` = ****（ / ）。
+    /// must and 「 no 」：（ `data` 
+    /// `proxy` ， or file） `port: "abc"` when ，Node will `NaN`
+    /// ProxyAgent and failure（「❌ none」）—— if this 
+    /// by ， use will to 「✅ available」， that is in 。
+    /// use to Err when by （available），
+    /// **** need Reason。
     pub fn from_json(value: &Value) -> Result<Option<Self>, String> {
         if value.is_null() {
             return Ok(None);
@@ -279,12 +279,12 @@ impl ResolvedProxy {
     }
 }
 
-/// 会话里的出口（`session.proxy`）。
+/// will （`session.proxy`）。
 ///
-/// 账号存储组装的会话已经带上了 `proxy`（解析成功）或 `proxyError`（解析失败，
-/// 此时 `proxy` 为 null）—— 所以拿到 None 就表示「直连」：没配代理、
-/// 配了但解析失败（如引用了已被删掉的 Clash 监听器）、以及配了但数据坏了，
-/// 这三种情况在出网层是同一个动作。第三种会额外记一条日志提醒。
+/// will already up `proxy`（success） or `proxyError`（failure，
+/// when `proxy` as null）—— to None 「」： no 、
+/// failure（ use already Clash ）、 and ，
+/// this in is 1 。 will 1 。
 pub fn session_proxy(session: &Value) -> Option<ResolvedProxy> {
     match ResolvedProxy::from_json(session.get("proxy").unwrap_or(&Value::Null)) {
         Ok(proxy) => proxy,
@@ -298,8 +298,8 @@ pub fn session_proxy(session: &Value) -> Option<ResolvedProxy> {
     }
 }
 
-/// JS 真值判定（`Boolean(x)`）：null/false/0/"" 为假，其余（含数组/对象）为真。
-/// 用于复刻 Node 的 `config.label || ...` 这类短路取值。
+/// JS （`Boolean(x)`）：null/false/0/"" as ， its （/ for ） as 。
+/// used for Node `config.label || ...` this 。
 fn js_truthy(value: &Value) -> bool {
     match value {
         Value::Null => false,
@@ -310,11 +310,11 @@ fn js_truthy(value: &Value) -> bool {
     }
 }
 
-/// JS 模板串里插值的等效渲染：`a` 缺失是 `undefined`、显式 null 是 `null`、
-/// 其余按 `String(a)` 的字面量（对象/数组在 JS 里是 `[object Object]` /
-/// 逗号拼接，这里用 JSON 文本近似 —— 这些形态只可能来自手工改坏的账号记录，
-/// 近似的目的是「不要把值吞掉」，而不是逐字复刻 JS 的 toString）。
-/// 只用于复刻 Node 拼接 label / 报错文案的行为（见 `resolve_account_proxy`）。
+/// JS etc ：`a` is `undefined`、 null is `null`、
+/// its by `String(a)` （ for / in JS is `[object Object]` /
+/// ， this use JSON —— this can can ，
+/// is 「 not need 」， not is JS toString）。
+/// used for Node label / as （ `resolve_account_proxy`）。
 fn js_interpolation(value: Option<&Value>) -> String {
     match value {
         None => "undefined".to_string(),
@@ -335,7 +335,7 @@ fn js_interpolation(value: Option<&Value>) -> String {
     }
 }
 
-/// 解析失败的原因（与成功结果互斥）
+/// failure Reason（ and success）
 #[derive(Clone, Debug)]
 pub enum ProxyResolution {
     Resolved(ResolvedProxy),
@@ -357,9 +357,9 @@ impl ProxyResolution {
         }
     }
 
-    /// 转成 Node 版 resolveAccountProxy 的返回形态（JSON，含 error 分支）。
-    /// 账号公开形态走 `describe_account_proxy`（它另带 config/label 兜底），
-    /// 这条与它逐字段对应，保留供排障时直接比对解析结果。
+    /// Node resolveAccountProxy return（JSON， error ）。
+    /// `describe_account_proxy`（ config/label ），
+    /// this and for ， when for 。
     #[allow(dead_code)]
     pub fn to_json(&self) -> Value {
         match self {
@@ -377,29 +377,29 @@ impl ProxyResolution {
     }
 }
 
-/// 把账号里存的代理配置解析成可用的连接信息。
+/// configavailable 。
 ///
-/// 逐字段复刻 Node 版 `resolveAccountProxy`，**包括它对脏数据的宽容**：
-///   - protocol 只认 `socks5`，其余（含 undefined）都当 http
-///   - host 原样透出（Node 不做字符串化，非字符串会变成 undefined → 丢失）
-///   - port 走 `Number()`：非数字得 NaN → JSON null（不是 0）
-///   - label 缺省时按 JS 模板串拼接，所以 `undefined://bad:undefined` 这种
-///     输出是**预期行为** —— 它恰好告诉用户这条记录本身就坏（前端显示为
-///     「出口 undefined://…」比显示一个编造的默认值更容易排障）
+/// Node `resolveAccountProxy`，**including for **：
+/// - protocol `socks5`， its （ undefined） http
+/// - host （Node not ， will undefined → ）
+/// - port `Number()`： NaN → JSON null（ not is 0）
+/// - label when by JS ， `undefined://bad:undefined` this 
+/// is ** as ** —— use this （ before as 
+/// 「 undefined://…」 1 default）
 pub fn resolve_account_proxy(config: Option<&Value>) -> Option<ProxyResolution> {
     let config = config?;
     if config.is_null() {
         return None;
     }
-    // 非对象（字符串/数字/数组）在 JS 里取 `.source` 得 undefined，
-    // 于是落到「不支持的代理来源: undefined」—— 手工编辑账号记录
-    // 写错形状时就是这条文案，照抄不改成更「友好」的提示
+    // for （//） in JS `.source` undefined，
+    // is to 「unsupported : undefined」—— 
+    // when is this ， not 「」 
     let Some(object) = config.as_object() else {
         return Some(ProxyResolution::Failed("不支持的代理来源: undefined".to_string()));
     };
-    // source 缺失时同样是 undefined（Node 是 `config.source` 直接进模板串）。
-    // 这条文案会显示在账号列表的「代理异常」气泡里，所以必须逐字一致 ——
-    // 给空串会让用户看到「不支持的代理来源: 」这种像是程序坏了的提示
+    // source when is undefined（Node is `config.source` ）。
+    // this will in 「」，must 1 ——
+    // to empty will use to 「unsupported : 」 this is 
     let source = object
         .get("source")
         .map(|value| js_interpolation(Some(value)))
@@ -409,9 +409,9 @@ pub fn resolve_account_proxy(config: Option<&Value>) -> Option<ProxyResolution> 
         return None;
     }
 
-    // 轮询档：静态取第一条可用（**不动游标**）。逐请求的轮询走
-    // `resolve_account_proxy_rotating`；这条留给展示与「一次调用不代表一次转发」
-    // 的链路（见模块头）—— 它们问的是「这条配置现在能不能用」，不是「这次该走哪条」。
+    // ： 1 available（** not **）。request 
+    // `resolve_account_proxy_rotating`； this to and 「 1 use not 1 」
+    // （module header）—— is 「 this config in can not can use 」， not is 「 this this 」。
     if source == ROTATE_SOURCE {
         return Some(
             match crate::server::core::proxy_rotate::first_usable(config) {
@@ -421,8 +421,8 @@ pub fn resolve_account_proxy(config: Option<&Value>) -> Option<ProxyResolution> 
         );
     }
 
-    // 代理池引用由池统一解析；不存在、已禁用或已下线都保留明确原因，
-    // 这里只做转手 —— 账号列表的「代理异常」气泡、转发时的回退日志都读它。
+    // use by 1 ； not in 、 already use or already down Reason，
+    // this —— 「」、 when 。
     if source == "pool" {
         let proxy_id = object.get("proxyId").and_then(Value::as_str).unwrap_or("");
         if proxy_id.is_empty() {
@@ -442,14 +442,14 @@ pub fn resolve_account_proxy(config: Option<&Value>) -> Option<ProxyResolution> 
         } else {
             "http"
         };
-        // host 原样透出：非字符串时 Node 会把数字/布尔照透给 JSON，但那种值
-        // 无法用作主机名，这里统一给空串 —— 调用方（session_proxy）见到空 host
-        // 就回退直连并记日志，比带着 `host: 123` 去连一个好
+        // host ： when Node will / to JSON， that 
+        // none use ， this 1 to empty —— use （session_proxy） to empty host
+        // and ， `host: 123` 1 
         let host = object.get("host").and_then(Value::as_str).unwrap_or("").to_string();
         let port = valid_port(object.get("port"));
-        // label 缺省时按 JS 模板串拼接（未设置的值渲染成 undefined）；
-        // 显式给了真值就用它（Node 是 `config.label || \`...\``，数字/布尔这类
-        // 真值也会被原样采用，这里用 js_interpolation 取同形态的文本）
+        // label when by JS （set undefined）；
+        // to use （Node is `config.label || \`...\``，/ this 
+        // will use ， this use js_interpolation ）
         let label = match object.get("label") {
             Some(value) if js_truthy(value) => js_interpolation(Some(value)),
             _ => format!(
@@ -522,15 +522,15 @@ pub fn resolve_account_proxy(config: Option<&Value>) -> Option<ProxyResolution> 
     }))
 }
 
-/// **逐次**解析：与 [`resolve_account_proxy`] 只差 rotate 档——它按 `rotate_key`
-/// 取下一个出口（前进轮询游标），其余 source 逐字委托给静态那条。
+/// ****： and [`resolve_account_proxy`] rotate —— by `rotate_key`
+/// down 1 （ before ）， its source to that 。
 ///
-/// `rotate_key` 是轮询进度的归属键（**账号 id**）：同一账号的多条请求依次落到
-/// 不同出口，不同账号各转各的（见 `core::proxy_rotate` 的模块头）。
-/// 只有真正代表一次出网的链路（会话组装、转发重取）才该走这条：展示、
-/// 余额查询这类「一次调用不代表一次转发」的地方用静态解析，否则账号列表
-/// 一刷新就把游标推走好几格（轮询的意义就是「相邻两次出网落在不同 IP」，被
-/// 界面读一次就错位，等于白转）。
+/// `rotate_key` is （** id**）： 1 request to 
+/// not ， not （ `core::proxy_rotate` module header）。
+/// has 1 （ will 、） this this ：、
+/// this 「 1 use not 1 」 use ，otherwise
+/// 1 new （ is 「 in not IP」， 
+/// 1 ， etc ）。
 pub fn resolve_account_proxy_rotating(
     config: Option<&Value>,
     rotate_key: &str,
@@ -548,14 +548,14 @@ pub fn resolve_account_proxy_rotating(
     resolve_account_proxy(Some(config))
 }
 
-/// 账号代理的展示描述（公开形态，不带单独字段的密码 —— 与 Node 版一致，
-/// 密码只在 config 里原样带回）。
+/// （， not —— and Node 1 ，
+/// in config ）。
 ///
-/// 无代理返回 Null；解析失败时 `label` 为「解析失败」并附 `error`
-/// （前端据此提示「转发时会回退直连」）。
+/// nonereturn Null；failure when `label` as 「failure」 and `error`
+/// （ before 「 when will 」）。
 ///
-/// 轮询档单独一支（见下）：它的「当前出口」是个随机进度的概念，展示要回答的是
-/// 「轮询了几条、都可用吗」，不能借用某一次解析的 label 冒充「当前出口」。
+/// 1 （ down ）： 「current」 is ， need is 
+/// 「、available」， not can use 1 label 「current」。
 pub fn describe_account_proxy(config: Option<&Value>) -> Value {
     let Some(config) = config.filter(|value| !value.is_null()) else {
         return Value::Null;
@@ -587,10 +587,10 @@ pub fn describe_account_proxy(config: Option<&Value>) -> Value {
             "config": config,
         }),
         ProxyResolution::Resolved(proxy) => json!({
-            // source 用**账号里配的那个**（pool / clash / custom）：pool 引用
-            // 解析成功后底层是 clash / custom，但界面上要如实显示「引用了
-            // 代理池的某条」—— 前端据此在代理列上标出来。手工改坏的记录
-            // （source 缺失）才回落到解析结果的 source
+            // source use ** that **（pool / clash / custom）：pool use 
+            // success after is clash / custom， up need 「 use 
+            // 」—— before in up 。 
+            // （source ） to source
             "source": if source.is_empty() { proxy.source.clone() } else { source.clone() },
             "protocol": proxy.protocol,
             "host": proxy.host,
@@ -602,16 +602,16 @@ pub fn describe_account_proxy(config: Option<&Value>) -> Value {
     }
 }
 
-/// 轮询档的展示形态（`describe_account_proxy` 的 rotate 分支）。
+/// （`describe_account_proxy` rotate ）。
 ///
-/// 字段与其它档同形（`source` / `label` / `error` / `config`），**不**给
-/// host / port：轮询没有「当前出口」这个读数（下一次请求可能就换了），给一个
-/// 只会让人以为「这条代理就是那个地址」。多的 `rotate` 子对象是给界面的读数：
-/// 总共几条、几条例看起来可用（判据见 `proxy_rotate::entry_ready`）。
+/// and its （`source` / `label` / `error` / `config`），** not ** to 
+/// host / port： no has 「current」 this （ down 1 request can can ）， to 1 
+/// will as 「 this is that 」。 `rotate` for is to ：
+/// total、available（ `proxy_rotate::entry_ready`）。
 ///
-/// `label` 是账号列表代理格与弹窗直接显示的文案；`error` 只在**一条候选都用
-/// 不了**时给出 —— 那时转发会回退直连，账号列表按既有口径标红提示
-/// （与单条引用档「代理不可用」同一形制）。
+/// `label` is and ；`error` in ** 1 use 
+/// not ** when to —— that when will ， by has 
+/// （ and use 「unavailable」 1 ）。
 fn describe_rotate_proxy(config: &Value) -> Value {
     let summary = crate::server::core::proxy_rotate::summary(config);
     let label = if summary.all {

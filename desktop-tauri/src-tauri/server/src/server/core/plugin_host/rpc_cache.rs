@@ -1,4 +1,4 @@
-//! 插件模型目录的同步快照；成功刷新持久化，装配时恢复后再使用握手兜底。
+//! directory ；success new ， when after use 。
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
@@ -10,7 +10,7 @@ use crate::server::core::providers::catalog_cache;
 use crate::server::logging;
 
 pub const SETTING_MODEL_CATALOG: &str = "modelCatalog";
-// 非空信封只用于新增 scoped runtime；不会作为模型广告出去。
+// emptyused foradd scoped runtime； not will as 。
 const ENVELOPE_ID: &str = "__scoped_plugin_catalog_v1";
 const ENVELOPE_VERSION: u64 = 1;
 
@@ -60,7 +60,7 @@ fn restore(provider: &str) -> Option<proto::ModelList> {
         return Some(list);
     }
     let list = catalog_cache::load_legacy(provider).and_then(|cached| from_cached(provider, cached))?;
-    // 写事务里再次检查新槽，避免与在线刷新竞争时覆盖它；旧槽保留供回退。
+    // check new ， and in new when ； old 。
     catalog_cache::save_migrated(&key, catalog_cache::CachedCatalog {
         models: list.models,
         fetched_at: list.meta.refreshed_at,
@@ -124,7 +124,7 @@ pub fn set_remote(provider: &str, mut list: proto::ModelList) -> usize {
     crate::server::core::providers::catalog::invalidate();
     map.entry(provider.to_string()).or_default().remote = Some(list.clone());
     crate::server::core::providers::catalog::invalidate();
-    // table 与 DB 不重叠持锁；scoped gate 仍保持跨请求的持久化写入顺序。
+    // table and DB not ；scoped gate request 。
     drop(map);
     catalog_cache::save(&scope(provider), &saved, list.meta.refreshed_at);
     count
@@ -174,8 +174,8 @@ fn rename_list(models: &mut Vec<Value>, mapping: &HashMap<String, String>) -> us
     changed
 }
 
-/// 就地把插件缓存里的历史模型 ID 改成原始 ID（启动期后缀迁移用）。
-/// 只改内存中的清单并持久化；真正的路由表由插件下一次刷新重建。
+/// ID ID（ after use ）。
+/// in and ； by by down 1 new 。
 pub fn rename_models(provider: &str, mapping: &HashMap<String, String>) -> usize {
     if mapping.is_empty() {
         return 0;

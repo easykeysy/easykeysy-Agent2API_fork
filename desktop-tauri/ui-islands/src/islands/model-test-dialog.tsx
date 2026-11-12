@@ -1,42 +1,42 @@
 /**
- * Agent2API · 「测试模型」两层弹窗 —— React 岛。
+ * Agent2API · 「」 —— React 。
  *
- * 入口在**模型管理页操作列**那颗「测试」（models-page.tsx 的 `case 'act'`）。入口只开这一处：
- * 账号页一行是登录态、不携带模型清单，从那边发起测试要再造一个模型选择器，而账号页操作列已经
- * 是六项；账号维度由本弹窗的「测试账号」多选覆盖 —— 那是同一个动作的另一个参数，不是另一件事。
+ * in **** that 「」（models-page.tsx `case 'act'`）。 this 1 ：
+ * 1 is 、 not ， from that need 1 ， already 
+ * is ； by 「」 —— that is 1 1 parameter， not is 1 。
  *
- * ── 两层：参数在下、结果在上 ──────────────────────────────────
- *   1. **参数层**（外层 Dialog）：目标行 + 系统提示词 / 用户提示词 / 对话协议 / 测试节点 /
- *      思考等级 / 流式 / 测试账号。默认值刻意取「最小请求」——用户提示词「你好」、流式开、
- *      协议 OpenAI Chat Completions、节点跟随账号配置、思考等级跟随映射；
- *   2. **结果层**（内层 Dialog，按账号分块）：测试中 / 一成一败 / 全部失败三态都住在这一层。
+ * ── ：parameter in down 、 in up ──────────────────────────────────
+ * 1. **parameter**（ Dialog）： + / use / for / /
+ * etc / / 。default「request」—— use 「」、、
+ * OpenAI Chat Completions、config、 etc ；
+ * 2. ****（ Dialog， by ）： in / 1 1 / failure in this 1 。
  *
- * 内层是**嵌在外层 DialogContent 的 children 里**的（照 add-account-modal.tsx 的双层形态）：
- * React 父子关系是 Base UI 认「嵌套弹窗」的判据，内层开着时外层的 Esc 与遮罩按压才不生效；
- * 位置也必须是外层内容的子树，内层 Portal 才会排在父层 Popup 之后、落在上面。内层要给
- * `overlayForceRender` —— 它要压暗下层（含参数弹窗），而「点空白处关掉这一层」认的正是遮罩本身。
- * 关掉结果层 = 回到参数层继续改（参数不重填）；关掉参数层才整个收口。
+ * is ** in DialogContent children ** （ add-account-modal.tsx ）：
+ * React is Base UI 「」 ， when Esc and by not ；
+ * must is ， Portal will in Popup after 、 in up 。 need to 
+ * `overlayForceRender` —— need down （parameter），「empty this 1 」 is 。
+ * = to parameter（parameter not ）；parameter 。
  *
- * ── 口径：走真实转发链路，按账号钉住 ──────────────────────────
- * 每勾一个账号就并发发一次 `POST /api/models/test`（一个账号一条请求），后端把这一家与这一个
- * 账号**钉住**再走 `UpstreamService::forward` —— token 刷新、出站脱敏、提示词模式、思考等级注入、
- * 请求日志与调试报文全都覆盖到，所以结论与生产一致。也因此**会消耗少量额度**，且每次测试都带
- * 「测试」来源标记记入请求日志（报表统计里排除，见后端 `is_test`）——这句压成一行常驻在参数弹窗
- * 底部（额度必须看得见），其余解释各归其位：目标行 / 协议 / 节点 / 流式 / 账号的口径进 ⓘ
- * （tip-q + Tooltip），「留空则…」进 placeholder，页脚旁白与标题里重复的模型 ID 一律不摆。
- * 文案精简的对照与去向见 prototype/model-test-lite.html。
+ * ── ：， by ──────────────────────────
+ * 1 and 1 `POST /api/models/test`（ 1 1 request）， after this 1 and this 1 
+ * **** `UpstreamService::forward` —— token new 、、、 etc 、
+ * request and to ， and 1 。** will **， and 
+ * 「」request（statisticsexcluding， after `is_test`）—— this 1 in parameter
+ * （must）， its its ： / / / / ⓘ
+ * （tip-q + Tooltip），「empty then …」 placeholder， and ID 1 not 。
+ * for and to prototype/model-test-lite.html。
  *
- * ── 中止：没有 abort 桥，靠同一个关联 id ──────────────────────
- * 桌面壳的桥（`invoke('api_request')`）**没有 abort**：一次已经在跑的调用取消不掉。所以 id 由
- * **前端**生成（`test_id`）随请求一起发上去，中止时用同一个 id 去调既有的「终止请求」
- * （`terminateStatsRequest` → `POST /api/stats/requests/terminate?id=`）置位取消令牌，转发链当场
- * 断开上游。三处对齐：结果块、请求日志里那一行、中止用的把手，都是这一个 id。
- * 中止后回到参数层（`slots` 清空、seq 自增让在途回调作废），不把半截结果留在屏幕上。
+ * ── in ： no has abort ， 1 id ──────────────────────
+ * （`invoke('api_request')`）** no has abort**： 1 already in use not 。 id by 
+ * ** before **（`test_id`）request 1 up ， in when use 1 id has 「request」
+ * （`terminateStatsRequest` → `POST /api/stats/requests/terminate?id=`），
+ * up 。 for ：、request that 1 、 in use ， is this 1 id。
+ * in after to parameter（`slots` empty、seq in ）， not in up 。
  *
- * ── 两处刻意的「不显示」─────────────────────────────────────
- *   · **不摆原始报文**：发出去与收回来的原文在请求日志里能看能搜，堆进结果弹窗只会把「成没成、
- *     为什么不成」淹掉；
- *   · **不解释网关的换号口径**：测试按指定账号发、不顺延，那是测试的语义，不是转发策略的说明。
+ * ── 「 not 」─────────────────────────────────────
+ * · ** not **： and in request can can ， will 「 no 、
+ * Why not 」；
+ * · ** not **： by 、 not ， that is ， not is 。
  */
 
 import * as React from 'react'
@@ -65,44 +65,44 @@ import { useRememberedModelApiKey } from '../../../ui-shared/model-api-key-memor
 import { gatewayBase } from './assistant-state'
 import { ModelTestResult, modelTestOk as isOk, type ModelTestSlot as Slot, type TestModelResponse } from './model-test-result'
 
-/* ─── 类型 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
-/** 被测试的那一行：只带 `(provider, id)` 两个定位键（照 CapabilityContext 的形状） */
+/** that 1 ： `(provider, id)` （ CapabilityContext ） */
 export type ModelTestTarget = { provider: string; id: string }
 
-/** 一次测试的请求体（字段名与后端 `api::model_test` 逐字对齐，snake_case） */
+/** 1 request（ and after `api::model_test` for ，snake_case） */
 type TestModelRequest = {
   provider: string
   model: string
   account_id?: string
   prompt?: string
   system_prompt?: string
-  /** 本次指定的思考等级；空 = 不写进请求体（映射上绑的等级因此照常生效） */
+  /** etc ；empty = not request（ up etc ） */
   reasoning?: string
   stream?: boolean
-  /** 本次测试使用的网关对话协议（chat_completions / responses / anthropic） */
+  /** use for （chat_completions / responses / anthropic） */
   protocol?: string
-  /** 本次测试临时指定的出网节点（空 = 跟随账号配置，direct = 直连，pool:<id> = 代理池节点） */
+  /** when （empty = config，direct = ，pool:<id> = ） */
   proxy?: string
-  /** 前端生成的关联 id（请求日志那一行的 id，也是中止用的把手） */
+  /** before id（request that 1 id， is in use ） */
   test_id?: string
 }
 
 /**
- * window 上由其它脚本 / 其它岛挂载的共享桥。
+ * window up by its / its 。
  *
- * 刻意用「局部窄类型 + 转型读取」而不是 declare global 往 Window 上加属性：workbuddyDesktop /
- * wbApp 是多个岛共用的桥，各岛各 declare 一份会因同名属性类型不一致直接报 TS2717 —— 并行迁移时
- * 必然互相撞车。本文件只声明自己用到的那几个成员（其余桥走 models-panel-state / accounts-domain
- * 里已有的那份）。
+ * use 「 + 」 not is declare global Window up ：workbuddyDesktop /
+ * wbApp is use ， declare 1 will not 1 TS2717 —— and when 
+ * 。file use to that （ its models-panel-state / accounts-domain
+ * already has that ）。
  */
 type WindowBridge = {
   workbuddyDesktop?: {
     testModel(payload: TestModelRequest, apiKey: string): Promise<TestModelResponse | null | undefined>
     getModelApiKeys?(): Promise<unknown>
-    /** 「终止请求」：按关联 id 置位取消令牌（测试的中止走它，见模块头） */
+    /** 「request」： by id （ in ，module header） */
     terminateStatsRequest?(id: string): Promise<unknown>
-    /** 代理池列表（「网络代理」页维护的命名出口节点） */
+    /** （「」 ） */
     getProxyPool?(): Promise<{ items?: PoolItem[] } | null | undefined>
   }
   wbApp?: {
@@ -117,45 +117,45 @@ function bridge(): WindowBridge {
   return window as unknown as WindowBridge
 }
 
-/* ─── 常量 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 /**
- * 用户提示词留空时后端用的默认值（后端 `api::model_test::DEFAULT_TEST_PROMPT`）。
- * 两处必须是同一句：取「你好」而不是一句有信息量的话 —— 测试要的是**最小请求**，越短越省额度、
- * 越少触发上游的内容策略，也越容易看出「通不通」这件事本身。
+ * use empty when after use default（ after `api::model_test::DEFAULT_TEST_PROMPT`）。
+ * must is 1 ：「」 not is 1 has —— need is **request**，、
+ * up ，「 not 」 this 。
  */
 const DEFAULT_PROMPT = '你好'
 
-/** 提示词长度上限（与后端 `MAX_PROMPT_CHARS` 同值；超了后端会截断，这里先挡一道） */
+/** limit（ and after `MAX_PROMPT_CHARS` ； after will ， this 1 ） */
 const MAX_PROMPT_CHARS = 4000
 
-/** 网关对话协议兜底选项（与 providers.js 的 PROTOCOL_OPTIONS 及后端 TestProtocol 一致） */
+/** for （ and providers.js PROTOCOL_OPTIONS and after TestProtocol 1 ） */
 const FALLBACK_PROTOCOLS: Array<{ value: string; label: string }> = [
   { value: 'chat_completions', label: 'OpenAI - Chat Completions' },
   { value: 'responses', label: 'OpenAI - Responses' },
   { value: 'anthropic', label: 'Anthropic - Messages' },
 ]
 
-/** 临时直连在节点下拉里的取值（与后端 parse_proxy_override 的 direct 分支对齐） */
+/** when in down （ and after parse_proxy_override direct for ） */
 const PROXY_DIRECT = 'direct'
 
-/** 模型行的「来源」徽章（与模型表同一套口径；自定义家的 source 是空串，见 ManageModel） */
+/** 「」（ and 1 ； source is empty， ManageModel） */
 const SOURCE_LABEL: Record<string, string> = {
   remote: t('远程目录'),
   builtin: t('内置清单'),
   manual: t('手动登记'),
 }
 
-/* ─── 纯函数工具 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
-/** 全部账号（主状态快照；账号页与本弹窗读的是同一份） */
+/** （； and is 1 ） */
 function allAccounts(): AccountRecord[] {
   return bridge().wbApp?.getState?.()?.accounts?.accounts || []
 }
 
 /**
- * 该家可用于测试的账号：过滤 = 启用 + 有凭证（后端口径，与「模型来源」下拉同源），
- * 排序用账号页同一条 `byPriorityOrder`（全局一条队列，本弹窗只取这一家的子集）。
+ * this available ： = enabled + has （ after ， and 「」 down ），
+ * use 1 `byPriorityOrder`（ 1 ， this 1 ）。
  */
 function usableAccounts(provider: string): AccountRecord[] {
   return allAccounts()
@@ -165,8 +165,8 @@ function usableAccounts(provider: string): AccountRecord[] {
 }
 
 /**
- * 账号的展示名：与「模型来源」下拉（models-fetch-modal.tsx 的 accountLabel）同一口径 ——
- * 以邮箱报名字的家（Qoder / AutoClaw 国际版）用邮箱，其余用账号页的展示名。
+ * ： and 「」 down （models-fetch-modal.tsx accountLabel） 1 ——
+ * （Qoder / AutoClaw ） use ， its use 。
  */
 function accountLabel(account: AccountRecord): string {
   const email = String(account.email || '').trim()
@@ -174,7 +174,7 @@ function accountLabel(account: AccountRecord): string {
   return displayNameOf(account) || email || t('未命名账号')
 }
 
-/** 关联 id：优先 `crypto.randomUUID`（WebView2 与 localhost 都是安全上下文），退化到自拼的 v4 形态 */
+/** id： `crypto.randomUUID`（WebView2 and localhost is up down ）， to v4 */
 function newTestId(): string {
   const uuid = globalThis.crypto?.randomUUID?.()
   if (uuid) return uuid
@@ -184,15 +184,15 @@ function newTestId(): string {
 }
 
 /**
- * 「测试」那颗按钮的门禁：该家**没有可用账号**（启用 + 凭证完整）→ 一行都发不出去，
- * 这是唯一还成立的置灰理由。返回空串 = 可以测；否则返回要挂在按钮 title 上的原因。
+ * 「」 that by ： this ** no has available**（enabled + ）→ 1 not ，
+ * this is 1 by 。returnempty = can ；otherwisereturn need in by title up Reason。
  *
- * ── **未启用的行不再置灰**（曾经置灰，别改回去）────────────────
- * 这颗按钮的用法本来就是「先测通、再决定要不要启用」—— 被测的行往往就是关着的，
- * 置灰等于把按钮的唯一用途挡在门外。后端为此给测试开了直达跳
- * （`ForwardRequest::ignore_model_gate`）：候选直接取被钉住的那家，跳过
- * 「模型已在网关中关闭」的生产门禁；关闭的默认绑定解析不出改写目标，名字原样
- * 直发、映射上的思考等级不注入 —— 测的就是这个模型在这家上游的**真实形态**。
+ * ── **enabled not **（，）────────────────
+ * this by use is 「、 need not need enabled」—— is ，
+ * etc by 1 use in 。 after as to 
+ * （`ForwardRequest::ignore_model_gate`）： that ，
+ * 「 already in in 」 ； default not ，
+ * 、 up etc not —— is this in this up ****。
  */
 export function testBlockReason(provider: string, model: ManageModel): string {
   if (model.kind === 'image') {
@@ -204,10 +204,10 @@ export function testBlockReason(provider: string, model: ManageModel): string {
   return ''
 }
 
-/* ─── 小件 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
-/** 「i + 一句话」提示（圈的用法与页面上其它提示一致）。box 是结果区的处置建议块；
- *  plain 是参数弹窗底部的一行常驻口径 —— 精简文案后弹窗里唯一「必须看见」的说明（会消耗额度） */
+/** 「i + 1 」（ use and up its 1 ）。box is ；
+ * plain is parameter 1 —— after 1 「must」 （ will ） */
 function NoteBlock({ children, plain = false }: { children: React.ReactNode; plain?: boolean }) {
   return (
     <p className={plain
@@ -222,7 +222,7 @@ function NoteBlock({ children, plain = false }: { children: React.ReactNode; pla
   )
 }
 
-/** 「已等待 1.4s」的读秒：只在跑着的时候开定时器（停表后不再空转） */
+/** 「 already etc 1.4s」 seconds： in when when （ after not empty） */
 function useClock(active: boolean): number {
   const [now, setNow] = React.useState(() => Date.now())
   React.useEffect(() => {
@@ -234,7 +234,7 @@ function useClock(active: boolean): number {
   return now
 }
 
-/* ─── 弹窗本体 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; onClose: () => void }) {
   const provider = target.provider
@@ -262,8 +262,8 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   const selectedKeyRef = React.useRef(selectedKey)
   selectedKeyRef.current = selectedKey
   /**
-   * 默认只勾**队列里最靠前的那个可测账号**（真实链路的第一个候选）。
-   * 对当前模型正在冷却的账号靠后站：拿它测只会第一跳就拿回 429，而用户要的是「这个模型通不通」。
+   * default** before that can **（ 1 ）。
+   * for current in after ： will 1 429， use need is 「 this not 」。
    */
   const [picked, setPicked] = React.useState<string[]>(() => {
     const first = usable.find(account => !isRateLimited(account, target.id)) || usable[0]
@@ -272,7 +272,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   const [slots, setSlots] = React.useState<Slot[]>([])
   const [folds, setFolds] = React.useState<ReadonlySet<string>>(() => new Set())
 
-  /** 本次运行的序号：中止 / 重测会让在途回调作废（迟到的结果不许写进新一轮） */
+  /** ： in / will in （ to not new 1 ） */
   const seq = React.useRef(0)
   const slotsRef = React.useRef<Slot[]>([])
   slotsRef.current = slots
@@ -280,7 +280,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   const running = slots.some(slot => slot.state === 'running')
   const now = useClock(running)
 
-  /** 打开弹窗时读取一次代理池列表（供「测试节点」下拉使用） */
+  /** when 1 （「」 down use ） */
   React.useEffect(() => {
     let alive = true
     void (async () => {
@@ -303,7 +303,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     return () => { alive = false }
   }, [])
 
-  /** 中止在途请求：seq 自增（作废回调）+ 逐个置位取消令牌，然后清空槽位回到参数层 */
+  /** in in request：seq （）+ ， after empty to parameter */
   const abort = React.useCallback((quiet = false) => {
     const inflight = slotsRef.current.filter(slot => slot.state === 'running')
     seq.current += 1
@@ -314,11 +314,11 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     if (inflight.length && !quiet) toast(t('已中止在途测试（{n} 个账号）', { n: inflight.length }))
   }, [])
 
-  // 弹窗被卸掉（用户关掉参数层 / 模型行在目录刷新后消失）时补一刀：已经放弃的在途请求不该继续
-  // 占上游额度。清理里不再动状态（组件已经没了），所以走 quiet。
+  // （ use parameter / in directory new after ） when 1 ： already in request not this 
+  // up 。 not （ already no ）， quiet。
   React.useEffect(() => () => { abort(true) }, [abort])
 
-  /** 发一次测试：结果按 testId 对号入座；整轮的序号变了就直接丢弃（中止 / 重测） */
+  /** 1 ： by testId for ； （ in / ） */
   async function send(slot: Slot, runId: number): Promise<void> {
     const body: TestModelRequest = {
       provider,
@@ -350,7 +350,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     }
   }
 
-  /** 发起一轮：勾了几个账号就并发发几次（一个账号一条请求，互不影响） */
+  /** 1 ： and （ 1 1 request， not ） */
   function run(): void {
     if (!keySelectionReady || !keyState.ready || !selectedKey) {
       toast(t('请先选择一把 API Key'), 'err')
@@ -381,16 +381,16 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     for (const slot of next) void send(slot, runId)
   }
 
-  /** 结果层关掉：跑着的时候 = 中止（参数留着，回下层改完就能重测） */
+  /** ： when = in （parameter， down can ） */
   function closeResults(): void {
     if (running) abort()
     else setSlots([])
   }
 
-  /** 顶栏那个模型 ID 小字（两层标题共用） */
+  /** that ID （ use ） */
   const modelTag = <span className='ml-2 font-mono text-[12px] font-normal text-subtle'>{target.id}</span>
 
-  /** 目标行不在清单里了（模型被移除，或目录刷新后上游不再提供它）——与「模型能力」同一处置 */
+  /** not in （ ， or directory new after up not ）—— and 「 can 」 1 */
   if (!model) {
     return (
       <Dialog open onOpenChange={next => { if (!next) onClose() }}>
@@ -410,27 +410,27 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     )
   }
 
-  // 本名直发时生效的思考等级只认「名字不变的那条按家映射」（见 model_rules::reasoning 第 4 条），
-  // 而那正是这一行的默认绑定 —— 与表格里默认 chip 上显示的是同一个值。
-  // 该行未启用时映射整体不生效（生产路由也放不过去），等级自然不参与本次。
+  // when etc 「 not that by 」（ model_rules::reasoning 4 ），
+  // that is this 1 default —— and default chip up is 1 。
+  // this enabled when not （ by not ）， etc not and 。
   const defaultClosed = bindingsOf(model).find(binding => binding.isDefault)?.enabled === false
   const boundLevel = levelOf(model.id, model.id, provider)
   const aliases = bindingsOf(model)
     .filter(binding => !binding.isDefault)
     .map(binding => binding.alias)
-  // 「关闭思考」两档（off / none）不给：它们在**映射**上的含义是「不注入」，而写进**请求体**
-  // 就是一个上游不认识的档位 —— CatPaw 的 resolve_effort 对表外值当场 400。要「不注入」，
-  // 选「跟随映射」这一项（映射上没绑等级时它本来就不注入）
+  // 「」（off / none） not to ： in **** up is 「 not 」，**request**
+  // is 1 up not —— CatPaw resolve_effort for 400。 need 「 not 」，
+  // 「」 this 1 （ up no etc when not ）
   //
-  // 候选按**这一个模型**自己认识的档位取（见 `models-reasoning.levels` 的三级回落）：
-  // 测试弹窗是「这一家 × 这一个模型」的探针，给它列一堆该模型不认的档位，
-  // 测出来的 400 是档位选错了、不是链路问题 —— 那正是这颗按钮最没用的用法。
+  // by ** this 1 ** （ `models-reasoning.levels` ）：
+  // is 「 this 1 × this 1 」 ， to 1 this not ，
+  // 400 is 、 not is —— that is this by no use use 。
   const levelOptions = reasoningLevels(getSnapshot().data, model)
     .filter(level => level !== 'off' && level !== 'none')
   const followLabel = defaultClosed
     ? t('跟随映射（该行未启用，本次不注入）')
     : boundLevel ? t('跟随映射（当前 {level}）', { level: boundLevel }) : t('跟随映射（未绑定等级）')
-  /** 目标行 ⓘ 的口径：多数行没有别名 / 未绑等级，一句「以本名直发」就够 —— 说明悬停才见 */
+  /** ⓘ ： no has / etc ， 1 「」 —— */
   const targetTip = [
     t('以模型本名直发'),
     aliases.length
@@ -448,8 +448,8 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   const proxyItems: Array<{ value: string; label: string; disabled?: boolean }> = [
     { value: '', label: t('跟随账号配置') },
     { value: PROXY_DIRECT, label: t('直连（不使用代理）') },
-    // 已禁用的池条目置灰：测试会走它解析（失败即回退直连），选它测出来的
-    // 结论不是用户想要的那个 —— 与账号页代理列同一口径
+    // already use ： will （failure）， 
+    // not is use need that —— and 1 
     ...(pool ?? []).map(item => ({
       value: `${POOL_VALUE_PREFIX}${item.id}`,
       label: poolItemLabel(item),
@@ -469,7 +469,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
 
   const accountOptions = usable.map(account => ({
     value: account.id,
-    // 「限额中」按**这个模型**判（限额是按模型记的：一个账号可能对 A 模型限额、对 B 模型正常）
+    // 「 in 」 by ** this **（ is by ： 1 can can for A 、 for B ）
     label: `#${positions.get(account.id)?.position || 0} ${accountLabel(account)}`
       + (isRateLimited(account, target.id) ? t(' · 限额中') : ''),
   }))
@@ -486,15 +486,15 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   }
 
   /**
-   * 结果区：测试中把已回来的账号**就地换成结果块**（只有还在等的留骨架）—— 结果本来就是一个
-   * 账号一条回来的，全憋到最后一起显示等于白等；出结果后每行一个块，外加一条成功 / 失败读数。
+   * ： in already ****（ has in etc ）—— is 1 
+   * 1 ， to after 1 etc etc ； after 1 ， 1 success / failure。
    */
   function results(): React.ReactNode {
     if (running) {
       const done = slots.length - slots.filter(slot => slot.state === 'running').length
       return (
         <>
-          {/* 单账号时这行只是复述下面那块本身，省掉 */}
+          {/* when this is down that ， */}
           {slots.length > 1 ? (
             <p className='text-xs text-subtle'>
               {t('正在测 ')}<b className='text-foreground'>{slots.length}</b>{t(' 个账号')}
@@ -508,7 +508,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     const okCount = slots.filter(isOk).length
     return (
       <>
-        {/* 单账号同上：结果块的徽章与指标已经说明一切；非 0 的读数才上色，注意力给问题 */}
+        {/* up ： and already 1 ； 0 up ，Note to */}
         {slots.length > 1 ? (
           <p className='text-xs text-subtle'>
             <b className={okCount ? 'text-success' : 'text-foreground'}>{okCount}</b>{t(' 成功 ·')}
@@ -526,15 +526,15 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   }
 
   return (
-    // 参数层：受控 open（恒为 true）。本弹窗是「打开时建、关闭即卸」，关窗一律由 onClose 收口
-    // （Esc / 点遮罩 / ✕ 都由 Base UI 汇到 onOpenChange）。
+    // parameter： open（ as true）。 is 「 when 、」， 1 by onClose 
+    // （Esc / / ✕ by Base UI to onOpenChange）。
     <Dialog open onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('测试模型')}{modelTag}</DialogTitle>
         </DialogHeader>
         <DialogBody>
-          {/* 目标行：测的是哪一条（与「模型能力」弹窗的预览行同一用意）；发送口径收进行尾 ⓘ，不再常驻一段 */}
+          {/* ： is 1 （ and 「 can 」 1 use ）； ⓘ， not 1 */}
           <div className='flex items-center gap-2 rounded-md border border-border bg-surface-inset px-3 py-2.5'>
             <span className='min-w-0 flex-1 truncate font-mono text-[12.5px] font-semibold text-primary-fg'
               title={model.id}>{model.id}</span>
@@ -664,7 +664,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
           <Button variant='default' disabled={!picked.length || !usable.length || !keySelectionReady || !keyState.ready || !keyAllowed} onClick={run}>{t('开始测试')}</Button>
         </DialogFooter>
 
-        {/* ── 结果层：叠在参数层之上的一层（位置与 overlayForceRender 的理由见模块头）── */}
+        {/* ── ： in parameter up 1 （ and overlayForceRender by module header）── */}
         <Dialog open={slots.length > 0} onOpenChange={next => { if (!next) closeResults() }}>
           <DialogContent overlayForceRender className='w-[min(680px,calc(100vw-48px))]'>
             <DialogHeader>

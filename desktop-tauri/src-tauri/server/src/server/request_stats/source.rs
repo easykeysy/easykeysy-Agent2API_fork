@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub(super) const SOURCE_STATS_VERSION: i64 = 2;
 
-/// 只保存已通过鉴权的身份，不包含密钥值；空来源表示历史未记录。
+/// already ， not ；empty。
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ApiKeyIdentity {
     #[serde(rename = "apiKeyId", default)]
@@ -41,7 +41,7 @@ pub struct RequestSource {
     pub api_key: ApiKeyIdentity,
     #[serde(rename = "clientEvidence", default, skip_serializing_if = "Option::is_none")]
     pub evidence: Option<crate::server::core::client::ClientEvidence>,
-    /// 请求行为只使用原来的严格识别，显示规则不能改变模型选择。
+    /// request as use ， then not can 。
     #[serde(skip)]
     pub behavior_client: String,
 }
@@ -82,7 +82,7 @@ pub(super) struct UsageAccum {
     pub completion_tokens: i64,
     #[serde(rename = "cacheReadTokens", default)]
     pub cache_read_tokens: i64,
-    /// 缺少明细的历史余量只有总 Token，不能据此编造输入、输出或缓存读数。
+    /// has total Token， not can 、 or 。
     #[serde(rename = "tokenDetailsRequests", default)]
     pub token_details_requests: i64,
     #[serde(rename = "lastUsedAt", default)]

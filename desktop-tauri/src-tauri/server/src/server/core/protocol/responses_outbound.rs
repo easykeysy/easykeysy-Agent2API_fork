@@ -1,24 +1,24 @@
-//! Responses 协议的**出站**转换：chat 请求 → Responses 上游请求、
-//! 上游 Responses SSE → chat SSE（自定义提供商转发的 `responses` 分支）。
+//! Responses ****：chat request → Responses up request、
+//! up Responses SSE → chat SSE（ `responses` ）。
 //!
-//! ── 与 `responses.rs` 的方向关系 ─────────────────────────────
-//! `responses.rs` 服务的是**下游入口**（`api::protocol` 的 `/v1/responses`）：
-//! 把客户端发来的 Responses 请求翻成 chat、把回程的 chat 响应/SSE 翻回
-//! Responses。本文件是它的**反方向**，服务自定义提供商的**上游**：
-//! 转发层手里的统一货币是 chat，但这家上游说 Responses，于是
-//!   - 请求：`responses_request_from_chat`（chat 体 → Responses 体，逐字段
-//!     对着 `chat_from_responses` 反推）；
-//!   - 响应：`ChatFromResponsesStream`（上游 Responses SSE → 标准 chat SSE，
-//!     之后照走既有的 `ForwardStream` / 聚合器 —— 那两层只认 chat 帧）。
+//! ── and `responses.rs` to ─────────────────────────────
+//! `responses.rs` is ** down **（`api::protocol` `/v1/responses`）：
+//! client Responses request chat、 chat response/SSE 
+//! Responses。file is ** to **， ** up **：
+//! 1 is chat， this up Responses， is 
+//! - request：`responses_request_from_chat`（chat → Responses ，
+//! for `chat_from_responses` ）；
+//! - response：`ChatFromResponsesStream`（ up Responses SSE → chat SSE，
+//! after has `ForwardStream` / —— that chat ）。
 //!
-//! ── 上游恒以 `stream:true` 被请求 ────────────────────────────
-//! 与 chat 协议同一条策略（各家上游的流式才是完整能力；非流式下游由网关
-//! 收流聚合）。因此响应侧只需要流式转换器；非流式 JSON 路径不会有上游
-//! 来源。事件流的折法参考 OmniProxy 的 `responsesStreamToChat`，字段口径
-//! 按本项目 chat 侧（`responses.rs` 回程消费的形状）收敛。
+//! ── up `stream:true` request ────────────────────────────
+//! and chat 1 （ up is can ； down by 
+//! ）。response need need ； JSON path not will has up 
+//! 。 OmniProxy `responsesStreamToChat`，
+//! by chat （`responses.rs` ）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! 同 `mod.rs`：零 unwrap/expect/panic；解析失败退化「跳过该帧」。
+//! ── ──────────────────────────────────────────────────
+//! `mod.rs`： unwrap/expect/panic；failure「 this 」。
 
 use std::collections::BTreeMap;
 
@@ -31,26 +31,26 @@ use super::{
 use super::responses::{image_url_of, tool_output_parts, ConvertError, ToolOutput};
 use super::tool_plan;
 
-// ─── 请求：Chat → Responses ─────────────────────────────────
+// ─── request：Chat → Responses ─────────────────────────────────
 
-/// Chat Completions 请求体 → Responses 请求体。
+/// Chat Completions request → Responses request。
 ///
-/// ── 逐字段对着 [`super::responses::chat_from_responses`] 反推 ────
-/// 那份转换把 Responses 请求折成 chat，字段映射全在里面；这里逐条走它的
-/// 完整清单（漏一条的症状是「客户端参数静默失效」）：
-///   - `model`（由调用方给上游真名，见 `providers::custom::forward`）
-///   - `messages` → `instructions`（system 消息）+ `input`（message /
-///     function_call / function_call_output 项）
+/// ── for [`super::responses::chat_from_responses`] ────
+/// that Responses request chat， in ； this 
+/// （ 1 is 「clientparameter」）：
+/// - `model`（ by use to up ， `providers::custom::forward`）
+/// - `messages` → `instructions`（system ）+ `input`（message /
+/// function_call / function_call_output ）
 ///   - `stream` / `max_output_tokens`（← `max_completion_tokens` / `max_tokens`）
 ///   - `temperature` / `top_p` / `service_tier` / `parallel_tool_calls` /
 ///     `user` / `metadata`
-///   - `tools`（chat 嵌套 function → Responses 扁平 function）
+/// - `tools`（chat function → Responses function）
 ///   - `tool_choice`、`response_format` → `text.format`
 ///   - `reasoning_effort` → `reasoning:{effort, summary:"auto"}`
-///   - `store: false`（本网关无状态；对上游同样不存）
+/// - `store: false`（none； for up not ）
 ///
-/// 不支持的 chat 字段（`n` / `logprobs` 等）**原样丢弃**：Responses 没有
-/// 对应形态，发送上游不认识的键只会换来一次 400。
+/// unsupported chat （`n` / `logprobs` etc ）****：Responses no has 
+/// for ， up not will 1 400。
 pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, ConvertError> {
     let Some(messages) = chat.get("messages").and_then(Value::as_array) else {
         return Err("缺少 messages 数组".to_string());
@@ -69,16 +69,16 @@ pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, C
             }
         };
         match role.as_str() {
-            // system / developer → 顶层 instructions（多条用空行拼接，
-            // 与 anthropic 侧 system_text 的拼接口径一致）
+            // system / developer → instructions（ use empty，
+            // and anthropic system_text 1 ）
             "system" => {
                 let text = content_text(message.get("content").unwrap_or(&Value::Null));
                 if !text.trim().is_empty() {
                     instructions.push(text);
                 }
             }
-            // tool 结果 → function_call_output 项（call_id 是配对的钥匙，
-            // 缺了它上游在多轮里认不出这条结果属于哪次调用）
+            // tool → function_call_output （call_id is for ，
+            // up in not this use ）
             "tool" => {
                 items.push(json!({
                     "type": "function_call_output",
@@ -87,8 +87,8 @@ pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, C
                 }));
             }
             "assistant" => push_assistant_items(&mut items, message),
-            // user 与「认不出的角色」都当 user（与 chat_from_responses 的
-            // 兜底同一取向：能跑比报错好）
+            // user and 「 not 」 user（ and chat_from_responses 
+            // 1 to ： can ）
             _ => {
                 let content =
                     chat_content_to_responses(message.get("content").unwrap_or(&Value::Null), "user");
@@ -110,8 +110,8 @@ pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, C
             Value::String(instructions.join("\n\n")),
         );
     }
-    // max_output_tokens ← max_completion_tokens（Responses 口径的字段名），
-    // 退到 max_tokens；非正数视为没给（0 / 负数发上去只会被上游拒）
+    // max_output_tokens ← max_completion_tokens（Responses ），
+    // to max_tokens； as no to （0 / up will up ）
     let max_output = ["max_completion_tokens", "max_tokens"]
         .iter()
         .find_map(|key| chat.get(*key).and_then(Value::as_i64).filter(|value| *value > 0));
@@ -123,9 +123,9 @@ pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, C
             out.insert(key.to_string(), value.clone());
         }
     }
-    // 工具声明：函数工具翻译成 Responses 扁平形态；原生（服务端执行）声明只有
-    // 「来源就是 Responses」的原样恢复（保真，含 web_search / tool_search 等
-    // 宿主工具的一切字段），跨协议的不猜 —— 剔除并留痕（见 `native_tool` 模块头）
+    // ： Responses ；（server） has 
+    // 「 is Responses」 （， web_search / tool_search etc 
+    // 1 ）， not —— and （ `native_tool` module header）
     let mut natives: Vec<Value> = Vec::new();
     if let Some(tools) = chat.get("tools").and_then(Value::as_array) {
         let converted: Vec<Value> = tools
@@ -138,7 +138,7 @@ pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, C
     }
     let mut choice_reason: Option<String> = None;
     if let Some(choice) = chat.get("tool_choice").filter(|value| is_truthy(value)) {
-        // 点名的工具被剔除时 `tool_choice` 一并撤掉（理由同 `anthropic_outbound`）
+        // when `tool_choice` 1 and （ by `anthropic_outbound`）
         match native_tool::choice_conflict(choice, &natives) {
             Some(reason) => choice_reason = Some(reason),
             None => {
@@ -153,12 +153,12 @@ pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, C
             &dropped.describe(None, Some("目标上游按 responses 协议收，只认 responses 来源的原生声明")),
         );
     }
-    // response_format → text.format（json_schema 的嵌套 → 扁平）
+    // response_format → text.format（json_schema → ）
     if let Some(format) = chat.get("response_format").filter(|value| is_truthy(value)) {
         out.insert("text".to_string(), json!({ "format": format_to_responses(format) }));
     }
-    // reasoning_effort → reasoning.effort（本网关各上游的「思考档位」统一
-    // 从这里进；summary:"auto" 与参考实现同款 —— 让上游回思考摘要）
+    // reasoning_effort → reasoning.effort（ up 「」 1 
+    // from this ；summary:"auto" and —— up need ）
     if let Some(effort) = chat
         .get("reasoning_effort")
         .and_then(Value::as_str)
@@ -170,17 +170,17 @@ pub fn responses_request_from_chat(chat: &Value, model: &str) -> Result<Value, C
             json!({ "effort": effort, "summary": "auto" }),
         );
     }
-    // store:false 与模块头同一理由（网关无状态，也不许上游存）
+    // store:false and module header 1 by （none， not up ）
     out.insert("store".to_string(), Value::Bool(false));
     Ok(Value::Object(out))
 }
 
-/// 一条 assistant 消息 → 零到多个 input 项（顺序：reasoning → message →
+/// 1 assistant → to input （：reasoning → message →
 /// function_call）。
 ///
-/// 顺序不是随意的：回程的 `chat_from_responses` 按「reasoning 项在前、
-/// 本轮 assistant 项在后」消费（`PendingReasoning`），反向也必须产出同一
-/// 形状，多轮历史才能被上游正确读取。
+/// not is ： `chat_from_responses` by 「reasoning in before 、
+/// assistant in after 」（`PendingReasoning`）， to must 1 
+/// ， can up 。
 fn push_assistant_items(items: &mut Vec<Value>, message: &Value) {
     let reasoning = {
         let from_field = string_field(message, "reasoning_content");
@@ -190,10 +190,10 @@ fn push_assistant_items(items: &mut Vec<Value>, message: &Value) {
             from_field
         }
     };
-    // 加密连续性载体（store=false 多轮）恢复进 reasoning 项：与 summary 文本
-    // 可以并存（OpenAI 官方回传的形态就是两者同项），只有加密体时 summary
-    // 给空数组。没有这个恢复，Codex / Grok CLI 的下一轮就接不上推理链 ——
-    // 它们靠把上游回传的加密体原样带回下一轮请求来延续推理。
+    // （store=false ） reasoning ： and summary 
+    // can and （OpenAI is ）， has when summary
+    // to empty。 no has this ，Codex / Grok CLI down 1 not up ——
+    // up down 1 request。
     let encrypted = message
         .get(FIELD_ENCRYPTED_CONTENT)
         .and_then(Value::as_str)
@@ -218,8 +218,8 @@ fn push_assistant_items(items: &mut Vec<Value>, message: &Value) {
         }
         items.push(item);
     }
-    // 正文：Responses 不需要空的 assistant message（只带工具调用的轮次
-    // 只发 function_call 项）；空正文跳过也能避免上游把空消息判成错误
+    // ：Responses not need need empty assistant message（ use 
+    // function_call ）；empty can up emptyerror
     let text = content_text(message.get("content").unwrap_or(&Value::Null));
     if !text.is_empty() {
         items.push(json!({
@@ -262,17 +262,17 @@ fn push_assistant_items(items: &mut Vec<Value>, message: &Value) {
     }
 }
 
-/// 拆开的工具输出 → Responses 的 `function_call_output.output`。
+/// → Responses `function_call_output.output`。
 ///
-/// ── 与入站方向相反的取舍（不是笔误）──────────────────────────
-/// 入站（`responses.rs`）图片**必须**挪出 tool 消息：Chat 不许 `tool` 角色带
-/// 图片（OpenAI 直接 400，见 `responses::PendingImages`）。出站这边不用 ——
-/// Responses 官方 schema 里 `output` 本来就是
-/// `String | Array[ResponseInputText | ResponseInputImage | …]`，图表留在工具结果
-/// 里才是保真形态（DeepSeek 的 Responses 文档同样声明 `input_image` 按真图片
-/// 处理）。所以这边只是「别把它拍平成 JSON 文本」，不搬消息。
+/// ── and to （ not is ）──────────────────────────
+/// （`responses.rs`）**must** tool ：Chat not `tool` 
+/// （OpenAI 400， `responses::PendingImages`）。 this not use ——
+/// Responses schema `output` is 
+/// `String | Array[ResponseInputText | ResponseInputImage | …]`， in 
+/// is （DeepSeek Responses `input_image` by 
+/// ）。 this is 「 JSON 」， not 。
 ///
-/// 没有图片时保持字符串形态：字符串对各家上游最友好，也是原来就在发的形状。
+/// no has when ： for up ， is in 。
 fn tool_output_to_responses(output: ToolOutput) -> Value {
     if output.images.is_empty() {
         return Value::String(output.text);
@@ -288,20 +288,20 @@ fn tool_output_to_responses(output: ToolOutput) -> Value {
         }
     }
     if parts.is_empty() {
-        // 图片块全都取不到 url（只剩 file_id 之类）：退回文本，别发空数组上去
+        // not to url（ file_id ）：，empty up 
         return Value::String(output.text);
     }
     Value::Array(parts)
 }
 
-/// Chat content（字符串或块数组）→ Responses 的 input content。
+/// Chat content（ or ）→ Responses input content。
 ///
-/// 口径对着 `chat_from_responses` 的 `content_to_chat` 反推：
-///   - 纯文本（字符串 / 全文本块）保持该有的形态（user 可用字符串，
-///     assistant 用 `[{type:"output_text"}]`）；
-///   - 图片块 → `input_image`（url 取 `image_url` 的字符串或 `{url}` 形态）；
-///   - 其余块（音频/文件等）**丢弃** —— 它们在 chat 侧本来就没有来源，
-///     透传一个上游不认识的类型只会让整条请求 400。
+/// for `chat_from_responses` `content_to_chat` ：
+/// - （ / ） this has （user available，
+/// assistant use `[{type:"output_text"}]`）；
+/// - → `input_image`（url `image_url` or `{url}` ）；
+/// - its （/file etc ）**** —— in chat no has ，
+/// 1 up not will request 400。
 fn chat_content_to_responses(content: &Value, role: &str) -> Value {
     let text_kind = if role == "assistant" { "output_text" } else { "input_text" };
     if let Some(text) = content.as_str() {
@@ -345,14 +345,14 @@ fn chat_content_to_responses(content: &Value, role: &str) -> Value {
     }
 }
 
-/// Chat 工具声明 → Responses 工具声明（扁平）。
+/// Chat → Responses （）。
 ///
-/// `parameters` 缺省给空对象 schema（`nested_from_flat` 的同一兜底）；
-/// `strict` 原样搬运（两协议同名）。
+/// `parameters` to empty for schema（`nested_from_flat` 1 ）；
+/// `strict` （）。
 ///
-/// 原生（服务端执行）声明：来源是 Responses 的原样恢复（`natives` 不收，
-/// 保真）；其余（Anthropic 来源、或 chat 入口的方言原生工具）收进 `natives`
-/// 由调用方留痕剔除 —— 目标协议是 responses，别的原生类型没有对应形态。
+/// （server）： is Responses （`natives` not ，
+/// ）； its （Anthropic 、 or chat ） `natives`
+/// by use —— is responses， no has for 。
 fn tool_to_responses(tool: &Value, natives: &mut Vec<Value>) -> Option<Value> {
     if native_tool::is_native(tool) {
         if native_tool::origin_of(tool) == Some(native_tool::ORIGIN_RESPONSES) {
@@ -362,8 +362,8 @@ fn tool_to_responses(tool: &Value, natives: &mut Vec<Value>) -> Option<Value> {
         return None;
     }
     if !tool_plan::is_nested_function(tool) {
-        // 非嵌套形态（裸 name/parameters）：出站没有可靠的翻译口径，
-        // 丢弃而不是发一个半成品上去
+        // （ name/parameters）： no has can ，
+        // not is 1 up 
         return None;
     }
     let function = tool.get("function")?;
@@ -389,9 +389,9 @@ fn tool_to_responses(tool: &Value, natives: &mut Vec<Value>) -> Option<Value> {
     Some(Value::Object(out))
 }
 
-/// Chat 的 tool_choice → Responses 的 tool_choice
+/// Chat tool_choice → Responses tool_choice
 /// （`{type:"function", function:{name}}` → `{type:"function", name}`；
-/// 字符串形态两协议同名，原样保留）。
+/// ，）。
 fn tool_choice_to_responses(choice: &Value) -> Value {
     if choice.is_string() {
         return choice.clone();
@@ -410,7 +410,7 @@ fn tool_choice_to_responses(choice: &Value) -> Value {
     json!({ "type": "function", "name": name })
 }
 
-/// Chat 的 `response_format` → Responses 的 `text.format`
+/// Chat `response_format` → Responses `text.format`
 /// （`{type:"json_schema", json_schema:{…}}` → `{type:"json_schema", …}`）。
 fn format_to_responses(format: &Value) -> Value {
     let kind = string_field(format, "type");
@@ -430,43 +430,43 @@ fn format_to_responses(format: &Value) -> Value {
     Value::Object(out)
 }
 
-// ─── 响应：Responses SSE → Chat SSE（流式）────────────────────
+// ─── response：Responses SSE → Chat SSE（）────────────────────
 
-/// 上游 Responses SSE 字节流 → 标准 chat SSE 字节流（状态机）。
+/// up Responses SSE → chat SSE （）。
 ///
-/// 输出帧的形状必须让下游既有消费层认得（`ForwardStream` 的 reasoning 合并
-/// 与 usage 提取、聚合器的 `choices[0].delta` 读取、下游两种协议出口的
-/// 反向翻译都吃这个形状），关键约定：
-///   - 每个 chat chunk 都是 `data: {"id","object":"chat.completion.chunk",
+/// must down has （`ForwardStream` reasoning and 
+/// and usage 、 `choices[0].delta` 、 down 
+/// to this ），：
+/// - chat chunk is `data: {"id","object":"chat.completion.chunk",
 ///     "created","model","choices":[{"index":0,"delta":{…},"finish_reason":…}]}`
 ///   - `response.output_text.delta` → `delta.content`；
 ///     `response.reasoning_summary_text.delta` → `delta.reasoning_content`；
 ///     `response.function_call_arguments.delta` → `delta.tool_calls[…]`
-///   - `response.completed` → 收尾帧（`finish_reason`）+ usage 帧
-///     （`choices: []`，usage 折成 chat 口径）+ `data: [DONE]`
+/// - `response.completed` → （`finish_reason`）+ usage 
+/// （`choices: []`，usage chat ）+ `data: [DONE]`
 ///   - `error` / `response.failed` → `data: {"error":{…}}` + `data: [DONE]`
-///     （与 ForwardStream 的断流收尾同形状：聚合器据此转 502）
+/// （ and ForwardStream ： 502）
 ///
-/// usage 帧会同时被两处读到（ForwardStream 的旁路提取 + 聚合器的 usage
-/// 覆盖）—— 幂等覆盖，以最后一处为准，不影响含义。
+/// usage will when to （ForwardStream + usage
+/// ）—— etc ， after 1 as ， not 。
 pub struct ChatFromResponsesStream {
     buffer: SseLineBuffer,
-    /// 输出帧的 model（发给上游的真名；ForwardStream 的回写层会按需改成
-    /// 客户端请求名，此处不必区分）
+    /// model（ to up ；ForwardStream will by need 
+    /// clientrequest， not ）
     model: String,
     id: String,
     created: i64,
     started: bool,
     finished: bool,
-    /// 已宣告的工具：item_id / call_id → 槽位（chat 的 tool_calls index +
-    /// 是否已发过参数增量）
+    /// already ：item_id / call_id → （chat tool_calls index +
+    /// is already parameter）
     tools: BTreeMap<String, ToolSlot>,
     next_tool_index: i64,
-    /// 上游最近的 usage（Responses 口径；收尾时折成 chat 形态）
+    /// up usage（Responses ； when chat ）
     usage: Option<Value>,
 }
 
-/// 一个工具的 chat 侧状态（key 是上游给的 item_id / call_id）
+/// 1 chat （key is up to item_id / call_id）
 #[derive(Default)]
 struct ToolSlot {
     index: i64,
@@ -488,7 +488,7 @@ impl ChatFromResponsesStream {
         }
     }
 
-    /// 吃一段上游字节，吐出要下发的 chat SSE 帧
+    /// 1 up ， need down chat SSE 
     pub fn push(&mut self, chunk: &[u8]) -> Vec<bytes::Bytes> {
         let mut out = Vec::new();
         for payload in self.buffer.push(chunk) {
@@ -504,12 +504,12 @@ impl ChatFromResponsesStream {
         out
     }
 
-    /// 上游流结束（没有终态事件时的兜底收尾）
+    /// up （ no has when ）
     pub fn finish(&mut self) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
         }
-        // 先冲刷缓冲里残留的最后一帧
+        // after 1 
         let mut out = Vec::new();
         for payload in self.buffer.finish() {
             if let Some(data) = payload {
@@ -522,13 +522,13 @@ impl ChatFromResponsesStream {
         out
     }
 
-    /// 一个上游 Responses 事件 → 零到多个 chat 帧
+    /// 1 up Responses → to chat 
     fn consume(&mut self, event: &Value) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
         }
-        // usage 的位置各家不一：官方在 response.completed 的 response.usage
-        // 里，部分网关直接放事件顶层。两处都收（事件流里的最近一次为准）
+        // usage not 1 ： in response.completed response.usage
+        // ，。（ 1 as ）
         let usage = event
             .get("usage")
             .filter(|usage| usage.is_object())
@@ -548,8 +548,8 @@ impl ChatFromResponsesStream {
                 }
                 self.start()
             }
-            // 正文增量（refusal 是官方的拒答文本，chat 侧没有专用通道，
-            // 与正文同路 —— 丢掉会让客户端看到一段空回答）
+            // （refusal is ，chat no has use ，
+            // and —— will client to 1 empty）
             "response.output_text.delta" | "response.refusal.delta" => {
                 let Some(text) = event
                     .get("delta")
@@ -562,7 +562,7 @@ impl ChatFromResponsesStream {
                 out.push(self.delta_frame(json!({ "content": text })));
                 out
             }
-            // 思考增量 → reasoning_content（chat 侧的统一表达）
+            // → reasoning_content（chat 1 ）
             "response.reasoning_summary_text.delta" | "response.reasoning_text.delta" => {
                 let Some(text) = event
                     .get("delta")
@@ -575,7 +575,7 @@ impl ChatFromResponsesStream {
                 out.push(self.delta_frame(json!({ "reasoning_content": text })));
                 out
             }
-            // 工具宣告：拿到 id / name 才能在 chat 侧建立 tool_calls 槽位
+            // ： to id / name can in chat tool_calls 
             "response.output_item.added" => {
                 let item = event.get("item").unwrap_or(&Value::Null);
                 let item_kind = string_field(item, "type").to_lowercase();
@@ -598,10 +598,10 @@ impl ChatFromResponsesStream {
                 out.extend(self.push_arguments(&key, &delta));
                 out
             }
-            // 自由文本工具（custom）的输入增量：分片是裸文本，中途无法可靠
-            // 剥出 JSON 壳（见 `ResponsesStream::tool_delta_event` 同款取舍），
-            // 按原样进 chat 的 function.arguments；完整包壳只在一个分片都没
-            // 来过的 `.done` 兜底里做（wrap_freeform_input）
+            // by （custom） ： is ， in none can 
+            // JSON （ `ResponsesStream::tool_delta_event` ），
+            // by chat function.arguments； in 1 no 
+            // `.done` （wrap_freeform_input）
             "response.custom_tool_call_input.delta" => {
                 let delta = {
                     let raw = event.get("delta").unwrap_or(event.get("input").unwrap_or(&Value::Null));
@@ -616,7 +616,7 @@ impl ChatFromResponsesStream {
                 out.extend(self.push_arguments(&key, &delta));
                 out
             }
-            // 参数收尾：增量一个都没来过时（少数网关只发 .done）补完整参数
+            // parameter： 1 no when （ .done）parameter
             "response.function_call_arguments.done" => {
                 let key = tool_key(event, event);
                 if self.has_arguments(&key) {
@@ -643,7 +643,7 @@ impl ChatFromResponsesStream {
                 out.extend(self.push_arguments(&key, &arguments));
                 out
             }
-            // 项收尾：与上面 .done 同口径的补漏（两端都可能先到）
+            // ： and up .done （ can can to ）
             "response.output_item.done" => {
                 let item = event.get("item").unwrap_or(&Value::Null);
                 let item_kind = string_field(item, "type").to_lowercase();
@@ -666,9 +666,9 @@ impl ChatFromResponsesStream {
                 out.extend(self.push_arguments(&key, &arguments));
                 out
             }
-            // 上游错误（事件流里的失败）：折成 chat 错误帧 + [DONE]
+            // up error（ failure）： chat error + [DONE]
             "error" | "response.failed" => self.fail(event),
-            // 终态：收尾（usage 已在开头收过）
+            // ：（usage already in ）
             "response.completed" | "response.done" => self.complete(None),
             "response.incomplete" => {
                 let reason = event
@@ -682,8 +682,8 @@ impl ChatFromResponsesStream {
         }
     }
 
-    /// 首帧（role assistant）：与官方 bridge 同款 —— 空响应或只有工具的流
-    /// 也能建立 assistant 消息（下游按 delta 累积时不会拿到「无角色」的帧）
+    /// （role assistant）： and bridge —— emptyresponse or has 
+    /// can assistant （ down by delta when not will to 「none」 ）
     fn start(&mut self) -> Vec<bytes::Bytes> {
         if self.started {
             return Vec::new();
@@ -695,7 +695,7 @@ impl ChatFromResponsesStream {
         vec![self.delta_frame(json!({ "role": "assistant", "content": "" }))]
     }
 
-    /// 宣告一个工具（若未宣告过）：chat 的 tool_calls 首帧带 id / name / 空参数
+    /// 1 （ if ）：chat tool_calls id / name / emptyparameter
     fn ensure_tool(&mut self, key: &str, item: &Value) -> Vec<bytes::Bytes> {
         if self.tools.contains_key(key) {
             return Vec::new();
@@ -723,7 +723,7 @@ impl ChatFromResponsesStream {
         }))]
     }
 
-    /// 追加一段工具参数（槽位不存在时静默跳过 —— 没宣告过就没有 index 可挂）
+    /// 1 parameter（ not in when —— no no has index can ）
     fn push_arguments(&mut self, key: &str, delta: &str) -> Vec<bytes::Bytes> {
         let Some(slot) = self.tools.get_mut(key) else {
             return Vec::new();
@@ -739,7 +739,7 @@ impl ChatFromResponsesStream {
         self.tools.get(key).map(|slot| slot.has_arguments).unwrap_or(false)
     }
 
-    /// 收尾：finish_reason 帧 + usage 帧 + [DONE]（只做一次）
+    /// ：finish_reason + usage + [DONE]（ 1 ）
     fn complete(&mut self, incomplete_reason: Option<&str>) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
@@ -748,9 +748,9 @@ impl ChatFromResponsesStream {
         let mut out = self.start();
         let finish_reason = match incomplete_reason {
             Some(reason) => reason.to_string(),
-            // Responses 没有 chat 的 finish_reason，按输出形态推导：
-            // 有工具调用 → tool_calls；否则 stop（length/content_filter
-            // 由 response.incomplete 的 reason 直接给出）
+            // Responses no has chat finish_reason， by ：
+            // has use → tool_calls；otherwise stop（length/content_filter
+            // by response.incomplete reason to ）
             None => {
                 if self.tools.is_empty() {
                     "stop".to_string()
@@ -761,8 +761,8 @@ impl ChatFromResponsesStream {
         };
         out.push(self.finish_frame(&finish_reason));
         if let Some(usage) = self.usage.take() {
-            // usage 帧（choices 空数组）：ForwardStream 的旁路提取与聚合器
-            // 都从这一帧读（形状对齐官方 include_usage 的收尾帧）
+            // usage （choices empty）：ForwardStream and 
+            // from this 1 （ for include_usage ）
             out.push(chat_frame(&json!({
                 "id": self.id,
                 "object": "chat.completion.chunk",
@@ -776,7 +776,7 @@ impl ChatFromResponsesStream {
         out
     }
 
-    /// 上游错误 → chat 错误帧 + [DONE]（只做一次）
+    /// up error → chat error + [DONE]（ 1 ）
     fn fail(&mut self, event: &Value) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
@@ -806,7 +806,7 @@ impl ChatFromResponsesStream {
         ]
     }
 
-    /// 一个 delta 帧（`choices[0].delta = delta`，finish_reason 为 null）
+    /// 1 delta （`choices[0].delta = delta`，finish_reason as null）
     fn delta_frame(&self, delta: Value) -> bytes::Bytes {
         chat_frame(&json!({
             "id": self.id,
@@ -817,7 +817,7 @@ impl ChatFromResponsesStream {
         }))
     }
 
-    /// 收尾帧（空 delta + finish_reason）
+    /// （empty delta + finish_reason）
     fn finish_frame(&self, finish_reason: &str) -> bytes::Bytes {
         chat_frame(&json!({
             "id": self.id,
@@ -829,10 +829,10 @@ impl ChatFromResponsesStream {
     }
 }
 
-/// 事件 / 项里的工具身份键：call_id 优先，退到 id / item_id / output_index。
+/// / ：call_id ， to id / item_id / output_index。
 ///
-/// 同一次调用的各个事件（added / delta / done）必须映射到同一个键，
-/// 上游保证这几个字段在各事件里一致（官方与参考实现都按这个优先链取值）。
+/// 1 use （added / delta / done）must to 1 ，
+/// up this in 1 （ and by this ）。
 fn tool_key(event: &Value, item: &Value) -> String {
     for text in [
         string_field(item, "call_id"),
@@ -846,9 +846,9 @@ fn tool_key(event: &Value, item: &Value) -> String {
     event.get("output_index").map(string_value).unwrap_or_default()
 }
 
-/// Responses 的 usage → chat 的 usage（字段名与明细结构按 chat 口径折）。
+/// Responses usage → chat usage（ and by chat ）。
 ///
-/// 与 `responses.rs::usage_to_responses` 互为反函数，字段清单逐条对照：
+/// and `responses.rs::usage_to_responses` as ， for ：
 /// `input_tokens`→`prompt_tokens`、`output_tokens`→`completion_tokens`、
 /// `input_tokens_details.cached_tokens`→`prompt_tokens_details.cached_tokens`、
 /// `output_tokens_details.reasoning_tokens`→`completion_tokens_details.reasoning_tokens`。

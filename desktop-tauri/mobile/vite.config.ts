@@ -7,35 +7,35 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 /**
- * 把 sw.js 从产物目录搬到 `ui/` 根，并把缓存版本号换成**产物内容哈希**。
+ * sw.js from directory to `ui/` ， and ****。
  *
- * ── 为什么搬到根 ────────────────────────────────────────────
- * SW 的默认 scope 上限是它自己所在的目录：`ui/m/sw.js` 最多只能控制
- * `/m/*`，而入口是 `/m.html` —— 它落在 scope 之外。注册成 `scope: '/'`
- * 会被浏览器拒绝（`The path of the provided scope is not under the max
- * scope`），注册成 `/m/` 又管不到入口页。放根目录没有这个矛盾。
+ * ── Why to ────────────────────────────────────────────
+ * SW default scope limit is in directory：`ui/m/sw.js` can 
+ * `/m/*`， is `/m.html` —— in scope 。 `scope: '/'`
+ * will （`The path of the provided scope is not under the max
+ * scope`）， `/m/` not to 。directory no has this 。
  *
- * ── 为什么是内容哈希，不是时间戳 ────────────────────────────
- * SW 的更新判据是**文件内容**：产物变了但 sw.js 一字未改时，浏览器不会
- * 重新安装 SW，旧缓存里的 mobile.js 会一直生效 —— 用户看到上一个版本的
- * 界面。所以版本号必须跟着产物变。
+ * ── Why is ， not is when ────────────────────────────
+ * SW update is **file**： sw.js 1 when ， not will 
+ * new SW， old mobile.js will 1 —— use to up 1 
+ * 。must。
  *
- * 但不能用 `Date.now()`：CI 有一道「入库产物必须能由源码逐字节复现」的
- * 闸（.github/workflows/frontend-artifacts.yml），时间戳会让每次构建都
- * 产出不同的 sw.js，那道闸必然报错。改用 mobile.js + mobile.css 的
- * 内容哈希：产物变了版本就变，产物没变就完全一致，两边都满足。
+ * not can use `Date.now()`：CI has 1 「must can by 」 
+ * （.github/workflows/frontend-artifacts.yml）， when will 
+ * not sw.js， that 。 use mobile.js + mobile.css 
+ * ：， no 1 ，。
  *
- * ── 参与哈希的字节必须先做行尾归一 ──────────────────────────
- * `public/sw.js` 是**被检出的源文件**，不是构建产出：工作区里它是 CRLF
- * 还是 LF 取决于检出环境（本机 autocrlf=true 给出 CRLF，CI 的 Linux
- * 给出 LF）。直接拿原始字节去哈希，同一份源码在两处会算出不同的版本号，
- * 于是 CI 每次都判定 sw.js 被改动、那道闸永远红（2026-10 实际踩到）。
- * 所以哈希前统一把 CRLF 收敛成 LF，落盘的产物也写 LF —— 版本号只由
- * 文件内容决定，与谁在哪儿构建无关。
+ * ── and must 1 ──────────────────────────
+ * `public/sw.js` is ** file**， not is ： is CRLF
+ * is LF （ autocrlf=true to CRLF，CI Linux
+ * to LF）。， 1 in will not ，
+ * is CI sw.js 、 that （2026-10 to ）。
+ * before 1 CRLF LF， LF —— by 
+ * file， and in none。
  *
- * ── 只在 web 目标下跑 ───────────────────────────────────────
- * APK 目标（`--mode apk`）没有 Service Worker（界面在包里，不经过 HTTP），
- * 这个插件在那儿无事可做。
+ * ── in web down ───────────────────────────────────────
+ * APK （`--mode apk`） no has Service Worker（ in ， not HTTP），
+ * this in that none can 。
  */
 function swBuildStamp(): Plugin {
   return {
@@ -46,7 +46,7 @@ function swBuildStamp(): Plugin {
       const target = path.resolve(__dirname, '../ui/sw.js')
       if (!fs.existsSync(built)) return
 
-      // CRLF → LF。逐字节做，避免经过字符串解码改动内容（见文件头的说明）
+      // CRLF → LF。，（file ）
       const normalizeEol = (buf: Buffer): Buffer => {
         const out = Buffer.allocUnsafe(buf.length)
         let n = 0
@@ -58,38 +58,38 @@ function swBuildStamp(): Plugin {
       }
 
       const hash = createHash('sha256')
-      // sw.js 自身也算：只改缓存策略、不改 JS/CSS 时，版本号同样要变，
-      // 否则浏览器不重装 SW，新策略永远不生效。
+      // sw.js ：、 not JS/CSS when ， need ，
+      // otherwise not SW， new not 。
       hash.update(normalizeEol(fs.readFileSync(path.resolve(__dirname, 'public', 'sw.js'))))
       for (const name of ['mobile.js', 'mobile.css']) {
         const file = path.resolve(__dirname, '../ui/m', name)
         if (fs.existsSync(file)) hash.update(normalizeEol(fs.readFileSync(file)))
       }
       hash.update(normalizeEol(fs.readFileSync(path.resolve(__dirname, '../ui/aliyun-captcha.js'))))
-      // 12 位十六进制足够区分版本，也不会把缓存名拉得太长
+      // 12 ， not will 
       const stamp = hash.digest('hex').slice(0, 12)
 
-      // 写出去的产物同样归一：否则本机（CRLF 检出）会产出 CRLF 的 sw.js，
-      // 与 CI 的 LF 版本在字节上对不上
+      // 1 ：otherwise（CRLF ） will CRLF sw.js，
+      // and CI LF in up for not up 
       const text = normalizeEol(fs.readFileSync(built)).toString('utf8').replace(/__BUILD__/g, stamp)
       fs.writeFileSync(target, text)
-      // 产物目录里不留副本：它在那儿会被当成「可注册的 SW」，而 scope 不对
+      // directory not ： in that will 「 can SW」， scope not for 
       fs.rmSync(built)
     },
   }
 }
 
 /**
- * APK 目标：把入口 HTML 与资源铺平到一个目录，交给 Capacitor 当 `webDir`。
+ * APK ： HTML and to 1 directory， to Capacitor `webDir`。
  *
- * ── 为什么单独一份，不复用 ui/m/ ─────────────────────────────
- * PWA 产物是「网关托管的一个子目录」，路径都相对 `/m/`；APK 的 WebView
- * 从本地文件加载，`/m/mobile.js` 这种绝对路径会解析到文件系统根。所以
- * APK 目标要用**相对路径**、入口是根目录的 index.html，不能和 PWA 共用。
+ * ── Why 1 ， not use ui/m/ ─────────────────────────────
+ * PWA is 「 1 directory」，path for `/m/`；APK WebView
+ * from file，`/m/mobile.js` this for path will to file。
+ * APK need use ** for path**、 is directory index.html， not can and PWA use 。
  *
- * ── 为什么还要把 i18n 与图标搬进来 ───────────────────────────
- * 浏览器形态下词典与提供商图标由网关托管（`ui/i18n/*`、`ui/assets/*`）；
- * APK 里没有网关，界面要能独立起来，这两样必须打进包。
+ * ── Why need i18n and ───────────────────────────
+ * down and by （`ui/i18n/*`、`ui/assets/*`）；
+ * APK no has ， need can ， this must。
  */
 function apkBundle(): Plugin {
   return {
@@ -99,16 +99,16 @@ function apkBundle(): Plugin {
       const root = path.resolve(__dirname, 'android-www')
       const source = path.resolve(__dirname, '../ui')
 
-      // 入口页：库模式不生成 HTML，这里把 apk.html 改名成 index.html。
-      // Capacitor 的 webDir 只认 index.html。
+      // ： not HTML， this apk.html index.html。
+      // Capacitor webDir index.html。
       fs.copyFileSync(path.resolve(__dirname, 'apk.html'), path.join(root, 'index.html'))
 
-      // 词典：只带运行时用得到的那几个域文件，连同 manifest.js
+      // ： when use to that file， manifest.js
       const i18nSrc = path.join(source, 'i18n')
       const i18nOut = path.join(root, 'i18n')
       if (fs.existsSync(i18nSrc)) {
-        // combined/ 只服务桌面主面板（登录页与手机端仍按域取）；APK 里用不到，
-        // 不打进去，避免多出五份约 700 KB 的合并词典。
+        // combined/ （ and by ）；APK use not to ，
+        // not ， 700 KB and 。
         fs.cpSync(i18nSrc, i18nOut, {
           recursive: true,
           filter: src => path.basename(src) !== 'combined',
@@ -117,14 +117,14 @@ function apkBundle(): Plugin {
       for (const name of ['i18n.js', 'aliyun-captcha.js']) {
         fs.copyFileSync(path.join(source, name), path.join(root, name))
       }
-      // 提供商图标
+      // 
       const providersSrc = path.join(source, 'assets', 'providers')
       const providersOut = path.join(root, 'assets', 'providers')
       if (fs.existsSync(providersSrc)) {
         fs.mkdirSync(providersOut, { recursive: true })
         fs.cpSync(providersSrc, providersOut, { recursive: true })
       }
-      // 应用图标（登录页 / 空态可能用到）
+      // use （ / empty can can use to ）
       for (const name of ['app-icon-192.png', 'app-icon-512.png']) {
         const file = path.join(source, 'assets', name)
         if (fs.existsSync(file)) {
@@ -137,33 +137,33 @@ function apkBundle(): Plugin {
 }
 
 /**
- * 手机端构建配置。两个目标：
+ * config。 ：
  *
- *   `npm run build`         → web（PWA），产物落 `ui/m/`，入口 `ui/m.html`
- *   `npm run build:apk`     → APK，产物落 `android-www/`，入口 index.html
+ * `npm run build` → web（PWA）， `ui/m/`， `ui/m.html`
+ * `npm run build:apk` → APK， `android-www/`， index.html
  *
- * ── 为什么 web 产物直接落 ui/ ───────────────────────────────
- * `ui/` 是 Tauri 的 frontendDist、Docker 的 COPY 目标、服务端 static_files
- * 的根 —— 手机端与桌面端共用同一份静态目录，发版流程一行都不用改。
+ * ── Why web ui/ ───────────────────────────────
+ * `ui/` is Tauri frontendDist、Docker COPY 、server static_files
+ * —— and use 1 directory， 1 not use 。
  *
- * 为什么入口是 `ui/m.html` 而不是 `ui/m/index.html`：服务端 static_files
- * 的路径解析是「无扩展名补 .html」（`/login` → `login.html`），不支持子目录
- * 的 index 兜底 —— 放 `ui/m/index.html` 时 `/m` 找不到文件。`ui/m.html` 让
- * `/m` 直接命中，Rust 侧零改动。
+ * Why is `ui/m.html` not is `ui/m/index.html`：server static_files
+ * path is 「none .html」（`/login` → `login.html`），unsupporteddirectory
+ * index —— `ui/m/index.html` when `/m` not to file。`ui/m.html` 
+ * `/m` in ，Rust 。
  *
- * ── 为什么是 iife ───────────────────────────────────────────
- * 与 ui-islands 同因：页面里还有 `i18n.js` 等经典脚本，module 脚本是 defer
- * 执行的，混进来会多一层时序问题。产物是单个经典脚本，按加载顺序执行。
- * APK 里同样是经典脚本 —— Capacitor 的 WebView 直接从文件加载，不涉及
- * 模块解析。
+ * ── Why is iife ───────────────────────────────────────────
+ * and ui-islands ： has `i18n.js` etc ，module is defer
+ * ， will 1 when 。 is ， by 。
+ * APK is —— Capacitor WebView from file， not and 
+ * 。
  *
- * ── 组件库 ──────────────────────────────────────────────────
- * `../ui-kit` 以源码接入（不走 npm 包），dedupe 把 React 收敛到本工程这一份。
+ * ── ──────────────────────────────────────────────────
+ * `../ui-kit` （ not npm ），dedupe React to this 1 。
  */
 export default defineConfig(({ mode }) => {
   const apk = mode === 'apk'
-  // 本工程版本号：与 android/variables.gradle 读的是同一个 package.json 字段
-  // （APK 的 versionName 也来自它），设置页「关于」与「检查更新」用这个值。
+  // ： and android/variables.gradle is 1 package.json 
+  // （APK versionName ），set「」 and 「checkupdate」 use this 。
   const pkgVersion = JSON.parse(
     fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'),
   ).version as string
@@ -179,14 +179,14 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       'process.env.NODE_ENV': JSON.stringify('production'),
-      // 构建期注入版本号：避免运行期再去请求 package.json（APK 里根本没有它）
+      // ：request package.json（APK no has ）
       __APP_VERSION__: JSON.stringify(pkgVersion),
     },
     build: {
       outDir: apk ? 'android-www' : '../ui/m',
       emptyOutDir: true,
-      // web 目标要复制 public/（manifest 与 sw.js）；APK 目标不要
-      // —— Service Worker 在本地文件里没有意义
+      // web need public/（manifest and sw.js）；APK not need 
+      // —— Service Worker in file no has 
       copyPublicDir: !apk,
       lib: {
         entry: 'src/main.tsx',

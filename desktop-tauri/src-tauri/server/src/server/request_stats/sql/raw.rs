@@ -1,4 +1,4 @@
-//! 两侧原始报文的读写、计数与清理 SQL。
+//! 、 and SQL。
 
 use rusqlite::{params, params_from_iter, Connection};
 
@@ -30,7 +30,7 @@ pub(in crate::server::request_stats) fn count_raw_matching(
     plan: &FilterPlan,
 ) -> rusqlite::Result<RawCounts> {
     let where_sql = raw_where(plan);
-    // 两侧共用请求 ID；UNION 避免把同一次请求计为两次。
+    // use request ID；UNION 1 request as 。
     let sql = format!(
         "SELECT COUNT(*) FROM (SELECT id FROM request_raw{where_sql} \
          UNION SELECT id FROM debug_traffic{where_sql})"
@@ -47,7 +47,7 @@ pub(in crate::server::request_stats) fn count_raw_matching(
     })
 }
 
-/// 调用方持有事务，并在删除明细前调用；无筛选时也清理孤立报文。
+/// use has ， and in delete before use ；none when 。
 pub(in crate::server::request_stats) fn delete_raw_matching(
     conn: &Connection,
     plan: &FilterPlan,
@@ -65,10 +65,10 @@ pub(in crate::server::request_stats) fn delete_raw_matching(
     Ok(counts)
 }
 
-/// 正文只为仍有请求明细的 ID 保存，避免清理后迟到的下游回写产生孤立报文。
+/// as has request ID ， after to down 。
 ///
-/// fork：正文两列写 NULL —— 内容在 `{cache_dir}/request-raw/`，这里只留台账；
-/// `size` 仍按正文长度记账。返回受影响行数（0 = 明细已不在，调用方撤掉刚写的文件）。
+/// fork： NULL —— in `{cache_dir}/request-raw/`， this ；
+/// `size` by 。return（0 = already not in ， use file）。
 pub(in crate::server::request_stats) fn upsert_raw(
     conn: &Connection,
     id: &str,
@@ -84,7 +84,7 @@ pub(in crate::server::request_stats) fn upsert_raw(
     )
 }
 
-/// 台账里的全部 id（fork：清理正文文件时用来算「谁还活着」）。
+/// id（fork：file when use 「」）。
 pub(in crate::server::request_stats) fn raw_ids(conn: &Connection) -> rusqlite::Result<Vec<String>> {
     let mut statement = conn.prepare("SELECT id FROM request_raw")?;
     let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
@@ -113,7 +113,7 @@ pub(in crate::server::request_stats) fn trim_raw_rows(
     )
 }
 
-/// 读旧版留在库里的正文（fork 之后写入的行两列是 NULL，由调用方按「未保留」处理）。
+/// old in （fork after is NULL， by use by 「」）。
 pub(in crate::server::request_stats) fn select_raw(
     conn: &Connection,
     id: &str,

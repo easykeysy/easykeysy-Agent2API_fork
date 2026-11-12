@@ -1,67 +1,66 @@
-# 安装与部署
+# Installation & Deployment
 
-本页是三种交付形态的**完整安装与运维说明**：桌面端（Windows / macOS / Linux）、服务端（Windows / Linux，无界面）、Docker。不确定该选哪个，先看下面的对照表。
+This page is the complete install-and-operate guide for all three delivery forms: **desktop** (Windows / macOS / Linux), **server** (Windows / Linux, headless) and **Docker**. If you are not sure which one to pick, start with the table below.
 
-各形态装完之后**都在浏览器面板里管理**（加账号、建网关 Key、看报表）—— 面板与网关同端口，桌面端则额外有应用窗口。
+Every form is managed from the **browser panel** afterwards (accounts, gateway keys, reports) — the panel shares the gateway's port; the desktop form additionally has an app window.
 
-**简体中文** | [English](./install.en.md) | [繁體中文](./install.zh-Hant.md) | [日本語](./install.ja.md) | [한국어](./install.ko.md) | [Português (BR)](./install.pt-BR.md)
+[简体中文](./install.md) | **English** | [繁體中文](./install.zh-Hant.md) | [日本語](./install.ja.md) | [한국어](./install.ko.md) | [Português (BR)](./install.pt-BR.md)
 
-## 目录
+## Contents
 
-- [选哪种形态](#选哪种形态)
-- [桌面端（Windows / macOS / Linux）](#桌面端windows--macos--linux)
-- [服务端（Windows / Linux，无界面）](#服务端windows--linux无界面)
+- [Which form to pick](#which-form-to-pick)
+- [Desktop (Windows / macOS / Linux)](#desktop-windows--macos--linux)
+- [Server (Windows / Linux, headless)](#server-windows--linux-headless)
 - [Docker](#docker)
-- [验证与客户端接入](#验证与客户端接入)
-- [局域网访问](#局域网访问)
-- [手机端](#手机端)
+- [Verification and client setup](#verification-and-client-setup)
+- [LAN access](#lan-access)
+- [Mobile](#mobile)
 
-## 选哪种形态
+## Which form to pick
 
-| 形态 | 产物 | 界面 | 说明 |
+Releases ship the artifacts below; pick the row that matches your machine:
+
+| Form | Artifact | Interface | Notes |
 | --- | --- | --- | --- |
-| **Windows 桌面端** | `Agent2API_<版本>_x64-setup.exe` | 应用窗口 | NSIS 安装包，默认装到 `C:\Program Files\Agent2API`，安装时需要管理员授权 |
-| **macOS 桌面端** | `Agent2API_<版本>_universal.dmg` | 应用窗口 | 通用二进制（Apple Silicon 与 Intel 各编一遍再合并），最低 macOS 10.15 |
-| **Linux 桌面端** | `Agent2API_<版本>_amd64.deb` 或 `Agent2API_<版本>_amd64.AppImage` | 应用窗口 | deb 装进系统（依赖 webkit2gtk-4.1 / gtk3）；AppImage 免安装单文件，任意发行版可用 |
-| **Windows 服务端**（无 GUI） | `agent2api-server-windows-amd64.zip` | **浏览器面板** | 命令行安装、注册成 Windows 服务，见 [服务端](#服务端windows--linux无界面) |
-| **Linux 服务端**（无 GUI） | `agent2api-server-linux-<arch>.tar.gz` | **浏览器面板** | 命令行安装、systemd 托管，同一个包也是容器内更新载荷 |
-| **Docker** | `aimodcc/agent2api:latest` | **浏览器面板** | amd64 / arm64 双架构，见 [Docker](#docker) |
+| **Windows desktop** | `Agent2API_<version>_x64-setup.exe` | App window | NSIS installer, installs to `C:\\Program Files\Agent2API` by default, needs administrator approval |
+| **macOS desktop** | `Agent2API_<version>_universal.dmg` | App window | Universal binary (Apple Silicon and Intel each built, then merged); macOS 10.15+ |
+| **Linux desktop** | `Agent2API_<version>_amd64.deb` or `Agent2API_<version>_amd64.AppImage` | App window | deb installs system-wide (needs webkit2gtk-4.1 / gtk3); the AppImage is a single self-contained file that runs on any distro |
+| **Windows server** (no GUI) | `agent2api-server-windows-amd64.zip` | **Browser panel** | Command-line install, registered as a Windows service — see [Server](#server-windows--linux-headless) |
+| **Linux server** (no GUI) | `agent2api-server-linux-<arch>.tar.gz` | **Browser panel** | Command-line install, run under systemd; the same package is also the in-container update payload |
+| **Docker** | `aimodcc/agent2api:latest` | **Browser panel** | amd64 / arm64 images — see [Docker](#docker) |
 
-> 选哪个：**自己有桌面**（要托盘、开机自启、本机登录态导入）→ 桌面端；
-> **服务器上没有图形界面**（Windows Server / Linux 服务器）→ 服务端包；
-> **已经跑 Docker** → 镜像。
+> Which one: **you have a desktop** (want the tray, launch-at-login, local login-state import) → the desktop app;
+> **the server has no graphical interface** (Windows Server / a Linux box) → the server package;
+> **you already run Docker** → the image.
 >
-> 桌面端需要图形界面，**装不到无 GUI 的服务器上**。服务端包不链接任何
-> WebView / GTK 依赖，一个可执行文件加一个 `ui/` 目录就能跑。
+> The desktop form needs a graphical session and **cannot be installed on a headless server**.
+> The server package links no WebView / GTK at all: one executable plus a `ui/` directory is everything it needs.
 
-## 桌面端（Windows / macOS / Linux）
+## Desktop (Windows / macOS / Linux)
 
-**桌面端**（Windows / macOS / Linux）安装后启动即可，**无需安装 Node 或任何其它运行时**；网关跑在应用进程内，托盘常驻。
+**Desktop apps** (Windows / macOS / Linux) simply launch after installation — **no Node or any other runtime required**; the gateway runs inside the app process and stays in the tray.
 
-1. 首次启动即在应用进程内启动本机网关（端口 3065）并打开主窗口；若检测到旧版本的数据目录或数据文件，会弹窗提示迁移，按指引操作即可。
-2. 点「账号」页的「添加账号」，选提供商后按弹窗提示完成登录或填写凭证即可（方式以弹窗为准：网页登录 / 手机验证码 / 粘贴凭证 / 导入本机登录态）。
-3. 把 OpenAI 客户端的 `base_url` 填成 `http://127.0.0.1:3065/v1`，`api_key` 随便填（例如 `sk-local`，未启用鉴权时服务端不校验）。
+1. First launch starts the local gateway (port 3065) inside the app process and opens the main window. If an older version's data directory or data files are found, a dialog walks you through the migration.
+2. Click "Add account" on the Accounts page, pick a provider and follow the dialog: sign in or fill in credentials (web login / SMS code / pasted credentials / importing this machine's desktop login state).
+3. Set your OpenAI client's `base_url` to `http://127.0.0.1:3065/v1` and put anything in `api_key` (for example `sk-local`; the server does not check it while authentication is disabled).
 
-关闭窗口默认最小化到托盘，网关继续在后台转发；彻底退出请在托盘图标右键选「退出」。
+Closing the window minimizes to the tray by default and the gateway keeps forwarding in the background; to quit for real, right-click the tray icon and choose "Exit".
 
-> **macOS 首次打开**：dmg 里的应用未做 Apple 代码签名与公证（签名需要付费的 Apple Developer 账号，见 `.github/workflows/build.yml` 的说明），Gatekeeper 会拦下首次启动 —— 到「系统设置 → 隐私与安全性」里手动放行一次即可。
+> **First launch on macOS**: the app inside the dmg is neither code-signed nor notarized (signing needs a paid Apple Developer account — see `.github/workflows/build.yml`), so Gatekeeper blocks the first launch. Allow it once under "System Settings → Privacy & Security" and it opens normally afterwards.
 >
-> **Linux 桌面端**：托盘依赖 `libayatana-appindicator3`（多数桌面环境已自带）；若桌面环境下托盘图标不显示，装 `libayatana-appindicator3-1` 后重开即可。AppImage 首次运行前需要可执行位（`chmod +x`，程序在「打开安装包」时会自动补）。更新方式：deb 走系统安装器（装的时候会问一次密码），AppImage 是换文件即升级。
+> **Linux desktop notes**: the tray needs `libayatana-appindicator3` (most desktops ship it; install `libayatana-appindicator3-1` if the tray icon does not appear, then restart). An AppImage needs the executable bit before its first run (`chmod +x`; the app sets it automatically when you pick "Open installer"). Updates: deb goes through the system installer (it asks for your password once), while an AppImage is upgraded by replacing the file.
 >
-> **桌面端的差异**：AutoClaw 与智谱清言的「导入本机登录态」只在 Windows 可用（读的是 Windows 的 DPAPI 密文，macOS / Linux 上整段收起）；其余家（小浣熊 / CatPaw / Cline）读的是 `HOME` 下的明文文件，三个平台都可用。托盘、开机自启、局域网访问与网页面板托管在 macOS / Linux 上同样支持。
+> **Desktop differences**: "import desktop login state" for AutoClaw and ChatGLM (智谱清言) is Windows-only (it reads Windows DPAPI ciphertext, so that section is hidden on macOS / Linux); the others (Raccoon / CatPaw / Cline) read plaintext files under `HOME` and work on all three platforms. Tray, launch-at-login, LAN access and web-panel hosting are supported on macOS / Linux too.
 
-## 服务端（Windows / Linux，无界面）
+## Server (Windows / Linux, headless)
 
-给**没有图形界面的服务器**用（Windows Server、Linux 服务器、云主机）。产物是同一份
-`agent2api-server` 二进制：无窗口、无托盘、不链接 WebView / GTK，运行时不依赖
-Node 或任何其它运行时。命令只负责**安装**，装完之后的管理（加账号、建 Key、
-看报表）都在浏览器面板里做。
+For **servers without a graphical interface** (Windows Server, Linux boxes, cloud instances). The artifacts are one and the same `agent2api-server` binary: no window, no tray, no WebView / GTK linkage, and no Node or any other runtime at run time. The command only **installs**; everything after that (accounts, keys, reports) happens in the browser panel.
 
-服务以系统服务方式常驻：开机自启、崩溃自动拉起、无控制台后台运行。
+The service runs as a system service: launched at boot, restarted automatically after a crash, no console in the background.
 
 ### Windows Server
 
-下载 `agent2api-server-windows-amd64.zip`，解压后**以管理员身份**打开 PowerShell：
+Download `agent2api-server-windows-amd64.zip`, unpack it and open PowerShell **as administrator**:
 
 ```powershell
 Expand-Archive agent2api-server-windows-amd64.zip -DestinationPath C:\agent2api-pkg
@@ -69,111 +68,98 @@ cd C:\agent2api-pkg
 .\install-service.ps1
 ```
 
-脚本会：装程序到 `C:\Agent2API`、数据落到 `C:\ProgramData\Agent2API`、注册名为
-`Agent2API` 的 Windows 服务（`LocalSystem`，开机自启）、加防火墙入站规则，然后启动。
+The script installs the program to `C:\Agent2API`, puts data in `C:\ProgramData\Agent2API`, registers a Windows service named `Agent2API` (`LocalSystem`, starts at boot), adds a firewall inbound rule, then starts it.
 
 ```powershell
-# 自定义位置与端口
+# Custom location and port
 .\install-service.ps1 -InstallDir D:\apps\agent2api -DataDir D:\data\agent2api -Port 8080
 
-# 日常管理
+# Day-to-day management
 Get-Service Agent2API
 Restart-Service Agent2API
 Stop-Service Agent2API
 
-# 卸载（保留数据）；加 -Purge 连程序与数据一起删
+# Uninstall (keeps data); add -Purge to delete program and data together
 .\install-service.ps1 -Uninstall
 ```
 
-**一键更新**：标准 Windows 服务安装可在「设置 → 更新」点击「一键更新」。确认后自动下载 Windows x64 服务端包，独立校验官方摘要，由临时升级进程停止服务、等待文件占用释放、备份替换并重新启动。确认新版服务运行后页面自动刷新；账号、配置和数据不删除。
+**One-click updates**: standard Windows service installations offer “One-click update” under Settings → Updates. After confirmation, the server package is downloaded and independently verified against the official digest. A temporary updater stops the service, waits for file handles to close, backs up and replaces files, and starts it again. The page refreshes after confirming the new service version; accounts, settings and data are preserved.
 
-**旧安装接入 / 手动升级**：把新版服务端包解压到新的目录，以管理员身份运行一次 `install-service.ps1`。脚本默认保留已登记的安装目录、数据目录、端口、环境配置和服务账号；只有显式传入的端口等选项才覆盖原值，目录迁移需单独进行。此次接入完成后可使用面板一键更新。
+**Existing installations / manual upgrade**: extract the new server package into a new directory and run `install-service.ps1` once as administrator. It preserves registered install and data paths, ports, environment settings and the service account by default. Only explicit options such as the port override existing values; directory migration is separate. Subsequent upgrades can use the panel.
 
-程序目录仅系统和管理员可写，升级工作目录为 `<安装目录>\.service-update`，不新增常驻服务。`AGENT2API_WINDOWS_UPDATE=0` 可在服务环境变量中关闭入口。自定义服务账号、目录链接、网络路径及受外部进程组托管的部署保留手动升级，不自动提权。替换失败会恢复旧文件；新版启动未确认时保留升级日志与备份，不自动回退数据库。
+Only SYSTEM and administrators can write program files. Update work files are under `<install directory>\.service-update`; no persistent service is added. Set `AGENT2API_WINDOWS_UPDATE=0` in the service environment to disable the entry. Custom service accounts, directory links, network paths and external job-managed deployments remain manual without automatic elevation. Replacement failures restore old files; startup failures retain logs and backups without rolling back the database.
 
-> **两个 Windows 特有的坑，脚本已经处理好了**：
-> 服务进程的工作目录是 `C:\Windows\system32` 而不是 exe 所在目录 —— 界面目录靠
-> exe 路径定位，不受影响；数据目录则由脚本显式写入服务注册表的
-> `AGENT2API_PROXY_HOME`（不设的话会落到 LocalSystem 的
-> `C:\Windows\system32\config\systemprofile` 下，几乎不可能找到）。
-> 服务没有控制台，所以日志同时落文件 `C:\ProgramData\Agent2API\logs\server.log`。
+> **Two Windows-specific traps that the script already handles**:
+> a service process's working directory is `C:\Windows\system32`, not the folder the exe lives in — the UI directory is located from the exe path, so it is unaffected; the data directory is written explicitly into the service's registry entry as `AGENT2API_PROXY_HOME` (without it, data would land under LocalSystem's `C:\Windows\system32\config\systemprofile`, where nobody would ever find it).
+> A service has no console, so logs also go to the file `C:\ProgramData\Agent2API\logs\server.log`.
 
-### Linux（systemd）
+### Linux (systemd)
 
 ```bash
 tar -xzf agent2api-server-linux-amd64.tar.gz
-cd agent2api-server-linux-amd64      # 或解包后的目录名
+cd agent2api-server-linux-amd64      # or whatever the unpacked directory is called
 sudo bash install.sh
 ```
 
-脚本会：建 `agent2api` 系统账号（不允许登录）、装程序到 `/opt/agent2api`、数据落
-`/var/lib/agent2api`、配置写到 `/etc/agent2api/agent2api.env`、装 systemd 单元并
-`enable + start`。
+The script creates an `agent2api` system account (login disabled), installs the program to `/opt/agent2api`, puts data in `/var/lib/agent2api`, writes config to `/etc/agent2api/agent2api.env`, and installs the systemd unit with `enable + start`.
 
 ```bash
-# 升级（保留数据与配置，旧二进制备份为 .bak）
+# Upgrade (keeps data and config; the old binary is backed up as .bak)
 sudo bash install.sh --upgrade
 
-# 卸载（保留数据）；加 --purge 连数据与配置一起删
+# Uninstall (keeps data); add --purge to delete data and config together
 sudo bash install.sh --uninstall
 
-# 日常管理
+# Day-to-day management
 systemctl status agent2api
 systemctl restart agent2api
 journalctl -u agent2api -f
 ```
 
-开机自启、崩溃自动拉起（`Restart=always`）、SIGTERM 优雅停机（等在途请求跑完
-再退出，SSE 长连接不会被打断）都已配好。配置改 `/etc/agent2api/agent2api.env`
-后 `systemctl restart agent2api` 生效。
+Launch at boot, automatic restart after a crash (`Restart=always`) and graceful shutdown on SIGTERM (it waits for in-flight requests, so long-lived SSE connections are not cut off) are all preconfigured. After editing `/etc/agent2api/agent2api.env`, run `systemctl restart agent2api` to apply it.
 
-> **systemd 一键更新**：标准安装已包含受限升级程序，面板点击「一键更新」并确认后，会下载、独立核验官方校验值、备份替换、重启并确认新版服务。账号与配置保留，网关继续以普通账号运行，程序目录仍由 root 保护。
+> **systemd one-click updates**: standard installations include a restricted update helper. Click “One-click update” and confirm to download, independently verify official checksums, back up and replace files, restart and confirm the new service. Accounts and settings are preserved; the gateway remains unprivileged and program files stay root-owned.
 >
-> 旧安装先下载包含本功能的新版服务端包，在新包目录执行一次 `sudo bash install.sh --upgrade`，补装升级组件后即可使用。自定义服务账号或安装路径不会被脚本强行改写，继续使用原部署方式升级。`AGENT2API_SYSTEMD_UPDATE=0` 可关闭面板入口；停用 `agent2api-updater.socket` 可停用升级组件。`AGENT2API_SELF_UPDATE` 仍为 Docker 专用，不要在裸机开启。
+> For an older installation, download a new server package containing this feature and run `sudo bash install.sh --upgrade` from that package once. This installs the update helper. Custom service accounts or paths are not overwritten; keep using your existing deployment procedure. Set `AGENT2API_SYSTEMD_UPDATE=0` to hide the panel entry, or disable `agent2api-updater.socket` to disable the helper. `AGENT2API_SELF_UPDATE` remains Docker-only; do not enable it on bare metal.
 >
-> 更新组件通过本机 socket 工作，不开放网络端口。默认从官方索引核验发布仓库；需固定仓库或为独立校验配置代理时，管理员可在 `/etc/agent2api/updater.env` 设置 `AGENT2API_UPDATER_REPO=owner/repo` 或 `HTTPS_PROXY`。替换失败会还原；新版启动未确认成功时保留 `/opt/agent2api/.before-update-*` 恢复文件并报告失败，不自动回退数据库。
+> The helper uses a local socket, not a network port. It verifies the release repository through the official index by default. Administrators may set `AGENT2API_UPDATER_REPO=owner/repo` or `HTTPS_PROXY` in `/etc/agent2api/updater.env` to pin a repository or configure a proxy for independent verification. Replacement failures restore the old files. If the new service cannot be confirmed ready, recovery files remain in `/opt/agent2api/.before-update-*` and failure is reported; the database is never rolled back automatically.
 
-### 装完之后
+### After installing
 
-两个平台都一样 —— 打开浏览器：
+Both platforms are the same — open a browser:
 
 ```
-http://<服务器IP>:3065/
+http://<server-ip>:3065/
 ```
 
-1. 首次进入会引导**注册管理员账号**（也可以用环境变量预置，见下）
-2. 登录后在「网关 Key」页创建一把 API Key
-3. 客户端 `base_url` 填 `http://<服务器IP>:3065/v1`，`api_key` 填刚建的那把
+1. The first visit walks you through **registering the admin account** (it can also be preset with an environment variable, see below)
+2. Once logged in, create an API key on the "Gateway Keys" page
+3. Point your client's `base_url` at `http://<server-ip>:3065/v1` and use the key you just created as `api_key`
 
-> ⚠️ **建 Key 之前 `/v1/*` 会拒绝服务**（fail-closed）。这是刻意的：服务端形态
-> 绑 `0.0.0.0`，没配 Key 就把上游额度对全网开放是不可接受的。
+> ⚠️ **`/v1/*` refuses service until a key exists** (fail-closed). That is deliberate: the server form binds `0.0.0.0`, and exposing upstream quota to the whole network without a key is not acceptable.
 
-### 无人值守部署
+### Unattended deployment
 
-管理员和网关 Key 都能用环境变量预置，跳过浏览器里的手动步骤：
+Both the administrator and the gateway key can be preset with environment variables, skipping the manual browser steps:
 
-| 变量 | 说明 |
+| Variable | Description |
 | --- | --- |
-| `AGENT2API_ADMIN_USER` + `AGENT2API_ADMIN_PASSWORD` | 预置管理员（密码明文填，启动时自动转 bcrypt）；也可用 `AGENT2API_ADMIN_PASSWORD_HASH` 直接给哈希 |
-| `AGENT2API_PROXY_API_KEY` | 预置一把网关 Key，跳过「面板里建第一把」 |
-| `AGENT2API_PROXY_HOME` | 数据目录 |
-| `AGENT2API_HOST` / `AGENT2API_PROXY_PORT` | 监听地址（默认 `0.0.0.0`）/ 端口（默认 `3065`） |
-| `AGENT2API_PANEL_PORT` | 面板分端口：管理面单独监听该端口，主端口只留 `/v1/*` |
-| `AGENT2API_ALLOW_NO_KEY` | 置 `1` 关闭 fail-closed（仅纯内网） |
-| `AGENT2API_LOG_FILE` | 日志文件路径，默认 `{数据目录}/logs/server.log` |
-| `AGENT2API_VERBOSE` | 置 `1` 打开 debug 日志 |
+| `AGENT2API_ADMIN_USER` + `AGENT2API_ADMIN_PASSWORD` | Preset the administrator (password in plain text, converted to bcrypt at startup); `AGENT2API_ADMIN_PASSWORD_HASH` takes a ready-made hash instead |
+| `AGENT2API_PROXY_API_KEY` | Preset one gateway key, skipping "create the first one in the panel" |
+| `AGENT2API_PROXY_HOME` | Data directory |
+| `AGENT2API_HOST` / `AGENT2API_PROXY_PORT` | Listen address (default `0.0.0.0`) / port (default `3065`) |
+| `AGENT2API_PANEL_PORT` | Split the panel onto its own port: the management plane listens there and the main port only serves `/v1/*` |
+| `AGENT2API_ALLOW_NO_KEY` | Set to `1` to turn fail-closed off (private networks only) |
+| `AGENT2API_LOG_FILE` | Log file path, default `{data directory}/logs/server.log` |
+| `AGENT2API_VERBOSE` | Set to `1` for debug logging |
 
-Linux 写在 `/etc/agent2api/agent2api.env`；Windows 改服务注册表的
-`HKLM\SYSTEM\CurrentControlSet\Services\Agent2API\Environment`（`install-service.ps1`
-已经写好基础项，重跑时保留已有配置，只按显式参数修改对应项）。
+On Linux put them in `/etc/agent2api/agent2api.env`; on Windows edit the service registry key `HKLM\SYSTEM\CurrentControlSet\Services\Agent2API\Environment` (`install-service.ps1` writes the basic settings and preserves existing configuration on reruns, changing only settings explicitly supplied as parameters).
 
-> **账号无法预置**：账号需要扫码 / 验证码 / 粘贴凭证，这一步由上游协议决定，
-> 绕不过去。批量部署可以把已经配好的**数据目录整个拷过去**（SQLite 库 +
-> `account.key` 在同一个目录里），账号随之迁移。
+> **Accounts cannot be preset**: they need a QR scan / SMS code / pasted credentials, which the upstream protocols decide, so there is no way around it. For bulk deployment, copy a fully configured **data directory** over (the SQLite database and `account.key` live side by side), and the accounts move with it.
 
 ## Docker
 
-镜像标签：`latest` 跟随最新正式版，`beta` 跟随最新 beta 预发布版；也可用完整版本号（例如 `3.3.0-beta.3`）固定版本。要使用 beta，把下方命令或 Compose 配置中的 `aimodcc/agent2api:latest` 改为 `aimodcc/agent2api:beta`；更新时运行 `docker compose pull && docker compose up -d`。beta 发布不会改动 `latest`，手动开发构建只更新 `dev`。同一份镜像也同步发布在 GitHub 容器镜像库：把镜像名换成 `ghcr.io/aimod-cc/agent2api` 即可，标签规则完全相同。
+Image tags: `latest` follows the latest stable release, while `beta` follows the latest beta prerelease. Use a full version such as `3.3.0-beta.3` to pin a version. To use beta, replace `aimodcc/agent2api:latest` with `aimodcc/agent2api:beta` in the command or Compose configuration below; update with `docker compose pull && docker compose up -d`. Beta releases never move `latest`, and manual development builds only update `dev`. The same image is also published to the GitHub Container Registry: replace the image name with `ghcr.io/aimod-cc/agent2api` (the tag rules are identical).
 
 ```bash
 docker run -d --name agent2api --restart unless-stopped \
@@ -181,9 +167,9 @@ docker run -d --name agent2api --restart unless-stopped \
   aimodcc/agent2api:latest
 ```
 
-浏览器打开 `http://<主机>:3065`，首次进入会引导**注册管理员账号**；登录后在「网关 Key」页建一把 API Key 给客户端用 —— `http://<主机>:3065/v1` 即 OpenAI 兼容端点（未建 Key 前拒绝转发）。状态（SQLite 库 / 配置 / 日志）都在 `./data` 一个卷里。
+Open `http://<host>:3065` in a browser — the first visit walks you through **registering the admin account**; log in and create an API key in the "Gateway Keys" page for your clients — `http://<host>:3065/v1` is the OpenAI-compatible endpoint (it refuses to forward until the first key exists). All state (SQLite database / config / logs) lives in the `./data` volume.
 
-compose 用户（amd64 / arm64 都有镜像）：
+Compose users (images are published for amd64 and arm64):
 
 ```yaml
 services:
@@ -197,27 +183,27 @@ services:
       - ./data:/data
 ```
 
-环境变量（都可选）：
+Environment variables (all optional):
 
-| 变量 | 说明 |
+| Variable | Description |
 | --- | --- |
-| `AGENT2API_ADMIN_USER` + `AGENT2API_ADMIN_PASSWORD` | 预置管理员账号密码（密码明文填，启动时自动转哈希）；不填走面板注册 |
-| `AGENT2API_PANEL_PORT` | 面板分端口：设后面板（界面 + `/api/*`）单独监听该端口，公网只映射主端口即可把管理面留在内网（面板端口绑回环，写 `127.0.0.1:3066:3066`） |
-| `AGENT2API_HOST` / `AGENT2API_PROXY_PORT` | 监听地址（默认 `0.0.0.0`）/ 端口（默认 `3065`） |
-| `AGENT2API_ALLOW_NO_KEY` | 置 `1` 关闭 fail-closed（未配 Key 也放行 `/v1`，仅限纯内网） |
-| `AGENT2API_CAPTCHA_ENABLED` | 登录页人机验证：默认 `1` 开启，`0` 关闭 |
-| `AGENT2API_SELF_UPDATE` | 容器内的更新入口：默认 `1` 开启（面板可「下载并更新」）；置 `0` 关闭，只走手动升级 |
-| `AGENT2API_IMAGE_CACHE_MB` | 生成图片的内存下载缓存上限（MiB，默认 `128`，范围 8~4096）。写坏 / 越界回落默认值 |
-| `AGENT2API_IMAGE_COMPRESS_CACHE_MB` | 会话图片压缩结果的内存缓存上限（MiB，默认 `128`，范围 8~4096，口径同上） |
-| `WORKBUDDY_UPDATE_REPO` + `WORKBUDDY_UPDATE_API_BASE` | 进阶：把「检查更新 / 下载更新」换成自建源。前者换仓库（默认跟上游 `aimod-cc/Agent2API`，fork 后可改），后者换 API 根（默认 `https://api.github.com`，需返回与 GitHub 同形的 release JSON）。配了自建源后，下载白名单只额外放行**该源自己的域名**（按源的 scheme：配 `http://` 就允许明文下载，仅建议本地演练/内网镜像用）|
+| `AGENT2API_ADMIN_USER` + `AGENT2API_ADMIN_PASSWORD` | Preset the admin account & password (password in plain text, hashed automatically at startup). Leave unset to register in the panel |
+| `AGENT2API_PANEL_PORT` | Serve the panel (UI + `/api/*`) on its own port; map only the main port publicly to keep the management plane internal (bind the panel port as `127.0.0.1:3066:3066`) |
+| `AGENT2API_HOST` / `AGENT2API_PROXY_PORT` | Listen address (default `0.0.0.0`) / port (default `3065`) |
+| `AGENT2API_ALLOW_NO_KEY` | Set to `1` to serve `/v1` without any key — private networks only |
+| `AGENT2API_CAPTCHA_ENABLED` | Login-page human verification widget: `1` enabled (default), `0` disabled |
+| `AGENT2API_SELF_UPDATE` | In-container update entry: `1` enabled by default (the panel offers "Download and update"); set `0` to upgrade manually only |
+| `AGENT2API_IMAGE_CACHE_MB` | Upper bound of the in-memory download cache for generated images (MiB, default `128`, range 8–4096). Invalid or out-of-range values fall back to the default |
+| `AGENT2API_IMAGE_COMPRESS_CACHE_MB` | Upper bound of the in-memory cache for compressed session images (MiB, default `128`, range 8–4096, same rules) |
+| `WORKBUDDY_UPDATE_REPO` + `WORKBUDDY_UPDATE_API_BASE` | Advanced: point update checks/downloads at your own source. The first swaps the repository (defaults to the upstream `aimod-cc/Agent2API`; forks should override it), the second swaps the API root (default `https://api.github.com`, must return a GitHub-shaped release JSON). With a custom source set, the download allowlist additionally admits only **that source's own host** (scheme follows the source: an `http://` source also allows plaintext downloads — for local drills / internal mirrors only) |
 
-从源码构建：克隆本仓库后 `docker compose up -d --build`（镜像里只有网关与面板，不含 Rust 工具链）。
+Build from source: clone the repo and run `docker compose up -d --build` (the image contains only the gateway and the panel, no Rust toolchain).
 
-### 内存占用
+### Memory usage
 
-镜像里的网关（Linux 目标）已内置 jemalloc 内存分配器。长时间运行、多账号并发转发时，它比系统自带的分配器更不容易产生内存碎片、RSS 也不容易缓慢增长 —— 这正是小内存机器最常被拖垮或 OOM 的一环。
+The gateway in the image (Linux targets) ships with the jemalloc allocator built in. Over long uptimes and under concurrent multi-account forwarding it fragments far less than the system allocator, so RSS no longer creeps upward — the single most common way a small machine gets dragged down or OOM-killed.
 
-小内存机器建议给容器设一个内存上限：超限时内核杀掉进程，再由 `restart: unless-stopped` 拉起，表现为「重启一次」，而不是把宿主机（或同机其它服务）拖垮。
+On small machines, cap the container's memory: when it goes over, the kernel kills the process and `restart: unless-stopped` brings it back, which shows up as one restart instead of taking the host (or other services on it) down.
 
 ```bash
 # docker run
@@ -226,25 +212,25 @@ docker run -d --name agent2api --restart unless-stopped --memory=1g \
   aimodcc/agent2api:latest
 ```
 
-compose 用户在服务里加一行 `mem_limit: 1g`（`docker-compose.yml` 里已附注释示例）；swarm 或 `docker compose --compatibility` 用 `deploy.resources.limits.memory`。1g 只是起点，按实际并发量调。
+For compose, add `mem_limit: 1g` to the service (a commented example is in `docker-compose.yml`); on swarm or `docker compose --compatibility`, use `deploy.resources.limits.memory`. Treat 1g as a starting point and tune it to your concurrency.
 
-两处常驻内存的图片缓存上限都能用环境变量调小（默认各 `128` MiB）：`AGENT2API_IMAGE_CACHE_MB`（生成图片的下载缓存）、`AGENT2API_IMAGE_COMPRESS_CACHE_MB`（会话图片压缩结果缓存）。写坏或越界会回落默认值，不会让服务起不来。
+Both in-memory image caches can be shrunk with environment variables (128 MiB each by default): `AGENT2API_IMAGE_CACHE_MB` (download cache for generated images) and `AGENT2API_IMAGE_COMPRESS_CACHE_MB` (cache of compressed session images). Invalid or out-of-range values fall back to the default and never prevent startup.
 
-`MALLOC_ARENA_MAX=2` 这类 glibc 分配器调优，只对**没有内置 jemalloc 的形态**有意义（旧版镜像、自行编译的服务端、桌面端）；本镜像已不需要设它。
+glibc allocator tuning such as `MALLOC_ARENA_MAX=2` only matters for builds **without** jemalloc (older images, a self-compiled server, desktop); this image no longer needs it.
 
-**网页面板的功能差异**（源于「没有本机桌面客户端」）：网页登录（WorkBuddy / Qoder / Cline）、手机验证码、粘贴凭证完全可用；需要本机回调的网页登录（AutoClaw / CatPaw / Accio / CodeArts / Trae）与「导入本机登录态」不可用，请改用粘贴凭证。桌面端开着「同时开放网页管理面板」时，用浏览器访问该面板也是这一套差异 —— 同一份界面、同一套判定。
+**Web panel capability notes** (these stem from having no local desktop client): web login (WorkBuddy / Qoder / Cline), SMS codes and pasted credentials work fully; web logins that need a callback on this machine (AutoClaw / CatPaw / Accio / CodeArts / Trae) and "import desktop login state" are unavailable — use pasted credentials instead. A desktop app with "expose the web management panel" turned on shows the same differences in a browser: one interface, one set of rules.
 
-### 容器内更新（可选）
+### In-container updates (optional)
 
-面板的「软件更新」页在容器里能直接「下载并更新」：下载官方 Release 里的 `agent2api-server-linux-<arch>.tar.gz`（校验 `.sha256`）→ 替换可执行文件与 `ui/` → 进程优雅退出、由 `restart` 策略拉起同一个容器。由 `AGENT2API_SELF_UPDATE` 控制（Dockerfile 默认 `1`），置 `0` 则只走手动升级。
+The panel's "Software update" page can download and apply updates from inside the container: it fetches `agent2api-server-linux-<arch>.tar.gz` from the official Release (verifying the `.sha256`), replaces the executable and `ui/`, then exits gracefully so the `restart` policy brings the same container back up. Controlled by `AGENT2API_SELF_UPDATE` (set to `1` in the Dockerfile); set it to `0` to upgrade manually only.
 
-同一个 `agent2api-server-linux-<arch>.tar.gz` 也是 [Linux 服务端](#linuxsystemd) 的安装包：包内的 `agent2api-server` 与 `ui/` 是这条更新链按名取的条目，另外还带着 `install.sh` / `agent2api.service` / `agent2api.env.example`。容器更新链只认前两个条目（其余读完即丢，见 `selfupdate::extract_bundle`），所以一份产物同时服务两种用途 —— 容器里解包替换，裸机上解包跑 `install.sh`。
+The same `agent2api-server-linux-<arch>.tar.gz` is also the installer package for the [Linux server](#linux-systemd): its `agent2api-server` and `ui/` entries are exactly what the update chain reads by name, and it additionally ships `install.sh` / `agent2api.service` / `agent2api.env.example`. The update chain only reads the first two (the rest are discarded — see `selfupdate::extract_bundle`), so one artifact serves both purposes: unpack and replace inside a container, unpack and run `install.sh` on a bare-metal host.
 
-代价要清楚：更新后容器标签与**实际运行的版本会漂移**（`docker inspect` 显示的仍是旧 tag），执行 `docker compose pull && up -d` 重建容器会回到镜像里的版本。想固定版本就别开这个入口。
+Be aware of the trade-off: after an in-container update the image tag and the version actually running **drift apart** (`docker inspect` still reports the old tag), and `docker compose pull && up -d` rebuilds the container back to the version baked into the image. If you want pinned versions, leave this entry point off.
 
-## 验证与客户端接入
+## Verification and client setup
 
-网关起来后，用 curl 确认联通性（`model` 填 `GET /v1/models` 里任一实际存在的名字）：
+Once the gateway is up, use curl to confirm connectivity (put any name that actually exists in `GET /v1/models` into `model`):
 
 ```bash
 curl http://127.0.0.1:3065/health
@@ -252,123 +238,123 @@ curl http://127.0.0.1:3065/v1/models
 
 curl http://127.0.0.1:3065/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"deepseek-v4.1-flash","messages":[{"role":"user","content":"你好"}],"stream":true}'
+  -d '{"model":"deepseek-v4.1-flash","messages":[{"role":"user","content":"Hello"}],"stream":true}'
 ```
 
-客户端接入示例（Python SDK）：
+Client example (Python SDK):
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(base_url="http://127.0.0.1:3065/v1", api_key="sk-local")
 resp = client.chat.completions.create(
-    model="deepseek-v4.1-flash",     # 名单里有哪家就是哪家，见 GET /v1/models
-    messages=[{"role": "user", "content": "你好"}],
+    model="deepseek-v4.1-flash",     # whichever provider owns it — see GET /v1/models
+    messages=[{"role": "user", "content": "Hello"}],
 )
 print(resp.choices[0].message.content)
 ```
 
-**浏览器页面**（自建 Web UI 等）用 `fetch` 直连会被跨源预检拒绝——网关默认不应答 CORS，预检落到 API Key 校验上得 401。两种解法：① 设置页「安全 → 网关跨域访问」打开（来源 `*`；此时任何网页都能借本机网关打上游，建议同时配「网关 Key」）；② 页面与网关同源——本地静态服务托管页面并把 `/v1` 反代到 `127.0.0.1:3065`。
+**Pages running in a browser** (a self-built web UI, …) that call this endpoint with `fetch` hit a cross-origin preflight rejection — the gateway does **not** answer CORS by default, so the preflight lands on the API-key check and gets a 401. Two ways out: ① turn on "Security → Gateway CORS" in Settings (origin `*`; with `*` any web page could drive your local gateway, so set a "Gateway Key" too); ② make the page same-origin — serve it from a small local static server that reverse-proxies `/v1` to `127.0.0.1:3065`.
 
-## 局域网访问
+## LAN access
 
-默认只监听 `127.0.0.1`。开启「设置 → 通用 → 局域网访问」后改听所有网卡，局域网设备把 API 地址指向本机 IP 即可共用（界面会给出完整地址）。出于安全，开启前必须注册面板管理员：管理接口要求管理员会话或网关 Key，无可用 Key 时转发接口同样拒绝服务（开启流程会自动补一把「默认」Key）；也可选择同时开放网页面板（默认关闭）。改动重启生效。
+By default the gateway only listens on `127.0.0.1`. After turning on "Settings → General → LAN access" it listens on all adapters, and devices on the LAN just point their API base URL at this machine's IP (the UI shows the full address) to share the accounts. For safety, enabling it requires registering a panel administrator first: the management API then demands an admin session or a gateway key, and with no key enabled the forwarding API refuses service too (the enable flow adds a "default" key automatically). The web panel can optionally be exposed to the LAN as well (off by default). Changes take effect after a restart.
 
-桌面端（Windows / macOS）装包里就带着网页面板那一份 `ui/`，打开「同时开放网页管理面板」后局域网设备用浏览器访问同一地址即是管理界面 —— 与 Docker 版是同一份界面；**桌面窗口自己不走网页登录**（没有登录页），它以本机第一把网关 Key 作为凭证，打开这个开关不需要你额外登录桌面端。网页登录页只在浏览器访问面板时出现。
+The desktop installers (Windows / macOS) already ship the web panel's `ui/` folder: once you turn on "expose the web management panel to the LAN" as well, devices on the LAN can open the same address in a browser to get the management UI — the same interface as the Docker form. **The desktop window itself never goes through web login** (there is no login page in the app): it authenticates with this machine's first gateway key, so flipping that switch never asks you to sign in from the desktop app. The web login page only appears when a browser opens the panel.
 
-## 手机端
+## Mobile
 
-手机端有三种形态，按需要选：
+There are three forms — pick what you need:
 
-| 形态 | 怎么装 | 适合 |
+| Form | How to install | Good for |
 | --- | --- | --- |
-| **浏览器 / PWA** | 手机浏览器打开 `/m`，可「添加到主屏幕」 | 临时看、不想装东西、iPhone 首选 |
-| **Android APK** | 装 `Agent2API-<版本>.apk` | 要图标、要全屏、要管多台服务器 |
-| **iOS IPA** | 装 `Agent2API-<版本>.ipa`（未签名，需自行重签） | 要图标、要全屏 |
+| **Browser / PWA** | Open `/m` in a phone browser; optionally "Add to Home Screen" | Quick look, nothing to install, the easiest option on iPhone |
+| **Android APK** | Install `Agent2API-<version>.apk` | Home-screen icon, full screen, multiple servers |
+| **iOS IPA** | Install `Agent2API-<version>.ipa` (unsigned — you re-sign it) | Home-screen icon, full screen |
 
-三者的界面是同一份代码，区别在「谁提供页面」：PWA 由网关出（所以必须开「同时开放网页管理面板」），APK / IPA 把界面打进包里（所以离线也能起界面，且不需要那个开关）。
+All three run the same UI code. The difference is who serves the page: the PWA is served by the gateway (so "also expose the web management panel" must be on), while the APK / IPA ship the UI inside the package (so they can start the UI offline and do not need that switch).
 
-### 前置条件（按形态）
+### Prerequisites (by form)
 
-**桌面端（Windows / macOS / Linux）**：两个开关都要开，缺一不可。
+**Desktop (Windows / macOS / Linux)**: both switches, one without the other will not work.
 
-1. 「设置 → 通用 → 局域网访问」—— 允许局域网设备访问网关。开启流程会要求先注册面板管理员，并自动补一把名为「默认」的 Key。
-2. 「设置 → 通用 → 局域网访问 → 同时开放网页管理面板」—— 托管 `ui/` 静态目录。**浏览器 / PWA 形态需要它**（`/m` 由网关出，开关关着时 404）；**APK / IPA 不需要**（界面在包里），但仍然要第 1 项，否则网关只监听 `127.0.0.1`，手机连不上。
+1. "Settings → General → LAN access" — lets devices on the LAN reach the gateway. The enable flow asks you to register a panel administrator first and adds a key named "default" automatically.
+2. "Settings → General → LAN access → also expose the web management panel" — serves the `ui/` static folder. **Required for the browser / PWA form** (`/m` is served by the gateway, so it returns 404 while this switch is off). **The APK / IPA do not need it** (the UI is inside the package), but they still need switch 1 — otherwise the gateway only listens on `127.0.0.1` and the phone cannot reach it.
 
-两项都要重启生效。
+Both require a restart to take effect.
 
-**服务端 / Docker**：不用额外开开关 —— 这两种形态默认就监听所有网卡、默认托管 `ui/`（Dockerfile 里 `AGENT2API_UI_DIR=/app/ui` 是写死的）。只要容器或服务的端口对局域网可达即可。若你手工设过 `AGENT2API_HOST=127.0.0.1`，改成 `0.0.0.0`；若 `AGENT2API_UI_DIR` 指向的目录不存在，面板会 404 而 API 照常工作。
+**Server / Docker**: no extra switches — both forms already listen on all adapters and serve `ui/` by default (`AGENT2API_UI_DIR=/app/ui` is hard-coded in the Dockerfile). You only need the container's or service's port to be reachable from the LAN. If you manually set `AGENT2API_HOST=127.0.0.1`, change it to `0.0.0.0`; if `AGENT2API_UI_DIR` points to a missing directory the panel returns 404 while the API keeps working.
 
-### 在手机上打开（浏览器 / PWA）
+### Open it on the phone (browser / PWA)
 
-`http://<网关所在机器的局域网IP>:3065/m`
+`http://<LAN IP of the machine running the gateway>:3065/m`
 
-桌面端就是上一步界面给出的那个地址（形如 `192.168.1.23`），把端口后面的 `/v1` 换成 `/m`。Docker / 服务端用宿主机的局域网 IP 与映射出去的端口。
+On desktop, that is the address shown in the settings pane above (for example `192.168.1.23`) — replace the trailing `/v1` with `/m`. For Docker / server use the host machine's LAN IP and the mapped port.
 
-首次打开会跳到登录页，用面板管理员账号登录后自动回到手机端。没注册过管理员时，登录页会先让你创建一个。
+The first visit redirects to the login page; sign in with the panel administrator and it returns you to the mobile UI automatically. If no administrator exists yet, the login page asks you to create one.
 
-### 安装 APK（Android）
+### Install the APK (Android)
 
-装包后首次打开是一个「服务器」页，流程只有三步：
+On first launch you get a "Servers" screen. Three steps:
 
-1. 点「添加」，填网关的 `IP 或域名:端口`（如 `192.168.1.23:3065`）。协议可写 `http://` 或 `https://`，不写默认 http；不写端口时 http 补 3065、https 走标准 443；
-2. 点「连接并保存」—— 会先探活，连不上会当场说清楚是地址错还是网关没开局域网；
-3. 弹出登录页，输入这台网关的管理员账号密码（没注册过管理员的会变成「创建管理员」）。
+1. Tap "Add" and enter the gateway's `IP or domain:port` (e.g. `192.168.1.23:3065`). The scheme may be `http://` or `https://` (http is assumed if omitted); without a port, http gets 3065 and https uses the standard 443;
+2. Tap "Connect & save" — it probes the gateway first, so a wrong address or a gateway without LAN access is reported right there;
+3. A login page appears. Enter this gateway's administrator account and password (if none exists yet, it becomes "Create admin account").
 
-**多台服务器**：再点一次「添加」即可。每台的登录状态各自独立保存 —— 切过去不用重新登录，切回来也一样。入口在「设置 → 服务器」，列表里点哪台就切到哪台；**登录页底部也有「换一台服务器」**，退出登录或被登出后不用先登进去再找入口。
+**Multiple servers**: tap "Add" again. Each server keeps its own sign-in — switching over does not require signing in again, and neither does switching back. The entry point is "Settings → Servers"; tap a row to switch to it. **The login page also has a "Switch server" link**, so after signing out (or being signed out) you don't have to log in first just to reach that list.
 
-**APK 的已知限制**：
+**Known limitations of the APK**:
 
-- 不写协议时默认走 `http://` 局域网地址，明文。风险面是「同一局域网内可嗅探」，网关本身仍然要管理员登录。想消除的话给网关配 TLS（反代或隧道都行），在 App 里填 `https://` 地址即可 —— 协议会被原样保留，证书无效时探活会直接失败。
-- 界面随 APK 版本走，不随网关升级。网关升级后如果新增了页面，要装新版 APK 才看得到；纯数据变化不受影响。
+- Without a scheme it uses a cleartext `http://` LAN address. The risk is "sniffable on the same LAN"; the gateway itself still requires administrator login. To remove it, give the gateway TLS (a reverse proxy or tunnel works) and enter an `https://` address — the scheme is preserved as typed, and an invalid certificate makes the probe fail immediately.
+- The UI follows the APK version, not the gateway. If a gateway upgrade adds new screens, you need a newer APK to see them; pure data changes are unaffected.
 
-### 安装 IPA（iOS）
+### Install the IPA (iOS)
 
-Release 里的 `Agent2API-<版本>.ipa` **默认是未签名包** —— 苹果不允许开发者随意分发可安装的 App，未签名包需要用户用自己的 Apple ID 重签一次。三条路：
+`Agent2API-<version>.ipa` in the Release is **unsigned by default** — Apple does not let developers hand out installable apps freely, so an unsigned package has to be re-signed once with your own Apple ID. Three routes:
 
-| 方式 | 需要 | 有效期 |
+| Route | Requires | Validity |
 | --- | --- | --- |
-| **AltStore / SideStore / Sideloadly** | 一台电脑（首次）+ 免费 Apple ID | 7 天，到期重签 |
-| **Apple Developer Program** | $99/年，自己配证书与描述文件 | 1 年 |
-| **App Store / TestFlight** | $99/年 + 审核 | 长期 |
+| **AltStore / SideStore / Sideloadly** | A computer (first time) + a free Apple ID | 7 days, re-sign afterwards |
+| **Apple Developer Program** | $99/year, your own certificate and provisioning profile | 1 year |
+| **App Store / TestFlight** | $99/year + review | Long term |
 
-侧载的具体步骤：把 `.ipa` 拖进 AltStore（或 SideStore），用 Apple ID 重签后安装。免费账号限制：同时最多 3 个 App、每 7 天要重签一次。
+To sideload: drop the `.ipa` into AltStore (or SideStore), re-sign with your Apple ID, install. Free accounts are capped at 3 apps at a time and must be re-signed every 7 days.
 
-**iPhone 用户如果只是想在手机上看网关，直接用 Safari 打开 `/m` 并「添加到主屏幕」即可**，不需要装 IPA —— 观感与原生应用几乎一致，也省掉重签的麻烦。
+**If you only want to check the gateway from an iPhone, just open `/m` in Safari and "Add to Home Screen"** — no IPA needed. It looks nearly identical to a native app and saves you the re-signing chore.
 
-**IPA 的已知限制**：
+**Known limitations of the IPA**:
 
-- **应用内更新只能跳转**：iOS 不允许 App 自己下载并安装可执行代码，所以设置页的「软件更新」在 iOS 上给的是「去下载」按钮（打开 Release 页面），不会像 Android 那样直接下载安装。PWA 形态则走 Service Worker，刷新即可。
-- 局域网 `http://` 网关：`Info.plist` 已放开 ATS 明文限制并声明了本地网络用途；首次连接时系统会弹「允许访问本地网络」，必须点允许，否则所有请求都会失败且没有提示。
-- 其余与 APK 相同：界面随包版本走、协议默认 http。
+- **In-app updates can only link out**: iOS does not allow an app to download and install executable code, so "Software update" in settings shows a "Get it" button that opens the Release page instead of downloading like Android does. The PWA form updates through the Service Worker — just refresh.
+- Cleartext `http://` gateways: `Info.plist` already relaxes ATS and declares the local-network usage. The first connection triggers an "allow local network" prompt — you must accept it, otherwise every request fails with no visible explanation.
+- Everything else matches the APK: the UI follows the package version, and http is the default scheme.
 
-### 安装到主屏幕（浏览器 / PWA）
+### Add to home screen (browser / PWA)
 
-可选，装完就是全屏、无地址栏。手机端「设置 → 安装到桌面」里直接给了入口：
+Optional — gives you full screen with no address bar. The mobile UI offers the entry point under "Settings → Install as app":
 
-- **Android / Chrome**：设置页点「安装到主屏幕」（弹系统安装框）；也可以走右上角菜单 →「添加到主屏幕」/「安装应用」
-- **iOS / Safari**：Safari 没有安装接口，设置页会写明步骤 —— 分享 →「添加到主屏幕」
+- **Android / Chrome**: tap "Add to Home Screen" in settings (opens the system install dialog); or use the menu → "Add to Home screen" / "Install app"
+- **iOS / Safari**: Safari has no install API, so the settings page spells out the steps — Share → "Add to Home Screen"
 
-装完从桌面图标进入，直接落到手机端首页。已在独立窗口里运行时，设置页会显示「已安装」。
+Opening it from the home screen icon lands directly on the mobile home page. When already running in a standalone window, the settings page shows "Installed".
 
-有新版本时页面底部会浮出一条「重启更新」：网关升级后新版本的界面已经下好，点一下切过去（不点也不影响当前使用，下次打开自然生效）。
+When a new version is available, a "Restart & update" bar floats at the bottom: after a gateway upgrade the new UI is already downloaded, and one tap switches to it (ignoring it is fine too — it takes effect on the next open).
 
-> **为什么没有应用商店包**：手机端连的必然是**另一台机器上跑的网关**（网关要读那台机器的登录态、写它的配置文件，手机上跑不了）。它的本质是「远程访问一个 HTTP 服务」，浏览器已经是最合适的载体 —— 同源认证、免安装、跟着网关一起升级。PWA 形态额外给了全屏与主屏幕图标，观感与原生应用一致；APK / IPA 则是把同一份界面打进包里，换来独立图标与离线起界面。
+> **Why no store package**: the mobile UI always talks to a gateway running on **another machine** (the gateway needs to read that machine's client logins and write its config files — it cannot run on a phone). It is fundamentally "remote access to an HTTP service", and the browser is the right carrier: same-origin auth, no install, and it upgrades together with the gateway. The PWA form adds full screen and a home-screen icon, so it feels like a native app; the APK / IPA package that same UI to get a standalone icon and an offline shell.
 >
-> **Service Worker（离线外壳）只在 `https` 或 `localhost` 下生效**：局域网走的是 `http://<IP>`，浏览器不提供 SW，所以断网时手机端打不开。这是浏览器的安全限制，不是功能缺失 —— 正常使用时网关在线，不受影响。
+> **Service Worker (offline shell) only works over `https` or `localhost`**: LAN access uses `http://<IP>`, where browsers do not provide SW, so the mobile UI will not open while offline. That is a browser security restriction, not a missing feature — in normal use the gateway is online, so it does not matter.
 
-### 能做什么、不能做什么
+### What it can and cannot do
 
-| 能做 | 不能做（请回桌面端） |
+| Can | Cannot (use the desktop app) |
 | --- | --- |
-| 看报表、账号状态、余额、请求日志、运行日志 | 添加账号（扫码 / 粘贴令牌 / 导入登录态） |
-| 启停账号、刷新凭证、删除账号 | 编辑账号的凭证、代理、限流规则 |
-| 一键签到、看签到记录 | 逐项领取新手福利与套餐 |
-| 启停模型、按提供商筛选 | 改模型映射、思考等级、能力位 |
-| 复制网关 Key、启停 Key | 新建 Key、设置可用范围白名单 |
-| 新增、编辑、删除手动 HTTP / SOCKS5 代理，同步 Clash Verge 端点，启停与测试连通性 | —（代理订阅与内置内核已下线） |
-| 启停定时任务、改间隔 | 改端口、路由、重试、超时、数据保留 |
-| 助手快捷查询（余额 / 重复模型 / 今日用量 / 限流账号） | 助手的自由对话与工具调用 |
-| 查看 Agent 接管状态、还原 | 改写客户端配置（手机读不到本机文件） |
+| Reports, account status, balances, request logs, runtime logs | Add accounts (QR / paste token / import client login) |
+| Enable/disable accounts, refresh credentials, delete accounts | Edit an account's credentials, proxy or rate-limit rules |
+| One-tap check-in, view check-in history | Claim onboarding rewards and plans one by one |
+| Enable/disable models, filter by provider | Edit model mappings, reasoning levels, capability flags |
+| Copy gateway keys, enable/disable keys | Create keys, set provider/model allowlists |
+| Add, edit and delete manual HTTP / SOCKS5 proxies; sync Clash Verge endpoints; enable/disable and test connectivity | — (proxy subscriptions and the built-in kernel have been discontinued) |
+| Enable/disable scheduled tasks, change intervals | Change port, routing, retry, timeouts, data retention |
+| Assistant quick queries (balances / duplicate models / today's usage / rate-limited accounts) | Free-form assistant chat and tool calling |
+| View Agent takeover status, restore | Rewrite client configs (a phone cannot read local files) |
 
-桌面端侧栏底部有「手机端打开」入口，点开即是同一个页面。
+The desktop sidebar has an "Open on phone" entry at the bottom that leads to the same page.

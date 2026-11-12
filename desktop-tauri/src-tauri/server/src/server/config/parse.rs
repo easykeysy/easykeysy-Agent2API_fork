@@ -1,39 +1,39 @@
-//! 配置字段的**解析**与环境变量兜底：`Map` 进去、解析结果出来。
+//! config **** and ：`Map` 、。
 //!
-//! ── 为什么单独一层 ──────────────────────────────────────────
-//! `mod.rs` 装的是「配置的读写入口」（内存快照、各 setter、落库），而这一组
-//! 函数是**不依赖全局状态**的纯变换。它们被 `build()`（构造快照时全量解析
-//! 一遍）与各 `set_*` 的回读逻辑调用，与库、与文件都没有关系 —— 抽出来之后
-//! `mod.rs` 不必为了容纳这段注释与实现而挤到 900 行以上（本项目的单文件行数
-//! 约定），而且「配置项的取值口径只有这一处」这件事在文件结构上直接可见。
+//! ── Why 1 ──────────────────────────────────────────
+//! `mod.rs` is 「config 」（、 setter、）， this 1 
+//! is ** not ** 。 `build()`（ when 
+//! 1 ） and `set_*` use ， and 、 and file no has —— after 
+//! `mod.rs` not as this and to 900 up （ file
+//! ）， and 「config has this 1 」 this in file up can 。
 //!
-//! ── 读侧的统一口径（改造前后逐字一致）───────────────────────
-//! 配置是**手改得到**的东西（改造前是 `config.json`，现在仍可用 `sqlite3`
-//! 改库里的那一行），所以每个取值函数都必须回答「值缺失 / 类型不符 / 越界时
-//! 怎么办」，且口径统一：**一律回落到默认值，不报错、不夹紧**。
-//!   - 不报错：一个写坏的字段不该让整个网关起不来；
-//!   - 不夹紧：静默把 5000 改成 3650 会让用户以为「设置生效了」，而回落到
-//!     默认值至少与他看到的值不一致，好排查。
-//! 走接口写入的值在各自的 PUT 处理器里已按同一范围校验过（那里是 400 报错）——
-//! 两侧范围常量共用（`RETENTION_MIN_DAYS` 等），所以不会出现「接口拒绝 60
-//! 而手改库接受它」这种两套口径。
+//! ── 1 （ before after 1 ）───────────────────────
+//! config is ** to ** （ before is `config.json`， in available `sqlite3`
+//! that 1 ）， must「 / not / when 
+//! 」， and 1 ：** 1 to default， not 、 not **。
+//! - not ： 1 not this not ；
+//! - not ： 5000 3650 will use as 「set」， to 
+//! default and to not 1 ，。
+//! in PUT already by 1 （ that is 400 ）——
+//! use （`RETENTION_MIN_DAYS` etc ）， not will 「 60
+//! 」 this 。
 //!
-//! ── 环境变量为什么也在这里 ──────────────────────────────────
-//! 「配置文件的值 > 环境变量 > 内置默认值」这条优先级由 `mod.rs` 的 `build()`
-//! 落地，而 `env_api_key()` / `env_text()` 是它的组成部分 —— 它们与取值函数
-//! 一起构成「一个字段最终怎么被解析出来」这一个问题的答案，分散两处会让改
-//! 优先级的人只改一半。
+//! ── Why in this ──────────────────────────────────
+//! 「configfile > > default」 this by `mod.rs` `build()`
+//! ， `env_api_key()` / `env_text()` is —— and 
+//! 1 「 1 」 this 1 ， will 
+//! 1 。
 
 use serde_json::{Map, Value};
 
 use super::types::*;
 
-/// 环境变量里的 API Key（新名优先，旧名兼容读；去空白，空串当未配置）
+/// API Key（ new ， old ；empty，emptynot configured）
 pub(super) fn env_api_key() -> Option<String> {
     env_api_key_value()
 }
 
-/// 两个候选名按序取第一个有效值（`AGENT2API_PROXY_API_KEY` > 旧名）
+/// by 1 valid（`AGENT2API_PROXY_API_KEY` > old ）
 pub(crate) fn env_api_key_value() -> Option<String> {
     for name in ["AGENT2API_PROXY_API_KEY", "WORKBUDDY_PROXY_API_KEY"] {
         if let Ok(value) = std::env::var(name) {
@@ -46,7 +46,7 @@ pub(crate) fn env_api_key_value() -> Option<String> {
     None
 }
 
-/// 环境变量里的非空字符串
+/// empty
 pub(super) fn env_text(name: &str) -> Option<String> {
     std::env::var(name)
         .ok()
@@ -54,43 +54,43 @@ pub(super) fn env_text(name: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-/// 登录页人机验证组件环境变量，默认为1开启，0为关闭。
+/// ，default as 1，0 as 。
 ///
-/// 只有配置里**没有** `captchaEnabled`（设置页从未改过）时才兜底 —— 优先级
-/// 「配置里的值 > 环境变量 > 内置默认」见模块头。除字面 `0` 之外一律按开启
-/// 处理：它是登录 / 注册的防爆破开关，写坏了宁可多一道校验。
+/// has config** no has ** `captchaEnabled`（set from ） when —— 
+/// 「config > > default」module header。 `0` 1 by 
+/// ： is / ， can 1 。
 pub(super) fn env_captcha_enabled() -> bool {
     std::env::var("AGENT2API_CAPTCHA_ENABLED")
         .map(|value| value.trim() != "0")
         .unwrap_or(true)
 }
 
-/// 环境变量 `AGENT2API_STRIP_NEWLINE_KEEPALIVE` 的读法（**默认关**）。
+/// `AGENT2API_STRIP_NEWLINE_KEEPALIVE` （**default**）。
 ///
-/// 与 `env_captcha_enabled` 的"非 0 即开"刻意不同：这个开关改的是**下发给客户端
-/// 的字节**（丢掉只含换行的 content 分片），开错的代价是吞掉一个真换行，
-/// 所以只认 `1` / `true` / `on`（忽略大小写与首尾空白），其余一律算关 ——
-/// 包括空值。`AGENT2API_STRIP_NEWLINE_KEEPALIVE=` 这种"写了个空值"的 compose
-/// 写法在 Docker 里太常见了（未设置的变量插值就是这样），按非 0 即开会把它读成开。
+/// and `env_captcha_enabled` " 0 " not ： this is ** down to client
+/// **（ content ）， is 1 ，
+/// `1` / `true` / `on`（ignore and empty）， its 1 ——
+/// includingempty。`AGENT2API_STRIP_NEWLINE_KEEPALIVE=` this " empty" compose
+/// in Docker （set is this ）， by 0 will 。
 pub(super) fn env_strip_newline_keepalive() -> bool {
     switch_on_from_env_text(std::env::var("AGENT2API_STRIP_NEWLINE_KEEPALIVE").ok().as_deref())
 }
 
-/// 环境变量 `AGENT2API_AUTO_CONTINUE` 的读法（**默认关**）。
+/// `AGENT2API_AUTO_CONTINUE` （**default**）。
 ///
-/// 判据与 `AGENT2API_STRIP_NEWLINE_KEEPALIVE` 共用一份（[`switch_on_from_env_text`]），
-/// 取向也一样：这个开关多打的是**上游往返**、花的是账号额度，空值 / 写坏一律算关
-/// —— 宁可功能没开（用户在面板上点一次就有），也不要一个拼错的 compose 变量
-/// 替用户开始多烧额度。
+/// and `AGENT2API_STRIP_NEWLINE_KEEPALIVE` use 1 （[`switch_on_from_env_text`]），
+/// to 1 ： this is ** up **、 is ，empty / 1 
+/// —— can can no （ use in up 1 has ）， not need 1 compose 
+/// use 。
 pub(super) fn env_auto_continue() -> bool {
     switch_on_from_env_text(std::env::var("AGENT2API_AUTO_CONTINUE").ok().as_deref())
 }
 
-/// 环境变量 `AGENT2API_AUTO_CONTINUE_MAX` 的读法。
+/// `AGENT2API_AUTO_CONTINUE_MAX` 。
 ///
-/// 与文件侧同一口径（[`int_in_range`]：越界 / 非整数都算**没配**，不夹紧），
-/// 所以 `=0`、`=9`、`=abc`、`=3.5` 与「没设这个变量」四种情形都交回 `None`，
-/// 由 [`auto_continue_rounds_from`] 落到默认值。
+/// and file 1 （[`int_in_range`]： / ** no **， not ），
+/// `=0`、`=9`、`=abc`、`=3.5` and 「 no this 」 `None`，
+/// by [`auto_continue_rounds_from`] to default。
 pub(super) fn env_auto_continue_max_rounds() -> Option<i64> {
     bounded_int_from_env_text(
         std::env::var("AGENT2API_AUTO_CONTINUE_MAX").ok().as_deref(),
@@ -99,18 +99,18 @@ pub(super) fn env_auto_continue_max_rounds() -> Option<i64> {
     )
 }
 
-/// 「环境变量里的开关」的唯一判据：只认 `1` / `true` / `on`
-/// （忽略大小写与首尾空白），其余一律算关。
+/// 「 」 1 ： `1` / `true` / `on`
+/// （ignore and empty）， its 1 。
 ///
-/// ── 为什么抽出来 ────────────────────────────────────────────
-/// 这条规则有两个读者（保活换行丢弃、自动续写），两个都必须**默认关**且都
-/// 不接受「非 0 即开」：判据各写一份，将来一方放宽（比如收了 `yes`）另一方不放宽，
-/// 用户在 compose 里写同一个词会得到两种结果 —— 这类差异不报错，只能靠一份实现。
+/// ── Why ────────────────────────────────────────────
+/// this then has （、）， must**default** and 
+/// not 「 0 」： 1 ， will 1 （e.g. `yes`） 1 not ，
+/// use in compose 1 will to —— this not ， can 1 。
 ///
-/// 参数是「环境变量的值」而不是自己去读进程环境：判据要能被单测钉住。
-/// `std::env::set_var` 在同一进程里全局可见，并发用例互相踩（本仓的同类取舍见
-/// `core::providers::trae::forward::forward_at` 的注释），所以「缺失」由调用方
-/// 传 `None` 表达，测试不必碰真环境。
+/// parameter is 「 」 not is ： need can 。
+/// `std::env::set_var` in 1 can ， and use （ 
+/// `core::providers::trae::forward::forward_at` ），「」 by use 
+/// `None` ， not 。
 pub(super) fn switch_on_from_env_text(raw: Option<&str>) -> bool {
     matches!(
         raw.map(|value| value.trim().to_ascii_lowercase()).as_deref(),
@@ -118,26 +118,26 @@ pub(super) fn switch_on_from_env_text(raw: Option<&str>) -> bool {
     )
 }
 
-/// 环境变量文本 → 范围内的整数：缺失 / 空白 / 非整数 / 越界都是 `None`。
+/// → ： / empty / / is `None`。
 ///
-/// 判据与 [`int_in_range`] 同一取向（**不夹紧**），只是输入是文本而不是 JSON
-/// 数字：`3.0` 在文件里认（JSON 的 3 与 3.0 是同一个数），在环境变量里不认 ——
-/// 那里的文本是人在 shell 里手打的，`"3"` 才是常态写法，收下 `3.0` 换不来什么，
-/// 只会让 `AGENT2API_AUTO_CONTINUE_MAX=3.O`（打错的字母 O）这类事故变成静默。
+/// and [`int_in_range`] 1 to （** not **）， is is not is JSON
+/// ：`3.0` in file（JSON 3 and 3.0 is 1 ）， in not ——
+/// that is in shell ，`"3"` is ， down `3.0` not ，
+/// will `AGENT2API_AUTO_CONTINUE_MAX=3.O`（ O） this 。
 pub(super) fn bounded_int_from_env_text(raw: Option<&str>, min: i64, max: i64) -> Option<i64> {
     let text = raw.map(str::trim).filter(|text| !text.is_empty())?;
     let value = text.parse::<i64>().ok()?;
     (min..=max).contains(&value).then_some(value)
 }
 
-/// 单个 JSON 数字 → 范围内的整数：类型不符 / 非整数 / 越界都是 `None`
-/// （**不夹紧**，理由见模块头）。
+/// JSON → ： not / / is `None`
+/// （** not **， by module header）。
 ///
-/// ── 为什么这一层是 `pub(crate)` 而不是 `pub(super)` ──────────
-/// 读写两侧必须共用同一条取值口径 —— 模块头那句「不会出现接口拒绝 60 而手改库
-/// 接受它」讲的正是这件事，而口径不只是范围常量，还包括**什么算一个整数**：
-/// `30.0` 这种整值浮点读侧认，写侧（`api::auto_continue` 的 PUT 校验）就必须也认，
-/// 否则前端某次回传出 `3.0` 会 400，而手改库写同一个数却被接受。
+/// ── Why this 1 is `pub(crate)` not is `pub(super)` ──────────
+/// must use 1 —— module header that 「 not will 60 
+/// 」 is this ， not is ，including** 1 **：
+/// `30.0` this ，（`api::auto_continue` PUT ）must，
+/// otherwise before `3.0` will 400， 1 。
 pub(crate) fn int_in_range(value: &Value, min: i64, max: i64) -> Option<i64> {
     let parsed = match value {
         Value::Number(number) => number.as_i64().or_else(|| {
@@ -151,29 +151,29 @@ pub(crate) fn int_in_range(value: &Value, min: i64, max: i64) -> Option<i64> {
     parsed.filter(|value| (min..=max).contains(value))
 }
 
-/// 从原始 JSON 里取「带范围边界的整数」，**不回落默认**：缺字段 / 类型不符 /
-/// 非整数 / 越界一律 `None`，交调用方决定下一级（环境变量或默认值）。
+/// from JSON 「 」，** not default**： / not /
+/// / 1 `None`， use down 1 （ or default）。
 ///
-/// 判据本体在 [`int_in_range`]（读写两侧共用）。
+/// in [`int_in_range`]（ use ）。
 pub(super) fn bounded_int_option(map: &Map<String, Value>, key: &str, min: i64, max: i64) -> Option<i64> {
     map.get(key).and_then(|value| int_in_range(value, min, max))
 }
 
-/// 从原始 JSON 里取「带范围边界的整数」：缺字段 / 类型不符 / 非整数 / 越界
-/// 一律回落到 `default`。
+/// from JSON 「 」： / not / / 
+/// 1 to `default`。
 ///
-/// **越界回落而非夹紧**：手改 config.json 写了天文数字时，静默夹紧会让人
-/// 以为「设置生效了」，回默认值至少与用户在设置页看到的不一致时好排查。
-/// 走接口写入的值在各自的 PUT 处理器里已按同一范围校验过（那里是 400 报错）。
+/// ****： config.json when ， will 
+/// as 「set」，default and use in set to not 1 when 。
+/// in PUT already by 1 （ that is 400 ）。
 ///
-/// 接受 `30.0` 这种整值浮点（与 `parse_retention_value` 同一口径）：JSON 里
-/// `30` 与 `30.0` 都是合法数字，为后者回落到默认值会显得莫名其妙
-/// （用户手改文件时把 30 写成 30.0 是完全可能的事）。
+/// `30.0` this （ and `parse_retention_value` 1 ）：JSON 
+/// `30` and `30.0` is ， as after to default will its 
+/// （ use file when 30 30.0 is can can ）。
 pub(super) fn bounded_int_field(map: &Map<String, Value>, key: &str, default: i64, min: i64, max: i64) -> i64 {
     bounded_int_option(map, key, min, max).unwrap_or(default)
 }
 
-/// 从原始 JSON 里取非空字符串字段
+/// from JSON empty
 pub(super) fn string_field(map: &Map<String, Value>, key: &str) -> Option<String> {
     map.get(key)
         .and_then(Value::as_str)
@@ -182,12 +182,12 @@ pub(super) fn string_field(map: &Map<String, Value>, key: &str) -> Option<String
         .map(str::to_string)
 }
 
-/// 从原始 JSON 里取天数（`bounded_int_field` 的保留期特化）
+/// from JSON （`bounded_int_field` ）
 pub(super) fn days_field(map: &Map<String, Value>, key: &str, default: i64) -> i64 {
     bounded_int_field(map, key, default, RETENTION_MIN_DAYS, RETENTION_MAX_DAYS)
 }
 
-/// 缺失或非法的保留设置各自回落到默认值。
+/// or set to default。
 pub(super) fn retention_from(map: &Map<String, Value>) -> RetentionSettings {
     let defaults = RetentionSettings::default();
     RetentionSettings {
@@ -211,10 +211,10 @@ pub(super) fn retention_from(map: &Map<String, Value>) -> RetentionSettings {
     }
 }
 
-// ─── 间隔型定时任务的解析（scheduledTasks.*）──────────────────
+// ─── when （scheduledTasks.*）──────────────────
 
-/// 从 `scheduledTasks` 里取一条任务的原始子对象；缺失 / 类型不符当空对象
-/// （于是 `enabled` 用默认值、`interval` 也用默认值，与「用户没配过」等价）。
+/// from `scheduledTasks` 1 for ； / not empty for 
+/// （ is `enabled` use default、`interval` use default， and 「 use no 」 etc ）。
 pub(super) fn task_object(map: &Map<String, Value>, key: &str) -> Map<String, Value> {
     map.get(KEY_SCHEDULED_TASKS)
         .and_then(Value::as_object)
@@ -224,11 +224,11 @@ pub(super) fn task_object(map: &Map<String, Value>, key: &str) -> Map<String, Va
         .unwrap_or_default()
 }
 
-/// 从一条任务的子对象里取间隔值。
+/// from 1 for 。
 ///
-/// 与 `days_field` 同一口径（**越界回落而非夹紧**、接受整值浮点、只在
-/// `min..=max` 内才采纳），只是范围由调用方给：两类任务的合理区间差着量级
-/// （后端维护按分钟、前端刷新按秒），共用一份范围常量会逼其中一类放宽边界。
+/// and `days_field` 1 （****、、 in 
+/// `min..=max` ）， is by use to ： 
+/// （ after by minutes、 before new by seconds）， use 1 will its in 1 。
 pub(super) fn interval_field(task: &Map<String, Value>, default: i64, min: i64, max: i64) -> i64 {
     let parsed = task.get("interval").and_then(|value| match value {
         Value::Number(number) => number.as_i64().or_else(|| {
@@ -242,20 +242,20 @@ pub(super) fn interval_field(task: &Map<String, Value>, default: i64, min: i64, 
     parsed.filter(|value| (min..=max).contains(value)).unwrap_or(default)
 }
 
-/// 从一条任务的子对象里取开关。
+/// from 1 for 。
 ///
-/// **缺字段按开启**：这些任务在本次改造前都是无条件运行的（凭证维护每 10 分钟、
-/// 两个前端面板每 10 秒、模型刷新随 /v1/models 触发），
-/// 升级上来的 config.json 里没有 `scheduledTasks` —— 若把「没配过」读成「关闭」，
-/// 用户什么也没动，凭证却不再自动续期了。写侧（`PUT /api/scheduled-tasks`）
-/// 则要求显式布尔值。
+/// ** by **： this in before is none （ 10 minutes、
+/// before 10 seconds、 new /v1/models ），
+/// up config.json no has `scheduledTasks` —— if 「 no 」「」，
+/// use no ， not 。（`PUT /api/scheduled-tasks`）
+/// then need 。
 pub(super) fn task_enabled(task: &Map<String, Value>, default: bool) -> bool {
     task.get("enabled").and_then(Value::as_bool).unwrap_or(default)
 }
 
-/// 由原始 JSON 解析六条间隔型任务（缺字段各自用默认值）。
-/// 旧配置里可能残留 `usageQuery` 子键（已退役的全局余额查询任务）：
-/// 解析按**未知键忽略**处理，读不到就是不存在，首次保存设置时会被自然清掉。
+/// by JSON （ use default）。
+/// old config can can `usageQuery` （ already ）：
+/// by **unknownignore**， not to is not in ，set when will 。
 pub(super) fn scheduled_from(map: &Map<String, Value>) -> ScheduledSettings {
     let defaults = ScheduledSettings::default();
     let task = |key: &str, interval: i64, min: i64, max: i64| {
@@ -305,9 +305,9 @@ pub(super) fn scheduled_from(map: &Map<String, Value>) -> ScheduledSettings {
     }
 }
 
-// ─── 请求重试设置的解析（retryCount / retryCrossProviderCount / retryIntervalSeconds / noRetryStatusCodes）──
+// ─── requestset （retryCount / retryCrossProviderCount / retryIntervalSeconds / noRetryStatusCodes）──
 
-/// 由原始 JSON 解析请求重试设置（缺字段各自用默认值）
+/// by JSON requestset（ use default）
 pub(super) fn retry_from(map: &Map<String, Value>) -> RetrySettings {
     let defaults = RetrySettings::default();
     RetrySettings {
@@ -336,18 +336,18 @@ pub(super) fn retry_from(map: &Map<String, Value>) -> RetrySettings {
     }
 }
 
-/// 「指定错误码直接换号」名单的解析。
+/// 「error」 。
 ///
-/// ── 各形态的落点 ────────────────────────────────────────────
-///   - 键缺失 / 不是数组 → **默认名单**（[402]）：配置从没写过这一项是常态，
-///     默认值就该在这时出现；整体写坏（手改成了字符串）与「没配过」无法区分，
-///     按同一口径处理（回落默认，见模块头）。
-///   - 空数组 → **空名单**：这是用户的明确选择（任何错误都照常重试），
-///     必须与「没配过」区分开。
-///   - 数组里的垃圾项（非整数 / 越出 100–599）→ **丢弃该项**：接口写入侧
-///     已整单校验（400），能到这里的坏项只来自手改库，跳过比整单回落默认
-///     更接近手改者的本意。排序去重：判定只问 contains，顺序无意义，
-///     存一份规整形态让手改过的 config.json 也保持可读。
+/// ── ────────────────────────────────────────────
+/// - / not is → **default**（[402]）：config from no this 1 is ，
+/// default this in this when ；（） and 「 no 」none，
+/// by 1 （default，module header）。
+/// - empty → **empty**： this is use （error），
+/// must and 「 no 」。
+/// - （ / 100–599）→ ** this **：
+/// already （400）， can to this ，default
+/// 。： contains，none，
+/// 1 config.json can 。
 fn no_retry_codes_field(map: &Map<String, Value>, key: &str) -> std::sync::Arc<[u16]> {
     let Some(Value::Array(items)) = map.get(key) else {
         return std::sync::Arc::from(DEFAULT_NO_RETRY_CODES);
@@ -370,13 +370,13 @@ fn no_retry_codes_field(map: &Map<String, Value>, key: &str) -> std::sync::Arc<[
     std::sync::Arc::from(codes)
 }
 
-// ─── 上游请求超时的解析（四项，单位秒）────────────────────────
+// ─── up request when （，seconds）────────────────────────
 
-/// 由原始 JSON 解析四项超时（缺字段各自用默认值；越界回落默认，同模块头口径）。
+/// by JSON when （ use default；default，module header）。
 ///
-/// 四项的键名与默认值见 `types.rs`——「范围 1~3600」在写侧（timeouts_api）
-/// 是 400 报错，在这里是回落默认：手改库把 0 或 99999 写进去时，宁可回到
-/// 30/300 也不要让转发层拿到一个必然坏事的值（0 毫秒等于禁用该阶段保护）。
+/// and default `types.rs`——「 1~3600」 in （timeouts_api）
+/// is 400 ， in this is default： 0 or 99999 when ， can to 
+/// 30/300 not need to 1 （0 ms etc use this ）。
 pub(super) fn timeouts_from(map: &Map<String, Value>) -> TimeoutSettings {
     let defaults = TimeoutSettings::default();
     TimeoutSettings {
@@ -411,13 +411,13 @@ pub(super) fn timeouts_from(map: &Map<String, Value>) -> TimeoutSettings {
     }
 }
 
-// ─── 排队等待的解析（两项，次数与秒数）──────────────────────────
+// ─── etc （， and seconds）──────────────────────────
 
-/// 由原始 JSON 解析排队等待的两项（缺字段各自用默认值；越界回落默认）。
+/// by JSON etc （ use default；default）。
 ///
-/// 与 `timeouts_from` 同一口径：范围校验在写侧（`queue_api`）是 400 报错，
-/// 在这里是回落默认 —— 手改库写进一个越界值时，宁可回到 2 次 / 跟随建议，
-/// 也不要让转发层拿到一个必然坏事的值（例如负数次数会让重试变成死循环）。
+/// and `timeouts_from` 1 ： in （`queue_api`） is 400 ，
+/// in this is default —— 1 when ， can to 2 / ，
+/// not need to 1 （e.g. will ）。
 pub(super) fn queue_from(map: &Map<String, Value>) -> QueueSettings {
     let defaults = QueueSettings::default();
     QueueSettings {
@@ -438,13 +438,13 @@ pub(super) fn queue_from(map: &Map<String, Value>) -> QueueSettings {
     }
 }
 
-// ─── ZCode 验证码令牌池的解析（三项：目标 / 轮询间隔 / 单轮上限）──────
+// ─── ZCode （： / / limit）──────
 
-/// 由原始 JSON 解析令牌池的三项（缺字段各自用默认值；越界回落默认）。
+/// by JSON （ use default；default）。
 ///
-/// 与 `queue_from` 同一口径：范围校验在写侧（`zcode_captcha_pool_api`）是
-/// 400 报错，在这里是回落默认 —— 手改库写进一个越界值时，宁可回到出厂节奏，
-/// 也不要让铸造器拿到一个必然坏事的值（例如 0 毫秒的轮询会让它原地空转）。
+/// and `queue_from` 1 ： in （`zcode_captcha_pool_api`） is 
+/// 400 ， in this is default —— 1 when ， can to ，
+/// not need to 1 （e.g. 0 ms will empty）。
 pub(super) fn captcha_pool_from(map: &Map<String, Value>) -> CaptchaPoolSettings {
     let defaults = CaptchaPoolSettings::default();
     CaptchaPoolSettings {
@@ -472,19 +472,19 @@ pub(super) fn captcha_pool_from(map: &Map<String, Value>) -> CaptchaPoolSettings
     }
 }
 
-// ─── 历史路由优先级（providerRoute，只读，供账号迁移）───────────
+// ─── by （providerRoute，，）───────────
 
-// ─── 会话图片压缩的解析（开关 + 长边 / 质量 / 阈值三项）──────────────
+// ─── will （ + / / ）──────────────
 
-/// 由原始 JSON 解析会话图片压缩设置（缺字段各自用默认值；越界回落默认）。
+/// by JSON will set（ use default；default）。
 ///
-/// 开关：**只有字面 `false` 才算关**，键缺失 / 写成别的值（`"on"` / `1`）都按开
-/// —— 与 `debug_mode` 那条相反。语义是「默认开启、能一键关」：老配置里没有这个
-/// 键时一启动即开启（见 `KEY_IMAGE_COMPRESS_ENABLED` 的取舍说明）。
+/// ：** has `false` **， / （`"on"` / `1`） by 
+/// —— and `debug_mode` that 。 is 「default、 can 1 」：config no has this 
+/// when 1 （ `KEY_IMAGE_COMPRESS_ENABLED` ）。
 ///
-/// 三项参数：范围校验在写侧（`api::image_compress`）是 400 报错，在这里是回落默认
-/// —— 手改库写进一个越界值时，宁可回到 2048 / 80 / 512（OmniProxy 的默认值），
-/// 也不要让压缩层拿到一个必然坏事的值（例如质量为 0 会把图压成一片糊）。
+/// parameter： in （`api::image_compress`） is 400 ， in this is default
+/// —— 1 when ， can to 2048 / 80 / 512（OmniProxy default），
+/// not need to 1 （e.g. as 0 will 1 ）。
 pub(super) fn image_compress_from(map: &Map<String, Value>) -> ImageCompressSettings {
     let defaults = ImageCompressSettings::default();
     ImageCompressSettings {
@@ -516,13 +516,13 @@ pub(super) fn image_compress_from(map: &Map<String, Value>) -> ImageCompressSett
     }
 }
 
-// ─── 账号路由的解析（策略 / 粘性 / 退避 / 垫底 / 熔断）──────────────
+// ─── by （ / / / / ）──────────────
 
-/// 由原始 JSON 解析路由设置（缺字段各自用默认值；非法取值回落默认）。
+/// by JSON by set（ use default；default）。
 ///
-/// 与 `timeouts_from` 同一口径：范围校验在写侧（`routing_api`）是 400 报错，
-/// 在这里是回落默认 —— 手改库写进一个离谱值时，宁可回到默认行为也不要让
-/// 选路拿到一个必然坏事的值（例如阈值 0 会让熔断第一个失败就打开）。
+/// and `timeouts_from` 1 ： in （`routing_api`） is 400 ，
+/// in this is default —— 1 when ， can to default as not need 
+/// to 1 （e.g. 0 will 1 failure）。
 pub(super) fn routing_from(map: &Map<String, Value>) -> RoutingSettings {
     let defaults = RoutingSettings::default();
     let strategy = map
@@ -568,14 +568,14 @@ pub(super) fn routing_from(map: &Map<String, Value>) -> RoutingSettings {
     }
 }
 
-// ─── 长度截断的自动续写（autoContinue / autoContinueMaxRounds）────────
+// ─── （autoContinue / autoContinueMaxRounds）────────
 
-/// 由原始 JSON 解析「自动续写」开关：文件的字面布尔 > 环境变量 > 关。
+/// by JSON 「」：file > > 。
 ///
-/// 与 `build()` 里 `strip_newline_keepalive` 那一条同一口径（**只有字面
-/// `true` / `false` 算写了这一项**，写成 `"on"` / `1` 都算没配、让位给环境变量），
-/// 差别只是那条的环境变量兜底在调用点显式出现，这里收在 [`resolve_auto_continue`]
-/// 里 —— 与本模块「取值口径只有这一处」的分工一致（见模块头）。
+/// and `build()` `strip_newline_keepalive` that 1 1 （** has 
+/// `true` / `false` this 1 **， `"on"` / `1` no 、 to ），
+/// is that in use ， this in [`resolve_auto_continue`]
+/// —— and 「 has this 1 」 1 （module header）。
 pub(super) fn auto_continue_from(map: &Map<String, Value>) -> bool {
     resolve_auto_continue(
         map.get(KEY_AUTO_CONTINUE).and_then(Value::as_bool),
@@ -583,25 +583,25 @@ pub(super) fn auto_continue_from(map: &Map<String, Value>) -> bool {
     )
 }
 
-/// 「文件值 / 环境变量值 → 最终开关」：文件里写了字面布尔就以它为准，**包括 `false`**。
+/// 「file / → 」：file as ，**including `false`**。
 ///
-/// 之所以做成两个入参的纯函数（而不是在 [`auto_continue_from`] 里就地读环境变量）：
-/// 这条优先级链要能被单测钉住，而进程环境不能（见 [`switch_on_from_env_text`]
-/// 的注释）。它钉的第二件事是「关掉必须是可表达的」—— 写成
-/// `文件值 || 环境变量` 的实现看着也是「文件优先」，实际让用户在面板上关不掉。
+/// （ not is in [`auto_continue_from`] ）：
+/// this need can ， not can （ [`switch_on_from_env_text`]
+/// ）。 is 「must is can 」—— 
+/// `file || ` is 「file」， use in up not 。
 pub(super) fn resolve_auto_continue(from_file: Option<bool>, from_env: bool) -> bool {
     from_file.unwrap_or(from_env)
 }
 
-/// 由原始 JSON 解析续写轮数上限：文件的合法值 > 环境变量 > 内置默认。
+/// by JSON limit：file > > default。
 ///
-/// 与 `routing_from` 同一口径（范围校验在写侧 `api::auto_continue` 是 400 报错，
-/// 在这里是回落默认），多出来的一级是环境变量兜底 —— 与 `env_auto_continue`
-/// 那个开关对齐：Docker 部署要么两项都从环境来，要么都从配置来，不该一边能兜底
-/// 一边不能。
+/// and `routing_from` 1 （ in `api::auto_continue` is 400 ，
+/// in this is default）， 1 is —— and `env_auto_continue`
+/// that for ：Docker need from ， need from config， not this 1 can 
+/// 1 not can 。
 ///
-/// 注意**文件里越界也让位给环境变量**，而不是直接落默认：这一项「不可用」的
-/// 含义是「这一级没给出可用值」（与键缺失等价），与模块头的优先级一致。
+/// Note**file to **， not is default： this 1 「unavailable」 
+/// is 「 this 1 no to available」（ and etc ）， and module header 1 。
 pub(super) fn auto_continue_rounds_from(map: &Map<String, Value>) -> i64 {
     resolve_rounds(
         bounded_int_option(
@@ -614,33 +614,33 @@ pub(super) fn auto_continue_rounds_from(map: &Map<String, Value>) -> i64 {
     )
 }
 
-/// 「文件值 / 环境变量值 → 最终轮数」：两级都不给可用值才落默认。
+/// 「file / → 」： not to availabledefault。
 ///
-/// 之所以做成两个 `Option` 的纯函数（而不是在 [`auto_continue_rounds_from`]
-/// 里就地读环境变量）：优先级链本身要能被单测钉住，而进程环境不能（见
-/// [`switch_on_from_env_text`] 的注释）。默认值在这里显式出现一次，
-/// 也让「越界不夹紧、只是让位给下一级」这条规则有唯一一处落点。
+/// `Option` （ not is in [`auto_continue_rounds_from`]
+/// ）： need can ， not can （
+/// [`switch_on_from_env_text`] ）。default in this 1 ，
+/// 「 not 、 is to down 1 」 this then has 1 1 。
 pub(super) fn resolve_rounds(from_file: Option<i64>, from_env: Option<i64>) -> i64 {
     from_file.or(from_env).unwrap_or(DEFAULT_AUTO_CONTINUE_MAX_ROUNDS)
 }
 
 #[cfg(test)]
 mod tests {
-    //! 三条取值口径：环境变量的「只认 1 / true / on」、越界的「回落默认而非夹紧」、
-    //! 以及「文件 > 环境变量 > 默认」这条优先级链。
+    //! ： 「 1 / true / on」、 「default」、
+    //! and 「file > > default」 this 。
     //!
-    //! ── 为什么这些用例都不碰进程环境 ────────────────────────
-    //! `std::env::set_var` 在同一进程里全局可见，并行用例互相踩（同类取舍见
-    //! `core::providers::trae::forward::forward_at` 的注释），而本模块里
-    //! 「没设环境变量」是有明确表达的输入 —— `None`。所以三段判据都被抽成
-    //! 吃参数的纯函数（[`switch_on_from_env_text`] / [`bounded_int_from_env_text`] /
-    //! [`resolve_auto_continue`] / [`resolve_rounds`]），`env_*` 只是把它们接到
-    //! 真环境上的那一薄层。
+    //! ── Why this use not ────────────────────────
+    //! `std::env::set_var` in 1 can ， and use （
+    //! `core::providers::trae::forward::forward_at` ），
+    //! 「 no 」 is has —— `None`。 
+    //! parameter （[`switch_on_from_env_text`] / [`bounded_int_from_env_text`] /
+    //! [`resolve_auto_continue`] / [`resolve_rounds`]），`env_*` is to 
+    //! up that 1 。
 
     use super::*;
     use serde_json::json;
 
-    /// 一份只含给定几项的原始底稿。
+    /// 1 to 。
     fn map_of(pairs: &[(&str, Value)]) -> Map<String, Value> {
         pairs
             .iter()
@@ -648,11 +648,11 @@ mod tests {
             .collect()
     }
 
-    /// 开关的环境变量只认 `1` / `true` / `on`（忽略大小写与首尾空白）。
+    /// `1` / `true` / `on`（ignore and empty）。
     ///
-    /// 钉住的写歪：「非 0 即开」（`env_captcha_enabled` 那条口径）。按它写会
-    /// 把 `AGENT2API_AUTO_CONTINUE=`（compose 里未设置变量的插值形态）读成**开**，
-    /// 于是一个谁都没打算开的部署开始替用户多打上游。
+    /// ：「 0 」（`env_captcha_enabled` that ）。 by will 
+    /// `AGENT2API_AUTO_CONTINUE=`（compose set ）****，
+    /// is 1 no use up 。
     #[test]
     fn the_env_switch_only_accepts_one_true_or_on() {
         for on in ["1", "true", "on", " TRUE ", "On", "ON "] {
@@ -664,10 +664,10 @@ mod tests {
         assert!(!switch_on_from_env_text(None), "环境变量没设（None）必须是关");
     }
 
-    /// 整数型环境变量的口径：只有**纯整数**且在范围内才算数。
+    /// ： has **** and in 。
     ///
-    /// 钉住的写歪：先 `parse::<f64>()` 再取整（于是 `3.7` 变成 3），或越界时
-    /// 夹紧到 8 —— 后者会让人以为自己的 99 生效了。
+    /// ： `parse::<f64>()` （ is `3.7` 3）， or when 
+    /// to 8 —— after will as 99 。
     #[test]
     fn the_env_integer_must_be_a_plain_integer_in_range() {
         assert_eq!(bounded_int_from_env_text(Some("1"), 1, 8), Some(1), "下限要收");
@@ -682,10 +682,10 @@ mod tests {
         assert_eq!(bounded_int_from_env_text(None, 1, 8), None);
     }
 
-    /// 文件里越界 → **回落默认，不夹紧**（`bounded_int_field` 全线口径）。
+    /// file → **default， not **（`bounded_int_field` ）。
     ///
-    /// 钉住的写歪：`clamp(min, max)`。写了 99 的人若看到设置页显示 8，
-    /// 只会以为「8 是系统给的硬值」，而 99 从未生效这件事再也问不出来。
+    /// ：`clamp(min, max)`。 99 if to set 8，
+    /// will as 「8 is to 」， 99 from this not 。
     #[test]
     fn an_out_of_range_file_value_falls_back_to_the_default_not_the_bound() {
         let too_many = map_of(&[(KEY_AUTO_CONTINUE_MAX_ROUNDS, json!(99))]);
@@ -699,20 +699,20 @@ mod tests {
             DEFAULT_AUTO_CONTINUE_MAX_ROUNDS,
             "回落的是默认值 3，不是上限 8"
         );
-        // 边界上的两个数与「写坏的类型」各归各位
+        // up and 「 」
         let zero = map_of(&[(KEY_AUTO_CONTINUE_MAX_ROUNDS, json!(0))]);
         assert_eq!(bounded_int_field(&zero, KEY_AUTO_CONTINUE_MAX_ROUNDS, DEFAULT_AUTO_CONTINUE_MAX_ROUNDS, AUTO_CONTINUE_MIN_ROUNDS, AUTO_CONTINUE_MAX_ROUNDS), DEFAULT_AUTO_CONTINUE_MAX_ROUNDS, "0 在范围外（想关去关开关）");
         let text = map_of(&[(KEY_AUTO_CONTINUE_MAX_ROUNDS, json!("3"))]);
         assert_eq!(bounded_int_option(&text, KEY_AUTO_CONTINUE_MAX_ROUNDS, AUTO_CONTINUE_MIN_ROUNDS, AUTO_CONTINUE_MAX_ROUNDS), None, "字符串数字不算（与写侧同一口径）");
-        // `3.0` 算 3：JSON 里 3 与 3.0 是同一个数，手改文件时写成 3.0 完全可能
+        // `3.0` 3：JSON 3 and 3.0 is 1 ，file when 3.0 can can 
         let floaty = map_of(&[(KEY_AUTO_CONTINUE_MAX_ROUNDS, json!(3.0))]);
         assert_eq!(bounded_int_option(&floaty, KEY_AUTO_CONTINUE_MAX_ROUNDS, AUTO_CONTINUE_MIN_ROUNDS, AUTO_CONTINUE_MAX_ROUNDS), Some(3));
     }
 
-    /// 优先级链：文件写了就以它为准（**包括 false 与 1**），否则环境变量，否则默认。
+    /// ：file as （**including false and 1**），otherwise，otherwisedefault。
     ///
-    /// 钉住的写歪：把开关写成 `文件值 || 环境变量值` —— 看上去也是「文件优先」，
-    /// 实际让用户在面板上关不掉（库里已经是 false，环境里那句 `on` 一直把它顶开）。
+    /// ： `file || ` —— up is 「file」，
+    /// use in up not （ already is false， that `on` 1 ）。
     #[test]
     fn the_file_value_beats_the_env_even_when_it_says_off() {
         assert!(!resolve_auto_continue(Some(false), true), "文件里的 false 必须盖过环境变量的开");
@@ -724,15 +724,15 @@ mod tests {
         assert_eq!(resolve_rounds(Some(8), None), 8);
         assert_eq!(resolve_rounds(None, Some(8)), 8, "文件不可用时环境变量说话");
         assert_eq!(resolve_rounds(None, None), DEFAULT_AUTO_CONTINUE_MAX_ROUNDS, "两级都不可用才落默认");
-        // 越界的文件值在这里已经是 None（上面试用例过了），链上表现为「让位给下一级」
+        // file in this already is None（ up use ）， up as 「 to down 1 」
         assert_eq!(resolve_rounds(None, Some(1)), 1);
     }
 
-    /// 整条链的形状：`*_from(&map)` 必须与纯函数那一层给出同一个答案。
+    /// ：`*_from(&map)` must and that 1 to 1 。
     ///
-    /// 钉住的写歪：`auto_continue_rounds_from` 里把范围常量写歪（例如上限用了
-    /// `AUTO_CONTINUE_MAX_ROUNDS - 1`），那会让 8 在读侧被当成「没配」——
-    /// 而写侧刚收下的值读侧不认，正是 `parse` 模块头明令不许出现的两套口径。
+    /// ：`auto_continue_rounds_from` （e.g.limit use 
+    /// `AUTO_CONTINUE_MAX_ROUNDS - 1`）， that will 8 in 「 no 」——
+    /// down not ， is `parse` module header not 。
     #[test]
     fn the_map_level_helpers_follow_the_same_rules_as_the_pure_ones() {
         let at_the_top = map_of(&[
@@ -753,7 +753,7 @@ mod tests {
         assert!(!auto_continue_from(&off));
         assert_eq!(auto_continue_rounds_from(&off), 1, "下限边界值 1 必须能用");
 
-        // 类型写坏的那一项等于「没配」：越界 / 字符串都不许留下一个可感的值
+        // that 1 etc 「 no 」： / not down 1 can 
         let junk = map_of(&[(KEY_AUTO_CONTINUE_MAX_ROUNDS, json!(0)), (KEY_AUTO_CONTINUE, json!("true"))]);
         assert_eq!(
             auto_continue_rounds_from(&junk),

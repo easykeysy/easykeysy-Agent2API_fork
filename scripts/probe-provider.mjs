@@ -1,35 +1,35 @@
 #!/usr/bin/env node
 /**
- * 提供商能力探测：对着**本机网关**逐项验证一家 provider 的适配完整度。
+ * can ： for **** 1 provider 。
  *
- * ── 这个脚本解决什么问题 ──────────────────────────────────────
- * 「只做了对话，模型获取 / 余额 / 签到没做」这类半成品，代码里不会报错、
- * 界面上也看不出来。本脚本从**外部**按真实客户端的形态打网关，逐项给出
- * 可复核的结论；配套的验收口径见 `.agents/skills/provider-adaptation/SKILL.md`
- * 第 6 节。
+ * ── this ──────────────────────────────────────
+ * 「 for ，get / / to no 」 this ， not will 、
+ * up not 。 from **** by client ， to 
+ * can ； `.agents/skills/provider-adaptation/SKILL.md`
+ * 6 。
  *
- * ── 为什么打网关而不是直接打上游 ──────────────────────────────
- * 要验的正是**适配器**：请求改写、协议翻译、SSE 折帧、错误分类、usage 透传
- * 全都发生在网关里。绕过网关测上游只能证明「上游行」，证明不了「这家接对了」。
- * 因此这里走 `/v1/chat/completions`，和普通客户端完全一致 —— 也因此
- * **会消耗少量额度**。
+ * ── Why not is up ──────────────────────────────
+ * need is ****：request、、SSE 、error、usage 
+ * in 。 up can 「 up 」， not 「 this for 」。
+ * this `/v1/chat/completions`， and client 1 —— 
+ * ** will **。
  *
- * ── 前置：一把只允许目标 provider 的网关 Key ──────────────────
- * 同一个模型名可能在多家都有映射，不钉住 provider 时请求会被路由到别家，
- * 结论无法归因。脚本启动时会先拉 `/v1/models` 校验「这个模型确实由这家承载」，
- * 对不上直接退出（退出码 2），不会跑出一堆误导性结论。
+ * ── before ： 1 provider Key ──────────────────
+ * 1 can can in has ， not provider when request will by to ，
+ * none。 when will `/v1/models` 「 this by this 」，
+ * for not up （ 2）， not will 1 。
  *
- * 用法：
+ * use ：
  *   node scripts/probe-provider.mjs --provider workbuddy --model glm-5.3 --key sk-dev-xxx
  *   node scripts/probe-provider.mjs --cases stream,tool_call --json
  *
- * 退出码：0 = 没有必需项失败；1 = 有必需项失败；2 = 用法 / 前置条件错误。
+ * ：0 = no has requiredfailure；1 = has requiredfailure；2 = use / before error。
  */
 
 import process from 'node:process'
 import { CASES, CASE_ORDER } from './probe-cases.mjs'
 
-/* ─── 参数 ───────────────────────────────── */
+/* ─── parameter ───────────────────────────────── */
 
 const USAGE = `
 提供商能力探测 —— 对着本机网关逐项验证一家 provider 的适配完整度
@@ -69,10 +69,10 @@ const USAGE = `
   node scripts/probe-provider.mjs --provider workbuddy --model glm-5.3 --cases stream,tool_call --json
 `.trim()
 
-/** 单次请求的默认超时（秒）。模型首字慢是常态，给足。 */
+/** request default when （seconds）。 is ， to 。 */
 const DEFAULT_TIMEOUT_SEC = 120
 
-/** 用法 / 前置条件错误：打一行红字并以 2 退出（与「探测失败」区分开）。 */
+/** use / before error： 1 and 2 （ and 「failure」）。 */
 function fail(message) {
   console.error(`\n✗ ${message}\n`)
   process.exitCode = 2
@@ -149,24 +149,24 @@ async function getJson(options, path) {
   }
 }
 
-/** 从网关错误体里取一句可读文案（OpenAI 风格 `{error:{message}}` 优先）。 */
+/** from error 1 can （OpenAI `{error:{message}}` ）。 */
 function errorText(text) {
   try {
     const parsed = JSON.parse(text)
     const message = parsed?.error?.message ?? parsed?.message
     if (typeof message === 'string' && message) return message
   } catch {
-    /* 非 JSON：原样截断 */
+    /* JSON： */
   }
   return String(text ?? '').slice(0, 600)
 }
 
 /**
- * 读 SSE：返回帧数组、首字节耗时与原始文本。
+ * SSE：return、 when and 。
  *
- * 用 `getReader()` 而不是 `for await`：Node 18 的 ReadableStream 异步迭代
- * 仍带实验标记，reader 是稳定接口。分帧按空行（`\n\n`）切，与 SSE 规范一致；
- * 网关下发的每一帧都是单行 `data: {json}`，所以这里不做多行 data 拼接。
+ * use `getReader()` not is `for await`：Node 18 ReadableStream 
+ * ，reader is 。 by empty（`\n\n`）， and SSE 1 ；
+ * down 1 is `data: {json}`， this not data 。
  */
 async function readSse(res, startedAt) {
   const reader = res.body.getReader()
@@ -207,11 +207,11 @@ async function readSse(res, startedAt) {
 }
 
 /**
- * 发一次对话请求。
+ * 1 for request。
  *
- * `stream: false` 时网关把上游 SSE 聚合回完整 JSON（`choices[0].message`
- * 里含 tool_calls / reasoning_content / usage）—— 多数用例走这条路，
- * 解析简单且结论等价。只有 `stream` 与 `usage` 两个用例需要真的看帧。
+ * `stream: false` when up SSE JSON（`choices[0].message`
+ * tool_calls / reasoning_content / usage）—— use this ，
+ * and etc 。 has `stream` and `usage` use need need 。
  */
 async function chat(options, body) {
   const startedAt = Date.now()
@@ -246,13 +246,13 @@ async function chat(options, body) {
   }
 }
 
-/* ─── 前置检查 ───────────────────────────── */
+/* ─── before check ───────────────────────────── */
 
 /**
- * 拉 /v1/models，确认「这个模型确实由这家承载」。
+ * /v1/models，「 this by this 」。
  *
- * 不校验就开跑的话，同名模型在多家里都有映射时请求会被路由到别家，
- * 结论无法归因 —— 那比不跑更糟（会给出「这家能用」的错误印象）。
+ * not ， in has when request will by to ，
+ * none —— that not （ will to 「 this can use 」 error）。
  */
 async function preflight(options) {
   const health = await getJson(options, '/health')
@@ -298,11 +298,11 @@ async function preflight(options) {
   }
 }
 
-/* ─── 输出 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 const STATUS_MARK = { pass: '✓', fail: '✗', skip: '–', info: 'i' }
 
-/** 把 evidence 压成一行可读摘要（键值对，过长截断）。 */
+/** evidence 1 can need （ for ，）。 */
 function summarize(evidence) {
   if (!evidence || typeof evidence !== 'object') return ''
   const parts = []
@@ -319,7 +319,7 @@ function detailOf(result) {
   return result.error ?? result.reason ?? summarize(result.evidence)
 }
 
-/* ─── 主流程 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
 async function main() {
   const options = parseArgs(process.argv.slice(2))
@@ -371,7 +371,7 @@ async function main() {
         continue
       }
     }
-    // 进度行只在终端里画：重定向到文件时 `\r` 会留下残影。
+    // in ： to to file when `\r` will down 。
     const interactive = !options.json && process.stdout.isTTY
     if (interactive) process.stdout.write(`  … ${item.label.padEnd(10)}\r`)
     let result
@@ -440,7 +440,7 @@ async function main() {
 }
 
 main().catch(error => {
-  // `fail()` 已经把说明打出去了，这里只兜真正的异常（避免重复刷屏）。
+  // `fail()` already ， this （）。
   if (error?.message !== '__exit__') {
     console.error(`\n✗ 脚本异常：${error?.stack ?? error}\n`)
     process.exitCode = 2

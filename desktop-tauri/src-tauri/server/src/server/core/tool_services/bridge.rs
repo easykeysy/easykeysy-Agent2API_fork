@@ -1,20 +1,20 @@
-//! 视觉 MCP 本地桥接脚本（安装到客户端时由面板写到本机，
-//! 以 `node vision-bridge.js` 的 stdio MCP 形态挂进支持的客户端）。
+//! MCP （ to client when by to ，
+//! `node vision-bridge.js` stdio MCP supports client）。
 //!
-//! 作用：调用方大模型只需要传本地文件路径（或 URL / data URI），本脚本在本机
-//! 把文件读出来转成 base64 data URI，再转发给远程视觉 MCP 端点 —— 避开
-//! 「模型在上下文里复述 base64 必然损坏」的问题。
+//! use ： use need need filepath（ or URL / data URI）， in 
+//! file base64 data URI， to MCP —— 
+//! 「 in up down base64 」 。
 //!
-//! 配置通过环境变量注入（由面板写入客户端 MCP 配置时生成）：
-//!   AGENT2API_VISION_ENDPOINT   远程视觉 MCP 端点完整 URL（含 /mcp/vision）
-//!   AGENT2API_VISION_KEY        网关 API Key（Bearer）
-//!   AGENT2API_VISION_TIMEOUT_MS 转发请求的超时（毫秒，可选；默认 300000）。
-//!     面板写入「服务超时 + 60s 余量」，保证客户端先于本桥接超时。
+//! config（ by client MCP config when ）：
+//! AGENT2API_VISION_ENDPOINT MCP URL（ /mcp/vision）
+//! AGENT2API_VISION_KEY API Key（Bearer）
+//! AGENT2API_VISION_TIMEOUT_MS request when （ms，optional；default 300000）。
+//! 「 when + 60s 」，client when 。
 
 pub const VISION_BRIDGE_SCRIPT: &str = r#"'use strict';
 /*
- * Agent2API 视觉 MCP 本地桥接（stdio，Node >= 18）。
- * 环境变量：AGENT2API_VISION_ENDPOINT / AGENT2API_VISION_KEY（由 Agent2API 面板写入）。
+ * Agent2API MCP （stdio，Node >= 18）。
+ * ：AGENT2API_VISION_ENDPOINT / AGENT2API_VISION_KEY（ by Agent2API ）。
  */
 
 var fs = require('node:fs');

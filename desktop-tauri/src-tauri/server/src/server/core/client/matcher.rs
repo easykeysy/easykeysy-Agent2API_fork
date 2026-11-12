@@ -41,7 +41,7 @@ fn unknown_product(evidence: &ClientEvidence) -> String {
         "okhttp", "java", "java-http-client", "apache-httpclient", "reactor-netty", "ruby", "faraday", "rest-client",
         "guzzlehttp", "dart", "reqwest", "libcurl", "openai", "asyncopenai", "anthropic", "asyncanthropic", "ai-sdk", "google-genai-sdk",
     ];
-    // 压缩构建可能把 SDK 名称改成 Rs/JS、kc/JS，不能把这些随机名字当成产品。
+    // can can SDK Rs/JS、kc/JS， not can this 。
     if generic.contains(&name_lower.as_str()) || ua[name.len() + 1..].to_ascii_lowercase().starts_with("js ") { return String::new(); }
     name.into()
 }
@@ -102,7 +102,7 @@ pub fn identify(mut evidence: ClientEvidence, settings: &ClientSettings) -> (Str
             }
         }
     }
-    // 仅认经过核实的产品专用值，不把通用平台/版本头当成客户端身份证明。
+    // only use ， not use /client。
     for (header, value, id) in [
         ("x-title", "Cline", "cline"),
         ("x-client-type", "cline-sdk", "cline"),

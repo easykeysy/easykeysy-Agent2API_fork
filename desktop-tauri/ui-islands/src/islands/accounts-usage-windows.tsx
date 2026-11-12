@@ -92,7 +92,7 @@ function supplementaryReadings(entry: Record<string, unknown>, rows: UsageWindow
     && typeof row.key === 'string' && row.key ? [row.key] : []))
   const wallets = Array.isArray(entry.wallets) ? entry.wallets.filter(wallet => {
     if (!wallet || typeof wallet !== 'object' || Array.isArray(wallet)) return false
-    // 钱包与 windows 可描述同一份额度；去重只按结构标识，不解析上游展示串。
+    // and windows can 1 ； by ， not up 。
     return wallet.type !== 'quota_window' && !keys.has(wallet.key ?? wallet.type)
       && !labels.has(wallet.displayName)
   }) : []
@@ -130,10 +130,10 @@ export function UsageWindowsCell({ entry, rows, updatedAt, creditDetail, childre
   const planName = typeof subscription.planName === 'string' ? subscription.planName.trim() : ''
   const groups = groupWindows(rows)
   const grouped = rows.some(row => row.group)
-  // 无分组、读数较长或没有比例的窗口（Kiro 的「剩 x / y 积分」、AStudio 的
-  // 两个余额）按紧凑行排：标签在左、读数在右。不这样排的话，未分组的窗口会
-  // 走「统计格」样式（标签在上一行、读数 15px 在下一行），单列时整格被一个
-  // 大数字占满，多列时又像两张并排的卡片 —— 与 Antigravity 那种小行读数不一致。
+  // none、 or no has （Kiro 「 x / y 」、AStudio 
+  // ） by ： in 、 in 。 not this ， will 
+  // 「statistics」（ in up 1 、 15px in down 1 ）， when 1 
+  // ， when and —— and Antigravity that not 1 。
   const compact = !grouped && (rows.length === 1 || rows.some(row => row.percent === null || row.view.length > 10))
   const warnings = usageWarningsOf(data)
   const supplementary = supplementaryReadings(data, rows)

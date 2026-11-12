@@ -7,25 +7,25 @@ import { t } from '../i18n'
 import { Alert, Button } from '@ui'
 
 /**
- * PWA 状态条。
+ * PWA 。
  *
- * 两件事，位置不同：
- *   · **离线**：常驻顶部细条。它解释的是「为什么页面上的数字不动了」，
- *     放在内容上方、一眼能看到，且不抢操作。
- *   · **有新版本**：底部浮条。它需要一个明确的动作（重启），
- *     放在拇指够得到的地方；同时给「稍后」，不打断当前操作。
+ * ， not ：
+ * · ****：。 is 「Why up not 」，
+ * in up 、 1 can to ， and not 。
+ * · ** has new **：。 need need 1 （），
+ * in to ； when to 「 after 」， not current。
  *
- * 两者都是 `.m-app` 的 flex 子项 / 浮层，不遮挡导航：离线条把内容整体
- * 往下推，更新条浮在标签栏之上。
+ * is `.m-app` flex / ， not ： 
+ * down ，update in up 。
  *
- * 设置页不弹更新浮条：那一页的「应用状态」卡片常驻同样的按钮，
- * 两处一起出现只是重复。
+ * set not update： that 1 「 use 」 by ，
+ * 1 is 。
  */
 export function PwaNotice() {
   const pwa = usePwa()
   const { route } = useStore()
   const [busy, setBusy] = useState(false)
-  // 收起只对本次会话有效：新 SW 仍在等待，下次打开会再提示一次
+  // for will valid： new SW in etc ， down will 1 
   const [snoozed, setSnoozed] = useState(false)
   const showUpdate = pwa.updateReady && !snoozed && route.screen !== 'settings'
 

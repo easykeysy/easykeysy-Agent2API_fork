@@ -1,24 +1,24 @@
-//! 云同步的管理接口（设置页「数据 → 云同步」）。
+//! （set「 → 」）。
 //!
 //! ```text
-//! GET  /api/cloud-sync              设置 + 状态（密码 / Secret 只回 hasXxx）
-//! PUT  /api/cloud-sync              保存设置（空密码 = 沿用）
-//! POST /api/cloud-sync/test         测试连接（顺带建远端目录）
-//! GET  /api/cloud-sync/remote       远端快照摘要（二次确认弹窗用）
-//! POST /api/cloud-sync/upload       上传
-//! POST /api/cloud-sync/download     下载并应用
-//! POST /api/cloud-sync/import-key   { password } 解密并安装远端账号密钥
+//! GET /api/cloud-sync set + （ / Secret hasXxx）
+//! PUT /api/cloud-sync set（empty = use ）
+//! POST /api/cloud-sync/test （directory）
+//! GET /api/cloud-sync/remote need （ use ）
+//! POST /api/cloud-sync/upload up 
+//! POST /api/cloud-sync/download down and use 
+//! POST /api/cloud-sync/import-key { password } and 
 //! ```
 //!
-//! ── 为什么全挂 protected ────────────────────────────────────
-//! 上传会把全部账号密文与网关 Key 送到远端；下载会整体替换本机业务数据；
-//! 保存会写入远端凭据。三者都是 `/api/config` 级别的敏感动作。`GET` 虽然只
-//! 回 `hasXxx`，但它同时透出远端路径与同步状态，与 `/api/storage` 同级。
+//! ── Why protected ────────────────────────────────────
+//! up will and Key to ； down will ；
+//! will 。 is `/api/config` 。`GET` 
+//! `hasXxx`， when path and ， and `/api/storage` 。
 //!
-//! ── 为什么下载 / 上传要单独的壳命令 ──────────────────────────
-//! 壳到网关的通用请求超时是 60 秒（`gateway::REQUEST_TIMEOUT_MS`，面向管理
-//! API 的小请求）。云同步要打外网传几 MB，60 秒不够 —— 所以 `bridge.rs` 给这
-//! 两条命令单独放宽到 300 秒（见 `commands::cloud_sync_upload`）。
+//! ── Why down / up need ──────────────────────────
+//! to use request when is 60 seconds（`gateway::REQUEST_TIMEOUT_MS`， to 
+//! API request）。 need MB，60 seconds not —— `bridge.rs` to this 
+//! to 300 seconds（ `commands::cloud_sync_upload`）。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -37,8 +37,8 @@ pub async fn get_settings(State(_state): State<ServerState>) -> Response {
 
 /// PUT /api/cloud-sync
 ///
-/// 请求体是**整份表单**（与 cc-switch 的 `webdavSyncSaveSettings` 同形）。
-/// 密码类字段传空串 = 沿用库里那份；非空 = 换新。
+/// request is ****（ and cc-switch `webdavSyncSaveSettings` ）。
+/// empty = use that ；empty = new 。
 pub async fn put_settings(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -74,8 +74,8 @@ pub async fn post_test(State(_state): State<ServerState>, body: Bytes) -> Respon
 pub async fn get_remote(State(_state): State<ServerState>) -> Response {
     match cloud_sync::remote_info().await {
         Ok(data) => ok_json(data),
-        // 配置不全（地址 / 用户名没填）是 400，网络 / 远端错误是 502 ——
-        // 分开的理由：前者用户要改设置，后者只需要重试或换线路
+        // config not （ / use no ） is 400， / error is 502 ——
+        // by ： before use need set， after need need or 
         Err(message) => {
             if is_config_error(&message) {
                 errors::management_error(400, message)
@@ -113,8 +113,8 @@ pub async fn post_download(State(state): State<ServerState>) -> Response {
     match cloud_sync::download(&db, &config_dir).await {
         Ok(data) => ok_json(data),
         Err(message) => {
-            // 「需要先导入密钥」不是失败：它是下载流程的中间步骤，不该写进
-            // 「上次同步失败」的状态里（否则用户导入密钥后还会看到一条红字）
+            // 「 need need 」 not is failure： is down in ， not this 
+            // 「 up failure」 （otherwise use after will to 1 ）
             if message == cloud_sync::KEY_REQUIRED {
                 return errors::management_error(409, message);
             }
@@ -143,13 +143,13 @@ pub async fn post_import_key(State(_state): State<ServerState>, body: Bytes) -> 
     }
 }
 
-/// 这个错误是不是「配置问题」（用户要改设置）而不是「远端问题」（重试即可）。
+/// this error is not is 「config」（ use need set） not is 「」（ can ）。
 ///
-/// 按文案判断不优雅，但本模块的对外契约是 `Result<_, String>`（与其它 API
-/// 模块一致），为它引入一个错误枚举会让 `settings` / `transport` 全部改签名。
-/// 判据只看几条明确的配置类文案，宁可把少数情况归成 502（重试无害）。
+/// by not ， for is `Result<_, String>`（ and its API
+/// 1 ）， as 1 error will `settings` / `transport` 。
+/// config， can 502（none）。
 fn is_config_error(message: &str) -> bool {
-    // GET 的重定向目标来自远端；无效 Location 不是本机地址配置错误。
+    // GET to ；invalid Location not is configerror。
     if message.starts_with("WebDAV GET") {
         return false;
     }
@@ -163,7 +163,7 @@ fn is_config_error(message: &str) -> bool {
         || message.contains("不能包含 ..")
 }
 
-/// 请求体 → `SaveInput`（缺字段按空串，与前端「整份表单」的语义一致）
+/// request → `SaveInput`（ by empty， and before 「」 1 ）
 fn parse_save_input(payload: &Value) -> Result<settings::SaveInput, String> {
     let Some(object) = payload.as_object() else {
         return Err("请求体必须是 JSON 对象".to_string());
@@ -208,7 +208,7 @@ fn parse_save_input(payload: &Value) -> Result<settings::SaveInput, String> {
     })
 }
 
-/// 供排障用：一句「现在配到哪了」
+/// use ： 1 「 in to 」
 #[allow(dead_code)]
 pub fn describe() -> Value {
     let settings = settings::load();

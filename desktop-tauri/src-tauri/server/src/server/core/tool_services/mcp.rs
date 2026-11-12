@@ -1,14 +1,14 @@
-//! MCP 端点的 JSON-RPC 骨架（Streamable HTTP，单端点 POST，dual-era）。
+//! MCP JSON-RPC （Streamable HTTP， POST，dual-era）。
 //!
-//! 两个服务（网络搜索 / 视觉分析）共用同一套分发：initialize 走 legacy 握手，
-//! `server/discover` 与直接调用走 modern（无握手、无会话）。端点本身无状态，
-//! 两代语义可以共存而不需要维护会话。
+//! （ / ） use 1 ：initialize legacy ，
+//! `server/discover` and use modern（none、none will ）。none，
+//! can not need need will 。
 //!
-//! 协议细节与 OmniProxy 的 `mcpProtocol` 一致：
-//!   · 通知（`notifications/*` 或没有 id）不产生响应；
-//!   · 批量数组（2025-03-26）与单条消息都接；
-//!   · 参数不合法 → JSON-RPC `INVALID_PARAMS`；业务失败 → `isError` 结果，
-//!     让模型有机会自我纠正。
+//! and OmniProxy `mcpProtocol` 1 ：
+//!   · 通知（`notifications/*` or no has id） not response；
+//! · （2025-03-26） and ；
+//! · parameter not → JSON-RPC `INVALID_PARAMS`；failure → `isError` ，
+//! has will 。
 
 use serde_json::{json, Value};
 
@@ -31,7 +31,7 @@ pub enum McpServerKind {
 }
 
 pub struct McpRequestContext {
-    /// 网关基址（视觉分析内部调用用）
+    /// （ use use ）
     pub base_url: String,
     pub store: crate::server::core::account_store::AccountStore,
     pub scope: Option<crate::server::core::key_scope::KeyScope>,
@@ -202,7 +202,7 @@ async fn call_tool(
                 Ok((payload, successful)) => {
                     logging::log(
                         "[Tools]",
-                        &format!("MCP web-search {operation}: {} 条输入 / {successful} 条成功 / {duration}ms", items.len()),
+                        &format!("MCP web-search {operation}: {} / {successful} success / {duration}ms", items.len()),
                     );
                     if successful == 0 {
                         let mut result = tool_error(format!("All {operation} items failed"));
@@ -214,7 +214,7 @@ async fn call_tool(
                 Err(error) => {
                     logging::log(
                         "[Tools]",
-                        &format!("MCP web-search {operation} 失败：{}", error.message),
+                        &format!("MCP web-search {operation} failure：{}", error.message),
                     );
                     Ok(tool_error(error.message))
                 }
@@ -238,7 +238,7 @@ enum ToolCallError {
     InvalidParams(String),
 }
 
-/// 处理单条 JSON-RPC 请求；通知类消息返回 None
+/// JSON-RPC request；return None
 async fn dispatch_one(
     message: &Value,
     kind: McpServerKind,
@@ -301,7 +301,7 @@ async fn dispatch_one(
     }
 }
 
-/// 处理一个请求体（单条或批量），返回响应体；纯通知返回 None
+/// 1 request（ or ），returnresponse；return None
 pub async fn dispatch(
     body: &Value,
     kind: McpServerKind,

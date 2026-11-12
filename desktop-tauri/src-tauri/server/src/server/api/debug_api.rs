@@ -1,18 +1,18 @@
-//! 调试模式：`GET/PUT /api/debug`（开关）与 `GET /api/debug/traffic`（详情）。
+//! ：`GET/PUT /api/debug`（） and `GET /api/debug/traffic`（）。
 //!
-//! ── 这个开关做什么 ──────────────────────────────────────────
-//! 开启后转发层把**发给上游的请求（头脱敏 + 体）与上游返回的响应（状态码 +
-//! 头脱敏 + 体）**完整落到统一库的 `debug_traffic` 表，请求日志页的
-//! 「详情」列据此展示。采集与存储见 `core::debug_traffic`。
+//! ── this ──────────────────────────────────────────
+//! after ** to up request（ + ） and up return response（ +
+//! + ）** to 1 `debug_traffic` ，request 
+//! 「」。 and `core::debug_traffic`。
 //!
-//! ── 为什么详情单独一个端点 ────────────────────────────────────
-//! 原始报文可达数百 KB（一个完整 SSE 响应），塞进请求日志列表会让每一页的
-//! 响应体积爆掉。列表接口只给 `id`，详情按需拉 —— 与 OmniProxy「列表不返回
-//! raw、详情接口才返回」同一取舍。
+//! ── Why 1 ────────────────────────────────────
+//! can KB（ 1 SSE response），request will 1 
+//! response。 to `id`， by need —— and OmniProxy「 not return
+//! raw、return」 1 。
 //!
-//! ── 存储位置 ────────────────────────────────────────────────
-//! 报文与其余数据同居 `{config_dir}/agent2api.db`（库位置见 `/api/storage`
-//! 的单库概况），这里只管开关与读取。
+//! ── ────────────────────────────────────────────────
+//! and its `{config_dir}/agent2api.db`（ `/api/storage`
+//! ）， this and 。
 
 use axum::body::Bytes;
 use axum::extract::{Query, State};
@@ -27,16 +27,16 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// GET /api/debug —— 当前开关状态与存储概况
+/// GET /api/debug —— current and 
 pub async fn get_debug(State(_state): State<ServerState>) -> Response {
     ok_json(debug_json())
 }
 
 /// PUT /api/debug —— body `{debugMode: true|false}`
 ///
-/// 写 config.json（键 `debugMode`），下一个请求立即生效（转发层逐请求读快照，
-/// 不重启进程）。开启时顺带在事件日志里留一条记录 —— 它会让凭据类头被脱敏后
-/// 落盘，用户该在日志里看得到这件事发生过。
+/// config.json（ `debugMode`）， down 1 request（request，
+/// not ）。 when in 1 —— will after 
+/// ， use this in to this 。
 pub async fn put_debug(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -68,10 +68,10 @@ pub async fn put_debug(State(_state): State<ServerState>, body: Bytes) -> Respon
     ok_json(debug_json())
 }
 
-/// GET /api/debug/traffic?id=... —— 一条请求的原始报文
+/// GET /api/debug/traffic?id=... —— 1 request 
 ///
-/// 找不到（开关没开过 / 已超出保留条数 / id 为空）时给 404：前端据此显示
-/// 「该请求没有保存原始报文」而不是空面板。
+/// not to （ no / already / id as empty） when to 404： before 
+/// 「 this request no has 」 not is empty。
 pub async fn get_traffic(State(_state): State<ServerState>, Query(params): Query<Params>) -> Response {
     let id = params.id.trim();
     if id.is_empty() {
@@ -92,7 +92,7 @@ pub struct Params {
     id: String,
 }
 
-/// 开关状态 + 存储概况（GET 与 PUT 共用，前端直接用响应刷新界面）
+/// + （GET and PUT use ， before use response new ）
 fn debug_json() -> Value {
     json!({
         config::KEY_DEBUG_MODE: config::current().debug_mode(),

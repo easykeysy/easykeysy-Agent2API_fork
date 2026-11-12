@@ -1,52 +1,52 @@
-//! 协议转换：把下游的 **Responses**（`/v1/responses`）与 **Anthropic Messages**
-//! （`/v1/messages`）翻译成网关内部统一的 **Chat Completions**，再把回程翻译回去。
+//! ： down **Responses**（`/v1/responses`） and **Anthropic Messages**
+//! （`/v1/messages`） 1 **Chat Completions**， 。
 //!
-//! ── 为什么以 Chat 为枢纽，而不是在每个适配器里各写一套 ────────
-//! 本项目各内置上游**在适配器 / 翻译层边界上最终都归一为 OpenAI Chat 协议**：
-//! 有状态家（会话型上游）在插件侧的 `conversation` 里被翻译成 OpenAI chunk
-//! 下发；无状态但响应异形的家（NDJSON、Gemini v1internal SSE 等）由
-//! `upstream::translate` 的翻译层折回 chat SSE —— 插件在 `chat` 回复里申报
-//! `UpstreamKind`，网关据此选翻译器。也就是说，「上游说 Chat」这件事在边界上
-//! **已经成立**。
+//! ── Why Chat as ， not is in 1 ────────
+//! up ** in / up 1 as OpenAI Chat **：
+//! has （ will up ） in `conversation` OpenAI chunk
+//! down ；noneresponse （NDJSON、Gemini v1internal SSE etc ） by 
+//! `upstream::translate` chat SSE —— in `chat` 
+//! `UpstreamKind`，。 is ，「 up Chat」 this in up 
+//! ** already **。
 //!
-//! 于是协议转换只有两个可能的位置：
-//!   ① 在每家适配器里各写一遍（每家 × 2 协议）；
-//!   ② 在网关出入口写一次（2 套转换），让适配器完全不知情。
-//! ② 明显更优：适配器不必知道下游说的是什么协议（它本来就只认 Chat），
-//! 新增一家上游时也不用再补一套转换。本模块就是②的落点。
+//! is has can can ：
+//! ① in 1 （ × 2 ）；
+//! ② in 1 （2 ）， not 。
+//! ② ： not down is （ Chat），
+//! add 1 up when not use 1 。 is ② 。
 //!
-//! ── 与参考实现（OmniProxy）的结构差异 ────────────────────────
-//! OmniProxy 以 **Responses 为枢纽**（Chat ↔ Responses ↔ Anthropic），
-//! 因为它上游同时存在三种协议、且要支持「下游 Responses → 上游 Anthropic」
-//! 这类直连。本项目在枢纽边界上**只见 Chat 这一种**（异构上游都在进入枢纽前
-//! 折回 chat），所以枢纽选 Chat：
-//! 每组转换都只走一跳，少一次中转，也少一处「中转丢字段」的风险。
-//! 转换规则本身（消息/工具/思考档位/usage 字段映射）大量参考了 OmniProxy
-//! 的 `gatewayProtocol*.ts`，并按本项目的口径收敛。
+//! ── and （OmniProxy） ────────────────────────
+//! OmniProxy **Responses as **（Chat ↔ Responses ↔ Anthropic），
+//! as up when in 、 and need supports「 down Responses → up Anthropic」
+//! this 。 in up ** Chat this 1 **（ up in before 
+//! chat）， Chat：
+//! 1 ， 1 in ， 1 「 in 」 。
+//! then （///usage ） OmniProxy
+//! `gatewayProtocol*.ts`， and by 。
 //!
-//! ── 文件分工 ────────────────────────────────────────────────
-//!   mod.rs               本文件：共享原语（取值/转义/随机 id/SSE 编解码/行缓冲）
-//!   responses.rs         Responses ↔ Chat（下游 Responses 入口的回程翻译）
-//!   anthropic.rs         Anthropic Messages ↔ Chat（同上）
-//!   responses_outbound.rs chat → Responses 上游的出站翻译（自定义提供商转发）
-//!   anthropic_outbound.rs chat → Anthropic 上游的出站翻译（同上）
-//!   ai_sdk_ndjson.rs      上游 **AI SDK v5 风格 NDJSON** → chat SSE
-//!                         （公开流格式；插件报 `UpstreamKind::Ndjson` 时用它，
-//!                         网关只认事件词表，见该文件模块头）
-//!   antigravity_stream.rs 上游 Gemini v1internal SSE → chat SSE
-//!                         （Antigravity 的实现已搬到插件，这里只留**响应**
-//!                         翻译：请求信封与 schema 清洗随插件走了）
-//!   history.rs           内部 Chat 体的历史 sanitize（客户端带来的畸形工具历史）
+//! ── file ────────────────────────────────────────────────
+//! mod.rs file：（// id/SSE /）
+//! responses.rs Responses ↔ Chat（ down Responses ）
+//! anthropic.rs Anthropic Messages ↔ Chat（ up ）
+//! responses_outbound.rs chat → Responses up （）
+//! anthropic_outbound.rs chat → Anthropic up （ up ）
+//! ai_sdk_ndjson.rs up **AI SDK v5 NDJSON** → chat SSE
+//! （； `UpstreamKind::Ndjson` when use ，
+//! ， this filemodule header）
+//! antigravity_stream.rs up Gemini v1internal SSE → chat SSE
+//! （Antigravity already to ， this **response**
+//! ：request and schema ）
+//! history.rs Chat sanitize（client ）
 //!
-//! 出站几个文件与回程两个文件方向相反：回程服务「下游说 X」的入口
-//! （`api::protocol`），出站服务「上游说 X」的转发（自定义家
-//! `providers::custom::forward` 与插件家申报的异形上游通道）。单开文件而不是塞回原文件：两个
-//! 回程文件早已超过项目约定的单文件行数（各自 1000+ 行），出站方向
-//! 又是完整独立的一套（请求转换 + SSE 状态机），分开后各自内聚。
+//! file and file to ：「 down X」 
+//! （`api::protocol`），「 up X」 （
+//! `providers::custom::forward` and up ）。file not is file： 
+//! file already file（ 1000+ ）， to 
+//! is 1 （request + SSE ）， after 。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本模块零 unwrap/expect/panic，取值一律走 Option 链；
-//! 不做网络、不碰文件、不认识 axum（纯函数 + 状态机，便于单独推演）。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`： unwrap/expect/panic， 1 Option ；
+//! not 、 not file、 not axum（ + ，）。
 
 pub mod anthropic;
 pub mod anthropic_outbound;
@@ -65,11 +65,11 @@ use std::borrow::Cow;
 
 use serde_json::Value;
 
-/// JS 的 `String(value)`：非字符串也照转（`null` → 空串，与 `value == null ? ""` 同）。
+/// JS `String(value)`：（`null` → empty， and `value == null ? ""` ）。
 ///
-/// 转换层到处要按「客户端给的可能是任何 JSON 类型」处理（手写的请求体里
-/// `model` 可能是数字、`name` 可能是对象），而 JS 参考实现处处是 `stringValue`。
-/// 统一走这一个函数，避免各处 `as_str().unwrap_or("")` 把数字静默丢掉。
+/// to need by 「client to can can is JSON 」（ request
+/// `model` can can is 、`name` can can is for ）， JS is `stringValue`。
+/// 1 this 1 ， `as_str().unwrap_or("")` 。
 pub fn string_value(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
@@ -78,27 +78,27 @@ pub fn string_value(value: &Value) -> String {
     }
 }
 
-/// 取一个对象成员并转成字符串（缺失 → 空串）
+/// 1 for and （ → empty）
 pub fn string_field(value: &Value, key: &str) -> String {
     value.get(key).map(string_value).unwrap_or_default()
 }
 
-/// 工具结果只有图片、没有文本时，在 Chat 的 `tool` 消息里留的占位正文。
+/// has 、 no has when ， in Chat `tool` 。
 ///
-/// 不能让 content 空着：tool 消息的 content 是必填，空串在部分上游会被拒；
-/// 这句话同时告诉模型「图在紧接着的那条消息里」—— 否则它只看得到工具返回了空。
+/// not can content empty：tool content is ，empty in up will ；
+/// this when 「 in that 」—— otherwise to returnempty。
 ///
-/// 两处入站翻译共用同一句（Responses 的 `function_call_output`、Anthropic 的
-/// `tool_result`）：它们把图片挪出 tool 消息的理由与落点完全一样，文案也就不该
-/// 分家 —— 排查时在同一处看到这句话，就知道是同一类处理。
+/// use 1 （Responses `function_call_output`、Anthropic 
+/// `tool_result`）： tool by and 1 ， not this 
+/// —— when in 1 to this ， is 1 。
 pub const TOOL_IMAGE_PLACEHOLDER: &str =
     "(the tool returned an image; it is attached in the following message)";
 
-/// JS 的 `jsonText(value)`：字符串原样返回，其余 JSON 序列化。
+/// JS `jsonText(value)`：return， its JSON 。
 ///
-/// 用途是「把任意 JSON 塞进一个字符串字段」（工具参数、工具输出）。
-/// 序列化失败只可能是内部数据坏了（`Value` 本身一定能序列化，除非有环），
-/// 这里给空串而不是 panic。
+/// use is 「 any JSON 1 」（parameter、）。
+/// failure can can is （`Value` 1 can ， has ），
+/// this to empty not is panic。
 pub fn json_text(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
@@ -107,7 +107,7 @@ pub fn json_text(value: &Value) -> String {
     }
 }
 
-/// JS 真值判定（`Boolean(x)`）——参考实现里满地的 `if (x)` 都是这个语义
+/// JS （`Boolean(x)`）—— `if (x)` is this 
 pub fn is_truthy(value: &Value) -> bool {
     match value {
         Value::Null => false,
@@ -117,16 +117,16 @@ pub fn is_truthy(value: &Value) -> bool {
         Value::Array(_) | Value::Object(_) => true,
     }
 }
-/// 生成一个带前缀的随机 id（`msg_<32位十六进制>` 形态）。
+/// 1 before id（`msg_<32>` ）。
 ///
-/// ── 为什么不用时间戳或自增 ────────────────────────────────────
-/// 这些 id 会出现在**下发帧**里（`response.id` / `message.id` / `tool_use.id`），
-/// 客户端可能用它做关联与去重。同一秒内的两次请求若拿到相同 id，
-/// 客户端侧的关联就会串台 —— 时间戳做不到唯一，自增又要引入全局状态。
-/// 随机源走 `getrandom`（本项目已是直接依赖，Qoder 的 PKCE 用它）。
+/// ── Why not use when or ────────────────────────────────────
+/// this id will in ** down **（`response.id` / `message.id` / `tool_use.id`），
+/// client can can use and 。 1 seconds request if to id，
+/// client will —— when not to 1 ， need 。
+/// `getrandom`（ already is ，Qoder PKCE use ）。
 ///
-/// 随机源失败（几乎不可能）时退回时间戳：id 的**唯一性**在那种情况下降级，
-/// 但比返回空串好 —— 空 id 会让客户端直接解析失败。
+/// failure（ not can can ） when when ：id ** 1 ** in that down ，
+/// returnempty —— empty id will clientfailure。
 pub fn random_id(prefix: &str) -> String {
     let mut bytes = [0u8; 16];
     if getrandom::getrandom(&mut bytes).is_err() {
@@ -141,12 +141,12 @@ pub fn random_id(prefix: &str) -> String {
     out
 }
 
-/// 从内容块数组里抽出纯文本（只认 text 类块）。
+/// from （ text ）。
 ///
-/// 对应参考实现的 `contentText`：字符串直接返回；数组则把
-/// `text` / `input_text` / `output_text` 三类块的 `text` 拼接。
-/// 其它类型（图片、工具结果）**不参与拼接** —— 它们是结构化内容，
-/// 拍平成文本会丢失语义，需要它们的调用点各自处理。
+/// for `contentText`：return； then 
+/// `text` / `input_text` / `output_text` `text` 。
+/// its （、）** not and ** —— is ，
+/// will ， need need use 。
 pub fn content_text(content: &Value) -> String {
     match content {
         Value::String(text) => text.clone(),
@@ -169,39 +169,39 @@ pub fn content_text(content: &Value) -> String {
     }
 }
 
-/// 内容块数组（非数组时给空切片语义）——大量调用点要遍历它
+/// （ when to empty）—— use need 
 pub fn content_parts(content: &Value) -> &[Value] {
     match content.as_array() {
         Some(parts) => parts.as_slice(),
         None => &[],
     }
 }
-/// 组装一条带 `event:` 行的 SSE 帧（Responses 与 Anthropic 都要求事件名）。
+/// 1 `event:` SSE （Responses and Anthropic need ）。
 ///
-/// Anthropic 官方 SSE **只发 `event:` 行 + `data:` 行**（`data` 里也带 `type`），
-/// Responses 同形。两家的客户端解析器都按 `event:` 分派，所以事件名必须发。
+/// Anthropic SSE ** `event:` + `data:` **（`data` `type`），
+/// Responses 。 client by `event:` ，must。
 pub fn event_frame(event: &str, value: &Value) -> bytes::Bytes {
     let text = serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string());
     bytes::Bytes::from(format!("event: {event}\ndata: {text}\n\n"))
 }
 
-/// 组装一条 **chat** SSE 帧（`data: <JSON>\n\n`，不带 `event:` 行 ——
-/// Chat 协议的 SSE 只有 data 行）。
+/// 1 **chat** SSE （`data: <JSON>\n\n`， not `event:` ——
+/// Chat SSE has data ）。
 ///
-/// 与 `upstream::sse::sse_frame` 同形；转换模块刻意不依赖 upstream 模块树
-/// （`core::protocol` 的定位是纯函数 + 状态机），这里留一份同口径实现。
-/// 出站转换器（`*_outbound`）折出的 chat 帧全部走这里，帧形状才能保证
-/// 是下游既有消费层（`ForwardStream` / 聚合器 / 出口翻译器）认得的样子。
+/// and `upstream::sse::sse_frame` ； not upstream 
+/// （`core::protocol` is + ）， this 1 。
+/// （`*_outbound`） chat this ， can 
+/// is down has （`ForwardStream` / / ） 。
 pub fn chat_frame(value: &Value) -> bytes::Bytes {
     let text = serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string());
     bytes::Bytes::from(format!("data: {text}\n\n"))
 }
 
-/// 按候选键顺序从对象里读一个整数（都取不到给 0）。
+/// by from for 1 （ not to to 0）。
 ///
-/// usage 字段在各家协议里命名不一（Chat 是 `prompt_tokens`、Responses 是
-/// `input_tokens`），两个出站转换器折 usage 时统一走这里，避免各写各的
-/// 取值链。先试整数、再放宽到有限小数（部分上游把 token 数发成浮点）。
+/// usage in not 1 （Chat is `prompt_tokens`、Responses is 
+/// `input_tokens`）， usage when 1 this ， 
+/// 。、 to has （ up token ）。
 pub fn json_number_of(value: &Value, keys: &[&str]) -> i64 {
     for key in keys {
         let Some(field) = value.get(*key) else {
@@ -216,17 +216,17 @@ pub fn json_number_of(value: &Value, keys: &[&str]) -> i64 {
     }
     0
 }
-/// 把一段文本按 SSE 规范拆成一个个 `data:` 载荷。
+/// 1 by SSE 1 `data:` 。
 ///
-/// ── 为什么需要它（不能直接按 `\n` 切）────────────────────────
-/// 上游字节流是**按 TCP 分片**到达的，一帧 JSON 完全可能被切成两半
-/// （分片点落在一行中间）。所以必须有一个跨 chunk 的行缓冲：
-/// 只处理到最后一个 `\n` 为止，剩下的半行留到下一段。
-/// 这与 `core::upstream::sse` 的 ReasoningCoalescer 是同一套缓冲语义，
-/// 但那个状态机还兼职「reasoning 合并 + 透传」，这里只需要**解析**。
+/// ── Why need need （ not can by `\n` ）────────────────────────
+/// up is ** by TCP ** to ， 1 JSON can can 
+/// （ in 1 in ）。must has 1 chunk ：
+/// to after 1 `\n` as ， down to down 1 。
+/// this and `core::upstream::sse` ReasoningCoalescer is 1 ，
+/// that 「reasoning and + 」， this need need ****。
 ///
-/// 缓冲按**字节**而不是 String：思考内容里中文占大头，而分片完全可能把一个
-/// 3 字节的汉字切成两半，按 String 缓冲会把那一半解码成 U+FFFD（内容损坏）。
+/// by **** not is String： in ， can can 1 
+/// 3 ， by String will that 1 U+FFFD（）。
 #[derive(Default)]
 pub struct SseLineBuffer {
     tail: Vec<u8>,
@@ -237,12 +237,12 @@ impl SseLineBuffer {
         Self { tail: Vec::new() }
     }
 
-    /// 吃一段字节，吐出其中**完整**的 `data:` 载荷（0..n 个）。
+    /// 1 ， its in **** `data:` （0..n ）。
     ///
-    /// 返回值里 `None` 表示 `[DONE]`（调用方据此收尾）。非 `data:` 行
-    /// （`event:` / 注释 / 空行）在这里被跳过：本模块的调用方只关心载荷，
-    /// 事件名从 JSON 的 `type` 字段读（两家的 SSE 都在 data 里带了 type，
-    /// 这也是参考实现 `event.type || frame.event` 的取值顺序）。
+    /// return `None` `[DONE]`（ use ）。 `data:` 
+    /// （`event:` / / empty） in this ： use ，
+    /// from JSON `type` （ SSE in data type，
+    /// this is `event.type || frame.event` ）。
     pub fn push(&mut self, chunk: &[u8]) -> Vec<Option<String>> {
         let mut out: Vec<Option<String>> = Vec::new();
         self.tail.extend_from_slice(chunk);
@@ -257,14 +257,14 @@ impl SseLineBuffer {
         out
     }
 
-    /// 流结束：把残留的半行也当一帧处理。
+    /// ： 1 。
     ///
-    /// ── 为什么这里**要**冲刷（与 ReasoningCoalescer 相反）────────
-    /// 那个状态机冲刷 tail 会向下游透传一条可能残缺的帧，风险大于收益，
-    /// 所以它刻意不冲刷。这里不同：我们是**翻译器**，残缺的 JSON 会被
-    /// `serde_json` 拒绝并静默丢弃（不会构造出非法帧），而「上游发完最后一帧
-    /// 却没带收尾换行」这种情况（`a` 类）能因此被正确识别 —— 少了这一步，
-    /// 流的最后一个内容分片会凭空消失。
+    /// ── Why this ** need **（ and ReasoningCoalescer ）────────
+    /// that tail will to down 1 can can ，，
+    /// not 。 this not ： is ****， JSON will 
+    /// `serde_json` and （ not will ），「 up after 1 
+    /// no 」 this （`a` ） can —— this 1 ，
+    /// after 1 will empty。
     pub fn finish(&mut self) -> Vec<Option<String>> {
         let mut out: Vec<Option<String>> = Vec::new();
         if self.tail.is_empty() {
@@ -276,7 +276,7 @@ impl SseLineBuffer {
         out
     }
 
-    /// 处理一行：只取 `data:` 行，跳过事件名/注释/空行
+    /// 1 ： `data:` ，//empty
     fn take_line(line: &str, out: &mut Vec<Option<String>>) {
         let line = line.strip_suffix('\r').unwrap_or(line);
         let Some(rest) = line.strip_prefix("data:") else {
@@ -294,50 +294,50 @@ impl SseLineBuffer {
     }
 }
 
-// ─── 内部暂存字段（跨协议保真）────────────────────────────────
+// ─── （）────────────────────────────────
 //
-// ── 解决什么问题 ────────────────────────────────────────────
-// Chat 是本网关的内部枢纽形态，但它**表达能力比两端都窄**：下游 Anthropic 的
-// `cache_control`（提示缓存断点）、`tool_result.is_error`（工具失败标记）与
-// 下游 Responses 的 reasoning `encrypted_content`（store=false 的推理连续性
-// 载体）在 Chat 里都没有对应字段，翻译时直接丢弃会丢失语义。参考实现
-// 9Router 在这三处的取舍都是「保真」（保留 cache_control、恢复 is_error、
-// 暂存并在 Responses 出站恢复 encrypted_content），本模块跟进同一取舍。
+// ── ────────────────────────────────────────────
+// Chat is ，** can **： down Anthropic 
+// `cache_control`（）、`tool_result.is_error`（failure） and 
+// down Responses reasoning `encrypted_content`（store=false 
+// ） in Chat no has for ， when will 。
+// 9Router in this is 「」（ cache_control、 is_error、
+// and in Responses encrypted_content）， 1 。
 //
-// ── 机制 ────────────────────────────────────────────────────
-// 入口翻译时把这些字段挂在**内部 Chat 形态**上（`_wb_` 前缀，见下面各常量），
-// 交给出站侧时只有两种归宿：
-//   · **翻译出站**（`anthropic_outbound` / `responses_outbound`）：消费字段、
-//     恢复到上游协议的对应位置 —— 出站体是重新构造的，内部字段自然不外泄；
-//   · **透传出站**（内置家适配器、自定义家 chat 透传）：发送前调用
-//     [`strip_internal_fields`] 统一剥离。
+// ── ────────────────────────────────────────────────────
+// when this in ** Chat ** up （`_wb_` before ， down ），
+// to when has ：
+// · ****（`anthropic_outbound` / `responses_outbound`）：、
+// to up for —— is new ， not ；
+// · ****（、 chat ）： before use 
+// [`strip_internal_fields`] 1 。
 //
-// 剥离为什么是**必须**的而不是洁癖：严格校验的 OpenAI 兼容上游会拒绝 assistant
-// 消息上的未知字段并整轮 400（9Router 在 Groq / Mistral 上真实踩过
-// `reasoning_content` 这一坑，见它的 stripContinuityFields 注释）。内部字段
-// 的形状更陌生，必须一律不给上游见到。
+// Why is **must** not is ： OpenAI up will assistant
+// up unknown and 400（9Router in Groq / Mistral up 
+// `reasoning_content` this 1 ， stripContinuityFields ）。
+// ，must 1 not to up to 。
 //
-// 挂载粒度的取舍：cache_control 在 Anthropic 里是**块级**的，但内部 Chat 的
-// 消息 content 可能被折叠成字符串（`collapse_content`），块级位置无从谈起；
-// 这里降级为**消息级**（取该消息最后一个带 cache_control 的块的值），出站时
-// 落回该消息最后一个可挂载的块上。Claude Code 的断点本来就打在消息末尾块上，
-// 这个粒度足以命中缓存；块级精度损失换取整条链路的简单，是划算的。
+// ：cache_control in Anthropic is **** ， Chat 
+// content can can （`collapse_content`），none from ；
+// this as ****（ this after 1 cache_control ）， when 
+// this after 1 can up 。Claude Code in up ，
+// this in ； ， is 。
 
-/// cache_control 的暂存字段（消息对象 / 工具对象上，值 = 原样的 cache_control 对象）
+/// cache_control （ for / for up ， = cache_control for ）
 pub const FIELD_CACHE_CONTROL: &str = "_wb_cache_control";
-/// tool_result 的 is_error 暂存字段（role:"tool" 消息上，仅在 true 时写入）
+/// tool_result is_error （role:"tool" up ，only in true when ）
 pub const FIELD_IS_ERROR: &str = "_wb_is_error";
-/// reasoning encrypted_content 的暂存字段（assistant 消息上，值 = 原样的加密串）
+/// reasoning encrypted_content （assistant up ， = ）
 pub const FIELD_ENCRYPTED_CONTENT: &str = "_wb_encrypted_content";
 
-/// 内部暂存字段的前缀：剥离按**前缀**而不是逐个常量 —— 将来加新字段时
-/// 剥离层自动覆盖，不会因为忘了同步清单而把内部字段漏给上游。
+/// before ： by ** before ** not is —— will new when 
+/// ， not will as to up 。
 const INTERNAL_FIELD_PREFIX: &str = "_wb_";
 
-/// 剥离请求体上的全部内部暂存字段（`_wb_` 前缀：顶层、每条消息、每个工具）。
+/// request up （`_wb_` before ：、、 ）。
 ///
-/// 没有任何内部字段时返回 `Cow::Borrowed` 原体（零拷贝 —— 这是绝大多数请求
-/// 的形态：chat 入口根本不产生暂存字段）；有字段才克隆副本。
+/// no has when return `Cow::Borrowed` （ —— this is request
+/// ：chat not ）； has 。
 pub fn strip_internal_fields(body: &Value) -> Cow<'_, Value> {
     let Some(object) = body.as_object() else {
         return Cow::Borrowed(body);
@@ -369,14 +369,14 @@ pub fn strip_internal_fields(body: &Value) -> Cow<'_, Value> {
     Cow::Owned(Value::Object(next))
 }
 
-/// 一个对象上是否带内部暂存字段
+/// 1 for up is 
 fn has_internal_fields(value: &Value) -> bool {
     value
         .as_object()
         .is_some_and(|object| object.keys().any(|key| key.starts_with(INTERNAL_FIELD_PREFIX)))
 }
 
-/// 原地剥掉一个对象上的内部暂存字段（对象本身存在才调用）
+/// 1 for up （ for in use ）
 fn strip_on_object(value: &mut Value) {
     if let Some(object) = value.as_object_mut() {
         object.retain(|key, _| !key.starts_with(INTERNAL_FIELD_PREFIX));

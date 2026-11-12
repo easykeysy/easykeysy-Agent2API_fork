@@ -1,4 +1,4 @@
-//! 自定义提供商的对外绑定；原始 ID 和别名各自控制可见性及路由。
+//! for ； ID and can and by 。
 
 use serde_json::{json, Value};
 
@@ -204,7 +204,7 @@ pub fn resolve(provider: &Value, requested: &str) -> Option<(String, Option<Stri
         {
             return None;
         }
-        // target 的 enabled 只控制原始 ID，不能阻止别名调用它。
+        // target enabled ID， not can use 。
         let model = models
             .iter()
             .find(|model| model_id(model).eq_ignore_ascii_case(target))?;
@@ -212,21 +212,21 @@ pub fn resolve(provider: &Value, requested: &str) -> Option<(String, Option<Stri
     })
 }
 
-/// 该家对外的模型条目（`{id, …能力位}`）—— 清单出口与 `/v1/models` 共用。
+/// this for （`{id, … can }`）—— and `/v1/models` use 。
 ///
-/// 条目的 id 是**对外名**（原始 ID 或某个存活的别名），能力位则取自
-/// **target 的登记条目**：别名的清单条目是这里现造的、没有自己的记录，
-/// 而下游按对外名看到的能力必须与按原始 ID 看到的完全一致 —— 否则同一个
-/// 上游模型会有两套互相打架的声明。
+/// id is ** for **（ ID or ）， can then 
+/// **target **： is this 、 no has ，
+/// down by for to can must and by ID to 1 —— otherwise 1 
+/// up will has 。
 ///
-/// 能力位**平铺**在条目顶层（与各内置家清单同形，`list_item` 直接读它们）；
-/// 存储里那层 `capabilities` 对象由 `capability::apply_overrides` 展开 ——
-/// 归一也走它，手改数据里的坏值到不了出口。
+/// can **** in （ and ，`list_item` ）；
+/// that `capabilities` for by `capability::apply_overrides` ——
+/// 1 ， to not 。
 ///
-/// 登记里**没写**的键由 models.dev 补（`core::model_meta::apply`）——那条路径的
-/// 优先级与内置家同一条：用户登记的值（上面的 `capabilities`）> models.dev >
-/// 未声明。自定义家的条目只服务对外清单与管理页的「这家有哪些模型」，
-/// 它不出现在内置家的管理视图里（那套读的是 `providers::catalog::manage_view`）。
+/// ** no ** by models.dev （`core::model_meta::apply`）—— that path 
+/// and 1 ： use （ up `capabilities`）> models.dev >
+/// 。 for and 「 this has 」，
+/// not in （ that is `providers::catalog::manage_view`）。
 pub fn public_models(provider: &Value) -> Vec<Value> {
     let models = provider
         .get("models")

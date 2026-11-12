@@ -36,13 +36,13 @@ export function readCustomRange(key: string): CustomDates {
       const stored = validCustomRange(JSON.parse(raw))
       if (stored) return stored
     }
-  } catch { /* 存储不可用时沿用近 7 天。 */ }
+  } catch { /* unavailable when use 7 。 */ }
   return defaultCustomRange()
 }
 
 export function saveCustomRange(key: string, range: CustomDates): void {
   try { localStorage.setItem(key, JSON.stringify(range)) }
-  catch { /* 存储不可用不影响当前筛选。 */ }
+  catch { /* unavailable not current。 */ }
 }
 
 export function updateCustomRange<T extends CustomDates>(range: T, patch: Partial<CustomDates>): T {

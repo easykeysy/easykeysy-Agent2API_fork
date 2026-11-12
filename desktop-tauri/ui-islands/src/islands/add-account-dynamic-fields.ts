@@ -1,4 +1,4 @@
-/** 桌面与移动端共用的动态登录元数据解析；只消费网关投影，不执行 provider。 */
+/** and use ；， not provider。 */
 import { t } from '../i18n'
 
 export type Prompt = {
@@ -24,8 +24,8 @@ export type Method = {
   localOnly: boolean
   manualCallback: boolean
   /**
-   * 插件要求这条 OAuth 流程只在应用内嵌窗口打开（例如登录页跑在本机回环
-   * 地址上的 AStudio）。为真时界面不提供「系统浏览器」选项。
+   * need this OAuth in use （e.g. in 
+   * up AStudio）。 as when not 「」。
    */
   embeddedOnly: boolean
   callbackInput: CallbackInput
@@ -45,7 +45,7 @@ const textOf = (value: unknown): string => typeof value === 'string' ? value : '
 const objectOf = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 
-/** 元数据与进度共用翻译；设备码只作为模板参数，不改动授权内容。 */
+/** and use ； as parameter， not 。 */
 export function loginText(value: unknown): string {
   const text = textOf(value)
   const translated = t(text)
@@ -96,7 +96,7 @@ function parsePrompt(value: unknown): Prompt {
   }
 }
 
-/** 缺省只代表 URL；非法枚举不能猜成令牌输入。 */
+/** URL； not can 。 */
 export function parseCallbackInput(value: unknown): CallbackInput {
   if (value === undefined || value === 'url') return 'url'
   if (value === 'code') return 'code'

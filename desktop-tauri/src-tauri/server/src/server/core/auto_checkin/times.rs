@@ -1,30 +1,30 @@
-//! 提供商专属签到时刻 + 补签（第二轮）时刻。
+//! to when + （） when 。
 //!
-//! ── 为什么需要「专属时刻」──────────────────────────────────
-//! 签到不是「谁都能在零点签」：上游的每日活动各有窗口，窗口没开时调用拿到的是
-//! 「暂未下发」（中性未领取），调度器只能反复重试。实测（2026-10-29）Qoder 国际版
-//! 在 00:01 触发后一路重试到 10:00 才进入窗口，签到记录里留下 7 条「未领取」；
-//! 用户看到的是「设的是 00:01，实际却签了 7 次」。
+//! ── Why need need 「 when 」──────────────────────────────────
+//! to not is 「 can in 」： up daily has ， no when use to is 
+//! 「 down 」（ in ）， can 。（2026-10-29）Qoder 
+//! in 00:01 after 1 to 10:00 ， to down 7 「」；
+//! use to is 「 is 00:01， 7 」。
 //!
-//! | 家 | 窗口（北京时间） | 依据 |
+//! | | （ when ） | |
 //! |---|---|---|
-//! | Qoder（两地） | 每天 10:00 开启 | `providers::qoder::checkin` 的模块头（实测） |
-//! | ZCode（两地） | 每天 19:00 开启 | 官方公告：每日 19:00 起可领当日赠送额度 |
+//! | Qoder（） | 10:00 | `providers::qoder::checkin` module header（） |
+//! | ZCode（） | 19:00 | ：daily 19:00 can |
 //!
-//! 时刻取「窗口 + 1 分钟」：正好卡在开启那一秒时，上游可能还没下发活动。
+//! when 「 + 1 minutes」： in that 1 seconds when ， up can can no down 。
 //!
-//! ── 三档取值（改之前先读）──────────────────────────────────
-//! 条目上的 `providerTimes[家]`（用户覆盖）> 本表（内置）> 条目自己的 `time`。
-//! 于是存量配置**零迁移**：没覆盖的家照旧按条目时刻跑，只有本表里的家按专属时刻。
-//! 用户想改就改条目上那一格，不必动代码。
+//! ── （ before ）──────────────────────────────────
+//! up `providerTimes[]`（ use ）> （）> `time`。
+//! is config****： no old by when ， has by when 。
+//! use up that 1 ， not 。
 //!
-//! ── 补签（第二轮）──────────────────────────────────────────
-//! 补签点逐家按 `max(retryTime, 主签到区间结束 + 等待间隔)` 算，且只处理当天未签到账号。
-//! 默认区间 00:01–00:10、间隔 10 分钟时，普通平台 00:20 补，Qoder 10:20、ZCode 19:20。
-//! 补签不会提前执行仍在等待随机主轮的账号，也不会把超出当天的时间绕回凌晨。
+//! ── （）──────────────────────────────────────────
+//! by `max(retryTime, to + etc )` ， and to 。
+//! default 00:01–00:10、 10 minutes when ， 00:20 ，Qoder 10:20、ZCode 19:20。
+//! not will before in etc ， not will when 。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use std::collections::BTreeMap;
 
@@ -34,7 +34,7 @@ use crate::server::core::auto_checkin::{normalize_time, today_at};
 use crate::server::core::beijing;
 use crate::server::core::checkin_schedules::Schedule;
 
-/// 补签不早于的缺省时刻；实际补签仍从各家区间结束后计算。
+/// not when ； from after 。
 pub const DEFAULT_RETRY_TIME: &str = "00:10";
 pub const DEFAULT_SPREAD_MINUTES: i64 = 9;
 
@@ -64,10 +64,10 @@ pub fn provider_window(schedule: &Schedule, provider: &str, now: DateTime<FixedO
         today_at(&effective_end(schedule, provider), now)?.timestamp_millis()))
 }
 
-/// 提供商专属的每日窗口时刻（北京时间，窗口开启后 1 分钟）。
+/// daily when （ when ， after 1 minutes）。
 ///
-/// 顺序即界面「专属时刻」一栏的展示顺序。**只登记有实测依据的窗口** ——
-/// 别按「大概那时候开」往这里加，加了就等于把某家的签到时刻悄悄挪走。
+/// 「 when 」 1 。** has ** ——
+/// by 「 that when 」 this ， etc to when 。
 pub const PROVIDER_TIMES: [(&str, &str); 4] = [
     ("qoder", "10:01"),
     ("qoder-intl", "10:01"),
@@ -75,7 +75,7 @@ pub const PROVIDER_TIMES: [(&str, &str); 4] = [
     ("zcode-intl", "19:01"),
 ];
 
-/// 某家的内置专属时刻（没有则 None = 跟随条目时刻）。
+/// when （ no has then None = when ）。
 pub fn provider_time(provider: &str) -> Option<&'static str> {
     PROVIDER_TIMES
         .iter()
@@ -83,7 +83,7 @@ pub fn provider_time(provider: &str) -> Option<&'static str> {
         .map(|(_, time)| *time)
 }
 
-/// 一家在某个条目里的**生效时刻**：条目覆盖 > 内置专属 > 条目自己的 time。
+/// 1 in ** when **： > > time。
 pub fn effective_time(schedule: &Schedule, provider: &str) -> String {
     schedule
         .provider_times
@@ -94,17 +94,17 @@ pub fn effective_time(schedule: &Schedule, provider: &str) -> String {
         .unwrap_or_else(|| schedule.time.clone())
 }
 
-/// 某家在 `date` 那天是否已经跑过主轮
+/// in `date` that is already 
 fn fired_on(map: &BTreeMap<String, String>, provider: &str, date: &str) -> bool {
     map.get(provider).is_some_and(|value| value == date)
 }
 
-/// 主轮是否已跑过（含**存量兼容**）。
+/// is already （****）。
 ///
-/// 逐家标记（`lastFiredProviders`）为空 = 升级前的旧条目：那时整条条目只有
-/// 一个 `lastFiredDate`，一旦是今天就代表「全跑过了」。这条兜底只影响升级当天
-/// （第二天起逐家标记就有了），但它必须存在 —— 否则升级那一刻会把当天已经签过
-/// 的家全部重签一遍。
+/// （`lastFiredProviders`） as empty = before old ： that when has 
+/// 1 `lastFiredDate`， 1 is 「」。 this 
+/// （ has ），must in —— otherwise that 1 will already 
+/// 1 。
 pub(crate) fn main_fired(schedule: &Schedule, provider: &str, today: &str) -> bool {
     if schedule.account_plan.date == today {
         return !schedule.account_plan.pending_for(provider);
@@ -115,11 +115,11 @@ pub(crate) fn main_fired(schedule: &Schedule, provider: &str, today: &str) -> bo
     schedule.last_fired_date.as_deref() == Some(today)
 }
 
-/// 今天的主轮该跑哪些家：时刻已到、今天还没跑过。
+/// this ： when already to 、 no 。
 ///
-/// 这是 `tick` 的判定核心 —— 条目不再有「一天只跑一次」的整体去重，改由
-/// **每家自己的日期标记**决定，于是同一条条目可以在 00:01 / 10:01 / 19:01
-/// 各跑一批。
+/// this is `tick` —— not has 「 1 1 」 ， by 
+/// ** **， is 1 can in 00:01 / 10:01 / 19:01
+/// 1 。
 pub fn due_providers(
     schedule: &Schedule,
     now: DateTime<FixedOffset>,
@@ -134,25 +134,25 @@ pub fn due_providers(
         .collect()
 }
 
-/// 某家的补签时刻：`max(配置的补签时刻, 该家主签到区间结束 + 等待间隔)`。
-/// 补签和活动窗口重试共用间隔；间隔为 0 时补签仍至少等 1 分钟，跨天则取消当天补签。
+/// when ：`max(config when , this to + etc )`。
+/// and use ； as 0 when etc 1 minutes， then 。
 pub fn provider_retry_time(schedule: &Schedule, provider: &str) -> Option<String> {
     if schedule.retry_time.is_empty() {
         return None;
     }
     let base = today_at_minutes(&schedule.retry_time)?;
     let main = today_at_minutes(&effective_end(schedule, provider))?;
-    // 间隔取重试间隔；它被配成 0（关掉重试）时仍给 1 分钟 —— 补签轮与「等窗口
-    // 重试」是两件事，关掉后者不该顺手把补签也关掉
+    // ； 0（） when to 1 minutes —— and 「 etc 
+    // 」 is ， after not this 
     let gap = schedule.retry_gap_minutes.max(1);
     let target = base.max(main + gap);
     (target < 1440).then(|| format_minutes(target))
 }
 
-/// 今天的补签轮该补哪些家：该家的补签时刻已到、今天还没补过。
+/// this ： this when already to 、 no 。
 ///
-/// 时刻由 [`provider_retry_time`] 算（已含「窗口没开不补」这层：补签点一定晚于
-/// 主轮时刻）。这里不再单独判窗口 —— 那会让两处口径分叉。
+/// when by [`provider_retry_time`] （ already 「 no not 」 this ： 1 
+/// when ）。 this not —— that will 。
 pub fn retry_due_providers(
     schedule: &Schedule,
     now: DateTime<FixedOffset>,
@@ -172,10 +172,10 @@ pub fn retry_due_providers(
         .collect()
 }
 
-/// 今天还没跑的家（**含还没到点的**）—— 给界面的「今天跑完了吗」用。
+/// no （** no to **）—— to 「」 use 。
 ///
-/// 与 [`due_providers`] 的差别只在「不看时刻」：那个是调度判据（到点才跑），
-/// 这个是状态判据（今天是否都跑过了）。条目整体完成 = 这个返回空。
+/// and [`due_providers`] in 「 not when 」： that is （ to ），
+/// this is （ is ）。 = this returnempty。
 pub fn pending_providers(schedule: &Schedule, today: &str) -> Vec<String> {
     schedule
         .providers
@@ -185,11 +185,11 @@ pub fn pending_providers(schedule: &Schedule, today: &str) -> Vec<String> {
         .collect()
 }
 
-/// 今天**该跑但还没跑**的家（时刻已过、标记还是空的）—— 界面「待执行」用。
+/// ** this no ** （ when already 、 is empty ）—— 「」 use 。
 ///
-/// 与 [`pending_providers`] 的区别很重要：早上 08:00 看一条 00:01 的条目，
-/// Qoder（10:01）还没到点，它**不是**「待执行」而是「等窗口」—— 混在一起会让
-/// 用户以为卡住了。
+/// and [`pending_providers`] need ： up 08:00 1 00:01 ，
+/// Qoder（10:01） no to ，** not is **「」 is 「 etc 」—— in 1 will 
+/// use as 。
 pub fn overdue_providers(
     schedule: &Schedule,
     now: DateTime<FixedOffset>,
@@ -198,10 +198,10 @@ pub fn overdue_providers(
     due_providers(schedule, now, today)
 }
 
-/// 条目里下一次还会发生的时刻（毫秒）—— 界面「下次执行」用。
+/// down 1 will when （ms）—— 「 down 」 use 。
 ///
-/// 主轮逐家算：今天还没跑且时刻未到 → 今天；已跑 / 时刻已过 → 明天。
-/// 补签轮单独算（见 [`retry_next_at`]）。两者取最早。
+/// ： no and when to → ； already / when already → 。
+/// （ [`retry_next_at`]）。。
 pub fn next_run_at(
     schedule: &Schedule,
     now: DateTime<FixedOffset>,
@@ -225,9 +225,9 @@ pub fn next_run_at(
     earliest
 }
 
-/// 补签轮的下一次时刻（毫秒）；补签关掉（`retryTime` 为空）给 None。
+/// down 1 when （ms）；（`retryTime` as empty） to None。
 ///
-/// 「还有得补」（某家今天没补过且窗口已过）→ 今天；否则顺延到明天。
+/// 「 has 」（ no and already ）→ ；otherwise to 。
 pub fn retry_next_at(
     schedule: &Schedule,
     now: DateTime<FixedOffset>,
@@ -236,7 +236,7 @@ pub fn retry_next_at(
     if schedule.retry_time.is_empty() {
         return None;
     }
-    // 逐家算补签点，取最近的那个「今天还没补过」的；都已补过就顺延到明天
+    // ， that 「 no 」 ； already to 
     let mut earliest: Option<i64> = None;
     for provider in &schedule.providers {
         if !crate::server::core::plugin_host::serves_provider(provider) { continue; }
@@ -249,7 +249,7 @@ pub fn retry_next_at(
         let pending = !fired_on(&schedule.last_retried_providers, provider, today);
         if pending && !main_fired(schedule, provider, today) && target <= now { continue; }
         let next = if pending {
-            // 已到点还没补（等下一个 tick）→ 就是现在
+            // already to no （ etc down 1 tick）→ is in 
             if target > now { target.timestamp_millis() } else { now.timestamp_millis() }
         } else {
             (target + chrono::Duration::days(1)).timestamp_millis()
@@ -259,25 +259,25 @@ pub fn retry_next_at(
     earliest
 }
 
-/// `HH:MM` → 当天零点起的分钟数（非法返回 None）
+/// `HH:MM` → minutes（return None）
 fn today_at_minutes(time_text: &str) -> Option<i64> {
     let normalized = normalize_time(Some(&serde_json::Value::String(time_text.to_string()))).ok()?;
     let (hour, minute) = normalized.split_once(':')?;
     Some(hour.parse::<i64>().ok()? * 60 + minute.parse::<i64>().ok()?)
 }
 
-/// 分钟数 → `HH:MM`（跨天时按 24 小时取模）
+/// minutes → `HH:MM`（ when by 24 when ）
 fn format_minutes(total: i64) -> String {
     let wrapped = total.rem_euclid(24 * 60);
     format!("{:02}:{:02}", wrapped / 60, wrapped % 60)
 }
 
-/// 今天的 HH:MM 是否已经过去（非法时刻按「没过去」处理 —— 宁可晚签不早撞）
+/// HH:MM is already （ when by 「 no 」 —— can not ）
 fn time_passed(time_text: &str, now: DateTime<FixedOffset>) -> bool {
     today_at(time_text, now).is_some_and(|target| now >= target)
 }
 
-/// 某个时刻的下一次出现：`fired`（今天已经跑过）或时刻已过 → 明天。
+/// when down 1 ：`fired`（ already ） or when already → 。
 fn next_occurrence(
     time_text: &str,
     fired: bool,
@@ -292,11 +292,11 @@ fn next_occurrence(
     Some(next.timestamp_millis())
 }
 
-/// 归一化条目里的 `providerTimes`（`{providerId: "HH:MM"}`）。
+/// 1 `providerTimes`（`{providerId: "HH:MM"}`）。
 ///
-/// 只认已知的签到提供商（`checkin_providers()`，含插件家）；空串表示「这一家
-/// 撤掉覆盖、回落到内置 / 条目时刻」，因此**保留**为空串而不是丢弃 —— 丢弃会
-/// 让「撤掉覆盖」变成「没改」，用户改不回去。
+/// already to （`checkin_providers()`，）；empty「 this 1 
+/// 、 to / when 」，**** as empty not is —— will 
+/// 「」「 no 」， use not 。
 pub fn normalize_overrides(value: Option<&serde_json::Value>) -> BTreeMap<String, String> {
     let Some(object) = value.and_then(serde_json::Value::as_object) else {
         return BTreeMap::new();
@@ -319,7 +319,7 @@ pub fn normalize_overrides(value: Option<&serde_json::Value>) -> BTreeMap<String
     map
 }
 
-/// 归一化 `retryTime`：缺失 → 缺省；空串 → 关闭（返回空串）；非法 → 缺省。
+/// 1 `retryTime`： → ；empty → （returnempty）； → 。
 pub fn normalize_retry_time(value: Option<&serde_json::Value>) -> String {
     match value {
         None => DEFAULT_RETRY_TIME.to_string(),
@@ -328,7 +328,7 @@ pub fn normalize_retry_time(value: Option<&serde_json::Value>) -> String {
     }
 }
 
-/// 北京时间 → 本模块要的偏移（与 `auto_checkin` 同一口径，仅便于调用方）
+/// when → need （ and `auto_checkin` 1 ，only use ）
 pub fn now() -> DateTime<FixedOffset> {
     beijing::now()
 }

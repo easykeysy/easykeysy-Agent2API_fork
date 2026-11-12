@@ -1,4 +1,4 @@
-//! 稳定上游会话由宿主按客户端凭证作用域隔离；落盘只存哈希与追踪 ID。
+//! up will by by client use ； and ID。
 
 use axum::http::HeaderMap;
 use serde_json::{json, Value};

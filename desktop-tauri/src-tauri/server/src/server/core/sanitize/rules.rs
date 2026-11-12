@@ -68,7 +68,7 @@ pub struct SanitizeRule {
     pub replacement: String,
     #[serde(default)]
     pub repeat: bool,
-    /// 空列表沿用旧规则的全字段行为；指定角色时只改对应消息的正文。
+    /// empty use old then as ； when for 。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<SanitizeRole>,
 }
@@ -140,7 +140,7 @@ impl RuleSet {
             }
             rule.roles.sort();
             rule.roles.dedup();
-            // 重复执行只允许删除，否则用户规则可能不断扩张文本而无法收敛。
+            // delete，otherwise use then can can not none。
             if rule.repeat && (rule.match_type != MatchType::Regex || !rule.replacement.is_empty())
             {
                 return Err(format!("{prefix}只有正则删除规则可以启用重复清理"));
@@ -223,7 +223,7 @@ fn default_entries() -> Vec<SanitizeRule> {
             roles: Vec::new(),
         })
         .collect();
-    // 键值删除必须先于裸键名改写；cc_ 删除重复执行以清理新暴露的相邻边界。
+    // deletemust；cc_ delete new 。
     for (id, name, pattern, replacement, repeat) in [
         (
             "billing-header-value",
@@ -258,9 +258,9 @@ fn default_entries() -> Vec<SanitizeRule> {
             roles: Vec::new(),
         });
     }
-    // 身份句与 DSH 提示词指纹：上游按「连续文本」逐字匹配（不是语义审核），
-    // 所以每条都只做**最小改写**，够让指纹失配即可，原文其余部分逐字保留 ——
-    // 客户端自带的项目规范、工具说明不能因为清洗提示词而失真。
+    // and DSH ： up by 「」（ not is ），
+    // ****， can ， its ——
+    // client 、 not can as 。
     for (id, name, pattern, replacement) in [
         (
             "agent-identity",

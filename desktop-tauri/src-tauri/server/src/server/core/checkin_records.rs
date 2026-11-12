@@ -1,37 +1,37 @@
-//! 签到记录的**每账号明细台账**（`checkin_records` 表，schema v11）。
+//! to ****（`checkin_records` ，schema v11）。
 //!
-//! ── 解决什么问题 ────────────────────────────────────────────
-//! 改造前「签到到底领到了什么」只有两个落点：config.json 的 `lastResult`
-//! （一条聚合快照，下一轮就覆盖）与运行日志（文本、翻页即逝）。签到中心的
-//! 「签到记录」页要的是**可翻阅的明细**：哪个账号、哪天、什么来源触发、
-//! 领成功还是没领、失败错误是什么、领了多少（收益文案）—— 这张表就是那个落点。
+//! ── ────────────────────────────────────────────
+//! before 「 to to to 」 has ：config.json `lastResult`
+//! （ 1 ， down 1 ） and （、）。 to in 
+//! 「 to 」 need is ** can **： 、、、
+//! success is no 、failureerror is 、（）—— this is that 。
 //!
-//! ── 来源（source）的字面集合 ─────────────────────────────────
-//! `schedule` 定时条目轮次 / `makeup` 定时补签轮 / `startup` 启动补签 /
-//! `manual` 手动批量与条目立即执行 / `single` 单账号签到 / `activity`
-//! 国际版活动的手动领取与保活。前五种都从 `run_checkin` 的唯一记账点进来
-//! （`source` 参数原样透传），`activity` 从 `api::billing::run_activity`
-//! 进来（那条路径不走 run_checkin，但行的形状同构，见 `record_activity`）。
+//! ── （source） ─────────────────────────────────
+//! `schedule` when / `makeup` when / `startup` /
+//! `manual` and / `single` to / `activity`
+//! and 。 before from `run_checkin` 1 
+//! （`source` parameter），`activity` from `api::billing::run_activity`
+//! （ that path not run_checkin， ， `record_activity`）。
 //!
-//! 记录页的「签到类型」筛选把来源归成三档（见 [`Query::clause`]）：手动 =
-//! `manual` / `single` / `activity`，定时 = `schedule`，定时补签 = `makeup` /
-//! `startup`；`makeup` 这一档上线前的历史补签行没有独立来源，按 reason 的
-//! 「补签」前缀归入同一档（见那里的说明）。
+//! 「 to 」 （ [`Query::clause`]）： =
+//! `manual` / `single` / `activity`， when = `schedule`， when = `makeup` /
+//! `startup`；`makeup` this 1 up before no has ， by reason 
+//! 「」 before 1 （ that ）。
 //!
-//! ── 结果判据只此一份 ────────────────────────────────────────
-//! outcome 的判定复用签到执行体的同一对函数
+//! ── 1 ────────────────────────────────────────
+//! outcome use to 1 for 
 //! （`billing::checkin::{checkin_completed_today, claim_pending}`）——
-//! 「今天已完成」「等窗口重试」的口径在台账与调度（`auto_checkin::tick`）
-//! 之间必须一致，各写一份迟早分叉。
+//! 「 already 」「 etc 」 in and （`auto_checkin::tick`）
+//! must 1 ， 1 。
 //!
-//! ── 写失败不报错 ────────────────────────────────────────────
-//! 记账点在签到响应路径上，上游积分已经领到 —— 台账缺一条不该让那次签到
-//! 报错（与 `run_checkin` 里 `mark_checkin` 的取舍同构）。失败打一行
-//! **verbose** 日志就完。
+//! ── failure not ────────────────────────────────────────────
+//! in to responsepath up ， up already to —— 1 not this that to 
+//! （ and `run_checkin` `mark_checkin` ）。failure 1 
+//! **verbose** 。
 //!
-//! ── 硬约束：持锁（连接锁）期间不打日志 ──────────────────────
-//! 与 `core::usage_records` 同一条：`Db::with*` 拿的是全局唯一的连接锁，
-//! `logging::log` 要往同一个库写 `logs` 表 —— 闭包里打日志会当场死锁。
+//! ── ：（） not ──────────────────────
+//! and `core::usage_records` 1 ：`Db::with*` is 1 ，
+//! `logging::log` need 1 `logs` —— will 。
 
 use std::sync::OnceLock;
 
@@ -47,7 +47,7 @@ use crate::server::logging;
 
 static DB: OnceLock<Option<Db>> = OnceLock::new();
 
-/// 结果档位（`outcome` 列的字面集合）
+/// （`outcome` ）
 pub const OUTCOME_SUCCESS: &str = "success";
 pub const OUTCOME_ALREADY: &str = "already";
 pub const OUTCOME_PENDING: &str = "pending";
@@ -62,14 +62,14 @@ fn database() -> Option<&'static Db> {
     DB.get().and_then(Option::as_ref)
 }
 
-// ─── 记账 ────────────────────────────────────────────────────
+// ─── ────────────────────────────────────────────────────
 
-/// 台账的「保活」标记：桌面端保活对话（`pokeSucceeded`）或网页会话任一建成
-/// 即算 —— 两者互补（网页会话点亮「当日活跃」计数，桌面端对话维持「账号有
-/// 调用」），落同一格 `kept_active`，不另开列。
+/// 「」： for （`pokeSucceeded`） or will 1 
+/// —— （ will 「」， for 「 has 
+/// use 」）， 1 `kept_active`， not 。
 ///
-/// `activity_report_ok` / `web_conversation_ok` 的实现在 `billing::checkin`
-/// （与落账判据 `day_completed` 同源，见那里的说明），本模块只消费。
+/// `activity_report_ok` / `web_conversation_ok` in `billing::checkin`
+/// （ and `day_completed` ， that ），。
 fn kept_active_of(row: &Value) -> bool {
     row.get("activity")
         .and_then(|activity| activity.get("pokeSucceeded"))
@@ -78,22 +78,22 @@ fn kept_active_of(row: &Value) -> bool {
         || web_conversation_ok(row)
 }
 
-/// 签到结果行的记账（`run_checkin` 的每账号行，`{id, name, claim, activity?,
-/// error}` 形状）。`provider` 由调用方从账号记录带上（结果行里没有这个字段，
-/// 账号页的过滤列要用它）。
+/// to （`run_checkin` ，`{id, name, claim, activity?,
+/// error}` ）。`provider` by use from up （ no has this ，
+/// need use ）。
 ///
-/// outcome 判定（只此一份，见模块头）：
-///   - 行的 `error` 非空 → **failed**（执行出错：网络 / 凭证 / 未接入）；
-///   - claim 判「今日已完成」→ success（真领到）或 already（上游说已领过）；
-///   - 领取需要人机验证 → **captcha**（不是暂无活动，也不表示已完成）；
-///   - claim 判「中性未领取」→ **pending**（此刻没有可领的活动，等窗口）；
-///   - 国际版每日活跃「活动未开启但活跃上报成功（或网页会话建成）」→
-///     **already** —— 活动没开是上游运营态（谁也领不到），而活跃链路已把
-///     这一天记成活跃（连登点亮 / 网页会话计活跃），积分由上游异步发放；
-///     记 failed 会把每天的正常轮次刷成一片红（改造前的实况）。判据与落账
-///     的 `billing::checkin::day_completed` 同源。
-///   - 其余 → **failed**，错误原文取行的 `error`，缺了取 claim 的 `msg`
-///     （claim.success=false 且带文案的失败，如「登录态已过期」）。
+/// outcome （ 1 ，module header）：
+/// - `error` empty → **failed**（： / / ）；
+/// - claim 「 already 」→ success（ to ） or already（ up already ）；
+/// - need need → **captcha**（ not is none， not already ）；
+/// - claim 「 in 」→ **pending**（ no has can ， etc ）；
+/// - daily「 up success（ or will ）」→
+/// **already** —— no is up （ not to ）， already 
+/// this 1 （ / will ）， by up ；
+/// failed will 1 （ before ）。 and 
+/// `billing::checkin::day_completed` 。
+/// - its → **failed**，error `error`， claim `msg`
+/// （claim.success=false and failure，「expired」）。
 pub fn record_row(row: &Value, provider: &str, source: &str, reason: &str) {
     let claim = row.get("claim").cloned().unwrap_or(Value::Null);
     let row_error = row
@@ -117,9 +117,9 @@ pub fn record_row(row: &Value, provider: &str, source: &str, reason: &str) {
     } else if claim_pending(&claim) {
         (OUTCOME_PENDING, None)
     } else {
-        // 失败且行上没有 error：失败文案在 claim.msg 里（claim_result 的
-        // Err 分支已经把 message 放进行 error，这里兜的是直接给出
-        // success=false claim 的实现，如 workbuddy-intl）
+        // failure and up no has error：failure in claim.msg （claim_result 
+        // Err already message error， this is to 
+        // success=false claim ， workbuddy-intl）
         let message = claim
             .get("msg")
             .and_then(Value::as_str)
@@ -146,15 +146,15 @@ pub fn record_row(row: &Value, provider: &str, source: &str, reason: &str) {
     });
 }
 
-/// 国际版活动的手动领取 / 保活（`api::billing::run_activity` 的返回行，
+/// / （`api::billing::run_activity` return，
 /// `{id, name, mode, claim, activity}`）。
 ///
-/// 判定按 mode 分两条：`keepalive` 看「上报 / 保活对话 / 网页会话」任一成功
-/// —— 它的 claim 是 `{success:false, msg:"活跃保活完成"}` 的形态，走 claim
-/// 判据会被误判成 failed，而这一颗按钮的本意就是「维持账号活跃」，三件事
-/// 任一做成即算数；`full` / `claim` 与签到同判据（claim），
-/// 「活动未开启但活跃上报成功（或网页会话建成）」按 `record_row` 同款落到 already。
-/// reason 用人话（界面的「来源/说明」列直接展示）。
+/// by mode ：`keepalive` 「 up / for / will 」 1 success
+/// —— claim is `{success:false, msg:""}` ， claim
+/// will failed， this 1 by is 「」，
+/// 1 ；`full` / `claim` and to （claim），
+/// 「 up success（ or will ）」 by `record_row` to already。
+/// reason use （ 「/」）。
 pub fn record_activity(row: &Value, provider: &str, mode: &str) {
     let reason = match mode {
         "keepalive" => "手动保活",
@@ -221,7 +221,7 @@ pub fn record_activity(row: &Value, provider: &str, mode: &str) {
     });
 }
 
-/// 一行明细的落库形态（`insert` 的入参；字段与表列一一对应）
+/// 1 （`insert` ； and 1 1 for ）
 struct Entry<'a> {
     account_id: String,
     account_name: String,
@@ -235,13 +235,13 @@ struct Entry<'a> {
     kept_active: bool,
 }
 
-/// 落一行台账（一次事务）。失败打 verbose，不向上报
-/// （见模块头「写失败不报错」）。
+/// 1 （ 1 ）。failure verbose， not to up 
+/// （module header「failure not 」）。
 ///
-/// 台账**全量保留**：不按天数裁、也没有条数上限（与请求日志同一取向）——
-/// 要清历史用签到记录页自己的「清空 / 按筛选删除」（`clear_all` /
-/// `clear_where`）。这里原本会顺带按「请求日志保留天数」裁超期行，
-/// 那套保留期已随请求日志一起移除。
+/// ****： not by 、 no has limit（ and request 1 to ）——
+/// need use to 「empty / by delete」（`clear_all` /
+/// `clear_where`）。 this will by 「request」，
+/// that already request 1 。
 fn insert(entry: Entry<'_>) {
     let Some(db) = database() else { return };
     let ts = logging::now_ms();
@@ -277,7 +277,7 @@ fn insert(entry: Entry<'_>) {
     }
 }
 
-/// 结果行的字符串字段读取（非字符串给缺省）
+/// （ to ）
 fn text_or(value: Option<&Value>, fallback: &str) -> String {
     value
         .and_then(Value::as_str)
@@ -286,13 +286,13 @@ fn text_or(value: Option<&Value>, fallback: &str) -> String {
         .to_string()
 }
 
-// ─── 查询与删除 ──────────────────────────────────────────────
+// ─── and delete ──────────────────────────────────────────────
 
-/// 查询条件（GET 的查询串与 DELETE 的护栏共用一套字段）
+/// （GET and DELETE use 1 ）
 #[derive(Clone, Debug, Default)]
 pub struct Query {
     pub outcome: Option<String>,
-    /// 签到类型三档：`manual` / `schedule` / `makeup`（空 = 全部）
+    /// to ：`manual` / `schedule` / `makeup`（empty = ）
     pub kind: Option<String>,
     pub provider: Option<String>,
     pub keyword: Option<String>,
@@ -301,7 +301,7 @@ pub struct Query {
 }
 
 impl Query {
-    /// 是否带了任一筛选条件（DELETE 的护栏判据：一个都没带 = 全清）
+    /// is 1 （DELETE ： 1 no = ）
     pub fn has_filters(&self) -> bool {
         self.outcome.as_deref().is_some_and(|text| !text.is_empty())
             || self.kind.as_deref().is_some_and(|text| !text.is_empty())
@@ -311,7 +311,7 @@ impl Query {
             || self.end.is_some()
     }
 
-    /// 拼 WHERE 子句与参数（查询与删除共用同一份过滤链 —— 「筛出什么就删什么」）
+    /// WHERE and parameter（ and delete use 1 —— 「」）
     fn clause(&self) -> (String, Vec<Value>) {
         let mut conditions: Vec<String> = Vec::new();
         let mut params_json: Vec<Value> = Vec::new();
@@ -320,18 +320,18 @@ impl Query {
             params_json.push(json!(outcome));
         }
         match self.kind.as_deref().map(str::trim).filter(|text| !text.is_empty()) {
-            // 手动签到：手动批量 / 条目立即执行、单账号签到、国际版活动的手动
-            // 领取与保活 —— 三者都是人在面板上点的
+            // to ： / 、 to 、 
+            // and —— is in up 
             Some("manual") => conditions.push("source IN ('manual', 'single', 'activity')".to_string()),
-            // 定时签到：定时条目主轮与窗口重试。补签行在 `makeup` 来源上线
-            // 之前也记成 schedule，按 reason 的「补签」前缀排除掉（那条轮次
-            // 的 reason 固定是「补签（条目名）」）；上线之后的新行不会命中
-            // 这条兜底
+            // when to ： when and 。 in `makeup` up 
+            // before schedule， by reason 「」 before excluding（ that 
+            // reason is 「（）」）； up after new not will in 
+            // this 
             Some("schedule") => conditions.push(
                 "source = 'schedule' AND reason NOT LIKE '补签%'".to_string(),
             ),
-            // 定时补签：补签轮（`makeup`）与旧的启动补签（`startup`），外加
-            // 按旧口径记成 schedule 的历史补签行
+            // when ：（`makeup`） and old （`startup`），
+            // by old schedule 
             Some("makeup") => conditions.push(
                 "(source IN ('makeup', 'startup')
                   OR (source = 'schedule' AND reason LIKE '补签%'))"
@@ -344,7 +344,7 @@ impl Query {
             params_json.push(json!(provider));
         }
         if let Some(keyword) = self.keyword.as_deref().filter(|text| !text.is_empty()) {
-            // 关键词扫账号名 / 收益文案 / 错误原文 / 触发原因四个可读字段
+            // / / error / Reason can 
             let pattern = format!("%{}%", keyword.replace('%', "\\%").replace('_', "\\_"));
             conditions.push(
                 "(account_name LIKE ? ESCAPE '\\'
@@ -373,9 +373,9 @@ impl Query {
     }
 }
 
-/// 查询一页明细（`offset` 真分页，`limit` 缺省 200、上限 1000）。
-/// 响应形状 `{records: [...], total}`：total 是**同条件**的总数（分页器用），
-/// records 按时间倒序（新的在前）。库不可用给空表（界面显示空态，不报错）。
+/// 1 （`offset` ，`limit` 200、limit 1000）。
+/// response `{records: [...], total}`：total is **** total（ use ），
+/// records by when （ new in before ）。unavailable to empty（empty， not ）。
 pub fn query(query: &Query, limit: usize, offset: usize) -> Value {
     let limit = limit.clamp(1, 1000);
     let Some(db) = database() else {
@@ -412,10 +412,10 @@ pub fn query(query: &Query, limit: usize, offset: usize) -> Value {
                         "reason": row.get::<_, String>("reason")?,
                         "accountId": row.get::<_, String>("account_id")?,
                         "accountName": row.get::<_, String>("account_name")?,
-                        // 存的是 provider id，读出来换成展示名（`qoder-intl`
-                        // → 「Qoder 国际版」）：界面上直接展示这一列，而 id
-                        // 只有开发者认得出。历史记录同样受益 —— 转换在读侧做，
-                        // 不改库（改库要迁移，且旧行本来也只需换名字）。
+                        // is provider id，（`qoder-intl`
+                        // → 「Qoder 」）： up this 1 ， id
+                        // has 。 —— in ，
+                        // not （ need ， and old need ）。
                         "provider": crate::server::core::providers::label_of(
                             &row.get::<_, String>("provider")?
                         ),
@@ -436,9 +436,9 @@ pub fn query(query: &Query, limit: usize, offset: usize) -> Value {
     loaded
 }
 
-/// 按筛选条件删除（「清空筛选结果」）；无筛选条件的调用**必须**由 API 层
-/// 先过显式 `all=1` 护栏（照抄 logs 的规则，理由见 api::checkin_records）。
-/// 返回删除条数；库不可用给 None（API 层给 500 信封）。
+/// by delete（「empty」）；none use **must** by API 
+/// `all=1` （ logs then ， by api::checkin_records）。
+/// returndelete；unavailable to None（API to 500 ）。
 pub fn clear_where(query: &Query) -> Option<usize> {
     let db = database()?;
     let (where_clause, filter_params) = query.clause();
@@ -453,13 +453,13 @@ pub fn clear_where(query: &Query) -> Option<usize> {
     .flatten()
 }
 
-/// 清空全部（API 层护栏已过）。返回删除条数。
+/// empty（API already ）。returndelete。
 pub fn clear_all() -> Option<usize> {
     let db = database()?;
     db.with_mut(|conn| conn.execute("DELETE FROM checkin_records", []).ok()).flatten()
 }
 
-/// rusqlite 的参数都是 ToSql：这里统一转文本（数字 / 字符串都安全）
+/// rusqlite parameter is ToSql： this 1 （ / ）
 fn value_to_text(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),

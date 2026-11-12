@@ -1,9 +1,9 @@
 /**
- * 网络搜索 REST API 的接口文档（Markdown）生成器。
+ * REST API （Markdown）。
  *
- * 详情页用 `HtmlContent`/`pre` 渲染并支持整份复制；文档刻意不使用 Markdown 表格
- * （项目未启用 GFM），参数与错误码用列表表达。文案只有中文与英文两套：这两种
- * 之外的语言回落英文（与 OmniProxy 的接口文档同一取向）。
+ * use `HtmlContent`/`pre` and supports； not use Markdown 
+ * （enabled GFM），parameter and error use 。 has in and ： this 
+ * （ and OmniProxy 1 to ）。
  */
 
 const SEARCH_PATH = '/api/web-search/search'
@@ -274,7 +274,7 @@ function build(baseUrl: string, texts: DocTexts): string {
   ].join('\n')
 }
 
-/** UI 语言 → 文档语言（中文走中文，其余走英文） */
+/** UI → （ in in ， its ） */
 export function buildWebSearchApiDoc(locale: string, baseUrl: string): string {
   const base = baseUrl.replace(/\/+$/, '')
   return build(base, locale.startsWith('zh') ? ZH : EN)

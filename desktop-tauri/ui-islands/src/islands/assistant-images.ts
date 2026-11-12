@@ -1,23 +1,23 @@
 /**
- * 助手页的图片处理：文件 → data URL，并按需降采样。
+ * ：file → data URL， and by need 。
  *
- * ── 为什么是 data URL 而不是 blob URL ───────────────────────
- * 会话要落库（`/api/assistant/sessions` 存的是消息 JSON），blob URL 只在本页
- * 生命周期内有效，重开历史就全裂了；base64 虽然让这份 JSON 变大，但它是唯一
- * 「关掉再打开还在」的形态，而上游的 `image_url` 也正好收 data URI（协议层的
- * 三家适配器都按这个解析）。
+ * ── Why is data URL not is blob URL ───────────────────────
+ * will need （`/api/assistant/sessions` is JSON），blob URL in 
+ * valid，；base64 this JSON ， is 1 
+ * 「 in 」 ， up `image_url` data URI（ 
+ * by this ）。
  *
- * ── 为什么要降采样 ──────────────────────────────────────────
- * 截图动辄 2560 宽，原图 base64 进消息会把会话 JSON 撑到几 MB（后端单条会话
- * 上限 8 MB），表现为「对话还在屏幕上，但没进历史」。上游真正需要的细节远不到
- * 那个分辨率，所以按长边缩到 [`MAX_IMAGE_EDGE`]、再按需转 WebP。
+ * ── Why need ──────────────────────────────────────────
+ * 2560 ， base64 will will JSON to MB（ after will 
+ * limit 8 MB）， as 「 for in up ， no 」。 up need need not to 
+ * that ， by to [`MAX_IMAGE_EDGE`]、 by need WebP。
  */
 
 import { t } from '../i18n'
 
-/** 图片长边上限（像素）。超过就等比缩小 */
+/** limit（）。 etc */
 export const MAX_IMAGE_EDGE = 1600
-/** data URL 的字符数上限（≈ 0.9 MB 二进制）：超过就重编码一次 */
+/** data URL limit（≈ 0.9 MB ）： 1 */
 export const MAX_IMAGE_CHARS = 1_200_000
 
 export function readAsDataUrl(file: File): Promise<string> {
@@ -39,11 +39,11 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * 读图并**按需降采样**。
+ * and ** by need **。
  *
- * GIF 不重编码（canvas 只会留下第一帧，动画就丢了）；其余格式统一按长边
- * 缩到 [`MAX_IMAGE_EDGE`]，体积仍超 [`MAX_IMAGE_CHARS`] 时转 WebP ——
- * 两者取字符数更小的那一份，不盲目用重编码结果。
+ * GIF not （canvas will down 1 ，）； its 1 by 
+ * to [`MAX_IMAGE_EDGE`]， [`MAX_IMAGE_CHARS`] when WebP ——
+ * that 1 ， not use 。
  */
 export async function prepareImage(file: File): Promise<string> {
   const raw = await readAsDataUrl(file)

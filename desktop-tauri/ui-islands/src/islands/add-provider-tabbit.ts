@@ -2,19 +2,19 @@ import type { ProviderConfig } from './add-account-configs'
 import { t } from '../i18n'
 
 /**
- * Tabbit 浏览器（国内站 web.tabbit.com）。
+ * Tabbit （ web.tabbit.com）。
  *
- * ── 为什么归 Web 段而不是 Agent 段 ──────────────────────────
- * 它的「客户端」是一个 Chromium 浏览器，登录态是网页 Cookie 里的 JWT；
- * 上游是网页对话产品，没有原生工具调用。与智谱清言 / DeepSeek 网页同一形态。
+ * ── Why Web not is Agent ──────────────────────────
+ * 「client」 is 1 Chromium ， is Cookie JWT；
+ * up is for ， no has use 。 and / DeepSeek 1 。
  *
- * ── 添加账号为什么不提供「网页登录」──────────────────────────
- * 国际站的 Google OAuth 只把授权结果投递给它自己登记的 redirect_uri，网关
- * 接不到；国内站的手机号登录在灰度里。所以两个站点都走「粘贴已有登录态」。
+ * ── Why not 「」──────────────────────────
+ * Google OAuth to redirect_uri，
+ * not to ； in 。 「 already has 」。
  *
- * ── 为什么有两家 ────────────────────────────────────────────
- * 两站签名 key 不同、账号不通用、登录方式也不同（国内站有手机号登录），
- * 按仓库的「两套账号就拆家」规则拆成 `tabbit` / `tabbit-intl`。
+ * ── Why has ────────────────────────────────────────────
+ * key not 、 not use 、 not （ has ），
+ * by 「」 then `tabbit` / `tabbit-intl`。
  */
 export const TABBIT: ProviderConfig = {
   provider: 'tabbit',
@@ -66,10 +66,10 @@ export const TABBIT: ProviderConfig = {
 }
 
 /**
- * Tabbit 浏览器（国际站 web.tabbit.ai）。
+ * Tabbit （ web.tabbit.ai）。
  *
- * 国际站只能用「已有登录态」导入：Google 授权回调回不到网关，手机号登录
- * 在上游灰度里被 403 拒绝（参考实现实测）。所以这里没有网页登录入口。
+ * can use 「 already has 」：Google not to ，
+ * in up 403 （）。 this no has 。
  */
 export const TABBIT_INTL: ProviderConfig = {
   provider: 'tabbit-intl',

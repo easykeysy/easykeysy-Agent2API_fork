@@ -1,5 +1,5 @@
-//! 整库备份的桌面路径接口与网页流式下载/上传接口。
-//! 密码只经请求体传递；所有入口共享同一份加密包与恢复实现。
+//! path and down / up 。
+//! request；all 1 and 。
 
 use axum::body::{Body, Bytes};
 use axum::extract::{FromRequest, Multipart, State};
@@ -154,7 +154,7 @@ pub async fn download_backup(State(state): State<ServerState>, body: Bytes) -> R
         return errors::management_error(500, format!("读取备份传输文件失败: {error}"));
     }
     let reader = tokio::fs::File::from_std(reader);
-    // 响应流持有临时文件；客户端断开时也释放，不留下携带密钥的备份副本。
+    // response has when file；client when ， not down 。
     let stream = ReaderStream::new(reader).map(move |chunk| {
         let _keep = &file;
         chunk

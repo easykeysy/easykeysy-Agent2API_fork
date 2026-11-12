@@ -30,7 +30,7 @@ function packSizeLimitMessage(maxPackBytes: number): string {
 async function readPackBase64(file: File, maxPackBytes: number): Promise<string> {
   if (file.size > maxPackBytes) throw new Error(packSizeLimitMessage(maxPackBytes))
   const packB64 = await readBase64(file)
-  // FileReader 输出 ASCII base64；仅上传 packB64，JSON 开销远小于服务端预留的 1 MiB。
+  // FileReader ASCII base64；only up packB64，JSON server 1 MiB。
   if (packB64.length > Math.ceil(maxPackBytes / 3) * 4) {
     throw new Error(packSizeLimitMessage(maxPackBytes))
   }

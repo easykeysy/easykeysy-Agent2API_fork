@@ -6,7 +6,7 @@ export type {
 } from '../../../ui-shared/checkin'
 export { CHECKIN_SECTION_OPTIONS, modesOf } from '../../../ui-shared/checkin'
 
-/** 档位 → 按钮文案（`checkin` 是兜底档，不是插件申报值） */
+/** → by （`checkin` is ， not is ） */
 export const MODE_LABEL: Record<string, string> = {
   checkin: '签到',
   keepalive: '保活',
@@ -14,7 +14,7 @@ export const MODE_LABEL: Record<string, string> = {
   full: '保活 + 领取',
 }
 
-/** 档位 → 悬停说明 */
+/** → */
 export const MODE_TITLE: Record<string, string> = {
   checkin: '走这一家的每日签到接口',
   keepalive: '用免费模型与网页会话维持账号活跃 · 不领取奖励',
@@ -22,7 +22,7 @@ export const MODE_TITLE: Record<string, string> = {
   full: '保活并领取奖励',
 }
 
-/** 签到来源 → 展示名 */
+/** to → */
 export const SOURCE_LABEL: Record<string, string> = {
   schedule: '定时',
   makeup: '补签',
@@ -32,7 +32,7 @@ export const SOURCE_LABEL: Record<string, string> = {
   activity: '活动',
 }
 
-/** 结果 → 展示名与色调 */
+/** → and */
 export const OUTCOME_VIEW: Record<string, { label: string; variant: 'success' | 'brand' | 'warning' | 'destructive' | 'outline' }> = {
   success: { label: '成功领取', variant: 'success' },
   already: { label: '今日已领', variant: 'brand' },
@@ -41,7 +41,7 @@ export const OUTCOME_VIEW: Record<string, { label: string; variant: 'success' | 
   failed: { label: '失败', variant: 'destructive' },
 }
 
-/** 毫秒时间戳 → 本地可读时间；缺失 / 非法给 `—` */
+/** ms when → can when ； / to `—` */
 export function formatTime(value: unknown): string {
   const stamp = Number(value)
   if (!Number.isFinite(stamp) || stamp <= 0) return '—'
@@ -50,7 +50,7 @@ export function formatTime(value: unknown): string {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
-/** 毫秒 → `HH:MM`（只关心当天时刻的场合） */
+/** ms → `HH:MM`（ when ） */
 export function formatClock(value: unknown): string {
   const stamp = Number(value)
   if (!Number.isFinite(stamp) || stamp <= 0) return ''
@@ -60,7 +60,7 @@ export function formatClock(value: unknown): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-/** 毫秒 → `MM-DD HH:MM`（记录表的时间列） */
+/** ms → `MM-DD HH:MM`（ when ） */
 export function formatShort(value: unknown): string {
   const stamp = Number(value)
   if (!Number.isFinite(stamp) || stamp <= 0) return '—'

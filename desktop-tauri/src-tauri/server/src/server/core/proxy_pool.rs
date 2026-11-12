@@ -1,6 +1,6 @@
-//! 命名代理池：手动地址与 Clash Verge 端点按 `{source:'pool', proxyId}` 引用。
-//! 条目与最近一次测试结果存于 kv 的 `proxyPool` 保留键。
-//! 旧订阅镜像只保留原始记录，不再列出、解析或参与轮询。
+//! ： and Clash Verge by `{source:'pool', proxyId}` use 。
+//! and 1 kv `proxyPool` 。
+//! old ， not 、 or and 。
 
 use std::sync::OnceLock;
 
@@ -142,7 +142,7 @@ fn normalize_item(input: &Value, existing: Option<&Value>) -> Result<Value, Stri
         .and_then(|item| item.get("createdAt"))
         .and_then(Value::as_i64)
         .unwrap_or(now);
-    // 测试结果保留为历史事实，时刻由界面显示，不参与实际选路。
+    // as ， when by ， not and 。
     let last_test = existing
         .and_then(|item| item.get("lastTest"))
         .cloned()
@@ -417,7 +417,7 @@ pub fn sync_clash(force: bool) -> ClashSyncReport {
             changes += 1;
         }
     }
-    // 只对成功读取的 Clash 集合做镜像对账，其他来源的历史记录不受影响。
+    // for success Clash for ， its not 。
     let before = items.len();
     let mut seen = std::collections::HashSet::new();
     items.retain(|item| {

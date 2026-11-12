@@ -89,7 +89,7 @@ pub fn read(account: &Value, condition: &Condition, facts: &sources::Facts, coun
 
 pub fn state(account: &Value, group: &Group, facts: &sources::Facts, counts: &counter::Facts, now: i64) -> GroupState {
     let readings: Vec<Reading> = group.conditions.iter().map(|condition| read(account, condition, facts, counts, now)).collect();
-    // 与优先于或，只有成立的合取分支才能贡献拦截范围。
+    // and or ， has can 。
     let mut branches: Vec<Vec<usize>> = Vec::new();
     for (index, condition) in group.conditions.iter().enumerate() {
         if index == 0 || condition.join == Join::Or { branches.push(Vec::new()); }

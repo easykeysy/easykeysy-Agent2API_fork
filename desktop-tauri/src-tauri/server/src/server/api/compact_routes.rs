@@ -1,4 +1,4 @@
-//! 模型页的压缩路由设置。客户端身份与上游提供商是两个独立维度。
+//! by set。client and up is 。
 
 use axum::{body::Bytes, extract::State, response::Response};
 use serde::Deserialize;
@@ -55,7 +55,7 @@ fn validate_models(state: &ServerState, settings: &CompactRoutes) -> Result<(), 
         if !available(&rule.source) && existing.is_none() {
             return Err(GatewayError::bad_request(format!("来源模型「{}」当前不可用，请刷新模型列表后重试", rule.source)));
         }
-        // 已失效的旧规则允许保留、关闭或删除，但不能把失效目标当作新选择或重新启用。
+        // already old then 、 or delete， not can new or new enabled。
         let preserve_unavailable = existing.is_some_and(|old|
             compact_routes::model_key(&old.target) == compact_routes::model_key(&rule.target)
                 && (!settings.enabled || !rule.enabled || (old.enabled && previous.is_some_and(|config| config.enabled))));

@@ -1,4 +1,4 @@
-//! 只恢复本次声明的工具；必须等正常终止帧，才能排除后续真实工具调用和截断。
+//! ；must etc ， can excluding after use and 。
 
 use std::collections::HashSet;
 

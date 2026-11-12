@@ -1,31 +1,31 @@
 /**
- * AI 助手页（侧边栏「智能」组的那个一级菜单）。
+ * AI （「 can 」 that 1 ）。
  *
- * ── 一句话结构 ──────────────────────────────────────────────
- * 左列会话历史 + 右列对话（标题栏 / 消息流 / 输入区）+ 右上角设置抽屉。
- * 助手每轮的回答来自 `POST /api/assistant/chat`（SSE，见 assistant-state），
- * 工具的执行与「确认卡」全在这一层（见 assistant-tools 的模块头）。
+ * ── 1 ──────────────────────────────────────────────
+ * will + for （ / / ）+ up set。
+ * `POST /api/assistant/chat`（SSE， assistant-state），
+ * and 「」 in this 1 （ assistant-tools module header）。
  *
- * ── agent loop 的形状（本文件里最要紧的一段）────────────────
- * 一轮 = 一次上游调用。上游回的 `tool_calls` 按**顺序逐个处理**：
- *   · 只读工具 → 立即执行，结果攒着，继续下一个；
- *   · 改动 / 消耗类 → 按权限模式分岔：
- *       `confirm` 停下来渲染确认卡（`suspendedRef`），等用户点「执行」或「取消」；
- *       `full`    **直接执行**，卡片标成「已自动执行」留在对话里；
- *     然后从下一个继续（`pump` 的续跑）；
- *   · 全部处理完 → 把攒下的结果作为 `role:"tool"` 消息回灌，再开下一轮。
- * 循环上限 `MAX_ROUNDS` 是硬保险：模型陷进「反复调工具」时用户不该看着它
- * 无限烧额度。
+ * ── agent loop （file need 1 ）────────────────
+ * 1 = 1 up use 。 up `tool_calls` by ** **：
+ * · → ，， down 1 ；
+ * · / → by ：
+ * `confirm` down （`suspendedRef`）， etc use 「」 or 「」；
+ * `full` ****，「 already 」 in for ；
+ * after from down 1 （`pump` ）；
+ * · → down as `role:"tool"` ， down 1 。
+ * limit `MAX_ROUNDS` is ：「」 when use not this 
+ * none。
  *
- * ── 状态为什么用 ref + setState 双份 ─────────────────────────
- * 流式回调与异步续跑都是**闭包**，拿不到 setState 之后的新值；所以权威副本
- * 放在 `uiRef` / `wireRef` 两个 ref 里（UI 消息 / 上游协议消息），改完调
- * `syncUI()` 把 ref 的浅拷贝塞进 state 触发渲染。这是本项目多处在用的老办法
- * （见 accounts-page 的渲染范式），比在每处回调里拼 prev 更不容易出错。
+ * ── Why use ref + setState ─────────────────────────
+ * and is ****， not to setState after new ；
+ * in `uiRef` / `wireRef` ref （UI / up ），
+ * `syncUI()` ref state 。 this is in use 
+ * （ accounts-page ）， in prev not 。
  *
- * ── 与「设置页」的关系 ──────────────────────────────────────
- * 助手的三块配置（默认行为 / 系统提示词 / 工具）已从设置页搬进本页的抽屉
- * （assistant-settings-drawer）。数据流不变：仍走 `/api/assistant/config`。
+ * ── and 「set」 ──────────────────────────────────────
+ * config（default as / / ） already from set 
+ * （assistant-settings-drawer）。 not ： `/api/assistant/config`。
  */
 
 import * as React from 'react'
@@ -73,10 +73,10 @@ import { ModelApiKeyField } from '../../../ui-shared/model-api-key-field'
 import { modelApiKeyAllows, modelApiKeyLabel, type ModelApiKey } from '../../../ui-shared/model-api-key'
 import { callJson } from './assistant-state'
 
-/** 一轮对话里最多允许的「上游调用 → 工具 → 上游调用」循环次数 */
+/** 1 for 「 up use → → up use 」 */
 const MAX_ROUNDS = 12
 
-/** 挂起的工具链：确认卡点完之后从 `index` 继续跑 */
+/** ： after from `index` */
 type Suspended = {
   calls: ToolCall[]
   index: number
@@ -84,7 +84,7 @@ type Suspended = {
   cardIndex: number
 }
 
-/* ─── 主组件 ─────────────────────────────────────────────── */
+/* ─── ─────────────────────────────────────────────── */
 
 function AssistantPage() {
   const { config, configRef, status, failed: loadingFailed, load: loadConfig, save: saveConfig } = useAssistantConfig()
@@ -96,11 +96,11 @@ function AssistantPage() {
   const [busy, setBusy] = React.useState(false)
   const [awaiting, setAwaiting] = React.useState(false)
   const [draft, setDraft] = React.useState('')
-  /** 历史会话列表（侧边栏）与当前打开的那一条 */
+  /** will （） and current that 1 */
   const [activeId, setActiveId] = React.useState<string>('')
-  /** 侧边栏在窄屏下是否展开（宽屏常驻，见 CSS 的 .asst-layout） */
+  /** in down is （， CSS .asst-layout） */
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
-  /** 右上角「助手设置」抽屉 */
+  /** up 「set」 */
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [titleSettingsOpen, setTitleSettingsOpen] = React.useState(false)
 
@@ -110,10 +110,10 @@ function AssistantPage() {
   const controllerRef = React.useRef<AbortController | null>(null)
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const loadedRef = React.useRef(false)
-  /** 当前会话 id（`uiRef` 那串消息归属哪一条；新建时换一个） */
+  /** current will id（`uiRef` that 1 ； new when 1 ） */
   const activeIdRef = React.useRef<string>('')
   const { images, setImages, files, setFiles, addFiles, reading: readingAttachments } = useAssistantAttachments(activeIdRef)
-  /** 会话标题（用户没改过就一直取第一条用户消息，见 `titleFrom`） */
+  /** will （ use no 1 1 use ， `titleFrom`） */
   const titleRef = React.useRef<string>('')
   const { sessions, setSessions, persist, summarize, remove: removeSavedSession, clear: clearSavedSessions } = useAssistantSessions({
     config: configRef, messages: wireRef, ui: uiRef, activeId: activeIdRef, title: titleRef, apiKey: requestKeyRef,
@@ -122,16 +122,16 @@ function AssistantPage() {
   const historyBusyRef = React.useRef(false)
   const [historyBusy, setHistoryBusy] = React.useState(false)
   /**
-   * `loop` 的稳定引用（**别删**）。
+   * `loop` use （****）。
    *
-   * `pump` 与 `loop` 互相调用（工具跑完要开下一轮），而 React 的 useCallback
-   * 一旦把它们放进彼此的 deps 就是循环依赖。写法上只能让 `pump` 的 deps 为空、
-   * 通过这个 ref 去拿**最新**的 `loop`：没有它，`pump` 会永久持有首次渲染那一刻
-   * 的 `loop`，而那一次的 `enabledTools` 还是空数组 —— 表现为「工具勾了但助手
-   * 收不到任何工具定义」。
+   * `pump` and `loop` use （ need down 1 ）， React useCallback
+   * 1 deps is 。 up can `pump` deps as empty、
+   * this ref ** new ** `loop`： no has ，`pump` will has that 1 
+   * `loop`， that 1 `enabledTools` is empty —— as 「
+   * not to 」。
    */
   const loopRef = React.useRef<(() => Promise<void>) | null>(null)
-  /** 本轮用户消息已经跑了几个来回（硬保险：见 MAX_ROUNDS） */
+  /** use already （： MAX_ROUNDS） */
   const sendingRef = React.useRef(false)
   const checkingModelRef = React.useRef(false)
   const preflightRef = React.useRef(0)
@@ -142,13 +142,13 @@ function AssistantPage() {
 
   const syncUI = React.useCallback(() => { setUi(uiRef.current.slice()) }, [])
 
-  /** `persist` 的稳定引用（`loop` 的 deps 里放它会陷入循环，见 loopRef 的说明） */
+  /** `persist` use （`loop` deps will ， loopRef ） */
   const persistRef = React.useRef(persist)
   persistRef.current = persist
   const summarizeRef = React.useRef(summarize)
   summarizeRef.current = summarize
 
-  /* 贴底：新消息进来时滚到底（用户往上翻时不打扰 —— 只在接近底部时贴） */
+  /* ： new when to （ use up when not —— in when ） */
   React.useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -156,14 +156,14 @@ function AssistantPage() {
     if (near) el.scrollTop = el.scrollHeight
   }, [ui])
 
-  /* 数据加载：配置 + 模型清单（activate 时触发；重复调用只加载一次）
+  /* ：config + （activate when ； use 1 ）
    *
-   * 两件事**各自独立**，刻意不放进同一个 try：配置走的是直连 HTTP
-   * （`/api/assistant/config`），模型清单走的是壳的桥 —— 后端的助手接口缺失
-   * 或版本偏旧时，不该把「模型选择器」一起打成空的。
+   * ****， not 1 try：config is HTTP
+   * （`/api/assistant/config`）， is —— after 
+   * or old when ， not this 「」 1 empty 。
    *
-   * 配置失败还会**自动重试**（有限次）：dev 刚启动时窗口可能比网关的 HTTP
-   * 监听先就绪，那一刻的失败只代表「还早」，不代表「坏了」。 */
+   * configfailure will ****（ has ）：dev when can can HTTP
+   * ， that 1 failure「」， not 「」。 */
   const activate = React.useCallback(async () => {
     void loadConfig()
     void refreshModels().catch(() => {})
@@ -174,7 +174,7 @@ function AssistantPage() {
     } catch (error) {
       toast(t('读取历史会话失败：{message}', { message: errorText(error) }), 'err')
     }
-    // 首次进入开一条空白会话（不等用户点「新对话」：直接就能打字）
+    // 1 empty will （ not etc use 「 new for 」： can ）
     if (!activeIdRef.current) {
       const id = newSessionId()
       activeIdRef.current = id
@@ -227,7 +227,7 @@ function AssistantPage() {
 
   /* ─── agent loop ───────────────────────────────────────── */
 
-  /** 处理一批 tool_calls（从 `index` 起；confirm 模式遇到改动类会挂起） */
+  /** 1 tool_calls（ from `index` ；confirm to will ） */
   const pump = React.useCallback(async (calls: ToolCall[], index: number, collected: Suspended['collected']) => {
     setBusy(true)
     const session = activeIdRef.current
@@ -285,7 +285,7 @@ function AssistantPage() {
         continue
       }
 
-      // 改动 / 消耗类：看权限模式决定「先问」还是「直接做」
+      // / ：「」 is 「」
       const plan = tool.plan?.(args) || {
         lead: t('将执行 {label}。', { label: tool.label }),
         ...(refreshingBalance ? { note: t('实时余额查询会请求上游，并可能触发已配置的自动禁用规则。') } : {}),
@@ -299,7 +299,7 @@ function AssistantPage() {
         syncUI()
         return
       }
-      // 完全访问：不停下，执行结果仍以卡片留在消息流里（标「已自动执行」）
+      // ： not down ， in （「 already 」）
       const cardIndex = uiRef.current.push({ kind: 'tool', call, state: 'running', plan, auto: true }) - 1
       syncUI()
       try {
@@ -325,7 +325,7 @@ function AssistantPage() {
       }
       syncUI()
     }
-    // 一批处理完：回灌工具结果，进入下一轮（经 ref 拿最新的 loop，见它的说明）
+    // 1 ：， down 1 （ ref new loop， ）
     for (const item of collected) {
       wireRef.current.push({ role: 'tool', toolCallId: item.toolCallId, content: item.content, images: item.images })
     }
@@ -336,7 +336,7 @@ function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /** 开一轮上游调用（流式收 delta / tool_calls） */
+  /** 1 up use （ delta / tool_calls） */
   const loop = React.useCallback(async () => {
     if (stoppedRef.current) { setBusy(false); return }
     const session = activeIdRef.current
@@ -418,7 +418,7 @@ function AssistantPage() {
     }
     wireRef.current.push({ role: 'assistant', id: messageId, model: requestModelRef.current, content: text, toolCalls: calls.length ? calls : undefined })
     syncUI()
-    // 每轮落一次库（串行，见 persist 的说明）：工具链中途也存，崩了不丢已答的部分
+    // 1 （， persist ）： in ， not already 
     await persistRef.current()
     if (!calls.length) {
       setBusy(false)
@@ -430,7 +430,7 @@ function AssistantPage() {
   }, [enabledTools, pump, syncUI, refreshModels])
   loopRef.current = loop
 
-  /** 确认卡上的一次决策：执行或取消，然后继续跑剩下的调用 */
+  /** up 1 ： or ， after down use */
   const resolveConfirm = React.useCallback(async (run: boolean) => {
     const session = activeIdRef.current
     const suspended = suspendedRef.current
@@ -474,7 +474,7 @@ function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pump, syncUI])
 
-  /** 发送前校验当前模型，校验失败不追加历史也不清空草稿。 */
+  /** before current，failure not not empty。 */
   const send = React.useCallback(async (text: string, attached: string[], textFiles: AssistantTextFile[]) => {
     const value = text.trim()
     if ((!value && attached.length === 0 && textFiles.length === 0) || busy || awaiting || readingAttachments || sendingRef.current || historyBusyRef.current) return
@@ -562,7 +562,7 @@ function AssistantPage() {
     controllerRef.current?.abort()
   }, [])
 
-  /** 重置成一条空白会话（点「新对话」/ 新建时用） */
+  /** 1 empty will （「 new for 」/ new when use ） */
   const resetToBlank = React.useCallback((id: string) => {
     preflightRef.current += 1
     checkingModelRef.current = false
@@ -583,18 +583,18 @@ function AssistantPage() {
 
   const newChat = React.useCallback(() => {
     if (historyBusyRef.current || sendingRef.current) return
-    // 与 openSession 同一理由：开新对话前保存旧的，但不算「有新内容」，
-    // 不该把刚才那条顶到列表第一位。
+    // and openSession 1 by ： new for before old ， not 「 has new 」，
+    // not this that to 1 。
     void persistRef.current(false)
     resetToBlank(newSessionId())
     setSidebarOpen(false)
   }, [resetToBlank])
 
   /**
-   * 打开一条历史会话。
+   * 1 will 。
    *
-   * 正在跑的时候不允许切：那一轮的增量还在往 `uiRef` 里写，切走之后它会继续
-   * 往**新会话**的数组里追加（同一个 ref）—— 结果是两条对话的内容混在一起。
+   * in when not ： that 1 in `uiRef` ， after will 
+   * ** new will ** （ 1 ref）—— is for in 1 。
    */
   const openSession = React.useCallback(async (id: string) => {
     if (busy || awaiting || sendingRef.current || historyBusyRef.current) return
@@ -616,7 +616,7 @@ function AssistantPage() {
       setAwaiting(false)
       setBusy(false)
       syncUI()
-      // 会话自己记了模型与等级：打开就恢复（用户在聊天框里改的也是这条会话的）
+      // will and etc ：（ use in is this will ）
       if (config && (detail.model || detail.reasoning)) {
         const next: AssistantConfig = {
           ...config,
@@ -710,7 +710,7 @@ function AssistantPage() {
     },
   })
 
-  /* ─── 渲染 ─── */
+  /* ─── ─── */
 
   const activeTitle = titleRef.current || titleFrom(wireRef.current) || t('新对话')
   const empty = ui.length === 0
@@ -790,7 +790,7 @@ function AssistantPage() {
   )
 }
 
-/* ─── 挂载：接管 index.html 里的 assistant 页 section ─── */
+/* ─── ： index.html assistant section ─── */
 
 const PAGE_SELECTOR = '.page[data-page="assistant"]'
 
@@ -803,7 +803,7 @@ function mount(): void {
   section.replaceChildren()
   root = createRoot(section)
   root.render(<AssistantPage />)
-  // 首轮对话少一次往返：只在用户第一次打开助手页时预热网关地址。
+  // for 1 ： in use 1 when 。
   void gatewayBase().catch(() => {})
 }
 

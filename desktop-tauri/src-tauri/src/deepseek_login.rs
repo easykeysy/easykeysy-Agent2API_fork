@@ -119,7 +119,7 @@ pub async fn credentials(window: &WebviewWindow, capture: &mut CredentialCapture
     let user_agent = value["userAgent"].as_str().filter(|agent| {
         !agent.is_empty() && agent.len() <= 2048 && agent.bytes().all(|byte| (32..=126).contains(&byte))
     }).ok_or("DeepSeek 网页浏览器标识无效")?;
-    // 网页可能在登录后的设备校验中更换令牌；连续稳定后才读取最新 Cookie 并交回。
+    // can can in after in ； after new Cookie and 。
     if !capture.stable(token) { return Ok(None); }
     let owned = window.clone();
     let cookies = tokio::time::timeout(Duration::from_secs(10), tokio::task::spawn_blocking(move || owned.cookies()))

@@ -5,27 +5,27 @@ import { t } from '../i18n'
 import { Alert } from '@ui'
 
 /**
- * 整库恢复的进度弹窗 —— **不可关闭**，直到恢复收口。
+ * —— ** not can **， to 。
  *
- * ── 为什么不能关 ────────────────────────────────────────────
- * 恢复是替换语义：主库被整体覆盖。中途关窗（或让用户以为「关掉就停了」）会
- * 留下一个既不是旧库也不是新库的现场 —— 暂存库执行到一半、主库覆盖到一半。
- * 所以进行中不给关闭按钮，Esc / 点遮罩 / 点空白全部忽略；收口（成功或失败）
- * 之后才给一个「知道了」。
+ * ── Why not can ────────────────────────────────────────────
+ * is ： 。 in （ or use as 「」） will 
+ * down 1 not is old not is new —— to 1 、 to 1 。
+ * in not to by ，Esc / / emptyignore；（success or failure）
+ * after to 1 「」。
  *
- * ── 为什么要进度条 ──────────────────────────────────────────
- * 恢复要读几百 MB 的 SQL、在暂存库上执行、校验、拍安全备份、覆盖主库 —— 从
- * 几十秒到几分钟。只给一个「恢复中…」的灰按钮，用户既不知道还要等多久，
- * 也不知道程序是不是卡死了。
+ * ── Why need ──────────────────────────────────────────
+ * need MB SQL、 in up 、、、 —— from 
+ * seconds to minutes。 to 1 「 in …」 by ， use not need etc ，
+ * not is not is 。
  *
- * 进度来自后端（`GET /api/backup/progress`，见 `db::backup` 的 `RestoreProgress`），
- * 前端每 500ms 拉一次。**不在前端自己编百分比**：各阶段耗时没有可靠计量
- * （`execute_batch` 不回调），后端给的是「阶段起点」—— 一个只增不减的粗进度
- * 比一个乱跳的假进度诚实。
+ * after （`GET /api/backup/progress`， `db::backup` `RestoreProgress`），
+ * before 500ms 1 。** not in before **： when no has can 
+ * （`execute_batch` not ）， after to is 「」—— 1 not 
+ * 1 。
  *
- * ── 结果也在这里显示 ────────────────────────────────────────
- * 成功给「恢复了 N 张表」与安全备份文件名；失败给原因。密钥指纹警告同时写进
- * 面板里的常驻警告框（用户关掉弹窗后仍要看得到）。
+ * ── in this ────────────────────────────────────────
+ * success to 「 N 」 and file；failure to Reason。 when 
+ * （ use after need to ）。
  */
 export function DbRestoreDialog(): React.ReactElement | null {
   const snap = useSettings()
@@ -36,9 +36,9 @@ export function DbRestoreDialog(): React.ReactElement | null {
   return (
     <Dialog
       open
-      // 进行中忽略一切关闭请求（Esc / 点遮罩 / 点空白）。
-      // 收口后也**不**自动关：结果要让人看完再走，只由「知道了」关。
-      onOpenChange={() => { /* 一律忽略，见文件头 */ }}
+      // in ignore 1 request（Esc / / empty）。
+      // after ** not **： need ， by 「」。
+      onOpenChange={() => { /* 1 ignore，file */ }}
     >
       <DialogContent showCloseButton={false} className='db-restore-dialog'>
         <DialogHeader>
@@ -48,7 +48,7 @@ export function DbRestoreDialog(): React.ReactElement | null {
         </DialogHeader>
 
         <div className='db-restore-body'>
-          {/* 阶段文案 + 已用时：文案由后端给（它是「这一步在做什么」的唯一权威） */}
+          {/* + already use when ： by after to （ is 「 this 1 in 」 1 ） */}
           <div className='db-restore-phase'>
             <span>{progress.phase || t('正在恢复…')}</span>
             <Elapsed startedAt={progress.startedAt} finishedAt={progress.finishedAt} active={active} />
@@ -108,7 +108,7 @@ export function DbRestoreDialog(): React.ReactElement | null {
         </div>
 
         <DialogFooter>
-          {/* 进行中：只有一个禁用的说明按钮（让人看到「现在不能关」是设计，不是卡住） */}
+          {/* in ： has 1 use by （ to 「 in not can 」 is ， not is ） */}
           {active ? (
             <Button variant='outline' disabled>
               {t('恢复中，请稍候…')}
@@ -125,9 +125,9 @@ export function DbRestoreDialog(): React.ReactElement | null {
 }
 
 /**
- * 「已用时 / 总耗时」。
+ * 「 already use when / total when 」。
  *
- * 进行中每秒走一次（只有这一小块在跳，不带着整页重渲）；收口后显示总耗时并停表。
+ * in seconds 1 （ has this 1 in ， not ）； after total when and 。
  */
 function Elapsed({ startedAt, finishedAt, active }: {
   startedAt: number

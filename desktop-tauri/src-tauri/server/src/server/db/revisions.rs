@@ -27,7 +27,7 @@ impl AccountRevisions {
         self.revision.load(Ordering::Acquire)
     }
 
-    // 钩子在 SQL 提交前触发；回滚也保留失效信号，读取方只缓存锁外取得的已提交快照。
+    // in SQL before ；， already 。
     pub fn changed(&self, rowid: i64) {
         let mut journal = self.journal.lock().unwrap_or_else(|error| error.into_inner());
         journal.revision = journal.revision.wrapping_add(1);

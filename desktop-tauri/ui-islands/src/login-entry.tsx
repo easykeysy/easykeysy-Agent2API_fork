@@ -1,12 +1,12 @@
 /**
- * 登录页独立 bundle 的入口。
+ * bundle 。
  *
- * 登录页只需要一张卡片（Card / Input / Button / Label / Verification），
- * 没必要为了它下载主面板那整份 `islands/ui.js`（含报表图表、账号页、
- * 路由工作台等全部页面）。这个入口单独构建成 `ui/islands/login.js`，
- * 由 `ui/login.html` 引用；主面板的 island 注册表则把 login-page 排除在外。
+ * need need 1 （Card / Input / Button / Label / Verification），
+ * no need as down that `islands/ui.js`（、、
+ * by etc ）。 this `ui/islands/login.js`，
+ * by `ui/login.html` use ； island then login-page excluding in 。
  *
- * 登录岛在模块求值时就同步挂载（见 login-page.tsx 末尾），所以这里只做
- * 一次副作用导入。
+ * in when （ login-page.tsx ）， this 
+ * 1 use 。
  */
 import './islands/login-page'

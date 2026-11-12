@@ -1,20 +1,20 @@
 /**
- * 签到中心的数据层：读、写、以及「这一页当前在做什么」的状态。
+ * to in ：、、 and 「 this 1 current in 」 。
  *
- * ── 为什么是模块级 store 而不是 React state ────────────────
- * 三个标签页共读同一份快照（`daily` / `auto` / `keepalive` / `travel` 都在
- * `/api/checkin-center` 一条响应里）。放进 React state 会让每个标签页各拉一次，
- * 而且切页就丢。这里是「一次拉全、三个标签页订阅」—— 与账号页
- * `accounts-store.ts` 同一取向。
+ * ── Why is store not is React state ────────────────
+ * 1 （`daily` / `auto` / `keepalive` / `travel` in 
+ * `/api/checkin-center` 1 response）。 React state will 1 ，
+ * and 。 this is 「 1 、 」—— and 
+ * `accounts-store.ts` 1 to 。
  *
- * ── 为什么不用 useSyncExternalStore ────────────────────────
- * 页面的重绘粒度是「整页」，数据量小（十几家、几十个账号），订阅后整体重渲
- * 比逐字段选择器简单得多。`useSyncExternalStore` 的价值在细粒度选择，这里
- * 用不上。
+ * ── Why not use useSyncExternalStore ────────────────────────
+ * is 「」，（、 ）， after 
+ * 。`useSyncExternalStore` in ， this 
+ * use not up 。
  *
- * ── 错误处理 ────────────────────────────────────────────────
- * 所有写动作都走 `run()`：它统一管 `saving` 标记、错误文案、成功后的重拉。
- * 各个按钮不必各写一遍 try/catch —— 那正是旧 iframe 页里 40 多处重复的来源。
+ * ── error ────────────────────────────────────────────────
+ * all `run()`： 1 `saving` 、error、success after 。
+ * by not 1 try/catch —— that is old iframe 40 。
  */
 
 import type {
@@ -28,7 +28,7 @@ import { growthTaskRunnable } from '../../../ui-shared/checkin'
 import { rowCompleted, rowPending, rowMessage as resultMessage } from '../../../ui-shared/checkin-result'
 import { onboardingFromCenter } from './checkin-onboarding-cache'
 
-/** 新手福利的按账号缓存（明细要打上游，查一次存一次） */
+/** new by （ need up ， 1 1 ） */
 export type OnboardingCache = {
   status: 'idle' | 'loading' | 'loaded' | 'error'
   tasks: OnboardingTask[]
@@ -41,29 +41,29 @@ export type OnboardingCache = {
 }
 
 /**
- * 成长任务的按账号缓存（WorkBuddy 国内版的成长中心）。
+ * by （WorkBuddy in ）。
  *
- * 快照只给「有哪几个账号能查」，明细（任务树 / 能量 / 连登 / 旅行 / 开学季）
- * 要打一次上游 —— 与新手福利同一取舍（快照必须零上游请求）。
+ * to 「 has can 」，（ / can / / / ）
+ * need 1 up —— and new 1 （must up request）。
  */
 export type GrowthCache = {
   status: 'idle' | 'loading' | 'loaded' | 'error'
   checkedAt?: number
-  /** 成长能量（null = 本次没取到） */
+  /** can （null = no to ） */
   energy: number | null
-  /** 连登天数（null = 本次没取到） */
+  /** （null = no to ） */
   streak: number | null
   tasks: GrowthTask[]
   travel: unknown
   school: unknown
   running: boolean
   runningSchool: boolean
-  /** 逐条执行的结果（按 code 索引，界面在任务行上显示） */
+  /** （ by code ， in up ） */
   results: { code: string; outcome?: string; message?: string }[]
   error?: string
 }
 
-/** 成长任务树里的一条 */
+/** 1 */
 export type GrowthTask = {
   code: string
   title: string
@@ -73,15 +73,15 @@ export type GrowthTask = {
   target: number
   locked: boolean
   supported: boolean
-  /** 无法伪造的任务（需真实操作），界面标「需真实操作」且不自动执行 */
+  /** none （ need ），「 need 」 and not */
   unforgeable: boolean
   kind: string
   source: string
 }
 
-/* ─── 桥 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
-/** 本页用到的壳侧接口（`bridge.rs` 的签到那一段） */
+/** use to （`bridge.rs` to that 1 ） */
 type CheckinBridge = {
   getCheckinCenter?: () => Promise<CheckinCenter | null | undefined>
   checkinAllAccounts?: (id?: string) => Promise<CheckinRunResult | null | undefined>
@@ -108,7 +108,7 @@ type CheckinBridge = {
   runGrowthTravel?: (id: string) => Promise<{ message?: string } | null | undefined>
 }
 
-/** `/api/accounts/{id}/growth` 的返回（任务 / 能量 / 连登 / 旅行 / 开学季五块） */
+/** `/api/accounts/{id}/growth` return（ / can / / / ） */
 type GrowthPayload = {
   energy?: number | null
   streak?: number | null
@@ -117,10 +117,10 @@ type GrowthPayload = {
   school?: unknown
 }
 
-/** 单条成长任务的执行结果 */
+/** */
 type GrowthRunRow = { code?: string; outcome?: string; message?: string }
 
-/** 新手任务的返回（查询与领取同形） */
+/** new return（ and ） */
 type OnboardingPayload = {
   tasks?: unknown
   earned?: number
@@ -131,14 +131,14 @@ type OnboardingPayload = {
   message?: string
 }
 
-/** Qoder 国际版的 UMID 组件状态（机器级，与有没有账号无关） */
+/** Qoder UMID （， and has no has none） */
 export type UmidState = {
   available?: boolean
   installing?: boolean
   installSupported?: boolean
 }
 
-/** 批量签到返回汇总与 results，活动分档接口直接返回账号行。 */
+/** to returntotal and results，return。 */
 type CheckinRunResult = CheckinResultRow & {
   succeeded?: number
   active?: number
@@ -154,7 +154,7 @@ type CheckinRunResult = CheckinResultRow & {
 type SharedWindow = {
   workbuddyDesktop?: CheckinBridge
   wbApp?: {
-    /** 切页 / 刷新时由壳调用；本页只在自己可见时轮询 */
+    /** / new when by use ； in can when */
     readonly currentPage?: string
     toast?: (message: string, tone?: string) => void
     refresh?: () => void
@@ -165,7 +165,7 @@ function bridge(): CheckinBridge {
   return (window as unknown as SharedWindow).workbuddyDesktop ?? {}
 }
 
-/** 给页面层用的桥（`checkin-center-tab` 的惰性查询要用） */
+/** to use （`checkin-center-tab` need use ） */
 export function bridgeApi(): CheckinBridge {
   return bridge()
 }
@@ -174,19 +174,19 @@ function app(): SharedWindow['wbApp'] {
   return (window as unknown as SharedWindow).wbApp
 }
 
-/** 提示：优先走壳的 toast（与其它页同一套），没有就退回 `console` */
+/** ： toast（ and its 1 ）， no has `console` */
 export function toast(message: string, tone: 'ok' | 'err' | 'warn' = 'ok'): void {
   const host = app()
   if (host?.toast) {
     host.toast(message, tone)
     return
   }
-  // 壳没提供 toast 时不该静默 —— 用户点了按钮什么都没发生是最糟的反馈
+  // no toast when not this —— use by no is 
   if (tone === 'err') console.error('[checkin]', message)
   else console.info('[checkin]', message)
 }
 
-/** 错误 → 可读文案（桥抛的是 `Error`，但偶尔是字符串 / 对象） */
+/** error → can （ is `Error`， is / for ） */
 export function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (typeof error === 'string') return error
@@ -196,30 +196,30 @@ export function errorMessage(error: unknown): string {
   return String(error)
 }
 
-/* ─── 状态 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 export type Store = {
-  /** 聚合快照（null = 还没读到） */
+  /** （null = no to ） */
   center: CheckinCenter | null
   centerSection: CheckinSection
   loaded: boolean
-  /** 首屏 / 刷新的错误（页面顶部错误条） */
+  /** / new error（error） */
   loadError: string
-  /** 通用「保存中」：所有写动作共用（一次只该有一个在跑） */
+  /** use 「 in 」：all use （ 1 this has 1 in ） */
   saving: boolean
-  /** 正在执行的定时条目 id */
+  /** in when id */
   runningScheduleId: string | null
-  /** 展开编辑的条目 id；`'new'` = 新建表单 */
+  /** id；`'new'` = new */
   editingId: string | null
-  /** 单账号动作在途：`<accountId>:<mode>` */
+  /** in ：`<accountId>:<mode>` */
   signing: Set<string>
-  /** 正在跑的整批签到 */
+  /** in to */
   runningAll: boolean
-  /** 保活模型链草稿（null = 跟随快照） */
+  /** （null = ） */
   keepaliveDraft: string[] | null
-  /** 猫猫旅行时刻草稿（null = 跟随快照） */
+  /** when （null = ） */
   travelTimesDraft: string | null
-  /** 签到记录（独立于聚合快照：它有分页与筛选） */
+  /** to （： has and ） */
   records: RecordRow[]
   recordsTotal: number
   recordsLoaded: boolean
@@ -229,16 +229,16 @@ export type Store = {
     limit: number
     offset: number
     outcome: string
-    /** 签到类型：'' = 全部，manual / schedule / makeup */
+    /** to ：'' = ，manual / schedule / makeup */
     kind: string
     provider: string
     keyword: string
-    /** 时间下界（毫秒；undefined = 不限） */
+    /** when down （ms；undefined = not ） */
     start?: number
   }
-  /** 新手福利的任务缓存：账号 id → 缓存（切标签页不丢） */
+  /** new ： id → （ not ） */
   onboarding: Map<string, OnboardingCache>
-  /** 成长任务的缓存：账号 id → 缓存 */
+  /** ： id → */
   growth: Map<string, GrowthCache>
 }
 
@@ -278,17 +278,17 @@ export function subscribe(listener: () => void): () => void {
   }
 }
 
-/** 改 store 并通知（所有写路径都走这里） */
+/** store and （allpath this ） */
 export function patch(next: Partial<Store>): void {
   Object.assign(store, next)
   for (const notify of listeners) notify()
 }
 
-/* ─── 读 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
 let centerRequest = 0
 
-/** 拉聚合快照（页面打开 / 任何写动作之后） */
+/** （ / after ） */
 export async function loadCenter(): Promise<void> {
   const request = ++centerRequest
   try {
@@ -303,7 +303,7 @@ export async function loadCenter(): Promise<void> {
       onboarding: onboardingFromCenter(data, store.onboarding),
       loaded: true,
       loadError: '',
-      // 快照到手 = 草稿该跟着它走（写动作成功后也会清，两处不冲突）
+      // to = this （success after will ， not ）
       keepaliveDraft: null,
       travelTimesDraft: null,
     })
@@ -314,7 +314,7 @@ export async function loadCenter(): Promise<void> {
 
 let recordsRequest = 0
 
-/** 拉签到记录（分页 + 筛选）。 */
+/** to （ + ）。 */
 export async function loadRecords(): Promise<void> {
   const request = ++recordsRequest
   const query = store.recordsQuery
@@ -350,14 +350,14 @@ export async function loadRecords(): Promise<void> {
   }
 }
 
-/* ─── 写 ───────────────────────────────────── */
+/* ─── ───────────────────────────────────── */
 
 /**
- * 写动作的统一壳。
+ * 1 。
  *
- * `run` 负责三件事：置 `saving`、把异常变成一条提示、成功后重拉快照。
- * 调用方只写「调哪个接口」，不再各写一遍 try/catch/finally —— 旧 iframe 页
- * 里 40 多处重复的正是这三件事，且漏写 `finally` 就会永久卡在 saving。
+ * `run` ： `saving`、 1 、success after 。
+ * use 「 」， not 1 try/catch/finally —— old iframe 
+ * 40 is this ， and `finally` will in saving。
  */
 async function run<T>(
   action: () => Promise<T>,
@@ -377,7 +377,7 @@ async function run<T>(
   }
 }
 
-/** 全部签到（`id` 为空 = 签全部可签账号） */
+/** to （`id` as empty = can ） */
 export async function runAllCheckin(accountId?: string): Promise<void> {
   if (store.runningAll) return
   patch({ runningAll: true })
@@ -392,7 +392,7 @@ export async function runAllCheckin(accountId?: string): Promise<void> {
   }
 }
 
-/** 单账号动作（`mode` = 插件申报的档位） */
+/** （`mode` = ） */
 export async function signSingle(accountId: string, mode: string): Promise<void> {
   const key = `${accountId}:${mode}`
   if (store.signing.has(key)) return
@@ -418,7 +418,7 @@ function rowMessage(row: CheckinResultRow): string {
   return resultMessage(row) || t('未完成，请查看签到记录')
 }
 
-/** 提示以逐账号执行结果为准，HTTP 成功仅表示整轮执行完毕。 */
+/** as ，HTTP successonly。 */
 function reportRunResult(result: CheckinRunResult | null | undefined, single = false): void {
   if (!result) return
   const rows = Array.isArray(result.results) ? result.results
@@ -450,7 +450,7 @@ function reportRunResult(result: CheckinRunResult | null | undefined, single = f
   toast(`✅ 签到完成：${succeeded}/${total} 个账号成功领取${activeText}`, succeeded > 0 || active > 0 ? 'ok' : 'warn')
 }
 
-/** 定时签到总开关 */
+/** when to total */
 export async function toggleMaster(enabled: boolean): Promise<void> {
   await run(
     async () => {
@@ -462,7 +462,7 @@ export async function toggleMaster(enabled: boolean): Promise<void> {
   void loadCenter()
 }
 
-/** 保存一条定时条目（`closeEditor: false` = 行上的快捷开关，不收表单不弹提示） */
+/** 1 when （`closeEditor: false` = up ， not not ） */
 export async function saveScheduleEntry(
   payload: Record<string, unknown>,
   options: { closeEditor?: boolean; silent?: boolean } = {},
@@ -483,7 +483,7 @@ export async function saveScheduleEntry(
   return saved === true
 }
 
-/** 删除一条定时条目 */
+/** delete 1 when */
 export async function removeScheduleEntry(id: string): Promise<void> {
   await run(
     async () => {
@@ -493,7 +493,7 @@ export async function removeScheduleEntry(id: string): Promise<void> {
   )
 }
 
-/** 立即执行一条定时条目 */
+/** 1 when */
 export async function runScheduleEntry(id: string): Promise<void> {
   if (store.runningScheduleId) return
   patch({ runningScheduleId: id })
@@ -508,7 +508,7 @@ export async function runScheduleEntry(id: string): Promise<void> {
   }
 }
 
-/** 保活模型链 */
+/** */
 export async function saveKeepaliveModels(models: string[], apiKeyId?: string | null): Promise<void> {
   await run(
     async () => {
@@ -521,7 +521,7 @@ export async function saveKeepaliveModels(models: string[], apiKeyId?: string | 
   )
 }
 
-/** 猫猫旅行排程（开关 / 时刻） */
+/** （ / when ） */
 export async function saveTravel(body: Record<string, unknown>): Promise<void> {
   await run(
     async () => {
@@ -537,7 +537,7 @@ export async function saveTravel(body: Record<string, unknown>): Promise<void> {
   )
 }
 
-/** 猫猫旅行：立即巡检全部 */
+/** ： */
 export async function runTravelNow(): Promise<void> {
   await run(
     async () => {
@@ -558,7 +558,7 @@ export async function runTravelNow(): Promise<void> {
   )
 }
 
-/** 清空签到记录（`all` 为真 = 全清，否则按当前筛选） */
+/** empty to （`all` as = ，otherwise by current） */
 export async function clearRecords(all: boolean): Promise<void> {
   const query = store.recordsQuery
   await run(
@@ -577,9 +577,9 @@ export async function clearRecords(all: boolean): Promise<void> {
   await loadRecords()
 }
 
-/* ─── 成长任务（WorkBuddy 国内版）───────────── */
+/* ─── （WorkBuddy ）───────────── */
 
-/** 读一个账号的成长缓存（没有就给空态） */
+/** 1 （ no has to empty） */
 export function growthOf(id: string): GrowthCache {
   return store.growth.get(id) ?? {
     status: 'idle',
@@ -601,7 +601,7 @@ function patchGrowth(id: string, next: Partial<GrowthCache>): void {
   patch({ growth: map })
 }
 
-/** 任务树里的一条归一化（字段缺失逐个兜底，与旧实现同一口径） */
+/** 1 1 （ ， and old 1 ） */
 function normalizeGrowthTask(raw: unknown): GrowthTask | null {
   const row = (raw ?? {}) as Record<string, unknown>
   const code = typeof row.code === 'string' ? row.code : ''
@@ -621,7 +621,7 @@ function normalizeGrowthTask(raw: unknown): GrowthTask | null {
   }
 }
 
-/** 查询一个账号的成长任务盘点（只读，打一次上游） */
+/** 1 （， 1 up ） */
 export async function queryGrowth(id: string): Promise<void> {
   const current = growthOf(id)
   if (current.status === 'loading' || current.running) return
@@ -639,7 +639,7 @@ export async function queryGrowth(id: string): Promise<void> {
         .filter((task): task is GrowthTask => task !== null),
       travel: data?.travel ?? null,
       school: data?.school ?? null,
-      // 任务列表本身的失败挂在行级文案上（其余几块有数据可看，不该整行变红）
+      // failure in up （ its has can ， not this ）
       error: typeof tasksBlock?.error === 'string' ? tasksBlock.error : '',
     })
   } catch (error) {
@@ -648,12 +648,12 @@ export async function queryGrowth(id: string): Promise<void> {
 }
 
 /**
- * 执行成长任务（`full` = 点亮 + 领奖；`claim` = 只领已完成奖励）。
+ * （`full` = + ；`claim` = already ）。
  *
- * ── 为什么逐条 await 单任务端点 ────────────────────────────
- * 全量一次请求会超过管理 API 的 60 秒转发超时：后端逐条之间留 1s+ 的写间隔
- * （见网关 `api::growth` 的模块头）。所以这里在本地循环，每做完一条就把结果
- * 推给界面 —— 用户能看到逐条进展，而不是一个转很久的「执行中」。
+ * ── Why await ────────────────────────────
+ * 1 request will API 60 seconds when ： after 1s+ 
+ * （ `api::growth` module header）。 this in ， 1 
+ * to —— use can to ， not is 1 「 in 」。
  */
 export async function runGrowth(id: string, mode: 'full' | 'claim'): Promise<void> {
   const current = growthOf(id)
@@ -686,7 +686,7 @@ export async function runGrowth(id: string, mode: 'full' | 'claim'): Promise<voi
   await queryGrowth(id)
 }
 
-/** 开学季任务 + 抽奖 */
+/** + */
 export async function runSchool(id: string, lottery: boolean): Promise<void> {
   const current = growthOf(id)
   if (current.runningSchool) return
@@ -705,7 +705,7 @@ export async function runSchool(id: string, lottery: boolean): Promise<void> {
   }
 }
 
-/** 猫猫旅行：跑一趟（单账号） */
+/** ： 1 （） */
 export async function runTravelOnce(id: string): Promise<void> {
   try {
     const data = await bridge().runGrowthTravel?.(id)
@@ -717,13 +717,13 @@ export async function runTravelOnce(id: string): Promise<void> {
   }
 }
 
-/* ─── 局部替换 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
 /**
- * 把一份新的 `AutoState` 并进快照。
+ * 1 new `AutoState` and 。
  *
- * 写接口返回的就是「整份定时状态」，直接覆盖比再拉一次 `checkin-center`
- * 快一整个往返，而且不会让界面在中间闪一下旧值。
+ * return is 「 when 」， 1 `checkin-center`
+ * 1 ， and not will in in 1 down old 。
  */
 function withAuto(center: CheckinCenter | null, auto: AutoState): CheckinCenter | null {
   if (!center) return center

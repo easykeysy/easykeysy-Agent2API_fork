@@ -1,18 +1,18 @@
-//! LobsterAI 账号的**公开形态**与归属探测（本仓库保留的部分）。
+//! LobsterAI **** and （ ）。
 //!
-//! ── 这份文件为什么这么小 ────────────────────────────────────
-//! 本家的换码、续期、目录、转发、签到全部搬到了**提供商插件**
-//! （`agent2api-providers` 的 `lobsterai/`），不随本仓库发布 —— 那是风险隔离
-//! 的一部分。账号由插件的 `login.callback` 换码后落进 `pluginSecret`，公开
-//! 形态走 `plugin_accounts::to_plugin_public_account`。
+//! ── this fileWhy this ────────────────────────────────────
+//! 、、directory、、 to to ****
+//! （`agent2api-providers` `lobsterai/`）， not —— that is 
+//! 1 。 by `login.callback` after `pluginSecret`，
+//! `plugin_accounts::to_plugin_public_account`。
 //!
-//! 留在这里的只有**存量内置记录**（升级上来、还没被插件重写过的那种）的展示
-//! 投影：它们没有 `pluginSecret`，凭证还是顶层的 `accessToken` / `uuid` /
-//! 两个 `keyfrom`，界面需要按本家的字段集显示。这不是上游协议知识，
-//! 只是一份字段映射，留在网关不会带来风险。
+//! in this has ****（ up 、 no that ） 
+//! ： no has `pluginSecret`， is `accessToken` / `uuid` /
+//! `keyfrom`， need need by 。 this not is up ，
+//! is 1 ， in not will 。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::Value;
 
@@ -20,10 +20,10 @@ use crate::server::core::account_store::state::StoredAccount;
 use crate::server::core::account_store::{AccountStore, LOBSTERAI_PROVIDER_ID};
 
 impl AccountStore {
-    /// 取一条 LobsterAI 账号记录（公开形态的原始 JSON）。
+    /// 1 LobsterAI （ JSON）。
     ///
-    /// 只服务管理面的**归属判定**（`api::accounts::refresh_account` 用它确认
-    /// 「这个 id 属于本家」）。
+    /// ****（`api::accounts::refresh_account` use 
+    /// 「 this id 」）。
     pub fn lobsterai_account_record(&self, account_id: &str) -> Option<Value> {
         let guard = self.guard();
         if !account_id.is_empty() {
@@ -39,14 +39,14 @@ impl AccountStore {
         candidates.into_iter().next().map(|item| item.to_value())
     }
 
-    /// LobsterAI 账号的**公开形态**（进 HTTP 响应）。
+    /// LobsterAI ****（ HTTP response）。
     ///
-    /// 只对**没有** `pluginSecret` 的存量记录生效（判据在
-    /// `store_view::public_account`，插件记录先走插件那份投影）。
+    /// for ** no has ** `pluginSecret` （ in 
+    /// `store_view::public_account`， that ）。
     ///
-    /// `refreshToken` 与载荷件**都要摘干净**：前者是长期有效的续期凭据，后者是
-    /// 续期的身份字段 —— 一起下发等于把「这个账号能被别人续期」的条件送出去。
-    /// 界面需要的「能不能续期」由 `canRefresh` 布尔表达，不给原件。
+    /// `refreshToken` and ** need **： before is valid ， after is 
+    /// —— 1 down etc 「 this can 」 。
+    /// need need 「 can not can 」 by `canRefresh` ， not to 。
     pub fn to_lobsterai_public_account(&self, record: &StoredAccount) -> Value {
         let mut value = record.to_value();
         let can_refresh = record.get("refreshToken").is_some()
@@ -71,7 +71,7 @@ mod tests {
     use super::*;
     use serde_json::{json, Map};
 
-    /// 公开形态必须把**令牌本体 + 载荷件**都摘掉（只留一个 canRefresh 布尔）。
+    /// must ** + **（ 1 canRefresh ）。
     #[test]
     fn public_shape_never_leaks_tokens_or_payload_fields() {
         let record = StoredAccount::from_map({
@@ -113,7 +113,7 @@ mod tests {
         assert_eq!(public.get("canRefresh"), Some(&Value::Bool(true)));
     }
 
-    /// 记录里的 `json!` 形态与 `StoredAccount` 之间往返不掉字段。
+    /// `json!` and `StoredAccount` not 。
     #[test]
     fn record_roundtrip_keeps_payload_fields() {
         let map = json!({

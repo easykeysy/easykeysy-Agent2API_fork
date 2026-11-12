@@ -1,4 +1,4 @@
-//! 全局顺序来自账号库与消耗规则；参与范围独立于展示名单。
+//! and then ； and 。
 
 use std::collections::HashMap;
 

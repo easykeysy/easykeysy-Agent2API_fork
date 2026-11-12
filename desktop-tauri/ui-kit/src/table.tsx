@@ -3,24 +3,24 @@ import { Button } from './button'
 import { cn } from './lib/cn'
 
 /**
- * 表格（标准形态，与 shadcn/ui 的 Table 一族一致：Table / TableHeader / TableBody /
+ * （， and shadcn/ui Table 1 1 ：Table / TableHeader / TableBody /
  * TableFooter / TableHead / TableRow / TableCell / TableCaption）。
  *
- * 样式对齐 ui/css/page-gateway.css 的 `.models-table`：12.5px 正文字、表头粘顶
- * （sticky）、表头 10.5px 加字距、单元格 8px 14px 内边距、行底发丝线、悬停行底色。
- * 换到组件库后这些成为默认值，业务侧不必再挂 .models-table。
+ * for ui/css/page-gateway.css `.models-table`：12.5px 、
+ * （sticky）、 10.5px 、 8px 14px 、、。
+ * to after this as default， not .models-table。
  *
- * 外层 Table 自带一个横向滚动容器（shadcn 同款做法）：窄窗口下宽表不会被压扁或
- * 溢出，而是横滚。表格本身 `w-full`，`table-layout` 默认 auto —— 需要定宽列时
- * 由业务侧用 `<colgroup>` + `table-fixed` 控制（既有页面正是这么做的）。
+ * Table 1 to （shadcn ）： down not will or 
+ * ， is 。 `w-full`，`table-layout` default auto —— need need when 
+ * by use `<colgroup>` + `table-fixed` （ has is this ）。
  *
- * 列宽拖动（table-columns.js）作用于 `<col>` 的 inline width，与这里的默认值
- * 不冲突：组件不写 col 宽度，谁也不覆盖谁。
+ * （table-columns.js）used for `<col>` inline width， and this default
+ * not ： not col ， not 。
  */
 
 function Table({ className, containerClassName, container = true, ...props }: React.ComponentProps<'table'> & {
   containerClassName?: string
-  /** 已有滚动宿主或表头拖拽依赖直接子节点时，不再增加滚动层。 */
+  /** already has or when ， not 。 */
   container?: boolean
 }) {
   const table = <table data-slot='table' className={cn('w-full caption-bottom border-collapse text-[12.5px]', className)} {...props} />
@@ -52,7 +52,7 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
     <tr
       data-slot='table-row'
       className={cn(
-        // 悬停行底色：整行 td 一起变，所以打在格子上的类要跟着行状态走
+        // ： td 1 ， in up need 
         'transition-colors duration-100 hover:[&>td]:bg-control-hover',
         className
       )}

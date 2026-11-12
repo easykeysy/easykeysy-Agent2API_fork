@@ -1,34 +1,34 @@
 /**
- * Agent2API 前端多语言 —— 词典键扫描器。
+ * Agent2API before —— 。
  *
- * ── 它解决什么问题 ────────────────────────────────────────────
- * 项目采用「中文即键」：`t('账号')` 的键就是简体原文本身。词典是**扁平 JSON**，
- * 每种目标语言一份、按域（domain）拆文件，存在 i18n-src/<locale>/<domain>.json。
- * 这个脚本负责把源码里所有「用户可见中文」扫成键，补齐到各语言 JSON 的骨架里
- * （新键一律写空串 ""，等翻译填），并保证一个键只归一个域、绝不改动已有译文。
+ * ── ────────────────────────────────────────────
+ * use 「 in 」：`t('')` is 。 is ** JSON**，
+ * 1 、 by （domain）file， in i18n-src/<locale>/<domain>.json。
+ * this all「 use can in 」， to JSON 
+ * （ new 1 empty ""， etc ）， and 1 1 、 not already has 。
  *
- * ── 扫什么 ────────────────────────────────────────────────────
- *   ① 代码里的 `t('...')` / `t("...")` / `wbI18n.t('...')` —— 只认字符串字面量首参；
- *   ② HTML 文件里的 `data-i18n="..."` 及属性族 `data-i18n-title` / `-placeholder`
- *      / `-tip` / `-aria-label` 的**显式值**及内联脚本里同样按 ① 提的 t() 字面量。
- * 注：HTML 文件两条提取通道都跑（data-i18n 属性 + 内联脚本 t()），结果合并去重；
- * 喂给代码提取器的是剥掉 HTML 注释后的源码，注释里写的调用示例不会被误采。
- * 模板串、变量传参这类非字面量**不提取**，只在报告里列为 warning 待人工处理
- * （键拿不到，只能人去看那处到底要不要翻译）。
+ * ── ────────────────────────────────────────────────────
+ * ① `t('...')` / `t("...")` / `wbI18n.t('...')` —— ；
+ * ② HTML file `data-i18n="..."` and `data-i18n-title` / `-placeholder`
+ * / `-tip` / `-aria-label` **** and by ① t() 。
+ * ：HTML file（data-i18n + t()）， and ；
+ * to is HTML after ， use not will 。
+ * 、 this ** not **， in as warning 
+ * （ not to ， can that to need not need ）。
  *
- * ── 域怎么分 ──────────────────────────────────────────────────
- * 文件 → 域 的映射表写在下面（DOMAIN_RULES），按 DOMAIN_ORDER 顺序「先见先得」：
- * 同一个键出现在多个域的文件里时，只归排在前的那个域；已被某个域 JSON 收过的键
- * 保持原域不动（改归属会让既有译文凭空消失）。
+ * ── ──────────────────────────────────────────────────
+ * file → in down （DOMAIN_RULES）， by DOMAIN_ORDER 「」：
+ * 1 in file when ， in before that ； already JSON 
+ * not （ will has empty）。
  *
- * ── 用法 ──────────────────────────────────────────────────────
- *   node scan.mjs            增量补齐各语言 JSON 骨架
- *   node scan.mjs --check    只体检：报缺失（扫到但没进 JSON）/ 空值 / 孤儿键，
- *                            任一语言有缺失键则退出码 1（便于 CI / pre-commit 卡）
+ * ── use ──────────────────────────────────────────────────────
+ * node scan.mjs JSON 
+ * node scan.mjs --check ：（ to no JSON）/ empty / ，
+ * 1 has then 1（ CI / pre-commit ）
  *
- * 注意：本脚本只「追加」，从不删除 JSON 里的键、也从不改已有值 —— 翻译是人工产物，
- * 任何自动流程都不该把它抹掉。孤儿键（JSON 有、源码扫不到）只在 --check 里报出来，
- * 由人决定是文案改词了还是真该删。
+ * Note: 「」， from not delete JSON 、 from not already has —— is ，
+ * not this 。（JSON has 、 not to ） in --check ，
+ * by is is this 。
  */
 
 import fs from 'node:fs'
@@ -42,20 +42,20 @@ const ISLANDS_SRC = path.join(DESKTOP, 'ui-islands', 'src')
 const UI_KIT_SRC = path.join(DESKTOP, 'ui-kit', 'src')
 const SHARED_SRC = path.join(DESKTOP, 'ui-shared')
 /**
- * 手机端源码目录（`desktop-tauri/mobile/src`）。
+ * directory（`desktop-tauri/mobile/src`）。
  *
- * 手机端是独立工程（自己的 Vite + React），产物落 `ui/m/` —— 那是压缩后的
- * bundle，键名早被压没了，扫它没有意义。这里扫源码，与 ui-islands 同一口径。
+ * is （ Vite + React）， `ui/m/` —— that is after 
+ * bundle， no ， no has 。 this ， and ui-islands 1 。
  */
 const MOBILE_SRC = path.join(DESKTOP, 'mobile', 'src')
 const SRC_DIR = path.join(HERE, 'i18n-src')
 
-/** 目标语言目录（简体不建目录：查不到就回落简体原文，不需要词典） */
+/** directory（ not directory： not to ， not need need ） */
 const LOCALES = ['en', 'zh-Hant', 'ja', 'ko', 'pt-BR']
 
 /**
- * 域的顺序是**契约的一部分**：manifest.js 按它列域，键去重也按它「先见先得」。
- * 调整顺序会改变某些跨界键的归属，非必要不要动。
+ * is ** 1 **：manifest.js by ， by 「」。
+ * will ， need not need 。
  */
 const DOMAIN_ORDER = [
   'common', 'login', 'accounts', 'account-settings', 'add-account', 'models', 'routing', 'agent', 'tools', 'settings', 'assistant', 'update',
@@ -64,8 +64,8 @@ const DOMAIN_ORDER = [
 ]
 
 /**
- * 文件 → 域 映射。files 是全名精确匹配，prefixes 是文件名前缀匹配。
- * 未命中的文件归入 'common' 并在报告里 warning（提示把新文件登记进来）。
+ * file → 。files is ，prefixes is file before 。
+ * in file 'common' and in warning（ new file）。
  */
 const DOMAIN_RULES = [
   { domain: 'common', files: ['index.html', 'm.html', 'desktop-shell.tsx', 'desktop-titlebar.tsx', 'desktop-tooltip.tsx', 'island-registry.ts', 'clipboard.js', 'filter-memory.js', 'app.js', 'confirm-dialog.tsx', 'input.tsx', 'input-control.tsx', 'segmented.tsx', 'index.tsx', 'markdown.js', 'icons.js', 'App.tsx', 'main.tsx', 'Shell.tsx', 'NavBar.tsx', 'Icon.tsx', 'ProviderLogo.tsx', 'ui.tsx', 'PullToRefresh.tsx', 'AppUpdatePanel.tsx', 'CommunitySheet.tsx', 'i18n.ts', 'client.ts', 'gateway.ts', 'format.ts', 'providers.ts', 'providerFacts.ts', 'usePolling.ts', 'pwa.ts', 'usePwa.ts', 'appUpdate.ts', 'community.ts', 'servers.ts', 'auth.ts', 'store.ts', 'routes.ts'] },
@@ -75,16 +75,16 @@ const DOMAIN_RULES = [
   { domain: 'add-account', files: ['add-dynamic-provider.tsx', 'add-custom-provider.tsx', 'custom-provider-ui.js', 'providers.js', 'preset-providers.js', 'web-login.js', 'sms-login.js', 'autoclaw-oauth.js', 'aliyun-captcha.js', 'zcode-claim.js', 'zcode-captcha-pool.js', 'codearts-welfare.js'], prefixes: ['add-account-', 'add-provider-', 'add-doubaowork-'] },
   { domain: 'models', files: ['ModelsPage.tsx', 'model-capability.ts', 'model-capability-dialog.tsx', 'model-test-dialog.tsx', 'model-test-result.tsx'], prefixes: ['models-'] },
   { domain: 'routing', prefixes: ['routing-'] },
-  // 「Agent」页：本机 AI 客户端的配置接管（客户端清单 / 配置编辑 / 写入预览）
+  // 「Agent」： AI client config（client / config / ）
   { domain: 'agent', files: ['AgentPage.tsx'], prefixes: ['agent-'] },
-  // 「工具服务」页：网络搜索 / 视觉分析（服务列表 / 详情 / 上游配置 / 本机接入）
+  // 「」： / （ / / up config / ）
   { domain: 'tools', files: ['ToolsPage.tsx'], prefixes: ['tools-'] },
-  // 「设置 → 版本信息」面板（桌面端 system-info-pane.tsx 与手机端
-  // SystemInfoSheet.tsx 共用同一批文案：版本 / 环境 / 路径 / 开关）。
-  // 归 settings 域 —— 它读的就是设置页的分类之一，文案与设置页其它面板同类。
+  // 「set → 」（ system-info-pane.tsx and 
+  // SystemInfoSheet.tsx use 1 ： / / path / ）。
+  // settings —— is set 1 ， and set its 。
   { domain: 'settings', files: ['units.js', 'SettingsPage.tsx', 'MorePage.tsx', 'PwaNotice.tsx', 'ServersPage.tsx', 'LoginPage.tsx', 'system-info-pane.tsx', 'SystemInfoSheet.tsx', 'sidebar-layout.js'], prefixes: ['settings-', 'sidebar-', 'client-identification'] },
-  // AI 助手（侧边栏「智能」组的一级页 + 设置页「AI 助手」分类）：
-  // 对话页、工具集、设置面板三块
+  // AI （「 can 」 1 + set「AI 」）：
+  // for 、、set
   { domain: 'assistant', files: ['AssistantPage.tsx', 'AssistantHistory.tsx', 'AssistantModelPicker.tsx', 'assistant.ts', 'assistantTools.ts', 'MarkdownLite.tsx'], prefixes: ['assistant-'] },
   { domain: 'update', files: ['upgrade-panel.js', 'GithubAccessSettings.tsx', 'RequiredUpdateGate.tsx', 'updates.ts', 'github-access-editor.tsx'], prefixes: ['update-'] },
   { domain: 'keys', files: ['keys-page.tsx', 'KeysPage.tsx', 'model-api-key.ts', 'model-api-key-field.tsx', 'model-api-key-memory.ts', 'use-model-api-keys.ts'] },
@@ -97,18 +97,18 @@ const DOMAIN_RULES = [
   { domain: 'requests', files: ['RequestsPage.tsx', 'requests-page.tsx', 'request-detail.tsx', 'request-raw-panes.tsx', 'request-hover.tsx', 'request-clear-modal.tsx', 'conversation-preview.js', 'source-filters.tsx', 'request-cells.tsx', 'request-phase.ts'] },
   { domain: 'tables', files: ['table-columns.js', 'table-col-settings.tsx', 'table-shell.tsx'] },
   { domain: 'port', files: ['port-panel.tsx'] },
-  // 提供商插件页（一级菜单）：整页文案都在这一个文件里，量不大（三十来条），
-  // 单开一个域会让 i18n-src 多出五份几乎空的 JSON —— 归 common，与它实际
-  // 的规模相称。菜单名「提供商插件」在 sidebar-layout.js 里，归 settings 域
-  // （侧边栏布局那条规则已经收了它）。
+  // （ 1 ）： in this 1 file， not （），
+  // 1 will i18n-src empty JSON —— common， and 
+  // 。「」 in sidebar-layout.js ， settings 
+  // （ that then already ）。
   { domain: 'common', files: ['plugins.ts', 'PluginsPage.tsx', 'PluginCards.tsx', 'PluginSettingsSheet.tsx'], prefixes: ['plugins-'] },
 ]
 
-/* ─── 文件枚举 ─────────────────────────────── */
+/* ─── file ─────────────────────────────── */
 
 /**
- * 排除清单：i18n 基础设施自身。它们是「查表 / 注入」的实现（内部到处是 t(key) 这种
- * 拿变量的调用），不含产品文案，扫进来只会刷一堆无意义的 warning。
+ * excluding：i18n 。 is 「 / 」 （ to is t(key) this 
+ * use ）， not ， will 1 none warning。
  */
 const EXCLUDED = new Set([
   path.join(UI, 'i18n.js'),
@@ -116,7 +116,7 @@ const EXCLUDED = new Set([
   path.join(UI_KIT_SRC, 'i18n.ts'),
 ])
 
-/** ui/ 顶层的经典脚本（不递归：子目录是资产与产物，不是源） */
+/** ui/ （ not ：directory is and ， not is ） */
 function uiScripts() {
   return fs.readdirSync(UI, { withFileTypes: true })
     .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
@@ -124,7 +124,7 @@ function uiScripts() {
     .filter(file => !EXCLUDED.has(file))
 }
 
-/** ui-islands/src 下所有 .ts / .tsx（递归） */
+/** ui-islands/src down all .ts / .tsx（） */
 function islandSources() {
   const out = []
   const walk = dir => {
@@ -146,10 +146,10 @@ function islandSources() {
 }
 
 /**
- * mobile/src 下所有 .ts / .tsx（递归）。
+ * mobile/src down all .ts / .tsx（）。
  *
- * 目录不存在时返回空数组：手机端是后加的工程，别的分支 / 旧检出里没有它，
- * 扫描器不该因为一个可选目录直接崩掉。
+ * directory not in when returnempty： is after ， / old no has ，
+ * not this as 1 optionaldirectory。
  */
 function mobileSources() {
   if (!fs.existsSync(MOBILE_SRC)) return []
@@ -178,7 +178,7 @@ function componentSources() {
   return out.filter(file => !EXCLUDED.has(file))
 }
 
-/** 域解析：先精确名、再前缀；都命不中返回 null（调用方归 common + warning） */
+/** ：、 before ； not in return null（ use common + warning） */
 function domainOf(file) {
   if (file.startsWith(`${UI_KIT_SRC}${path.sep}`)) return 'common'
   const base = path.basename(file)
@@ -191,9 +191,9 @@ function domainOf(file) {
   return null
 }
 
-/* ─── 文本处理小工具 ───────────────────────── */
+/* ─── ───────────────────────── */
 
-/** 解开 JS 字符串字面量里的转义（\n / \t / \uXXXX / \u{...} / 引号等） */
+/** JS （\n / \t / \uXXXX / \u{...} / etc ） */
 function unescapeJs(raw) {
   return raw.replace(
     /\\(?:u\{([0-9a-fA-F]+)\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|([\s\S]))/g,
@@ -215,7 +215,7 @@ function unescapeJs(raw) {
   )
 }
 
-/** 解开 HTML 属性值里的实体（只处理常见的几个，够 HTML 手写文案用） */
+/** HTML （ ， HTML use ） */
 function unescapeHtml(raw) {
   return raw.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos|#39);/g, (match, entity) => {
     if (entity === 'amp') return '&'
@@ -233,15 +233,15 @@ function unescapeHtml(raw) {
   })
 }
 
-/* ─── 提取 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
-/** 代码文件：t('...') / wbI18n.t('...') 的字符串字面量首参；非字面量列为 warning */
+/** file：t('...') / wbI18n.t('...') ； as warning */
 function extractFromCode(source, file, warnings) {
   const keys = []
   const patterns = [
-    // 带 wbI18n. 前缀的调用（显式点名，不受上下文限制）
+    // wbI18n. before use （， not up down limit）
     /wbI18n\s*\.\s*t\s*\(\s*(['"])((?:\\.|(?!\1)[^\\\n])*)\1/g,
-    // 裸 t(...)：前面不能是标识符/点号，避免命中 `split(`、`x.t(` 这类
+    // t(...)： before not can is /， in `split(`、`x.t(` this 
     /(?<![\w$.])t\s*\(\s*(['"])((?:\\.|(?!\1)[^\\\n])*)\1/g,
   ]
   for (const re of patterns) {
@@ -250,8 +250,8 @@ function extractFromCode(source, file, warnings) {
       if (key) keys.push(key)
     }
   }
-  // 非字面量传参：模板串 `t(`共 ${n} 个`)`、变量 `t(label)` 等 —— 提不到键，报出来。
-  // 首参要求以标识符 / 反引号 / 括号 / 中文开头：这样注释里写的 `t()` 空调用不会被误报。
+  // ： `t(` ${n} `)`、 `t(label)` etc —— not to ，。
+  // need / / / in ： this `t()` empty use not will 。
   const loose = /(?<![\w$.])(?:wbI18n\s*\.\s*)?t\s*\(\s*(?=[A-Za-z_$`(\u4e00-\u9fff])/g
   for (const match of source.matchAll(loose)) {
     const line = source.slice(0, match.index).split('\n').length
@@ -260,17 +260,17 @@ function extractFromCode(source, file, warnings) {
   return keys
 }
 
-/** HTML 文件：data-i18n* 的显式值（先剥掉 HTML 注释，注释里的样例不算；内联脚本的 t() 由 extractFromCode 另行提取） */
+/** HTML file：data-i18n* （ HTML ， not ； t() by extractFromCode ） */
 function extractFromHtml(source, file, warnings) {
   const keys = []
   const clean = source.replace(/<!--[\s\S]*?-->/g, '')
-  // 同时覆盖 data-i18n 与属性族 data-i18n-title / -placeholder / -tip / -aria-label
+  // when data-i18n and data-i18n-title / -placeholder / -tip / -aria-label
   const re = /\bdata-i18n(?:-[a-z-]+)?\s*=\s*"([^"]*)"/g
   for (const match of clean.matchAll(re)) {
     const key = unescapeHtml(match[1]).trim()
     if (key) keys.push(key)
   }
-  // 裸 data-i18n（无值）在运行时会拿 textContent 当键，静态扫不全 —— 提示补显式值
+  // data-i18n（none） in when will textContent ， not —— 
   const bare = /\bdata-i18n(?:-[a-z-]+)?(?=[\s>/])/g
   for (const match of clean.matchAll(bare)) {
     const line = clean.slice(0, match.index).split('\n').length
@@ -279,7 +279,7 @@ function extractFromHtml(source, file, warnings) {
   return keys
 }
 
-/** 汇总扫描结果：{ domain: Set<key> } + warnings */
+/** total：{ domain: Set<key> } + warnings */
 function scan() {
   const perDomain = new Map(DOMAIN_ORDER.map(domain => [domain, new Set()]))
   const warnings = []
@@ -287,8 +287,8 @@ function scan() {
     ...uiScripts(),
     path.join(UI, 'index.html'),
     path.join(UI, 'login.html'),
-    // 手机端入口页（`/m` 直接命中它）。它的文案是 data-i18n 与内联 t()，
-    // 与 index.html 同一套提取通道。
+    // （`/m` in ）。 is data-i18n and t()，
+    // and index.html 1 。
     path.join(UI, 'm.html'),
     ...islandSources(),
     path.join(SHARED_SRC, 'provider-docs-view.tsx'),
@@ -305,9 +305,9 @@ function scan() {
       warnings.push(`${path.relative(DESKTOP, file)} 未登记域归属，已暂归 common（请在 scan.mjs 的 DOMAIN_RULES 里登记）`)
     }
     const source = fs.readFileSync(file, 'utf8')
-    // HTML 文件两条通道都跑：data-i18n 属性 + 内联脚本里的 t()/wbI18n.t() 字面量。
-    // 代码提取器喂剥掉 HTML 注释的源码（与 extractFromHtml 内部一致），注释里的示例不会被误采；
-    // 结果直接拼接，交给 Set 去重。
+    // HTML file：data-i18n + t()/wbI18n.t() 。
+    // HTML （ and extractFromHtml 1 ）， not will ；
+    // ， to Set 。
     const keys = base.endsWith('.html')
       ? [
         ...extractFromHtml(source, file, warnings),
@@ -319,9 +319,9 @@ function scan() {
   return { perDomain, warnings }
 }
 
-/* ─── 键归属（全局去重） ───────────────────── */
+/* ─── （） ───────────────────── */
 
-/** 读现有 i18n-src：返回 { owner: Map<key, domain>, json: Map<`${locale}/${domain}`, object> } */
+/** has i18n-src：return { owner: Map<key, domain>, json: Map<`${locale}/${domain}`, object> } */
 function readExisting() {
   const owner = new Map()
   const json = new Map()
@@ -334,12 +334,12 @@ function readExisting() {
       try {
         data = JSON.parse(fs.readFileSync(path.join(dir, entry), 'utf8'))
       } catch {
-        // 坏 JSON 不静默吞：报错退出会让扫描无法进行，这里回落到空对象并提示
+        // JSON not ： will none， this to empty for and 
         process.stderr.write(`[scan] 警告：${locale}/${entry} 不是合法 JSON，按空对象处理\n`)
         data = {}
       }
       json.set(`${locale}/${domain}`, data)
-      // 归属只在「域顺序」内先见先得；已有 JSON 的键优先保住原域
+      // in 「」； already has JSON 
       for (const key of Object.keys(data)) {
         if (!owner.has(key)) owner.set(key, domain)
       }
@@ -349,8 +349,8 @@ function readExisting() {
 }
 
 /**
- * 把扫到的键按「已有归属优先，其余按域顺序先见先得」定下最终归属。
- * 返回 { assigned: Map<domain, string[]>, unowned: Map<key, domain> }
+ * to by 「 already has ， its by 」 down 。
+ * return { assigned: Map<domain, string[]>, unowned: Map<key, domain> }
  */
 function assign(perDomain, owner) {
   const assigned = new Map()
@@ -372,9 +372,9 @@ function assign(perDomain, owner) {
   return { assigned, takenByNew }
 }
 
-/* ─── 排序与小工具 ─────────────────────────── */
+/* ─── and ─────────────────────────── */
 
-/** 按 Unicode 码点排序（本项目键都是 BMP 中文，等价于字符串默认排序，这里显式写出避免歧义） */
+/** by Unicode （ is BMP in ， etc default， this ） */
 function sortKeys(keys) {
   return [...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 }
@@ -386,7 +386,7 @@ function writeJson(file, object) {
   fs.writeFileSync(file, `${JSON.stringify(ordered, null, 2)}\n`, 'utf8')
 }
 
-/* ─── 主流程 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 const ONLY_DOMAIN = process.argv.find(arg => arg.startsWith('--domain='))?.slice('--domain='.length)
 if (ONLY_DOMAIN && !DOMAIN_ORDER.includes(ONLY_DOMAIN)) throw new Error(`Unknown i18n domain: ${ONLY_DOMAIN}`)
@@ -418,7 +418,7 @@ function runScan() {
     }
   }
 
-  // 报告
+  // 
   process.stdout.write('\n[scan] 各域键数：\n')
   let total = 0
   for (const domain of DOMAIN_ORDER) {
@@ -442,7 +442,7 @@ function runCheck() {
   const { owner, json } = readExisting()
   const { assigned } = assign(perDomain, owner)
 
-  // 全量扫到的键（用于判孤儿）
+  // to （used for）
   const allScanned = new Set()
   for (const domain of DOMAIN_ORDER) for (const key of assigned.get(domain)) allScanned.add(key)
 
@@ -468,7 +468,7 @@ function runCheck() {
     process.stdout.write(`  ${locale.padEnd(8)} 缺失键 ${localeMissing}，空值键 ${localeEmpty}\n`)
   }
 
-  // 孤儿键：JSON 有、全量扫描扫不到
+  // ：JSON has 、 not to 
   const orphans = []
   for (const locale of LOCALES) {
     for (const domain of ACTIVE_DOMAINS) {
@@ -497,12 +497,12 @@ function runCheck() {
   }
 }
 
-// 只在「直接 node scan.mjs」时跑主流程：被 build.mjs import 时不能顺手扫一遍
+// in 「 node scan.mjs」 when ： build.mjs import when not can 1 
 const invokedDirectly = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url
 if (invokedDirectly) {
   if (process.argv.includes('--check')) runCheck()
   else runScan()
 }
 
-// 供 build.mjs 复用同一份语言 / 域顺序契约
+// build.mjs use 1 / 
 export { LOCALES, DOMAIN_ORDER }

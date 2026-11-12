@@ -18,16 +18,16 @@ import { clientIdentificationApi } from '../api/client-identification'
 import { dateRangeQuery, readCustomRange, saveCustomRange, validCustomRange, type CustomDates, type DateRange } from '../../../ui-shared/date-range'
 
 /**
- * 请求日志。
+ * request。
  *
- * ── 九列宽表 → 一请求一卡 ────────────────────────────────────
- * 桌面端是「时间 / 提供商·账号 / 重试 / 状态 / 模型 / 客户端 / 用时 / 用量 /
- * 错误 / 详情」十列。手机上每张卡三行：
- *   ① 状态码 + 模型 + 时间
- *   ② 提供商图标 + 名称 + 账号
- *   ③ 用时 · Token · 客户端 · 重试次数
- * 换号链、退避重试、上游报错原本要悬停才看得到，手机上直接铺成卡内提示条
- * —— 这是排查时最需要的信息。
+ * ── → 1 request 1 ────────────────────────────────────
+ * is 「 when / · / / / / client / use when / usage /
+ * error / 」。 up ：
+ * ① + + when 
+ * ② + + 
+ * ③ use when · Token · client · 
+ * 、、 up need to ， up 
+ * —— this is when need need 。
  */
 
 type Filter = 'all' | 'error' | 'retry' | 'running'
@@ -61,8 +61,8 @@ export function RequestsPage() {
     setExtra([])
   }, [route.params, sourceQuery])
 
-  // 当前筛选对应的服务端 status 参数：失败与在途都走服务端筛选，
-  // 这样「加载更早」翻页时不会混进其它状态的记录；「有重试」后端没有对应参数，仍靠客户端过滤。
+  // current for server status parameter：failure and in server，
+  // this 「」 when not will its ；「 has 」 after no has for parameter，client。
   const statusParam: 'ok' | 'error' | 'running' | undefined =
     filter === 'error' ? 'error' : filter === 'running' ? 'running' : undefined
 
@@ -119,8 +119,8 @@ export function RequestsPage() {
     const seq = seqRef.current
     setLoadingMore(true)
     try {
-      // offset 用已加载的原始条数：服务端分页按未过滤的行算，
-      // 「有重试 / 在途」这类客户端二次过滤不影响翻页基准
+      // offset use already ：server by ，
+      // 「 has / in 」 this client not 
       const next = await fetchRequests({ ...queryRef.current, offset: rows.length, limit: PAGE_SIZE })
       if (seq !== seqRef.current || requested !== queryKeyRef.current) return
       setExtra(prev => [...prev, ...(next.entries || [])])

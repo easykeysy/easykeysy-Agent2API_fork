@@ -15,15 +15,15 @@ export type SanitizeRule = {
   pattern: string
   replacement: string
   repeat: boolean
-  /** 空列表沿用旧规则的全字段行为；指定角色时只改对应消息的正文。 */
+  /** empty use old then as ； when for 。 */
   roles: SanitizeRole[]
 }
 
 export type SanitizePatch = {
   sanitizeBlacklistFingerprints?: boolean
-  /** null 恢复内置词表，[] 显式清空，缺失保持原值。 */
+  /** null ，[] empty，。 */
   sanitizeFingerprintRules?: (Omit<SanitizeRule, 'roles'> & { roles?: SanitizeRole[] })[] | null
-  /** [] 表示全部提供商，包含之后新增的提供商。 */
+  /** [] ， after add 。 */
   sanitizeFingerprintProviders?: string[]
 }
 
@@ -149,7 +149,7 @@ export function validateSanitizeRule(rule: SanitizeRule, limits: SanitizeState['
   return ''
 }
 
-/** 零宽字符用可见转义展示，编辑框仍保存原文，避免默认匹配内容被误读。 */
+/** use can ，，default 。 */
 export function visibleRuleText(text: string): string {
   return text.replace(/\u200b/g, '\\u{200b}')
 }

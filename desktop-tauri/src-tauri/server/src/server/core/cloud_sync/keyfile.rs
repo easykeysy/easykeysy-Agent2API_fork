@@ -1,30 +1,30 @@
-//! 用「同步密码」封装账号密钥文件（`account.key`），让它能安全地上云。
+//! use 「」file（`account.key`）， can up 。
 //!
 //! ```text
-//! seal_key(key_bytes, password)  → account.key.enc（JSON 文本）
+//! seal_key(key_bytes, password) → account.key.enc（JSON ）
 //! open_key(envelope, password)   → key_bytes
 //! ```
 //!
-//! ── 为什么需要这一层（而不是直接传 account.key）───────────────
-//! `account.key` 是全部账号凭证与网关 Key 的对称密钥。把它原样传上云，等于
-//! 「钥匙和锁放在一起」——任何拿到那个存储桶 / 网盘目录的人都能解开全部账号。
-//! 所以上云的是**用同步密码派生的密钥加密后的**密钥文件；同步密码只存在用户
-//! 脑子里（本机存的是它用另一把本机密钥封的信封，见 `settings` 模块头）。
+//! ── Why need need this 1 （ not is account.key）───────────────
+//! `account.key` is and Key for 。 up ， etc 
+//! 「 and in 1 」—— to that / directory can 。
+//! up is ** use after **file； in use 
+//! （ is use 1 ， `settings` module header）。
 //!
-//! ── 为什么是 PBKDF2-HMAC-SHA256 而不是直接 sha256(密码) ────────
-//! 密码的熵远低于随机密钥。直接哈希等于把「离线爆破一个密码」的成本降到
-//! 「算一次 sha256」；PBKDF2 用迭代次数把每次尝试的成本抬到毫秒级，配合
-//! 随机 salt，让针对某个用户的预计算表失效。
-//! 迭代次数取 210000（OWASP 2023 对 PBKDF2-HMAC-SHA256 的推荐值）。
-//! 该值写进信封（`iterations` 字段），将来调高时**旧信封仍能解开** ——
-//! 这是「参数演进」与「向后兼容」能共存的关键，不要在代码里写死后只读不存。
+//! ── Why is PBKDF2-HMAC-SHA256 not is sha256() ────────
+//! 。 etc 「 1 」 to 
+//! 「 1 sha256」；PBKDF2 use to ms，
+//! salt， for use 。
+//! 210000（OWASP 2023 for PBKDF2-HMAC-SHA256 ）。
+//! this （`iterations` ）， will when ** old can ** ——
+//! this is 「parameter」 and 「 to after 」 can ， not need in after not 。
 //!
-//! ── 不新增依赖 ──────────────────────────────────────────────
-//! `hmac` / `sha2` / `aes-gcm` / `getrandom` / `base64` 都已在
-//! `server/Cargo.toml` 的依赖里（分别为 ALTCHA、更新模块、账号加密、PKCE 与
-//! 订阅二维码服务），这里只是把 PBKDF2 的 30 行循环写出来。
+//! ── not add ──────────────────────────────────────────────
+//! `hmac` / `sha2` / `aes-gcm` / `getrandom` / `base64` already in 
+//! `server/Cargo.toml` （ as ALTCHA、update、、PKCE and 
+//! ）， this is PBKDF2 30 。
 //!
-//! ── 信封格式 ────────────────────────────────────────────────
+//! ── ────────────────────────────────────────────────
 //! ```json
 //! {
 //!   "format": "agent2api-cloud-sync-key",
@@ -34,13 +34,13 @@
 //!   "salt": "<base64 32B>",
 //!   "nonce": "<base64 12B>",
 //!   "ciphertext": "<base64>",
-//!   "keyFingerprint": "<sha256(明文密钥)[:16]>"
+//! "keyFingerprint": "<sha256()[:16]>"
 //! }
 //! ```
-//! `keyFingerprint` 是**明文密钥**的指纹（与 `crypto::key_fingerprint` 同口径），
-//! 用来在解密后确认「解出来的确实是远端 manifest 说的那把钥匙」——密码正确但
-//! 远端数据与 manifest 不配套时（上传中途被替换）能当场发现，而不是等到应用
-//! 快照后账号全部解不开。
+//! `keyFingerprint` is **** （ and `crypto::key_fingerprint` ），
+//! use in after 「 is manifest that 」——
+//! and manifest not when （ up in ） can ， not is etc to use 
+//! after not 。
 
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine as _;
@@ -50,15 +50,15 @@ use crate::server::core::crypto;
 
 pub(crate) const ENVELOPE_FORMAT: &str = "agent2api-cloud-sync-key";
 pub(crate) const ENVELOPE_VERSION: u32 = 1;
-/// 默认迭代次数（写进信封；调高后旧信封仍按自己记录的值解开）
+/// default（； after old by ）
 pub(crate) const DEFAULT_ITERATIONS: u32 = 210_000;
 
 const SALT_LEN: usize = 32;
 const NONCE_LEN: usize = 12;
-/// 账号密钥的固定长度（AES-256）
+/// （AES-256）
 pub(crate) const KEY_LEN: usize = 32;
 
-/// 信封（落盘 / 上云的 JSON 形态）
+/// （ / up JSON ）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct KeyEnvelope {
@@ -69,19 +69,19 @@ pub(crate) struct KeyEnvelope {
     pub salt: String,
     pub nonce: String,
     pub ciphertext: String,
-    /// 明文密钥的指纹（见模块头）
+    /// （module header）
     pub key_fingerprint: String,
 }
 
-/// PBKDF2-HMAC-SHA256 派生 32 字节。
+/// PBKDF2-HMAC-SHA256 32 。
 ///
-/// 手写而不是引 `pbkdf2` crate：只有这一处用，30 行循环比多一个依赖划算
-/// （与项目「不新增第三方依赖」的约定一致，见 `server/Cargo.toml`）。
+/// not is `pbkdf2` crate： has this 1 use ，30 1 
+/// （ and 「 not add」 1 ， `server/Cargo.toml`）。
 fn derive_key(password: &str, salt: &[u8], iterations: u32) -> [u8; KEY_LEN] {
     use hmac::{Hmac, Mac};
     type HmacSha256 = Hmac<sha2::Sha256>;
 
-    // PBKDF2 的第一个块（dkLen = 32 = 一个 SHA-256 输出长度，只需一轮）
+    // PBKDF2 1 （dkLen = 32 = 1 SHA-256 ， need 1 ）
     let mut mac = HmacSha256::new_from_slice(password.as_bytes())
         .expect("HMAC 接受任意长度的密钥");
     mac.update(salt);
@@ -108,10 +108,10 @@ fn random_bytes<const N: usize>() -> Result<[u8; N], String> {
     Ok(bytes)
 }
 
-/// 用同步密码封装账号密钥。
+/// use 。
 ///
-/// `key_bytes` 必须是 32 字节（`account.key` 的原文）；其它长度按错误上抛 ——
-/// 悄悄补零 / 截断会让上云的那把钥匙与本地不是同一把，换机后账号全解不开。
+/// `key_bytes` must is 32 （`account.key` ）； its by error up ——
+/// / will up that and not is 1 ， after not 。
 pub(crate) fn seal_key(key_bytes: &[u8], password: &str) -> Result<Vec<u8>, String> {
     if key_bytes.len() != KEY_LEN {
         return Err(format!(
@@ -148,9 +148,9 @@ pub(crate) fn seal_key(key_bytes: &[u8], password: &str) -> Result<Vec<u8>, Stri
     serde_json::to_vec_pretty(&envelope).map_err(|error| format!("序列化密钥信封失败: {error}"))
 }
 
-/// 用同步密码解开账号密钥。
+/// use 。
 ///
-/// 密码错误 → GCM 校验失败 → 明确的「同步密码不正确」，**绝不**返回半截数据。
+/// error → GCM failure → 「 not 」，** not **return。
 pub(crate) fn open_key(raw: &[u8], password: &str) -> Result<[u8; KEY_LEN], String> {
     use aes_gcm::aead::{consts::U12, Aead as _};
     use aes_gcm::{Aes256Gcm, KeyInit as _, Nonce};
@@ -198,8 +198,8 @@ pub(crate) fn open_key(raw: &[u8], password: &str) -> Result<[u8; KEY_LEN], Stri
         .try_into()
         .map_err(|_| "解密出的账号密钥长度异常".to_string())?;
 
-    // 指纹自校验：密码对了但远端数据与 manifest 不配套时（上传中途被替换），
-    // 这里能当场发现，而不是等应用快照后账号全部解不开。
+    // ： for and manifest not when （ up in ），
+    // this can ， not is etc use after not 。
     let actual = crypto::fingerprint_of(&key);
     if actual != envelope.key_fingerprint {
         return Err(
@@ -209,15 +209,15 @@ pub(crate) fn open_key(raw: &[u8], password: &str) -> Result<[u8; KEY_LEN], Stri
     Ok(key)
 }
 
-/// 把解出的密钥装到本机：写 `account.key`，旧文件改名保留。
+/// to ： `account.key`， old file。
 ///
-/// ── 为什么要先备份旧文件 ────────────────────────────────────
-/// 下载可能是「用户想换回旧机器的状态」，也可能是「误操作」。旧密钥一旦被覆盖
-/// 且没有副本，本机原有账号的密文就再也解不开了。改名成
-/// `account.key.bak-<时间戳>` 而不是删除：出问题时用户能手工换回来。
+/// ── Why need old file ────────────────────────────────────
+/// down can can is 「 use old 」， can can is 「」。 old 1 
+/// and no has ， has not 。
+/// `account.key.bak-< when >` not is delete： when use can 。
 ///
-/// ── 为什么必须重置 crypto 缓存 ──────────────────────────────
-/// 见 `crypto::reset_cache` 的说明：不重置的话，本次运行剩余时间用的还是旧密钥。
+/// ── Whymust crypto ──────────────────────────────
+/// `crypto::reset_cache` ： not ，remaining when use is old 。
 pub(crate) fn install_key(key_bytes: &[u8]) -> Result<Option<String>, String> {
     if key_bytes.len() != KEY_LEN {
         return Err("账号密钥长度异常".to_string());

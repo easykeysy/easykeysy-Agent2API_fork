@@ -1,27 +1,27 @@
-//! S3 兼容存储的传输原语：PUT / GET / HEAD + AWS Signature V4 签名。
+//! S3 ：PUT / GET / HEAD + AWS Signature V4 。
 //!
-//! ── 为什么手写 SigV4 ────────────────────────────────────────
-//! 只有三个动作（PUT / GET / HEAD），引 `aws-sdk-s3` 会带进一整套 SDK 与它
-//! 自己的运行时；而项目约定「不新增第三方依赖」（见 `server/Cargo.toml`）。
-//! `hmac` / `sha2` 已在依赖里（ALTCHA 与账号加密），签名本身是 60 行纯函数。
+//! ── Why SigV4 ────────────────────────────────────────
+//! has （PUT / GET / HEAD）， `aws-sdk-s3` will 1 SDK and 
+//! when ；「 not add」（ `server/Cargo.toml`）。
+//! `hmac` / `sha2` already in （ALTCHA and ）， is 60 。
 //!
-//! ── URL 风格 ────────────────────────────────────────────────
-//!   · AWS 官方（endpoint 为空或含 `amazonaws.com`）→ 虚拟主机风格
+//! ── URL ────────────────────────────────────────────────
+//! · AWS （endpoint as empty or `amazonaws.com`）→ 
 //!     `https://{bucket}.s3.{region}.amazonaws.com/{key}`
-//!   · 自定义端点（MinIO / R2 / OSS / COS / OBS）→ path-style
+//! · （MinIO / R2 / OSS / COS / OBS）→ path-style
 //!     `{scheme}://{host}/{bucket}/{key}`
-//! R2 也走 path-style（`https://{account}.r2.cloudflarestorage.com/{bucket}/{key}`），
-//! 与官方文档给的 S3 API 端点一致。
+//! R2 path-style（`https://{account}.r2.cloudflarestorage.com/{bucket}/{key}`），
+//! and to S3 API 1 。
 //!
-//! ── 签名只覆盖需要的头 ──────────────────────────────────────
-//! 参与签名的是 `host` / `x-amz-date` / `x-amz-content-sha256`（+ 可选的
-//! `content-type`）。刻意**不**把 `content-length` 纳入：reqwest 会在最后一步
-//! 补它，我们签名时拿不到最终值，纳进去必然对不上。S3 允许只签部分头，只要
-//! `SignedHeaders` 与 `Authorization` 一致即可。
+//! ── need need ──────────────────────────────────────
+//! and is `host` / `x-amz-date` / `x-amz-content-sha256`（+ optional 
+//! `content-type`）。** not ** `content-length` ：reqwest will in after 1 
+//! ， when not to ， for not up 。S3 ， need 
+//! `SignedHeaders` and `Authorization` 1 can 。
 //!
-//! ── 端点没有 scheme 时默认 https ────────────────────────────
-//! 与 cc-switch 的 `split_scheme_host` 同口径：用户填 `minio.local:9000` 时按
-//! https 处理，填 `http://minio.local:9000` 才走明文（本地 MinIO 常用后者）。
+//! ── no has scheme when default https ────────────────────────────
+//! and cc-switch `split_scheme_host` ： use `minio.local:9000` when by 
+//! https ， `http://minio.local:9000` （ MinIO use after ）。
 
 use std::time::Duration;
 
@@ -30,27 +30,27 @@ use reqwest::StatusCode;
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 const TRANSFER_TIMEOUT_SECS: u64 = 300;
 
-/// S3 凭据（解密后的明文）
+/// S3 （ after ）
 pub(crate) struct S3Credentials {
     pub access_key_id: String,
     pub secret_access_key: String,
     pub region: String,
     pub bucket: String,
-    /// 自定义端点；空 = AWS 官方
+    /// ；empty = AWS 
     pub endpoint: String,
-    /// 自定义 User-Agent；空 = 用 reqwest 默认。**不参与签名**，可以安全覆盖
+    /// User-Agent；empty = use reqwest default。** not and **， can 
     pub user_agent: String,
 }
 
-/// ── 为什么要能自定义 User-Agent ──────────────────────────────
-/// 少数 S3 兼容服务（如中国科技云数据胶囊）把凭据绑到「应用类型」上，并在
-/// 服务端按 User-Agent 校验它；UA 不含该应用名就直接 401/403。此时唯一的
-/// 出路是让客户端把 UA 伪装成那个应用（如 `rclone/v1.67.0`）。UA 不在 SigV4
-/// 的签名范围内（见模块头「签名只覆盖需要的头」），所以覆盖它不影响签名。
+/// ── Why need can User-Agent ──────────────────────────────
+/// S3 （ in ） to 「 use 」 up ， and in 
+/// server by User-Agent ；UA not this use 401/403。 when 1 
+/// is client UA that use （ `rclone/v1.67.0`）。UA not in SigV4
+/// （module header「 need need 」）， not 。
 fn client(credentials: &S3Credentials) -> Result<reqwest::Client, String> {
     let mut builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS));
-    // 只在用户填了才覆盖：空串会被当成「不发 UA」，反而不如 reqwest 的默认值
+    // in use ：empty will 「 not UA」， not reqwest default
     let user_agent = credentials.user_agent.trim();
     if !user_agent.is_empty() {
         builder = builder.user_agent(user_agent.to_string());
@@ -77,7 +77,7 @@ fn split_scheme_host(endpoint: &str) -> (&str, &str) {
     }
 }
 
-/// 对象 URL（见模块头两种风格）
+/// for URL（module header）
 fn object_url(credentials: &S3Credentials, key: &str) -> String {
     let key = key.trim_start_matches('/');
     if is_aws_endpoint(&credentials.endpoint) {
@@ -91,7 +91,7 @@ fn object_url(credentials: &S3Credentials, key: &str) -> String {
     }
 }
 
-/// 桶级 URL（测试连接用 HEAD bucket）
+/// URL（ use HEAD bucket）
 fn bucket_url(credentials: &S3Credentials) -> String {
     if is_aws_endpoint(&credentials.endpoint) {
         format!(
@@ -104,7 +104,7 @@ fn bucket_url(credentials: &S3Credentials) -> String {
     }
 }
 
-// ─── 签名 ─────────────────────────────────────────────────────
+// ─── ─────────────────────────────────────────────────────
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
     use hmac::{Hmac, Mac};
@@ -114,7 +114,7 @@ fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
     mac.finalize().into_bytes().to_vec()
 }
 
-/// AWS SigV4 的百分号编码（只保留 RFC 3986 unreserved）
+/// AWS SigV4 （ RFC 3986 unreserved）
 fn uri_encode(input: &str, encode_slash: bool) -> String {
     let mut out = String::with_capacity(input.len());
     for byte in input.bytes() {
@@ -132,11 +132,11 @@ fn uri_encode(input: &str, encode_slash: bool) -> String {
     out
 }
 
-/// 给一个请求签名，返回需要附上的头。
+/// to 1 request，return need need up 。
 ///
-/// 返回值是 `(header_name, header_value)` 列表，由调用方逐个 `.header()` 加上。
-/// 不直接改 `HeaderMap`：reqwest 的 builder 才是最终的权威来源，中间插一层
-/// 容易漏掉 `host`（reqwest 会自己补 host，但我们签名用的就是它补的那个值）。
+/// return is `(header_name, header_value)` ， by use `.header()` up 。
+/// not `HeaderMap`：reqwest builder is ， in 1 
+/// `host`（reqwest will host， use is that ）。
 fn sign(
     method: &str,
     url: &url::Url,
@@ -153,7 +153,7 @@ fn sign(
         None => url.host_str().unwrap_or_default().to_string(),
     };
 
-    // 参与签名的头：按名字排序（SigV4 要求）
+    // and ： by （SigV4 need ）
     let mut headers: Vec<(String, String)> = vec![
         ("host".to_string(), host),
         ("x-amz-content-sha256".to_string(), body_hash.to_string()),
@@ -225,7 +225,7 @@ fn sign(
     result
 }
 
-/// 请求头集合（签名 + 必要的附加头）
+/// request（ + need ）
 fn signed_headers(
     method: &str,
     url: &str,
@@ -289,7 +289,7 @@ fn status_error(op: &str, status: StatusCode, url: &str) -> String {
     message
 }
 
-/// 测试连接：对桶发 HEAD。
+/// ： for HEAD。
 pub(crate) async fn test_connection(credentials: &S3Credentials) -> Result<(), String> {
     let url = bucket_url(credentials);
     let headers = signed_headers("HEAD", &url, b"", None, credentials)?;
@@ -307,7 +307,7 @@ pub(crate) async fn test_connection(credentials: &S3Credentials) -> Result<(), S
     Err(status_error("HEAD bucket", response.status(), &url))
 }
 
-/// PUT 一个对象。
+/// PUT 1 for 。
 pub(crate) async fn put_object(
     credentials: &S3Credentials,
     key: &str,
@@ -333,7 +333,7 @@ pub(crate) async fn put_object(
     Err(status_error("PUT", response.status(), &url))
 }
 
-/// GET 一个对象；404 返回 `None`。
+/// GET 1 for ；404 return `None`。
 pub(crate) async fn get_object(
     credentials: &S3Credentials,
     key: &str,

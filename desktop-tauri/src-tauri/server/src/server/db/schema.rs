@@ -1,351 +1,351 @@
-//! 建表 DDL 与 schema 版本管理（`PRAGMA user_version` 逐版本升级）。
+//! DDL and schema （`PRAGMA user_version` ）。
 //!
-//! ── 为什么自己写十几行而不用 rusqlite_migration ─────────────
-//! 迁移库解决的通用问题是「一堆版本文件 + 校验和 + 回滚 + 断点续跑」。本项目
-//! 的表**一共 6 张、只增不改**（旧列不删、新列靠可空的 `data` JSON 兜底），
-//! 版本推进就是「比大小 → 跑 DDL → 写版本号」三步。引入第三方迁移框架会带来：
-//! 一个新依赖、一套它自己的版本表（与 `user_version` 二选一，反而多一份状态）、
-//! 以及「框架怎么理解我们的幂等语义」这类需要读源码才能确认的事。十几行确定性
-//! 代码可以逐行看懂、出错时能直接对着库文件查，符合本项目一贯取向。
+//! ── Why not use rusqlite_migration ─────────────
+//! use is 「 1 file + and + + 」。
+//! ** 1 6 、 not **（ old not 、 new can empty `data` JSON ），
+//! is 「 → DDL → 」。 will ：
+//! 1 new 、 1 （ and `user_version` 1 ， 1 ）、
+//! and 「 etc 」 this need need can 。
+//! can 、 when can for file， 1 to 。
 //!
-//! ── 为什么全部 DDL 集中在本文件 ─────────────────────────────
-//! 表结构是**跨 store 的公共契约**：写侧（各 store 的接线切片）与读侧（API）
-//! 分属不同文件、不同任务，两边的字段口径必须有一处唯一的事实来源。字段散在
-//! 各 store 的 `CREATE TABLE` 里，加一列就会出现「谁先建谁生效」的库文件差异
-//! （同一个版本，A 机器建的库有这列、B 机器没有）。集中之后「库长什么样」只
-//! 用读这一个文件。
+//! ── Why DDL in in file ─────────────────────────────
+//! is ** store **：（ store ） and （API）
+//! not file、 not ， must has 1 1 。 in 
+//! store `CREATE TABLE` ， 1 will 「」 file
+//! （ 1 ，A has this 、B no has ）。 in after 「」
+//! use this 1 file。
 //!
-//! ── 版本推进方式 ────────────────────────────────────────────
-//! 读 `user_version`（默认 0 = 全新库），对它到 [`SCHEMA_VERSION`] 之间的
-//! 每个版本按序调用 [`apply_version`]，最后把 `user_version` 写成
-//! [`SCHEMA_VERSION`]。**每推一个版本都是一个独立事务**（DDL 与版本号一起
-//! 提交）：中途失败时已完成的那几个版本保留、最后一个整体回滚，下次启动从
-//! 落库的版本号继续 —— 不会出现「表建了一半但版本号已经写新」的错位。
+//! ── ────────────────────────────────────────────
+//! `user_version`（default 0 = new ）， for to [`SCHEMA_VERSION`] 
+//! by use [`apply_version`]， after `user_version` 
+//! [`SCHEMA_VERSION`]。** 1 is 1 **（DDL and 1 
+//! ）： in failure when already that 、 after 1 ， down from 
+//! —— not will 「 1 already new 」 。
 //!
-//! ── 为什么所有语句都带 IF NOT EXISTS ────────────────────────
-//! 版本号是**唯一**的推进依据，但现实里存在「表已经在了、版本号却是 0」的
-//! 情形：用户手工拷过库文件、或者从旧版本二进制回退再前进。DDL 幂等之后这种
-//! 库能直接跑过去（缺的补上、有的跳过），而不是在启动时报一句
-//! 「table already exists」把用户挡在门外。
+//! ── Whyall IF NOT EXISTS ────────────────────────
+//! is ** 1 ** ， in 「 already in 、 is 0」 
+//! ： use file、or from old before 。DDL etc after this 
+//! can （ up 、 has ）， not is in when 1 
+//! 「table already exists」 use in 。
 //!
-//! ── kv 表的键命名规范（后续切片按此约定往里写）──────────────
-//! `kv` 是「不属于某张实体表的零散持久状态」的落点，键分两类：
-//!   - **网关配置（原 `config.json`）的顶层键直接用键名**，一字不改：
+//! ── kv （ after by ）──────────────
+//! `kv` is 「 not 」 ，：
+//! - **config（ `config.json`） use **， 1 not ：
 //!     `apiKeys`、`modelRules`、`logRetentionDays`、`debugMode`……
-//!     为什么保留原名而不是改成 snake_case：这些名字同时是 **HTTP API 的
-//!     契约**（`GET /api/config` 的响应体、前端 `config.X` 的读法），改名会
-//!     让前端、账号迁移、模型规则三处同时受影响；数据库的列名与 JSON 键
-//!     一一对应，排障时能直接把库里的值贴进配置文件比对。
-//!     值的形态也与配置文件一致：**值就是那段 JSON**（标量存 `"30"`、
-//!     对象存 `{...}`、数组存 `[...]`），所以 `config.json` → `kv` 的迁移
-//!     是「顶层键逐个搬」，不需要为每种类型单独定编码。
-//!   - **其它零散状态用固定名**（驼峰，与前面同类）：见 [`RESERVED_KV_KEYS`]。
-//!     注意 `desktopSettings` 存的是**整份**设置对象而不是拆成多个键 ——
-//!     桌面设置是壳侧 `settings.rs` 的整体读写单元（前端一次 `PUT` 整份），
-//!     拆键会让「一次写入」变成多行更新，徒增事务与冲突面。
+//! Why not is snake_case： this when is **HTTP API 
+//! **（`GET /api/config` response、 before `config.X` ）， will 
+//! before 、、 then when ； and JSON 
+//! 1 1 for ， when can configfile for 。
+//! and configfile 1 ：** is that JSON**（ `"30"`、
+//! for `{...}`、 `[...]`）， `config.json` → `kv` 
+//! is 「 」， not need need as 。
+//! - ** its use **（， and before ）： [`RESERVED_KV_KEYS`]。
+//! Note `desktopSettings` is ****set for not is ——
+//! set is `settings.rs` （ before 1 `PUT` ），
+//! will 「 1 」update， and 。
 //!
-//! ── 两类键名为什么绝不能相撞（T7 起这是一条硬约束）──────────
-//! `config.json` 进了 `kv` 之后，「哪些行属于配置」不再由**表的边界**表达
-//! （改造前配置独占一个文件），而是由键名是否落在 [`RESERVED_KV_KEYS`] 里
-//! 区分。`config::save_raw` 的「删除已不存在的键」要按这个集合做排除 ——
-//! 配置项的名字若与某个固定键撞了，写一次配置就会把那份状态**删掉**
-//! （比如配置里出现 `desktopSettings`，用户改一次 API Key 就丢了桌面设置）。
-//! 当前配置项（`apiKeys` / `modelRules` / `logRetentionDays` / `debugMode` /
+//! ── Why not can （T7 this is 1 ）──────────
+//! `config.json` `kv` after ，「config」 not by ** **
+//! （ before config 1 file）， is by is in [`RESERVED_KV_KEYS`] 
+//! 。`config::save_raw` 「delete already not in 」 need by this excluding ——
+//! config if and ， 1 config will that ****
+//! （e.g.config `desktopSettings`， use 1 API Key set）。
+//! currentconfig（`apiKeys` / `modelRules` / `logRetentionDays` / `debugMode` /
 //! `sanitizeBlacklistFingerprints` / `promptMode` / `promptFile` /
 //! `scheduledTasks` / `autoCheckin` / `locale` / `lastRequestModel` /
-//! `providerRoute` / `updateProxy` / `updateBeta` / 三个 `*Dir` / 三个 `*RetentionDays` /
-//! 三个 `retry*` / 六条 `scheduledTasks.*` 子键 / 三个 `*Imported` 标记 /
-//! 旧字段 `apiKey`）与固定键**无冲突**，逐项核对过（全仓 `update_raw_field` /
-//! `raw.insert` / `KEY_*` 常量的取值集合 vs 下面的 `RESERVED_KV_KEYS`）。
-//! 后加固定键名时**必须**回来核对一次：撞名的代价是用户的配置或状态被静默
-//! 覆盖，而两处代码离得很远（一个在本文件，一个在使用方）。
+//! `providerRoute` / `updateProxy` / `updateBeta` / `*Dir` / `*RetentionDays` /
+//! `retry*` / `scheduledTasks.*` / `*Imported` /
+//! old `apiKey`） and **none**， for （ `update_raw_field` /
+//! `raw.insert` / `KEY_*` vs down `RESERVED_KV_KEYS`）。
+//! after when **must** for 1 ： is use config or 
+//! ，（ 1 in file， 1 in use ）。
 
 use rusqlite::Connection;
 
-/// `kv` 表里**不属于网关配置**的固定键名（模块头「两类键名绝不能相撞」讲的
-/// 就是它与配置顶层键的关系）。
+/// `kv` ** not config** （module header「 not can 」 
+/// is and config ）。
 ///
-/// 为什么要有一份集中清单：`config::save_raw` 必须知道「哪些行不归我管」，
-/// 才能在写配置时把「配置里已删掉的键」精确删掉而不误伤别人的状态。没有这份
-/// 清单，那个删除只能放宽成「删掉所有不在新配置里的键」—— 桌面设置、账号
-/// 优先级作用域、日志下一个 id 会在用户改一次 API Key 时全部消失。
+/// Why need has 1 in ：`config::save_raw` must「 not 」，
+/// can in config when 「config already 」 not 。 no has this 
+/// ， that delete can 「all not in new config 」—— set、
+/// use 、 down 1 id will in use 1 API Key when 。
 ///
-/// 它是**事实来源**：各使用方自己的常量（`logs_store::sql::NEXT_ID_KEY`）
-/// 仍是它们各自读写时用的名字，本清单只服务
-/// 「配置写侧要排除哪些键」这一个判断。两处若不一致，症状是配置写入误删状态
-/// —— 所以新增固定键时**两处都要加**（使用方常量 + 本清单），
-/// [`is_reserved`] 是唯一的判断入口。
+/// is ****： use （`logs_store::sql::NEXT_ID_KEY`）
+/// is when use ，
+/// 「config need excluding」 this 1 。 if not 1 ， is config
+/// —— add when ** need **（ use + ），
+/// [`is_reserved`] is 1 。
 ///
-/// 清单里可能有**没有使用方常量**的项（如遗留的 `desensitize`）：那些是
-/// 「功能已删、数据留着」的键，登记它们的唯一目的就是让配置写入别去动它。
+/// can can has ** no has use ** （ `desensitize`）： that is 
+/// 「 can already 、」 ， 1 is config。
 pub const RESERVED_KV_KEYS: &[&str] = &[
-    // 账号优先级的全局作用域（core::account_store::sql）
-    // 「Agent」页的用户配置：{ clientId: [Profile] } 整份 JSON 一个键
-    // （core::agents）。零散状态，与 desktopSettings 同一类。
+    // use （core::account_store::sql）
+    // 「Agent」 use config：{ clientId: [Profile] } JSON 1 
+    // （core::agents）。， and desktopSettings 1 。
     "agentProfiles",
     "priorityScope",
-    // 侧边栏布局（core::sidebar_layout）：整份「分组 / 顺序 / 显隐」JSON 一个键。
-    // 从前只存浏览器 localStorage，而桌面壳与网页端是两个 origin、localStorage
-    // 隔离 —— 于是「在 WebUI 里隐藏的菜单，客户端照旧显示」。落库后两端读同一份。
-    // 属于「其它零散状态」：配置写入绝不能动它（否则用户改一次 API Key
-    // 侧边栏就退回默认布局）。
+    // （core::sidebar_layout）：「 / / 」JSON 1 。
+    // from before localStorage， and is origin、localStorage
+    // —— is 「 in WebUI ，client old 」。 after 1 。
+    // 「 its 」：config not can （otherwise use 1 API Key
+    // default）。
     "sidebarLayout",
-    // 事件日志的下一个 id 水位（logs_store::sql）
+    // down 1 id （logs_store::sql）
     "logsNextId",
-    // 整份桌面设置 JSON（壳侧 settings）—— 一个键而不是拆成三个：
-    // 桌面设置是整体读写单元（前端一次 PUT 整份），拆键会让一次写入变成
-    // 多行更新，徒增事务与冲突面。
+    // set JSON（ settings）—— 1 not is ：
+    // set is （ before 1 PUT ）， will 1 
+    // update， and 。
     "desktopSettings",
-    // **遗留**：旧「敏感词脱敏」的整份状态（词表 / 开关 / 作用角色 / 作用提供商）。
+    // ****： old 「」 （ / / use / use ）。
     //
-    // 那个功能已随规则集换成硬编码指纹脱敏（`core::sanitize`）而整体删除，
-    // 这个键**不再有任何读写方**。仍然登记在这里是有意的：它意味着配置写入
-    // 不会顺手把这行删掉 —— 老用户库里那份自定义词表原样留着（想查还能
-    // `sqlite3` 看），而不是因为改一次 API Key 就静默消失。真要清理时手工
-    // 删这一行即可。
+    // that can already then （`core::sanitize`）delete，
+    // this ** not has **。 in this is has ：config
+    // not will this —— use that （ can 
+    // `sqlite3` ）， not is as 1 API Key 。 need when 
+    // this 1 can 。
     "desensitize",
-    // 面板管理员（server::access）：{username, hash} 整份 JSON 一个键 ——
-    // 首次部署在面板上注册产生（环境变量预置时优先于它），属于「其它零散
-    // 状态」一类：不是配置项，配置写入绝不能动它。
+    // （server::access）：{username, hash} JSON 1 ——
+    // in up （ when ），「 its 
+    // 」 1 ： not is config，config not can 。
     "panelAdmin",
-    // 面板刷新令牌（server::access）：整份记录数组一个键（条目是个位数：
-    // 每设备一条活链），轮换/撤销都是整键重写。刷新令牌在库里只存 sha256。
+    // new （server::access）： 1 （ is ：
+    // 1 ），/ is 。 new in sha256。
     "panelTokens",
-    // 面板 access 会话表（server::access）：与 `panelTokens` 同一形状、同样只存
-    // sha256。落库的理由是「重启不该把所有已登录的浏览器打成无效」—— 重启前它们
-    // 只在内存，重启后浏览器带着还在的 cookie 撞 401，而 401 又不清 cookie，
-    // 现场表现为「同一把对不上任何登录的指纹反复出现几十次」。
+    // access will （server::access）： and `panelTokens` 1 、
+    // sha256。 by is 「 not this all already invalid」—— before 
+    // in ， after in cookie 401， 401 not cookie，
+    // as 「 1 for not up 」。
     "panelAccessSessions",
-    // ALTCHA 机器人校验的 HMAC 密钥（server::altcha）：首次签发 challenge
-    // 时生成并落库，只经 HMAC 使用、从不外发。属于「其它零散状态」，
-    // 配置写入绝不能动它。
+    // ALTCHA HMAC （server::altcha）： challenge
+    // when and ， HMAC use 、 from not 。「 its 」，
+    // config not can 。
     "panelAltchaSecret",
-    // config.json 迁移的完成标记（db::migrate::config）。为什么配置这一项
-    // **需要**标记键而其余项不需要：配置项是开放集合，没法问「配置迁过了
-    // 没有」（理由与完整论证见 db::migrate::config 的模块头）。
+    // config.json （db::migrate::config）。Whyconfig this 1 
+    // ** need need ** its not need need ：config is ， no 「config
+    // no has 」（ by and db::migrate::config module header）。
     "configMigrated",
-    // 请求明细 / 聚合的迁移完成标记（request_stats::legacy）。
+    // request / （request_stats::legacy）。
     //
-    // 这两项用标记键，而 `logs` / `accounts` / `debug_traffic` 三项不用，
-    // 原因是**那三张表有可用的业务主键**（历史行号 / 记录 uuid / 请求关联 id），
-    // 「这条已经导过了」能直接由主键判断（`INSERT OR IGNORE`）；而
-    // `requests` 的主键是自增 `row_id`（与内容无关）、`id` 列在旧行里可能是
-    // 空串，`request_daily` 的 `date` 又会被运行期 UPSERT 改写 —— 都当不了
-    // 「这条已经导过了」的判据。完整论证见
-    // `request_stats::legacy::MARKER_REQUESTS` 的文档注释。
+    // this use ， `logs` / `accounts` / `debug_traffic` not use ，
+    // Reason is ** that has available **（ / uuid / request id），
+    // 「 this already 」 can by （`INSERT OR IGNORE`）；
+    // `requests` is `row_id`（ and none）、`id` in old can can is 
+    // empty，`request_daily` `date` will UPSERT —— not 
+    // 「 this already 」 。
+    // `request_stats::legacy::MARKER_REQUESTS` 。
     //
-    // 登记在这里是**必须**的：`config::save_raw` 写配置时要靠本清单排除
-    // 「不归我管」的键，漏登记会让用户改一次 API Key 就把这两个标记删掉
-    // —— 下次点「升级」会重复导入一遍历史明细。
+    // in this is **must** ：`config::save_raw` config when need excluding
+    // 「 not 」 ， will use 1 API Key this 
+    // —— down 「」 will 1 。
     "requestsMigrated",
     "dailyMigrated",
-    // 模型用量口径订正的完成标记（request_stats::aggregate 的
-    // `MODEL_UPSTREAM_MARKER`）—— #139 的根因就是这个键漏登记：
-    // 它在 `remap_model_days` 里**直接写库**（与重算同一事务，有意的：
-    // 中断后标记必然没写、下次整批重跑），而 `config::init` 把全库读进内存
-    // 快照发生在那之前 —— 不登记的话，用户改任意一项配置时 `save_raw` 会把
-    // 它当「配置里已删掉的键」清掉，下次启动同一批历史被重算第二遍
-    // （日期键未变时是幂等覆盖、静默；变过日期键就留下重复的聚合行）。
+    // usage （request_stats::aggregate 
+    // `MODEL_UPSTREAM_MARKER`）—— #139 is this ：
+    // in `remap_model_days` ****（ and 1 ， has ：
+    // in after no 、 down ）， `config::init` 
+    // in that before —— not ， use any 1 config when `save_raw` will 
+    // 「config already 」， down 1 
+    // （ when is etc 、； down ）。
     "modelUsageUpstreamRemapped",
-    // 远程模型清单的持久化缓存（core::providers::catalog_cache）：整份
-    // 「各家上次成功拉到的清单」一个键（十份清单挤一个键的理由见那个模块头）。
-    // 属于「其它零散状态」——它不是配置项，配置写入绝不能动它。
+    // （core::providers::catalog_cache）：
+    // 「 up success to 」 1 （ 1 by that module header）。
+    // 「 its 」—— not is config，config not can 。
     "modelCatalogCache",
-    // 后台任务的持久化排期与执行状态（core::task_state）：整份「每条任务的
-    // 上次尝试 / 上次成功 / 下次执行 / 失败冷却 / 缓存值」一个键。它替代了
-    // 改造前「排期只在内存里、重启即从头」的形态 —— 于是重启不再让
-    // GitHub 检查、余额查询、模型刷新、凭证维护各多打一轮上游请求。
-    // 属于「其它零散状态」：配置写入绝不能动它（否则排期归零、重启又立刻重跑）。
+    // after and （core::task_state）：「 
+    // up / up success / down / failure / 」 1 。
+    // before 「 in 、 from 」 —— is not 
+    // GitHub check、、 new 、 1 up request。
+    // 「 its 」：config not can （otherwise、）。
     "backgroundTaskState",
-    // 最近一次损坏任务状态的原文与恢复信息，仅供本机诊断，不参与配置或云同步。
+    // 1 and ，only， not and config or 。
     "backgroundTaskStateRecovery",
-    // 旧「定时查询积分」的结果快照（全局任务已退役）：键保留在保留清单里是
-    // 刻意的 —— `core::usage_records` 启动时把它的行导入 account_usage_records
-    // 表后删除本键；若那次迁移失败，这里不让配置写入把唯一的迁移来源误清掉。
-    // 迁移成功后这个键不再出现，条目留在清单里只是防御。
+    // old 「 when 」 （ already ）： in is 
+    // —— `core::usage_records` when account_usage_records
+    // after delete； if that failure， this not config 1 。
+    // success after this not ， in is 。
     "usageQuerySnapshot",
-    // 出网代理池（core::proxy_pool）：整份 `{items: [...]}` 一个键 ——
-    // 「网络代理」页维护的命名代理，账号可按 id 引用。属于「其它零散状态」：
-    // 它不是配置项（配置写入绝不能动它，否则用户配好的代理会被改一次 API Key
-    // 清空）。条目不落独立表、只整份读写，理由见那个模块头。
+    // （core::proxy_pool）： `{items: [...]}` 1 ——
+    // 「」 ， can by id use 。「 its 」：
+    // not is config（config not can ，otherwise use will 1 API Key
+    // empty）。 not 、， by that module header。
     "proxyPool",
-    // 测试目标与旧端口范围共存于历史记录，配置写入不能清掉这份数据。
+    // and old ，config not can this 。
     "proxySettings",
-    // 订阅功能已下线；保留旧数据，不因修改网关配置而删除。
+    // can already down ； old ， not configdelete。
     "subscriptions",
-    // models.dev 模型元数据的刷新结果（core::model_meta::snapshot）：整份
-    // 「上次成功拉到的精简索引」一个键（文件形态与内嵌快照逐字相同，生成口径见
-    // `scripts/sync-modelsdev.mjs`）。**不是**配置项 —— 配置写入绝不能动它，
-    // 否则用户改一次 API Key 就退回发版时那份更旧的内嵌快照。
-    // 与上面的 `modelCatalogCache` 是两码事：那个存各家上游的**模型清单**，
-    // 这个存模型的**元数据**（能力位 / 思考档位），刷新链路与失效语义各不同。
+    // models.dev new （core::model_meta::snapshot）：
+    // 「 up success to 」 1 （file and ，
+    // `scripts/sync-modelsdev.mjs`）。** not is **config —— config not can ，
+    // otherwise use 1 API Key when that old 。
+    // and up `modelCatalogCache` is ： that up ****，
+    // this ****（ can / ）， new and not 。
     "modelsDevCatalog",
-    // 云同步的配置与同步状态（core::cloud_sync）：整份
-    // `{provider, webdav:{…}, s3:{…}, syncPassword(信封), enabled, autoSync,
-    //   remoteRoot, profile, status:{lastSyncAt, lastSnapshotId, …}}` 一个键。
+    // config and （core::cloud_sync）：
+    // `{provider, webdav:{…}, s3:{…}, syncPassword(), enabled, autoSync,
+    // remoteRoot, profile, status:{lastSyncAt, lastSnapshotId, …}}` 1 。
     //
-    // 为什么是保留键而不是配置项：它含**远端凭据**（WebDAV 密码 / S3 Secret
-    // Access Key 的密文信封）与同步密码信封，属于「其它零散状态」一类；
-    // 更关键的是**它自己不能被云同步上传** —— 否则等于把远端凭据再传到远端，
-    // 换机时还会被旧凭据覆盖。保留键的身份让 `cloud_sync::snapshot` 的键筛选
-    // 天然排除它，不必再维护一份「别同步这个键」的清单。
+    // Why is not is config：****（WebDAV / S3 Secret
+    // Access Key ） and ，「 its 」 1 ；
+    // is ** not can up ** —— otherwise etc to ，
+    // when will old 。 `cloud_sync::snapshot` 
+    // excluding， not 1 「 this 」 。
     "cloudSync",
 ];
 
-/// 这个键是否属于「其它零散状态」（即不归网关配置管）。
+/// this is 「 its 」（ not config）。
 ///
-/// 唯一入口：`config::save_raw` 用它决定哪些行不参与「删除已不存在的键」。
-/// 做成函数而不是让调用方自己 `.contains()`：将来若固定键改成带前缀的命名，
-/// 改一处即可（与 `db::migrate` 各迁移项包一层 `sql::has_key` 同一手法）。
+/// 1 ：`config::save_raw` use not and 「delete already not in 」。
+/// not is use `.contains()`： will if before ，
+/// 1 can （ and `db::migrate` 1 `sql::has_key` 1 ）。
 pub fn is_reserved(key: &str) -> bool {
     RESERVED_KV_KEYS.contains(&key)
 }
 
-/// 当前 schema 版本。加表 / 加列时 +1，并在 [`apply_version`] 里补一个分支。
+/// current schema 。 / when +1， and in [`apply_version`] 1 。
 ///
-/// 为什么从 1 而不是 0 起步：0 是全新库的初始值，用它当「已是最新版」会让
-/// 全新库跳过建表。1 起步后「库里什么都没有」与「schema 版本 1」是两件事。
+/// Why from 1 not is 0 ：0 is new ， use 「 already is new 」 will 
+/// new 。1 after 「 no has 」 and 「schema 1」 is 。
 ///
-/// ── 版本 2：requests 表加两个 JSON 文本列 ──────────────────────
-/// 见 [`V2_SCHEMA`]。新库会按 1 → 2 的顺序跑完（v1 建表时**不含**这两列，
-/// 由 v2 的 ALTER 加上），所以「全新库」与「从 v1 升上来的库」最终形态一致 ——
-/// 这也是为什么 v1 的 DDL **不**回填这两列：那里改了会让两条路径分叉
-/// （新库有列、老库经 ALTER 也有列，但列的定义来源变成两处，下次改动容易漏一处）。
+/// ── 2：requests JSON ──────────────────────
+/// [`V2_SCHEMA`]。 new will by 1 → 2 （v1 when ** not ** this ，
+/// by v2 ALTER up ），「 new 」 and 「 from v1 up 」 1 ——
+/// this is Why v1 DDL ** not ** this ： that will path
+/// （ new has 、 ALTER has ， ， down 1 ）。
 ///
-/// ── 版本 3：request_raw 表（原始报文，预览对话功能的地基）───────
-/// 见 [`V3_SCHEMA`]。与 v2 的差别：这次是**新表**而不是加列，所以走
-/// `CREATE TABLE IF NOT EXISTS`（不需要 ALTER，也就不需要「v1 不建、v2 补」
-/// 那种两段式）。老库（user_version=2）与全新库都会跑 v3 —— 老库靠这一步
-/// 建出表，全新库在 v1 里**也不建**它（定义只有 v3 一处，与 v2 那条
-/// 「不要把列塞回 v1」的纪律同理）。
+/// ── 3：request_raw （， for can ）───────
+/// [`V3_SCHEMA`]。 and v2 ： this is ** new ** not is ，
+/// `CREATE TABLE IF NOT EXISTS`（ not need need ALTER， not need need 「v1 not 、v2 」
+/// that ）。（user_version=2） and new will v3 —— this 1 
+/// ， new in v1 ** not **（ has v3 1 ， and v2 that 
+/// 「 not need v1」 ）。
 ///
-/// ── 版本 4：把 v3 的建表语句**再幂等地跑一遍**（存量库修复）──────
-/// 见 [`V4_SCHEMA`]。这不是一次结构变更，而是对「版本号写着 3、表却不在」
-/// 这类存量库的修复：实测有库 `user_version=3` 却没有 `request_raw`（早期
-/// 二进制曾在这个版本号下放过别的 DDL，撞号了）。后果是记账收尾事务里那句
-/// `DELETE FROM request_raw` 报「no such table」→ **整个事务回滚** → 明细的
-/// 进行中行永远收不了尾（界面上表现为「只有进行中、没有结束」）。
-/// v3 的 DDL 本身是 `CREATE TABLE IF NOT EXISTS`，重跑一次零成本：
-/// 表在就跳过，表不在就补上，两种库的最终形态一致。
+/// ── 4： v3 ** etc 1 **（）──────
+/// [`V4_SCHEMA`]。 this not is 1 ， is for 「 3、 not in 」
+/// this ： has `user_version=3` no has `request_raw`（
+/// in this down DDL，）。 after is that 
+/// `DELETE FROM request_raw` 「no such table」→ ** ** → 
+/// in not （ up as 「 has in 、 no has 」）。
+/// v3 DDL is `CREATE TABLE IF NOT EXISTS`， 1 ：
+/// in ， not in up ， 1 。
 ///
-/// ── 版本 5：requests 表加两个思考等级列 ──────────────────────
-/// 见 [`V5_SCHEMA`]。与 v2 完全同一形态（既有表加列，ALTER 两连）：
-/// v1 的 DDL 不回填，两条建库路径（全新库跑 1→5 / 老库从任意版本升上来）
-/// 得到同一份表结构。
+/// ── 5：requests etc ──────────────────────
+/// [`V5_SCHEMA`]。 and v2 1 （ has ，ALTER ）：
+/// v1 DDL not ，path（ new 1→5 / from any up ）
+/// to 1 。
 ///
-/// ── 版本 6：requests 表加阶段与阶段计时两列 ───────────────────
-/// 见 [`V6_SCHEMA`]。同样是既有表加列（ALTER 两连）。这两列只在**在途**
-/// 期间有值，收尾时一律清空（见 `request_stats::sql` 的各条收尾语句）——
-/// 「有没有阶段」因此就是「这一行还在跑」的第二个读数，与 status=0 同进同退。
+/// ── 6：requests and when ───────────────────
+/// [`V6_SCHEMA`]。 is has （ALTER ）。 this in ** in **
+/// has ， when 1 empty（ `request_stats::sql` ）——
+/// 「 has no has 」 is 「 this 1 in 」 ， and status=0 。
 ///
-/// ── 版本 7：requests 表加「测试来源」一列 ─────────────────────
-/// 见 [`V7_SCHEMA`]。同样是既有表加列（单条 ALTER）。模型测试走的是真实转发
-/// 链路，它产生的请求会照常进请求日志 —— 这一列把它与真实流量分开，
-/// 于是报表聚合能把它排除（测试是人工反复发起的样本，混进去会把真实流量读歪），
-/// 而请求日志那边照旧能看到它、并标成「测试」。
-/// ── 版本 8：account_usage_records 表（每账号的余额查询记录）─────
-/// 见 [`V8_SCHEMA`]。与 v3 同一形态（新表，`CREATE TABLE IF NOT EXISTS`，
-/// 老库与全新库都会跑这一版建出它）。它取代旧 kv 快照 `usageQuerySnapshot`
-/// 成为「每账号最近一次余额查询结果」的权威存放处：全局「定时查询积分」
-/// 退役后查询按账号各自到期触发，一行一账号才能逐条更新、逐条被选路读取
-/// （kv 整份读改写撑不住这个粒度）。旧快照的数据由 `core::usage_records`
-/// 启动时导入，升级后余额列不会变空白。
+/// ── 7：requests 「」 1 ─────────────────────
+/// [`V7_SCHEMA`]。 is has （ ALTER）。 is 
+/// ， request will request —— this 1 and ，
+/// is can excluding（ is ， will ），
+/// request that old can to 、 and 「」。
+/// ── 8：account_usage_records （ ）─────
+/// [`V8_SCHEMA`]。 and v3 1 （ new ，`CREATE TABLE IF NOT EXISTS`，
+/// and new will this 1 ）。 old kv `usageQuerySnapshot`
+/// as 「 1 」 ：「 when 」
+/// after by to ， 1 1 can update、 
+/// （kv not this ）。 old by `core::usage_records`
+/// when ， after not will empty。
 ///
-/// ── 版本 11：checkin_records 表（签到记录的每账号明细台账）───────
-/// 见 [`V11_SCHEMA`]。与 v3 / v8 同一形态（新表，`CREATE TABLE IF NOT EXISTS`）。
-/// 它是签到中心「签到记录」页的数据源：每执行一次签到，每个账号一行
-/// （领成功 / 已领过 / 失败及其错误原文 / 收益文案），补上改造前「只有
-/// config.json 里一条聚合同 lastResult」看不见的明细。写入方是
-/// `core::checkin_records`（记账点唯一：`core::billing::checkin::run_checkin`）。
+/// ── 11：checkin_records （ to ）───────
+/// [`V11_SCHEMA`]。 and v3 / v8 1 （ new ，`CREATE TABLE IF NOT EXISTS`）。
+/// is to in 「 to 」 ： 1 to ， 1 
+/// （success / already / failure and its error / ）， up before 「 has 
+/// config.json 1 lastResult」 not 。 is 
+/// `core::checkin_records`（ 1 ：`core::billing::checkin::run_checkin`）。
 ///
-/// ── 版本 12：requests 补「来源客户端」一列 ─────────────────────
-/// 见 [`V12_SCHEMA`]。与 v5 / v10 同一形态（既有表加列，单条 ALTER）。
-/// 请求日志的「客户端」列读它：入口 handler 从下游 `User-Agent` 按
-/// `core::client` 的规则表判出客户端类型（`Codex` / `ZCode` / `Claude Code`
-/// …），随记账落库。存归类结果而不是原始 UA：UA 带版本号，逐条存既撑大
-/// 明细也读不出「是谁」。旧行 DEFAULT '' = 没有记录（那时还没采集），
-/// 展示层显示占位符 —— 不给旧数据猜值。
+/// ── 12：requests 「client」 1 ─────────────────────
+/// [`V12_SCHEMA`]。 and v5 / v10 1 （ has ， ALTER）。
+/// request 「client」： handler from down `User-Agent` by 
+/// `core::client` then client（`Codex` / `ZCode` / `Claude Code`
+/// …），。 not is UA：UA ，
+/// not 「 is 」。 old DEFAULT '' = no has （ that when no ），
+/// —— not to old 。
 ///
-/// ── 版本 13：清空 `request_raw` 的历史正文（一次性空间回收）─────
-/// 预览对话的下游正文从本版起改为**仅调试模式开启时采集**
-/// （对齐 OmniProxy 的口径：不开调试模式就不保存任何原始正文），而升级前
-/// 无条件采集下来的那批正文在此清空 —— 它们对用户不再有意义（新语义下也
-/// 不会有新数据填补开关关闭的时段），留着只白占空间。
+/// ── 13：empty `request_raw` （ 1 empty）─────
+/// for down from as **only when **
+/// （ for OmniProxy ： not not ）， before 
+/// none down that in empty —— for use not has （ new down 
+/// not will has new when ），empty。
 ///
-/// 注意这一版是**数据动作**而不是结构变更（表结构一字未动）。放在 schema
-/// 版本里而不是启动期的 kv 标记：两者都「只跑一次」，但版本号是既有的幂等
-/// 机制（`user_version` 与语句同事务提交），复用它就是零新增状态 —— 那条
-/// kv 标记会变成第二个「这条数据动作跑过没有」的事实来源。
+/// Note this 1 is **** not is （ 1 ）。 in schema
+/// not is kv ：「 1 」， is has etc 
+/// （`user_version` and ）， use is add —— that 
+/// kv will 「 this no has 」 。
 ///
-/// 语句不写成 `*_SCHEMA` 常量而在 `apply_version` 的 v13 分支里单独执行：
-/// 要拿**被删的行数**，`migrate` 据此决定是否紧跟着 VACUUM（把空闲页真正
-/// 还给文件系统 —— 光 DELETE 不会让库文件缩小，而「省空间」正是这一版的
-/// 目的），完整说明见 `migrate` 尾部那段。
+/// not `*_SCHEMA` in `apply_version` v13 ：
+/// need ** **，`migrate` is VACUUM（ empty
+/// to file —— DELETE not will file，「empty」 is this 1 
+/// ）， `migrate` that 。
 ///
-/// ── 版本 14：账号 `data` 列改为密文（`core::crypto` 的 `enc1:` 信封）──
-/// 这一版**没有任何 DDL**，也不清任何历史行（`cleaned_raw_rows` 写 0）：
-/// 它只是一个**内容形态的标记**。`accounts.data` 从明文 JSON 变成 AES-256-GCM
-/// 密文，而这件事没有列要加、没有表要建 —— 加密是逐行的内容变换，由
-/// `core::account_store::store_admin::encrypt_legacy_accounts`（挂在
-/// `account_bootstrap::run` 的启动迁移里）把存量明文行就地加密；密钥在库外
-/// （`{config_dir}/account.key`，兜底 `AGENT2API_ACCOUNT_KEY`，见
-/// `core::crypto` 模块头）。所以 `apply_version` 的 v14 分支是空操作。
+/// ── 14： `data` as （`core::crypto` `enc1:` ）──
+/// this 1 ** no has DDL**， not （`cleaned_raw_rows` 0）：
+/// is 1 ** **。`accounts.data` from JSON AES-256-GCM
+/// ， this no has need 、 no has need —— is ， by 
+/// `core::account_store::store_admin::encrypt_legacy_accounts`（ in 
+/// `account_bootstrap::run` ） ； in 
+/// （`{config_dir}/account.key`， `AGENT2API_ACCOUNT_KEY`，
+/// `core::crypto` module header）。 `apply_version` v14 is empty。
 ///
-/// **为什么仍要占一个版本号**（而不是只靠那段启动迁移）：因为「库里的数据形态」
-/// 真的变了，而 `user_version` 是它唯一的事实来源。升到 14 的库，其 `data` 列
-/// 应被当成密文；这条事实**在旧程序那一侧才有用** —— `migrate` 新加的「库版本
-/// 高于程序版本就拒绝打开」判据（见 [`migrate`]）正建立在版本号上：旧程序
-/// （`SCHEMA_VERSION <= 13`）读到 v14 库会明确失败，而不是把密文当坏数据跳过、
-/// 再在写回时把「读不出来的行」当成「内存里没有」DELETE 掉（即「回退一次 =
-/// 账号被删」）。对本程序，v14 只是一次空操作。
+/// **Why need 1 **（ not is that ）： as 「 」
+/// ， `user_version` is 1 。 to 14 ， its `data` 
+/// ； this ** in old that 1 has use ** —— `migrate` new 「
+/// 」（ [`migrate`]） in up ： old 
+/// （`SCHEMA_VERSION <= 13`） to v14 will failure， not is 、
+/// in when 「 not 」「 no has 」DELETE （「 1 =
+/// 」）。 for ，v14 is 1 empty。
 ///
-/// ── 版本 15：requests 补两条索引（`status` 与报表窄列覆盖）─────
-/// 见 [`V15_SCHEMA`]。两条索引都来自同一次实测：明细三万余行、库已经四百多
-/// MB 的库上，两个最热的读路径分别在整表扫描与逐行回表。
+/// ── 15：requests （`status` and ）─────
+/// [`V15_SCHEMA`]。 1 ：、 already 
+/// MB up ， path in and 。
 ///
 ///   · `idx_requests_status`：`SELECT COUNT(*) FROM requests WHERE status = 0`
-///     在**没有任何索引可用**时对整表做 `SCAN`（实测 3 万行 50 ms 量级，
-///     而命中的通常只有个位数行）。这条语句不属于报表 —— 它是前端「进行中」
-///     徽标的全局轮询（每 5 秒一次，与当前停在哪个页面无关，见 `ui/app.js`
-///     的 `syncRunningRequests`）与请求日志列表每次查询的一部分。加索引后
-///     按 status 直接定位，不再扫全表。
-///   · `idx_requests_summary`：`/api/stats/summary` 的近 24 小时明细窗口
-///     （`request_stats::sql::select_summary_rows`）只需要 6 列，而非覆盖索引
-///     必须逐行回表 —— 明细行里躺着 KB 级的 `route` / `attempt_details`，
-///     回表读回来的几乎全是被随后丢掉的字节。这条索引让该查询变成**纯索引
-///     扫描**（列序与那条 SELECT 的列序一致，改动任一侧都要回来对一眼）。
+/// in ** no has available** when for `SCAN`（ 3 50 ms ，
+/// in has ）。 this not —— is before 「 in 」
+/// （ 5 seconds 1 ， and current in none， `ui/app.js`
+/// `syncRunningRequests`） and request 1 。 after 
+/// by status ， not 。
+/// · `idx_requests_summary`：`/api/stats/summary` 24 when 
+/// （`request_stats::sql::select_summary_rows`） need need 6 ，
+/// must —— KB `route` / `attempt_details`，
+/// is after 。 this this **
+/// **（ and that SELECT 1 ， 1 need for 1 ）。
 ///
-/// 两条都是 `CREATE INDEX IF NOT EXISTS`（与其余版本的幂等纪律一致）：在存量库
-/// 上建索引要扫一遍表，代价与表大小成正比、只付一次；`requests` 只有几万行时
-/// 在百毫秒量级，不会让启动明显变慢。**不要把这两条往 [`V1_SCHEMA`] 里补**：
-/// 新库按 1→16 依次跑，v15 那一步同样会建出来，而 v1 里多写一份等于同一条索引
-/// 有了两处定义 —— 将来改一处忘一处，正是 `V4_SCHEMA` 那类错位的来源。
+/// is `CREATE INDEX IF NOT EXISTS`（ and its etc 1 ）： in 
+/// up need 1 ， and 、 1 ；`requests` has when 
+/// in ms， not will 。** not need this [`V1_SCHEMA`] **：
+/// new by 1→16 ，v15 that 1 will ， v1 1 etc 1 
+/// has —— will 1 1 ， is `V4_SCHEMA` that 。
 ///
-/// ── v16：AI 助手的对话会话（[`V16_SCHEMA`]）──────────────────
-/// 助手从「一次性对话」变成「有历史记录的会话」：左边一列会话、右边一条消息流，
-/// 关掉页面再回来还能接着聊。存**整条消息流的 JSON**（而不是逐条消息一行）的
-/// 理由与 `kv` 表同一取向：读写单元天然是「一整个会话」，逐条存只会让每次保存
-/// 变成 N 次写入 + 一次事务，而没有任何一处需要「按单条消息查询」。
+/// ── v16：AI for will （[`V16_SCHEMA`]）──────────────────
+/// from 「 1 for 」「 has will 」： 1 will 、 1 ，
+/// can 。** JSON**（ not is 1 ） 
+/// by and `kv` 1 to ： is 「 1 will 」， will 
+/// N + 1 ， no has 1 need need 「 by 」。
 ///
-/// ── 版本 22：清掉模型目录刷新的假失败冷却（[`reset_model_refresh_cooldown`]）
-/// 这是一次**纯数据修复**（无 DDL）：旧成败判据把「任一家失败」当成整轮失败，
-/// 于是一家的长期 401 就能把整条任务按到 24 小时冷却上，界面上显示成「冷却中」。
-/// 判据已改成 `round_succeeded`，但存量库里的 `failures` / `retryAt` 得在这里
-/// 清一次，否则升级后仍要干等旧冷却到期 —— 修复等于没生效。
+/// ── 22：directory new failure（[`reset_model_refresh_cooldown`]）
+/// this is 1 ****（none DDL）： old 「 1 failure」failure，
+/// is 1 401 can by to 24 when up ， up 「 in 」。
+/// already `round_succeeded`， `failures` / `retryAt` in this 
+/// 1 ，otherwise after need etc old to —— etc no 。
 ///
-/// ── 版本 23：requests 补「积分消耗」一列（[`V23_SCHEMA`]）─────────
-/// 有些提供商（已实测 WorkBuddy 的 `usage.credit`）会按请求上报积分消耗，
-/// 请求日志新增「积分」列读它。与 token 四列刻意不同：这一列**可空 REAL** ——
-/// `NULL` = 这一家没上报（旧行 / 不提供该读数），0 = 确实零消耗；用 0 兜底会
-/// 把「没读到」画成「花了 0 积分」，比缺一列更难排查。
+/// ── 23：requests 「」 1 （[`V23_SCHEMA`]）─────────
+/// has （ already WorkBuddy `usage.credit`） will by request up ，
+/// requestadd「」。 and token not ： this 1 ** can empty REAL** ——
+/// `NULL` = this 1 no up （ old / not this ），0 = ； use 0 will 
+/// 「 no to 」「 0 」， 1 。
 pub const SCHEMA_VERSION: i64 = 24;
 
-/// 版本 1 的全部表与索引：改造前所有 JSON / JSONL 文件的对应形态。
+/// 1 and ： before all JSON / JSONL file for 。
 ///
-/// 为什么把六张表写成一个 batch 而不是每张一个常量再拼：它们共同构成「版本 1
-/// 的 schema」这一个整体，分开的常量只会让「v1 到底包含什么」需要跨常量拼接
-/// 才能看清。单张表的定界用注释块表达（下方按表分块），语句本身用
-/// `execute_batch` 一次提交。
+/// Why 1 batch not is 1 ：「 1
+/// schema」 this 1 ， will 「v1 to 」 need need 
+/// can 。 use （ down by ）， use 
+/// `execute_batch` 1 。
 const V1_SCHEMA: &str = "
 -- ── kv：通用键值表 ────────────────────────────────────────────
 -- 存什么：网关配置的每个顶层键、桌面设置整份、各存储的元数据、零散状态。
@@ -510,40 +510,40 @@ CREATE TABLE IF NOT EXISTS debug_traffic (
 CREATE INDEX IF NOT EXISTS idx_debug_traffic_ts ON debug_traffic(ts);
 ";
 
-/// 版本 2：给 `requests` 补两列 JSON 文本（重试链 + 敏感词命中）。
+/// 2： to `requests` JSON （ + in ）。
 ///
-/// ── 这两列解决什么 ──────────────────────────────────────────
-/// 请求日志的「重试」列原先只能显示一个「重试」标记（只知道次数），因为
-/// 「每一轮换了谁、为什么换」与「这次命中了哪些敏感词」在明细里都没有落点 ——
-/// 前者只在转发链路的局部变量里存在过，后者被脱敏模块的聚合统计吃掉。
-/// 两列补上之后，那颗标签才有内容可弹（见 `ui/requests-panel.js` 的重试列）。
+/// ── this ──────────────────────────────────────────
+/// request 「」 can 1 「」（）， as 
+/// 「 1 、Why」 and 「 this in 」 in no has ——
+/// before in in ， after statistics。
+/// up after ， that has can （ `ui/requests-panel.js` ）。
 ///
-/// ── 为什么是「可空的 JSON 文本」而不是拆表 ─────────────────────
-/// 它们是**一条明细的附属历史**，读写都是整份进出、没有按单次尝试查询的
-/// 需求（要排障就在 `sqlite3` 里对 JSON 列用 `json_each`）。与 `request_daily`
-/// 的三个 `*Stats` 列同一取舍 —— 理由在 `request_stats::record::RequestEntry
-/// ::attempt_details` 的注释里写得更细。
+/// ── Why is 「 can empty JSON 」 not is ─────────────────────
+/// is ** 1 **， is 、 no has by 
+/// need （ need in `sqlite3` for JSON use `json_each`）。 and `request_daily`
+/// `*Stats` 1 —— by in `request_stats::record::RequestEntry
+/// ::attempt_details` 。
 ///
-/// ── 默认值为什么是 `'[]'` 而不是 NULL ─────────────────────────
-/// 与 `request_daily` 那三个列一致：空数组与「这一列没有数据」是同一件事，
-/// 统一成 `'[]'` 让读取方少一个分支。写入侧（`sql::encode_json_list`）也把
-/// 序列化失败兜成 `'[]'`，两边形态一致。
+/// ── defaultWhy is `'[]'` not is NULL ─────────────────────────
+/// and `request_daily` that 1 ：empty and 「 this 1 no has 」 is 1 ，
+/// 1 `'[]'` 1 。（`sql::encode_json_list`） 
+/// failure `'[]'`， 1 。
 ///
-/// ── 为什么用 ALTER 而不重建表 ────────────────────────────────
-/// 两张表的其它列与索引一个都不动，重建要「建新表 → 搬数据 → 删旧表 → 重建索引」，
-/// 而 `requests` 是全量保留的明细表（长期使用可达几万甚至几十万行）。
-/// ALTER ADD COLUMN 是 SQLite 的元数据操作（常数时间、不重写数据），代价可以忽略。
+/// ── Why use ALTER not ────────────────────────────────
+/// its and 1 not ， need 「 new → → old → 」，
+/// `requests` is （ use can ）。
+/// ALTER ADD COLUMN is SQLite （ when 、 not ）， can ignore。
 ///
-/// ── 为什么这里不能写 IF NOT EXISTS ───────────────────────────
-/// SQLite 的 `ALTER TABLE ... ADD COLUMN` **不支持** `IF NOT EXISTS`（这是它与
-/// 本文件所有 CREATE 语句的关键差别）。幂等性因此由**版本号**保证 ——
-/// 一个版本只跑一次，跑完立刻把 `user_version` 写在同一个事务里（见
-/// `migrate` 的说明）。写这段时不要「顺手加一个 IF NOT EXISTS」：
-/// 语句会直接报语法错，而不是变成空操作。
+/// ── Why this not can IF NOT EXISTS ───────────────────────────
+/// SQLite `ALTER TABLE ... ADD COLUMN` **unsupported** `IF NOT EXISTS`（ this is and 
+/// fileall CREATE ）。 etc by **** ——
+/// 1 1 ， `user_version` in 1 （
+/// `migrate` ）。 this when not need 「 1 IF NOT EXISTS」：
+/// will ， not is empty。
 ///
-/// 另外：全新库会先跑 v1（建出**不含**这两列的 requests 表）再跑本版本，
-/// 于是两条路径（新库 / 老库升级）得到同一份表结构。不要为了「少跑一条 ALTER」
-/// 把这两列塞回 v1 的 DDL —— 那样老库升级后与 v1 的 DDL 定义就对不上了。
+/// ： new will v1（** not ** this requests ），
+/// is path（ new / ） to 1 。 not need as 「 1 ALTER」
+/// this v1 DDL —— that after and v1 DDL for not up 。
 const V2_SCHEMA: &str = "
 -- ── requests 补两列（schema v2）───────────────────────────────
 -- attempt_details：每次上游尝试的明细 `[{provider,status,error}]`，
@@ -560,35 +560,35 @@ ALTER TABLE requests ADD COLUMN attempt_details TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE requests ADD COLUMN sensitive_hits TEXT NOT NULL DEFAULT '[]';
 ";
 
-/// 版本 3：`request_raw` 表 —— 请求/响应的**下游侧**原始正文（预览对话功能的地基）。
+/// 3：`request_raw` —— request/response ** down **（ for can ）。
 ///
-/// ── 它和 debug_traffic 表是什么关系 ──────────────────────────
-/// `debug_traffic` 保存头部脱敏后的完整上游报文；本表保存完整下游正文，
-/// 供请求日志的「预览对话」使用。两表按同一个请求 id 关联，独立读写。
+/// ── and debug_traffic is ──────────────────────────
+/// `debug_traffic` after up ； down ，
+/// request 「 for 」 use 。 by 1 request id ，。
 ///
-/// ── 采集条件：与调试模式同一个开关（v13 起）───────────────────
-/// 正文**只在调试模式开启时采集**（对齐 OmniProxy 的口径：不开调试模式就不
-/// 保存任何原始正文）—— 关着时不复制正文，采集路径零开销。v13 之前的
-/// 版本是无条件采集的，那批历史正文已由 v13 一次清空（见 [`SCHEMA_VERSION`]）。
+/// ── ： and 1 （v13 ）───────────────────
+/// ** in when **（ for OmniProxy ： not not 
+/// ）—— when not ，path。v13 before 
+/// is none ， that already by v13 1 empty（ [`SCHEMA_VERSION`]）。
 ///
-/// ── 为什么独立成表而不是给 requests 加两列 ────────────────────
-/// 正文是完整大字段，不能混入明细列表的每次分页查询。
-/// 独立表后只在用户查看详情时读取正文。
+/// ── Why not is to requests ────────────────────
+/// is ， not can 。
+/// after in use when 。
 ///
-/// ── 为什么 id 直接当主键 ────────────────────────────────────
-/// 一条请求只有一份「下游视角」的正文，天然一对一（与 requests 表的 id
-/// 不同 —— 那边同 id 可以多行，所以不敢当主键）。主键即唯一约束，
-/// 「同 id 再写」天然是 UPSERT 覆盖，不需要额外判重。
+/// ── Why id ────────────────────────────────────
+/// 1 request has 1 「 down 」 ， 1 for 1 （ and requests id
+/// not —— that id can ， not ）。 1 ，
+/// 「 id 」 is UPSERT ， not need need 。
 ///
-/// ── 为什么体用 TEXT 而不用 BLOB ─────────────────────────────
-/// 与 debug_traffic 同一取向：里面是 JSON / SSE 文本，存 TEXT 才能在
-/// `sqlite3` 命令行里直接看（排障的主要用法）。
+/// ── Why use TEXT not use BLOB ─────────────────────────────
+/// and debug_traffic 1 to ： is JSON / SSE ， TEXT can in 
+/// `sqlite3` （ need use ）。
 ///
-/// ── 为什么没有索引（连 ts 都不建）────────────────────────────
-/// 本表只有两种读法：按主键 id 取单行（主键自带）、清理时按
-/// 「`id IN (SELECT id FROM requests …)`」定位（主键查找）。唯一的全表扫描是
-/// 用户手动清空（`DELETE FROM request_raw`），而正文只在调试模式开启期间写入
-/// —— 表的增长由那个开关天然约束，不会长到需要为检索建索引。
+/// ── Why no has （ ts not ）────────────────────────────
+/// has ： by id （）、 when by 
+/// 「`id IN (SELECT id FROM requests …)`」（）。 1 is 
+/// use empty（`DELETE FROM request_raw`）， in 
+/// —— by that ， not will to need need as 。
 const V3_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS request_raw (
   id            TEXT PRIMARY KEY,
@@ -599,107 +599,107 @@ CREATE TABLE IF NOT EXISTS request_raw (
 );
 ";
 
-/// 版本 4：v3 建表语句的幂等重放（存量库修复，完整背景见 [`SCHEMA_VERSION`]）。
+/// 4：v3 etc （， [`SCHEMA_VERSION`]）。
 ///
-/// 直接复用 [`V3_SCHEMA`] 而不是复制一份：两处若各写一份，将来 request_raw
-/// 加列时必然只改一处，而「表定义只有一处事实来源」正是 v2 那条纪律。
-/// `CREATE TABLE IF NOT EXISTS` 保证对正常库（表已在）是无操作。
+/// use [`V3_SCHEMA`] not is 1 ： if 1 ， will request_raw
+/// when 1 ，「 has 1 」 is v2 that 。
+/// `CREATE TABLE IF NOT EXISTS` for （ already in ） is none。
 const V4_SCHEMA: &str = V3_SCHEMA;
 
-/// 版本 5：`requests` 补两列（schema v5）—— 思考等级的双端记录。
+/// 5：`requests` （schema v5）—— etc 。
 ///
-/// ── 存什么 ──────────────────────────────────────────────────
-///   - `client_reasoning`：**下游请求体里**客户端显式指定的思考等级
-///     （识别键与归一规则见 `core::model_rules::reasoning::read_client_level`）。
-///     空串 = 客户端没指定（或该行来自还没有此列的旧版本）。
-///   - `upstream_reasoning`：**实际随上游请求发出**的思考等级（映射绑定注入的
-///     或客户端显式指定且承载家接等级的最终值；采集点在
-///     `core::upstream::payload::send_body`，与 `upstream_model` 同点同时）。
-///     空串 = 没有等级随行（客户端没指定且映射没绑、承载家不接等级、
-///     「关闭思考」档、或一次都没发出去）。
+/// ── ──────────────────────────────────────────────────
+/// - `client_reasoning`：** down request**client etc 
+/// （ and 1 then `core::model_rules::reasoning::read_client_level`）。
+/// empty = client no （ or this no has old ）。
+/// - `upstream_reasoning`：** up request** etc （ 
+/// or client and etc ； in 
+/// `core::upstream::payload::send_body`， and `upstream_model` when ）。
+/// empty = no has etc （client no and no 、 not etc 、
+/// 「」、 or 1 no ）。
 ///
-/// 两列都 NOT NULL DEFAULT ''：与 `client_model` / `upstream_model` 同一套
-/// 「键恒在、空串就是没有」的存储契约，前端不必处理第三种「键缺失」形态。
-/// 加列走 ALTER 的全部理由（为什么不动 v1 的 DDL、为什么不能写
-/// IF NOT EXISTS、幂等靠版本号）与 [`V2_SCHEMA`] 完全相同，不赘述。
+/// NOT NULL DEFAULT ''： and `client_model` / `upstream_model` 1 
+/// 「 in 、empty is no has 」 ， before not 「」。
+/// ALTER by （Why not v1 DDL、Why not can 
+/// IF NOT EXISTS、 etc ） and [`V2_SCHEMA`] ， not 。
 const V5_SCHEMA: &str = "
 -- ── requests 补两列（schema v5）──────────────────────────────
 ALTER TABLE requests ADD COLUMN client_reasoning TEXT NOT NULL DEFAULT '';
 ALTER TABLE requests ADD COLUMN upstream_reasoning TEXT NOT NULL DEFAULT '';
 ";
 
-/// 版本 6：`requests` 补两列（schema v6）—— 在途请求的**阶段**与**阶段计时**。
+/// 6：`requests` （schema v6）—— in request **** and ** when **。
 ///
-/// ── 存什么 ──────────────────────────────────────────────────
-///   - `phase`：该请求当前所处的转发阶段，取值是 `core::upstream::usage::
-///     LogPhase` 的四个字面量（`connecting` 连接中 / `waiting` 等待响应 /
-///     `streaming` 响应中 / `retrying` 重试中 / `queued` 排队中）；空串 = 不在途（终态行、
-///     旧行、以及转发前就失败从未插入过在途行的行）。
-///   - `phase_started_at`：**进入当前阶段**的时刻（毫秒时间戳，与 `ts`
-///     同一口径）。阶段计时（请求日志状态列第二行）由它算出来。
+/// ── ──────────────────────────────────────────────────
+/// - `phase`： this requestcurrent ， is `core::upstream::usage::
+/// LogPhase` （`connecting` in / `waiting` etc response /
+/// `streaming` response in / `retrying` in / `queued` in ）；empty = not in （、
+/// old 、 and before failure from in ）。
+/// - `phase_started_at`：**current** when （ms when ， and `ts`
+/// 1 ）。 when （request） by 。
 ///
-/// ── 为什么两列都只服务「在途」───────────────────────────────
-/// 它们是进行中行的展示字段（列表状态列显示「响应中 1分53秒」这类读数），
-/// 终态行一个字都不读 —— 所以收尾（`update_running_request` /
-/// `finish_stale_running` / `finish_running_request`）一律把两列清回
-/// 空串 / NULL：不清的话，一条已经失败的行会留着「上次看到的阶段」，
-/// 而那个值既不是事实、也没有任何读点。
+/// ── Why「 in 」───────────────────────────────
+/// is in （「response in 153seconds」 this ），
+/// 1 not —— （`update_running_request` /
+/// `finish_stale_running` / `finish_running_request`） 1 
+/// empty / NULL： not ， 1 already failure will 「 up to 」，
+/// that not is 、 no has 。
 ///
-/// ── 为什么不像 OmniProxy 那样只存阶段、计时刻现算 ────────────
-/// 那边阶段计时存的是 `phase_started_at`（SQL 里 `julianday('now')` 现减），
-/// 这里同一形态：`phase_started_at` 入库、`phaseElapsedMs` 在 API 序列化时
-/// 现算（见 `request_stats::report::entry_json`）。前端因此拿到的永远是一个
-/// 与服务端时钟同源的读数，不必依赖浏览器本地时钟去减。
+/// ── Why not OmniProxy that 、 when ────────────
+/// that when is `phase_started_at`（SQL `julianday('now')` ），
+/// this 1 ：`phase_started_at` 、`phaseElapsedMs` in API when 
+/// （ `request_stats::report::entry_json`）。 before to is 1 
+/// and server when ， not when 。
 ///
-/// 两列都 NOT NULL / 可空的分工：`phase` 跟 `client_model` 那一套「键恒在、
-/// 空串就是没有」的契约（前端少一种「键缺失」形态）；`phase_started_at` 与
-/// `first_response_ms` 一样是**真的可能没有**（不在途的行），所以可空，
-/// 用 NULL 而不是 0 表达「没有这个时刻」。
-/// 加列走 ALTER 的全部理由（为什么不动 v1 的 DDL、为什么不能写
-/// IF NOT EXISTS、幂等靠版本号）与 [`V2_SCHEMA`] 完全相同，不赘述。
+/// NOT NULL / can empty ：`phase` `client_model` that 1 「 in 、
+/// empty is no has 」 （ before 1 「」）；`phase_started_at` and 
+/// `first_response_ms` 1 is ** can can no has **（ not in ）， can empty，
+/// use NULL not is 0 「 no has this when 」。
+/// ALTER by （Why not v1 DDL、Why not can 
+/// IF NOT EXISTS、 etc ） and [`V2_SCHEMA`] ， not 。
 const V6_SCHEMA: &str = "
 -- ── requests 补两列（schema v6）──────────────────────────────
 ALTER TABLE requests ADD COLUMN phase TEXT NOT NULL DEFAULT '';
 ALTER TABLE requests ADD COLUMN phase_started_at INTEGER;
 ";
 
-/// 版本 7：`requests` 补一列（schema v7）—— 这条请求是不是**模型测试**发起的。
+/// 7：`requests` 1 （schema v7）—— this request is not is **** 。
 ///
-/// ── 存什么 ──────────────────────────────────────────────────
-/// `is_test = 1`：这条明细来自模型管理页的「测试」（`api::model_test`）；
-/// `0`（默认，含全部旧行）：真实流量。
+/// ── ──────────────────────────────────────────────────
+/// `is_test = 1`： this 「」（`api::model_test`）；
+/// `0`（default， old ）：。
 ///
-/// ── 为什么要有它（而不是靠「模型名 / 来源」猜）────────────────
-/// 测试请求与真实请求**走的是同一条转发链路**（这正是测试的价值：结论与生产
-/// 同源），所以它们在明细里长得一模一样 —— 模型、账号、状态码、用量全都真实。
-/// 唯一能分开它们的就是「这次是谁发起的」，而那只有入口知道。报表按天聚合
-/// （`request_stats` 的 `fold_into_daily` 与 `rebuild_day`）据此跳过测试行，
-/// 请求日志则照常显示并标出来。
+/// ── Why need has （ not is 「 / 」）────────────────
+/// request and request** is 1 **（ this is ： and 
+/// ）， in 1 1 —— 、、、usage。
+/// 1 can is 「 this is 」， that has 。 by 
+/// （`request_stats` `fold_into_daily` and `rebuild_day`），
+/// request then and 。
 ///
-/// 加列走 ALTER 的全部理由（为什么不动 v1 的 DDL、为什么不能写
-/// IF NOT EXISTS、幂等靠版本号）与 [`V2_SCHEMA`] 完全相同，不赘述。
+/// ALTER by （Why not v1 DDL、Why not can 
+/// IF NOT EXISTS、 etc ） and [`V2_SCHEMA`] ， not 。
 const V7_SCHEMA: &str = "
 -- ── requests 补一列（schema v7）──────────────────────────────
 ALTER TABLE requests ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0;
 ";
 
-/// 版本 8：account_usage_records 表 —— 每账号一条余额查询记录（一账号一行，
-/// 主键即账号 id，重复写入天然是 UPSERT）。
+/// 8：account_usage_records —— 1 （ 1 1 ，
+/// id， is UPSERT）。
 ///
-/// 存什么：`usage` 是适配器返回的**归一化余额 JSON 原文**（与 `/api/accounts/usage`
-/// 行里的 `usage` 同一份形状，前端按它渲染余额列），`error` / `code` 是失败行的
-/// 原因与机器标记（与快照行同语义）。`remaining` 是从 usage 里提出的**数字**投影
-/// （归一化家 = `available`，workbuddy 既有形状 = `totalLeft`）：转发选路的
-/// 「余额不足跳过」每条请求都要比一次，从 JSON 里现场解析太奢侈，主键查一列即可；
-/// `unlimited` 单独一列，workbuddy 的 ∞ 账号不参与阈值判定。
+/// ：`usage` is return ** 1 JSON **（ and `/api/accounts/usage`
+/// `usage` 1 ， before by ），`error` / `code` is failure 
+/// Reason and （ and ）。`remaining` is from usage ****
+/// （ 1 = `available`，workbuddy has = `totalLeft`）： 
+/// 「 not 」request need 1 ， from JSON ， 1 can ；
+/// `unlimited` 1 ，workbuddy ∞ not and 。
 ///
-/// ── 为什么 `remaining` 只在成功时覆写 ────────────────────────
-/// 失败行保留上次成功的数值：欠费判定不因「这次查询失败」而放行（避免
-/// 「查询失败 → 放行 → 402」的窗口期），恢复需要查询成功且数值回到阈值之上。
-/// 失败本身的展示信息在 `error` / `code` 里，二者互不覆盖。
+/// ── Why `remaining` in success when ────────────────────────
+/// failure up success ： not 「 this failure」（
+/// 「failure → → 402」 ）， need need success and to up 。
+/// failure in `error` / `code` ， not 。
 ///
-/// 为什么时间是 INTEGER 毫秒而不是 DATETIME：调度判定（到期 = 上次尝试 +
-/// 间隔）要的是可直接比较的毫秒数，与 `logging::now_ms` 同一口径，读出来即用。
+/// Why when is INTEGER ms not is DATETIME：（ to = up +
+/// ） need is can ms， and `logging::now_ms` 1 ， use 。
 const V8_SCHEMA: &str = "
 -- ── account_usage_records：每账号的余额查询记录（schema v8）──
 CREATE TABLE IF NOT EXISTS account_usage_records (
@@ -715,65 +715,65 @@ CREATE TABLE IF NOT EXISTS account_usage_records (
 );
 ";
 
-/// 版本 9：给 `requests` 补「按账号 + 时间」的聚合索引。
+/// 9： to `requests` 「 by + when 」 。
 ///
-/// ── 它服务什么 ──────────────────────────────────────────────
-/// 账号限制器的 **Token 消耗规则**：每条规则问的是「这个账号在当前重置窗口
-/// （对齐自然时间的固定窗口，30 分钟 ~ 24 小时）内一共消耗了多少 Token」——
-/// 一次 `SELECT account_id, SUM(total_tokens) FROM requests
-/// WHERE account_id = ? AND ts >= ?` 的聚合。没有这个索引它只能走
-/// `idx_requests_ts` 全表扫到过滤条件上，限制器的心跳刷新（每 10 秒一轮）
-/// 会把请求明细表整个翻一遍。
+/// ── ──────────────────────────────────────────────
+/// limit **Token then **： then is 「 this in current
+/// （ for when ，30 minutes ~ 24 when ） 1 Token」——
+/// 1 `SELECT account_id, SUM(total_tokens) FROM requests
+/// WHERE account_id = ? AND ts >= ?` 。 no has this can 
+/// `idx_requests_ts` to up ，limit new （ 10 seconds 1 ）
+/// will request 1 。
 ///
-/// 为什么是复合索引 `(account_id, ts)` 而不是只补 `account_id`：窗口过滤
-/// （`ts >= 窗口起点`）要在**同一账号内**做范围扫描，复合索引让聚合变成
-/// 一次有序的范围读；单独的 account_id 索引拿到行号后还得回表逐行比 ts。
+/// Why is `(account_id, ts)` not is `account_id`：
+/// （`ts >= `） need in ** 1 **，
+/// 1 has ； account_id to after ts。
 ///
-/// 聚合查询的全部调用方：`core::limiter` 的窗口刷新（按 distinct 周期分组
-/// 查）与单账号即时复查（自动禁用判定）。
+/// use ：`core::limiter` new （ by distinct 
+/// ） and when （ use ）。
 const V9_SCHEMA: &str = "
 -- ── requests 补按账号聚合的索引（schema v9）──────────────────
 CREATE INDEX IF NOT EXISTS idx_requests_account_ts ON requests(account_id, ts);
 ";
 
-/// 版本 10：requests 补「选路决策快照」一列。
+/// 10：requests 「」 1 。
 ///
-/// 存整个决策 JSON 的原文（`{strategy, sticky, stickyHit, picked, ordered[],
-/// blocked[]}`，采集侧已截断到各有界条数）。DEFAULT NULL：旧行与「没走到
-/// 选路」的请求都是「没有决策」—— 展示层对两者不渲染同一段，与
-/// `attempt_details` 的 `'[]'` 不同（那表达「空表」是有意的信息，这里 NULL
-/// 就是「没这回事」，不必造一种空形态）。
+/// JSON （`{strategy, sticky, stickyHit, picked, ordered[],
+/// blocked[]}`， already to has ）。DEFAULT NULL： old and 「 no to 
+/// 」 request is 「 no has 」—— for not 1 ， and 
+/// `attempt_details` `'[]'` not （ that 「empty」 is has ， this NULL
+/// is 「 no this 」， not 1 empty）。
 const V10_SCHEMA: &str = "
 -- ── requests 补选路决策快照列（schema v10）───────────────────
 ALTER TABLE requests ADD COLUMN route TEXT;
 ";
 
-/// 版本 11：checkin_records 表 —— 签到记录的**每账号明细台账**。
+/// 11：checkin_records —— to ****。
 ///
-/// 存什么：每执行一次签到（定时条目轮次 / 启动补签 / 手动批量 / 单账号 /
-/// 国际版活动领取），每个账号落一行。列的口径：
-///   - `ts`：记账时刻（毫秒，`logging::now_ms` 同口径；排序与翻页游标）；
-///   - `date`：北京时间 `YYYY-MM-DD`（上游自然日，`core::beijing` 的日期键 ——
-///     「哪天的签到」按它算，跟机器时区无关，与调度判定同一份口径）；
-///   - `source`：触发来源 `schedule / makeup / startup / manual / single /
-///     activity`（见 `core::checkin_records` 的模块头），界面显示为「来源」列；
-///   - `reason`：给日志看的那句（「到点触发（08:00）」「手动签到」…），原样存；
-///   - `account_id` / `account_name` / `provider`：账号三件套（结果行里就有，
-///     原样复制；账号删除后历史行仍然可读）；
-///   - `outcome`：`success / already / pending / failed`（判定复用签到执行体的
-///     同一对判据，判据只此一份，见 `core::checkin_records::classify`）；
-///   - `ok`：`success|already → 1` 的布尔投影（「今日已完成」口径的 SQL 过滤列，
-///     免得每个读点都写 `(outcome='success' OR outcome='already')`）；
-///   - `message`：claim.msg 原文（「今日积分 +100」等**收益就在这里**）；
-///   - `error`：执行错误原文（失败行的原因）；
-///   - `kept_active`：国际版保活成功标记（保活对话 `pokeSucceeded` 或网页
-///     会话 `webConversation.succeeded` 任一，见 `checkin_records::kept_active_of`）。
+/// ： 1 to （ when / / / /
+/// ）， 1 。 ：
+/// - `ts`： when （ms，`logging::now_ms` ； and ）；
+/// - `date`： when `YYYY-MM-DD`（ up ，`core::beijing` ——
+/// 「 to 」 by ， when none， and 1 ）；
+/// - `source`： `schedule / makeup / startup / manual / single /
+/// activity`（ `core::checkin_records` module header）， as 「」；
+/// - `reason`： to that （「 to （08:00）」「 to 」…），；
+/// - `account_id` / `account_name` / `provider`：（ has ，
+/// ；delete after can ）；
+/// - `outcome`：`success / already / pending / failed`（ use to 
+/// 1 for ， 1 ， `core::checkin_records::classify`）；
+/// - `ok`：`success|already → 1` （「 already 」 SQL ，
+/// `(outcome='success' OR outcome='already')`）；
+/// - `message`：claim.msg （「 +100」 etc ** in this **）；
+/// - `error`：error（failure Reason）；
+/// - `kept_active`：success（ for `pokeSucceeded` or 
+/// will `webConversation.succeeded` 1 ， `checkin_records::kept_active_of`）。
 ///
-/// 为什么 row_id 用 AUTOINCREMENT：与 `requests` 同一理由 —— 它当翻页游标，
-/// 复用 rowid 会让「翻页漏行 / 重行」。
+/// Why row_id use AUTOINCREMENT： and `requests` 1 by —— ，
+/// use rowid will 「 / 」。
 ///
-/// 索引三个（ts / outcome / provider），对应记录页固定的三种过滤维度，
-/// 刻意不做复合索引（与 logs 表同一取舍：组合多、量级小，让 SQLite 自己挑）。
+/// （ts / outcome / provider）， for ，
+/// not （ and logs 1 ：、， SQLite ）。
 const V11_SCHEMA: &str = "
 -- ── checkin_records：签到记录的每账号明细台账（schema v11）────
 CREATE TABLE IF NOT EXISTS checkin_records (
@@ -796,31 +796,31 @@ CREATE INDEX IF NOT EXISTS idx_checkin_records_outcome ON checkin_records(outcom
 CREATE INDEX IF NOT EXISTS idx_checkin_records_provider ON checkin_records(provider);
 ";
 
-/// 版本 12：requests 补「来源客户端」一列（schema v12）。
+/// 12：requests 「client」 1 （schema v12）。
 ///
-/// 与 v5 / v7 / v10 同一形态（既有表加列，单条 ALTER，幂等靠版本号）：
-/// `client` 存入口从下游 `User-Agent` 判出的客户端类型（`core::client`），
-/// 请求日志的「客户端」列读它。DEFAULT ''：旧行与「请求没带 UA」的路径都是
-/// 空串 —— 两者在展示层的处理相同（占位符），不必分两种形态。
+/// and v5 / v7 / v10 1 （ has ， ALTER， etc ）：
+/// `client` from down `User-Agent` client（`core::client`），
+/// request 「client」。DEFAULT ''： old and 「request no UA」 path is 
+/// empty —— in （）， not 。
 const V12_SCHEMA: &str = "
 -- ── requests 补来源客户端列（schema v12）─────────────────────
 ALTER TABLE requests ADD COLUMN client TEXT NOT NULL DEFAULT '';
 ";
-// v13 没有对应的 `*_SCHEMA` 常量：它只有一条 DELETE，且在 `apply_version`
-// 的分支里用 `execute` 单独执行（要拿被删行数），语句就在那里 —— 见
-// `SCHEMA_VERSION` 的 v13 段。
+// v13 no has for `*_SCHEMA` ： has 1 DELETE， and in `apply_version`
+// use `execute` （ need ）， in that —— 
+// `SCHEMA_VERSION` v13 。
 
-/// 版本 15：requests 补两条索引（schema v15）。
+/// 15：requests （schema v15）。
 ///
-/// 与 v9 同一形态（既有表加索引，`CREATE INDEX IF NOT EXISTS`，幂等靠版本号）。
-/// 两条索引各自的来历与代价见 [`SCHEMA_VERSION`] 的 v15 段。
+/// and v9 1 （ has ，`CREATE INDEX IF NOT EXISTS`， etc ）。
+/// and [`SCHEMA_VERSION`] v15 。
 ///
-/// `idx_requests_summary` 的列序 = `sql::SUMMARY_COLUMNS` 的列序**加前缀
-/// `ts, is_test`**：`ts` 在最前才能支撑 `WHERE ts >= ? AND ts <= ?` 的范围扫描，
-/// `is_test` 紧随其后是为了在索引内就过滤掉模型测试行（不必回表才知道要丢）。
-/// 其余 5 列（`model` / `upstream_model` / `total_tokens` / `cache_read_tokens`
-/// / `prompt_tokens`）就是报表要读的全部内容 —— 少一列就要回表，多一列白占
-/// 空间与写入开销。
+/// `idx_requests_summary` = `sql::SUMMARY_COLUMNS` ** before 
+/// `ts, is_test`**：`ts` in before can `WHERE ts >= ? AND ts <= ?` ，
+/// `is_test` its after is as in （ not need ）。
+/// its 5 （`model` / `upstream_model` / `total_tokens` / `cache_read_tokens`
+/// / `prompt_tokens`） is need —— 1 need ， 1 
+/// empty and 。
 const V15_SCHEMA: &str = "
 -- ── requests 补 status 索引（schema v15）─────────────────────
 CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
@@ -830,27 +830,27 @@ CREATE INDEX IF NOT EXISTS idx_requests_summary ON requests(
 );
 ";
 
-/// 版本 16：AI 助手的对话会话表（schema v16）。
+/// 16：AI for will （schema v16）。
 ///
-/// ── 存什么 ──────────────────────────────────────────────────
-/// 一条会话一行。列的口径：
-///   - `id`：会话 id（前端生成，`crypto.randomUUID()` 形态的字符串）。让前端
-///     生成而不是自增：新建会话时前端立刻要用这个 id 挂消息，等一次往返再拿到
-///     它会让「点新建 → 立刻发第一句」出现一个必须等待的中间态；
-///   - `title`：侧边栏显示的名字。取第一条用户消息的前若干字（前端算好传上来），
-///     用户没改过就一直是它 —— 后端不做「自动起标题」那种额外一次上游调用；
-///   - `messages`：**整条消息流的 JSON 原文**（`[{role, content, toolCalls?,
-///     toolCallId?}, …]`，与发给上游的 wire 形态同构）。存原文而不是拆列的理由
-///     见 [`SCHEMA_VERSION`] 的 v16 段；
-///   - `model` / `reasoning`：这条会话最后用的模型与思考等级。存**会话级**而不是
-///     每条消息各带一份：用户换模型是「这条对话从现在起换个模型」，不是逐条
-///     指定；重开一条会话时前端从这两个字段恢复选择器；
-///   - `created_at` / `updated_at`：毫秒时间戳。侧边栏按 `updated_at` 倒序排
-///     （最近聊过的在最上面），`updated_at` 每次保存都刷新。
+/// ── ──────────────────────────────────────────────────
+/// 1 will 1 。 ：
+/// - `id`： will id（ before ，`crypto.randomUUID()` ）。 before 
+/// not is ： new will when before need use this id ， etc 1 to 
+/// will 「 new → 1 」 1 must etc in ；
+/// - `title`： 。 1 use before if （ before up ），
+/// use no 1 is —— after not 「」 that 1 up use ；
+/// - `messages`：** JSON **（`[{role, content, toolCalls?,
+/// toolCallId?}, …]`， and to up wire ）。 not is by 
+/// [`SCHEMA_VERSION`] v16 ；
+/// - `model` / `reasoning`： this will after use and etc 。** will ** not is 
+/// 1 ： use is 「 this for from in 」， not is 
+/// ； 1 will when before from this ；
+/// - `created_at` / `updated_at`：ms when 。 by `updated_at` 
+/// （ in up ），`updated_at` new 。
 ///
-/// ── 索引 ────────────────────────────────────────────────────
-/// 只有一条 `updated_at` 倒序索引：侧边栏的全部查询就是「按最近更新排序列出」，
-/// 没有按标题 / 模型检索的需求（会话量级是几十条，前端一次全取即可）。
+/// ── ────────────────────────────────────────────────────
+/// has 1 `updated_at` ： is 「 by update」，
+/// no has by / need （ will is ， before 1 can ）。
 const V16_SCHEMA: &str = "
 -- ── assistant_sessions：AI 助手的对话会话（schema v16）───────
 CREATE TABLE IF NOT EXISTS assistant_sessions (
@@ -884,63 +884,63 @@ SELECT 'legacy:' || row_id, account_id,
 FROM requests WHERE account_id != '' AND status != 0 AND attempts > 0;
 ";
 
-/// 版本 23：requests 补「积分消耗」一列（schema v23）。
+/// 23：requests 「」 1 （schema v23）。
 ///
-/// 与 v5 / v7 / v10 / v12 同一形态（既有表加列，单条 ALTER，幂等靠版本号）。
-/// 为什么是 **REAL 且可空**，而不是像 token 四列那样 `INTEGER NOT NULL DEFAULT 0`：
-///   · 上游的 `credit` 是小数（WorkBuddy 实测 0.03～0.31），整数列会把读数截断；
-///   · `NULL` 表达「这一家没上报 / 旧行没有」，0 表达「上报了 0」。展示层对前者
-///     显示「—」、对后者显示「0」—— 把两者并成 0 会让「没读到」看起来像
-///     「这条请求免费」，正是余额/用量一列最怕的那种假读数。
+/// and v5 / v7 / v10 / v12 1 （ has ， ALTER， etc ）。
+/// Why is **REAL and can empty**， not is token that `INTEGER NOT NULL DEFAULT 0`：
+/// · up `credit` is （WorkBuddy 0.03～0.31）， will ；
+/// · `NULL` 「 this 1 no up / old no has 」，0 「 up 0」。 for before 
+/// 「—」、 for after 「0」—— and 0 will 「 no to 」
+/// 「 this request」， is /usage 1 that 。
 const V23_SCHEMA: &str = "
 -- ── requests 补积分消耗列（schema v23）──────────────────────
 ALTER TABLE requests ADD COLUMN credit REAL;
 ";
 
-/// 把库升到 [`SCHEMA_VERSION`]（幂等：已是最新版时什么都不做）。
+/// to [`SCHEMA_VERSION`]（ etc ： already is new when not ）。
 ///
-/// **库版本高于本程序时返回 `Err` 拒绝打开**（v14 起有意反转的一条既有决定，
-/// 完整论证见函数体里那个分支的注释）：加密后的 `accounts.data` 被旧程序当坏
-/// 数据跳过、再被它的差异写当成「内存里没有」删掉，静默放行等于「回退一次 =
-/// 账号被删」。库版本**低于**本程序则照常逐版本升级；**等于**则空操作。
+/// ** when return `Err` **（v14 has 1 has ，
+/// that ）： after `accounts.data` old 
+/// 、 「 no has 」， etc 「 1 =
+/// 」。**** then ；** etc ** then empty。
 ///
-/// 返回 `rusqlite::Result` 而不是本模块自造的字符串错误：调用方 `Db::open`
-/// 是唯一消费点，它把错误包成一句人能读的话（`format!`）就够了；而这里需要
-/// 区分「读版本号失败 / 跑 DDL 失败 / 写版本号失败」三种，保留 rusqlite 的
-/// 错误类型（含 SQLite 的错误码与消息）才说得清是哪一步坏的。那句「库比程序新」
-/// 的拒绝理由用 `ToSqlConversionFailure` 承载（它的 `Display` 就是原话）。
+/// return `rusqlite::Result` not is error： use `Db::open`
+/// is 1 ， error 1 can （`format!`）； this need need 
+/// 「failure / DDL failure / failure」， rusqlite 
+/// error（ SQLite error and ） is 1 。 that 「 new 」
+/// by use `ToSqlConversionFailure` （ `Display` is ）。
 pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     let current: i64 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if current == SCHEMA_VERSION {
-        // 已是最新版：什么都不做（全新库跑完建表之后、已升级的库每次启动都走这里）。
+        // already is new ： not （ new after 、 already this ）。
         return Ok(());
     }
     if current > SCHEMA_VERSION {
-        // ── 库比程序新：**拒绝打开**（本切片有意反转的一条既有决定）─────────
+        // ── new ：****（ has 1 has ）─────────
         //
-        // 改造前这里的口径是「不报错、也不动库」：理由写的是「用户从新版回退到
-        // 旧版，报错会让旧版直接起不来，而他只是想回退一次」。那条理由在
-        // `accounts.data` 是明文的年代成立 —— 旧程序读不懂新库的新列/新表，
-        // 但账号那几张表它写得回去，最坏是丢一点新功能的数据。
+        // before this is 「 not 、 not 」： by is 「 use from new to 
+        // old ， will old not ， is 1 」。 that by in 
+        // `accounts.data` is —— old not new new / new ，
+        // that ， is 1 new can 。
         //
-        // **本版起它不再成立**：`accounts.data` 是 `enc1:` 密文（v14 起），而旧程序
-        // （`SCHEMA_VERSION <= 13`）的 `decode_data` 只认明文 JSON —— 于是：
-        //   1. 旧程序读出每一行都会失败，把它们**当成坏数据跳过** → 界面上账号
-        //      全部消失；
-        //   2. 更致命的是写路径：旧程序的 `save_state` 按 id 做差异写，「库里有、
-        //      内存状态里没有」的行会被 `DELETE FROM accounts WHERE id = ?` ——
-        //      它读不出来的那些密文行**恰好**落进这个分支。于是「回退一次并触发
-        //      任意一次账号写入」= 把加密后的账号**静默删光**。
-        // 静默放行等于「回退一次 = 账号被删」，而账号数据丢了是不可逆的用户损失
-        // —— 所以这里改成明确失败：让启动在日志里说清原因，用户退回去用新版。
+        // ** not **：`accounts.data` is `enc1:` （v14 ）， old 
+        // （`SCHEMA_VERSION <= 13`） `decode_data` JSON —— is ：
+        // 1. old 1 will failure， **** → up 
+        // ；
+        // 2. is path： old `save_state` by id ，「 has 、
+        // no has 」 will `DELETE FROM accounts WHERE id = ?` ——
+        // not that **** this 。 is 「 1 and 
+        // any 1 」= after ****。
+        // etc 「 1 = 」， is not can use 
+        // —— this failure： in Reason， use use new 。
         //
-        // 这不是「降级 schema」（那才需要删列删表、不可逆，本函数从没做过，也不
-        // 会做）：这里只是**在动手之前先拒绝**，库文件一个字节都不碰。
+        // this not is 「 schema」（ that need need 、 not can ， from no ， not 
+        // will ）： this is ** in before **，file 1 not 。
         //
-        // 用什么承载这句错误：`ToSqlConversionFailure` 的 `Display` 就是里面那句
-        // 话的原文（本仓既有手法，见 `db::migrate::logs::assign_log_id` 的说明），
-        // 于是 `Db::open` 的 `format!("建表/升级 schema 失败: {error}")` 会把这段
-        // 话原样带到启动日志里。
+        // use this error：`ToSqlConversionFailure` `Display` is that 
+        // （ has ， `db::migrate::logs::assign_log_id` ），
+        // is `Db::open` `format!("/ schema failure: {error}")` will this 
+        // to 。
         return Err(rusqlite::Error::ToSqlConversionFailure(
             format!(
                 "库 schema 版本（{current}）高于当前程序（{SCHEMA_VERSION}）：这通常是回退到了旧版本。\
@@ -949,45 +949,45 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             .into(),
         ));
     }
-    // v13 清掉的历史正文行数（0 = 这一轮什么都没删）：循环后据此决定是否
-    // VACUUM（见本函数尾部那段）。放循环外是因为 VACUUM 不能在事务里跑。
+    // v13 （0 = this 1 no ）： after is 
+    // VACUUM（ that ）。 is as VACUUM not can in 。
     let mut cleaned_raw_rows = 0usize;
     for version in (current + 1)..=SCHEMA_VERSION {
-        // 每个版本一个独立事务：DDL 与版本号必须一起生效或一起不生效，
-        // 否则中断后会出现「表已建、版本号还是旧的」（下次启动重跑 DDL，
-        // 靠 IF NOT EXISTS 能过）与「版本号已新、表没建全」（**跑不过去**）
-        // 两种错位，后者更糟，所以宁可牺牲「一次提交全部版本」的原子性。
+        // 1 ：DDL and must 1 or 1 not ，
+        // otherwise in after will 「 already 、 is old 」（ down DDL，
+        // IF NOT EXISTS can ） and 「 already new 、 no 」（** not **）
+        // ， after ， can 「 1 」 。
         //
-        // 用 `unchecked_transaction()` 而不是 `transaction()`：后者要
-        // `&mut Connection`，而本函数的签名是 `&Connection`（它在 `Db::open`
-        // 里被调用，那时 `Db` 还没构造出来，拿不到 `with_mut`）。「同一连接上
-        // 不能有嵌套事务」这条约束由调用点保证 —— `Db::open` 持有唯一那把锁，
-        // 迁移期间不会有第二个访问者。
+        // use `unchecked_transaction()` not is `transaction()`： after need 
+        // `&mut Connection`， is `&Connection`（ in `Db::open`
+        // use ， that when `Db` no ， not to `with_mut`）。「 1 up 
+        // not can has 」 this by use —— `Db::open` has 1 that ，
+        // not will has 。
         //
-        // 注意 `tx` 不需要 `mut`：`pragma_update` / `commit` 都只取 `&self`，
-        // 写事务的独占性由 SQLite 自己保证（同一连接上不允许第二条语句并发），
-        // 不是靠 Rust 的独占借用。
+        // Note `tx` not need need `mut`：`pragma_update` / `commit` `&self`，
+        // by SQLite （ 1 up not and ），
+        // not is Rust use 。
         let tx = conn.unchecked_transaction()?;
         apply_version(&tx, version, &mut cleaned_raw_rows)?;
         tx.pragma_update(None, "user_version", version)?;
         tx.commit()?;
     }
     if cleaned_raw_rows > 0 {
-        // ── 删完之后顺手 VACUUM 一次（v13 的「省空间」在这里真正落地）──
-        // `DELETE` 只是把行标成空闲页，库文件**不会缩小** —— 对「升级后马上想
-        // 看到磁盘降下来」的用户，只有 VACUUM（重建整库文件）才把空闲页还给
-        // 文件系统。触发条件是 `cleaned_raw_rows > 0`：全新库（表本来就空）与
-        // 已升过级的库都删 0 行、不付这个代价；只有「确实有历史正文被清掉」的
-        // 那次升级会做一遍整库重建（几十 MB 的库通常秒级，一次性成本）。
+        // ── after VACUUM 1 （v13 「empty」 in this ）──
+        // `DELETE` is empty，file** not will ** —— for 「 after up 
+        // to down 」 use ， has VACUUM（file） empty to 
+        // file。 is `cleaned_raw_rows > 0`： new （empty） and 
+        // already 0 、 not this ； has 「 has 」 
+        // that will 1 （ MB seconds， 1 ）。
         //
-        // VACUUM 不能在事务里，所以放在循环外（每个版本的事务都已提交）；
-        // 失败**不报错**：数据已经删掉了，回收空间是尽力而为的优化 —— 用户
-        // 之后仍可在请求日志页的「清理」弹窗里手动压缩（那条路有后台线程与
-        // 进度状态，见 `RequestStats::compact`）。
+        // VACUUM not can in ， in （ already ）；
+        // failure** not **： already ，empty is as —— use 
+        // after can in request 「」（ that has after and 
+        // ， `RequestStats::compact`）。
         //
-        // VACUUM 前后各做一次 checkpoint（与 `RequestStats::compact` 同形，理由
-        // 见那边模块注释）：WAL 模式下 VACUUM 的整库重建会全部落进 `-wal`，
-        // 少了尾部那次截零，空间只是从主库搬到 WAL、总占用不降反升（issue #297）。
+        // VACUUM before after 1 checkpoint（ and `RequestStats::compact` ， by 
+        // that ）：WAL down VACUUM will `-wal`，
+        // that ，empty is from to WAL、total use not （issue #297）。
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
         let _ = conn.execute_batch("VACUUM;");
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
@@ -995,18 +995,18 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// 执行某个版本的 DDL / 数据动作，并把「清掉的历史正文行数」带回给 `migrate`
-/// （只有 v13 会写非零值，其余版本写 0）。**新增版本时在这里加一个分支**，
-/// 并在上面写好该版本的建表/改表语句常量。
+/// DDL / ， and 「 」 to `migrate`
+/// （ has v13 will ， its 0）。**add when in this 1 **，
+/// and in up this /。
 ///
-/// `cleaned_raw_rows` 做成出参而不是返回值：绝大多数分支只是跑一段 DDL、
-/// 没有数据要上报，若改成 `Result<usize>` 则每个分支都得包一层 `Ok(0)`
-/// （形式噪音），出参让「只有关心它的那一版」写它。
+/// `cleaned_raw_rows` not is return： is 1 DDL、
+/// no has need up ， if `Result<usize>` then 1 `Ok(0)`
+/// （），「 has that 1 」。
 ///
-/// `_` 分支返回 Ok 而不是 unreachable!：版本号是外部输入（库文件可能来自
-/// 更新的二进制，被旧版读到），越过 [`SCHEMA_VERSION`] 的版本不该 panic。
-/// `migrate` 的主循环也不可能走到这里（循环上界就是 SCHEMA_VERSION），
-/// 所以这个分支实际是「调用方传了越界的 version」的防御。
+/// `_` return Ok not is unreachable!： is （file can can 
+/// update ， old to ）， [`SCHEMA_VERSION`] not this panic。
+/// `migrate` not can can to this （ up is SCHEMA_VERSION），
+/// this is 「 use version」 。
 fn apply_version(
     conn: &Connection,
     version: i64,
@@ -1014,94 +1014,94 @@ fn apply_version(
 ) -> rusqlite::Result<()> {
     match version {
         1 => conn.execute_batch(V1_SCHEMA),
-        // v2：requests 补两个 JSON 文本列（重试链 / 敏感词命中）。
-        // 与 v1 的差别只有一条：这里是 ALTER 而不是 CREATE，所以**没有**
-        // IF NOT EXISTS 可用（见 V2_SCHEMA 的说明），幂等由版本号保证。
+        // v2：requests JSON （ / in ）。
+        // and v1 has 1 ： this is ALTER not is CREATE，** no has **
+        // IF NOT EXISTS available（ V2_SCHEMA ）， etc by 。
         2 => conn.execute_batch(V2_SCHEMA),
-        // v3：request_raw 原始报文表（新表用 CREATE IF NOT EXISTS，见 V3_SCHEMA）
+        // v3：request_raw （ new use CREATE IF NOT EXISTS， V3_SCHEMA）
         3 => conn.execute_batch(V3_SCHEMA),
-        // v4：重放 v3 建表（修复「版本号 3、表却不在」的存量库，见 SCHEMA_VERSION）
+        // v4： v3 （「 3、 not in 」 ， SCHEMA_VERSION）
         4 => conn.execute_batch(V4_SCHEMA),
-        // v5：requests 补两个思考等级列（下游指定 / 上游实际发出，见 V5_SCHEMA）
+        // v5：requests etc （ down / up ， V5_SCHEMA）
         5 => conn.execute_batch(V5_SCHEMA),
-        // v6：requests 补阶段与阶段计时两列（在途请求的状态列读数，见 V6_SCHEMA）
+        // v6：requests and when （ in request ， V6_SCHEMA）
         6 => conn.execute_batch(V6_SCHEMA),
-        // v7：requests 补「测试来源」一列（模型测试的流量标记，见 V7_SCHEMA）
+        // v7：requests 「」 1 （ ， V7_SCHEMA）
         7 => conn.execute_batch(V7_SCHEMA),
-        // v8：account_usage_records 每账号余额记录表（取代旧 kv 快照，见 V8_SCHEMA）
+        // v8：account_usage_records （ old kv ， V8_SCHEMA）
         8 => conn.execute_batch(V8_SCHEMA),
-        // v9：requests 补按账号聚合的索引（限制器的 Token 周期消耗聚合，见 V9_SCHEMA）
+        // v9：requests by （limit Token ， V9_SCHEMA）
         9 => conn.execute_batch(V9_SCHEMA),
-        // v10：requests 补「选路决策快照」一列（请求详情的路由回放，见 V10_SCHEMA）
+        // v10：requests 「」 1 （request by ， V10_SCHEMA）
         10 => conn.execute_batch(V10_SCHEMA),
-        // v11：checkin_records 签到记录明细台账（签到记录页的数据源，见 V11_SCHEMA）
+        // v11：checkin_records to （ to ， V11_SCHEMA）
         11 => conn.execute_batch(V11_SCHEMA),
-        // v12：requests 补「来源客户端」一列（请求日志的客户端列，见 V12_SCHEMA）
+        // v12：requests 「client」 1 （request client， V12_SCHEMA）
         12 => conn.execute_batch(V12_SCHEMA),
-        // v13：清空预览对话的历史正文（一次性空间回收，见 SCHEMA_VERSION 的
-        // v13 段）。先重放 v3 建表：存量库里有「版本号不低、request_raw 表却
-        // 缺失」的个例（v4 就是为修它而加的）—— 对那种库直接 DELETE 会报
-        // 「no such table」并把整个版本事务回滚，迁移就卡死了。
-        // 用 `execute` 而不是 `execute_batch`：要拿被删行数带出去，`migrate`
-        // 据此决定是否紧跟着 VACUUM（光 DELETE 不会让库文件缩小）。
+        // v13：empty for （ 1 empty， SCHEMA_VERSION 
+        // v13 ）。 v3 ： has 「 not 、request_raw 
+        // 」 （v4 is as ）—— for that DELETE will 
+        // 「no such table」 and ，。
+        // use `execute` not is `execute_batch`： need ，`migrate`
+        // is VACUUM（ DELETE not will file）。
         13 => {
             conn.execute_batch(V3_SCHEMA)?;
             *cleaned_raw_rows = conn.execute("DELETE FROM request_raw", [])?;
             Ok(())
         }
-        // v14：账号 `data` 列改为密文（`enc1:` 信封）。
-        // **这一版没有 DDL**，所以是空操作：加密是逐行的内容变换（由启动迁移
-        // `account_store::store_admin::encrypt_legacy_accounts` 把存量明文行就地
-        // 加密），没有列要加、没有表要建、也没有历史行要删（`cleaned_raw_rows`
-        // 保持 0，不触发 VACUUM）。版本号的作用在**旧程序那一侧**：它让旧程序
-        // 读到 v14 库时明确失败（见 `migrate` 的拒绝分支），而不是把密文当坏
-        // 数据跳过后又删掉。完整说明见 [`SCHEMA_VERSION`] 的 v14 段。
+        // v14： `data` as （`enc1:` ）。
+        // ** this 1 no has DDL**， is empty： is （ by 
+        // `account_store::store_admin::encrypt_legacy_accounts` 
+        // ）， no has need 、 no has need 、 no has need （`cleaned_raw_rows`
+        // 0， not VACUUM）。 use in ** old that 1 **： old 
+        // to v14 when failure（ `migrate` ）， not is 
+        // after 。 [`SCHEMA_VERSION`] v14 。
         14 => Ok(()),
-        // v15：requests 补两条索引（status 的定位 + 报表窄列的覆盖，见
-        // V15_SCHEMA 与 SCHEMA_VERSION 的 v15 段）。
+        // v15：requests （status + ，
+        // V15_SCHEMA and SCHEMA_VERSION v15 ）。
         15 => conn.execute_batch(V15_SCHEMA),
-        // v16：assistant_sessions 助手对话会话表（见 V16_SCHEMA 与
-        // SCHEMA_VERSION 的 v16 段）。新表用 CREATE IF NOT EXISTS，幂等。
+        // v16：assistant_sessions for will （ V16_SCHEMA and 
+        // SCHEMA_VERSION v16 ）。 new use CREATE IF NOT EXISTS， etc 。
         16 => conn.execute_batch(V16_SCHEMA),
         17 => conn.execute_batch(V17_SCHEMA),
         18 => conn.execute_batch(include_str!("schema_source_stats.sql")),
         19 => conn.execute_batch(include_str!("schema_assistant_images.sql")),
         20 => conn.execute_batch(include_str!("schema_debug_raw.sql")),
         21 => conn.execute_batch(include_str!("schema_assistant_title.sql")),
-        // v22：清掉「模型目录刷新」在旧成败判据下累积的假失败冷却（见 V22 注释）
+        // v22：「directory new 」 in old down failure（ V22 ）
         22 => reset_model_refresh_cooldown(conn),
-        // v23：requests 补「积分消耗」一列（请求日志的积分列，见 V23_SCHEMA）
+        // v23：requests 「」 1 （request ， V23_SCHEMA）
         23 => conn.execute_batch(V23_SCHEMA),
         24 => conn.execute_batch(include_str!("schema_client_identification.sql")),
         _ => Ok(()),
     }
 }
 
-/// 版本 22：把「模型目录刷新」那条任务的**失败冷却**清掉（数据修复，无 DDL）。
+/// 22： 「directory new 」 that **failure**（，none DDL）。
 ///
-/// ── 修的是什么 ──────────────────────────────────────────────
-/// 旧判据是 `failed == 0`（`core::scheduled_tasks::run_backend` 的
-/// `TASK_MODEL_REFRESH` 分支）：**任何一家**提供商刷新失败就把整轮算作失败。
-/// 而逐家失败是常态 —— 一家的登录态被上游作废（例如 CatPaw 的长期 401）就足以
-/// 让每一轮都失败一次，`failures` 于是按 `1h × 2^(n-1)` 一路顶到 24 小时上限，
-/// 其余能刷的家跟着一起停在旧清单上。界面上表现为「冷却中，N 小时后重试」，
-/// 看起来就是刷新功能坏了。
+/// ── is ──────────────────────────────────────────────
+/// old is `failed == 0`（`core::scheduled_tasks::run_backend` 
+/// `TASK_MODEL_REFRESH` ）：** 1 ** new failure failure。
+/// failure is —— 1 up （e.g. CatPaw 401）
+/// 1 failure 1 ，`failures` is by `1h × 2^(n-1)` 1 to 24 when limit，
+/// its can 1 in old up 。 up as 「 in ，N when after 」，
+/// is new can 。
 ///
-/// 判据已改成与凭证维护同一条（`round_succeeded`：有成功就不算整轮失败），
-/// 但**存量库里那串失败计数与 `retryAt` 还在**：不在这里清一次，用户升级后
-/// 仍要干等到旧冷却到期（实测能到二十多小时），等于修复不生效。
+/// already and 1 （`round_succeeded`： has success not failure），
+/// ** that failure and `retryAt` in **： not in this 1 ， use after 
+/// need etc to old to （ can to when ）， etc not 。
 ///
-/// ── 为什么只清模型刷新这一条 ─────────────────────────────────
-/// 别的任务没有这个误判来源，它们的冷却记的是真实失败（断网 / 上游故障），
-/// 一并清掉等于替用户提前解封、白打一轮上游。
+/// ── Why new this 1 ─────────────────────────────────
+/// no has this ， is failure（ / up ），
+/// 1 and etc use before 、 1 up 。
 ///
-/// ── 为什么在这里做而不是写个一次性标记键 ─────────────────────
-/// `user_version` 本身就是「每个版本只跑一次」的事实来源（见 [`migrate`]），
-/// 复用它零新增状态；而 kv 里再放一个标记键还要登记进 `RESERVED_KV_KEYS`，
-/// 否则一次配置写入就会把它当「已删除的键」清掉、下次启动重跑一遍。
+/// ── Why in this not is 1 ─────────────────────
+/// `user_version` is 「 1 」 （ [`migrate`]），
+/// use add； kv 1 need `RESERVED_KV_KEYS`，
+/// otherwise 1 config will 「 already delete 」、 down 1 。
 ///
-/// 失败不致命：状态是 `kv.backgroundTaskState` 里的一份 JSON，读不到 / 解析不出
-/// 就当作「没有要修的」，不让它挡住整个升级。
+/// failure not ： is `kv.backgroundTaskState` 1 JSON， not to / not 
+/// 「 no has need 」， not 。
 fn reset_model_refresh_cooldown(conn: &Connection) -> rusqlite::Result<()> {
     use rusqlite::OptionalExtension;
     use serde_json::{json, Map, Value};
@@ -1113,9 +1113,9 @@ fn reset_model_refresh_cooldown(conn: &Connection) -> rusqlite::Result<()> {
     let Ok(mut states) = serde_json::from_str::<Map<String, Value>>(&text) else {
         return Ok(());
     };
-    // 任务级键就是任务 id 本身（`scheduled_tasks::state_key`：模型刷新不是更新
-    // 检查那种带仓库前缀的特例）。逐家的 `modelRefresh:<provider>` 键不动 ——
-    // 它们的冷却记的是各家自己的失败，与这条误判无关。
+    // is id （`scheduled_tasks::state_key`： new not is update
+    // check that before ）。 `modelRefresh:<provider>` not ——
+    // is failure， and this none。
     let Some(state) = states.get_mut("modelRefresh").and_then(Value::as_object_mut) else {
         return Ok(());
     };

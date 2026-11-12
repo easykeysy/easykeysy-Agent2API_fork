@@ -1,17 +1,17 @@
-//! Accio（`accio` 国际版 / `accio-cn` 国内版）的**身份**。
+//! Accio（`accio` / `accio-cn` ） ****。
 //!
-//! ── 实现已整体搬到提供商插件 ────────────────────────────────
-//! 转发（Gemini 信封 + ADK 帧）、模型目录、额度、OAuth 登录、续期全在插件里。
-//! 网关这边只剩两件事：
-//!   - 枚举值与 id / 标签（[`crate::server::core::providers::ProviderKind`]）；
-//!   - 地区 ↔ provider 的互查（[`endpoints::Region`]）—— 那是账号落盘契约的
-//!     一部分（`provider` 字段决定账号归哪家、走哪个站点）。
+//! ── already to ────────────────────────────────
+//! （Gemini + ADK ）、directory、、OAuth 、 in 。
+//! this ：
+//! - and id / （[`crate::server::core::providers::ProviderKind`]）；
+//! - ↔ provider （[`endpoints::Region`]）—— that is 
+//! 1 （`provider` 、 ）。
 //!
-//! ── 两个地区 = 两个 provider ────────────────────────────────
-//! 与 `autoclaw::region` / Cline 两池同一条思路：地区做成账号上的字段，界面与
-//! 选路就分不清「哪条账号走哪个站点」。所以拆成两个 provider、两个插件实例。
+//! ── = provider ────────────────────────────────
+//! and `autoclaw::region` / Cline 1 ： up ， and 
+//! not 「 」。 provider、 。
 //!
 //! ── panic=abort ────────────────────────────────────────────
-//! 本文件不碰对话链路，也不做任何 IO。
+//! file not for ， not IO。
 
 pub mod endpoints;

@@ -1,22 +1,22 @@
-//! models.dev 模型元数据：`GET /api/models/metadata`、`PUT /api/models/metadata`、
+//! models.dev ：`GET /api/models/metadata`、`PUT /api/models/metadata`、
 //! `POST /api/models/metadata/refresh`。
 //!
-//! ── 为什么单独一个模块（而不是挂进 `/api/models/refresh`）────────
-//! `POST /api/models/refresh` 是「逐家上游目录」的刷新：它的每一行结果都对应
-//! 一个 provider（带账号、带该家的远程接口），「获取模型」弹窗按 provider 逐行
-//! 渲染。models.dev 不是一家 provider（没有账号、没有上游目录，只有两份公网
-//! JSON），硬塞进去会让那张表出现一行没有账号、也不属于任何一家的怪东西。
+//! ── Why 1 （ not is `/api/models/refresh`）────────
+//! `POST /api/models/refresh` is 「 up directory」 new ： 1 for 
+//! 1 provider（、 this ），「get」 by provider 
+//! 。models.dev not is 1 provider（ no has 、 no has up directory， has 
+//! JSON）， will that 1 no has 、 not 1 。
 //!
-//! 因此它是**网关自己的一份元数据**：开关与状态在设置页，刷新链路与各家目录
-//! 共用同一套排期与冷却（见 `core::model_meta::refresh`），只是入口分开。
+//! is ** 1 **： and in set， new and directory
+//! use 1 and （ `core::model_meta::refresh`）， is 。
 //!
-//! 与 `/api/captcha` 同形：GET 读、PUT 写开关、响应体就是新状态。刷新那条额外
-//! 返回一行结果（字段与各家目录刷新的结果行同形），界面照同一套徽章渲染。
+//! and `/api/captcha` ：GET 、PUT 、response is new 。 new that 
+//! return 1 （ and directory new ）， 1 。
 //!
-//! ── 为什么 GET 同时给「状态」与「开关」───────────────────────
-//! 设置页那一段要把三件事放在一起：「开不开」、「这份数据是什么时候的、
-//! 有多少条」、「现在刷一次」。三者同源同一次读取，分开两个接口只会让界面
-//! 出现「开关显示已开、状态却是旧的」这种中间态。
+//! ── Why GET when to 「」 and 「」───────────────────────
+//! set that 1 need in 1 ：「 not 」、「 this is when 、
+//! has 」、「 in 1 」。 1 ， will 
+//! 「 already 、 is old 」 this in 。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -30,8 +30,8 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// 设置页「立即刷新」用的间隔（分钟）：这条链路只服务手动触发，不参与定时
-/// 排期（定时那一次走 `scheduled_tasks` 的「模型目录刷新」任务）。
+/// set「 new 」 use （minutes）： this ， not and when 
+/// （ when that 1 `scheduled_tasks` 「directory new 」）。
 const MANUAL_INTERVAL_MINUTES: i64 = 1440;
 
 fn metadata_json() -> serde_json::Value {
@@ -45,15 +45,15 @@ fn metadata_json() -> serde_json::Value {
     payload
 }
 
-/// GET /api/models/metadata —— 开关 + 当前索引状态（来源 / 生成时刻 / 条数）
+/// GET /api/models/metadata —— + current（ / when / ）
 pub async fn get_metadata(State(_state): State<ServerState>) -> Response {
     ok_json(metadata_json())
 }
 
 /// PUT /api/models/metadata —— body `{modelsDevEnabled: true|false}`
 ///
-/// 关闭只停**联网刷新**（见 `config::KEY_MODELS_DEV_ENABLED`）：已经装载的索引
-/// 继续用（内存里那份 + 库里那份都不清），模型清单照常工作。
+/// ** new **（ `config::KEY_MODELS_DEV_ENABLED`）： already 
+/// use （ that + that not ），。
 pub async fn put_metadata(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -82,11 +82,11 @@ pub async fn put_metadata(State(_state): State<ServerState>, body: Bytes) -> Res
     ok_json(metadata_json())
 }
 
-/// POST /api/models/metadata/refresh —— 立即拉一次（与各家目录刷新共用排期与冷却）
+/// POST /api/models/metadata/refresh —— 1 （ and directory new use and ）
 ///
-/// 永远返回 2xx：成败由结果行的 `status` 表达（`refreshed` / `skipped` /
-/// `failed`），与 `/api/models/refresh` 同一口径 —— 「跑完了但这次没刷」是常态
-/// （未到间隔 / 已在设置里关闭），不是需要调用方解析错误体的异常。
+/// return 2xx： by `status` （`refreshed` / `skipped` /
+/// `failed`）， and `/api/models/refresh` 1 —— 「 this no 」 is 
+/// （ to / already in set）， not is need need use error 。
 pub async fn refresh_metadata(State(_state): State<ServerState>) -> Response {
     let row = model_meta::refresh(true, MANUAL_INTERVAL_MINUTES * 60_000).await;
     let status = row.get("status").and_then(serde_json::Value::as_str).unwrap_or("");

@@ -1,4 +1,4 @@
-//! 插件索引、发行版与下载。网络出口和 GitHub 令牌复用软件更新链路。
+//! 、 and down 。 and GitHub use update。
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -470,8 +470,8 @@ pub async fn release_assets_in(repo: &str, id: &str) -> Result<Option<ReleaseAss
     release_for(repo, id, None, None).await
 }
 
-/// progress 的 total 是已知包大小（未知时为 0），不是硬上限；
-/// 元数据、响应声明与逐块累计均受 MAX_PACK_BYTES 限制。
+/// progress total is already （unknown when as 0）， not is limit；
+/// 、response and MAX_PACK_BYTES limit。
 pub async fn download(
     asset: &PackAsset,
     mut progress: impl FnMut(u64, u64),
@@ -622,8 +622,8 @@ fn pick_asset(release: &Value, id: &str, target: &str) -> Option<PackAsset> {
 mod tests {
     use super::*;
 
-    /// 资产名必须与打包脚本的产出名逐字一致（两处任一处改了命名，
-    /// 更新就会变成「找不到对应平台的包」）。
+    /// must and 1 （ 1 ，
+    /// update will 「 not to for 」）。
     #[test]
     fn asset_name_matches_pack_script() {
         assert_eq!(
@@ -651,7 +651,7 @@ mod tests {
         assert_eq!(asset.url, "https://example.com/a.zip");
     }
 
-    /// 找不到当前平台时返回 None（而不是错挑一个别的平台）。
+    /// not to current when return None（ not is 1 ）。
     #[test]
     fn skips_other_platforms() {
         let release = json!({
@@ -664,7 +664,7 @@ mod tests {
         assert!(pick_asset(&release, "agent2api-providers", "x86_64-pc-windows-msvc").is_none());
     }
 
-    /// tag 带 `v` 前缀也要认。
+    /// tag `v` before need 。
     #[test]
     fn strips_v_prefix_from_tag() {
         let release = json!({

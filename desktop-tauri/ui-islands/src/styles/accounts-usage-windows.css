@@ -125,9 +125,9 @@
 .usage-window-grid.ungrouped .usage-window-label { display: block; margin-bottom: 3px; }
 .usage-window-grid.ungrouped .usage-window-value { font-size: 15px; }
 
-/* 紧凑行：无分组且读数是长文本 / 没有比例（Kiro、AStudio）。
-   标签与读数回到同一行、读数不放大 —— 单列时不会被一个大数字占满，
-   多列时也不会像两张并排的统计卡片（参照 Antigravity 的小行读数）。 */
+/* ：none and is / no has （Kiro、AStudio）。
+    and to 1 、 not —— when not will 1 ，
+    when not will and statistics（ Antigravity ）。 */
 .usage-window-grid.compact { display: block; }
 .usage-window-grid.compact .usage-window-group + .usage-window-group {
   border-left: none;

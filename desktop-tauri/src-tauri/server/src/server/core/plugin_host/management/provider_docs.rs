@@ -75,7 +75,7 @@ struct ProviderDocumentation {
 }
 
 fn read_notes(pack: &plugin_host::PackSummary) -> PackNotes {
-    // 放在 ui/ 下的说明数据与页面资源一样受现有插件签名覆盖。
+    // in ui/ down and 1 has 。
     let root = install::plugins_dir()
         .join(&pack.id)
         .join(&pack.version)
@@ -151,7 +151,7 @@ fn provider_documentation(
         } else if runtime.get(key) == Some(&true) {
             CapabilityStatus::Supported
         } else {
-            // false 只表明运行时能力位未开启，不能据此断言上游没有该能力。
+            // false when can ， not can up no has this can 。
             declared.map(|cell| cell.status).unwrap_or_default()
         };
         capabilities.insert(

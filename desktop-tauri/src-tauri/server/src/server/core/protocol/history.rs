@@ -1,66 +1,66 @@
-//! 内部 Chat 体的**历史 sanitize**：把客户端持久化下来的畸形工具历史修成
-//! 严格上游能接受的形态。
+//! Chat ** sanitize**： client down 
+//! up can 。
 //!
-//! ── 解决什么问题（真实会话里的两种形态）──────────────────────
-//! 客户端会把上游偶发产出的畸形工具调用原样写进会话历史，坏历史此后被每次
-//! 请求原样重放 —— 严格校验的上游对**之后每一条**请求都返回 400，整条会话
-//! 报废。目前已知两种形态：
+//! ── （ will ）──────────────────────
+//! client will up use will ， after 
+//! request —— up for ** after 1 **requestreturn 400， will 
+//! 。 before already ：
 //!
-//!   1. `tool_calls[].function.name` 为空串（上游偶发产出的畸形调用，客户端
-//!      回一句 "No such tool available" 之后把它留在了历史里）；
-//!   2. tool 结果与 assistant 的 `tool_calls` 之间插了别的消息（Claude Desktop
-//!      加载 skill 时把 tool_result 与正文放在同一条 user 消息里，入口翻译
-//!      `anthropic.rs` 拆分这条消息时顺序不对就会形成这个形态）。
+//! 1. `tool_calls[].function.name` as empty（ up use ，client
+//! 1 "No such tool available" after in ）；
+//! 2. tool and assistant `tool_calls` （Claude Desktop
+//! skill when tool_result and in 1 user ，
+//! `anthropic.rs` this when not for will this ）。
 //!
-//! ── 为什么在转发入口做一次，而不是在某一家适配器里 ───────────
-//! 坏历史会流到**任意一家**上游：内置各家是 chat 透传，自定义家按协议翻译成
-//! Responses / Anthropic。同一份内部 Chat 体在转发入口 sanitize 一次，所有家、
-//! 所有协议、所有重试轮次看到的历史完全一致（放适配器里就会按家各修一遍，
-//! 还会随新增协议漏掉）。分工上与 [`super::strip_internal_fields`] 是同一层面
-//! 的两半：那是「字段形态」的通用出站卫生，这里是「历史结构」的那一半。
+//! ── Why in 1 ， not is in 1 ───────────
+//! will to **any 1 ** up ： is chat ， by 
+//! Responses / Anthropic。 1 Chat in sanitize 1 ，all、
+//! all、all to 1 （ will by 1 ，
+//! will add）。 up and [`super::strip_internal_fields`] is 1 
+//! ： that is 「」 use ， this is 「」 that 1 。
 //!
-//! ── 与 WorkBuddy 适配器的关系 ───────────────────────────────
-//! 配对重排与孤儿裁剪原先只存在于 `providers::workbuddy::normalize`（移植自
-//! 参考项目 workbuddy2api 的 `tool_pairing.go`）。同一套规则两处维护必然漂移，
-//! 现在统一到本模块；那家的归一化只留本家形态相关的那几步。
+//! ── and WorkBuddy ───────────────────────────────
+//! for and in `providers::workbuddy::normalize`（
+//! workbuddy2api `tool_pairing.go`）。 1 then ，
+//! in 1 to ； that 1 that 。
 //!
-//! ── 取舍：宁可丢一轮工具上下文，也好过整条会话死亡 ──────────
-//! 三步都是**结构性修复**，不改内容语义：补名、挪位、剔除无法配对的条目。
-//! 与参考项目同一条底线（见其 `tool_pairing.go` 的说明）。
+//! ── ： can 1 up down ， will ──────────
+//! is ****， not ：、、none for 。
+//! and 1 （ its `tool_pairing.go` ）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! 同 `mod.rs`：零 unwrap/expect/panic；纯函数，不做 IO。
+//! ── ──────────────────────────────────────────────────
+//! `mod.rs`： unwrap/expect/panic；， not IO。
 
 use serde_json::{Map, Value};
 
-/// 工具调用空名补的占位名。
+/// use empty 。
 ///
-/// 与 `responses.rs` / `anthropic.rs` 处理**工具声明**空名时的兜底同名 ——
-/// 同一类问题（名字缺失）用同一个占位符，排查时一眼认得出是网关补的。
+/// and `responses.rs` / `anthropic.rs` ****empty when ——
+/// 1 （） use 1 ， when 1 is 。
 const UNKNOWN_TOOL_NAME: &str = "unknown";
 
-/// 历史 sanitize 做了什么（供调用方写一行详细日志）。
+/// sanitize （ use 1 ）。
 ///
-/// 与 `workbuddy::normalize` 的 `NormalizeReport` 同一取向：只统计**值得解释的
-/// 修复**。这层改动的是历史结构（少一轮工具上下文、调用名被补），一旦出问题
-/// 用户要能回答「网关对我的请求动了什么」。
+/// and `workbuddy::normalize` `NormalizeReport` 1 to ：statistics** 
+/// **。 this is （ 1 up down 、 use ）， 1 
+/// use need can 「 for request」。
 #[derive(Clone, Debug, Default)]
 pub struct HistoryReport {
-    /// 补了占位名的空工具调用数
+    /// empty use 
     pub renamed_tools: usize,
-    /// 是否发生了配对断裂重排（插在 assistant 与其结果之间的消息被挪到组后）
+    /// is for （ in assistant and its to after ）
     pub repacked: bool,
-    /// 剔除的孤儿 tool_call / tool 结果条目数
+    /// tool_call / tool 
     pub orphans_removed: usize,
 }
 
 impl HistoryReport {
-    /// 是否有值得写进详细日志的修复
+    /// is has 
     pub fn notable(&self) -> bool {
         self.renamed_tools > 0 || self.repacked || self.orphans_removed > 0
     }
 
-    /// 一行可读的中文描述（供 `logging::verbose`）
+    /// 1 can in （ `logging::verbose`）
     pub fn describe(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         if self.renamed_tools > 0 {
@@ -76,14 +76,14 @@ impl HistoryReport {
     }
 }
 
-/// 对内部 Chat 体做一轮历史 sanitize（原地改写），返回修复报告。
+/// for Chat 1 sanitize（），return。
 ///
-/// 三步的顺序不能调换：先补名（让后续判定只看结构），再重排（把结果挪到
-/// assistant 之后），最后裁剪（此时「配对齐全」的判据才与将发出去的字节一致
-/// —— 先裁剪会把中间的插入消息当成孤儿误删）。
+/// not can ：（ after ），（ to 
+/// assistant after ）， after （ when 「 for 」 and will 1 
+/// —— will in ）。
 ///
-/// body 不是对象 / 没有 messages 数组时零改动返回（坏 body 不在这里二次
-/// 错误化：上游会给出比我们更准确的解析错误）。
+/// body not is for / no has messages when return（ body not in this 
+/// error： up will to error）。
 pub fn sanitize_history(body: &mut Value) -> HistoryReport {
     let mut report = HistoryReport::default();
     let Some(messages) = body.get_mut("messages").and_then(Value::as_array_mut) else {
@@ -95,16 +95,16 @@ pub fn sanitize_history(body: &mut Value) -> HistoryReport {
     report
 }
 
-/// 第一步：给空名工具调用补占位名。
+/// 1 ： to empty use 。
 ///
-/// 为什么补名而不是「删掉这条调用及其配对结果」：补名只动一个字符串 —— 配对
-/// 保持完整、历史条数不变（前缀缓存的影响最小），也不会凭空造出「无 tool_calls
-/// 的 assistant」这种新形态。删除则要连带删结果、再处理 assistant 变空的连带
-/// 情形，改的东西比修的问题还多。
+/// Why not is 「 this use and its for 」： 1 —— for 
+/// 、 not （ before ）， not will empty「none tool_calls
+/// assistant」 this new 。delete then need 、 assistant empty 
+/// ， 。
 ///
-/// 只认规范形态（`function` 是对象）：`function` 缺失/非对象说明客户端的调用
-/// 形态本身就无从判断，伪造一个只会让上游的校验指向更莫名其妙的位置 ——
-/// 原样发、让上游如实报错（与 `anthropic_outbound` 对缺 id 的处理同一取向）。
+/// （`function` is for ）：`function` / for client use 
+/// none from ， 1 will up to its ——
+/// 、 up （ and `anthropic_outbound` for id 1 to ）。
 fn rename_empty_tool_names(messages: &mut [Value], report: &mut HistoryReport) {
     for message in messages.iter_mut() {
         let Some(fields) = message.as_object_mut() else {
@@ -137,27 +137,27 @@ fn rename_empty_tool_names(messages: &mut [Value], report: &mut HistoryReport) {
     }
 }
 
-/// 第二步：把插在 `assistant.tool_calls` 与其结果之间的非 tool 消息挪到整组之后，
-/// 保证同一批调用的结果在 wire 上**连续**且**紧跟在 assistant 后面**。
+/// ： in `assistant.tool_calls` and its tool to after ，
+/// 1 use in wire up **** and ** in assistant after **。
 ///
-/// OpenAI 兼容协议要求 tool 结果紧跟 assistant，中间插任何消息都算配对断裂
-/// （上游判 11148 / "tool calls and tool results do not match"）并顶死会话；
-/// Anthropic 侧同样要求 `tool_result` 落在 user 消息内容块最前。客户端不知道
-/// 这条规则：Codex 的 image_resize_notice、Claude Desktop 的 skill 注入都会
-/// 把一条消息插进中间。
+/// OpenAI need tool assistant， in for 
+/// （ up 11148 / "tool calls and tool results do not match"） and will ；
+/// Anthropic need `tool_result` in user before 。client not 
+/// this then ：Codex image_resize_notice、Claude Desktop skill will 
+/// 1 in 。
 ///
-/// 与参考项目 `repackToolResultBlocks` 的差异只有一处（其余逐条对齐）：**不再
-/// 要求「assistant 后面第一条就得是结果」**。参考实现遇到「assistant → 插入消息
-/// → 结果」直接 break（那一段交给孤儿裁剪），于是这一形态永远得不到重排 ——
-/// 而它正是 Claude Desktop 混装历史的形态。这里改成向后找：本批结果收齐、
-/// 撞见下一组 `assistant.tool_calls`、或撞见不属于本批的 tool 消息为止。
+/// and `repackToolResultBlocks` has 1 （ its for ）：** not 
+/// need 「assistant after 1 is 」**。 to 「assistant → 
+/// → 」 break（ that 1 to ）， is this 1 not to ——
+/// is Claude Desktop 。 this to after ：、
+/// down 1 `assistant.tool_calls`、 or not tool as 。
 ///
-/// 只在「结果真的跟在被插入消息之后」时才重建：一个结果都找不到说明这是孤儿
-/// 调用，整段不动（那交给第三步）；同批结果的原相对顺序保持不变。
+/// in 「 in after 」 when ： 1 not to this is 
+/// use ， not （ that to ）； for not 。
 ///
-/// 分两相（先只读扫出计划、有需要才重建消息数组）：本函数每个请求都会跑，
-/// 而绝大多数历史本来合规 —— 单相实现会为每段历史深拷贝一遍全部消息（大历史
-/// 在 MB 级）只为把结果原样丢掉。
+/// （、 has need need ）： request will ，
+/// —— will as 1 （
+/// in MB ） as 。
 fn repack_tool_results(messages: &mut Vec<Value>, report: &mut HistoryReport) {
     if messages.len() < 3 {
         return;
@@ -189,22 +189,22 @@ fn repack_tool_results(messages: &mut Vec<Value>, report: &mut HistoryReport) {
     report.repacked = true;
 }
 
-/// 一次重排计划（下标寻址；只读扫描的产物）
+/// 1 （ down ； ）
 struct Repack {
-    /// 组头（带 `tool_calls` 的 assistant）的下标
+    /// （ `tool_calls` assistant） down 
     start: usize,
-    /// 本批结果消息的下标（按原相对顺序）
+    /// down （ by for ）
     results: Vec<usize>,
-    /// 插在组头与其结果之间的消息下标（按原相对顺序，整体后移）
+    /// in and its down （ by for ， after ）
     moved: Vec<usize>,
-    /// 组扫描的停止处（不含）：应用计划后外层从这里继续
+    /// （ not ）： use after from this 
     end: usize,
 }
 
-/// 只读扫描出需要重排的组（规则见 [`repack_tool_results`]）。
+/// need need （ then [`repack_tool_results`]）。
 ///
-/// 计划按下标升序、互不重叠：每组的扫描都止于下一个带 `tool_calls` 的 assistant
-/// （即下一组的组头），所以一个下标只会落进一组。
+/// by down 、 not ： down 1 `tool_calls` assistant
+/// （ down 1 ）， 1 down will 1 。
 fn plan_repacks(messages: &[Value]) -> Vec<Repack> {
     let mut plan: Vec<Repack> = Vec::new();
     let mut index = 0usize;
@@ -242,13 +242,13 @@ fn plan_repacks(messages: &[Value]) -> Vec<Repack> {
                 }
                 continue;
             }
-            // 下一组 assistant.tool_calls 是新组头，绝不能当插入物吞掉：
-            // 一旦收进 moved，它自己那批结果就永远得不到重排。
+            // down 1 assistant.tool_calls is new ， not can ：
+            // 1 moved， that not to 。
             if is_role(fields, "assistant") && !assistant_call_ids(&messages[index]).is_empty() {
                 break;
             }
-            // 结果尚未收齐时，任何非 tool 消息都是「插在中间」的候选；一个
-            // 结果都找不到时 needs 不会置位，整段原样保留。
+            // when ， tool is 「 in in 」 ； 1 
+            // not to when needs not will ，。
             moved.push(index);
             index += 1;
         }
@@ -264,18 +264,18 @@ fn plan_repacks(messages: &[Value]) -> Vec<Repack> {
     plan
 }
 
-/// 第三步：剔除无法配对的 `tool_call` 与 tool 结果（双侧按同一份 keep 集对称裁剪）。
+/// ：none for `tool_call` and tool （ by 1 keep for ）。
 ///
-///   - 收集全线 `role:"tool"` 的 `tool_call_id`（结果集）与
-///     `assistant.tool_calls[].id`（调用集）；
-///   - `assistant.tool_calls` 按 keep 集裁剪：只留有结果配对的调用，裁空则删掉
-///     整个 `tool_calls` 键；
-///   - `role:"tool"` 只在对应调用被保留时才保留，孤儿结果整条删除。
+/// - `role:"tool"` `tool_call_id`（） and 
+/// `assistant.tool_calls[].id`（ use ）；
+/// - `assistant.tool_calls` by keep ： has for use ，empty then 
+/// `tool_calls` ；
+/// - `role:"tool"` in for use when ，delete。
 ///
-/// **两侧必须共用同一份 keep 集**：若只裁调用侧（保留整个 tool_calls 键或整批
-/// 删除），会留下「无 tool_calls 的 assistant + 孤儿 tool」这种半截配对，上游
-/// 照样 400。空 id 的调用/结果配不上任何东西，按同一规则一并剔除 —— 逐字沿用
-/// 参考项目与 WorkBuddy 适配器既有的判据（那里已在生产上验证）。
+/// **must use 1 keep **： if use （ tool_calls or 
+/// delete）， will down 「none tool_calls assistant + tool」 this for ， up 
+/// 400。empty id use / not up ， by 1 then 1 and —— use 
+/// and WorkBuddy has （ that already in up ）。
 fn cleanup_orphan_tools(messages: &mut Vec<Value>, report: &mut HistoryReport) {
     if messages.is_empty() {
         return;
@@ -310,12 +310,12 @@ fn cleanup_orphan_tools(messages: &mut Vec<Value>, report: &mut HistoryReport) {
     if call_ids.is_empty() && result_ids.is_empty() {
         return; // 无工具流量：零改动
     }
-    // keep 集 = 调用与结果双侧齐全的 id
+    // keep = use and id
     let keep: Vec<&String> = call_ids
         .iter()
         .filter(|id| result_ids.iter().any(|result| result == *id))
         .collect();
-    // 1) 调用侧裁剪
+    // 1) use 
     for message in messages.iter_mut() {
         let Some(fields) = message.as_object_mut() else {
             continue;
@@ -349,7 +349,7 @@ fn cleanup_orphan_tools(messages: &mut Vec<Value>, report: &mut HistoryReport) {
             fields.insert("tool_calls".to_string(), Value::Array(kept));
         }
     }
-    // 2) 结果侧裁剪：孤儿 tool 消息整条删除
+    // 2) ： tool delete
     let before = messages.len();
     messages.retain(|message| {
         let Some(fields) = message.as_object() else {
@@ -365,12 +365,12 @@ fn cleanup_orphan_tools(messages: &mut Vec<Value>, report: &mut HistoryReport) {
     report.orphans_removed += before - messages.len();
 }
 
-/// 一条消息是否是指定角色
+/// 1 is is 
 fn is_role(fields: &Map<String, Value>, role: &str) -> bool {
     fields.get("role").and_then(Value::as_str) == Some(role)
 }
 
-/// 取一个非空字符串字段（`tool_calls[].id` / `tool_call_id` 的判据）
+/// 1 empty（`tool_calls[].id` / `tool_call_id` ）
 fn non_empty_str(value: Option<&Value>) -> Option<String> {
     value
         .and_then(Value::as_str)
@@ -379,7 +379,7 @@ fn non_empty_str(value: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// 取 assistant 消息里 `tool_calls[].id` 的集合（非 assistant / 无调用则空 vec）
+/// assistant `tool_calls[].id` （ assistant / none use then empty vec）
 fn assistant_call_ids(message: &Value) -> Vec<String> {
     message
         .as_object()

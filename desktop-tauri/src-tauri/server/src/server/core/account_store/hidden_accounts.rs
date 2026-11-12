@@ -37,7 +37,7 @@ fn reason_of(provider: &str, registry: &PackRegistry) -> HiddenReason {
     reason
 }
 
-/// 只返回数量和提供商元数据，不返回隐藏账号的记录或凭证。
+/// return and ， not return or 。
 pub(super) fn summary(counts: BTreeMap<String, usize>) -> Value {
     let total = counts.values().sum::<usize>();
     let mut details = Vec::with_capacity(counts.len());

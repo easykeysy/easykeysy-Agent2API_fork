@@ -6,10 +6,10 @@ import type { ReplayRow, RoutingWorkspace } from './routing-types'
 import { isTraceRunning, isTraceSuccess, traceAttempts } from './routing-trace-model'
 
 /**
- * 客户端显示名。面板内置的模型调用在库里存的是内部用途标识（`assistant` /
- * `model_test` / `checkin_keepalive` 等），它们不是产品名，直接显示出来会让人
- * 以为是陌生的第三方客户端。这里统一翻成产品里的叫法，与请求日志同一口径
- * （见 ui-shared/model-api-key.ts 的 requestClientLabel）。
+ * client。 use in is use （`assistant` /
+ * `model_test` / `checkin_keepalive` etc ）， not is ， will 
+ * as is client。 this 1 ， and request 1 
+ * （ ui-shared/model-api-key.ts requestClientLabel）。
  */
 export const clientLabel = (client: string): string => {
   switch (client) {

@@ -6,16 +6,16 @@ use agent2api_provider_protocol as proto;
 use super::process::ProcessRun;
 use super::{runtime, Host, CALLBACK_FORBIDDEN};
 
-/// 网关侧要实现的回调（插件的 `store.*` / `settings.*` / `log` / `notify`）。
+/// need （ `store.*` / `settings.*` / `log` / `notify`）。
 pub trait GatewayCallbacks: Send + Sync + 'static {
-    /// 只返回账号顶层归属，供宿主授权；不读取或透出凭证。
-    /// 默认不提供归属即拒绝账号级回调，旧实现不会意外获得跨账号访问权。
+    /// return，； not or 。
+    /// default not ， old not will 。
     fn account_provider(&self, _account: &str) -> Option<String> {
         None
     }
 
-    /// 网关安装清单授予的包范围；默认不授予任何 provider。
-    /// 清单范围不能由回调 params 中的 provider/owner 扩大。
+    /// ；default not provider。
+    /// not can by params in provider/owner 。
     fn provider_allowed(&self, _provider: &str) -> bool {
         false
     }
@@ -134,8 +134,8 @@ pub trait GatewayCallbacks: Send + Sync + 'static {
 }
 
 impl Host {
-    /// 授权只来自当前 Host 的声明与网关授予的包范围，不能信任请求里的 owner。
-    /// 锁只用于同步读取，绝不持 providers 锁跨 store 回调或 await。
+    /// current Host and ， not can request owner。
+    /// used for， not providers store or await。
     fn authorize_callback_provider(&self, provider: &str) -> Result<(), proto::WireError> {
         let declared = !provider.is_empty() && self.providers.lock().ok()
             .is_some_and(|providers| providers.iter().any(|info| info.id.as_str() == provider));
@@ -150,7 +150,7 @@ impl Host {
         Ok(())
     }
 
-    /// account 的归属必须由账号库顶层确认；secret/provider 参数都不是授权事实。
+    /// account must by ；secret/provider parameter not is 。
     fn authorize_callback_account(&self, account: &str, provider: Option<&str>) -> Result<(), proto::WireError> {
         if account.is_empty() {
             return Err(proto::WireError::with_code("账号不存在", proto::WireError::NOT_FOUND));
@@ -205,7 +205,7 @@ impl Host {
             | proto::methods::plugin::STORE_MARK_LIMITED
             | proto::methods::plugin::STORE_LEDGER_GET
             | proto::methods::plugin::STORE_LEDGER_PUT => {
-                // 这些协议没有 provider 字段；从账号库反查，不能回落 WorkBuddy。
+                // this no has provider ； from ， not can WorkBuddy。
                 self.authorize_callback_account(&text("account"), None)
             }
             _ => Ok(()),
@@ -279,7 +279,7 @@ impl Host {
             )),
         };
 
-        // 插件重启后会复用回调 ID，应答只能写回发起它的那一代进程。
+        // after will use ID， can that 1 。
         let frame = match outcome {
             Ok(result) => proto::Frame { id, result: Some(result), ..Default::default() },
             Err(error) => proto::Frame { id, error: Some(error), ..Default::default() },

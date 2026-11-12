@@ -1,35 +1,35 @@
-//! 账号选路 —— 严格优先级排队（对照 Node 版 src/workbuddy-routing.mjs 全量移植）。
+//! —— （ for Node src/workbuddy-routing.mjs ）。
 //!
-//! 优先级是「主备序号」：优先级必须唯一（Agent2API 改造后作用域收窄为
-//! **同 provider 内**，由 account-store 在写入侧保证，见其模块头），
-//! 不允许多个账号并列 —— 并列会让「同级」语义失效。本模块只做**纯判定**，
-//! 数据来源是账号存储的公开形态（`store.list_accounts()` 的 `accounts` 数组），
-//! 字段就是 UI 上看到的那几个：`id` / `name` / `priority` / `addedAt` /
+//! is 「」：must 1 （Agent2API after use as 
+//! ** provider **， by account-store in ， its module header），
+//! not and —— and will 「」。****，
+//! is （`store.list_accounts()` `accounts` ），
+//! is UI up to that ：`id` / `name` / `priority` / `addedAt` /
 //! `enabled` / `rateLimits`。
 //!
-//! ── 为什么用 `serde_json::Value` 而不是强类型结构 ──────────────
-//! Node 版的判据全部作用在「公开形态对象」上，而公开形态是容错的
-//! （字段缺失/类型不对都不报错，按 JS 语义回落）。这里保持同一数据源与同一
-//! 语义，避免为了「类型好看」把手工编辑出的脏数据在解析期整条丢掉 ——
-//! 那会让选路结果与 Node 版分叉（例如某个账号因为 `priority: "abc"` 而消失）。
+//! ── Why use `serde_json::Value` not is ──────────────
+//! Node use in 「 for 」 up ， is 
+//! （/ not for not ， by JS ）。 this 1 and 1 
+//! ， as 「」 in ——
+//! that will and Node （e.g. as `priority: "abc"` ）。
 //!
-//! ── 规则（照抄 Node 版头部注释）──────────────────────────────
-//!   1. 候选 = 启用中（`enabled !== false`）且未对「该模型」处于限额冷却期的账号；
-//!   2. 取候选里优先级数值最小的那个（数值小的先用）；
-//!   3. 本次已尝试过的账号（429 降级）从候选中排除，避免回环；
-//!   4. 全部候选都不可用时，由调用方决定是降级重试还是透传错误。
+//! ── then （ Node ）──────────────────────────────
+//! 1. = enabled in （`enabled !== false`） and for 「 this 」 ；
+//! 2. that （ use ）；
+//! 3. already （429 ） from in excluding，；
+//! 4. unavailable when ， by use is is error。
 //!
-//! ── 规则 1 里的「该模型」指**上游真名**，不是请求名 ─────────────
-//! `rateLimits` 的键是上游实际收到并据此记额度的那个名字。映射
-//! （`modelRules.mappings`）会在发送前把请求名改写成上游真名，所以判定与写入
-//! 都必须用真名 —— 键怎么来见 [`cooldown_key`]，用请求名会有什么后果见那里。
-//! 传进本模块各函数的 `model` 参数因此一律是**请求名**，由函数自己按账号所属
-//! 的家解析成真名（[`CooldownKeys`] 负责让这次解析每家只做一次）。
+//! ── then 1 「 this 」** up **， not is request ─────────────
+//! `rateLimits` is up to and that 。
+//! （`modelRules.mappings`） will in before request up ， and 
+//! must use —— [`cooldown_key`]， use request will has after that 。
+//! `model` parameter 1 is **request**， by by 
+//! （[`CooldownKeys`] this 1 ）。
 //!
-//! 「当前账号」不是独立的手动选择，而是本模块选路结果在「不限模型」下的那个账号
-//! （account-store 的 `get_current_entry` 按同样的判据派生）。因此界面上的「当前」
-//! 与转发默认使用谁始终一致；仅当账号对某具体模型限额时，该模型的请求才会临时
-//! 降级到下一个候选 —— 那是按模型的一次性决策，不改写「当前账号」。
+//! 「current」 not is ， is in 「 not 」 down that 
+//! （account-store `get_current_entry` by ）。 up 「current」
+//! and default use 1 ；only for when ， this request will when 
+//! to down 1 —— that is by 1 ， not 「current」。
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -39,42 +39,42 @@ use serde_json::{json, Value};
 use crate::server::core::account_store::priority::{by_priority_order, normalize_priority};
 use crate::server::core::account_store::store_util::js_truthy;
 
-/// 「请求名 → 各家上游真名」的解析缓存：限额冷却键的解析器。
+/// 「request → up 」 ： 。
 ///
-/// ── 为什么冷却键必须是真名而不是请求名（本模块最要紧的一条）─────
-/// `rateLimits` 的键是**上游按它记额度的那个名字**。映射（`modelRules.mappings`）
-/// 会在发送前把请求名改写成上游真名（`providers::catalog::wire_target_for_provider`），
-/// 上游因此只认识真名：它对 `deepseek-v4.1-flash` 记额度，而 `gpt-5.6-luna`
-/// 这种纯对外名上游根本没见过。拿请求名当冷却键会同时坏掉三件事：
+/// ── Whymust is not is request（ need 1 ）─────
+/// `rateLimits` is ** up by that **。（`modelRules.mappings`）
+/// will in before request up （`providers::catalog::wire_target_for_provider`），
+/// up ： for `deepseek-v4.1-flash` ， `gpt-5.6-luna`
+/// this for up no 。request will when ：
 ///
-///   1. **写入分裂**：同一份额度被记成 `deepseek-v4.1-flash` 与 `gpt-5.6-luna`
-///      两条互不相干的冷却。2026-09 实测：同一账号上 `deepseek-v4.1-flash` /
-///      `gpt-5.6-luna` / `gpt-6-astra` 三个键的 `resetAt` 完全相同（它们本就
-///      是同一份额度，因为后两个都是映射到第一个的对外名），账号页却显示成
-///      「3 个模型限流中」。
-///   2. **判定漏命中**（最实质的伤害）：用别名请求撞限额后，冷却写在别名键上；
-///      接着用真名请求时读的是真名键 —— 读不到那条冷却，于是照样选中这个已经
-///      限额的账号，白撞一次 429。换号链因此反复挑到「名字不同但同一个额度」
-///      的账号，看起来像「映射没生效、请求还是打到原模型」。
-///   3. **清除失效**：成功时按请求名清（`provider_loop::cap_cleared`），真名键下
-///      那条旧记录一直留到重置时间，账号页常驻一条点不掉的限流记录。
+/// 1. ****： 1 `deepseek-v4.1-flash` and `gpt-5.6-luna`
+/// not 。2026-09 ： 1 up `deepseek-v4.1-flash` /
+/// `gpt-5.6-luna` / `gpt-6-astra` `resetAt` （
+/// is 1 ， as after is to 1 for ），
+/// 「3 in 」。
+/// 2. ** in **（ ）： use request after ， in up ；
+/// use request when is —— not to that ， is in this already 
+/// ， 1 429。 to 「 not 1 」
+/// ，「 no 、request is to 」。
+/// 3. ****：success when by request（`provider_loop::cap_cleared`）， down 
+/// that old 1 to when ， 1 not 。
 ///
-/// ── 为什么按 provider 缓存（而不是每次现算）──────────────────
-/// 真名是**按家**解析的：同一个 `gpt-6-astra` 在 workbuddy 家映射到
-/// `deepseek-v4.1-flash`，在 catpaw 家可能映射到别的 target。而选路要对
-/// **账号列表**逐个判定，同一家往往有多个账号 —— 不缓存的话，一家有几个账号
-/// 就把 `wire_target_for_provider`（内含一次 `model_rules::current()` 克隆与
-/// 一轮清单扫描）跑几遍。缓存键是 provider id，规模恒等于候选家数（≤6）。
+/// ── Why by provider （ not is ）──────────────────
+/// is ** by ** ： 1 `gpt-6-astra` in workbuddy to 
+/// `deepseek-v4.1-flash`， in catpaw can can to target。 need for 
+/// **** ， 1 has —— not ， 1 has 
+/// `wire_target_for_provider`（ 1 `model_rules::current()` and 
+/// 1 ）。 is provider id， etc （≤6）。
 ///
-/// 用 `Mutex` 而不是 `RefCell`：本结构会被**异步**的选路路径持有（`select_target_account`
-/// 是 async），而 `RefCell` 不是 `Sync` —— 它会让整个 handler 的 future 失去
-/// `Send`，编译期直接失败（这正好也说明它跨 await 存在）。锁的临界区只有
-/// 几次哈希查找，且与 `wire_target_for_provider` 的解析不重叠（解析在锁外做，
-/// 结果才写回），不存在锁竞争问题。
+/// use `Mutex` not is `RefCell`： will **** path has （`select_target_account`
+/// is async）， `RefCell` not is `Sync` —— will handler future 
+/// `Send`，failure（ this await in ）。 has 
+/// ， and and `wire_target_for_provider` not （ in ，
+/// ）， not in 。
 pub struct CooldownKeys<'a> {
-    /// 客户端请求名（原始形态，未解析）
+    /// clientrequest（，）
     requested: &'a str,
-    /// provider id → 该家收到的上游真名
+    /// provider id → this to up 
     resolved: Mutex<HashMap<String, String>>,
 }
 
@@ -83,19 +83,19 @@ impl<'a> CooldownKeys<'a> {
         Self { requested, resolved: Mutex::new(HashMap::new()) }
     }
 
-    /// 请求名原文（轮转游标按它分键：不同模型的候选集合不同，各轮各的）
+    /// request（ by ： not not ， ）
     pub fn request_model(&self) -> &'a str {
         self.requested
     }
 
-    /// 该家实际收到的上游模型名 —— 也就是它的冷却键。
+    /// this to up —— is 。
     ///
-    /// 解析不出（请求名为空 / 该家既不原生承载、也没有映射指向它）时原样返回
-    /// 请求名：与转发侧 `wire_target_for_provider` 的 ④ 兜底同一口径 ——
-    /// 那时发出去的就是请求名，键也该是它。
+    /// not （request as empty / this not 、 no has to ） when return
+    /// request： and `wire_target_for_provider` ④ 1 ——
+    /// that when is request， this is 。
     ///
-    /// 锁中毒（别的线程 panic 过）时**不做缓存**、直接现算 —— 缓存只是加速，
-    /// 选路结果不该因为一个内部加速器而失败。
+    /// in （ panic ） when ** not **、 —— is ，
+    /// not this as 1 failure。
     pub fn for_provider(&self, provider_id: &str) -> String {
         if self.requested.is_empty() || provider_id.is_empty() {
             return self.requested.to_string();
@@ -105,17 +105,17 @@ impl<'a> CooldownKeys<'a> {
                 return cached.clone();
             }
         }
-        // 传 `None` 账号：`wire_target_for_provider` 当前不读它（同家多条映射
-        // 由 target 的通道前缀判定，见那里的说明），而选路时账号还没被选中 ——
-        // 「按账号解析」在判定阶段根本无从谈起。
+        // `None` ：`wire_target_for_provider` current not （
+        // by target before ， that ）， when no in ——
+        // 「 by 」 in none from 。
         //
-        // ── 自定义提供商走自己的解析（第二阶段）───────────────────
-        // modelRules 的映射表不认识 custom id（添加侧按注册表校验），
-        // `wire_target_for_provider` 对它只会原样返回请求名 —— 而自定义家的
-        // 真名解析有自己的数据源（提供商记录上的 `mappings`，见
-        // `custom_providers::wire_model_for`）。跳过这一步会让 alias 请求的
-        // 冷却写在请求名上：正是本模块头描述的那类「判定漏命中、已限额账号
-        // 被反复选中」的事故形态，所以这里必须按家分派。
+        // ── （）───────────────────
+        // modelRules not custom id（ by ），
+        // `wire_target_for_provider` for will returnrequest —— 
+        // has （ up `mappings`，
+        // `custom_providers::wire_model_for`）。 this 1 will alias request 
+        // in request up ： is module header that 「 in 、 already 
+        // in 」 ， this must by 。
         let wire =
             if crate::server::core::custom_providers::is_custom_provider_id(provider_id) {
                 crate::server::core::providers::custom::forward::cooldown_model(
@@ -136,29 +136,29 @@ impl<'a> CooldownKeys<'a> {
         wire
     }
 
-    /// 某条账号记录的冷却键：按它所属的家解析（每条账号记录只属于一家）。
+    /// ： by （ 1 ）。
     pub fn for_account(&self, account: &Value) -> String {
         if let Some(model) = super::routing_groups::candidate_model(account) { return model.to_string(); }
         self.for_provider(provider_of(account))
     }
 }
 
-/// 账号对某模型是否处于限额冷却期。
+/// for is 。
 ///
-/// 对应 Node 版 `isRateLimited(account, model, now)`：只认 `rateLimits[model].resetAt`
-/// 是**未来**时间戳的情况；记录存在但已过期 = 未限额（冷却自然结束，不必清理）。
+/// for Node `isRateLimited(account, model, now)`： `rateLimits[model].resetAt`
+/// is **** when ； in expired = （， not ）。
 ///
-/// 这里的 `keys` 把请求名解析成**上游真名**再查（理由见 [`CooldownKeys`]）。
+/// this `keys` request** up **（ by [`CooldownKeys`]）。
 pub fn is_rate_limited(account: &Value, keys: &CooldownKeys<'_>, now: i64) -> bool {
     rate_limit_reset_at(account, keys, now) > 0
 }
 
-/// 限额恢复时间（未限额返回 0）。
+/// when （return 0）。
 ///
-/// Node 版口径：`Number(limit.resetAt) || 0`，只有大于 now 才返回，
-/// 否则返回 0 —— 这个 0 在选路里表示「当前可用」，不是「立刻恢复」。
+/// Node ：`Number(limit.resetAt) || 0`， has now return，
+/// otherwisereturn 0 —— this 0 in 「currentavailable」， not is 「」。
 ///
-/// 冷却键按 [`CooldownKeys`] 解析（真名，不是请求名）。
+/// by [`CooldownKeys`] （， not is request）。
 pub fn rate_limit_reset_at(account: &Value, keys: &CooldownKeys<'_>, now: i64) -> i64 {
     let key = keys.for_account(account);
     let Some(limit) = account
@@ -178,11 +178,11 @@ pub fn rate_limit_reset_at(account: &Value, keys: &CooldownKeys<'_>, now: i64) -
     }
 }
 
-/// 账号是否可用于转发：启用 + 未被该模型限额。
-/// `reason` ∈ `Some("disabled")` | `Some("rate-limited")` | `None`（可用）。
+/// is available：enabled + this 。
+/// `reason` ∈ `Some("disabled")` | `Some("rate-limited")` | `None`（available）。
 pub fn account_usability(account: &Value, keys: &CooldownKeys<'_>, now: i64) -> AccountUsability {
-    // Node: `account?.enabled === false` —— 只有显式 false 才算禁用，
-    // 缺失/字符串 "false"/0 都视为启用（与 account-store 的 enabled() 同口径）
+    // Node: `account?.enabled === false` —— has false use ，
+    // / "false"/0 as enabled（ and account-store enabled() ）
     if matches!(account.get("enabled"), Some(Value::Bool(false))) {
         return AccountUsability { usable: false, reason: Some("disabled") };
     }
@@ -192,20 +192,20 @@ pub fn account_usability(account: &Value, keys: &CooldownKeys<'_>, now: i64) -> 
     AccountUsability { usable: true, reason: None }
 }
 
-/// `account_usability` 的结果
+/// `account_usability` 
 #[derive(Clone, Copy, Debug)]
 pub struct AccountUsability {
     pub usable: bool,
     pub reason: Option<&'static str>,
 }
 
-/// 账号记录上的并发上限（单账号**同时在途**的下游请求数）。
+/// up and limit（** when in ** down request）。
 ///
-/// 「一次下游请求 = 一条连接」的计数在 `upstream::connections`（账号页「连接数」
-/// 列的数据源），口径正是并发上限要限制的东西，所以这里直接读账号记录上的
-/// `maxConcurrent` 与那份计数比对。记录里没有该键、或值不是数字 = 0 = **不限**
-/// —— 与写入侧（`store_crud::apply_patch` 的 0）和公开形态
-/// （`store_util::max_concurrent_public` 的缺省 0）三条口径一致。
+/// 「 1 down request = 1 」 in `upstream::connections`（「」
+/// ）， is and limit need limit ， this up 
+/// `maxConcurrent` and that for 。 no has this 、 or not is = 0 = ** not **
+/// —— and （`store_crud::apply_patch` 0） and 
+/// （`store_util::max_concurrent_public` 0） 1 。
 pub fn max_concurrent_of(account: &Value) -> u64 {
     account
         .get("maxConcurrent")
@@ -213,27 +213,27 @@ pub fn max_concurrent_of(account: &Value) -> u64 {
         .unwrap_or(0)
 }
 
-/// 按优先级挑选本次请求使用的账号。
+/// by request use 。
 ///
-/// `accounts` 为 store.listAccounts().accounts 的公开形态；
-/// `exclude_ids` 是本次请求已尝试过的账号 id（429 降级用）。
-/// 返回账号对象，或 None（没有可用账号）。
+/// `accounts` as store.listAccounts().accounts ；
+/// `exclude_ids` is request already id（429 use ）。
+/// return for ， or None（ no has available）。
 ///
-/// `keys` 是请求名到各家真名的解析器（冷却键，见 [`CooldownKeys`]）。
+/// `keys` is request to （， [`CooldownKeys`]）。
 ///
-/// `counts` 是各账号**当前在途请求数**（账号 id → 数，`upstream::connections`
-/// 的快照）：`maxConcurrent > 0` 且在途数已达上限的账号被跳过，请求转给
-/// 其他账号。没有运行时计数可拿的调用方传**空表** = 不做并发过滤（见
-/// `pick_for_model` / `describe_route_decision` 的说明）。
+/// `counts` is **current in request**（ id → ，`upstream::connections`
+/// ）：`maxConcurrent > 0` and in already limit ，request to 
+/// its 。 no has when can use **empty** = not and （
+/// `pick_for_model` / `describe_route_decision` ）。
 ///
-/// ── 并发上限是**软上限**（选路与 rebind 之间的微小窗口）────────
-/// 两个并发请求可能在同一瞬间选中同一个账号、然后各自 +1 —— 期间谁都还
-/// 读不到对方的计数。为此引入额外加锁不值得：超出的那 1-2 个请求只意味着
-/// 短暂超载（请求结束计数立刻回落），而选路必须是「读一次快照、立刻决策」
-/// 的廉价操作。把这个口径写明：**允许短暂超 1-2 个，不做强一致**。
+/// ── and limit is **limit**（ and rebind ）────────
+/// and request can can in 1 in 1 、 after +1 —— 
+/// not to for 。 as not ： that 1-2 request
+/// （request），must is 「 1 、」
+/// 。 this ：** 1-2 ， not 1 **。
 ///
-/// 排序取首位即为唯一答案（优先级唯一由写入侧保证）；并列属手工编辑出来的
-/// 异常数据，按加入时间兜底，结果依旧稳定。
+/// as 1 （ 1 by ）； and 
+/// ， by when ， old 。
 pub fn pick_account_by_priority(
     accounts: &[Value],
     keys: &CooldownKeys<'_>,
@@ -251,8 +251,8 @@ pub fn pick_account_by_priority(
                 return false;
             }
             account_usability(account, keys, now).usable
-                // 并发过滤放在 usability 之后：先答「这个账号让不让你用」，
-                // 再答「它忙不忙」—— 禁用 / 限流的原因不变，这里只追加一条。
+                // and in usability after ：「 this not use 」，
+                // 「 not 」—— use / Reason not ， this 1 。
                 && !at_concurrency_limit(account, id, counts)
         })
         .cloned()
@@ -264,40 +264,40 @@ pub fn pick_account_by_priority(
     candidates.into_iter().next()
 }
 
-/// 该账号的在途请求数是否已达并发上限（`maxConcurrent == 0` = 不限，恒 false）。
+/// this in request is already and limit（`maxConcurrent == 0` = not ， false）。
 ///
-/// 计数缺失按 0（空闲）算：快照里只留非零项（见 `Connections::snapshot`），
-/// 「缺键」与「0 个在途」是同一件事。
+/// by 0（empty）：（ `Connections::snapshot`），
+/// 「」 and 「0 in 」 is 1 。
 fn at_concurrency_limit(account: &Value, id: &str, counts: &HashMap<String, usize>) -> bool {
     let limit = max_concurrent_of(account);
     limit > 0 && counts.get(id).copied().unwrap_or(0) >= limit as usize
 }
 
-/// 按**指定模型**派生队首：候选先收窄到「清单里有这个模型的家」，再走
-/// [`pick_account_by_priority`] 的常规判据（启用 + 该模型未限流 + 优先级序）。
+/// by ****： to 「 has this 」，
+/// [`pick_account_by_priority`] （enabled + this + ）。
 ///
-/// ── 为什么要单独有这个函数（`pick_current` 不够用）──────────────
-/// 账号库里的「当前账号」是**不限模型**的队首（只判启用 + 凭证），转发层却还要
-/// 剔除「对该模型限流中」的账号。两者在「队首正被限流」时给出不同答案：界面标着
-/// ★ 的那个账号，请求根本不会走它。账号页要回答的是「下一个请求会先用谁」，
-/// 所以必须按模型派生，见 `/api/session` 的 `routedAccountId`。
+/// ── Why need has this （`pick_current` not use ）──────────────
+/// 「current」 is ** not ** （enabled + ）， need 
+/// 「 for this in 」 。 in 「 」 when to not ：
+/// ★ that ，request not will 。 need is 「 down 1 request will use 」，
+/// must by ， `/api/session` `routedAccountId`。
 ///
-/// ── 为什么要传 `providers` 而不是只给 model ──────────────────
-/// 全局队列里四家混排，但一家只能承接**它自己清单里有的**模型（见
-/// `providers::router::route_for_forward`）。少了这道收窄，一个「优先级更小、
-/// 也对该模型未限流、但根本不提供该模型」的账号会被误判成队首。
-/// `providers` 为空（未知模型）时不过滤 —— 宁可退回全局队首，也不给空答案。
+/// ── Why need `providers` not is to model ──────────────────
+/// ， 1 can ** has **（
+/// `providers::router::route_for_forward`）。 this ， 1 「、
+/// for this 、 not this 」 will 。
+/// `providers` as empty（unknown） when not —— can ， not to empty。
 ///
-/// `hasCredentials` 也算进判据：转发挑出候选后还要取到会话才用，无凭证的账号
-/// 必然被跳过，前端按同一口径推算时才不会把这种账号标成 ★。
+/// `hasCredentials` ： after need to will use ，none 
+/// ， before by 1 when not will this ★。
 ///
-/// 冷却键按各家真名解析（[`CooldownKeys`]）—— 界面标的 ★ 因此与转发实际会先试
-/// 的那个账号同判据：别名请求撞限额后，★ 不会再指向那个额度已耗尽的账号。
+/// by （[`CooldownKeys`]）—— ★ and will 
+/// that ：request after ，★ not will to that already 。
 ///
-/// `counts` 的口径同样要对齐真实选路（并发过滤，见
-/// [`pick_account_by_priority`]）：★ 推算拿得到运行时计数就传（`/api/session`
-/// 从 `UpstreamService::connections()` 取），拿不到就传空表 = 并发不过滤 ——
-/// 宁可 ★ 少剔一个忙账号，也不要让整条推算在缺数据时静默失效。
+/// `counts` need for （ and ，
+/// [`pick_account_by_priority`]）：★ to when （`/api/session`
+/// from `UpstreamService::connections()` ）， not to empty = and not ——
+/// can ★ 1 ， not need in when 。
 pub fn pick_for_model(
     accounts: &[Value],
     model: &str,
@@ -320,8 +320,8 @@ pub fn pick_for_model(
     pick_account_by_priority(&candidates, &keys, counts, &[], now)
 }
 
-/// 账号记录上的 provider id（缺失按默认 provider 兜底，与 store 的
-/// `StoredAccount::provider` 同口径）。
+/// up provider id（ by default provider ， and store 
+/// `StoredAccount::provider` ）。
 pub fn provider_of(account: &Value) -> &str {
     account
         .get("provider")
@@ -329,12 +329,12 @@ pub fn provider_of(account: &Value) -> &str {
         .unwrap_or(crate::server::core::providers::DEFAULT_PROVIDER_ID)
 }
 
-/// 选路决策的完整快照（供日志展示与排障）：
+/// （ and ）：
 ///   `{ picked, priority, candidateCount, blocked: [{ id, name, reason }], total }`
 ///
-/// Node 版 workbuddy-routing.mjs 同名导出 `describeRouteDecision` 的对等物：
-/// 生产路径用不到（Node 同样只导出未使用，仅 smoke test 覆盖），
-/// 但排障时能直接拿来比对「为什么选了 B 而不是 A」，故保留 —— 字段与 Node 逐一对齐。
+/// Node workbuddy-routing.mjs `describeRouteDecision` for etc ：
+/// path use not to （Node use ，only smoke test ），
+/// when can for 「Why B not is A」， —— and Node 1 for 。
 #[allow(dead_code)]
 pub fn describe_route_decision(
     accounts: &[Value],
@@ -368,8 +368,8 @@ pub fn describe_route_decision(
             }));
         }
     }
-    // 排障快照，拿不到运行时的在途计数（它住在 UpstreamService 里），
-    // 传空表 = 并发过滤不生效 —— 这里只回答「按启用/限流该选谁」。
+    // ， not to when in （ in UpstreamService ），
+    // empty = and not —— this 「 by enabled/ this 」。
     let picked = pick_account_by_priority(accounts, &keys, &HashMap::new(), exclude_ids, now);
     let priority = picked
         .as_ref()
@@ -384,7 +384,7 @@ pub fn describe_route_decision(
     })
 }
 
-/// 账号 id（非空字符串才算；对应 Node 的 `account?.id` 真值判定）
+/// id（empty； for Node `account?.id` ）
 pub fn account_id(account: &Value) -> Option<&str> {
     account
         .get("id")
@@ -392,8 +392,8 @@ pub fn account_id(account: &Value) -> Option<&str> {
         .filter(|id| !id.is_empty())
 }
 
-/// 账号展示名：`displayName`（统一展示名，见 `store_view::display_name_of`）
-/// → `name` → id（快照缺 `displayName` 时按旧口径回落）
+/// ：`displayName`（ 1 ， `store_view::display_name_of`）
+/// → `name` → id（ `displayName` when by old ）
 pub fn account_name(account: &Value, id: &str) -> String {
     account
         .get("displayName")
@@ -409,9 +409,9 @@ pub fn account_name(account: &Value, id: &str) -> String {
         .unwrap_or_else(|| id.to_string())
 }
 
-/// 从 store 快照 `{ currentAccountId, accounts: [...] }` 取账号数组。
-/// 形状不对（手工编辑坏数据）时返回空列表 —— 与 Node 的
-/// `Array.isArray(accounts) ? accounts : []` 同义。
+/// from store `{ currentAccountId, accounts: [...] }` 。
+/// not for （） when returnempty —— and Node 
+/// `Array.isArray(accounts) ? accounts : []` 。
 pub fn accounts_of(snapshot: &Value) -> Vec<Value> {
     snapshot
         .get("accounts")
@@ -420,8 +420,8 @@ pub fn accounts_of(snapshot: &Value) -> Vec<Value> {
         .unwrap_or_default()
 }
 
-/// 选路排序：优先级升序，同优先级按加入时间（复用 account-store 的规则实现，
-/// 保证「界面排序」与「转发顺序」永远同一套判据）。
+/// ：， by when （ use account-store then ，
+/// 「」 and 「」 1 ）。
 fn compare_by_priority(a: &Value, b: &Value) -> std::cmp::Ordering {
     let key = |account: &Value| {
         (
@@ -434,8 +434,8 @@ fn compare_by_priority(a: &Value, b: &Value) -> std::cmp::Ordering {
     by_priority_order((a_priority, a_added as i64), (b_priority, b_added as i64))
 }
 
-/// 公开形态里的 priority（归一后的数值）——对应 Node 在日志里打印的 `priority`。
-/// 这里沿用 store 归一后的值（Rust 的公开形态一定带这个字段）。
+/// priority（ 1 after ）—— for Node in `priority`。
+/// this use store 1 after （Rust 1 this ）。
 fn normalize_priority_value_of(account: &Value) -> Value {
     Value::from(normalize_priority(
         account.get("priority"),
@@ -443,85 +443,85 @@ fn normalize_priority_value_of(account: &Value) -> Value {
     ))
 }
 
-/// JS `Number(x)`：解析不出（NaN）时返回 None，由调用方按 `|| 0` 兜底。
+/// JS `Number(x)`： not （NaN） when return None， by use by `|| 0` 。
 fn js_number(value: &Value) -> Option<f64> {
     match value {
         Value::Number(number) => number.as_f64(),
         Value::String(text) => {
             let trimmed = text.trim();
             if trimmed.is_empty() {
-                // JS: Number('') === 0（与 Number('abc') 的 NaN 不同）
+                // JS: Number('') === 0（ and Number('abc') NaN not ）
                 Some(0.0)
             } else {
                 trimmed.parse::<f64>().ok().filter(|value| value.is_finite())
             }
         }
-        // Boolean / null / 对象 / 数组：Number(true)=1、Number(null)=0、
-        // 其余 NaN。这些取值在真实数据里不会出现，但按 JS 语义实现不费事
+        // Boolean / null / for / ：Number(true)=1、Number(null)=0、
+        // its NaN。 this in not will ， by JS not 
         Value::Bool(flag) => Some(if *flag { 1.0 } else { 0.0 }),
         Value::Null => Some(0.0),
         _ => None,
     }
 }
 
-// ─── 策略路由（plan_route）────────────────────────────────────
+// ─── by （plan_route）────────────────────────────────────
 //
-// 两种策略（顺序优先 / 负载均衡）与三种排序修饰
-// （垫底 / 休息 / 熔断）都落在这里：输入一张**快照**，输出一份**带原因的
-// 排序清单**。转发选路（rotate.rs）按清单从头往后找人；队列端点
-// （api::routing）把整张清单原样画给用户。两条路调的是同一个函数，
-// 「界面标的顺序」与「转发实际走的顺序」因此不可能分叉。
+// （ / ） and 
+// （ / / ） in this ： 1 ****， 1 **Reason 
+// **。（rotate.rs） by from after ；
+// （api::routing） to use 。 is 1 ，
+// 「 」 and 「 」 not can can 。
 
 use crate::server::config::{RouteStrategy, StickyMode};
 
-/// 一条候选在计划里的样子（转发用 `account`，界面用其余字段）。
+/// 1 in （ use `account`， use its ）。
 #[derive(Clone, Debug)]
 pub struct PlanEntry {
     pub account: Value,
     pub id: String,
     pub name: String,
     pub provider: String,
-    /// 状态码：`usable` / `tried` / `disabled` / `cooldown` / `concurrency` /
+    /// ：`usable` / `tried` / `disabled` / `cooldown` / `concurrency` /
     /// `limiter` / `no-credentials`
     pub state: &'static str,
-    /// 一句「为什么排这 / 为什么跳过」（队列面板与请求详情直接展示）
+    /// 1 「Why this / Why」（ and request）
     pub reason: String,
-    /// 限额恢复时刻（毫秒；0 = 未限流）
+    /// when （ms；0 = ）
     pub reset_at: i64,
 }
 
-/// 一份选路计划：可用候选（排好序）+ 被跳过的候选（各带原因）。
+/// 1 ：available（）+ （Reason）。
 pub struct RoutePlan {
     pub ordered: Vec<PlanEntry>,
     pub blocked: Vec<PlanEntry>,
-    /// 粘性命中的账号是否真的参与了排序（它可用且未被排除）
+    /// in is and （available and excluding）
     pub sticky_hit: bool,
 }
 
-/// 策略排序要读的**全部外部事实**（一次快照，纯函数不写任何状态）。
+/// need ****（ 1 ， not ）。
 pub struct PlanMeta<'a> {
     pub strategy: RouteStrategy,
-    /// 沉底账号 → 沉底时刻（限流垫底）
+    /// → when （）
     pub sunk: &'a HashMap<String, i64>,
-    /// 休息中的账号 → 休息截止时刻（失败退避）
+    /// in → when （failure）
     pub resting: &'a HashMap<String, i64>,
-    /// 熔断打开的账号
+    /// 
     pub open: &'a std::collections::HashSet<String>,
-    /// 被限制器软跳过的账号（余额不足 / Token 限额，调用方判好传入）
+    /// limit （ not / Token ， use ）
     pub limiter_blocked: &'a std::collections::HashSet<String>,
-    /// 轮转**计数**（`None` = 不轮转 —— 顺序优先策略）。取模由 `base_order` 做，
-    /// 用的是过滤后的长度（理由见 `RouteState::rotate_take`）。
+    /// ****（`None` = not —— ）。 by `base_order` ，
+    /// use is after （ by `RouteState::rotate_take`）。
     pub cursor: Option<usize>,
-    /// 家内轮询（`Provider`）下**每家各自的**轮转计数（provider id → 计数），
-    /// 同样由 `provider_order` 按各家过滤后的成员数取模。
-    /// 其余策略不看这个字段；`None` = 不轮转（预演 / 本轮已推进过）
+    /// （`Provider`） down ** **（provider id → ），
+    /// by `provider_order` by after 。
+    /// its not this ；`None` = not （ / already ）
     pub provider_cursors: Option<&'a HashMap<String, usize>>,
-    /// 粘性命中的账号 id（`None` = 无命中）
+    /// in id（`None` = none in ）
     pub sticky_account: Option<&'a str>,
 }
 
-/// 时间戳 → 「HH:MM」短文案（原因句里用，按**操作者本机时区** —— 与请求
-/// 统计的切日同一口径：用户看的是「我这里几点恢复」）。跨天时补「明天」前缀。
+/// when → 「HH:MM」（Reason use ， by ** when ** —— and request
+/// statistics 1 ： use is 「 this 」）。 when 「」 before 。
 fn clock_text(reset_at: i64, now: i64) -> String {
     use chrono::{TimeZone, Timelike};
     let Some(secs) = reset_at.checked_div(1000) else {
@@ -539,7 +539,7 @@ fn clock_text(reset_at: i64, now: i64) -> String {
     format!("{prefix}{:02}:{:02}", time.hour(), time.minute())
 }
 
-/// 把可用候选按策略排出先后（不处理垫底 / 休息 / 熔断那三层修饰）。
+/// available by after （ not / / that ）。
 fn base_order(candidates: &[Value], strategy: RouteStrategy, meta: &PlanMeta<'_>) -> Vec<Value> {
     let mut sorted: Vec<Value> = candidates.to_vec();
     sorted.sort_by(compare_by_priority);
@@ -550,9 +550,9 @@ fn base_order(candidates: &[Value], strategy: RouteStrategy, meta: &PlanMeta<'_>
             if len <= 1 {
                 return sorted;
             }
-            // `cursor` 是单调计数，取模只在这里做一次 —— 用的是**过滤后**的长度
-            // （`sorted` 已排除禁用 / 冷却 / 并发满 / 无凭证），与游标推进时那把
-            // 尺子无关（见 `RouteState::rotate_take`）。
+            // `cursor` is ， in this 1 —— use is ** after ** 
+            // （`sorted` already excluding use / / and / none）， and when that 
+            // none（ `RouteState::rotate_take`）。
             let start = meta.cursor.unwrap_or(0) % len;
             (0..len)
                 .map(|offset| sorted[(start + offset) % len].clone())
@@ -562,24 +562,24 @@ fn base_order(candidates: &[Value], strategy: RouteStrategy, meta: &PlanMeta<'_>
     }
 }
 
-/// 家内轮询的排序：候选先按**家**分段，段之间按「段内最优账号的优先级」升序
-/// （优先级最高的家排最前），段内按各自的游标环绕。
+/// ： by ****， by 「 」
+/// （ before ）， by 。
 ///
-/// ── 为什么不直接在排好的线上轮转 ─────────────────────────────
-/// `sorted` 已按优先级升序，是一条**跨家的线**；在这条线上环绕就是 `Rotate`
-/// （轮一转会跳到别的家）。家内轮询的要点恰恰是「家的先后固定、只有家内换人」，
-/// 所以必须先把这条线按家切成段、各段自己转，再按段拼回去。
+/// ── Why not in up ─────────────────────────────
+/// `sorted` already by ， is 1 ** **； in this up is `Rotate`
+/// （ 1 will to ）。 need is 「 after 、 has 」，
+/// must this by 、， by 。
 ///
-/// ── 段序为什么取「首次出现的位置」────────────────────────────
-/// 正常路径下 `sorted` 有序，某家第一次出现的那个账号就是这家**优先级最高**
-/// 的账号 —— 按首次出现的位置编排各段，段序正是「各家最优账号之间的优先级
-/// 顺序」，不必另算一遍。
+/// ── Why「 」────────────────────────────
+/// path down `sorted` has ， 1 that is this ****
+/// —— by ， is 「 
+/// 」， not 1 。
 ///
-/// ⚠️ 有一条例外，是有意为之：`plan_route` 会把**粘性命中的账号**提到传进来的
-/// 列表最前（见那里「粘性命中的可用账号提到最前」一段）。那时它的家整段排到
-/// 第一位，段序随之让位于粘性、不再按优先级 —— 粘性的语义就是「这个会话继续
-/// 用同一个账号」，压过家的优先级才是对的。粘性只在本会话内生效，别的会话
-/// 照常按优先级排。
+/// ⚠️ has 1 ， is has as ：`plan_route` will ** in ** to 
+/// before （ that 「 in available to before 」 1 ）。 that when to 
+/// 1 ，、 not by —— is 「 this will 
+/// use 1 」， is for 。 in will ， will 
+/// by 。
 fn provider_order(sorted: Vec<Value>, meta: &PlanMeta<'_>) -> Vec<Value> {
     let mut groups: Vec<(String, Vec<Value>)> = Vec::new();
     for account in sorted {
@@ -596,10 +596,10 @@ fn provider_order(sorted: Vec<Value>, meta: &PlanMeta<'_>) -> Vec<Value> {
             arranged.extend(members);
             continue;
         }
-        // 没有游标时从第 0 位起 —— 与 `Rotate` 分支对 `cursor: None` 的处理同一口径。
-        // 游标是单调计数（`RouteState::rotate_take_per_provider`），取模只在这里做
-        // 一次、只对**这一家过滤后的成员数**取 —— 家内有人被冷却时环会变短，位次
-        // 序列仍然均匀。
+        // no has when from 0 —— and `Rotate` for `cursor: None` 1 。
+        // is （`RouteState::rotate_take_per_provider`）， in this 
+        // 1 、 for ** this 1 after ** —— has when will ，
+        // 。
         let start = meta
             .provider_cursors
             .and_then(|cursors| cursors.get(&provider))
@@ -613,11 +613,11 @@ fn provider_order(sorted: Vec<Value>, meta: &PlanMeta<'_>) -> Vec<Value> {
     arranged
 }
 
-/// 统计一组账号里各家的账号数（`provider id → 个数`，按首次出现排）。
+/// statistics 1 （`provider id → `， by ）。
 ///
-/// 家内轮询用它列出「有哪几家」，为每家建一条游标键（`rotate_take_per_provider`）。
-/// 个数本身不参与取模 —— 取模在 `provider_order` 里按各家**过滤后**的成员数做
-/// （见 `RouteState::rotate_take` 那段）。
+/// use 「 has 」， as 1 （`rotate_take_per_provider`）。
+/// not and —— in `provider_order` by ** after ** 
+/// （ `RouteState::rotate_take` that ）。
 pub fn provider_sizes(accounts: &[Value]) -> Vec<(String, usize)> {
     let mut sizes: Vec<(String, usize)> = Vec::new();
     for account in accounts {
@@ -630,10 +630,10 @@ pub fn provider_sizes(accounts: &[Value]) -> Vec<(String, usize)> {
     sizes
 }
 
-/// 生成一份完整的选路计划（转发选路与队列端点共用的**唯一**排序实现）。
+/// 1 （ and use ** 1 **）。
 ///
-/// `excluded` 是本轮已试过的账号（429 降级 / 失败顺延），它们进 `blocked`
-/// （state = `tried`）——「这条请求不会再碰它」本来就是排障时要看的答案。
+/// `excluded` is already （429 / failure）， `blocked`
+/// （state = `tried`）——「 this request not will 」 is when need 。
 pub fn plan_route(
     accounts: &[Value],
     keys: &CooldownKeys<'_>,
@@ -702,26 +702,26 @@ pub fn plan_route(
         ordered.push(account.clone());
     }
 
-    // 基础序（策略）→ 稳定修饰：没沉底的在前 → 没休息的在前 → 没熔断的在前
-    // 三个修饰**跨策略**生效：垫底（Sink）解决的是「每次回到第 1 位再撞一次
-    // 429」，退避解决的是「反复失败反复撞」—— 它们在顺序优先下同样成立；
-    // 若只对负载均衡生效，默认策略下这两个开关就是摆设。稳定排序保证
-    // 同档内的先后仍由策略的基础序决定（顺序优先下 = 位次）。
+    // （）→ ： no in before → no in before → no in before 
+    // ****：（Sink） is 「 to 1 1 
+    // 429」， is 「failure」—— in down ；
+    // if for ，default down this is 。
+    // after by （ down = ）。
     let mut arranged = base_order(&ordered, meta.strategy, meta);
 
-    // ── 粘性命中的可用账号提到最前（它可用，请求就会走它 —— 排序必须如实反映）
+    // ── in available to before （available，request will —— must）
     //
-    // ⚠️ 这一步**必须在 `base_order` 之后**（2026-10-13 修正）：`base_order` 的
-    // 三个分支都以 `sort_by(compare_by_priority)` 开头，置顶若放在它之前，会被
-    // 那句排序按优先级原样冲回原位 —— 粘性只在「命中的账号本来就是队首」时
-    // 才生效，命中非队首账号时请求照样回到队首（2026-10-13 在 `.3` 上实测到：
-    // 同一个 trace 的相邻两条请求落在 priority=107 与 priority=100 两个账号上）。
-    // 上游原实现就是放在前面的，属既有缺陷；本仓把它移到这里修掉。
+    // ⚠️ this 1 **must in `base_order` after **（2026-10-13 ）：`base_order` 
+    // `sort_by(compare_by_priority)` ， if in before ， will 
+    // that by —— in 「 in is 」 when 
+    // ， in when request to （2026-10-13 in `.3` up to ：
+    // 1 trace request in priority=107 and priority=100 up ）。
+    // up is in before ， has ； to this 。
     //
-    // 放在这里还有一层：下面三个修饰用的是 `sort_by_key`（**稳定**排序），
-    // 同键元素的相对次序原样保留，所以置顶项不会被它们打乱；而排在最前的
-    // 命中账号若正处冷却 / 熔断，本就该让位 —— 命中项能走到这一步就说明它
-    // 可用（不可用的在收集阶段已进 `blocked`），两者不冲突。
+    // in this has 1 ： down use is `sort_by_key`（****），
+    // for ， not will ； in before 
+    // in if / ， this —— in can to this 1 
+    // available（unavailable in already `blocked`）， not 。
     let mut sticky_hit = false;
     if let Some(hit) = meta.sticky_account {
         if let Some(index) = arranged
@@ -742,18 +742,18 @@ pub fn plan_route(
     };
     arranged.sort_by_key(|account| rank_of(account, meta.sunk));
     arranged.sort_by_key(|account| rank_of(account, meta.resting));
-    // 熔断的账号放在队尾（所有策略一致）：只有全场都打不开时才轮到它试一次
+    // in （all 1 ）： has not when to 1 
     arranged.sort_by_key(|account| {
         account_id(account)
             .map(|id| meta.open.contains(id))
             .unwrap_or(false)
     });
 
-    // 每个位次「前面出现过的家是不是全是它自己家」—— `Provider` 策略的原因句
-    // 要用：排在第 2 位的若是**同一家的下一个账号**（家 A = a1/a2、家 B = b1），
-    // 前面并没有「优先级更高的家」，它是家内轮流的正常位次。此前那句一律写
-    // 「等优先级更高的家轮完或失败才到它」，是一句与排序事实冲突的假话
-    // （2026-10-14 review 发现）。
+    // 「 before is not is is 」—— `Provider` Reason
+    // need use ： in 2 if is ** 1 down 1 **（ A = a1/a2、 B = b1），
+    // before and no has 「 」， is 。 before that 1 
+    // 「 etc or failure to 」， is 1 and 
+    // （2026-10-14 review ）。
     let prefix_is_same_family: Vec<bool> = {
         let mut seen: Vec<String> = Vec::new();
         let mut flags = Vec::with_capacity(arranged.len());
@@ -774,10 +774,10 @@ pub fn plan_route(
             let id = account_id(&account).unwrap_or("").to_string();
             let position = index + 1;
             let mut reason = if sticky_hit && Some(super::routing_groups::attempt_key(&account).as_str()) == meta.sticky_account {
-                // 「继续用它」只在它**真的**排在队首时才说（置顶之后还有三层
-                // 稳定修饰，粘住的账号若正在垫底 / 休息 / 熔断，会被推回队尾）。
-                // 不说这一句会让原因句与事实冲突 —— 界面写着「本轮继续用它」，
-                // 实际却排在第 10 位（2026-10-13 review 发现）。
+                // 「 use 」 in ** ** in when （ after has 
+                // ， if in / / ， will ）。
+                // not this 1 will Reason and —— 「 use 」，
+                // in 10 （2026-10-13 review ）。
                 if position == 1 {
                     "会话粘住：这个会话上一轮是它答的，本轮继续用它".to_string()
                 } else {
@@ -803,7 +803,7 @@ pub fn plan_route(
                         if position == 1 {
                             "本轮轮到它：家之间按优先级、家内轮流，它是当前该上的那一位".to_string()
                         } else if prefix_is_same_family[index] {
-                            // 同家的后一位：前面没有别的家，「等优先级更高的家」是假话
+                            // after 1 ： before no has ，「 etc 」 is 
                             format!("排在第 {position} 位：同一家内轮流，轮到它才上")
                         } else {
                             format!("排在第 {position} 位：等优先级更高的家轮完或失败才到它")
@@ -812,8 +812,8 @@ pub fn plan_route(
                 }
             };
             if meta.sunk.contains_key(&id) {
-                // 文案跟着 `route_state::SINK_TTL_MS` 走：垫底现在有 30 分钟寿命，
-                // 不再是「轮一圈才回来」（那句是上游原实现的说法，那时垫底永不失效）。
+                // `route_state::SINK_TTL_MS` ： in has 30 minutes，
+                // not is 「 1 」（ that is up ， that when not ）。
                 reason.push_str("；曾还有额度时被 429（垫底中，30 分钟后自动回到队列）");
             }
             if let Some(until) = meta.resting.get(&id) {
@@ -841,7 +841,7 @@ pub fn plan_route(
     }
 }
 
-/// 粘性 TTL（毫秒）：转发选路与队列端点共用的换算（StickyMode → 时长）。
+/// TTL（ms）： and use （StickyMode → when ）。
 pub fn sticky_ttl_ms(mode: StickyMode) -> i64 {
     mode.ttl_ms().unwrap_or(0)
 }
@@ -851,7 +851,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    /// 家内轮询的一份最小 meta：只带各家游标，其余状态为空。
+    /// 1 meta：， its as empty。
     fn provider_meta<'a>(
         cursors: &'a HashMap<String, usize>,
         empty_numbers: &'a HashMap<String, i64>,
@@ -880,21 +880,21 @@ mod tests {
             .collect()
     }
 
-    /// 家内轮询的核心语义：家之间保持优先级顺序，只有家内换人。
+    /// ：， has 。
     #[test]
     fn provider_order_rotates_inside_a_family_but_keeps_families_in_priority_order() {
         let empty_numbers: HashMap<String, i64> = HashMap::new();
         let empty_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-        // A 家轮到第 1 位（a2）；B 家没有游标，从第 0 位起
+        // A to 1 （a2）；B no has ， from 0 
         let cursors: HashMap<String, usize> = HashMap::from([("A".to_string(), 1usize)]);
         let meta = provider_meta(&cursors, &empty_numbers, &empty_ids);
-        // 传进来的已是「按优先级升序」的线（plan_route 的输入形态）
+        // already is 「 by 」 （plan_route ）
         let sorted = vec![
             account("a1", "A", 100),
             account("a2", "A", 110),
             account("b1", "B", 120),
         ];
-        // A 家在前（它最优账号的 100 最小）且家内轮到 a2；B 家整段排在 A 家之后
+        // A in before （ 100 ） and to a2；B in A after 
         assert_eq!(ordered_ids(&sorted, &meta), vec!["a2", "a1", "b1"]);
     }
 
@@ -912,7 +912,7 @@ mod tests {
         assert_eq!(ordered_ids(&sorted, &meta), vec!["a1", "a2", "b1"]);
     }
 
-    /// 游标按**当前**候选数取模：某家账号被限流掉几个、环变短时不许越界
+    /// by **current**： 、 when not 
     #[test]
     fn provider_cursor_wraps_instead_of_going_out_of_range() {
         let empty_numbers: HashMap<String, i64> = HashMap::new();
@@ -920,7 +920,7 @@ mod tests {
         let cursors: HashMap<String, usize> = HashMap::from([("A".to_string(), 7usize)]);
         let meta = provider_meta(&cursors, &empty_numbers, &empty_ids);
         let sorted = vec![account("a1", "A", 100), account("a2", "A", 110)];
-        // 7 % 2 = 1 → 从 a2 起
+        // 7 % 2 = 1 → from a2 
         assert_eq!(ordered_ids(&sorted, &meta), vec!["a2", "a1"]);
     }
 
@@ -943,14 +943,14 @@ mod tests {
         assert_eq!(RouteStrategy::Provider.as_str(), "provider");
     }
 
-    /// `Provider` 策略的原因句：**同家的下一位**不许说成「等优先级更高的家」。
+    /// `Provider` Reason：** down 1 ** not 「 etc 」。
     ///
-    /// 家 A = a1/a2、家 B = b1 —— 第 2 位是 a2，它前面只有同家的 a1，前面
-    /// **没有**任何别的家。此前这句一律写成「等优先级更高的家轮完或失败才到
-    /// 它」，是一句与排序事实相冲突的假话（2026-10-14 review 发现）。原因句是
-    /// 排查排序时唯一要读的东西，不能是假的。
+    /// A = a1/a2、 B = b1 —— 2 is a2， before has a1， before 
+    /// ** no has ** 。 before this 1 「 etc or failure to 
+    /// 」， is 1 and （2026-10-14 review ）。Reason is 
+    /// when 1 need ， not can is 。
     ///
-    /// 走完整的 `plan_route`：原因句由它生成，`provider_order` 只排不写文案。
+    /// `plan_route`：Reason by ，`provider_order` not 。
     #[test]
     fn a_sibling_in_the_same_family_is_not_explained_by_a_higher_priority_family() {
         let empty_numbers: HashMap<String, i64> = HashMap::new();
@@ -973,22 +973,22 @@ mod tests {
         );
         let order: Vec<&str> = plan.ordered.iter().map(|entry| entry.id.as_str()).collect();
         assert_eq!(order, vec!["a1", "a2", "b1"]);
-        // 第 2 位是同家的 a2
+        // 2 is a2
         assert!(plan.ordered[1].reason.contains("同一家内轮流"), "{}", plan.ordered[1].reason);
         assert!(!plan.ordered[1].reason.contains("优先级更高的家"), "{}", plan.ordered[1].reason);
-        // 第 3 位的 b1 前面确实有 A 家，仍按「优先级更高的家」解释
+        // 3 b1 before has A ， by 「 」
         assert!(plan.ordered[2].reason.contains("优先级更高的家"), "{}", plan.ordered[2].reason);
     }
 
-    /// 粘性命中的账号必须真的排到第 1 位 —— 即使它的优先级最低。
+    /// in must to 1 —— 。
     ///
-    /// 这条钉的是 2026-10-13 修掉的一处**上游既有缺陷**：置顶那一步原先在
-    /// `base_order` 之前，而 `base_order` 三个分支都以 `sort_by(compare_by_priority)`
-    /// 开头，置顶随即被冲回原位 ⇒ 粘性只在「命中账号本来就是队首」时生效。
-    /// 实测证据：`.3` 上同一个 trace 的相邻两条请求落在 priority=107 与 100 上。
+    /// this is 2026-10-13 1 ** up has **： that 1 in 
+    /// `base_order` before ， `base_order` `sort_by(compare_by_priority)`
+    /// ， ⇒ in 「 in is 」 when 。
+    /// ：`.3` up 1 trace request in priority=107 and 100 up 。
     ///
-    /// 走完整的 `plan_route`（而不是直接调 `provider_order`）：置顶与排序的
-    /// **先后关系**正是这条用例要钉的东西，只有从入口调才验得到。
+    /// `plan_route`（ not is `provider_order`）： and 
+    /// ** after ** is this use need ， has from to 。
     #[test]
     fn sticky_pinning_survives_the_base_order_sort() {
         let empty_numbers: HashMap<String, i64> = HashMap::new();
@@ -1000,7 +1000,7 @@ mod tests {
             account("a2", "A", 110),
             account("a3", "A", 120),
         ];
-        // 粘性命中优先级最低的 a3 —— 置顶生效时它必须排第一
+        // in a3 —— when must 1 
         let meta = PlanMeta {
             strategy: RouteStrategy::Order,
             sunk: &empty_numbers,
@@ -1019,12 +1019,12 @@ mod tests {
             "粘性命中的 a3 必须排在队首（粘性的全部意义就是「继续用它」）"
         );
         assert!(plan.sticky_hit);
-        // 剩下两位仍按优先级（置顶只动命中那一项，不整体重排）
+        // down by （ in that 1 ， not ）
         assert_eq!(plan.ordered[1].id, "a1");
         assert_eq!(plan.ordered[2].id, "a2");
     }
 
-    /// 家内轮询下也一样：命中项置顶后，家内顺序的**其余部分**照常环绕。
+    /// down 1 ： in after ， ** its **。
     #[test]
     fn sticky_pinning_survives_under_the_provider_strategy() {
         let empty_numbers: HashMap<String, i64> = HashMap::new();
@@ -1049,20 +1049,20 @@ mod tests {
         };
         let plan = plan_route(&accounts, &keys, &counts, &[], 1_700_000_000_000, &meta);
         let order: Vec<&str> = plan.ordered.iter().map(|entry| entry.id.as_str()).collect();
-        // b1 置顶（家 B 优先级最低，本来排最后）⇒ 粘性压过家的优先级，这是设计
+        // b1 （ B ， after ）⇒ ， this is 
         assert_eq!(order, vec!["b1", "a2", "a1"]);
     }
 
-    /// 粘住的账号若正在垫底，会被三层稳定修饰推回队尾 —— 那时原因句
-    /// **不能**再说「本轮继续用它」（2026-10-13 review 发现：置顶在排序修饰
-    /// 之前，界面会写着「继续用它」而它实际排第 2 位）。
+    /// if in ， will —— that when Reason
+    /// ** not can **「 use 」（2026-10-13 review ： in 
+    /// before ， will 「 use 」 2 ）。
     #[test]
     fn a_sticky_account_that_is_sunk_says_so_instead_of_claiming_it_will_be_used() {
         let empty_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
         let counts: HashMap<String, usize> = HashMap::new();
         let keys = CooldownKeys::new("test-model");
         let accounts = vec![account("a1", "A", 100), account("a2", "A", 110)];
-        // a2 粘住，但它同时在 sink 表里
+        // a2 ， when in sink 
         let sunk: HashMap<String, i64> = HashMap::from([("a2".to_string(), 1_700_000_000_000i64)]);
         let empty_numbers: HashMap<String, i64> = HashMap::new();
         let meta = PlanMeta {
@@ -1077,10 +1077,10 @@ mod tests {
         };
         let plan = plan_route(&accounts, &keys, &counts, &[], 1_700_000_000_000, &meta);
         let order: Vec<&str> = plan.ordered.iter().map(|entry| entry.id.as_str()).collect();
-        // 垫底的 a2 被推回第 2 位（粘性置顶让位于垫底 —— 这正是要如实展示的事实）
+        // a2 2 （ —— this is need ）
         assert_eq!(order, vec!["a1", "a2"]);
         assert!(plan.sticky_hit, "命中过就该记着（sticky_hit 表示「查到过」）");
-        // 原因句必须如实：说它在第几位，而不是「本轮继续用它」
+        // Reasonmust： in ， not is 「 use 」
         let a2 = &plan.ordered[1];
         assert!(
             a2.reason.contains("排在第 2 位"),
@@ -1088,29 +1088,29 @@ mod tests {
             a2.reason
         );
         assert!(!a2.reason.contains("本轮继续用它"));
-        // 队首的 a1 走正常原因句（不是粘住那句）
+        // a1 Reason（ not is that ）
         assert!(plan.ordered[0].reason.contains("队列第 1 位"));
     }
 
-    /// 家内轮询**经完整 `plan_route`** 的效果：家之间按优先级、家内按游标环绕。
+    /// ** `plan_route`** ： by 、 by 。
     ///
-    /// 上面几条 `provider_order_*` 都只调那个纯函数；这一条从 `plan_route` 进，
-    /// 验的是「接线正确」—— 档位传到 `base_order`、`provider_cursors` 真的被
-    /// 消费到。只测纯函数的话，接线处把 `provider_cursors` 传成 `None` 也全绿。
+    /// up `provider_order_*` that ； this 1 from `plan_route` ，
+    /// is 「」—— to `base_order`、`provider_cursors` 
+    /// to 。 ， `provider_cursors` `None` 。
     #[test]
     fn the_provider_strategy_keeps_families_in_priority_order_and_rotates_inside() {
         let empty_numbers: HashMap<String, i64> = HashMap::new();
         let empty_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
         let counts: HashMap<String, usize> = HashMap::new();
         let keys = CooldownKeys::new("test-model");
-        // B 家最优账号的优先级（120）低于 A 家（100）⇒ 整段 B 排在整段 A 之后
+        // B （120） A （100）⇒ B in A after 
         let accounts = vec![
             account("a1", "A", 100),
             account("b1", "B", 120),
             account("a2", "A", 110),
             account("b2", "B", 130),
         ];
-        // 两家各自的游标都是 1 ⇒ 各自从第二个成员起
+        // is 1 ⇒ from 
         let cursors: HashMap<String, usize> =
             HashMap::from([("A".to_string(), 1usize), ("B".to_string(), 1usize)]);
         let meta = PlanMeta {
@@ -1125,9 +1125,9 @@ mod tests {
         };
         let plan = plan_route(&accounts, &keys, &counts, &[], 1_700_000_000_000, &meta);
         let order: Vec<&str> = plan.ordered.iter().map(|entry| entry.id.as_str()).collect();
-        // A 家整段在前（家内从 a2 起环绕），B 家整段在后（家内从 b2 起环绕）
+        // A in before （ from a2 ），B in after （ from b2 ）
         assert_eq!(order, vec!["a2", "a1", "b2", "b1"]);
-        // 队首的原因句是家内轮询那一档（不是顺序优先 / 负载均衡的）
+        // Reason is that 1 （ not is / ）
         assert!(
             plan.ordered[0].reason.contains("家之间按优先级"),
             "队首原因句应当是家内轮询的口径，实际：{}",
@@ -1135,7 +1135,7 @@ mod tests {
         );
     }
 
-    /// 家内轮询下**没有游标**（预演 / 队列端点）时，各家都从自己的队首起。
+    /// down ** no has **（ / ） when ， from 。
     #[test]
     fn the_provider_strategy_without_cursors_shows_each_family_from_its_top() {
         let empty_numbers: HashMap<String, i64> = HashMap::new();

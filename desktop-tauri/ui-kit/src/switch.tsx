@@ -3,25 +3,25 @@ import { Switch as BaseSwitch } from '@base-ui/react/switch'
 import { cn } from './lib/cn'
 
 /**
- * 开关。
+ * 。
  *
- * 视觉对齐 ui/css/components.css 的 `.switch`：36×21 的胶囊轨道 + 17px 圆形滑块，
- * 选中时轨道填主色、滑块右移 15px。滑块带一点回弹（cubic-bezier(.3,1.4,.6,1)），
- * 比线性更像物理开关 —— 这是既有观感的一部分，别改成 ease。
+ * for ui/css/components.css `.switch`：36×21 + 17px ，
+ * in when 、 15px。 1 （cubic-bezier(.3,1.4,.6,1)），
+ * —— this is has 1 ， ease。
  *
- * 交互交给 Base UI 的 Switch：它是真正的 `<button role="switch">`（不是藏起来的
- * 原生 checkbox），键盘 Space/Enter、aria-checked 播报都由它负责。
- * 原来那套「原生 input + 相邻兄弟选择器画轨道」的写法在语义与触摸上都更差。
+ * to Base UI Switch： is `<button role="switch">`（ not is 
+ * checkbox）， Space/Enter、aria-checked by 。
+ * that 「 input + 」 in and up 。
  *
- * 用法：`<Switch checked={on} onCheckedChange={setOn} />`，要带文字就套一层
- * `<label>`（组件库不预设文案排版）。
+ * use ：`<Switch checked={on} onCheckedChange={setOn} />`， need 1 
+ * `<label>`（ not ）。
  */
 
 type SwitchProps = Omit<React.ComponentProps<typeof BaseSwitch.Root>, 'className'> & {
   className?: string
   /**
-   * 尺寸档。`sm` 是 24×14 的小号，给药丸（chip）内部用 —— 药丸本身只有 22px 高，
-   * 标准档（36×21）塞进去会把 chip 撑高，而 chip 的高度是表格行高的一部分。
+   * 。`sm` is 24×14 ， to （chip） use —— has 22px ，
+   * （36×21） will chip ， chip is 1 。
    */
   size?: 'sm' | 'default' | 'touch'
   variant?: 'default' | 'success'

@@ -1,6 +1,6 @@
-//! 仅 13 个 scoped runtime 与 5 个 builtin ID 的宿主错误投影。
-//! raw 仅借给同一次 SDK 分类 RPC；公开消息、代码、错误槽不保存上游自由文本。
-//! 旧插件继续使用父模块 control_error / operation_failure。
+//! only 13 scoped runtime and 5 builtin ID error。
+//! raw only to 1 SDK RPC；、、error not up by 。
+//! old use control_error / operation_failure。
 
 #[path = "strict_error_codes.rs"]
 mod codes;
@@ -40,7 +40,7 @@ fn public_code(provider: &str, code: &str) -> String {
         return code.parse::<i64>().map(|value| value.to_string()).unwrap_or_else(|_| INVALID.into());
     }
     if codes::known(provider, code) { return code.to_string(); }
-    // 未知 cleanup 不公开任意码，但仍是不可重试的 Fatal。
+    // unknown cleanup not any， is not can Fatal。
     if code.to_ascii_lowercase().contains("cleanup") { return "network_cleanup_unconfirmed".into(); }
     UNKNOWN.into()
 }
@@ -52,7 +52,7 @@ fn nested_error(body: &Value) -> &Value {
 
 fn body_code(provider: &str, body: &Value) -> String {
     let nested = nested_error(body);
-    // 显式错误边界的纯文本仅供 SDK 私有分类；它不是一个可公开的机器码。
+    // error only SDK has ； not is 1 can 。
     if let Some(text) = body.as_str() { return if text.trim().is_empty() { UNKNOWN.into() } else { String::new() }; }
     if !body.is_object() { return UNKNOWN.into(); }
     let mut http = None;
@@ -85,7 +85,7 @@ fn numeric_code(provider: &str, body: &Value) -> Option<i64> {
     let nested = nested_error(body);
     ["upstreamCode", "upstream_code", "code"].iter().find_map(|key| [nested, body].iter()
         .find_map(|value| value.get(*key).and_then(|raw| raw.as_i64().or_else(|| {
-            // 只有已证 Qwen 数字命名空间可从业务码字符串恢复为数值。
+            // has already Qwen empty can from as 。
             if *key != "code" { return None; }
             let number = raw.as_str()?.parse::<i64>().ok()?;
             numeric_known_code(provider, Some(number)).then_some(number)
@@ -151,14 +151,14 @@ fn message(provider: &str, status: u16, code: &str, class: &UpstreamErrorClass) 
     }
 }
 
-/// class 参数只允许同一次真实 SDK classify RPC 的结果，不读取 raw.class/kind hint。
+/// class parameter 1 SDK classify RPC ， not raw.class/kind hint。
 pub(in crate::server::core::plugin_host) fn sdk_class(provider: &str, status: u16, class: UpstreamErrorClass, body: &Value) -> UpstreamErrorClass {
     let decoded = body.as_str().and_then(|text| serde_json::from_str::<Value>(text).ok());
     let body = decoded.as_ref().unwrap_or(body);
     let status = safe_status(status);
     let code = body_code(provider, body);
     let upstream = numeric_code(provider, body).or_else(|| class_upstream(&class).and_then(bounded_number));
-    // runtime_sdk_* 是 Rust 生成的凭证标记，外来同名 code 不得授权处置。
+    // runtime_sdk_* is Rust ， code not 。
     let class = if !numeric_known_code(provider, upstream)
         && matches!(code.as_str(), "runtime_sdk_quota" | "runtime_sdk_token" | "runtime_sdk_content") {
         UpstreamErrorClass::Fatal { status, message: String::new(), upstream_code: upstream }
@@ -168,7 +168,7 @@ pub(in crate::server::core::plugin_host) fn sdk_class(provider: &str, status: u1
         else { sanitize_class(provider, status, UpstreamErrorClass::Fatal {
             status, message: String::new(), upstream_code: upstream,
         }, &code, upstream) };
-    // 已投影 class 的毫秒 reset 是绝对时刻；只在缺失时读取本次 body 的明确单位字段。
+    // already class ms reset is for when ； in when body 。
     if let UpstreamErrorClass::QuotaLimited { reset_at, .. } = &mut class {
         *reset_at = reset_at.filter(|time| valid_reset(*time)).or_else(|| reset_fields(provider, body));
     }
@@ -282,7 +282,7 @@ fn sanitize_class(provider: &str, status: u16, class: UpstreamErrorClass, code: 
 }
 
 fn evidenced_action(provider: &str, status: u16, code: &str, class: &UpstreamErrorClass, body: &Value) -> bool {
-    // SDK 结果是必要凭证；没有正式机器判据的 403/429/5xx 还须具备已确认的私有文案判据。
+    // SDK is need ； no has 403/429/5xx already has 。
     let transport = code.is_empty() || code.parse::<u16>().ok() == Some(status)
         || matches!(code, "api_error" | "upstream_error" | "upstream_request_failed" | "upstream_stream_error"
             | "upstream_error_stream" | "upstream_refused" | "copilot_request_error"
@@ -330,7 +330,7 @@ pub(in crate::server::core::plugin_host) fn fatal(provider: &str, status: u16, c
     conversation(provider, status, UpstreamErrorClass::Fatal { status, message: String::new(), upstream_code: None }, &body, None)
 }
 
-/// 只重投影已在 Rust 错误槽中保存的内部凭证；无凭证不得按 HTTP 429 升级。
+/// already in Rust error in ；none not by HTTP 429 。
 pub(in crate::server::core::plugin_host) fn reproject(provider: &str, error: &GatewayError) -> GatewayError {
     let status = u16::try_from(error.status_code).ok().map(safe_status).unwrap_or(502);
     let body = json!({ "code": error.code, "upstreamCode": error.upstream_code });
@@ -400,7 +400,7 @@ fn control_metadata(error: &proto::WireError) -> Option<ControlMetadata> {
     Some(metadata)
 }
 
-/// 返回仅供当前 classify RPC 的私有正文；禁止写日志或作为公开 fallback。
+/// returnonlycurrent classify RPC has ； or as fallback。
 pub(in crate::server::core::plugin_host) fn private_control(error: &proto::WireError) -> Option<(u16, Value)> {
     let metadata = control_metadata(error)?;
     let mut body = Map::new();
@@ -417,7 +417,7 @@ pub(in crate::server::core::plugin_host) fn private_control(error: &proto::WireE
 
 pub(in crate::server::core::plugin_host) fn wire_error(provider: &str, error: &proto::WireError, method: &str) -> GatewayError {
     if let Some((status, body)) = private_control(error) {
-        // 控制面没有分类 RPC 的处置信任凭证，明确 Fatal；正文仅用于有限代码与 status 投影。
+        // no has RPC ， Fatal；onlyused for has and status 。
         return conversation(provider, status, UpstreamErrorClass::Fatal { status, message: String::new(), upstream_code: None }, &body, None);
     }
     if error.code.as_deref().is_some_and(|code| code.starts_with("provider_http:")) {
@@ -442,7 +442,7 @@ pub(in crate::server::core::plugin_host) fn wire_error(provider: &str, error: &p
     projected
 }
 
-/// 流内错误只接显式 error 信封，保留短暂私有分类判据；公开错误槽只存 GatewayError。
+/// error error ， has ；error GatewayError。
 pub(in crate::server::core::plugin_host) fn stream_failure(provider: &str, frame: &Value) -> Option<(GatewayError, Value)> {
     let raw = frame.get("error").filter(|value| crate::server::core::protocol::is_truthy(value))?;
     let statuses = [raw.get("statusCode"), raw.get("status_code"), raw.get("status"), frame.get("status"), frame.get("status_code")]
@@ -452,7 +452,7 @@ pub(in crate::server::core::plugin_host) fn stream_failure(provider: &str, frame
         .or_else(|| statuses.iter().flatten().copied().find(|value| *value == 556))
         .or_else(|| statuses.into_iter().flatten().next()).unwrap_or(502);
     let mut body = private_stream_body(raw);
-    // 首次观察到的真实状态随私有输入保留，不能在错误槽回读时改成默认 502。
+    // to has ， not can in error when default 502。
     if let Some(object) = body.as_object_mut() { object.insert("statusCode".into(), status.into()); }
     let projected = conversation(provider, status, UpstreamErrorClass::Fatal {
         status, message: String::new(), upstream_code: numeric_code(provider, &body),

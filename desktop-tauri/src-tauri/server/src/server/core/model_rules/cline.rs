@@ -1,61 +1,61 @@
-//! Cline 的规则部分：默认映射种子 + 拆分迁移 + 池前缀工具。
+//! Cline then ：default + + before 。
 //!
-//! ── 为什么单独一个文件 ──────────────────────────────────────
-//! 这几件事都只服务 **Cline / 它的两个额度池**，与 workbuddy / 小浣熊那几套
-//! 种子（留在 `mod.rs`）没有共享逻辑；而且其中「拆分迁移」是一次性的历史包袱，
-//! 与长期存在的种子机制混在一个文件里，读的人分不清哪一段可以随版本删掉。
-//! 拆出来的另一个好处是 `mod.rs` 回到「规则机制本身」的体量（见项目约定：
-//! 单文件尽量不超过 800 行）。
+//! ── Why 1 file ──────────────────────────────────────
+//! this **Cline / **， and workbuddy / that 
+//! （ in `mod.rs`） no has ； and its in 「」 is 1 ，
+//! and in in 1 file， not 1 can 。
+//! 1 is `mod.rs` to 「 then 」 （：
+//! file not 800 ）。
 //!
-//! ── 与 `mod.rs` 的关系 ──────────────────────────────────────
-//! 这里用到的都是 `mod.rs` 提供的机制（`ModelRules` 的读写、`Mapping` /
-//! `RuleEntry` 的形状、`save` / `alias_valid` 等），本身不定义新类型。
-//! 因此它**不是**独立的规则层，只是那层的 Cline 专用件。
+//! ── and `mod.rs` ──────────────────────────────────────
+//! this use to is `mod.rs` （`ModelRules` 、`Mapping` /
+//! `RuleEntry` 、`save` / `alias_valid` etc ）， not new 。
+//! ** not is ** then ， is that Cline use 。
 
 use super::*;
 
 use crate::server::core::providers::cline::models::{friendly_alias, Pool};
 
-/// Cline 清单的**默认映射种子**（按池调用，两家各跑一遍）。
+/// Cline **default**（ by use ， 1 ）。
 ///
-/// ── 为什么要映射（而不是在转发时剥前缀）─────────────────────
-/// Cline 的上游模型 id 形如 `cline-free/deepseek-v4.1-flash`（免费池）与
-/// `cline-pass/glm-5.3`（订阅池），**前缀是它的计费通道选择器**，剥掉会 404。
-/// 直接用完整 id 当对外模型名虽然能用，但客户端里写 `cline-free/deepseek-v4.1-flash`
-/// 很难看、也容易与别家的 `deepseek-v4.1-flash` 混淆。因此给每个带前缀的模型
-/// 自动配一条 `deepseek-v4.1-flash → cline-free/deepseek-v4.1-flash` 的别名，
-/// 两种名字都能用。
+/// ── Why need （ not is in when before ）─────────────────────
+/// Cline up id `cline-free/deepseek-v4.1-flash`（） and 
+/// `cline-pass/glm-5.3`（），** before is **， will 404。
+/// use id for can use ，client `cline-free/deepseek-v4.1-flash`
+/// 、 and `deepseek-v4.1-flash` 。 to before 
+/// 1 `deepseek-v4.1-flash → cline-free/deepseek-v4.1-flash` ，
+/// can use 。
 ///
-/// ── 免费池的裸 id 也建映射（本次修复）───────────────────────
-/// 免费组里有两条不带通道前缀的条目（`z-ai/glm-5.3-flash`、
-/// `poolside/laguna-s-2.1:free`），它们同样该有能直接敲的短名字。剥什么由
-/// [`friendly_alias`] 按池给出：免费池的裸 id 剥**厂商前缀**（那是承载方，
-/// 与通道前缀同层含义），`recommended` 组的 `openai/gpt-6-astra` 则不剥
-/// （那里厂商前缀是模型身份）。撞上别家原生 id（`glm-5.3-flash` 也是 CatPaw
-/// 的模型名）**不回避**：同一对外名由多家承载正是主备路由的常态。
+/// ── id （）───────────────────────
+/// has not before （`z-ai/glm-5.3-flash`、
+/// `poolside/laguna-s-2.1:free`）， this has can 。 by 
+/// [`friendly_alias`] by to ： id ** before **（ that is ，
+/// and before ），`recommended` `openai/gpt-6-astra` then not 
+/// （ that before is ）。 up id（`glm-5.3-flash` is CatPaw
+/// ）** not **： 1 for by is by 。
 ///
-/// ── 三条纪律（与小浣熊种子同构）─────────────────────────────
-///   1. **幂等**：处理过的 `(provider, id)` 记入 `seeded`，用户事后删掉这条自动
-///      映射不会被下一次刷新改回来；
-///   2. **不抢别名**：alias 已被别的映射占用 → 跳过；
-///   3. **不与上游 id 撞名**：alias 与**本池**清单里任何上游 id 同名 → 跳过。
-///      **本家会撞**：`deepseek-v4.1-flash` 两池都有，而**两池现在是两家
-///      provider** —— `has_alias` 是「任何人占用都不动」，所以先跑种子的那家
-///      拿到短名，另一家只记 seeded、不建映射。没拿到的那家由
-///      `EXTRA_ALIASES` 点名补上（那条走三判重，允许跨 provider 同 alias）。
+/// ── （ and ）─────────────────────────────
+/// 1. ** etc **： `(provider, id)` `seeded`， use after this 
+/// not will down 1 new ；
+/// 2. ** not **：alias already use → ；
+/// 3. ** not and up id **：alias and **** up id → 。
+/// ** will **：`deepseek-v4.1-flash` has ，** in is 
+/// provider** —— `has_alias` is 「 use not 」， that 
+/// to ， 1 seeded、 not 。 no to that by 
+/// `EXTRA_ALIASES` up （ that ， provider alias）。
 ///
-/// ── `provider` 参数（拆分后新增）────────────────────────────
-/// 传 `"cline-free"` / `"cline-pass"`（= `cline::models::Pool::provider_id()`）。
-/// **调用方只需传本池的 id 列表**（`cline::models::ids_of(pool)`）—— 混进另一个
-/// 池的 id 会让这家的 seeded 里出现不属于它的键，下一轮那家自己跑时才会补上，
-/// 白绕一圈。
+/// ── `provider` parameter（ after add）────────────────────────────
+/// `"cline-free"` / `"cline-pass"`（= `cline::models::Pool::provider_id()`）。
+/// ** use need id **（`cline::models::ids_of(pool)`）—— 1 
+/// id will this seeded not ， down 1 that when will up ，
+/// 1 。
 ///
-/// ── 为什么「seeded 有变化但没建映射」也要落盘 ────────────────
-/// 与 `seed_default_enabled` 同一个理由：不落盘的话下次启动会重种一遍，
-/// 而重种可能再次尝试建映射 —— 用户刚删掉的别名会被悄悄加回来。
-/// 种子是「只对首次出现生效」的承诺，那承诺必须落盘才算数。
+/// ── Why「seeded has no 」 need ────────────────
+/// and `seed_default_enabled` 1 by ： not down will 1 ，
+/// can can —— use will 。
+/// is 「 for 」 ， that must。
 ///
-/// 返回给日志的摘要；没有任何新动作时返回 None（不落盘）。
+/// return to need ； no has new when return None（ not ）。
 pub fn seed_cline_defaults(provider: &str, ids: &[String]) -> Option<String> {
     let added = super::mutations::mutate(|rules| {
         let mut added = Vec::new();
@@ -83,46 +83,46 @@ pub fn seed_cline_defaults(provider: &str, ids: &[String]) -> Option<String> {
     Some(format!("🧩 Cline 模型默认映射: [{}]", added.join(", ")))
 }
 
-// ─── Cline 拆分为两家 provider 的存量键迁移 ──────────────────
+// ─── Cline as provider ──────────────────
 
-/// 拆分前的 Cline provider id（**只出现在迁移代码里**，别处已无这个 id）
+/// before Cline provider id（** in **， already none this id）
 const LEGACY_CLINE_ID: &str = "cline";
 
-/// 把存量配置里属于**旧 Cline 这一家**的规则键改写到拆分后的两家。
+/// config** old Cline this 1 ** then to after 。
 ///
-/// ── 为什么必须迁移（这是拆分里最容易出事的一步）──────────────
-/// 规则键是 **(provider, 模型 id)**，provider id 一改，旧条目就再也匹配不上。
-/// 不迁移的后果不是「少一条设置」，而是**静默失效**：
-///   - `disabled` 里带 `provider: "cline"` 的条目 → 用户禁用的模型**全部
-///     变回启用**，而且他再也找不到当初关它的那个开关（那一条已经匹配不上了）；
-///   - `seeded` 里的 `cline:<id>` → 两家都认为「这批模型从没种过」，于是
-///     重跑一遍种子。用户主动删掉的自动映射会被**悄悄加回来** —— 这正是
-///     `seeded` 存在要防的事，键名一变就全废了。
+/// ── Whymust（ this is 1 ）──────────────
+/// then is **(provider, id)**，provider id 1 ， old not up 。
+/// not after not is 「 1 set」， is ****：
+/// - `disabled` `provider: "cline"` → use use **
+/// enabled**， and not to that （ that 1 already not up ）；
+/// - `seeded` `cline:<id>` → as 「 this from no 」， is 
+/// 1 。 use will **** —— this is 
+/// `seeded` in need ， 1 。
 ///
-/// ── 池怎么判定（逐条与本文件其余部分的判据同源）──────────────
-/// 一律用 `cline::models::pool_of(id)` 按**模型 id 的前缀**判：
-///   - 启停条目里的 id 是上游模型 id（管理页传的就是清单里的 id），直接判；
-///   - 映射条目里的目标名同上；provider 缺失的旧版全局条目**只在 target 带池
-///     前缀时才补 provider** —— `cline-free/…` / `cline-pass/…` 这两个 id 是
-///     Cline 独有的，补上 provider 是纯收窄；而无前缀的 id（如 `glm-5.3-flash`）
-///     可能同时被别家承载，把它收窄到某一家会是**行为改变**，不动它；
-///   - `seeded` 键里的 id 可以带 `#alias:<别名>` 后缀（额外别名种子），
-///     取 `#` 之前那段判池。
+/// ── （ and file its ）──────────────
+/// 1 use `cline::models::pool_of(id)` by ** id before **：
+/// - id is up id（ is id），；
+/// - up ；provider old ** in target 
+/// before when provider** —— `cline-free/…` / `cline-pass/…` this id is 
+/// Cline has ， up provider is ；none before id（ `glm-5.3-flash`）
+/// can can when ， to 1 will is ** as **， not ；
+/// - `seeded` id can `#alias:<>` after （），
+/// `#` before that 。
 ///
-/// 幂等：迁移后再跑一遍不会命中任何一条（`cline:` 与 `cline-free:` /
-/// `cline-pass:` 在等值比较下不同 —— `cline-free:` 的第 6 个字符是 `-`，
-/// 不会 `starts_with("cline:")`）。因此可以安全地在每次启动时调用。
+/// etc ： after 1 not will in 1 （`cline:` and `cline-free:` /
+/// `cline-pass:` in etc down not —— `cline-free:` 6 is `-`，
+/// not will `starts_with("cline:")`）。 can in when use 。
 ///
-/// 没有任何改动时返回 None，**不落盘**（与各家的种子同一纪律：启动路径上
-/// 只读不写的成本必须为零）。
+/// no has when return None，** not **（ and 1 ：path up 
+/// not must as ）。
 pub fn migrate_cline_split() -> Option<String> {
     let mut rules = current();
     let mut touched = false;
     let mut summary: Vec<String> = Vec::new();
 
-    // ① 启停列表：provider 改名（`hidden` 列表已随「删除/恢复」机制移除，
-    //    迁移只剩 `disabled` —— 旧配置里残留的 hidden 条目在读取层就被丢弃，
-    //    见 mod.rs 的「一次性清理语义」）
+    // ① ：provider （`hidden` already 「delete/」，
+    // `disabled` —— old config hidden in ，
+    // mod.rs 「 1 」）
     let mut count = 0usize;
     for entry in rules.disabled.iter_mut() {
         if entry.provider.as_deref() != Some(LEGACY_CLINE_ID) {
@@ -137,7 +137,7 @@ pub fn migrate_cline_split() -> Option<String> {
         summary.push(format!("禁用 {count} 条"));
     }
 
-    // ② 映射：带旧 provider 的改名；provider 缺失但 target 是 Cline 池前缀的补上
+    // ② ： old provider ；provider target is Cline before up 
     let mut renamed = 0usize;
     let mut tagged = 0usize;
     for mapping in rules.mappings.iter_mut() {
@@ -147,7 +147,7 @@ pub fn migrate_cline_split() -> Option<String> {
                 mapping.provider = Some(pool.to_string());
                 renamed += 1;
             }
-            // 旧版全局条目：只在 target 确实带**池前缀**时收窄（见函数头）
+            // old ： in target ** before ** when （）
             None if is_cline_channel(&mapping.target) => {
                 let pool = cline_pool_of(&mapping.target).provider_id();
                 mapping.provider = Some(pool.to_string());
@@ -161,13 +161,13 @@ pub fn migrate_cline_split() -> Option<String> {
         summary.push(format!("映射 {renamed} 条改名 / {tagged} 条补归属"));
     }
 
-    // ③ 种子键：`cline:<id>[#alias:<别名>]` → `<池 provider id>:<同一段>`
+    // ③ ：`cline:<id>[#alias:<>]` → `< provider id>:< 1 >`
     let mut reseeded = 0usize;
     for key in rules.seeded.iter_mut() {
         let Some(rest) = key.strip_prefix("cline:") else {
             continue;
         };
-        // id 与 `#alias:` 后缀分开，只用 id 判池
+        // id and `#alias:` after ， use id 
         let id_part = rest.split('#').next().unwrap_or(rest);
         let pool = cline_pool_of(id_part).provider_id();
         *key = format!("{pool}:{rest}");
@@ -188,19 +188,19 @@ pub fn migrate_cline_split() -> Option<String> {
     ))
 }
 
-/// 模型 id → 它属于哪个池（**迁移专用**的薄封装）。
+/// id → （** use ** ）。
 ///
-/// 池的判定只有一处事实来源（`cline::models::pool_of`，按 id 前缀），这里
-/// 只是把那个模块的路径收短一点 —— 迁移代码里要判七八次池，写全路径会淹没
-/// 逻辑本身。
+/// has 1 （`cline::models::pool_of`， by id before ）， this 
+/// is that path 1 —— need ，path will no 
+/// 。
 fn cline_pool_of(model_id: &str) -> crate::server::core::providers::cline::models::Pool {
     crate::server::core::providers::cline::models::pool_of(model_id)
 }
 
-/// 这个 id 是不是 Cline 的**计费通道** id（带 `cline-free/` / `cline-pass/` 前缀）。
+/// this id is not is Cline **** id（ `cline-free/` / `cline-pass/` before ）。
 ///
-/// 迁移用它区分「Cline 独有的 id」与「可能被别家也承载的裸模型名」：
-/// 前者可以安全地把旧版全局映射收窄到某一家，后者不能（见 `migrate_cline_split`）。
+/// use 「Cline has id」 and 「 can can 」：
+/// before can old to 1 ， after not can （ `migrate_cline_split`）。
 fn is_cline_channel(model_id: &str) -> bool {
     ["cline-free/", "cline-pass/"]
         .iter()

@@ -22,7 +22,7 @@ type CaptchaApi = {
 const captchaApi = () => (window as Window & { wbAliyunCaptcha?: CaptchaApi }).wbAliyunCaptcha
 let captchaLoading: Promise<CaptchaApi> | null = null
 
-/** 只复用主程序的验证码实现，原生包也携带这份脚本，不从插件加载页面。 */
+/** use ， this ， not from 。 */
 function loadCaptcha(): Promise<CaptchaApi> {
   const api = captchaApi()
   if (api) return Promise.resolve(api)

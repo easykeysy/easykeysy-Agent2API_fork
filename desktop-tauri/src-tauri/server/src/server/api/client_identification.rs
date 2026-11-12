@@ -68,7 +68,7 @@ fn preview(state: &ServerState, payload: PreviewSettings) -> Result<Value, Gatew
     if !payload.rule_id.is_empty() && !payload.config.rules.iter().any(|rule| rule.id == payload.rule_id) {
         return Err(GatewayError::bad_request("待预览的识别规则不存在"));
     }
-    // 先限制扫描窗口，再解码证据；大日志库不因一次预览做全库扫描。
+    // limit，； not 1 。
     let db = state.db().ok_or_else(|| GatewayError::new("数据库不可用，无法预览识别规则"))?;
     let records = db.with(|conn| {
         let mut stmt = conn.prepare("SELECT id, ts, client, client_evidence FROM \

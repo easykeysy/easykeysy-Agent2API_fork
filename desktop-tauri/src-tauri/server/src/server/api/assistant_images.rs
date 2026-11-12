@@ -1,4 +1,4 @@
-//! 图片生成与编辑必须携带网关 Key；只向模型返回附件 ID，图片字节不进入工具文本或对话上下文。
+//! and must Key； to return ID， not or for up down 。
 
 use axum::body::Bytes;
 use axum::extract::{Path, State};
@@ -95,7 +95,7 @@ async fn run(
             }
         }
     }
-    // 统一先取得图片字节再存助手附件，不把短期上游签名链接当成历史记录。
+    // 1 ， not up 。
     request["response_format"] = json!("b64_json");
     let model = request.get("model").cloned().unwrap_or(Value::Null);
     let result = images::execute(

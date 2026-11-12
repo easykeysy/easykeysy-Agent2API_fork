@@ -3,7 +3,7 @@ export type ModelOption = {
   supportsImages: boolean
 }
 
-/** 输入为 /api/session.models（与 /v1/models 同源），保留目录顺序。 */
+/** as /api/session.models（ and /v1/models ），directory。 */
 export function modelOptionsFrom(publicModels: unknown[]): ModelOption[] {
   const seen = new Set<string>()
   const options: ModelOption[] = []

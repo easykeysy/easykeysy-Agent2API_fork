@@ -36,7 +36,7 @@ async fn mock_upstream(
             headers: vec![("Content-Type".into(), "application/json".into())],
             payload: r#"{"stream":true}"#.into(),
             proxy: None,
-            // 测试替身按默认能力位（false = 直连），与生产里不带这一步的家同款
+            // by default can （false = ）， and not this 1 
             system_proxy_when_unset: false,
         },
         hits,
@@ -44,39 +44,39 @@ async fn mock_upstream(
     )
 }
 
-// ── ZCode 的响应判定与错误分类（测试随实现搬到插件）────────────────────────
+// ── ZCode response and error（ to ）────────────────────────
 //
-// 这里原有五条用例钉的是 ZCode 适配器的两件事：
-//   · `is_error_response`：HTTP 200 + `application/json` 是**业务拒绝**而不是
-//     SSE 正文（`1005 exceed quota limit` 走 200 回来），网关必须先读错误体；
-//   · `classify_error`：401 → TokenExpired、429 / 业务码 1005 → QuotaLimited。
+// this has use is ZCode ：
+// · `is_error_response`：HTTP 200 + `application/json` is **** not is 
+// SSE （`1005 exceed quota limit` 200 ），musterror；
+// · `classify_error`：401 → TokenExpired、429 / 1005 → QuotaLimited。
 //
-// 这两条判据都跟着 ZCode 的实现搬到 `agent2api-providers` 了，因此用例也一起
-// 搬走 —— 留在网关只会编译不过（`ZCODE_ADAPTER` 已不存在）。插件侧的同名用例
-// 在 `zcode::mod` 的 `classify` 附近。
+// this ZCode to `agent2api-providers` ， use 1 
+// —— in will not （`ZCODE_ADAPTER` already not in ）。 use 
+// in `zcode::mod` `classify` 。
 //
-// 顺带说明**为什么这段注释留着**：`provider_loop` 的「HTTP 200 也可能是错误」
-// 与「401/429 各自的动作」这两条**编排层**语义没有变，下面几条用例
-// （会话式路径的限额记账）仍在验证它们。
+// **Why this **：`provider_loop` 「HTTP 200 can can is error」
+// and 「401/429 」 this **** no has ， down use 
+// （ will path ） in 。
 
-// ── 会话式路径的限额记账（`mark_conversation_limited`）──────────────────────
+// ── will path （`mark_conversation_limited`）──────────────────────
 //
-// 这四条钉的是同一处缺陷：改造前该分支内联调用 `rotate::mark_account_limited`，
-// `reset_at` 实参写死 `None` ⇒ 适配器算好的恢复时刻被丢在函数参数上，存储层落到
-// 「缺失即 10 分钟」的兜底冷却（`account_store::store_admin::mark_rate_limited`）。
-// 症状不是报错，而是**同一个已耗尽的账号按兜底常量的节拍被反复重新撞**：CodeArts
-// 的福利日池要到第二天零点才有额度，生产实测两小时内白撞 8 次（每次 0.2–0.3 秒、
-// 被拒不计费、整条请求仍 200 —— 只看响应看不出来）。
+// this is 1 ： before this use `rotate::mark_account_limited`，
+// `reset_at` `None` ⇒ when in parameter up ， to 
+// 「 10 minutes」 （`account_store::store_admin::mark_rate_limited`）。
+// not is ， is ** 1 already by new **：CodeArts
+// need to has ， when 8 （ 0.2–0.3 seconds、
+// not 、request 200 —— response not ）。
 //
-// 因此在改前的代码上第 1、4 条必红；第 2、3 条是「修复没有过头」的对照组。
+// in before up 1、4 ； 2、3 is 「 no has 」 for 。
 
 static TEMP_SEQ: AtomicUsize = AtomicUsize::new(0);
 
-/// 临时库目录，Drop 时删除。
+/// when directory，Drop when delete。
 ///
-/// 刻意不在建库前删了事：文件名带 pid，下一轮 pid 变了就永远删不到（曾在一台机器上
-/// 攒出几百份）。调用方按 `let (_dir, service, id) = temp_service();` 接 —— 局部变量
-/// 逆序析构，先关库再删目录。
+/// not in before ：file pid， down 1 pid not to （ in 1 up 
+/// ）。 use by `let (_dir, service, id) = temp_service();` —— 
+/// ，directory。
 struct TempDbDir(std::path::PathBuf);
 
 impl Drop for TempDbDir {
@@ -85,9 +85,9 @@ impl Drop for TempDbDir {
     }
 }
 
-/// 一份临时库 + 挂在其上的 [`UpstreamService`] + 里面唯一那条账号的 id。
+/// 1 when + in its up [`UpstreamService`] + 1 that id。
 ///
-/// 不发任何网络请求：记账与读回都只碰存储层，与转发选路用的是同一份读写口径。
+/// not request： and ， and use is 1 。
 fn temp_service() -> (TempDbDir, UpstreamService, String) {
     use crate::server::core::account_store::AccountStore;
     use crate::server::core::auth::AuthService;
@@ -109,7 +109,7 @@ fn temp_service() -> (TempDbDir, UpstreamService, String) {
     (TempDbDir(dir), service, id)
 }
 
-/// 本家分类结果 → 记账名单（只取本次这一个键，绕开目录缓存的全局态）。
+/// → （ this 1 ，directory ）。
 fn single(name: &str) -> Vec<String> {
     vec![name.to_string()]
 }
@@ -118,9 +118,9 @@ fn single(name: &str) -> Vec<String> {
 fn stateful_quota_bookkeeping_keeps_the_adapter_reset_at() {
     let (_dir, service, id) = temp_service();
     let now = logging::now_ms();
-    // 可辨恢复时刻：3 小时后。刻意与 10 分钟兜底不同量级 —— 改前这里落的是
-    // now+600000，等值断言必红；而文案里没有任何日期形态，兜底的第二次机会
-    // （`errors::parse_quota_reset_at`）也救不出这个值，差异只能来自透传。
+    // can when ：3 when after 。 and 10 minutes not —— before this is 
+    // now+600000， etc ； no has ， will 
+    // （`errors::parse_quota_reset_at`） not this ， can 。
     let reset_at = now + 3 * 60 * 60 * 1000;
     let class = UpstreamErrorClass::QuotaLimited {
         reset_at: Some(reset_at),
@@ -128,7 +128,7 @@ fn stateful_quota_bookkeeping_keeps_the_adapter_reset_at() {
         upstream_code: Some(4291200),
         status: 403,
     };
-    // 整组（福利池按账号记账）与单键走的是同一个循环，这里给两个名字覆盖循环体
+    // （ by ） and is 1 ， this to 
     let group = vec!["m-benefit-a".to_string(), "m-benefit-b".to_string()];
     mark_conversation_limited(&service, &id, &group, &class, "上游返回 403: insufficient quota");
     for name in &group {
@@ -140,8 +140,8 @@ fn stateful_quota_bookkeeping_keeps_the_adapter_reset_at() {
             "{name} 落到了 10 分钟兜底冷却：{minutes} 分钟"
         );
     }
-    // 同一份分类里的另两个字段也照原样落地（写死 None 的那版同样丢掉过它们吗 ——
-    // 没有，但这里是唯一一处能一次钉住「记账四元组一致」的地方）
+    // 1 （ None that ——
+    // no has ， this is 1 1 can 1 「 1 」 ）
     let limits = {
         let snapshot = service.store.list_accounts();
         snapshot["accounts"].as_array().unwrap()[0]["rateLimits"].clone()
@@ -154,9 +154,9 @@ fn stateful_quota_bookkeeping_keeps_the_adapter_reset_at() {
 fn stateful_quota_bookkeeping_falls_back_when_adapter_gives_no_reset_at() {
     let (_dir, service, id) = temp_service();
     let now = logging::now_ms();
-    // 429 是分钟级限流，CodeArts 的 classify 那边就给 None（给它零点会把一个只是
-    // 暂时繁忙的账号打死一整天）—— 兜底冷却是它应得的行为，修复不许把它抹掉。
-    // 文案取无日期形态：解析兜底（`parse_quota_reset_at`）也救不出时刻。
+    // 429 is minutes，CodeArts classify that to None（ to will 1 is 
+    // when 1 ）—— is as ， not 。
+    // none：（`parse_quota_reset_at`） not when 。
     let message = "上游返回 429: too many requests";
     let class = UpstreamErrorClass::QuotaLimited {
         reset_at: None,
@@ -176,8 +176,8 @@ fn stateful_quota_bookkeeping_falls_back_when_adapter_gives_no_reset_at() {
 #[test]
 fn stateful_quota_bookkeeping_ignores_non_quota_classes() {
     let (_dir, service, id) = temp_service();
-    // 对照组：调用方的 `if let` 已经拦下非 QuotaLimited，函数自己也不该动手 ——
-    // 内容闸门/权限那一类失败本来就不该罚账号（冷却一整天尤其不能给它们）
+    // for ： use `if let` already down QuotaLimited， not this ——
+    // / that 1 failure not this （ 1 its not can to ）
     let message = "上游返回 403: permission denied";
     let class = UpstreamErrorClass::Fatal {
         status: 403,
@@ -193,7 +193,7 @@ fn codearts_daily_pool_envelope_cools_to_the_boundary_instead_of_ten_minutes() {
     use crate::server::errors::GatewayError;
 
     let (_dir, service, id) = temp_service();
-    // 生产库里那条真实文案（HTTP 200 的 SSE 里折出 403，首包门送进会话式分支）
+    // that （HTTP 200 SSE 403， will ）
     let error = GatewayError::with_status(403, "上游报告 InferHub.4291.200：insufficient quota");
     let class = adapter_for(ProviderKind::CodeArts).classify_conversation_error(&error);
     let UpstreamErrorClass::QuotaLimited { reset_at: Some(reset_at), .. } = &class else {
@@ -203,23 +203,23 @@ fn codearts_daily_pool_envelope_cools_to_the_boundary_instead_of_ten_minutes() {
 
     let stored = rotate::account_limit_reset_at(&service, &id, "glm-5.3-flash");
     assert_eq!(stored, *reset_at, "落库的恢复时刻必须是适配器算出的日池重置点");
-    // ── 断言「是下一个北京零点」，而不是「距现在 > 10 分钟」（2026-10-13 修）──
+    // ── 「 is down 1 」， not is 「 in > 10 minutes」（2026-10-13 ）──
     //
-    // 原断言写的是 `minutes > 10`，本意是「不是 10 分钟兜底常量」；但它有个
-    // 时变缺陷：日池重置点就是**下一个北京零点**，于是每天 23:50–00:00 这十分钟
-    // 里「距零点」天然小于 10 分钟，用例必然变红（实测 2026-10-13 23:49 撞上）。
-    // 那是测试写法的问题，不是实现的 —— 与兜底常量无关的失败被报成了兜底。
+    // is `minutes > 10`， is 「 not is 10 minutes」； has 
+    // when ： is ** down 1 **， is 23:50–00:00 this minutes
+    // 「」 10 minutes， use （ 2026-10-13 23:49 up ）。
+    // that is ， not is —— and none failure 。
     //
-    // 改成直接钉住真正的判据：恢复时刻必须落在**当天或次日的北京零点**上，
-    // 且距现在不超过 24 小时（日池的语义就是「到零点重置」）。这样任何时刻
-    // 跑都成立，也不再依赖「现在离零点有多远」。
+    // ： when must in ** or ** up ，
+    // and in not 24 when （ is 「 to 」）。 this when 
+    // ， not 「 in has 」。
     let minutes = (stored - logging::now_ms()) / 60_000;
     assert!(
         (0..=24 * 60).contains(&minutes),
         "日池的恢复时刻应当落在 24 小时以内，实际 {minutes} 分钟"
     );
-    // 判据：恢复时刻在北京时区里必须是 00:00:00 —— 日池按天重置。
-    // 10 分钟兜底常量（now + 10min）落在零点上的概率可忽略，这一条足以把它排除。
+    // ： when in when must is 00:00:00 —— by 。
+    // 10 minutes（now + 10min） in up can ignore， this 1 excluding。
     let at = crate::server::core::beijing::date_time_of_ms(stored).expect("合法时间戳");
     use chrono::Timelike;
     assert!(
@@ -232,9 +232,9 @@ fn codearts_daily_pool_envelope_cools_to_the_boundary_instead_of_ten_minutes() {
 #[test]
 fn that_one_argument_is_the_divider_between_a_day_and_ten_minutes() {
     let (_dir, service, id) = temp_service();
-    // 同一个账号库里放两条账号：一条按「改后的写法」记账，一条按「改前的写法」
-    // （同一个 rotate::mark_account_limited，只是恢复时刻写死 None）。
-    // 同一份分类、同一句文案 —— 差别只有那一行实参。
+    // 1 ： 1 by 「 after 」， 1 by 「 before 」
+    // （ 1 rotate::mark_account_limited， is when None）。
+    // 1 、 1 —— has that 1 。
     let pre_fix = service
         .store
         .add_account(
@@ -255,7 +255,7 @@ fn that_one_argument_is_the_divider_between_a_day_and_ten_minutes() {
         status: 403,
     };
     mark_conversation_limited(&service, &id, &single("m-after"), &class, message);
-    // 改前的那一发：另三个字段照旧，恢复时刻写成 None
+    // before that 1 ： old ， when None
     rotate::mark_account_limited(&service, &pre_fix_id, "m-before", 403, Some(4291200), None, message);
 
     let after = rotate::account_limit_reset_at(&service, &id, "m-after");
@@ -266,7 +266,7 @@ fn that_one_argument_is_the_divider_between_a_day_and_ten_minutes() {
         before_minutes >= 9 && before_minutes <= 11,
         "改前落的是存储层兜底冷却（10 分钟），实际 {before_minutes} 分钟"
     );
-    // 分水岭本身：同一份分类结果，两种写法差出 2 小时以上 —— 白撞节拍就是从这里来的
+    // ： 1 ， 2 when up —— is from this 
     assert!(
         after - before > 2 * 60 * 60 * 1000,
         "透传与写死 None 的差距应当是「一整天 vs 10 分钟」量级，实际差 {} 分钟",
@@ -284,9 +284,9 @@ fn fatal(status: u16) -> UpstreamErrorClass {
     }
 }
 
-/// 413 说的是「这份字节太大」，重发一遍没有任何会变的量 ⇒ 不消耗原地重发预算。
-/// 改造前它落到兜底那一档，三次 ×5 秒间隔 + 每次约 13 秒往返 = 客户端的 60 秒
-/// 等待墙先到，面板只剩「408 客户端在响应完成前断开」，真因（413）埋在明细里。
+/// 413 is 「 this 」， 1 no has will ⇒ not 。
+/// before to that 1 ， ×5 seconds + 13 seconds = client 60 seconds
+/// etc to ，「408 client in response before 」，（413） in 。
 #[test]
 fn a_payload_size_rejection_gets_no_in_place_retry() {
     assert!(
@@ -299,9 +299,9 @@ fn a_payload_size_rejection_gets_no_in_place_retry() {
     );
 }
 
-/// 反对照：其它 4xx/未知失败照旧走兜底原地重发（这条改动只放开"体积拒收"那一格，
-/// 没有把 400 这类"含义由上游决定"的码一并排除）。404 已于 issue #255 单独豁免
-/// （路由 / 模型名类确定性失败，见 `DETERMINISTIC_NOT_FOUND_STATUSES`），不在此列。
+/// for ： its 4xx/unknownfailure old （ this "" that 1 ，
+/// no has 400 this " by up " 1 and excluding）。404 already issue #255 
+/// （ by / failure， `DETERMINISTIC_NOT_FOUND_STATUSES`）， not in 。
 #[test]
 fn other_fatal_statuses_still_get_the_fallback_resend() {
     for status in [400u16, 409] {
@@ -316,17 +316,17 @@ fn other_fatal_statuses_still_get_the_fallback_resend() {
     );
 }
 
-/// 端到端：打到真实返回 413 的替身上身，**只发一次**（改造前是 1 + 3 次）。
+/// to ： to return 413 up ，** 1 **（ before is 1 + 3 ）。
 #[tokio::test]
 async fn a_real_413_response_is_sent_once_and_handed_back() {
     let (transport, hits, task) =
         mock_upstream(413, "application/json; charset=utf-8", APIG_TOO_LARGE_BODY).await;
     let mut budget = RetryBudget::new(3);
     let capture = crate::server::core::debug_traffic::TrafficCapture::begin("payload-too-large");
-    // 适配器只提供「怎么判上游错误」这一半；413 的处置在**编排层**
-    // （`transport::RetryBudget` + `fallback_retry_advice`），因此随便挑一个
-    // 内置家即可。原先这里用 ZCode 的实例，它随实现搬到插件了 —— 换成本家
-    // 走得通的 WorkBuddy，断言的仍是同一处语义。
+    // 「 up error」 this 1 ；413 in ****
+    // （`transport::RetryBudget` + `fallback_retry_advice`）， 1 
+    // can 。 this use ZCode ， to —— 
+    // WorkBuddy， is 1 。
     let result = send_with_retry(
         adapter_for(ProviderKind::WorkBuddy),
         &transport,
@@ -356,9 +356,9 @@ async fn a_real_413_response_is_sent_once_and_handed_back() {
 
 #[test]
 fn a_deterministic_404_skips_the_in_place_resend() {
-    // issue #255 的形状：OfficeAce 对目录里有、套餐里没有的名字回
-    // `404 {"code":null,"message":"Invalid model."}`，旧判据把它当普通 Fatal，
-    // 原地重发 3 次 × 5 秒才换号——客户端白等 15 秒，换来的还是同一个 404。
+    // issue #255 ：OfficeAce for directory has 、 no has 
+    // `404 {"code":null,"message":"Invalid model."}`， old Fatal，
+    // 3 × 5 seconds——client etc 15 seconds， is 1 404。
     let not_found = UpstreamErrorClass::Fatal {
         status: 404,
         upstream_code: None,
@@ -368,7 +368,7 @@ fn a_deterministic_404_skips_the_in_place_resend() {
         fallback_retry_advice(&not_found, 3, 404).is_none(),
         "名字类确定性失败不该再原地重发"
     );
-    // 对照：普通 400 仍走原地重发（400 的语义由上游定，重发是安全默认）
+    // for ： 400 （400 by up ， is default）
     let bad_request = UpstreamErrorClass::Fatal {
         status: 400,
         upstream_code: None,

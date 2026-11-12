@@ -1,47 +1,47 @@
-//! **流内拒绝**的门控：HTTP 200 也可能是一次拒绝。
+//! **** ：HTTP 200 can can is 1 。
 //!
-//! ── 为什么需要它 ────────────────────────────────────────────
-//! 有些上游（实测 OfficeAce / 华为 AgentArts 网关）把「内容审核拒绝」包装成一次
-//! 正常答复：`HTTP 200`、SSE 正常收尾，但正文是一句固定的拒绝话术（如
-//! 「作为一个人工智能语言模型，我还没学习如何回答这个问题…」），并且终帧的
-//! `choices[].finish_reason` 是 `content_filter`。
+//! ── Why need need ────────────────────────────────────────────
+//! has up （ OfficeAce / as AgentArts ） 「」 1 
+//! ：`HTTP 200`、SSE ， is 1 （
+//! 「 as 1 can ， no this …」），and 
+//! `choices[].finish_reason` is `content_filter`。
 //!
-//! 只看 HTTP 状态，这就成了一次**假成功**：编排层不会换家，客户端拿到的
-//! 「答案」是一句套话 —— 用户以为网关坏了（真实现象：ZCode 的 agentic 请求打到
-//! 本家条条如此）。
+//! HTTP ， this 1 **success**： not will ，client to 
+//! 「」 is 1 —— use as （：ZCode agentic request to 
+//! ）。
 //!
-//! ── 判据与代价都在 provider 那边声明，本模块只负责「等」 ──────
-//! 「哪些 `finish_reason` 算拒绝」是**上游侧知识**（与 81004/11-128 同类），
-//! 由适配器的 `stream_refusal_finishes` 回答；本模块只做一件事：把响应流
-//! **拉到能判定为止**，把预读到的字节、剩余流、以及看到的 `finish_reason`
-//! 一起交回。**没有 provider 声明时本模块一个字节都不碰** —— 调用点在
-//! `provider_loop` 的账号循环里（响应头记账之后、Anthropic / chat 两条下行分支之前），
-//! 声明为空时直接走原始响应，本模块不参与。
+//! ── and in provider that ，「 etc 」 ──────
+//! 「 `finish_reason` 」 is ** up **（ and 81004/11-128 ），
+//! by `stream_refusal_finishes` ； 1 ： response
+//! ** to can as **， to 、remaining、 and to `finish_reason`
+//! 1 。** no has provider when 1 not ** —— use in 
+//! `provider_loop` （response after 、Anthropic / chat down before ），
+//! as empty when response， not and 。
 //!
-//! ── 两种终止条件（都必要）────────────────────────────────────
-//!   1. **看到 `finish_reason`**：终帧一到就能判定，不必再等。
-//!   2. **缓冲到上限**：真答案可能很长，不能无限缓冲（否则等于把流式改成非流式）。
-//! 拒绝话术只有几百字节，远在上限之内 ⇒ 这种「先缓冲再放行」对**拒绝**是必中的。
+//! ── （ need ）────────────────────────────────────
+//! 1. ** to `finish_reason`**： 1 to can ， not etc 。
+//! 2. ** to limit**： can can ， not can none（otherwise etc ）。
+//! has ， in limit ⇒ this 「」 for **** is in 。
 //!
-//! ── 代价（审计指出原注释把它写轻了，这里按实际形状说）──────────
-//! 正常流的 `finish_reason` 只出现在**末帧**，所以条件 1 对普通答复等价于
-//! 「等整条流讲完」：不足上限的答案会被**整段缓冲**，下发形态从「逐段流式」退化成
-//! 「完成才给」；超过上限的答案才由条件 2 提前放行，首字节延迟 ≈ 上游产出这么多
-//! 字节的耗时。这不是实现取巧，是判据本身决定的 —— 拒绝也是一条**带正文**的 200，
-//! 在它说完之前，没有任何字节能把「拒绝」与「正常答复」分开。
+//! ── （ ， this by ）──────────
+//! `finish_reason` in ****， 1 for etc 
+//! 「 etc 」： not limit will ****， down from 「」
+//! 「 to 」；limit by 2 before ， ≈ up this 
+//! when 。 this not is ， is —— is 1 **** 200，
+//! in before ， no has can 「」 and 「」。
 //!
-//! ── 为什么上限取 32 KiB（2026-10-10 用户明确定：不压小）─────────
-//! 实测上游的拒绝正文约 50 token（≈300 字节），32 KiB 对拒绝绰绰有余，同时给
-//! 「拒绝前可能先有一段长前言」的形态留余量（那种形态本仓没观测过）。压小上限能
-//! 换来更小的首字节延迟，代价是漏拦这种未观测形态 —— 用户选了不压，保持 32 KiB。
+//! ── Whylimit 32 KiB（2026-10-10 use ： not ）─────────
+//! up 50 token（≈300 ），32 KiB for has ， when to 
+//! 「 before can can has 1 before 」 （ that no ）。limit can 
+//! ， is this —— use not ， 32 KiB。
 //!
-//! ── 读不出来就当没看见（fail-open）────────────────────────────
-//! 传输错误 / 空闲超时 / 流结束都没看到 `finish_reason` 时返回 `None`，调用点
-//! 按「正常答案」放行 —— 门控判错的代价必须是「漏拦一次拒绝」，绝不能是
-//! 「把一个正常答案判死」（那会把用户真能用的家挡在门外，比漏拦更坏）。
+//! ── not no （fail-open）────────────────────────────
+//! error / empty when / no to `finish_reason` when return `None`， use 
+//! by 「」 —— must is 「 1 」， not can is 
+//! 「 1 」（ that will use can use in ，）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use std::time::Duration;
 
@@ -54,42 +54,42 @@ use serde_json::Value;
 use crate::server::config;
 use crate::server::core::upstream::stall;
 
-/// 门控在「看到 `finish_reason`」或「缓冲区达到上限」时结束（见模块头）。
+/// in 「 to `finish_reason`」 or 「 to limit」 when （module header）。
 const HOLD_CAP_BYTES: usize = 32 * 1024;
 
-/// 一次预读的产物。
+/// 1 。
 pub struct HeldHead {
-    /// 上游 HTTP 状态码（预读前取，之后 `Response` 已被消费）
+    /// up HTTP （ before ， after `Response` already ）
     pub status: u16,
-    /// 上游响应头（同上；调试采集要它）
+    /// up response（ up ； need ）
     pub headers: HeaderMap,
-    /// 预读到的字节（**原样**，一个字节不丢）
+    /// to （****， 1 not ）
     pub buffered: Vec<u8>,
-    /// 剩余的上游字节流（预读之后的那部分）
+    /// remaining up （ after that ）
     pub rest: BoxStream<'static, Result<Bytes, std::io::Error>>,
-    /// 预读窗口内看到的 `finish_reason`（`None` = 没看到 / 读不出来）
+    /// to `finish_reason`（`None` = no to / not ）
     pub finish_reason: Option<String>,
 }
 
-/// `finish_reason` 是否在本家声明的「拒答」集合里（大小写不敏感）。
+/// `finish_reason` is in 「」（ not ）。
 ///
-/// 集合来自适配器的 `stream_refusal_finishes`；空集恒为 `false`（默认不认）。
+/// `stream_refusal_finishes`；empty as `false`（default not ）。
 pub fn is_refusal(finishes: &[&str], finish: &str) -> bool {
     finishes
         .iter()
         .any(|marker| marker.eq_ignore_ascii_case(finish))
 }
 
-/// 预读窗口里是否出现任一「**正文**拒绝标记」（逐字子串，大小写敏感）。
+/// is 1 「****」（，）。
 ///
-/// 集合来自适配器的 `stream_refusal_markers`；空集恒为 `None`（默认不认）。
-/// 与 [`is_refusal`] 是同一道门控的两个判据：那条看 `finish_reason`，
-/// 这条看正文 —— 有些上游的拒绝在正文里、`finish_reason` 干脆不存在
-/// （见 trait 上该方法的长注释）。
+/// `stream_refusal_markers`；empty as `None`（default not ）。
+/// and [`is_refusal`] is 1 ： that `finish_reason`，
+/// this —— has up in 、`finish_reason` not in 
+/// （ trait up this ）。
 ///
-/// 代价方向与整条门控一致：宁可漏拦（继续当正常答复发出去），不可误拦
-/// （把正常答复判死）。所以只做**字面子串**匹配，不做任何宽泛推断 ——
-/// 标记串由各家按实测逐字写。
+/// to and 1 ： can （）， not can 
+/// （ ）。****， not ——
+/// by by 。
 pub fn matched_refusal_marker<'a>(bytes: &[u8], markers: &'a [&'a str]) -> Option<&'a str> {
     markers
         .iter()
@@ -97,11 +97,11 @@ pub fn matched_refusal_marker<'a>(bytes: &[u8], markers: &'a [&'a str]) -> Optio
         .find(|marker| !marker.is_empty() && contains_bytes(bytes, marker.as_bytes()))
 }
 
-/// `haystack` 里是否包含 `needle`（空 needle 恒假）。
+/// `haystack` is `needle`（empty needle ）。
 ///
-/// 与 `api::pipeline` 里那个同名函数同形但**故意不共用**：那个在 `api` 层、
-/// 只为收尾帧特征服务；这里在 `upstream` 层、为正文标记服务。两处的
-/// 「最长特征/窗口」语义不同，合到一起会把两条独立演进的判据绑死。
+/// and `api::pipeline` that ** not use **： that in `api` 、
+/// as ； this in `upstream` 、 as 。 
+/// 「/」 not ， to 1 will 。
 fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
     !needle.is_empty()
         && haystack.len() >= needle.len()
@@ -109,12 +109,12 @@ fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
 }
 
 impl HeldHead {
-    /// 把「预读到的字节 + 剩余流」拼成一条**完整**的下游字节流。
+    /// 「 to + remaining」 1 **** down 。
     ///
-    /// 预读的字节原样在前（一个字节不丢），剩余流在后 —— 调用方拿到它就与
-    /// 从未预读过视同上游流。`capture` 非空时逐片旁路给调试采集器（含预读
-    /// 那一片）：预读发生在 `ForwardStream` 之前，采集得在这里补上，否则调试
-    /// 模式会漏掉这一段的原始报文。
+    /// in before （ 1 not ），remaining in after —— use to and 
+    /// from up 。`capture` empty when to （
+    /// that 1 ）： in `ForwardStream` before ， in this up ，otherwise
+    /// will this 1 。
     pub fn into_stream(
         self,
         capture: Option<std::sync::Arc<crate::server::core::debug_traffic::TrafficCapture>>,
@@ -133,20 +133,20 @@ impl HeldHead {
     }
 }
 
-/// 一段（可能不完整的）SSE 文本里的 `data:` 载荷，逐帧交出来（**不解析**，
-/// 交出去的还是文本）。
+/// 1 （ can can not ）SSE `data:` ，（** not **，
+/// is ）。
 ///
-/// 只认**成对换行结束**的块里的 `data:` 行，且载荷要 trim 后以 `{` 开头 ——
-/// 尾部没结束的那半截不算一帧（当成一帧解析失败，会把「还没读到终帧」读成
-/// 「没有终帧」）。`[DONE]` 哨兵与注释行（`: keepalive`）跳过。
+/// ** for ** `data:` ， and need trim after `{` ——
+/// no that not 1 （ 1 failure， will 「 no to 」
+/// 「 no has 」）。`[DONE]` and （`: keepalive`）。
 ///
-/// 抽出来共用是有意的：本层的两条识别路径读的是**同一批字节** —— 「找
-/// `finish_reason`」（这里）与「攒出这一轮的正文/终帧」（`continuation` 的
-/// `TurnAccumulator`）。切帧口径写两份，就会出现一份算一帧、另一份算两帧的分歧，
-/// 而这种分歧只会表现为「偶尔少判一次 / 多判一次」，查不出根因。
+/// use is has ： path is ** 1 ** —— 「
+/// `finish_reason`」（ this ） and 「 this 1 /」（`continuation` 
+/// `TurnAccumulator`）。， will 1 1 、 1 ，
+/// this will as 「 1 / 1 」， not 。
 ///
-/// 它对 `core::upstream` 内部可见（`pub(super)`）而不是全开：切帧口径是这一层的
-/// 私有约定，外层不该按它解析字节。
+/// for `core::upstream` can （`pub(super)`） not is ： is this 1 
+/// has ， not this by 。
 pub(super) fn frame_payloads(text: &str) -> impl Iterator<Item = &str> {
     text.split("\n\n")
         .flat_map(|block| block.lines())
@@ -155,11 +155,11 @@ pub(super) fn frame_payloads(text: &str) -> impl Iterator<Item = &str> {
         .filter(|data| !data.is_empty() && *data != "[DONE]" && data.starts_with('{'))
 }
 
-/// 从一段（可能不完整的）SSE 文本里找**第一个**非空 `choices[].finish_reason`。
+/// from 1 （ can can not ）SSE ** 1 **empty `choices[].finish_reason`。
 ///
-/// 切帧口径见 [`frame_payloads`]（与本模块的预读窗口、`continuation` 的判定同源）。
+/// [`frame_payloads`]（ and 、`continuation` ）。
 ///
-/// 大小写保留原值（判定由适配器按大小写不敏感比较）；非 JSON 帧跳过。
+/// （ by by not ）； JSON 。
 pub fn scan_finish_reason(text: &str) -> Option<String> {
     for data in frame_payloads(text) {
         let Ok(frame) = serde_json::from_str::<Value>(data) else {
@@ -179,15 +179,15 @@ pub fn scan_finish_reason(text: &str) -> Option<String> {
     None
 }
 
-/// 把上游流拉到「能判定是否被拒」为止（见模块头）。
+/// up to 「 can is 」 as （module header）。
 ///
-/// 入参是**未消费**的 `reqwest::Response`（调用点在本函数之后不再需要它）：
-/// 状态码与响应头在这里取出，字节流被包上进空闲守卫（与 `ForwardStream::new`
-/// 同一件事，只是提前到这里 —— 预读期间上游卡住也不能把请求挂死）。
+/// is **** `reqwest::Response`（ use in after not need need ）：
+/// and response in this ， up empty（ and `ForwardStream::new`
+/// 1 ， is before to this —— up not can request）。
 pub async fn hold_head(response: reqwest::Response) -> HeldHead {
     let status = response.status().as_u16();
     let headers = response.headers().clone();
-    // 与 `ForwardStream::new` / 聚合器同款：reqwest 错误就地描述成文案折进 io::Error
+    // and `ForwardStream::new` / ：reqwest error io::Error
     let inner = response.bytes_stream().map(|item| {
         item.map_err(|error| {
             std::io::Error::other(crate::server::core::egress::describe_error_detail(&error))
@@ -201,7 +201,7 @@ pub async fn hold_head(response: reqwest::Response) -> HeldHead {
     let mut text = String::new();
     let mut finish_reason: Option<String> = None;
     loop {
-        // 先看已缓冲的字节里有没有终帧（一次读可能带来好几帧）
+        // already has no has （ 1 can can ）
         if let Some(reason) = scan_finish_reason(&text) {
             finish_reason = Some(reason);
             break;
@@ -210,7 +210,7 @@ pub async fn hold_head(response: reqwest::Response) -> HeldHead {
             break;
         }
         match source.next().await {
-            // 流结束 / 传输错误 / 空闲超时：拿不到结论 ⇒ 放行（fail-open，见模块头）
+            // / error / empty when ： not to ⇒ （fail-open，module header）
             None | Some(Err(_)) => break,
             Some(Ok(chunk)) => {
                 buffered.extend_from_slice(&chunk);
@@ -234,23 +234,23 @@ mod tests {
 
     #[test]
     fn scans_the_first_non_empty_finish_reason() {
-        // 普通流帧 finish_reason 为 null = 不算终结；终帧给出 stop
+        // finish_reason as null = not ； to stop
         let text = concat!(
             "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}\n\n",
             "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
         );
         assert_eq!(Some("stop".to_string()), scan_finish_reason(text));
-        // content_filter 原样取出（判定在适配器侧）
+        // content_filter （ in ）
         let text = "data: {\"choices\":[{\"delta\":{\"content\":\"x\"},\"finish_reason\":\"content_filter\"}]}\n\n";
         assert_eq!(Some("content_filter".to_string()), scan_finish_reason(text));
     }
 
     #[test]
     fn ignores_incomplete_trailing_frame_and_noise() {
-        // 尾部没结束的那行不算一帧（半截 JSON 不能解析），这里因此看不到 finish
+        // no that not 1 （ JSON not can ）， this not to finish
         let text = "data: {\"choices\":[{\"delta\":{\"content\":\"x\"},\"finish_reason\":\"content_fil";
         assert_eq!(None, scan_finish_reason(text));
-        // 只有 null / 空串 / 非 data 行 / [DONE]：都不算终结
+        // has null / empty / data / [DONE]： not 
         let text = concat!(
             ": keepalive\n\n",
             "data: {\"choices\":[{\"delta\":{\"content\":\"a\"},\"finish_reason\":\"\"}]}\n\n",
@@ -259,21 +259,21 @@ mod tests {
             "data: 不是一个 json\n\n",
         );
         assert_eq!(None, scan_finish_reason(text));
-        // 多个 choice、终结在第二个时也能取到
+        // choice、 in when can to 
         let text = "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":null},{\"index\":1,\"delta\":{},\"finish_reason\":\"length\"}]}\n\n";
         assert_eq!(Some("length".to_string()), scan_finish_reason(text));
     }
 
     #[test]
     fn scan_tolerates_real_chunk_shape_with_usage_tail() {
-        // 收尾 usage 帧（choices 空数组）不该打断扫描
+        // usage （choices empty） not this 
         let text = concat!(
             "data: {\"id\":\"c1\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"好\"},\"finish_reason\":\"content_filter\"}],\"usage\":null}\n\n",
             "data: {\"id\":\"c1\",\"choices\":[],\"usage\":{\"prompt_tokens\":711006,\"completion_tokens\":47}}\n\n",
             "data: [DONE]\n\n",
         );
         assert_eq!(Some("content_filter".to_string()), scan_finish_reason(text));
-        // 顺带钉住 usage 帧的形状不会误报
+        // usage not will 
         assert_eq!(
             None,
             scan_finish_reason("data: {\"choices\":[],\"usage\":{\"completion_tokens\":1}}\n\n")

@@ -1,4 +1,4 @@
-//! 图片编辑输入归一；上传只进内存，外链复用无凭证、DNS 固定的安全下载器。
+//! 1 ； up ， use none、DNS down 。
 
 use std::io::Cursor;
 use std::time::Duration;

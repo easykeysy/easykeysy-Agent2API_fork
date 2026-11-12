@@ -1,8 +1,8 @@
-/** 通用格式化与少量纯函数工具（无 React 依赖，页面与数据层共用） */
+/** use and （none React ， and use ） */
 
 import { upstreamCooldownOf } from '../../../ui-shared/account-upstream-state'
 
-/** 紧凑数字：1.2 万 / 3.4 亿；小于一万保留原样 */
+/** ：1.2 / 3.4 ； 1 */
 export function formatCompact(value: number): string {
   if (!Number.isFinite(value)) return '—'
   const abs = Math.abs(value)
@@ -11,25 +11,25 @@ export function formatCompact(value: number): string {
   return String(Math.round(value))
 }
 
-/** 千分位整数 */
+/** */
 export function formatInt(value: number): string {
   if (!Number.isFinite(value)) return '—'
   return Math.round(value).toLocaleString('zh-CN')
 }
 
-/** Token 数：走紧凑口径（报表与日志都用这一套，避免两页读数不一致） */
+/** Token ：（ and use this 1 ， not 1 ） */
 export function formatTokens(value: number): string {
   return formatCompact(value)
 }
 
-/** 百分比：输入 0~1 的比值或 0~100 的百分数由 `asRatio` 决定 */
+/** ： 0~1 or 0~100 by `asRatio` */
 export function formatPercent(value: number | null | undefined, digits = 1, asRatio = true): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—'
   const percent = asRatio ? value * 100 : value
   return `${percent.toFixed(digits)}%`
 }
 
-/** 毫秒 → 人类可读时长（1.2s / 860ms / 2m 05s） */
+/** ms → can when （1.2s / 860ms / 2m 05s） */
 export function formatDuration(ms: number | null | undefined): string {
   if (ms === null || ms === undefined || !Number.isFinite(ms) || ms < 0) return '—'
   if (ms < 1000) return `${Math.round(ms)}ms`
@@ -38,7 +38,7 @@ export function formatDuration(ms: number | null | undefined): string {
   return `${Math.floor(total / 60)}m ${String(total % 60).padStart(2, '0')}s`
 }
 
-/** 时间戳 → HH:MM:SS */
+/** when → HH:MM:SS */
 export function formatClock(ts: number | null | undefined): string {
   if (!ts) return '—'
   const date = new Date(ts)
@@ -46,7 +46,7 @@ export function formatClock(ts: number | null | undefined): string {
   return date.toLocaleTimeString('zh-CN', { hour12: false })
 }
 
-/** 时间戳 → MM-DD HH:MM */
+/** when → MM-DD HH:MM */
 export function formatStamp(ts: number | null | undefined): string {
   if (!ts) return '—'
   const date = new Date(ts)
@@ -57,7 +57,7 @@ export function formatStamp(ts: number | null | undefined): string {
   return `${month}-${day} ${time}`
 }
 
-/** 相对时间：3 分钟后 / 2 小时后 / 4 天后 */
+/** for when ：3 minutes after / 2 when after / 4 after */
 export function formatRelative(ts: number | null | undefined): string {
   if (!ts) return '—'
   const diff = ts - Date.now()
@@ -70,8 +70,8 @@ export function formatRelative(ts: number | null | undefined): string {
 }
 
 /**
- * 有效期读数：把「绝对时间戳」翻成手机上更好读的相对量。
- * 已过期返回「已过期」；缺失返回「—」。
+ * valid： 「 for when 」 up for 。
+ * expiredreturn「expired」；return「—」。
  */
 export function formatExpiry(ts: number | null | undefined): string {
   if (!ts) return '—'
@@ -82,19 +82,19 @@ export function formatExpiry(ts: number | null | undefined): string {
   return `${Math.round(diff / 86_400_000)} 天后`
 }
 
-/** 北京时间自然日的键（与后端签到日界同一口径） */
+/** when （ and after to 1 ） */
 export function beijingDayKey(ts = Date.now()): string {
   const date = new Date(ts + 8 * 3_600_000)
   return date.toISOString().slice(0, 10)
 }
 
-/** 今天是否已经过某个时间戳（北京时间自然日） */
+/** is already when （ when ） */
 export function isToday(ts: number | null | undefined): boolean {
   if (!ts) return false
   return beijingDayKey(ts) === beijingDayKey()
 }
 
-/** 展示名优先采用网关快照，旧网关缺字段时回落原来的名字链。 */
+/** use ， old when 。 */
 export function accountName(account: {
   displayName?: string
   name?: string
@@ -105,14 +105,14 @@ export function accountName(account: {
   return account.displayName || account.name || account.nickname || account.email || account.id || '未命名'
 }
 
-/** 脱敏：保留首尾各 3 个字符，中间用 • 代替 */
+/** ： 3 ， in use • */
 export function maskMiddle(text: string, keep = 3): string {
   const value = String(text || '')
   if (value.length <= keep * 2) return value
   return `${value.slice(0, keep)}${'•'.repeat(Math.min(8, value.length - keep * 2))}${value.slice(-keep)}`
 }
 
-/** 模型名太长时保留尾部（同名模型常靠尾缀区分） */
+/** when （） */
 export function ellipsisMiddle(text: string, max = 26): string {
   const value = String(text || '')
   if (value.length <= max) return value
@@ -122,12 +122,12 @@ export function ellipsisMiddle(text: string, max = 26): string {
 }
 
 /**
- * 账号**当前生效**的限流记录（`rateLimits[model]`，按恢复时间升序）。
+ * **current** （`rateLimits[model]`， by when ）。
  *
- * 口径与后端 `routing::rate_limit_reset_at`、桌面端 `activeLimits()` 一致：
- * 只有 `resetAt` 在**未来**才算限流；记录还在但已过期 = 冷却自然结束，
- * 不该再显示成「限流」。后端从不主动清理过期记录，所以这里必须自己过滤 ——
- * 只判断「有没有键」会把所有历史限流过的账号永远标红。
+ * and after `routing::rate_limit_reset_at`、 `activeLimits()` 1 ：
+ * has `resetAt` in ****； in expired = ，
+ * not this 「」。 after from not ， this must ——
+ * 「 has no has 」 will all 。
  */
 export function activeLimits(account: {
   rateLimits?: Record<string, { resetAt?: number; status?: number | string; code?: string | number; message?: string }>
@@ -141,7 +141,7 @@ export function activeLimits(account: {
     .sort((a, b) => a.resetAt - b.resetAt)
 }
 
-/** 账号此刻是否处于限流中（与 {@link activeLimits} 同一口径） */
+/** is in （ and {@link activeLimits} 1 ） */
 export function isRateLimited(account: {
   upstreamCooldownUntil?: number | null
   upstreamBlockedReason?: string

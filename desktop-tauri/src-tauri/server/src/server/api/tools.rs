@@ -1,14 +1,14 @@
-//! 工具服务管理 API（`/api/tools/*`，挂 protected）。
+//! 工具服务管理 API（`/api/tools/*`， protected）。
 //!
-//! - 「服务 × 协议」清单 / 开关 / 执行超时；
-//! - 四家搜索提供商的密钥管理（只回 configured / key_hint，不回明文）、
-//!   搜索 / 抓取提供商选择、连通性测试；
-//! - 视觉分析的提供商 + 模型 + 思考等级 + 内部 Key 配置与测试；
-//! - 本机接入：安装 / 卸载 Skill 与 MCP 配置，安装目标探测；
-//! - 视觉本地桥接脚本的下载（面板安装时直接取用）。
+//! - 「 × 」 / / when ；
+//! - （ configured / key_hint， not ）、
+//! / 、；
+//! - + + etc + Key config and ；
+//! - ： / Skill and MCP config，；
+//! - down （ when use ）。
 //!
-//! 运行时端点（`/skill/web-search*`、`/mcp/*`、`/api/web-search*`）在
-//! `api::tool_runtime`，它们自己校验网关 Key，不走这里的面板鉴权。
+//! when （`/skill/web-search*`、`/mcp/*`、`/api/web-search*`） in 
+//! `api::tool_runtime`， Key， not this 。
 
 use std::collections::HashMap;
 
@@ -29,11 +29,11 @@ fn text_field<'a>(object: &'a serde_json::Map<String, Value>, key: &str) -> &'a 
     object.get(key).and_then(Value::as_str).map(str::trim).unwrap_or("")
 }
 
-/// 网关基址：优先取请求 Host（客户端看到的就是它要填的地址），没有则回环。
+/// ：request Host（client to is need ）， no has then 。
 ///
-/// 分端口形态（`panel_port` 有值）下面板与网关不在同一端口：管理请求来自面板
-/// 端口，但 Skill / MCP / 视觉回环要访问的是网关端口，所以把 Host 里的端口换成
-/// `state.port` 再拼。单端口形态原样使用 Host（保留反代映射的域名与端口）。
+/// （`panel_port` has ） down and not in 1 ：request
+/// ， Skill / MCP / need is ， Host 
+/// `state.port` 。 use Host（ and ）。
 fn base_url(headers: &HeaderMap, state: &ServerState) -> String {
     let host = headers
         .get(header::HOST)
@@ -50,7 +50,7 @@ fn base_url(headers: &HeaderMap, state: &ServerState) -> String {
     format!("{scheme}://{host}")
 }
 
-/// 把 Host 里的端口换成指定端口（IPv6 的方括号形态单独处理）
+/// Host （IPv6 ）
 fn with_port(host: &str, port: u16) -> String {
     if let Some(stripped) = host.strip_prefix('[') {
         if let Some(end) = stripped.find(']') {
@@ -65,7 +65,7 @@ fn with_port(host: &str, port: u16) -> String {
     }
 }
 
-/* ─── 服务 × 协议 ─────────────────────────────────────────── */
+/* ─── × ─────────────────────────────────────────── */
 
 /// GET /api/tools/servers?protocol=skill|mcp
 pub async fn get_servers(Query(query): Query<HashMap<String, String>>) -> Response {
@@ -127,7 +127,7 @@ pub async fn patch_server(Path(id): Path<String>, body: Bytes) -> Response {
     ok_json(tool_services::service_info(&id, protocol))
 }
 
-/* ─── 搜索提供商 ───────────────────────────────────────────── */
+/* ─── ───────────────────────────────────────────── */
 
 pub async fn get_providers(State(state): State<ServerState>) -> Response {
     ok_json(tool_services::list_providers(state.store()).await)
@@ -210,7 +210,7 @@ pub async fn test_provider(State(state): State<ServerState>, Path(provider): Pat
     ok_json(tool_services::test_provider(state.store(), &provider).await)
 }
 
-/* ─── 视觉分析 ─────────────────────────────────────────────── */
+/* ─── ─────────────────────────────────────────────── */
 
 pub async fn get_vision_config() -> Response {
     ok_json(json!({
@@ -219,7 +219,7 @@ pub async fn get_vision_config() -> Response {
     }))
 }
 
-/// GET /api/tools/api-keys —— 「本机接入」下拉用的可用网关 Key（只回 id/name/掩码）
+/// GET /api/tools/api-keys —— 「」 down use available Key（ id/name/）
 pub async fn list_api_keys() -> Response {
     let keys: Vec<Value> = api_keys::list()
         .into_iter()
@@ -258,7 +258,7 @@ pub async fn put_vision_config(State(state): State<ServerState>, body: Bytes) ->
         return errors::management_error(400, "请选择内部调用 API Key");
     }
 
-    // 提供商与模型从模型管理的当前视图里取：只接受「这家、这个已启用的模型」
+    // and from current：「 this 、 this already enabled 」
     let view = catalog::manage_view(&state.store());
     let provider_label = view
         .get("providers")
@@ -314,7 +314,7 @@ pub async fn test_vision(State(state): State<ServerState>, headers: HeaderMap) -
     ok_json(tool_services::test_vision(&base_url(&headers, &state)).await)
 }
 
-/* ─── 本机接入 ─────────────────────────────────────────────── */
+/* ─── ─────────────────────────────────────────────── */
 
 /// GET /api/tools/install-targets?service=web-search&protocol=skill|mcp
 pub async fn install_targets(Query(query): Query<HashMap<String, String>>) -> Response {
@@ -496,7 +496,7 @@ pub async fn uninstall_mcp(body: Bytes) -> Response {
     ok_json(outcomes_json(tool_services::uninstall_mcp(service, &clients)))
 }
 
-/// GET /api/tools/mcp-bridge/vision.js —— 视觉本地桥接脚本（文本）
+/// GET /api/tools/mcp-bridge/vision.js —— （）
 pub async fn vision_bridge_script() -> Response {
     (
         [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],

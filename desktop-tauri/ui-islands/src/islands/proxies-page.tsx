@@ -1,4 +1,4 @@
-/** 网络代理页：手动 HTTP / SOCKS5 地址与 Clash Verge 同步端点。 */
+/** ： HTTP / SOCKS5 and Clash Verge 。 */
 
 import * as React from 'react'
 import { mountOnPage } from '../island-lazy'

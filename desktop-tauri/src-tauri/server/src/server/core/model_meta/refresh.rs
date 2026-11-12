@@ -1,27 +1,27 @@
-//! models.dev 的联网刷新：拉两份官方 JSON → 压成同一个精简索引 → 落库并换内存。
+//! models.dev new ： JSON → 1 → and 。
 //!
-//! ── 压缩口径的唯一事实来源在脚本里 ──────────────────────────
-//! 索引的文件形态由 `scripts/sync-modelsdev.mjs` 定义（内嵌快照就是它产出的），
-//! 本模块是那份口径的**运行期孪生实现**：同一套「收录哪些模型 / 档位取哪一条 /
-//! 索引键怎么归一」。两处必须逐字一致 —— 分叉的症状是「刷新一次之后档位全变回
-//! 通用表」，不报错、不抛异常，只是悄悄退化。改这里就要改那边，反之亦然。
+//! ── 1 in ──────────────────────────
+//! file by `scripts/sync-modelsdev.mjs` （ is ），
+//! is that ****： 1 「 / 1 /
+//! 1 」。must 1 —— is 「 new 1 after 
+//! use 」， not 、 not ， is 。 this need that ，。
 //!
-//! ── 为什么运行期还要再拉一次（已有内嵌快照）─────────────────
-//! 内嵌快照是发版那一刻的数据。models.dev 是社区库，新模型与档位调整都在持续
-//! 发生，而我们的上游清单是实时刷新的 —— 只用内嵌快照就会出现「上游已经上了
-//! 新模型、元数据里却没有它」。因此与各家模型目录同一节奏：定时刷新 + 手动可
-//! 提前，成功即覆盖，失败保留旧值（不退回更旧的内嵌快照）。
+//! ── Why need 1 （ already has ）─────────────────
+//! is that 1 。models.dev is ， new and in 
+//! ， up is when new —— use will 「 up already up 
+//! new 、 no has 」。 and directory 1 ： when new + can 
+//! before ，success，failure old （ not old ）。
 //!
-//! ── 出网走公网那条链路（不新增配置键）───────────────────────
-//! `update::client::fetch_public` —— 与「软件更新」同一条出口解析（设置的更新
-//! 出口 > Clash 混合端口 > 直连）。它回答的问题就是「这台机器的公网怎么出去」，
-//! 与访问哪个公网站点无关；为 models.dev 单开一个出口设置只会多一个没人配、
-//! 出问题时又必须配对的旋钮。
+//! ── that （ not addconfig）───────────────────────
+//! `update::client::fetch_public` —— and 「update」 1 （set update
+//! > Clash > ）。 is 「 this 」，
+//! and none； as models.dev 1 set will 1 no 、
+//! when must for 。
 //!
-//! ── 排期与失败冷却 ──────────────────────────────────────────
-//! 与各家目录刷新共用 `task_state` 的那套：键 `modelRefresh:modelsdev`、间隔取
-//! 「模型目录刷新」任务配置的间隔、失败按 `task_state` 的指数退避冷却、手动触发
-//! 越过冷却（`ManualBackoff::Bypass`：用户按按钮往往正是刚把网络问题修好）。
+//! ── and failure ──────────────────────────────────────────
+//! and directory new use `task_state` that ： `modelRefresh:modelsdev`、
+//! 「directory new 」config 、failure by `task_state` 、
+//! （`ManualBackoff::Bypass`： use by by is ）。
 
 use std::collections::HashMap;
 
@@ -37,25 +37,25 @@ use super::snapshot::{self, Record, Snapshot};
 const API_URL: &str = "https://models.dev/api.json";
 const MODELS_URL: &str = "https://models.dev/models.json";
 
-/// 单次请求总超时（api.json 有几 MB，给足一分钟；超时即失败、不产半份索引）。
+/// requesttotal when （api.json has MB， to 1 minutes； when failure、 not ）。
 const REQUEST_TIMEOUT_MS: u64 = 60_000;
 
-/// 两次刷新之间的最小间隔（防连点 / 防两个进程并排打；手动也不越过）。
+/// new （ / and ； not ）。
 const MIN_GAP_MS: i64 = 5_000;
 
-/// 排期键（`task_state`）：与各家的 `modelRefresh:<provider>` 同一命名空间，
-/// 于「重置模型刷新间隔」时能被一并重排（见 `providers::catalog_refresh::reschedule`）。
+/// （`task_state`）： and `modelRefresh:<provider>` 1 empty，
+/// 「 new 」 when can 1 and （ `providers::catalog_refresh::reschedule`）。
 pub(crate) const SCHEDULE_SCOPE: &str = "modelsdev";
 
-/// 刷新一次并把结果包成**一行**（字段与各家目录刷新的结果行同形，见
-/// `providers::adapter::refresh_implemented_forced` 的模块头）。
+/// new 1 and ** 1 **（ and directory new ，
+/// `providers::adapter::refresh_implemented_forced` module header）。
 ///
-/// `interval_ms` 是本轮之后要排的间隔（调用方从「模型目录刷新」任务的配置读，
-/// 与各家目录刷新共用同一个间隔旋钮）。
+/// `interval_ms` is after need （ use from 「directory new 」 config，
+/// and directory new use 1 ）。
 pub async fn refresh(manual: bool, interval_ms: i64) -> Value {
     let mut row = json!({
-        // 伪 provider：它不是一家提供商（没有账号、没有上游目录），但结果行沿用
-        // 与各家目录刷新同一套字段，界面才能用同一套徽章渲染（见 `api::model_meta`）。
+        // provider： not is 1 （ no has 、 no has up directory）， use 
+        // and directory new 1 ， can use 1 （ `api::model_meta`）。
         "provider": SCHEDULE_SCOPE,
         "providerLabel": "models.dev 模型库",
         "refreshedAt": snapshot::origin().1,
@@ -76,9 +76,9 @@ pub async fn refresh(manual: bool, interval_ms: i64) -> Value {
         Ok(Claim::Acquired(guard)) => guard,
         Ok(Claim::Deferred(state)) => {
             row["status"] = json!("skipped");
-            // 手动触发越过冷却（`ManualBackoff::Bypass`），这时再说「冷却中」
-            // 会与「按钮其实能立刻重试」自相矛盾 —— 与各家目录刷新同一口径，
-            // 见 `providers::catalog_refresh::deferred_message` 的说明。
+            // （`ManualBackoff::Bypass`）， this when 「 in 」
+            // will and 「 by its can 」 —— and directory new 1 ，
+            // `providers::catalog_refresh::deferred_message` 。
             row["message"] = json!(if state.retry_at > logging::now_ms() || state.running() {
                 if manual { state.waiting_message_bypassing() } else { state.waiting_message() }
             } else {
@@ -114,8 +114,8 @@ pub async fn refresh(manual: bool, interval_ms: i64) -> Value {
     row
 }
 
-/// 拉两份官方 JSON 并压成索引。失败时返回**给用户看的原因**（不抛错：这条链路
-/// 的每一处失败都已经是一条界面文案，再包一层错误类型没有额外信息）。
+/// JSON and 。failure when return** to use Reason**（ not ： this 
+/// 1 failure already is 1 ， 1 error no has ）。
 async fn fetch_and_reduce() -> Result<(Snapshot, usize), String> {
     let (api, models) = tokio::try_join!(fetch_json(API_URL), fetch_json(MODELS_URL))?;
     let built = reduce(&api, &models).ok_or_else(|| "models.dev 返回的模型条目为空".to_string())?;
@@ -136,10 +136,10 @@ async fn fetch_json(url: &str) -> Result<Value, String> {
     response.json::<Value>().await.map_err(|error| format!("{url} 响应不是合法 JSON：{error}"))
 }
 
-/// 两份官方 JSON → 精简索引（与 `scripts/sync-modelsdev.mjs` 逐字同口径）。
+/// JSON → （ and `scripts/sync-modelsdev.mjs` ）。
 fn reduce(api: &Value, models: &Value) -> Option<Snapshot> {
     let mut index: HashMap<String, Record> = HashMap::new();
-    // ① canonical 条目的能力位与上下限
+    // ① canonical can and up down 
     for (canonical, entry) in models.as_object()? {
         if !is_chat_model(entry) {
             continue;
@@ -168,7 +168,7 @@ fn reduce(api: &Value, models: &Value) -> Option<Snapshot> {
             },
         );
     }
-    // ② provider 条目的命名档位（lab 家优先，其次 provider id 字典序）
+    // ② provider （lab ， its provider id ）
     let mut picks: HashMap<String, (Vec<String>, bool)> = HashMap::new();
     let mut providers: Vec<(&String, &Value)> = api.as_object()?.iter().collect();
     providers.sort_by(|(left, _), (right, _)| left.cmp(right));
@@ -188,7 +188,7 @@ fn reduce(api: &Value, models: &Value) -> Option<Snapshot> {
             let Some(levels) = effort_levels(entry) else { continue };
             let is_lab = canonical.split('/').next() == Some(provider_id.as_str());
             match picks.get(&key) {
-                // 实验室自述的那条优先；两条都不是 lab 时按 provider 名序取第一条
+                // that ； not is lab when by provider 1 
                 Some((_, true)) => continue,
                 Some((_, false)) if !is_lab => continue,
                 _ => picks.insert(key, (levels, is_lab)),
@@ -206,7 +206,7 @@ fn reduce(api: &Value, models: &Value) -> Option<Snapshot> {
     Some(Snapshot::new(index, logging::now_ms(), "network"))
 }
 
-/// 正整数上限，其余（0 / 负数 / 小数 / 非数字）→ `None`（=「这份数据没说」）。
+/// limit， its （0 / / / ）→ `None`（=「 this no 」）。
 fn limit_of(value: Option<&Value>) -> Option<u64> {
     let number = value?.as_f64()?;
     if !number.is_finite() || number < 1.0 {
@@ -215,7 +215,7 @@ fn limit_of(value: Option<&Value>) -> Option<u64> {
     Some(number.trunc() as u64)
 }
 
-/// 只收录**能出文本**的对话模型（embedding / reranking / 生图生视频都不要）。
+/// ** can ** for （embedding / reranking / not need ）。
 fn is_chat_model(entry: &Value) -> bool {
     if let Some(kind) = entry.get("type").and_then(Value::as_str) {
         if kind != "chat" {
@@ -228,8 +228,8 @@ fn is_chat_model(entry: &Value) -> bool {
     }
 }
 
-/// 从一条 provider 条目里读**命名档位**；只有 `effort` 那一种形态算数
-/// （`toggle` / 空数组 = 没给命名档位 → `None`，网关侧回落通用表）。
+/// from 1 provider ****； has `effort` that 1 
+/// （`toggle` / empty = no to → `None`， use ）。
 fn effort_levels(entry: &Value) -> Option<Vec<String>> {
     let options = entry.get("reasoning_options").and_then(Value::as_array)?;
     let effort = options

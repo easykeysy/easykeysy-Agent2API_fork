@@ -1,4 +1,4 @@
-/** 账号设置、分组设置与批量操作弹窗的状态宿主。 */
+/** set、set and 。 */
 
 import { useSyncExternalStore } from 'react'
 import { closeDialog, getStore, subscribe } from './accounts-data'

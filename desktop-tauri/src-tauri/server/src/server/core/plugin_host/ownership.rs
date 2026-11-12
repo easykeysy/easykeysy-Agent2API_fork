@@ -45,7 +45,7 @@ pub(super) fn owners_with(registry: &PackRegistry, prepared: Option<&InstalledPa
             owners.entry(provider).or_insert_with(|| pack.id.clone());
         }
     }
-    // 旧包仍包含 chatglm 时，新包接管后不得因停用或加载失败回退到旧执行体。
+    // old chatglm when ， new after not disabled or failure to old 。
     if registry.packs.iter().any(|pack| pack.id == WEB_PACK_ID) {
         owners.insert("chatglm".to_string(), WEB_PACK_ID.to_string());
     }

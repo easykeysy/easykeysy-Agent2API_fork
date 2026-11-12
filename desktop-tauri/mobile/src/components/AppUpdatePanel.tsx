@@ -28,31 +28,31 @@ import { Card, Button } from '@ui'
 import { Switch as UiSwitch } from '@ui'
 
 /**
- * 应用内更新面板（Android / iOS 共用，行为按平台分叉）。
+ * use update（Android / iOS use ， as by ）。
  *
- * ── 状态机 ──────────────────────────────────────────────────────
+ * ── ──────────────────────────────────────────────────────
  *   idle → checking → (up-to-date | available) → downloading → downloaded
- * 任一步失败回落到 idle 并给错误提示。
+ * 1 failure to idle and to error。
  *
- * ── iOS 为什么只有「去下载」 ────────────────────────────────────
- * 苹果不允许 App 自行下载并安装可执行代码，IPA 只能由系统装（App Store /
- * TestFlight / 侧载工具）。所以 iOS 上这个面板到「发现新版本」为止，动作
- * 按钮改成打开 GitHub Release 页面，由用户自己选渠道 —— 不渲染下载进度条
- * 与「安装」按钮，避免给一个必然失败的承诺。
+ * ── iOS Why has 「 down 」 ────────────────────────────────────
+ * not App down and can ，IPA can by （App Store /
+ * TestFlight / ）。 iOS up this to 「 new 」 as ，
+ * by GitHub Release ， by use —— not down 
+ * and 「」 by ， to 1 failure 。
  *
- * ── 自动检查 ────────────────────────────────────────────────────
- * 挂载时按电脑端配置的间隔轮询检查（间隔读 `/api/scheduled-tasks` 的
- * `updateCheck` 条目，见 lib/appUpdate）。页面不可见时停表 —— 与各列表页的
- * 轮询同一套可见性规则，手机上不该在后台耗流量。
+ * ── check ────────────────────────────────────────────────────
+ * when by config check（ `/api/scheduled-tasks` 
+ * `updateCheck` ， lib/appUpdate）。 not can when —— and 
+ * 1 can then ， up not this in after 。
  *
- * ── 为什么「已下载」要单独一档 ──────────────────────────────────
- * 用户下完包、跳去授权、再回来时组件会重新挂载 —— 如果只按内存状态判断，
- * 界面会回到「有新版本」让他重下一遍（几十 MB）。所以挂载时问一次原生
- * `downloaded()`，有包就直接进「待安装」。
+ * ── Why「 already down 」 need 1 ──────────────────────────────────
+ * use down 、、 when will new —— if by ，
+ * will to 「 has new 」 down 1 （ MB）。 when 1 
+ * `downloaded()`， has 「」。
  *
- * ── 授权顺序 ────────────────────────────────────────────────────
- * 先下载再要授权：下载不需要任何权限，而授权会跳走系统设置页 —— 先要权限
- * 再下载，用户跳回来时下载还没开始，体验是断的。
+ * ── ────────────────────────────────────────────────────
+ * down need ： down not need need ， will set —— need 
+ * down ， use when down no ， is 。
  */
 type Phase = 'idle' | 'checking' | 'latest' | 'available' | 'downloading' | 'downloaded'
 
@@ -66,12 +66,12 @@ export function AppUpdatePanel() {
   const [settingsRevision, setSettingsRevision] = useState(0)
   const channelRevision = useRef(0)
   const checkInFlight = useRef(false)
-  /** 自动检查的间隔（0 = 网关关了这条任务） */
+  /** check （0 = this ） */
   const [interval, setIntervalMs] = useState(0)
-  /** 当前壳能不能自装安装包：只有 Android 能（见 lib/appUpdate） */
+  /** current can not can ： has Android can （ lib/appUpdate） */
   const selfUpdate = canSelfUpdate()
 
-  // 挂载时先看缓存里有没有上次下好的包（iOS 上恒为 false）
+  // when has no has up down （iOS up as false）
   useEffect(() => {
     let cancelled = false
     void hasDownloadedApk().then(result => {
@@ -83,10 +83,10 @@ export function AppUpdatePanel() {
   }, [])
 
   /**
-   * 自动检查：间隔读电脑端配置，页面不可见时停表。
+   * check：config， not can when 。
    *
-   * 为什么把 interval 放进依赖：用户在电脑端改了间隔，手机端下次进来就该
-   * 按新间隔走 —— 组件重挂时重新读一次即可（设置页每次进入都会重挂）。
+   * Why interval ： use in ， down this 
+   * by new —— when new 1 can （set will ）。
    */
   useEffect(() => {
     let disposed = false
@@ -127,15 +127,15 @@ export function AppUpdatePanel() {
       clear()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-    // 设置变更后重读全局检查计划；本机开关只决定是否启动轮询。
+    // set after check； is 。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, settingsRevision])
 
-  // 避免自动检查覆盖用户正在进行的下载 / 已下载待安装
+  // check use in down / already down 
   const phaseRef = useRef(phase)
   phaseRef.current = phase
 
-  /** `silent` = 自动检查：失败不弹错误、不打断当前状态 */
+  /** `silent` = check：failure not error、 not current */
   const runCheck = async (silent = false) => {
     const current = phaseRef.current
     if (current === 'downloading' || current === 'downloaded' || checkInFlight.current) return
@@ -150,8 +150,8 @@ export function AppUpdatePanel() {
       const result = await checkApkUpdate()
       if (revision !== channelRevision.current) return
       setInfo(result)
-      // hasUpdate 为 null = 版本无法比较（上游 tag 不是 semver）；
-      // 这时只要挂了 APK 就允许手动更新，而不是卡在「未知」上
+      // hasUpdate as null = none（ up tag not is semver）；
+      // this when need APK update， not is in 「unknown」 up 
       const canUpdate = result.hasUpdate === true || (result.hasUpdate === null && result.asset !== null)
       setPhase(prev => (prev === 'downloading' || prev === 'downloaded' ? prev : canUpdate ? 'available' : 'latest'))
     } catch (failure) {
@@ -168,8 +168,8 @@ export function AppUpdatePanel() {
   const download = async () => {
     const url = info?.asset?.url
     if (!url) {
-      // 手机端要的包固定是 `.apk`（后端按后缀挑，见 pick_android_apk）——
-      // 原因与桌面端同一处口径，只是「本机要什么」这一项换成 apk
+      // need is `.apk`（ after by after ， pick_android_apk）——
+      // Reason and 1 ， is 「 need 」 this 1 apk
       setError(t('这一版没有提供 Android 安装包：{reason}', {
         reason: assetMissingReason(info?.assetProbe, { fallbackSuffix: '.apk' }, t),
       }))
@@ -195,7 +195,7 @@ export function AppUpdatePanel() {
     setBusy(true)
     setError('')
     try {
-      // 先确认授权：没有的话跳到系统设置页，回来后用户再点一次安装
+      // ： no has to set， after use 1 
       if (!(await canInstallApk())) {
         store.toast(t('请允许安装未知来源应用后重试'))
         await openInstallPermission()
@@ -218,10 +218,10 @@ export function AppUpdatePanel() {
   }
 
   /**
-   * iOS 的「更新」只能跳转：打开 GitHub Release 页面，由用户自己选渠道
-   * （TestFlight / App Store / 侧载）。`pageUrl` 是网关从 GitHub API 拿到的
-   * release 页面地址，没有它时退回**源码仓库**的 releases 列表 —— 构建账号
-   * （安装包实际存放处）不是项目地址，不能拿来当兜底。
+   * iOS 「update」 can ： GitHub Release ， by use 
+   * （TestFlight / App Store / ）。`pageUrl` is from GitHub API to 
+   * release ， no has when **** releases —— 
+   * （） not is ， not can 。
    */
   const openReleasePage = () => {
     const target = info?.pageUrl || 'https://github.com/aimod-cc/Agent2API/releases'
@@ -285,7 +285,7 @@ export function AppUpdatePanel() {
               {t('当前下载通道：{source}', { source: progress.source })}
             </div> : null}
 
-            {/* 进度条：总长度未知（percent = null）时不画，只显示已下载量 */}
+            {/* ：totalunknown（percent = null） when not ， already down */}
             {phase === 'downloading' ? (
               <div style={{ marginTop: 8 }}>
                 <UiProgress value={percent} aria-label={t('下载进度')} />
@@ -305,7 +305,7 @@ export function AppUpdatePanel() {
             ) : null}
           </div>
 
-          {/* 动作按钮：按状态给唯一的主动作，避免一屏好几个可点的东西 */}
+          {/* by ： by to 1 ， 1 can */}
           {phase === 'downloading' ? (
             <Button size='touch-sm' variant='outline' type='button' className='m-btn m-ghost m-sm' onClick={() => void stop()}>
               {t('取消')}
@@ -315,7 +315,7 @@ export function AppUpdatePanel() {
               {t('安装')}
             </Button>
           ) : phase === 'available' && !selfUpdate ? (
-            // iOS：只能跳出去，由系统渠道安装
+            // iOS： can ， by 
             <Button size='touch-sm' variant='default' type='button' className='m-btn m-sm' onClick={openReleasePage}>
               {t('去下载')}
             </Button>
@@ -335,7 +335,7 @@ export function AppUpdatePanel() {
           )}
         </div>
 
-        {/* 更新说明：有内容才展开，避免空卡片 */}
+        {/* update： has ，empty */}
         {info?.notes && (phase === 'available' || phase === 'downloaded') ? (
           <div
             style={{
@@ -354,7 +354,7 @@ export function AppUpdatePanel() {
           </div>
         ) : null}
 
-        {/* 自动检查开关：间隔跟电脑端一致，这里只控制「这台手机查不查」 */}
+        {/* check： 1 ， this 「 this not 」 */}
         <div className='m-row' style={{ borderTop: '1px solid var(--m-line)' }}>
           <span className='m-logo'>
             <Icon name='refresh' />

@@ -1,44 +1,44 @@
-//! 网关配置在 `kv` 表里的**行级读写** —— 本模块唯一出现 SQL 的地方。
+//! config in `kv` **** —— 1 SQL 。
 //!
-//! ── 映射关系：一个顶层键一行 ────────────────────────────────
-//! 改造前配置是 `{config_dir}/config.json` 的一整份 JSON 对象；现在它的每个
-//! **顶层键**就是 `kv` 表的一行（键名与配置文件里的一字不差），值是该键那段
-//! JSON 文本。于是：
-//!   - 读 = 一次全取，跳过 `is_reserved` 的那些键（那些是别的模块的状态，
-//!     见 `db::schema` 的键命名规范）；
-//!   - 写 = 一个事务里「逐键 UPSERT + 删掉新配置里已经没有的键」。
-//! 为什么整份配置不塞进**一个** `kv` 行（比如 `config: {...}`）：配置的顶层
-//! 键同时是 HTTP API 的契约，也是别的模块单独读写的单元（`core::auto_checkin`
-//! 只碰 `autoCheckin`、`core::model_rules` 只碰 `modelRules`）—— 拆成一行一
-//! 键之后，这些模块的读改写互不干扰；整份塞一行则每次都要「读整份 → 改一项
-//! → 写回整份」，任何一处忘记先读就会把别人的配置抹掉（那正是 `update()` 现在
-//! 靠纪律维持、进库后可以直接由 UPSERT 规避的事）。
+//! ── ： 1 1 ────────────────────────────────
+//! before config is `{config_dir}/config.json` 1 JSON for ； in 
+//! **** is `kv` 1 （ and configfile 1 not ）， is this that 
+//! JSON 。 is ：
+//! - = 1 ， `is_reserved` that （ that is ，
+//! `db::schema` ）；
+//! - = 1 「 UPSERT + new config already no has 」。
+//! Whyconfig not ** 1 ** `kv` （e.g. `config: {...}`）：config 
+//! when is HTTP API ， is （`core::auto_checkin`
+//! `autoCheckin`、`core::model_rules` `modelRules`）—— 1 1 
+//! after ， this not ； 1 then need 「 → 1 
+//! → 」， 1 will config（ that is `update()` in 
+//! 、 after can by UPSERT ）。
 //!
-//! ── 值的形态 ────────────────────────────────────────────────
-//! `kv.value` 里存的就是那段 JSON（标量存 `30`、对象存 `{...}`、字符串存
-//! `"zh-CN"`），与 `config.json` 里的写法一一对应 —— 排障时把库里的值直接
-//! 贴进配置文件就能比对（约定见 `db::schema` 模块头）。
+//! ── ────────────────────────────────────────────────
+//! `kv.value` is that JSON（ `30`、 for `{...}`、
+//! `"zh-CN"`）， and `config.json` 1 1 for —— when 
+//! configfile can for （ `db::schema` module header）。
 //!
-//! ── 为什么一半函数收 `&Connection`、一半收 `&Db` ─────────────
-//! 同一套 SQL 有两个调用方，入口形态不同：
-//!   - **运行期**（`load` / `save_raw`）手里是 `Db`，要走 `Db::with` 拿锁；
-//!   - **迁移项**（`db::migrate::config`）拿到的是 `&Connection`（框架签名
-//!     如此，且它自己开事务）。
-//! `*_conn` 后缀的那组是**实际实现**（裸连接，在调用方的锁/事务里跑），
-//! 不带后缀的是运行期的薄包装（只取锁、把错误换成上层要的形状）。两处走同一份
-//! SQL，于是「迁移进来的配置」与「运行期读到的配置」不可能因为实现分叉而漂移
-//! （与 `request_stats` 同一取舍）。
+//! ── Why 1 `&Connection`、 1 `&Db` ─────────────
+//! 1 SQL has use ， not ：
+//! - ****（`load` / `save_raw`） is `Db`， need `Db::with` ；
+//! - ****（`db::migrate::config`） to is `&Connection`（
+//! ， and ）。
+//! `*_conn` after that is ****（， in use /），
+//! not after is （、 error up need ）。 1 
+//! SQL， is 「 config」 and 「 to config」 not can can as 
+//! （ and `request_stats` 1 ）。
 //!
-//! ── 「删除多余键」为什么只在 `write_conn` 里 ──────────────────
-//! 这是**运行期整份写**才有的语义（对应文件形态的「整文件覆盖」），
-//! 迁移是**导入**不是替换：迁移项用 [`import_conn`]，只做逐键 UPSERT。
-//! 完整论证见 `db::migrate::config` 的模块头（为什么导入不能带删除）。
+//! ── 「delete」Why in `write_conn` ──────────────────
+//! this is **** has （ for file 「file」），
+//! is **** not is ： use [`import_conn`]， UPSERT。
+//! `db::migrate::config` module header（Why not can delete）。
 //!
-//! ── 并发：本层不加锁、不打日志 ──────────────────────────────
-//! 所有函数取裸 `&Connection`，串行化由 `Db` 那把 Mutex 负责。**硬约束**：
-//! 持这把锁期间绝不能再调 `logging::log` / `verbose` —— 它们要写同一个库，
-//! `std::sync::Mutex` 不可重入，会当场死锁（本层所有函数都不打日志，
-//! 错误一律 `Err` 交回上层，由上层在锁外记）。
+//! ── and ： not 、 not ──────────────────────────────
+//! all `&Connection`， by `Db` that Mutex 。****：
+//! this not can `logging::log` / `verbose` —— need 1 ，
+//! `std::sync::Mutex` not can ， will （all not ，
+//! error 1 `Err` up ， by up in ）。
 
 use rusqlite::Connection;
 use serde_json::{Map, Value};
@@ -46,27 +46,27 @@ use serde_json::{Map, Value};
 use crate::server::db::schema;
 use crate::server::db::Db;
 
-/// 配置迁移的完成标记键（`db::migrate::config` 的幂等闸门）。
+/// config （`db::migrate::config` etc ）。
 ///
-/// 与 `settings` 那种「目标键在不在」的闸门不同 —— 这里**必须**用标记：
-/// 配置项是**开放集合**（任何顶层键都算），没法问「配置迁过了没有」——
-/// 「库里非保留键非空」既可能是迁移来的，也可能是运行期写进来的，据此跳过会
-/// 把用户的旧配置永久留在文件里。
-/// T6 论证过「不用 `migratedXxx: true` 标记」，理由是「标记与数据可能不一致
-/// （标记写了但写入只落了一半）」—— 那条反对在这里**不成立**：标记与数据在
-/// **同一个事务**里落（见 [`import_conn`]），不存在「标记写了数据没进去」的
-/// 中间态。完整论证见 `db::migrate::config` 的模块头。
+/// and `settings` that 「 in not in 」 not —— this **must** use ：
+/// config is ****（）， no 「config no has 」——
+/// 「empty」 can can is ， can can is ， will 
+/// use old config in file。
+/// T6 「 not use `migratedXxx: true` 」， by is 「 and can can not 1 
+/// （ 1 ）」—— that for in this ** not **： and in 
+/// ** 1 **（ [`import_conn`]）， not in 「 no 」 
+/// in 。 `db::migrate::config` module header。
 pub(crate) const KEY_CONFIG_MIGRATED: &str = "configMigrated";
 
-/// 读出全部配置键（库里属于配置的那些行）。
+/// config（config that ）。
 ///
-/// 跳过 `is_reserved` 的键：`kv` 是**共享表**（账号的 `priorityScope`、日志的
-/// `logsNextId`、桌面设置 `desktopSettings`、两个迁移标记，以及**遗留**的
-/// `desensitize`（那个功能已删、数据留着）都在里面）。不排除它们的话，它们会被当成「配置里的未知字段」混进
-/// `raw` 底稿 —— 后果不只是 GET /api/config 多露出几个字段：下一次运行期整份写
-/// 会把这些键**当成配置项原样回写**，而整份写的删除语义是「库里也删掉」，
-/// 于是某次写配置就可能把别人的状态删掉或覆盖（`db::schema` 模块头讲的
-/// 「两类键名绝不能相撞」就是这条约束的另一面）。
+/// `is_reserved` ：`kv` is ****（ `priorityScope`、 
+/// `logsNextId`、set `desktopSettings`、 ， and **** 
+/// `desensitize`（ that can already 、） in ）。 not excluding ， will 「config unknown」
+/// `raw` —— after not is GET /api/config ： down 1 
+/// will this **config**， delete is 「」，
+/// is config can can or （`db::schema` module header 
+/// 「 not can 」 is this 1 ）。
 pub(crate) fn read_conn(conn: &Connection) -> rusqlite::Result<Map<String, Value>> {
     let mut statement = conn.prepare("SELECT key, value FROM kv")?;
     let rows = statement.query_map([], |row| {
@@ -78,9 +78,9 @@ pub(crate) fn read_conn(conn: &Connection) -> rusqlite::Result<Map<String, Value
         if schema::is_reserved(&key) {
             continue;
         }
-        // 值不是合法 JSON（手工改库、别的写入方用了别的编码）→ 跳过这一项
-        // 而不是整份配置作废：跳过最坏是「这一项回落到默认值」，
-        // 整份作废会让用户看到的所有配置一起变回默认。
+        // not is JSON（、 use ）→ this 1 
+        // not is config： is 「 this 1 to default」，
+        // will use to allconfig 1 default。
         let Some(value) = value else { continue };
         if let Ok(parsed) = serde_json::from_str::<Value>(&value) {
             raw.insert(key, parsed);
@@ -89,32 +89,32 @@ pub(crate) fn read_conn(conn: &Connection) -> rusqlite::Result<Map<String, Value
     Ok(raw)
 }
 
-/// 运行期整份写：**逐键 UPSERT + 删掉新配置里已经没有的键**，整批一个事务。
+/// ：** UPSERT + new config already no has **， 1 。
 ///
-/// ── 为什么必须删多余键（与文件形态的语义差异）────────────────
-/// 文件形态下这是一次「整文件覆盖」，`raw` 里没有的键自然就不在文件里了 ——
-/// 于是「删掉一个配置项」（`set_api_key(None)` 会 `raw.remove`）能生效。
-/// 进库后如果只做 UPSERT，那些被删掉的键会**留在库里**：
-/// 下一次启动读回来，用户会发现刚清掉的那项又回来了（而且删不掉）。
-/// 所以删除这一步是**语义等价所必需**的，不是清理洁癖。
+/// ── Whymust（ and file ）────────────────
+/// file down this is 1 「file」，`raw` no has not in file ——
+/// is 「 1 config」（`set_api_key(None)` will `raw.remove`） can 。
+/// after if UPSERT， that will ** in **：
+/// down 1 ， use will that （ and not ）。
+/// delete this 1 is ** etc required** ， not is 。
 ///
-/// ── 删除的边界：只删「非保留键」─────────────────────────────
-/// `schema::is_reserved` 为真的键不参与删除 —— 它们不属于配置。用「读出现有
-/// 键、在 Rust 里算差集、逐键删」而不是一条 `DELETE ... WHERE key NOT IN (…)`：
-/// 后者的排除列表要拼进 SQL，保留键一多就是动态 SQL；差集算法天然跟着
-/// `RESERVED_KV_KEYS` 走，加固定键时不必改 SQL。配置迁移的标记键也在保留集合里，
-/// 所以整份写不会把「已迁过」这个事实抹掉（否则下次启动会重导一遍旧文件）。
+/// ── delete ：「」─────────────────────────────
+/// `schema::is_reserved` as not and delete —— not config。 use 「 has 
+/// 、 in Rust 、」 not is 1 `DELETE ... WHERE key NOT IN (…)`：
+/// after excluding need SQL， 1 is SQL；
+/// `RESERVED_KV_KEYS` ， when not SQL。config in ，
+/// not will 「 already 」 this （otherwise down will 1 old file）。
 ///
-/// ── 事务边界（本模块最关键的一处）───────────────────────────
-/// 「多行 UPSERT + 删除」必须有原子性，否则中途失败会留下**半新半旧**的配置：
-/// 已写新值的那几项 + 还没轮到的旧值 + 该删没删的键。用户的感受是「保存之后
-/// 一部分设置生效了、另一部分没生效」，且无从判断哪部分是哪部分。文件形态下
-/// 不存在这个问题（一次 `fs::write` 覆盖），所以这是**改造引入的新要求**。
+/// ── （ 1 ）───────────────────────────
+/// 「 UPSERT + delete」must has ，otherwise in failure will down ** new old ** config：
+/// already new that + no to old + this no 。 use is 「 after 
+/// 1 set、 1 no 」， and none from is 。file down 
+/// not in this （ 1 `fs::write` ）， this is ** new need **。
 ///
-/// 用 `unchecked_transaction` 而不是 `transaction`：本函数要同时服务
-/// 「`Db::with` 给的 `&Connection`」与「迁移项给的 `&Connection`」两处，
-/// 而 `transaction()` 要 `&mut Connection`（理由与取舍见 `db::migrate` 模块头
-/// 第三条）。调用方保证期间不借用同一连接发别的语句。
+/// use `unchecked_transaction` not is `transaction`： need when 
+/// 「`Db::with` to `&Connection`」 and 「 to `&Connection`」，
+/// `transaction()` need `&mut Connection`（ by and `db::migrate` module header
+/// ）。 use not use 1 。
 pub(crate) fn write_conn(conn: &Connection, raw: &Map<String, Value>) -> Result<(), String> {
     let tx = conn
         .unchecked_transaction()
@@ -122,7 +122,7 @@ pub(crate) fn write_conn(conn: &Connection, raw: &Map<String, Value>) -> Result<
     for (key, value) in raw {
         upsert(&tx, key, value)?;
     }
-    // 差集：库里的非保留键 − 新配置的键 = 本次要删掉的项
+    // ： − new config = need 
     for key in stale_keys(&tx, raw)? {
         tx.execute("DELETE FROM kv WHERE key = ?1", rusqlite::params![key])
             .map_err(|error| format!("删除配置项 {key} 失败: {error}"))?;
@@ -132,22 +132,22 @@ pub(crate) fn write_conn(conn: &Connection, raw: &Map<String, Value>) -> Result<
     Ok(())
 }
 
-/// 迁移导入：**只做逐键 UPSERT（不删除）**，与完成标记在同一个事务里落。
+/// ：** UPSERT（ not delete）**， and in 1 。
 ///
-/// ── 为什么导入不带删除 ──────────────────────────────────────
-/// 迁移是「把旧文件里的东西搬进库」，不是「用旧文件替换库里的配置」。
-/// 带上删除会有一个真实（虽然少见）的破坏路径：迁移项跑在 `bootstrap` 里，
-/// 而运行期写配置的调用点全在它之后 —— 万一将来有人在迁移之前写了一次配置，
-/// 「删掉旧文件里没有的键」就会把那次写入抹掉。不带删除则最坏是「旧文件里多出
-/// 的几个键被并进来」，那正是迁移该做的事。
+/// ── Why not delete ──────────────────────────────────────
+/// is 「 old file 」， not is 「 use old file config」。
+/// up delete will has 1 （） path： in `bootstrap` ，
+/// config use in after —— 1 will has in before 1 config，
+/// 「 old file no has 」 will that 。 not delete then is 「 old file
+/// and 」， that is this 。
 ///
-/// ── 为什么标记与数据必须同一个事务 ──────────────────────────
-/// 标记表达的事实是「这份旧文件已经导入过了」。若分两个事务写，中途失败就会
-/// 留下「标记在、数据缺一半」的状态：闸门认为迁过了，缺的那几项**永远不会**
-/// 再被补上（用户的表现是「一部分设置莫名其妙回到默认」）。同一个事务里
-/// 提交之后，二者要么都在、要么都不在。
+/// ── Why and must 1 ──────────────────────────
+/// is 「 this old file already 」。 if ， in failure will 
+/// down 「 in 、 1 」 ： as ， that ** not will **
+/// up （ use is 「 1 set its to default」）。 1 
+/// after ， need in 、 need not in 。
 ///
-/// 返回真正写进去的配置键数（不含标记），供调用点报「导入 N 条」。
+/// return config（ not ）， use 「 N 」。
 pub(crate) fn import_conn(
     conn: &Connection,
     raw: &Map<String, Value>,
@@ -170,11 +170,11 @@ pub(crate) fn import_conn(
     Ok(raw.len())
 }
 
-/// 单个键的 UPSERT（`write_conn` 与 `import_conn` 共用）。
+/// UPSERT（`write_conn` and `import_conn` use ）。
 ///
-/// 与保留键相撞时**报错而不是静默跳过**：静默跳过会让用户改了设置却看不到效果；
-/// 报错至少能在日志里看到原因。这个分支在当前键集合下不可达（`db::schema`
-/// 模块头有逐项核对），留着是因为它一旦可达就是数据事故（覆盖别人的状态）。
+/// and when ** not is **： will use set not to ；
+/// can in to Reason。 this in current down not can （`db::schema`
+/// module header has for ）， is as 1 can is （ ）。
 fn upsert(conn: &Connection, key: &str, value: &Value) -> Result<(), String> {
     if schema::is_reserved(key) {
         return Err(format!("配置键与保留键同名，拒绝写入: {key}"));
@@ -190,7 +190,7 @@ fn upsert(conn: &Connection, key: &str, value: &Value) -> Result<(), String> {
     Ok(())
 }
 
-/// 库里该删掉的配置键：非保留、且不在新配置里。
+/// this config：、 and not in new config。
 fn stale_keys(conn: &Connection, raw: &Map<String, Value>) -> Result<Vec<String>, String> {
     let mut statement = conn
         .prepare("SELECT key FROM kv")
@@ -208,10 +208,10 @@ fn stale_keys(conn: &Connection, raw: &Map<String, Value>) -> Result<Vec<String>
     Ok(stale)
 }
 
-/// 迁移完成标记在不在（迁移项的幂等闸门）。
+/// in not in （ etc ）。
 ///
-/// 只取 `SELECT 1 ... LIMIT 1` 而不是把整份配置读出来：闸门只关心存在性，
-/// `modelRules` 这类值可能有几十 KB，为了判「迁过没有」把它们全读进来是白费。
+/// `SELECT 1 ... LIMIT 1` not is config： in ，
+/// `modelRules` this can can has KB， as 「 no has 」 is 。
 pub(crate) fn marker_present_conn(conn: &Connection, marker: &str) -> rusqlite::Result<bool> {
     let found: Option<i64> = conn
         .query_row(
@@ -223,16 +223,16 @@ pub(crate) fn marker_present_conn(conn: &Connection, marker: &str) -> rusqlite::
     Ok(found.is_some())
 }
 
-// ─── 运行期的薄包装（只取锁 + 换错误形状）────────────────────
+// ─── （ + error）────────────────────
 
-/// 一次取锁读出「配置底稿 + 迁移标记在不在」。
+/// 1 「config + in not in 」。
 ///
-/// 两者一起取而不是两次调用：`read_raw` 要用「标记在不在」决定要不要再回落
-/// 读旧文件，分两次取锁会在中间留一个窗口 —— 若迁移恰好在那期间提交，
-/// 第一次读到的 raw 是迁移前的、第二次读到的标记是迁移后的，于是**既不回落
-/// 旧文件、又拿着迁移前那份不全的 raw**。虽然实际时序上不可能（迁移与配置
-/// 初始化都在 `bootstrap` 的单线程路径上），但一次取锁就没有这个问题，
-/// 且少一次锁往返。
+/// 1 not is use ：`read_raw` need use 「 in not in 」 need not need 
+/// old file， will in in 1 —— if in that ，
+/// 1 to raw is before 、 to is after ， is ** not 
+/// old file、 before that not raw**。 when up not can can （ and config
+/// in `bootstrap` path up ）， 1 no has this ，
+/// and 1 。
 pub(super) fn read_snapshot(db: &Db) -> Option<(Map<String, Value>, bool)> {
     db.with(|conn| {
         let raw = read_conn(conn).ok()?;
@@ -242,12 +242,12 @@ pub(super) fn read_snapshot(db: &Db) -> Option<(Map<String, Value>, bool)> {
     .flatten()
 }
 
-/// 写一份配置；库不可用按失败上报，由上层决定降级行为。
+/// 1 config；unavailable by failure up ， by up as 。
 ///
-/// **持锁期间不写日志**：`Db::with` 拿的是全局唯一那把连接锁，而
-/// `logging::log` 要往同一个库写 `logs` 表 —— `std::sync::Mutex` 不可重入，
-/// 在闭包里打日志等于当场死锁。所以这里只把 `Result` 交出去，日志由调用方
-/// 在锁外记（`config::save_raw` 就是这么做的）。
+/// ** not **：`Db::with` is 1 that ，
+/// `logging::log` need 1 `logs` —— `std::sync::Mutex` not can ，
+/// in etc 。 this `Result` ， by use 
+/// in （`config::save_raw` is this ）。
 pub(super) fn write_all(db: &Db, raw: &Map<String, Value>) -> Result<(), String> {
     match db.with(|conn| write_conn(conn, raw)) {
         None => Err("数据库不可用".to_string()),

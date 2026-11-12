@@ -1,4 +1,4 @@
-//! 插件控制面错误的 HTTP 状态与业务码兼容解码。
+//! error HTTP and 。
 
 use agent2api_provider_protocol as proto;
 use serde::Deserialize;

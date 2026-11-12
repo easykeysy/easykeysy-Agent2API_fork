@@ -8,24 +8,24 @@ import { Icon } from './Icon'
 import { t } from '../i18n'
 
 /**
- * 「版本信息」抽屉（手机端设置页底部那一行点开）。
+ * 「」（set that 1 ）。
  *
- * ── 为什么手机端也要这一块 ──────────────────────────────────
- * 手机端原来只在设置页底部显示**自己的** `v{APP_VERSION}`，用户连的是哪台
- * 网关、那台网关是什么形态 / 什么版本，一概看不到。而手机端出问题时，
- * 第一个要问的恰恰是「网关那边是哪一版、跑在什么环境」—— 让用户再跑到
- * 电脑前翻一遍设置页不现实。
+ * ── Why need this 1 ──────────────────────────────────
+ * in set** ** `v{APP_VERSION}`， use is 
+ * 、 that is / ， 1 not to 。 when ，
+ * 1 need is 「 that is 1 、 in 」—— use to 
+ * before 1 set not 。
  *
- * ── 两段版本号分开显示 ──────────────────────────────────────
- *   · **本机**：APK 的 versionName（构建期注入）/ PWA 的界面版本。它来自
- *     安装包，与网关无关；
- *   · **网关**：`GET /api/system-info` 里那份（版本 / 形态 / 系统 / 路径）。
- * 两者可能不同（手机装 3.1.0、网关还是 3.0.9），混成一个「版本」会让人
- * 拿着手机版本去比对网关的更新日志。
+ * ── ──────────────────────────────────────
+ * · ****：APK versionName（）/ PWA 。
+ * ， and none；
+ * · ****：`GET /api/system-info` that （ / / / path）。
+ * can can not （ 3.1.0、 is 3.0.9）， 1 「」 will 
+ * for update。
  *
- * ── 复用桌面端的接口与脱敏口径 ──────────────────────────────
- * 同一个 `/api/system-info`，同样的 `?hideUsername=1`（后端脱敏，见
- * `api::system_info` 的模块头）。手机端不单独造一份后端契约。
+ * ── use and ──────────────────────────────
+ * 1 `/api/system-info`， `?hideUsername=1`（ after ，
+ * `api::system_info` module header）。 not 1 after 。
  */
 
 type GatewayInfo = {
@@ -67,7 +67,7 @@ type GatewayInfo = {
   }
 }
 
-/** 运行形态 → 展示文案（与桌面端 system-info-pane 同一份取值表） */
+/** → （ and system-info-pane 1 ） */
 const DEPLOYMENT_LABEL: Record<string, string> = {
   desktop: t('桌面端'),
   'windows-service': t('Windows 服务'),
@@ -89,11 +89,11 @@ function text(value: unknown): string {
 }
 
 /**
- * 系统名 + 版本拼成一句。
+ * + 1 。
  *
- * Windows 的 `ProductName` 自带 "Windows"、Linux 的 `PRETTY_NAME` 自带发行版名，
- * 直接加前缀会变成「Windows Windows 11 Pro」。与桌面端 system-info-pane.tsx
- * 的同名函数同一口径（两处各写一份：手机端不 import 桌面端源码）。
+ * Windows `ProductName` "Windows"、Linux `PRETTY_NAME` ，
+ * before will 「Windows Windows 11 Pro」。 and system-info-pane.tsx
+ * 1 （ 1 ： not import ）。
  */
 function formatOs(os: string | null | undefined, version: string | null | undefined): string {
   const name = OS_LABEL[String(os)] || text(os)
@@ -125,7 +125,7 @@ function formatUptime(seconds: number | null | undefined): string {
   return t('{m} 分钟', { m: minutes })
 }
 
-/** 一行「键 —— 值」 */
+/** 1 「 —— 」 */
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className='m-row' style={{ alignItems: 'flex-start', gap: 12 }}>
@@ -167,10 +167,10 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
     }
   }
 
-  // 每次打开都重拉：运行时长、在途请求这些读数会随时间变
+  // ： when 、 in request this will when 
   useEffect(() => {
     if (open) void load(hideUsername)
-    // hideUsername 变化由下面的开关自己触发，不放进依赖（否则拨开关会双拉）
+    // hideUsername by down ， not （otherwise will ）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -187,7 +187,7 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
   const stats = info?.stats || {}
   const deploymentLabel = DEPLOYMENT_LABEL[String(runtime.deployment)] || text(runtime.deployment)
   const osFull = formatOs(runtime.os, runtime.osVersion)
-  // 原生壳里「本机版本」是包版本；PWA / 浏览器里是构建期注入的界面版本
+  // 「」 is ；PWA / is 
   const platform = nativePlatform()
   const localLabel = isPackaged() ? t('本机应用版本') : t('本机界面版本')
   const formLabel =
@@ -222,7 +222,7 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
           <SheetTitle>{t('版本信息')}</SheetTitle>
         </SheetHeader>
         <SheetBody>
-          {/* 本机：与网关无关的那一半 */}
+          {/* ： and none that 1 */}
           <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--m-text-3)', padding: '2px 2px 6px' }}>
             {t('本机')}
           </div>
@@ -234,7 +234,7 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
             />
           </Card>
 
-          {/* 网关：连的那台服务器的读数 */}
+          {/* ： that */}
           <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--m-text-3)', padding: '14px 2px 6px' }}>
             {t('网关')}
           </div>
@@ -267,7 +267,7 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
             </Card>
           )}
 
-          {/* 路径：只在拿得到时显示（读不到就不占版面） */}
+          {/* path： in to when （ not to not ） */}
           {deployment.configDir || deployment.logFile ? (
             <>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--m-text-3)', padding: '14px 2px 6px' }}>
@@ -291,7 +291,7 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
             </>
           ) : null}
 
-          {/* 隐藏用户名：与桌面端同一个后端参数 */}
+          {/* use ： and 1 after parameter */}
           <Button size='default' variant='ghost'
             type='button'
             className='m-row h-auto min-h-[52px] w-full justify-start rounded-none border-0 px-3.5 py-3 text-left'

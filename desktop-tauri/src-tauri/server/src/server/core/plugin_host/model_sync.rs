@@ -1,4 +1,4 @@
-//! 模型探测结束后只同步插件清单，不再打一次上游目录接口。
+//! after ， not 1 up directory。
 
 use std::sync::Arc;
 use std::time::Duration;

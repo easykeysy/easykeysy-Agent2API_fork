@@ -1,41 +1,41 @@
-//! 「检查更新」的**共享闸门**：排期、结果与限流冷却都持久化。
+//! 「checkupdate」 ****：、 and 。
 //!
-//! ── 这个模块解决什么问题 ─────────────────────────────────────
-//! 改造前每次启动都会打一次 GitHub（`bootstrap` 的首轮排期 + 壳侧启动维护），
-//! 而检查结果只活在内存里。后果有两层：
-//!   1. **重复消耗限额**：GitHub 匿名限额是 60 次/小时，且**按出口 IP 计**
-//!      （官方文档：unauthenticated requests are associated with the
-//!      originating IP address）—— 一分钟内重开几次就是几次真实请求，
-//!      同一出口下的其它程序也跟着受影响；
-//!   2. **被限流后没有冷却**：403/429 只变成一条错误文案，下一个检查窗口
-//!      照打不误，重启还会把内存里的任何判断一起清掉。
+//! ── this ─────────────────────────────────────
+//! before will 1 GitHub（`bootstrap` + ），
+//! check in 。 after has ：
+//! 1. ****：GitHub is 60 / when ， and ** by IP **
+//! （：unauthenticated requests are associated with the
+//! originating IP address）—— 1 minutes is request，
+//! 1 down its ；
+//! 2. ** after no has **：403/429 1 error， down 1 check
+//! not ， will 1 。
 //!
-//! 现在排期、结果与冷却都落在 `core::task_state`（键 `updateCheck:<repo>`）：
-//! 重启只补跑**已经到期**的那一轮，结果直接从库里读回来渲染，403/429 按上游
-//! 给的 `Retry-After` / `X-RateLimit-Reset` 排冷却，重启也不会提前解除。
+//! in 、 and in `core::task_state`（ `updateCheck:<repo>`）：
+//! ** already to ** that 1 ， from ，403/429 by up 
+//! to `Retry-After` / `X-RateLimit-Reset` ， not will before 。
 //!
-//! ── 手动与自动共用一条路 ─────────────────────────────────────
-//! 设置页的「检查更新」按钮与定时任务是同一段代码，只有 `manual` 一个开关：
-//! 手动可以跳过普通排期（用户按按钮就是要现在查），但仍受**最短请求间隔**
-//! 与失败冷却约束 —— 连点按钮不该把匿名限额连点掉。两者撞在一起时，后到的
-//! 那一个等待在跑的那次结果（最多 75 秒），而不是并排再打一次。
+//! ── and use 1 ─────────────────────────────────────
+//! set 「checkupdate」 by and when is 1 ， has `manual` 1 ：
+//! can （ use by by is need in ），**request**
+//! and failure —— by not this 。 in 1 when ， after to 
+//! that 1 etc in that （ 75 seconds）， not is and 1 。
 //!
-//! ── 换线路 / 换令牌会清掉失败冷却 ────────────────────────────
-//! 冷却的截止时刻来自上游（`Retry-After` / `X-RateLimit-Reset`），但它只对
-//! **产生它的那个配额桶**有意义（匿名按出口 IP 计、带令牌按用户计）。所以设置页
-//! 换出网线路或保存令牌之后，`api::update` 会调
-//! [`UpdateManager::clear_check_cooldown`] 把 `retry_at` 清掉，让用户立刻验证
-//! 新配置；排期不动，定时任务照旧（细节见该方法的说明）。
+//! ── / will failure ────────────────────────────
+//! when up （`Retry-After` / `X-RateLimit-Reset`）， for 
+//! ** that quota** has （ by IP 、 by use ）。set
+//! or after ，`api::update` will 
+//! [`UpdateManager::clear_check_cooldown`] `retry_at` ， use 
+//! new config； not ， when old （ this ）。
 //!
-//! ── 关注通道：正式版 / beta / 同时关注两者 ────────────────────
-//! 正式版默认开启，beta 默认关闭；筛选不再取决于当前安装的是哪个通道。
-//! 同时关注时从列表挑语义化版本最高的一版，只有高于当前版本才提示更新。
-//! 通道变更使旧检查结果失效，但保留请求间隔和 GitHub 限流冷却。
+//! ── ： / beta / when ────────────────────
+//! default，beta default； not current is 。
+//! when when from 1 ， has currentupdate。
+//! old check，request and GitHub 。
 //!
-//! ── 下载状态为什么仍留在内存 ─────────────────────────────────
-//! 下载任务（`Inner::task`）是「这一次进程正在写哪个文件」的观察值，跨重启
-//! 没有意义（半截文件在失败/取消时已被删除，见 `mod.rs` 的收尾约定）。
-//! 落盘的只有**检查结果**（最近一次 Release）与排期。
+//! ── down Why in ─────────────────────────────────
+//! down （`Inner::task`） is 「 this 1 in file」 ，
+//! no has （file in failure/ when already delete， `mod.rs` ）。
+//! has **check**（ 1 Release） and 。
 
 use serde_json::{json, Value};
 
@@ -48,18 +48,18 @@ use super::{
     source, version, UpdateError, UpdateManager, CURRENT_VERSION,
 };
 
-/// GitHub API 探测请求的总超时（下载走 `None`，见 `mod.rs` 的同名说明）。
+/// GitHub API request total when （ down `None`， `mod.rs` ）。
 const REQUEST_TIMEOUT_MS: u64 = 30_000;
 
-/// 两次检查之间的最短间隔（手动也一样）。
+/// check （ 1 ）。
 ///
-/// 为什么要有它：手动按钮不受普通排期约束，连点就会连打 —— 而匿名限额是按
-/// IP 计的 60 次/小时。60 秒足够让「刚点了没看清、再点一次」复用同一份结果，
-/// 又不至于让用户觉得按钮坏了（面板会显示上一次的检查时刻）。
+/// Why need has ： by not ， will —— is by 
+/// IP 60 / when 。60 seconds「 no 、 1 」 use 1 ，
+/// not use by （ will up 1 check when ）。
 const MIN_CHECK_GAP_MS: i64 = 60_000;
 
-/// 等待「正在跑的那一轮」的上限：略小于执行占位的租约（90 秒），
-/// 超时后按冷却/上次结果如实回答，而不是把用户挂在这里。
+/// etc 「 in that 1 」 limit： （90 seconds），
+/// when after by / up ， not is use in this 。
 const WAIT_RUNNING_MS: i64 = 75_000;
 
 fn waiting_message(state: &TaskState) -> String {
@@ -67,10 +67,10 @@ fn waiting_message(state: &TaskState) -> String {
 }
 
 impl UpdateManager {
-    /// 本条记录的持久化键：**按仓库隔离**（`WORKBUDDY_UPDATE_REPO` 可覆盖仓库，
-    /// 换了仓库就该重新排期与重新拉取，不能沿用旧仓库的结果与冷却）。
-    /// `pub(super)`：只有 `update::mod` 的 `global_check_key()`（定时任务的排期
-    /// 键要跟这里一致）与检查自身用它，不必暴露给整个 crate。
+    /// ：** by **（`WORKBUDDY_UPDATE_REPO` can ，
+    /// this new and new ， not can use old and ）。
+    /// `pub(super)`： has `update::mod` `global_check_key()`（ when 
+    /// need this 1 ） and check use ， not to crate。
     pub(super) fn check_key(&self) -> String {
         self.check_key_for(CURRENT_VERSION)
     }
@@ -91,7 +91,7 @@ impl UpdateManager {
         })
     }
 
-    /// 把落盘的那份 Release 装回内存缓存（版本比较与响应组装都读它）。
+    /// that Release （ and response）。
     fn restore_release(&self, state: &TaskState) {
         self.lock().latest = state
             .value
@@ -112,11 +112,11 @@ impl UpdateManager {
         }
     }
 
-    /// 把状态组装成给界面看的检查结果。
+    /// to check。
     ///
-    /// 版本字段仍由 `build_check_result` 现算（它按当前二进制的版本比较），
-    /// 这里补的是**排期与时效**：`checkedAt` 必须是那次真实检查的时刻 ——
-    /// 前端用它显示「检查于 xx:xx」，用本地时钟会把几分钟前的结果说成刚查的。
+    /// by `build_check_result` （ by current ），
+    /// this is ** and when **：`checkedAt` must is that check when ——
+    /// before use 「check xx:xx」， use when will minutes before 。
     fn checked_result(&self, current_version: &str, state: &TaskState) -> Value {
         self.restore_release(state);
         let mut result = self.build_check_result(current_version);
@@ -135,10 +135,10 @@ impl UpdateManager {
         result
     }
 
-    /// 最近一次检查结果（`/api/update/status` 与界面首屏读它）。
+    /// 1 check（`/api/update/status` and ）。
     ///
-    /// **不触发任何网络请求**：本进程还没查过时返回 `checked:false`，
-    /// 界面据此显示「未检查」—— 与改造前「前端自己打一次 GitHub」的差别正在这里。
+    /// ** not request**： no when return `checked:false`，
+    /// 「check」—— and before 「 before 1 GitHub」 in this 。
     pub fn last_check(&self) -> Value {
         match self.check_state(CURRENT_VERSION) {
             Ok(state) => self.checked_result(CURRENT_VERSION, &state),
@@ -146,26 +146,26 @@ impl UpdateManager {
         }
     }
 
-    /// 清掉「检查更新」的失败冷却（`updateCheck:<repo>` 的 `retry_at`）。
+    /// 「checkupdate」 failure（`updateCheck:<repo>` `retry_at`）。
     ///
-    /// 调用点：换出网线路 / 换 GitHub 令牌成功之后（`api::update`）。冷却记的是
-    /// **某一个配额桶**的恢复时刻（匿名按出口 IP 计、带令牌按用户计），这两件事
-    /// 都会换桶 —— 不清的话用户换完线路 / 存完令牌还要对着「检查更新」按钮空等
-    /// 几十分钟（实测有过 1930 秒的残留冷却）。排期与最近尝试时间保持不动，
-    /// 定时任务照旧按自己的间隔跑。
+    /// use ： / GitHub success after （`api::update`）。 is 
+    /// ** 1 quota** when （ by IP 、 by use ）， this 
+    /// will —— not use / need for 「checkupdate」 by empty etc 
+    /// minutes（ has 1930 seconds ）。 and when not ，
+    /// when old by 。
     pub fn clear_check_cooldown(&self) {
         if let Err(error) = task_state::clear_cooldown(&self.check_key()) {
-            // 清不掉不是致命错误：冷却到点会自然失效，只记一行日志
+            // not not is error： to will ， 1 
             logging::log("[Update]", &format!("⚠️ 清除检查失败冷却失败: {error}"));
         }
     }
 
-    /// 手动检查（设置页按钮）。
+    /// check（set by ）。
     pub async fn check(&self, current_version: &str) -> Result<Value, UpdateError> {
         self.check_with_mode(current_version, true).await
     }
 
-    /// 定时检查（「软件版本检查」任务）。
+    /// when check（「check」）。
     pub async fn check_scheduled(&self, current_version: &str) -> Result<Value, UpdateError> {
         self.check_with_mode(current_version, false).await
     }
@@ -176,21 +176,21 @@ impl UpdateManager {
         let key = self.check_key_for(current_version);
         let interval = config::scheduled_settings().update_check.interval * 60_000;
         let started = logging::now_ms();
-        // 手动检查仍受失败冷却约束（ManualBackoff::Respect）：这里的冷却记的是
-        // GitHub 配额桶的恢复时刻，提前打只会再吃一次 403。换令牌 / 换线路那条
-        // 口子走 clear_check_cooldown（见上）。
+        // checkfailure（ManualBackoff::Respect）： this is 
+        // GitHub quota when ， before will 1 403。 / that 
+        // clear_check_cooldown（ up ）。
         let guard = match task_state::claim(&key, interval, manual, task_state::ManualBackoff::Respect, MIN_CHECK_GAP_MS)
             .map_err(|error| UpdateError::new(error))?
         {
             Claim::Acquired(guard) => guard,
             Claim::Deferred(mut state) => {
-                // 已有一次在跑（另一个进程，或同一进程的手动/定时撞车）：等它的
-                // 结果，而不是并排再打一次 GitHub —— 匿名限额不该被并发翻倍。
+                // already has 1 in （ 1 ， or 1 / when ）： etc 
+                // ， not is and 1 GitHub —— not this and 。
                 while state.running() && logging::now_ms() - started < WAIT_RUNNING_MS {
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     state = task_state::read(&key).map_err(|error| UpdateError::new(error))?;
                 }
-                // 等到了结果就复用；仍在跑（或正处于失败冷却）就如实报原因。
+                // etc to use ； in （ or failure）Reason。
                 if state.running() || (state.last_error.is_some() && state.retry_at > logging::now_ms()) {
                     return Err(UpdateError::new(waiting_message(&state)));
                 }
@@ -227,10 +227,10 @@ impl UpdateManager {
         }
     }
 
-    /// 拉取所关注通道的最高版本，并保留上游限流冷却。
+    /// ， and up 。
     ///
-    /// 正式版走 `/releases/latest`；包含 beta 时从列表按语义化版本筛选。
-    /// 404 或当前通道没有候选版本视为无更新。
+    /// `/releases/latest`； beta when from by 。
+    /// 404 or current no has as noneupdate。
     async fn fetch_release(
         &self,
         channels: UpdateChannels,
@@ -238,7 +238,7 @@ impl UpdateManager {
     ) -> Result<(Option<Value>, i64), (UpdateError, i64)> {
         let repository = self.resolve_repository().await;
         let beta = channels.beta;
-        // 自建更新源与 GitHub 使用同形的 Release 接口。
+        // update and GitHub use Release 。
         let target = required.and_then(|rule| rule["targetVersion"].as_str());
         let url = if let Some(target) = target {
             format!("{}/repos/{repository}/releases/tags/v{}", api_base(), target.trim_start_matches(['v', 'V']))
@@ -267,11 +267,11 @@ impl UpdateManager {
         let status = response.status.as_u16();
         let retry_at = retry_deadline(&response.headers, status);
         if status == 404 {
-            // 404 有两种来源：正式通道的「仓库还没有任何 Release」（GitHub 官方
-            // 行为）、自建更新源没实现被请求的那条路径（`WORKBUDDY_UPDATE_API_BASE`
-            // 只做了 `/releases/latest`、beta 通道却要列表时会这样）。两者都按
-            // 「无更新」处理，而不是把整次检查报成失败 —— 后者会让面板一直显示
-            // 错误、也挡住正式通道那条仍可用的路。
+            // 404 has ： 「 no has Release」（GitHub 
+            // as ）、update no request that path（`WORKBUDDY_UPDATE_API_BASE`
+            // `/releases/latest`、beta need when will this ）。 by 
+            // 「noneupdate」， not is checkfailure —— after will 1 
+            // error、 that available 。
             return Ok((None, retry_at));
         }
         if status == 403 || status == 429 {
@@ -309,17 +309,17 @@ impl UpdateManager {
     }
 }
 
-/// 一次列表请求最多取多少条 Release。
+/// 1 request Release。
 ///
-/// 30 条足够覆盖「取版本最高的一个」这件事：活跃仓库的发布间隔远大于此，
-/// 而响应体积仍很小（列表不带文件内容）。**别降到个位数** —— 热修补丁会排到
-/// 更旧的位置，取太少会漏掉真正版本最高的那一版。
+/// 30 「 1 」 this ： ，
+/// response（ not file）。** to ** —— will to 
+/// old ， will that 1 。
 const RELEASE_LIST_PER_PAGE: u32 = 30;
 
-/// GitHub 的 Release 对象 → 内部形状（`build_check_result` 与容器内更新读它）。
+/// GitHub Release for → （`build_check_result` and update）。
 ///
-/// 两个通道共用：正式通道拿到的是单个对象（`/releases/latest`），beta 通道是
-/// 列表里挑出来的一个元素 —— 字段口径按 Node 版逐条对齐，**只在这里出现一次**。
+/// use ： to is for （`/releases/latest`），beta is 
+/// 1 —— by Node for ，** in this 1 **。
 fn release_json(payload: &Value, repository: &str) -> Value {
     let text = |key: &str| {
         payload
@@ -337,8 +337,8 @@ fn release_json(payload: &Value, repository: &str) -> Value {
     let name = text("name");
     let page_url = text("html_url");
     let published_at = text("published_at");
-    // 服务端包与可选校验文件：Linux 用于自动更新，Windows 用于手动升级。
-    // 桌面安装器与服务端包并列返回，由部署能力决定页面入口。
+    // server and optionalfile：Linux used forupdate，Windows used for。
+    // and server and return， by can 。
     let assets = payload
         .get("assets")
         .and_then(Value::as_array)
@@ -364,11 +364,11 @@ fn release_json(payload: &Value, repository: &str) -> Value {
             )
         });
     let assets = assets.as_ref();
-    // 「有新版本但没有可下载的包」时界面要能说出**为什么**：把「这一版到底传了
-    // 哪些文件」记下来。取的是**过滤前**的清单 —— 过滤后为空时仍要说得清
-    // 「发布页上其实有 .dmg / .deb，只是没有你这台的」；过滤这件事本身在
-    // `filteredBySource` 里单独表达（它是「我们的访问方式把文件挡掉了」，
-    // 与「上游压根没传」的处置办法完全不同）。
+    // 「 has new no has can down 」 when need can **Why**： 「 this 1 to 
+    // file」 down 。 is ** before ** —— after as empty when need 
+    // 「 up its has .dmg / .deb， is no has this 」； this in 
+    // `filteredBySource` （ is 「 file」，
+    // and 「 up no 」 not ）。
     let raw_assets: &[Value] = payload
         .get("assets")
         .and_then(Value::as_array)
@@ -396,28 +396,28 @@ fn release_json(payload: &Value, repository: &str) -> Value {
         "prerelease": payload.get("prerelease").and_then(Value::as_bool) == Some(true)
             || version::is_prerelease_version(&tag),
         "asset": pick_installer(assets),
-        // 这一版上传过哪些文件（后缀清单 / 总数 / 有没有被更新源挡掉）——
-        // 「asset 为空」时界面据此说明原因，见 [`asset_probe`] 的注释与
-        // `build_check_result` 里补 expected* 的那一段
+        // this 1 up file（ after / total / has no has update）——
+        // 「asset as empty」 when Reason， [`asset_probe`] and 
+        // `build_check_result` expected* that 1 
         "assetProbe": asset_probe,
-        // 手机端（APK）的安装包。与 `asset` 并列而不是二选一：网关可能同时被
-        // 电脑和手机访问，两边各自挑自己那份，谁都不该把对方的那条藏起来。
+        // （APK） 。 and `asset` and not is 1 ： can can when 
+        // and ， that ， not this for that 。
         "androidAsset": pick_android_apk(assets),
         "serverBundle": bundle_asset.unwrap_or(Value::Null),
         "serverChecksums": bundle_checksums.unwrap_or(Value::Null),
     })
 }
 
-/// 从响应头算「最早可以再请求的时刻」（毫秒；0 = 上游没给限制）。
+/// from response「 can request when 」（ms；0 = up no to limit）。
 ///
-/// 三个来源，取最晚的一个（保守）：
-///   - `Retry-After`：秒数或 HTTP 日期两种写法（次级限流用它）；
-///   - `X-RateLimit-Remaining: 0` 时的 `X-RateLimit-Reset`：UTC 纪元秒
-///     （主限额用尽；官方文档要求等到这个时刻之后再请求）；
-///   - 403 / 429 的**兜底一分钟**：两者都没给时至少别立刻重试
-///     （官方对次级限流的建议是「至少等一分钟」）。
+/// ， 1 （）：
+/// - `Retry-After`：seconds or HTTP （ use ）；
+/// - `X-RateLimit-Remaining: 0` when `X-RateLimit-Reset`：UTC seconds
+/// （ use ； need etc to this when after request）；
+/// - 403 / 429 ** 1 minutes**： no to when 
+/// （ for is 「 etc 1 minutes」）。
 ///
-/// 这个值会落进任务状态（`retry_at`），因此**重启不会提前解除冷却**。
+/// this will （`retry_at`），** not will before **。
 fn retry_deadline(headers: &reqwest::header::HeaderMap, status: u16) -> i64 {
     let now = logging::now_ms();
     let header = |name: &str| headers.get(name).and_then(|value| value.to_str().ok());

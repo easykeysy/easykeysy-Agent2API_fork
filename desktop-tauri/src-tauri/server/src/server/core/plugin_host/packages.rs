@@ -1,4 +1,4 @@
-//! 包在停止旧宿主之前完成解包与验签；登记失败时恢复同版本重装的原目录。
+//! in old before and ；failure when directory。
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,7 +7,7 @@ use agent2api_provider_protocol as proto;
 
 use super::install::{self, InstalledPack, PackRegistry, PackSummary, SignatureState};
 
-// 安装与下载共用有限的 ZIP 硬上限；解压总量与文件数仍由 install 独立限制。
+// and down use has ZIP limit；total and file by install limit。
 pub(crate) const MAX_PACK_BYTES: usize = 24 * 1024 * 1024;
 
 static SEQUENCE: AtomicU64 = AtomicU64::new(1);

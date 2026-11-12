@@ -40,7 +40,7 @@ fn resolve_chat_model(
     scope: Option<&KeyScope>,
     compact_client: Option<&str>,
 ) -> Result<String, GatewayError> {
-    // 先校验来源模型，不能用目标的权限替来源放行；同时清除下游伪造的内部标记。
+    // ， not can use ； when down 。
     let source = super::pipeline::resolve_model(state, body, scope)?;
     let Some(client) = compact_client else { return Ok(source); };
     let snapshot = compact_routes::current();
@@ -49,10 +49,10 @@ fn resolve_chat_model(
     let Some(rule) = settings.rules.iter().find(|rule| rule.enabled && rule.client == client
         && compact_routes::model_key(&rule.source) == compact_routes::model_key(&source)) else { return Ok(source); };
 
-    // Key 的提供商权限原本在转发层检查；来源被换掉以后仍须通过这道门，不能只验证 B。
+    // Key in check； after this ， not can B。
     validate_compact_access(state, &source, scope)?;
     validate_compact_access(state, &rule.target, scope)?;
-    // 用同一套模型目录及 Key 权限检查目标；不递归调用本入口，A→B 不会接着套 B→C。
+    // use 1 directory and Key check； not use ，A→B not will B→C。
     let mut target_body = serde_json::json!({ "model": rule.target });
     let target = super::pipeline::resolve_model(state, &mut target_body, scope).map_err(|mut error| {
         error.message = format!("压缩路由 {} → {} 无法执行：{}；未回退原模型", source, rule.target, error.message);
@@ -93,7 +93,7 @@ pub(super) async fn record_started(
     source: &RequestSource,
     is_test: bool,
 ) {
-    // 进行中行写入与调用方创建断线守卫之间不能留下可取消的等待窗口。
+    // in and use create not can down can etc 。
     blocking::in_place(|| {
         stats.record_started(id, ts, model, client_model, reasoning, source, is_test);
     });

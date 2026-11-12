@@ -1,46 +1,46 @@
-//! 七种余额查询方案的**响应解析**（纯函数：一份上游 JSON → 一份归一化读数）。
+//! **response**（： 1 up JSON → 1 1 ）。
 //!
-//! 与 `balance.rs` 分工：那边负责「认证、打哪个地址、拿到什么」，这边只做
-//! 「拿到的 JSON 怎么读成余额」。这样每家的字段兼容（同一接口在不同版本 /
-//! 不同定制下字段名漂过）都集中在一处，查问题不必在请求链路里翻。
+//! and `balance.rs` ： that 「、 、 to 」， this 
+//! 「 to JSON 」。 this （ 1 in not /
+//! not down ） in in 1 ， not in request。
 //!
-//! 移植来源：OmniProxy `server/src/utils/providerBalance.ts` 的
+//! ：OmniProxy `server/src/utils/providerBalance.ts` 
 //! `parseSub2api` / `parseNewApiAccount` / `parseNewApiDisplay` / `parseDeepSeek`
-//! / `parseOpenCode` / `parseSensenova` / `parseZhipu`，逐字段对读。
+//! / `parseOpenCode` / `parseSensenova` / `parseZhipu`， for 。
 //!
-//! ── 归一化形状（`ProviderAdapter::query_usage` 的契约）────────
+//! ── 1 （`ProviderAdapter::query_usage` ）────────
 //! ```jsonc
 //! {
-//!   "available": 62.5,          // 主读数（数字；判不出给 null）
-//!   "unit": "%",                // 展示单位
-//!   "wallets": [                // 明细行（工具提示里逐行列出）
-//!     { "type": "rolling", "displayName": "5 小时", "balance": 62.5, "unit": "%" }
+//! "available": 62.5, // （； not to null）
+//! "unit": "%", // 
+//! "wallets": [ // （）
+//! { "type": "rolling", "displayName": "5 when ", "balance": 62.5, "unit": "%" }
 //!   ],
-//!   "windows": [                // 逐窗口读数（可选键，现役只有 OpenCode）：一窗一项，
-//!     { "key": "rolling", "label": "5 小时",   // 界面据此一格画三条进度条
+//! "windows": [ // （optional， has OpenCode）： 1 1 ，
+//! { "key": "rolling", "label": "5 when ", // 1 
 //!       "remainingPercent": 62.5, "usedPercent": 37.5,
-//!       "view": "剩 62.5%", "resetsAt": 1789… }
+//! "view": " 62.5%", "resetsAt": 1789… }
 //!   ],
-//!   "subscription": null,       // 这七种方案都没有套餐概念
-//!   "raw": { }                  // 上游原始响应（排障用；界面默认不展示）
+//! "subscription": null, // this no has 
+//! "raw": { } // up response（ use ；default not ）
 //! }
 //! ```
-//! 「缺键不写、null 不是 0」是全仓余额形状的纪律（见 `accounts-credit-detail`
-//! 的说明）：读不到的字段给 `null` 而不是 0 —— 界面据此显示「—」而不是
-//! 「只剩 0」。因此本文件的 `wallets` 行只在**读到数值**时才产出。
+//! 「 not 、null not is 0」 is （ `accounts-credit-detail`
+//! ）： not to to `null` not is 0 —— 「—」 not is 
+//! 「 0」。file `wallets` in ** to ** when 。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap / expect / panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap / expect / panic。
 
 use chrono::TimeZone;
 use serde_json::{json, Map, Value};
 
-/// 取对象视图（数组 / 标量给 None）
+/// for （ / to None）
 pub(super) fn map_of(value: &Value) -> Option<&Map<String, Value>> {
     value.as_object()
 }
 
-/// 取数字：认数字与「数字字符串」（上游常把金额写成字符串）
+/// ： and 「」（ up ）
 pub(super) fn number_of(value: Option<&Value>) -> Option<f64> {
     match value? {
         Value::Number(number) => number.as_f64().filter(|value| value.is_finite()),
@@ -53,12 +53,12 @@ pub(super) fn number_of(value: Option<&Value>) -> Option<f64> {
     }
 }
 
-/// 取对象里某个键的数字（`number_of(map.get(key))` 的简写）
+/// for （`number_of(map.get(key))` ）
 pub(super) fn number_at(map: &Map<String, Value>, key: &str) -> Option<f64> {
     number_of(map.get(key))
 }
 
-/// 秒级 Unix 时间戳（容错毫秒值）→ 毫秒；非法 / 缺失给 None
+/// seconds Unix when （ms）→ ms； / to None
 pub(super) fn unix_to_ms(value: Option<&Value>) -> Option<i64> {
     let number = number_of(value)?;
     if number <= 0.0 {
@@ -71,7 +71,7 @@ pub(super) fn unix_to_ms(value: Option<&Value>) -> Option<i64> {
     })
 }
 
-/// 文案截断（上游错误说明可能是一整页 HTML；给工具提示用）
+/// （ up error can can is 1 HTML； to use ）
 pub(super) fn shorten(text: &str, max: usize) -> String {
     let trimmed = text.trim();
     if trimmed.chars().count() <= max {
@@ -81,7 +81,7 @@ pub(super) fn shorten(text: &str, max: usize) -> String {
     format!("{head}...")
 }
 
-/// 一行明细（`balance` 为 None 时不产出 —— 见模块头的「缺键不写」）
+/// 1 （`balance` as None when not —— module header 「 not 」）
 pub(super) fn wallet(kind: &str, display_name: &str, balance: Option<f64>, unit: &str) -> Option<Value> {
     let balance = balance?;
     Some(json!({
@@ -92,7 +92,7 @@ pub(super) fn wallet(kind: &str, display_name: &str, balance: Option<f64>, unit:
     }))
 }
 
-/// 归一化读数的公共骨架（各家只填自己读到的部分）
+/// 1 （ to ）
 pub(super) fn document(
     available: Option<f64>,
     unit: &str,
@@ -110,7 +110,7 @@ pub(super) fn document(
 
 /// Sub2API `/v1/usage`：`{ quota: {limit, used}, remaining|balance, unit }`。
 ///
-/// 三个读数都可以缺（不同版本的 sub2api 给的不一样），只要读到一个就成。
+/// can （ not sub2api to not 1 ）， need to 1 。
 pub(super) fn parse_sub2api(payload: &Value) -> Option<Value> {
     let data = map_of(payload)?;
     let quota = data.get("quota").and_then(map_of);
@@ -146,7 +146,7 @@ pub(super) fn parse_sub2api(payload: &Value) -> Option<Value> {
 
 /// DeepSeek `/user/balance`：`{ balance_infos: [{currency, total_balance, …}] }`。
 ///
-/// 主读数取**第一条**币种（源实现同口径：上游按账户结算币种优先返回）。
+/// ** 1 **（： up by return）。
 pub(super) fn parse_deepseek(payload: &Value) -> Option<Value> {
     let data = map_of(payload)?;
     let infos = data.get("balance_infos")?.as_array()?;
@@ -185,7 +185,7 @@ pub(super) fn parse_deepseek(payload: &Value) -> Option<Value> {
     Some(document(available, &unit, wallets, payload))
 }
 
-/// 单个用量窗口的读法（字段名在 OpenCode 的不同实现里漂过，逐个兼容）
+/// usage （ in OpenCode not ， ）
 struct UsageWindow {
     remaining_percent: Option<f64>,
     used_percent: Option<f64>,
@@ -208,7 +208,7 @@ fn usage_window(window: &Map<String, Value>) -> UsageWindow {
     let remaining = number_at(window, "remaining")
         .or_else(|| number_at(window, "remaining_quota"))
         .or_else(|| number_at(window, "left"));
-    // 百分比优先；只有 used/limit（或 remaining/limit）时按比例换算
+    // ； has used/limit（ or remaining/limit） when by 
     let used_percent = percent.or_else(|| match (used, limit) {
         (Some(used), Some(limit)) if limit > 0.0 => Some(used / limit * 100.0),
         _ => match (remaining, limit) {
@@ -228,7 +228,7 @@ fn usage_window(window: &Map<String, Value>) -> UsageWindow {
     .iter()
     .find_map(|key| window.get(*key))
     .and_then(|value| match value {
-        // 字符串形态可能是 RFC 3339，也可能是纯数字（秒 / 毫秒），两种都收
+        // can can is RFC 3339， can can is （seconds / ms），
         Value::String(text) => {
             let trimmed = text.trim();
             match trimmed.parse::<f64>() {
@@ -242,10 +242,10 @@ fn usage_window(window: &Map<String, Value>) -> UsageWindow {
     UsageWindow { remaining_percent: used_percent.map(|used| (100.0 - used).clamp(0.0, 100.0)), used_percent, resets_at_ms }
 }
 
-/// ISO 8601（RFC 3339）→ 毫秒时间戳；认不出给 None。
+/// ISO 8601（RFC 3339）→ ms when ； not to None。
 ///
-/// 上游给的是带偏移量的标准形态（`2026-10-15T12:34:56.789Z` / `+08:00`），
-/// 直接交给 chrono —— 手写一套「闰年 + 时区」的解析只会多一处出错的地方。
+/// up to is （`2026-10-15T12:34:56.789Z` / `+08:00`），
+/// to chrono —— 1 「 + when 」 will 1 。
 fn rfc3339_to_ms(text: &str) -> Option<i64> {
     let parsed = chrono::DateTime::parse_from_rfc3339(text.trim()).ok()?;
     Some(parsed.timestamp_millis())
@@ -253,20 +253,20 @@ fn rfc3339_to_ms(text: &str) -> Option<i64> {
 
 /// OpenCode `/v1/usage`：`{ usage: { rolling: {…}, weekly: {…}, monthly: {…} } }`。
 ///
-/// 主读数是**滚动窗口（5 小时）的剩余百分比**（源实现同口径：`100 - 已用%`）；
-/// 周 / 月窗口耗尽（已用 100%）时主读数记 0 —— 那是「彻底没额度」，限流判定
-/// 要按它跳过（见 OmniProxy `providerBalanceRule` 的 `opencodeRemainingPercent`）。
+/// is **（5 when ） remaining**（：`100 - already use %`）；
+/// / （ already use 100%） when 0 —— that is 「 no 」，
+/// need by （ OmniProxy `providerBalanceRule` `opencodeRemainingPercent`）。
 ///
-/// ── 三个窗口各自成条（`windows[]`）───────────────────────────
-/// 这一家的额度不是「一个池子剩多少」而是**三个窗口各自的剩余比例**：一个数字
-/// 说不清「5 小时还剩着、每周已经用光」这种状态，而它恰恰是限流判定最要紧的
-/// 一档（周 / 月耗尽即彻底没额度）。因此除主读数外再给一份 `windows[]`：
-/// 一窗一项，带短标签、剩余比例、已用比例、重置时刻与展示串，界面据此
-/// **一格画三条**。这是形状能力（有 `windows` 就逐条画）而不是 provider 判据 ——
-/// 与 `wallets` / `credits` 同一路数（见前端 `usageWindows`）。
+/// ── （`windows[]`）───────────────────────────
+/// this 1 not is 「 1 」 is ** remaining**： 1 
+/// not 「5 when 、 already use 」 this ， is need 
+/// 1 （ / no ）。 to 1 `windows[]`：
+/// 1 1 ，、remaining、 already use 、 when and ，
+/// ** 1 **。 this is can （ has `windows` ） not is provider ——
+/// and `wallets` / `credits` 1 （ before `usageWindows`）。
 ///
-/// 展示串两处共用同一份口径：格子里是**前半句**（「剩 62.5%」），重置时刻跟在
-/// 后面（悬停提示读整串），分隔符「 · 」与 `zcode::monitor` 的 `wallet_view` 同一个。
+/// use 1 ： is ** before **（「 62.5%」）， when in 
+/// after （），「 · 」 and `zcode::monitor` `wallet_view` 1 。
 pub(super) fn parse_opencode(payload: &Value) -> Option<Value> {
     let data = map_of(payload)?;
     let usage = data.get("usage").and_then(map_of)?;
@@ -295,14 +295,14 @@ pub(super) fn parse_opencode(payload: &Value) -> Option<Value> {
     let mut wallets: Vec<Value> = Vec::new();
     let mut windows: Vec<Value> = Vec::new();
     for (key, label, code, window) in &reads {
-        // 窗口在、数读不到（上游换了字段名）：这一条照出，但不编数字 ——
-        // 格子里是「—」，与「剩 0%」是两件事（见模块头的「null 不是 0」）
+        // in 、 not to （ up ）： this 1 ， not ——
+        // is 「—」， and 「 0%」 is （module header 「null not is 0」）
         let mut row = Map::new();
         row.insert("key".to_string(), Value::String((*key).to_string()));
         row.insert("label".to_string(), Value::String((*label).to_string()));
-        // `window` 是**给前端拼短标签的码**（与 `antigravity::balance` 的同名键同一
-        // 职责）：`label` 是中文全名、只进悬停，界面上的短名由前端按码译 ——
-        // 后端给中文短名的话，英文界面里会冒出一串汉字
+        // `window` is ** to before **（ and `antigravity::balance` 1 
+        // ）：`label` is in 、， up by before by ——
+        // after to in ， will 1 
         row.insert("window".to_string(), Value::String((*code).to_string()));
         if let Some(remaining) = window.remaining_percent {
             row.insert("remainingPercent".to_string(), json!(remaining));
@@ -315,8 +315,8 @@ pub(super) fn parse_opencode(payload: &Value) -> Option<Value> {
             row.insert("resetsAt".to_string(), Value::from(resets));
         }
         windows.push(Value::Object(row));
-        // 明细行只在**读到数值**时才产出（「缺键不写」），展示串带上重置时刻：
-        // 这一家的窗口都是「到点回满」，剩余多少与什么时候回满是同一个问题的两面
+        // in ** to ** when （「 not 」）， up when ：
+        // this 1 is 「 to 」，remaining and when is 1 
         let Some(remaining) = window.remaining_percent else { continue };
         let Some(mut row) = wallet(key, label, Some(remaining), "%") else { continue };
         let mut parts = vec![format!("剩 {}%", percent_text(remaining))];
@@ -341,15 +341,15 @@ pub(super) fn parse_opencode(payload: &Value) -> Option<Value> {
     Some(document)
 }
 
-/// 百分比读数的展示串（1 位小数、去掉多余的 `.0`；与 `zcode::monitor::percent_text`
-/// 同一口径 —— 两个模块各留一份，比为一句话把对方的私有函数升成 crate 可见更省事）
+/// （1 、 `.0`； and `zcode::monitor::percent_text`
+/// 1 —— 1 ， as 1 for has crate can ）
 fn percent_text(value: f64) -> String {
     format!("{value:.1}").trim_end_matches(".0").to_string()
 }
 
-/// 重置时刻 → 本地时区 `MM-DD HH:MM`（与 `zcode::monitor::reset_text` 同口径：
-/// 上游给的是绝对时刻，按操作者本机时区渲染；时间戳越界给 None ——
-/// 宁可不写这一段，也不编一个时刻）
+/// when → when `MM-DD HH:MM`（ and `zcode::monitor::reset_text` ：
+/// up to is for when ， by when ； when to None ——
+/// can not this 1 ， not 1 when ）
 fn reset_text(ms: Option<i64>) -> Option<String> {
     let ms = ms.filter(|value| *value > 0)?;
     chrono::Local
@@ -358,7 +358,7 @@ fn reset_text(ms: Option<i64>) -> Option<String> {
         .map(|at| at.format("%m-%d %H:%M").to_string())
 }
 
-/// NewAPI `/api/status` 里的配额显示口径（`data.quota_per_unit` 等）。
+/// NewAPI `/api/status` quota（`data.quota_per_unit` etc ）。
 pub(super) struct QuotaDisplay {
     pub display_type: String,
     pub quota_per_unit: f64,
@@ -367,8 +367,8 @@ pub(super) struct QuotaDisplay {
     pub custom_currency_exchange_rate: f64,
 }
 
-/// 解析 `/api/status` 的显示口径（读不出 / 汇率缺失时给 None —— 与源实现
-/// 同口径：**宁可退回原始配额，也不用默认汇率算出一个错的金额**）。
+/// `/api/status` （ not / when to None —— and 
+/// ：** can quota， not use default 1 **）。
 pub(super) fn new_api_display(payload: &Value) -> Option<QuotaDisplay> {
     let data = payload.get("data").and_then(map_of)?;
     let quota_per_unit = number_at(data, "quota_per_unit").filter(|value| *value > 0.0)?;
@@ -406,7 +406,7 @@ pub(super) fn new_api_display(payload: &Value) -> Option<QuotaDisplay> {
     })
 }
 
-/// 原始配额 → 展示口径（源实现 `displayedAmountRemaining` 的同一条换算链）
+/// quota → （ `displayedAmountRemaining` 1 ）
 pub(super) fn new_api_display_amount(quota: f64, display: Option<&QuotaDisplay>) -> (f64, String) {
     let Some(display) = display else { return (quota, "quota".to_string()) };
     if display.quota_per_unit <= 0.0 {
@@ -424,19 +424,19 @@ pub(super) fn new_api_display_amount(quota: f64, display: Option<&QuotaDisplay>)
             },
         ),
         "TOKENS" => (quota, "quota".to_string()),
-        // USD 与认不出的取值（后者已被 new_api_display 归一成 USD/TOKENS）
+        // USD and not （ after already new_api_display 1 USD/TOKENS）
         _ => (amount_usd, "USD".to_string()),
     }
 }
 
-/// NewAPI `/api/user/self`：`data.quota`（剩余配额）/ `data.used_quota`（已用）。
+/// NewAPI `/api/user/self`：`data.quota`（remainingquota）/ `data.used_quota`（ already use ）。
 pub(super) fn parse_new_api_account(payload: &Value) -> Option<(f64, Option<f64>)> {
     let data = payload.get("data").and_then(map_of)?;
     let remaining = number_at(data, "quota")?;
     Some((remaining, number_at(data, "used_quota")))
 }
 
-/// NewAPI 整套读数组装：主读数按展示口径换算（`/api/status` 没读到就用原始配额）。
+/// NewAPI ： by （`/api/status` no to use quota）。
 pub(super) fn new_api_document(
     remaining_raw: f64,
     used_raw: Option<f64>,
@@ -455,7 +455,7 @@ pub(super) fn new_api_document(
     .collect();
     let mut document = document(Some(remaining), &unit, wallets, account_payload);
     if let Some(object) = document.as_object_mut() {
-        // 状态接口读到了什么、原始配额是多少：排障时这两样最有用
+        // to 、quota is ： when this has use 
         object.insert("quota".to_string(), json!(remaining_raw));
         if let Some(used_raw) = used_raw {
             object.insert("usedQuota".to_string(), json!(used_raw));
@@ -467,14 +467,14 @@ pub(super) fn new_api_document(
     document
 }
 
-/// 智谱 `query-customer-account-report`（两站同一条接口、同一个信封）：
+/// `query-customer-account-report`（ 1 、 1 ）：
 /// `{code, msg, data: {balance, rechargeAmount, giveAmount, totalSpendAmount, …}}`。
 ///
-/// 金额单位随站点（国内站人民币元 / 国际站美元），由调用方传入。
-/// `code != 200` 是失败：鉴权失败一族（401 令牌失效；1000 签名校验不过；
-/// 1001 没带 Authorization —— 后两个是实测值，两站一致）归进「凭证失效」
-/// 一档（文案要能告诉用户去换哪份凭证，两站的凭证不同：国内站控制台令牌、
-/// 国际站 API Key 签名），其余原样带上上游消息。
+/// （ / ）， by use 。
+/// `code != 200` is failure：failure 1 （401 ；1000 not ；
+/// 1001 no Authorization —— after is ， 1 ）「」
+/// 1 （ need can use ， not ：、
+/// API Key ）， its up up 。
 pub(super) fn parse_zhipu(
     payload: &Value,
     unit: &str,
@@ -526,12 +526,12 @@ pub(super) fn parse_zhipu(
     Ok(document)
 }
 
-/// 商汤日日新 `tokenplan/pool-usage`：
+/// new `tokenplan/pool-usage`：
 /// `{ plan, pools: [{ id, name, pool_type, model_ids, window_5h, window_7d, grant_balance }] }`。
 ///
-/// 主读数是**通用池（`pool_type = default`）5 小时窗口的剩余百分比**（缺失时
-/// 退 7 天窗口）—— 与 OmniProxy 的自动跳过判定同一口径。
-/// 明细行按池 × 窗口展开（两个池各两层窗口），返赠余额单独一行。
+/// is ** use （`pool_type = default`）5 when remaining**（ when 
+/// 7 ）—— and OmniProxy 1 。
+/// by × （ ）， 1 。
 pub(super) fn parse_sensenova(payload: &Value) -> Option<Value> {
     let data = map_of(payload)?;
     let pools_raw = data.get("pools")?.as_array()?;
@@ -600,7 +600,7 @@ pub(super) fn parse_sensenova(payload: &Value) -> Option<Value> {
     Some(document(available, "%", wallets, payload))
 }
 
-/// 单层窗口 → 只留三个数值（`{limit, used, remaining, reset_at}`）
+/// → （`{limit, used, remaining, reset_at}`）
 fn read_sensenova_window(value: Option<&Value>) -> Option<Value> {
     let map = value.and_then(map_of)?;
     let limit = number_at(map, "limit");
@@ -625,7 +625,7 @@ fn read_sensenova_window(value: Option<&Value>) -> Option<Value> {
     Some(Value::Object(out))
 }
 
-/// 窗口剩余百分比（`remaining / limit`，夹在 0~100；缺值给 None）
+/// remaining（`remaining / limit`， in 0~100； to None）
 fn window_remaining_percent(window: Option<&Value>) -> Option<f64> {
     let window = window.and_then(map_of)?;
     let limit = number_at(window, "limit").filter(|value| *value > 0.0)?;

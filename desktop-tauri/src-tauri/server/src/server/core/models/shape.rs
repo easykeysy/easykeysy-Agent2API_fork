@@ -1,28 +1,28 @@
-//! 模型清单的「来源无关」形态工具（Agent2API 改造 W2a-T2 从 `models/mod.rs` 拆出）。
+//! 「none」（Agent2API W2a-T2 from `models/mod.rs` ）。
 //!
-//! ── 为什么单独一个文件 ──────────────────────────────────────
-//! 这些函数服务的是「一条模型记录 → /v1/models 的条目」「一批模型 id → 相近提示」
-//! 这类**与哪一家 provider 无关**的转换。多提供商之后有两处要它们：
+//! ── Why 1 file ──────────────────────────────────────
+//! this is 「 1 → /v1/models 」「 1 id → 」
+//! this ** and 1 provider none** 。 after has need ：
 //!
-//!   - `models/mod.rs`：workbuddy 单家清单（`ModelCatalog::list_response`）；
-//!   - `providers/catalog.rs`：聚合清单（把多家的 data 合并成一个响应）。
+//! - `models/mod.rs`：workbuddy （`ModelCatalog::list_response`）；
+//! - `providers/catalog.rs`：（ data and 1 response）。
 //!
-//! 放在一处（而不是在聚合层抄一份）是硬要求：字段映射或提示规则只要出现两份
-//! 实现，两边迟早会分叉，而分叉在「字段少一个 / 提示多一条」这种量级上
-//! 不会报错，只会让用户觉得「同一个网关的模型列表前后不一致」。
+//! in 1 （ not is in 1 ） is need ： or then need 
+//! ， will ， in 「 1 / 1 」 this up 
+//! not will ， will use 「 1 before after not 1 」。
 //!
-//! 拆成独立文件的直接原因：`models/mod.rs` 逼近单文件 800 行的项目约定
-//! （这些纯函数与「目录句柄 / 远程刷新」是两件事，天然该分开）。
+//! file Reason：`models/mod.rs` file 800 
+//! （ this and 「directory / new 」 is ， this ）。
 
 use serde_json::{json, Map, Value};
 
-/// 模型 id 的文本形态（JS `String(m.id)`；缺失给空串）
+/// id （JS `String(m.id)`； to empty）
 pub fn model_id(model: &Value) -> String {
     model.get("id").map(value_text).unwrap_or_default()
 }
 
-/// JS `String(x)`（id/name/credits 这类字段的文本形态）：
-/// 字符串原样、数字按字面量、null/缺失给空串、其余用 JSON 文本近似。
+/// JS `String(x)`（id/name/credits this ）：
+/// 、 by 、null/ to empty、 its use JSON 。
 pub fn value_text(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
@@ -33,7 +33,7 @@ pub fn value_text(value: &Value) -> String {
     }
 }
 
-/// JS 真值判定（`Boolean(x)`）：null/false/0/"" 为假，其余为真
+/// JS （`Boolean(x)`）：null/false/0/"" as ， its as 
 pub fn js_truthy(value: &Value) -> bool {
     match value {
         Value::Null => false,
@@ -44,17 +44,17 @@ pub fn js_truthy(value: &Value) -> bool {
     }
 }
 
-/// 单条模型 → /v1/models 的条目（字段名与顺序照抄 Node 的 listResponse）。
+/// → /v1/models （ and Node listResponse）。
 ///
-/// `provider_id` 只用于 `owned_by`：workbuddy 传 `"workbuddy"` 保持既有输出；
-/// 聚合层传条目**归属的 provider id**（同名去重后保留的那一家）。
-/// `owned_by` 是本次改造唯一新增的语义位（原先恒为 "workbuddy"），
-/// 对单一 workbuddy 用户而言输出逐字节不变。
+/// `provider_id` used for `owned_by`：workbuddy `"workbuddy"` has ；
+/// ** provider id**（ after that 1 ）。
+/// `owned_by` is 1 add （ as "workbuddy"），
+/// for 1 workbuddy use not 。
 pub fn list_item(model: &Value, provider_id: &str) -> Value {
-    // 逐个字段复刻 Node 的对象字面量：值为 undefined（键缺失）时
-    // JSON 化会**丢掉这个键**，所以这里也只在存在时插入 ——
-    // 例如图像模型的 maxOutputTokens 缺失，Node 的输出里就没有
-    // `max_output_tokens`，而不是 `null`
+    // Node for ： as undefined（） when 
+    // JSON will ** this **， this in in when ——
+    // e.g. maxOutputTokens ，Node no has 
+    // `max_output_tokens`， not is `null`
     let mut item = Map::new();
     if let Some(id) = model.get("id").filter(|value| !value.is_null()) {
         item.insert("id".to_string(), id.clone());
@@ -68,8 +68,8 @@ pub fn list_item(model: &Value, provider_id: &str) -> Value {
     if let Some(name) = model.get("name").filter(|value| !value.is_null()) {
         item.insert("name".to_string(), name.clone());
     }
-    // `credits: m.credits || ''`：假值（含 null/空串/0）一律给空串，
-    // 真值原样透出（数字等非字符串值也照透，与 Node 一致）
+    // `credits: m.credits || ''`：（ null/empty/0） 1 to empty，
+    // （ etc ， and Node 1 ）
     item.insert(
         "credits".to_string(),
         match model.get("credits") {
@@ -83,8 +83,8 @@ pub fn list_item(model: &Value, provider_id: &str) -> Value {
     if let Some(value) = model.get("maxInputTokens").filter(|value| !value.is_null()) {
         item.insert("max_input_tokens".to_string(), value.clone());
     }
-    // 两个模态位先取成局部量：下面的 `input_modalities` 必须与它们**同源**
-    // —— 同一批生效值（含用户覆盖）、同一套真值判定，两处声明才不会漂移
+    // ： down `input_modalities` must and ****
+    // —— 1 （ use ）、 1 ， not will 
     let images = model.get("supportsImages").map(js_truthy).unwrap_or(false)
         || crate::server::core::providers::images::provider_model_supports_editing(provider_id, model);
     let video = model.get("supportsVideo").map(js_truthy).unwrap_or(false);
@@ -98,16 +98,16 @@ pub fn list_item(model: &Value, provider_id: &str) -> Value {
         "supports_reasoning".to_string(),
         Value::Bool(model.get("supportsReasoning").map(js_truthy).unwrap_or(false)),
     );
-    // `input_modalities`：OpenAI 兼容生态里模型条目上的**通用**输入模态声明
-    // （ZenMux / OpenRouter / AIHubMix 这类网关都在 `/v1/models` 的条目里给
-    // 它；CLIProxyAPI 为 Codex 客户端单独补同一个键）。它和上面的
-    // `supports_images` / `supports_video` 是**同一件事的两套说法** —— 一批
-    // 客户端只认前者，另一批只认后者，所以两套都得给，且必须同源。
+    // `input_modalities`：OpenAI up ** use **
+    // （ZenMux / OpenRouter / AIHubMix this in `/v1/models` to 
+    // ；CLIProxyAPI as Codex client 1 ）。 and up 
+    // `supports_images` / `supports_video` is ** 1 ** —— 1 
+    // client before ， 1 after ， to ， and must。
     //
-    // `text` 恒在；图片输入与图片输出分别由模态位和 kind 表达。
-    // 模态位为真时
-    // 追加对应的那一项。取值用生态通用的小写字符串，不是自有键名的复刻：
-    // 上游清单里没有的模态（audio / file）不猜，宁可不说。
+    // `text` in ； and by and kind 。
+    // as when 
+    // for that 1 。 use use ， not is has ：
+    // up no has （audio / file） not ， can not 。
     let mut modalities = vec![Value::String("text".to_string())];
     if images {
         modalities.push(Value::String("image".to_string()));
@@ -157,10 +157,10 @@ pub fn list_item(model: &Value, provider_id: &str) -> Value {
     Value::Object(item)
 }
 
-/// OpenAI 清单响应的信封：`{object:"list", data, meta:{source,lastRefreshedAt,count}}`。
+/// OpenAI response ：`{object:"list", data, meta:{source,lastRefreshedAt,count}}`。
 ///
-/// `count` 就是 data 的长度（单家路径 = 目录条数，聚合路径 = 合并去重后的条数）。
-/// 先取长度再移动 data：`json!` 会把 Vec 移进值里，之后再 borrow 是编译错误。
+/// `count` is data （path = directory，path = and after ）。
+/// data：`json!` will Vec ， after borrow is error。
 pub fn list_response_from(data: Vec<Value>, source: &str, last_refreshed_at: i64) -> Value {
     let count = data.len();
     json!({
@@ -174,7 +174,7 @@ pub fn list_response_from(data: Vec<Value>, source: &str, last_refreshed_at: i64
     })
 }
 
-/// 模型 id 归一化：小写 + 去掉非 ASCII 字母数字，`deepseek-v4.1-flash` → `deepseekv41flash`
+/// id 1 ： + ASCII ，`deepseek-v4.1-flash` → `deepseekv41flash`
 fn normalize_model_id(value: &str) -> String {
     value
         .to_lowercase()
@@ -183,7 +183,7 @@ fn normalize_model_id(value: &str) -> String {
         .collect()
 }
 
-/// 经典 Levenshtein 距离（模型 id 都很短，O(nm) 足够）
+/// Levenshtein （ id ，O(nm) ）
 fn edit_distance(a: &str, b: &str) -> usize {
     if a == b {
         return 0;
@@ -208,7 +208,7 @@ fn edit_distance(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
-/// 公共前缀长度（大小写已归一，直接按字符比较）
+/// before （ already 1 ， by ）
 fn common_prefix_length(a: &str, b: &str) -> usize {
     a.chars()
         .zip(b.chars())
@@ -216,17 +216,17 @@ fn common_prefix_length(a: &str, b: &str) -> usize {
         .count()
 }
 
-/// 「你是不是想要」提示的纯函数形态：从一批模型 id 里挑出与 `id` 最相近的。
+/// 「 is not is need 」 ： from 1 id and `id` 。
 ///
-/// 过滤与排序规则逐字照抄 Node 版 suggest：
-///   ① 归一化后公共前缀 ≥ 4；
-///   ② 且（互为前缀 或 编辑距离 ≤ max(3, floor(目标长度 × 0.4))）；
-///   ③ 按编辑距离升序、公共前缀降序，取前 limit 个。
+/// and then Node suggest：
+/// ① 1 after before ≥ 4；
+/// ② and （ as before or ≤ max(3, floor( × 0.4))）；
+/// ③ by 、 before ， before limit 。
 ///
-/// 抽成独立函数（而不是只留 `ModelCatalog::suggest` 的方法体）是给聚合目录用的：
-/// Agent2API 之后 400 报错的提示要覆盖**所有 provider** 的模型名，而聚合层手里
-/// 是若干家的清单数组，不该为了复用这段排序逻辑去拼一个临时 ModelCatalog。
-/// `ModelCatalog::suggest` 与聚合层都调这里，两处的判定口径永远一致。
+/// （ not is `ModelCatalog::suggest` ） is to directory use ：
+/// Agent2API after 400 need **all provider** ，
+/// is if ， not this as use this 1 when ModelCatalog。
+/// `ModelCatalog::suggest` and this ， 1 。
 pub fn suggest_from(
     candidates: impl IntoIterator<Item = String>,
     id: &str,
@@ -250,8 +250,8 @@ pub fn suggest_from(
             Some((model_id, dist, prefix))
         })
         .collect();
-    // 稳定排序：同距离同前缀时保持候选的原始顺序（传递依赖，与聚合层给定的
-    // provider 顺序一致 —— 于是「同一批候选」两处调用的结果必然相同）
+    // ： before when （， and to 
+    // provider 1 —— is 「 1 」 use ）
     scored.sort_by(|a, b| a.1.cmp(&b.1).then(b.2.cmp(&a.2)));
     scored.truncate(limit);
     scored.into_iter().map(|(id, _, _)| id).collect()

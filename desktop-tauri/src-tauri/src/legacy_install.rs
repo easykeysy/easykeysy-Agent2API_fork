@@ -1,44 +1,44 @@
-//! 旧「当前用户」级安装（1.x）的清理：目录、快捷方式、卸载注册项，
-//! 以及旧开机自启登记的识别。
+//! old 「current use 」（1.x） ：directory、、，
+//! and old 。
 //!
-//! ── 为什么清理必须在应用启动时做，而不是写进 NSIS 安装脚本 ──────────────
-//! 安装模式从 currentUser 改为 perMachine 后，安装器以管理员身份运行：此时
-//! `%LOCALAPPDATA%` 与 HKCU 指向的是**管理员账户**，既读不到也删不掉发起安装
-//! 的那个登录用户的旧安装。而新版应用启动时是普通用户上下文，`%LOCALAPPDATA%`
-//! 与 HKCU 都属于当前用户，删用户目录下的文件也不需要管理员权限 —— 这是唯一
-//! 能覆盖到旧安装的位置。
+//! ── Whymust in use when ， not is NSIS ──────────────
+//! from currentUser as perMachine after ，： when 
+//! `%LOCALAPPDATA%` and HKCU to is ****， not to not 
+//! that use old 。 new use when is use up down ，`%LOCALAPPDATA%`
+//! and HKCU current use ， use directory down file not need need —— this is 1 
+//! can to old 。
 //!
-//! ── 只删「确认是本产品」的目标 ────────────────────────────────────
-//! 判定链每一环都必须成立，任何一环不成立就跳过（宁可留下垃圾，也绝不误删
-//! 用户自己安装的其它软件）：
-//!   目录     必须存在本产品主程序（`agent2api.exe` / `workbuddy-proxy-desktop.exe`）；
-//!   卸载键   键名与 DisplayName 都要等于本产品的历史/现用名，且键里记录的安装
-//!            位置要落在对应旧目录内、该目录已经不存在；
-//!   快捷方式 文件名等于产品名，且 .lnk 内容里出现旧目录的绝对路径；
-//!   自启值   值名等于产品名，内容里出现旧目录路径，且它指向的可执行文件已不在。
-//! 另外，**当前进程所在目录永远不会被删**（用户把新版手工拷进旧目录时不能删自己）。
+//! ── 「 is 」 ────────────────────────────────────
+//! 1 must， 1 not （ can down ， not 
+//! use its ）：
+//! directory must in （`agent2api.exe` / `workbuddy-proxy-desktop.exe`）；
+//! and DisplayName need etc / use ， and 
+//! need in for old directory、 this directory already not in ；
+//! file etc ， and .lnk old directory for path；
+//! etc ， old directorypath， and to can file already not in 。
+//! ，**current in directory not will **（ use new old directory when not can ）。
 //!
-//! ── 失败只记日志，下次启动重试 ────────────────────────────────────
-//! 删除失败（文件被占用、权限不足）不阻断启动。函数是幂等的：目标不存在时
-//! 所有判定直接落空，正常启动零开销。
+//! ── failure， down ────────────────────────────────────
+//! deletefailure（file use 、 not ） not 。 is etc ： not in when 
+//! allempty，。
 //!
-//! ── 自启登记是同一问题的另一半（见 `autostart_needs_refresh`）──────────
-//! 旧登记指向 `%LOCALAPPDATA%` 下的旧目录、值名也用旧产品名；新版装在 Program
-//! Files 且用 productName 登记，两者互不覆盖，旧的那条会静默失效。
+//! ── is 1 1 （ `autostart_needs_refresh`）──────────
+//! old to `%LOCALAPPDATA%` down old directory、 use old ； new in Program
+//! Files and use productName ， not ， old that will 。
 //!
-//! ── 日志为什么用 eprintln! ──────────────────────────────────────
-//! 调用点在 setup 早期且跑在后台任务里，日志库此时可能还没初始化；
-//! `server::logging::log` 的控制台通道本身也是 eprintln!，这里直接用更直白。
+//! ── Why use eprintln! ──────────────────────────────────────
+//! use in setup and in after ， when can can no ；
+//! `server::logging::log` is eprintln!， this use 。
 
 #[cfg(windows)]
 pub use imp::{autostart_needs_refresh, cleanup_legacy_user_install};
 
-/// 非 Windows 平台：本项目的打包目标只有 Windows，保留分支是为了其它平台
-/// 也能编译（与 `update.rs` 的 `launch_installer` 同一处理）
+/// Windows ： has Windows， is as its 
+/// can （ and `update.rs` `launch_installer` 1 ）
 #[cfg(not(windows))]
 pub fn cleanup_legacy_user_install() {}
 
-/// 非 Windows 平台的等价桩实现（自启登记由各平台自己处理，无需刷新）
+/// Windows etc （ by ，none need new ）
 #[cfg(not(windows))]
 pub fn autostart_needs_refresh(_current_name: &str) -> bool {
     false
@@ -46,47 +46,47 @@ pub fn autostart_needs_refresh(_current_name: &str) -> bool {
 
 #[cfg(windows)]
 mod imp {
-    //! Windows 实现。
+    //! Windows 。
 
     use std::os::windows::ffi::OsStrExt;
     use std::path::{Path, PathBuf};
 
     use super::registry::{self, HKEY_CURRENT_USER};
 
-    /// 本产品用过的产品名。NSIS 在 currentUser 模式下把这些名字同时用作
-    /// 安装目录名（`%LOCALAPPDATA%\<产品名>`）、卸载键名与快捷方式名。
+    /// use 。NSIS in currentUser down this when use 
+    /// directory（`%LOCALAPPDATA%\<>`）、 and 。
     const PRODUCT_NAMES: [&str; 2] = ["Agent2API", "WorkBuddy 本地代理"];
 
-    /// 旧安装目录里可能出现的主程序文件名。
+    /// old directory can can file。
     ///
-    /// `workbuddy-proxy-desktop.exe` 是用过很久的产物名：Cargo.toml 的 package
-    /// name 一直是 `workbuddy-proxy-desktop`，早期 tauri.conf.json 又没设
-    /// mainBinaryName，NSIS 的 MAINBINARYNAME 与磁盘上的 exe 都是它（已按构建出的
-    /// installer.nsi 与真实安装目录核对）。现在 tauri.conf.json 把 mainBinaryName
-    /// 设成 `agent2api`，新装的目录里是 `agent2api.exe`。
+    /// `workbuddy-proxy-desktop.exe` is use ：Cargo.toml package
+    /// name 1 is `workbuddy-proxy-desktop`， tauri.conf.json no 
+    /// mainBinaryName，NSIS MAINBINARYNAME and up exe is （ already by 
+    /// installer.nsi and directory for ）。 in tauri.conf.json mainBinaryName
+    /// `agent2api`， new directory is `agent2api.exe`。
     ///
-    /// 两个名字都留着：判定对象是**历史**安装目录，里面是哪一个取决于当初装的是
-    /// 哪个版本，判定链不该因为改名而失效。
+    /// ： for is ****directory， is 1 is 
+    /// ， not this as 。
     const BINARY_NAMES: [&str; 2] = ["workbuddy-proxy-desktop.exe", "agent2api.exe"];
 
-    /// 当前用户级安装的卸载信息（NSIS 的 currentUser 模式写这里）
+    /// current use （NSIS currentUser this ）
     const UNINSTALL_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 
-    /// 开机自启登记（tauri-plugin-autostart 底层的 auto-launch 用同一处）
+    /// （tauri-plugin-autostart auto-launch use 1 ）
     const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
-    /// 任务管理器「启动」页的启用状态：与 Run 同名的一个二进制值
+    /// 「」 enabled： and Run 1 
     const STARTUP_APPROVED_KEY: &str =
         "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
 
-    /// 清理旧用户级安装。同步、幂等、失败只记日志。
+    /// old use 。、 etc 、failure。
     pub fn cleanup_legacy_user_install() {
         let dirs = legacy_dirs();
         if dirs.is_empty() {
             return;
         }
-        // 目录先删，后面的卸载键 / 快捷方式 / 自启值都按「目录是否已不存在」判定，
-        // 避免把仍然可用的旧安装入口（卸载器、快捷方式）先删掉
+        // directory， after / / by 「directory is already not in 」，
+        // available old （、）
         let cleaned: Vec<(&'static str, PathBuf, bool)> = dirs
             .into_iter()
             .map(|(name, dir)| {
@@ -100,21 +100,21 @@ mod imp {
         cleanup_autostart_entries(&cleaned);
     }
 
-    /// 是否需要按当前 exe 路径重建自启登记（值名为 `current_name`）。
+    /// is need need by current exe path（ as `current_name`）。
     ///
-    /// 场景：1.x 把登记写在 `%LOCALAPPDATA%\<旧产品名>` 下、值名也用旧产品名；
-    /// 改成 perMachine 后新版装在 Program Files，登记用的值名换成 productName。
-    /// 旧值指向已被删除的目录（由本模块清掉），新值则**根本不存在** ——
-    /// 插件自己的 `is_enabled()` 只会如实回答「没登记」，用户不开设置页就永远
-    /// 不会重建，自启静默失效。启动期据此补一次登记。
+    /// ：1.x in `%LOCALAPPDATA%\< old >` down 、 use old ；
+    /// perMachine after new in Program Files， use productName。
+    /// old to already delete directory（ by ）， new then ** not in ** ——
+    /// `is_enabled()` will 「 no 」， use not set
+    /// not will ，。 1 。
     ///
-    /// 判定条件（全部满足才返回 true，保证幂等且不覆盖用户的选择）：
-    ///   1. 当前值名的 Run 值不存在，或它的可执行文件不是当前进程的 exe；
-    ///   2. 任务管理器「启动」页里没有针对该值名的停用记录 —— 用户显式关掉的
-    ///      自启不该被我们悄悄打开（停用记录存在时 Run 值仍在，所以第 1 条
-    ///      单独判断会误判成「需要重建」）。
+    /// （return true， etc and not use ）：
+    /// 1. current Run not in ， or can file not is current exe；
+    /// 2. 「」 no has for this disabled —— use 
+    /// not this （disabled in when Run in ， 1 
+    /// will 「 need need 」）。
     ///
-    /// 只查这两处、不读设置文件：调用方已确认用户想要自启。
+    /// this 、 not setfile： use already use need 。
     pub fn autostart_needs_refresh(current_name: &str) -> bool {
         if startup_disabled(current_name) {
             return false;
@@ -123,19 +123,19 @@ mod imp {
             return true;
         };
         match (exe_path_from(&value), std::env::current_exe()) {
-            // 登记里记的就是当前这个可执行文件：已经是最新的，无需重建
+            // is current this can file： already is new ，none need 
             (Some(registered), Ok(current)) => {
                 !same_path(&registered, &current)
             }
-            // 值解析不出可执行文件（被改坏）：重建一次比留着一条无效登记好
+            // not can file（ ）： 1 1 invalid
             (None, _) => true,
-            // 取不到当前 exe 路径（理论上不会发生）：不动它
+            // not to current exe path（ up not will ）： not 
             (Some(_), Err(_)) => false,
         }
     }
 
-    /// 两个路径是否指向同一个文件（大小写不敏感；能 canonicalize 时用它消除
-    /// 8.3 短路径与 `\\?\` 前缀的形态差）
+    /// path is to 1 file（ not ； can canonicalize when use 
+    /// 8.3 path and `\\?\` before ）
     fn same_path(left: &Path, right: &Path) -> bool {
         if let (Ok(a), Ok(b)) = (left.canonicalize(), right.canonicalize()) {
             return a == b;
@@ -143,7 +143,7 @@ mod imp {
         left.to_string_lossy().eq_ignore_ascii_case(&right.to_string_lossy())
     }
 
-    /// 旧安装目录：`%LOCALAPPDATA%\<产品名>`，连同它对应的产品名
+    /// old directory：`%LOCALAPPDATA%\<>`， for 
     fn legacy_dirs() -> Vec<(&'static str, PathBuf)> {
         let Some(local) = env_path("LOCALAPPDATA") else {
             return Vec::new();
@@ -151,7 +151,7 @@ mod imp {
         PRODUCT_NAMES.iter().map(|name| (*name, local.join(name))).collect()
     }
 
-    /// 读环境变量里的目录（`%LOCALAPPDATA%` / `%APPDATA%` / `%USERPROFILE%`）
+    /// directory（`%LOCALAPPDATA%` / `%APPDATA%` / `%USERPROFILE%`）
     fn env_path(name: &str) -> Option<PathBuf> {
         let value = std::env::var(name).ok()?;
         let trimmed = value.trim();
@@ -162,12 +162,12 @@ mod imp {
         }
     }
 
-    /// 目录里是否有本产品的主程序；没有就认为不是本产品的安装目录
+    /// directory is has ； no has as not is directory
     fn looks_like_our_install(dir: &Path) -> bool {
         BINARY_NAMES.iter().any(|name| dir.join(name).is_file())
     }
 
-    /// 当前进程是否运行在该目录里（开发态或用户把新版拷进旧目录时绝不能删自己）
+    /// current is in this directory（ or use new old directory when not can ）
     fn running_inside(dir: &Path) -> bool {
         let (Ok(exe), Ok(target)) = (std::env::current_exe(), dir.canonicalize()) else {
             return false;
@@ -175,7 +175,7 @@ mod imp {
         exe.canonicalize().map(|exe| exe.starts_with(&target)).unwrap_or(false)
     }
 
-    /// 删除一个旧安装目录；返回「该目录是否已不存在」（删除成功或本来就没有）
+    /// delete 1 old directory；return「 this directory is already not in 」（deletesuccess or no has ）
     fn remove_legacy_dir(dir: &Path) -> bool {
         if !dir.exists() {
             return true;
@@ -213,12 +213,12 @@ mod imp {
         }
     }
 
-    /// 旧快捷方式：开始菜单 `%APPDATA%\Microsoft\Windows\Start Menu\Programs\<产品名>.lnk`
-    /// 与桌面 `%USERPROFILE%\Desktop\<产品名>.lnk`。
+    /// old ： `%APPDATA%\Microsoft\Windows\Start Menu\Programs\<>.lnk`
+    /// and `%USERPROFILE%\Desktop\<>.lnk`。
     ///
-    /// 判定用「文件名 + .lnk 内容里出现旧目录绝对路径」，不解析 .lnk 的目标
-    /// （那要走 COM 的 IShellLink，代价大得多）：.lnk 把目标路径以 UTF-16 明文
-    /// 存在文件里，两个条件同时成立才删，用户自己建的其它快捷方式不会被误删。
+    /// use 「file + .lnk old directory for path」， not .lnk 
+    /// （ that need COM IShellLink，）：.lnk path UTF-16 
+    /// in file， when ， use its not will 。
     fn cleanup_shortcuts(dirs: &[(&'static str, PathBuf, bool)]) {
         let mut roots: Vec<PathBuf> = Vec::new();
         if let Some(appdata) = env_path("APPDATA") {
@@ -226,15 +226,15 @@ mod imp {
         }
         if let Some(profile) = env_path("USERPROFILE") {
             roots.push(profile.join("Desktop"));
-            // 桌面被重定向到 OneDrive 时（很常见）真实位置在这里；
-            // 两个候选都查一遍，反正文件名与内容的双重判定不会误删
+            // to to OneDrive when （） in this ；
+            // 1 ，file and not will 
             if let Some(onedrive) = env_path("OneDrive") {
                 roots.push(onedrive.join("Desktop"));
             }
         }
         for root in roots {
             for (name, dir, removed) in dirs {
-                // 旧目录还在（删不掉或不是我们的）：快捷方式是它唯一的入口，留着
+                // old directory in （ not or not is ）： is 1 ，
                 if !removed {
                     continue;
                 }
@@ -260,7 +260,7 @@ mod imp {
         }
     }
 
-    /// .lnk 内容里是否出现该目录的绝对路径（UTF-16LE 明文，大小写不敏感）
+    /// .lnk is this directory for path（UTF-16LE ， not ）
     fn points_into(shortcut: &Path, dir: &Path) -> bool {
         let Ok(bytes) = std::fs::read(shortcut) else {
             return false;
@@ -272,15 +272,15 @@ mod imp {
         bytes.windows(needle.len()).any(|window| window.eq_ignore_ascii_case(&needle))
     }
 
-    /// 旧卸载注册项。只有「目录已经不在」时才删：目录还在（删不掉或不是我们的）
-    /// 就保留这个入口，用户仍能用它正常卸载。
+    /// old 。 has 「directory already not in 」 when ：directory in （ not or not is ）
+    /// this ， use can use 。
     fn cleanup_uninstall_keys(dirs: &[(&'static str, PathBuf, bool)]) {
         for (name, dir, removed) in dirs {
             if !removed {
                 continue;
             }
             let sub_key = format!("{UNINSTALL_KEY}\\{name}");
-            // 键名相同还不够：DisplayName 必须也等于产品名（同名键可能是别的软件）
+            // not ：DisplayName must etc （ can can is ）
             let Some(display) = registry::read_string(HKEY_CURRENT_USER, &sub_key, "DisplayName")
             else {
                 continue;
@@ -289,8 +289,8 @@ mod imp {
                 eprintln!("[Cleanup] 跳过卸载注册项（DisplayName 不匹配）: {sub_key} → {display}");
                 continue;
             }
-            // 键里记录的安装位置也必须落在该旧目录内；读不到就当「没记录」——
-            // 键名与 DisplayName 已经双重确认是本产品
+            // must in this old directory； not to 「 no 」——
+            // and DisplayName already is 
             if let Some(recorded) = recorded_install_dir(&sub_key) {
                 if !path_within(&recorded, dir) {
                     eprintln!(
@@ -308,7 +308,7 @@ mod imp {
         }
     }
 
-    /// 卸载键里记录的安装位置：优先 InstallLocation，其次从 UninstallString 推
+    /// ： InstallLocation， its from UninstallString 
     fn recorded_install_dir(sub_key: &str) -> Option<PathBuf> {
         if let Some(text) = registry::read_string(HKEY_CURRENT_USER, sub_key, "InstallLocation") {
             let path = PathBuf::from(trim_quotes(&text));
@@ -320,8 +320,8 @@ mod imp {
         exe_path_from(&command)?.parent().map(Path::to_path_buf)
     }
 
-    /// 旧自启登记：值名等于产品名、内容里出现旧目录路径、且它指向的可执行文件
-    /// 已经不在了 —— 三条同时成立才删（旧程序还在磁盘上时登记仍然有效）。
+    /// old ： etc 、 old directorypath、 and to can file
+    /// already not in —— when （ old in up when valid）。
     fn cleanup_autostart_entries(dirs: &[(&'static str, PathBuf, bool)]) {
         let paths: Vec<PathBuf> = dirs.iter().map(|(_, dir, _)| dir.clone()).collect();
         for name in PRODUCT_NAMES {
@@ -334,8 +334,8 @@ mod imp {
             if target.is_file() {
                 continue;
             }
-            // 同时清掉任务管理器「启动」页的状态值，否则启动项列表里会留下一个
-            // 指向已删除程序、永远启动不起来的幽灵条目
+            // when 「」 ，otherwise will down 1 
+            // to already delete、 not 
             let removed = registry::delete_value(HKEY_CURRENT_USER, RUN_KEY, name);
             registry::delete_value(HKEY_CURRENT_USER, STARTUP_APPROVED_KEY, name);
             if removed {
@@ -344,17 +344,17 @@ mod imp {
         }
     }
 
-    /// 自启值里指向旧安装目录的可执行文件路径
+    /// to old directory can filepath
     fn autostart_target(value: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
         let exe = exe_path_from(value)?;
         dirs.iter().any(|dir| path_within(&exe, dir)).then_some(exe)
     }
 
-    /// 任务管理器「启动」页是否把这一项停用了。
+    /// 「」 is this 1 disabled。
     ///
-    /// 判定与 tauri-plugin-autostart 底层的 auto-launch 一致（该键下同名值的
-    /// 末尾 8 字节全为 0 表示启用），这样「我们是否该重新登记」与插件自己的
-    /// `is_enabled()` 口径不会打架。值不存在表示从未被单独停用。
+    /// and tauri-plugin-autostart auto-launch 1 （ this down 
+    /// 8 as 0 enabled）， this 「 is this new 」 and 
+    /// `is_enabled()` not will 。 not in from disabled。
     fn startup_disabled(name: &str) -> bool {
         let Some(bytes) = registry::read_binary(HKEY_CURRENT_USER, STARTUP_APPROVED_KEY, name)
         else {
@@ -363,19 +363,19 @@ mod imp {
         bytes.len() >= 8 && !bytes[bytes.len() - 8..].iter().all(|byte| *byte == 0)
     }
 
-    /// 从命令串里取出可执行文件的绝对路径：以 .exe 结尾（大小写不敏感），
-    /// 之后的参数一律丢掉；取不到返回 None（调用方按「拿不到」处理，宁可不删）。
+    /// from can file for path： .exe （ not ），
+    /// after parameter 1 ； not to return None（ use by 「 not to 」， can not ）。
     ///
-    /// 用小写化后的串**定位**、在原串上**切片**：这里必须用 `to_ascii_lowercase`
-    /// 而不是 `to_lowercase` —— 后者对某些非 ASCII 字符（如 'İ'）会改变字节长度，
-    /// 拿它的下标去切原串会切错位置；`to_ascii_lowercase` 只折叠 A-Z，长度不变。
+    /// use after ****、 in up ****： this must use `to_ascii_lowercase`
+    /// not is `to_lowercase` —— after for ASCII （ 'İ'） will ，
+    /// down will ；`to_ascii_lowercase` A-Z， not 。
     fn exe_path_from(command: &str) -> Option<PathBuf> {
         let text = trim_quotes(command);
         let end = text.to_ascii_lowercase().find(".exe")? + 4;
         Some(PathBuf::from(&text[..end]))
     }
 
-    /// NSIS 写进注册表的值常带引号（`"C:\...\uninstall.exe"`，也可能在引号后带参数）
+    /// NSIS （`"C:\...\uninstall.exe"`， can can in after parameter）
     fn trim_quotes(text: &str) -> &str {
         let trimmed = text.trim();
         let Some(rest) = trimmed.strip_prefix('"') else {
@@ -384,8 +384,8 @@ mod imp {
         rest.split('"').next().unwrap_or(rest)
     }
 
-    /// 记录的路径是否落在旧目录内（大小写不敏感）。两侧都能 canonicalize 时优先
-    /// 用它，消除 8.3 短路径与 `\\?\` 前缀的形态差；目录已不存在时退回字符串比较。
+    /// path is in old directory（ not ）。 can canonicalize when 
+    /// use ， 8.3 path and `\\?\` before ；directory already not in when 。
     fn path_within(candidate: &Path, dir: &Path) -> bool {
         if let (Ok(left), Ok(right)) = (candidate.canonicalize(), dir.canonicalize()) {
             return left.starts_with(&right);
@@ -396,18 +396,18 @@ mod imp {
     }
 }
 
-/// 只用到「读字符串值 / 读二进制值 / 删值 / 删键」的最小注册表封装。
+/// use to 「 / / / 」 。
 ///
-/// 为什么手写 extern 而不是给 windows-sys 加 Registry 特性：Cargo.toml 在本次
-/// 改动的文件域之外（多处并行改动共用它）。这几个 API 签名长期稳定、调用点很少，
-/// 按 `login.rs` 里 `ShellExecuteW` 的同一手法声明即可，零新依赖。
+/// Why extern not is to windows-sys Registry ：Cargo.toml in 
+/// file（ and use ）。 this API 、 use ，
+/// by `login.rs` `ShellExecuteW` 1 can ， new 。
 #[cfg(windows)]
 mod registry {
     use std::ffi::{c_void, OsStr};
     use std::os::windows::ffi::OsStrExt;
 
-    /// 预定义根键。值等于 `(LONG)0x80000001` 在 64 位下的符号扩展形态
-    /// （与 windows-sys 的 `HKEY_CURRENT_USER` 定义一致，别写成 0x80000001）。
+    /// 。 etc `(LONG)0x80000001` in 64 down 
+    /// （ and windows-sys `HKEY_CURRENT_USER` 1 ， 0x80000001）。
     pub const HKEY_CURRENT_USER: *mut c_void = -2147483647i32 as isize as *mut c_void;
 
     const KEY_QUERY_VALUE: u32 = 0x0001;
@@ -417,7 +417,7 @@ mod registry {
     const REG_EXPAND_SZ: u32 = 2;
     const REG_BINARY: u32 = 3;
 
-    /// 值长度上限：这里读的都是短字符串，超长说明不是我们要看的值
+    /// limit： this is ， not is need 
     const MAX_VALUE_BYTES: u32 = 8 * 1024;
 
     #[link(name = "advapi32")]
@@ -446,7 +446,7 @@ mod registry {
         OsStr::new(text).encode_wide().chain(std::iter::once(0)).collect()
     }
 
-    /// 已打开的键：Drop 时关闭，免得每条失败分支都要记得手动关
+    /// already ：Drop when ，failure need 
     struct Key(*mut c_void);
 
     impl Drop for Key {
@@ -466,17 +466,17 @@ mod registry {
         }
     }
 
-    /// 读一个值并校验类型；键/值不存在、类型不符、超长都返回 None。
+    /// 1 and ；/ not in 、 not 、return None。
     ///
-    /// 缓冲不够时 `RegQueryValueExW` 返回 ERROR_MORE_DATA 并把所需长度写回 size，
-    /// 按这个长度重试一次（与 winreg 的 `get_raw_value` 同一套写法：不依赖
-    /// 「lpData 传 NULL 先问长度」那条约定，那条在某些值类型上行为不一致）。
+    /// not when `RegQueryValueExW` return ERROR_MORE_DATA and need size，
+    /// by this 1 （ and winreg `get_raw_value` 1 ： not 
+    /// 「lpData NULL 」 that ， that in up as not 1 ）。
     fn query(key: &Key, value: &str, allowed: &[u32]) -> Option<Vec<u8>> {
         const ERROR_MORE_DATA: i32 = 234;
 
         let name = wide(value);
         let mut kind: u32 = 0;
-        // 这里读的都是短字符串，1KB 起步基本一次就读完；超限由下面的判断兜住
+        // this is ，1KB 1 ； by down 
         let mut size: u32 = 1024;
         let mut buffer = vec![0u8; size as usize];
         loop {
@@ -491,7 +491,7 @@ mod registry {
                 )
             };
             if status == ERROR_MORE_DATA {
-                // size 已被写成所需长度；超过上限说明不是我们要看的值，放弃
+                // size already need ；limit not is need ，
                 if size > MAX_VALUE_BYTES {
                     return None;
                 }
@@ -506,7 +506,7 @@ mod registry {
         }
     }
 
-    /// 读字符串值（REG_SZ / REG_EXPAND_SZ）
+    /// （REG_SZ / REG_EXPAND_SZ）
     pub fn read_string(root: *mut c_void, sub_key: &str, value: &str) -> Option<String> {
         let key = open(root, sub_key, KEY_QUERY_VALUE)?;
         let bytes = query(&key, value, &[REG_SZ, REG_EXPAND_SZ])?;
@@ -515,19 +515,19 @@ mod registry {
         Some(String::from_utf16_lossy(&units).trim_end_matches('\0').to_string())
     }
 
-    /// 读二进制值（任务管理器「启动」页的启用状态用它）
+    /// （「」 enabled use ）
     pub fn read_binary(root: *mut c_void, sub_key: &str, value: &str) -> Option<Vec<u8>> {
         let key = open(root, sub_key, KEY_QUERY_VALUE)?;
         query(&key, value, &[REG_BINARY])
     }
 
-    /// 删键（要求该键没有子键，卸载键都是叶子）
+    /// （ need this no has ， is ）
     pub fn delete_key(root: *mut c_void, sub_key: &str) -> bool {
         let name = wide(sub_key);
         unsafe { RegDeleteKeyW(root, name.as_ptr()) == ERROR_SUCCESS }
     }
 
-    /// 删值
+    /// 
     pub fn delete_value(root: *mut c_void, sub_key: &str, value: &str) -> bool {
         let Some(key) = open(root, sub_key, KEY_SET_VALUE) else {
             return false;

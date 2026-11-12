@@ -1,33 +1,33 @@
 #!/usr/bin/env node
-//! 迁移 parity 验证：**内置实现 vs 插件实现**，同一份输入比同一份输出。
+//! parity ：** vs **， 1 1 。
 //!
-//! ── 这个脚本解决什么问题 ────────────────────────────────────
-//! 把一家 provider 从「编译进网关」搬到「插件子进程」时，最大的风险不是编译
-//! 不过，而是**静默行为漂移**：某个字段改了名、某个默认值变了、某个分支顺序
-//! 反了。这些都能编译通过，也都能「看起来正常工作」，直到某个具体请求出错。
+//! ── this ────────────────────────────────────
+//! 1 provider from 「」 to 「」 when ， not is 
+//! not ， is ** as **： 、 default、 
+//! 。 this can ， can 「」， to request。
 //!
-//! 所以这里做**差分测试**：同一份输入分别喂给两边，逐字段比对。
+//! this ****： 1 to ， for 。
 //!
-//! ── 覆盖什么（按「容易漂移」排序）──────────────────────────────
-//!   1. `chat`：URL / 请求头 / 完整请求体（**深度相等**，键序也管）
-//!   2. `classify`：四档分类的每个分支（含边界：402→429、403 两种语义）
-//!   3. `models`：清单条目数与首条形状
-//!   4. 能力位与 provider id
+//! ── （ by 「」）──────────────────────────────
+//! 1. `chat`：URL / request / request（** etc **，）
+//! 2. `classify`： （：402→429、403 ）
+//! 3. `models`： and 
+//! 4. can and provider id
 //!
-//! ── 怎么跑 ──────────────────────────────────────────────────
+//! ── ──────────────────────────────────────────────────
 //! ```bash
-//! # 1. 先构建插件
+//! # 1. 
 //! cd agent2api-providers && cargo build
-//! # 2. 跑 parity
+//! # 2. parity
 //! node scripts/parity-check.mjs
 //! ```
-//! 插件二进制不存在时跳过（不报失败）。
+//! not in when （ not failure）。
 //!
-//! ── 为什么用 Node 而不是 Rust 集成测试 ──────────────────────
-//! 内置实现要跑起来需要整个网关的 `ServerState`（账号库、配置、日志库…），
-//! 那是几百行脚手架。而**插件侧**只需要 stdin/stdout —— Node 直接说协议就
-//! 行了。于是这里的做法是：**用 Node 扮演网关调插件**，把结果与「从内置
-//! 实现抄下来的期望值」比对。期望值来自内置实现的源码，是冻结的。
+//! ── Why use Node not is Rust ──────────────────────
+//! need need need `ServerState`（、config、…），
+//! that is 。**** need need stdin/stdout —— Node 
+//! 。 is this is ：** use Node **， and 「 from 
+//! down 」 for 。 ， is 。
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -47,7 +47,7 @@ function pluginExe() {
   return candidates.find((path) => existsSync(path));
 }
 
-// ── 一个最小的「网关」：说协议、收应答 ────────────────────────
+// ── 1 「」：、 ────────────────────────
 class Gateway {
   constructor(exe) {
     this.child = spawn(exe, [], { stdio: ["pipe", "pipe", "inherit"] });
@@ -103,18 +103,18 @@ class Gateway {
   }
 }
 
-// ── 断言工具（失败要能一眼看出哪一层、差在哪）─────────────────
+// ── （failure need can 1 1 、 in ）─────────────────
 let failures = 0;
 let checks = 0;
 
 /**
- * 深比较，**忽略对象键序**。
+ * ，**ignore for **。
  *
- * ── 为什么不能直接 JSON.stringify 比 ────────────────────────────
- * 插件的请求体由 `serde_json` 序列化，而它的 `Map` 默认是 **BTreeMap**
- * （键按字典序排）。网关内置实现走的是同一条栈，所以两边键序其实一致 ——
- * 但把「键序」当成契约会让这个脚本在无关的改动上误报（例如给信封加一个
- * 字段）。JSON 对象的键序本来就没有语义，比较值即可。
+ * ── Why not can JSON.stringify ────────────────────────────
+ * request by `serde_json` ， `Map` default is **BTreeMap**
+ * （ by ）。 is 1 ， its 1 ——
+ * 「」 will this in none up （e.g. to 1 
+ * ）。JSON for no has ， can 。
  */
 function deepEqual(a, b) {
   if (a === b) return true;
@@ -152,8 +152,8 @@ function checkTruthy(label, value, note = "") {
 }
 
 /**
- * 插件的 `headers` 是 `Vec<(String, String)>`，过线后是**数组**（保序，
- * 因为鉴权头的顺序在少数上游那里有意义）。这里转成对象便于按名字断言。
+ * `headers` is `Vec<(String, String)>`， after is ****（，
+ * as in up that has ）。 this for by 。
  */
 function headerMap(headers) {
   if (!headers) return {};
@@ -163,7 +163,7 @@ function headerMap(headers) {
   return headers;
 }
 
-/** 键集合比较（不看顺序 —— 见 `deepEqual` 的说明） */
+/** （ not —— `deepEqual` ） */
 function checkKeySet(label, actual, expected) {
   checks += 1;
   const a = Object.keys(actual).sort();
@@ -175,18 +175,18 @@ function checkKeySet(label, actual, expected) {
   console.error(`  期望: ${JSON.stringify(e)}`);
 }
 
-// ── 假账号：插件通过 store.get 回调拿到的 secret ──────────────
+// ── ： store.get to secret ──────────────
 function accountSecret(provider) {
   if (provider === "commandcode") return { apiKey: "user_parity_test_key_123456" };
   return { accessToken: "ms-parity-token-abcdefgh", userId: "2220378210908" };
 }
 
 /**
- * 一个「像网关」的插件宿主：自动应答 `store.get` 回调。
+ * 1 「」 ： `store.get` 。
  *
- * ── 为什么必须应答回调 ──────────────────────────────────────
- * 插件的 `build_chat` / `ensure_token` 都会回调 `store.get` 取凭证。
- * 不应答的话那些调用会挂到超时 —— 而这个脚本要验的正是它们的结果。
+ * ── Whymust ──────────────────────────────────────
+ * `build_chat` / `ensure_token` will `store.get` 。
+ * not that use will to when —— this need is 。
  */
 class Host extends Gateway {
   constructor(exe, secret) {
@@ -207,7 +207,7 @@ class Host extends Gateway {
         } catch {
           continue;
         }
-        // 插件的回调（有 method、没有 result/error）
+        // （ has method、 no has result/error）
         if (frame.method === "store.get") {
           const provider = frame.params?.provider ?? "";
           const id = frame.params?.account || `${provider}-parity`;
@@ -235,12 +235,12 @@ class Host extends Gateway {
 // ══════════════════════════════════════════════════════════════
 
 /**
- * 内置实现的期望值（从 `providers/commandcode/plan.rs` 冻结）。
+ * （ from `providers/commandcode/plan.rs` ）。
  *
- * ── 这些常量为什么写死在这里 ────────────────────────────────
- * 它们就是「内置实现在这份输入下的输出」。写死 = 冻结契约：插件侧一旦漂移
- * 就报错，而不是两边一起改然后一起错。要改这些值，必须同时改内置实现并
- * 想清楚为什么。
+ * ── this Why in this ────────────────────────────────
+ * is 「 in this down 」。 = ： 1 
+ * ， not is 1 after 1 。 need this ，must when and 
+ * Why。
  */
 const CC_EXPECT = {
   url: "https://api.commandcode.ai/alpha/generate",
@@ -281,7 +281,7 @@ async function checkCommandCode(exe) {
   checkTruthy("Command Code 在握手里出现", Boolean(info));
   if (!info) return host.close();
 
-  // 能力位（与内置实现逐条对齐）
+  // can （ and for ）
   check("cc.capabilities.chat", info.capabilities.chat, true);
   check("cc.capabilities.stateful", info.capabilities.stateful, false);
   check("cc.capabilities.refresh", info.capabilities.refresh, false);
@@ -291,7 +291,7 @@ async function checkCommandCode(exe) {
   check("cc.capabilities.web_login", info.capabilities.web_login, false);
   check("cc.label", info.label, "Command Code");
 
-  // ── chat：最小请求 ───────────────────────────────────────
+  // ── chat：request ───────────────────────────────────────
   const plan = await host.call("chat", {
     provider: "commandcode",
     account: "cc-1",
@@ -316,8 +316,8 @@ async function checkCommandCode(exe) {
     headers.traceparent
   );
 
-  // ── 信封 ────────────────────────────────────────────────
-  // 有会话 id 时会多一个 threadId（派生结果恒为合法 UUID）
+  // ── ────────────────────────────────────────────────
+  // has will id when will 1 threadId（ as UUID）
   const expectedKeys = [...CC_EXPECT.envelopeKeys, "threadId"];
   checkKeySet("cc.envelope 键集合", plan.body, expectedKeys);
   check("cc.envelope.memory", plan.body.memory, null);
@@ -345,7 +345,7 @@ async function checkCommandCode(exe) {
     { role: "user", content: [{ type: "text", text: "hi" }] },
   ]);
 
-  // ── config 块：本地环境字段必须是稳定中性值 ──────────────────
+  // ── config ：must is in ──────────────────
   const config = plan.body.config;
   check("cc.config.workingDir 是伪造值", config.workingDir, "C:\\Users\\dev\\projects\\app");
   check("cc.config.environment", config.environment, "win32");
@@ -359,7 +359,7 @@ async function checkCommandCode(exe) {
     config.date
   );
 
-  // ── max_tokens 上限 ─────────────────────────────────────
+  // ── max_tokens limit ─────────────────────────────────────
   const capped = await host.call("chat", {
     provider: "commandcode",
     account: "cc-1",
@@ -375,7 +375,7 @@ async function checkCommandCode(exe) {
   });
   check("cc.params.max_tokens 被截到上限", capped.body.params.max_tokens, CC_EXPECT.maxTokensCap);
 
-  // ── tool_choice = none → 清空 tools 且不下发 tool_choice ─────
+  // ── tool_choice = none → empty tools and not down tool_choice ─────
   const noTools = await host.call("chat", {
     provider: "commandcode",
     account: "cc-1",
@@ -411,7 +411,7 @@ async function checkCommandCode(exe) {
   check("cc.tool_choice=required → any", anyTools.body.params.tool_choice, { type: "any" });
   check("cc.tools 没有 type 字段", anyTools.body.params.tools[0].type, undefined);
 
-  // ── 错误分类（每个分支）──────────────────────────────────
+  // ── error（ ）──────────────────────────────────
   const cases = [
     [400, { message: "bad request" }, "fatal", 400],
     [401, { message: "unauthorized" }, "token_expired", null],
@@ -429,7 +429,7 @@ async function checkCommandCode(exe) {
       check(`cc.classify(${status}).status`, result.status, downstream);
     }
   }
-  // 内容拦截：400 + 特征文案 → content_blocked
+  // ：400 + → content_blocked
   const blocked = await host.call("classify", {
     provider: "commandcode",
     status: 400,
@@ -442,7 +442,7 @@ async function checkCommandCode(exe) {
     blocked.message
   );
 
-  // ── 模型清单（内置兜底 26 项）──────────────────────────────
+  // ── （ 26 ）──────────────────────────────
   const modelList = await host.call("models.list", {
     provider: "commandcode",
     account: "",
@@ -493,7 +493,7 @@ async function checkModelScope(exe, region, expect) {
   check(`${expect.id}.capabilities.checkin`, info.capabilities.checkin, true);
   check(`${expect.id}.capabilities.web_login`, info.capabilities.web_login, false);
 
-  // ── chat：URL / 头 / include_usage 注入 ─────────────────
+  // ── chat：URL / / include_usage ─────────────────
   const plan = await host.call("chat", {
     provider: expect.id,
     account: `${expect.id}-1`,
@@ -513,7 +513,7 @@ async function checkModelScope(exe, region, expect) {
     "Bearer ms-parity-token-abcdefgh"
   );
   check(`${expect.id}.Accept`, headers.Accept, "text/event-stream");
-  // ⚠️ 这是本家最关键的一处注入（漏了非流式 usage 恒为 0）
+  // ⚠️ this is 1 （ usage as 0）
   check(
     `${expect.id}.stream_options.include_usage`,
     plan.body.stream_options?.include_usage,
@@ -528,7 +528,7 @@ async function checkModelScope(exe, region, expect) {
     { role: "user", content: "hi" },
   ]);
 
-  // 客户端自己写过 stream_options 时，只补 include_usage、不覆盖整个对象
+  // client stream_options when ， include_usage、 not for 
   const merged = await host.call("chat", {
     provider: expect.id,
     account: `${expect.id}-1`,
@@ -546,8 +546,8 @@ async function checkModelScope(exe, region, expect) {
     true
   );
 
-  // ── 错误分类的分支顺序（本家最容易写反的地方）────────────────
-  // ① 魔粒耗尽：429 + insufficient balance → QuotaLimited + reset_at 非空
+  // ── error （ ）────────────────
+  // ① ：429 + insufficient balance → QuotaLimited + reset_at empty
   const balance = await host.call("classify", {
     provider: expect.id,
     status: 429,
@@ -560,7 +560,7 @@ async function checkModelScope(exe, region, expect) {
     balance.reset_at
   );
 
-  // ② 未验证邮箱：403 + 特征串 → QuotaLimited（**不是** TokenExpired）
+  // ② ：403 + → QuotaLimited（** not is ** TokenExpired）
   const unverified = await host.call("classify", {
     provider: expect.id,
     status: 403,
@@ -577,7 +577,7 @@ async function checkModelScope(exe, region, expect) {
     unverified.reset_at
   );
 
-  // ③ 裸 403 → TokenExpired
+  // ③ 403 → TokenExpired
   const forbidden = await host.call("classify", {
     provider: expect.id,
     status: 403,
@@ -585,7 +585,7 @@ async function checkModelScope(exe, region, expect) {
   });
   check(`${expect.id}.classify(裸 403).kind`, forbidden.kind, "token_expired");
 
-  // ④ 普通 429（速率窗口）→ QuotaLimited 且**不**给 reset_at
+  // ④ 429（）→ QuotaLimited and ** not ** to reset_at
   const rateLimit = await host.call("classify", {
     provider: expect.id,
     status: 429,
@@ -598,7 +598,7 @@ async function checkModelScope(exe, region, expect) {
     rateLimit.reset_at
   );
 
-  // ⑤ insufficient balance 配非 429 状态码时**不**走魔粒耗尽那条
+  // ⑤ insufficient balance 429 when ** not ** that 
   const wrongStatus = await host.call("classify", {
     provider: expect.id,
     status: 400,
@@ -610,7 +610,7 @@ async function checkModelScope(exe, region, expect) {
     wrongStatus.kind
   );
 
-  // ── 模型清单：本家没有内置兜底，没拉过就是空的 ────────────────
+  // ── ： no has ， no is empty ────────────────
   const modelList = await host.call("models.list", {
     provider: expect.id,
     account: "",
@@ -622,7 +622,7 @@ async function checkModelScope(exe, region, expect) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 主流程
+// 
 // ══════════════════════════════════════════════════════════════
 
 async function main() {

@@ -40,7 +40,7 @@ export function setupRecordColumns(mount: HTMLElement | null, onChange: () => vo
   onColumnsChanged = onChange
   if (!mount) return false
   if (handle) {
-    // 标签切换会卸载记录页；移动原按钮宿主才能保留其 React 事件委托。
+    // will ； by can its React 。
     if (buttonHost && buttonHost.parentElement !== mount) mount.appendChild(buttonHost)
     return true
   }

@@ -1,4 +1,4 @@
-//! 官方配套插件的最低版本校验独立于日常更新偏好。
+//! update。
 
 use serde_json::{json, Value};
 

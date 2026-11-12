@@ -1,4 +1,4 @@
-//! 插件通道与检查计划默认跟随软件；安装策略仍由插件单独保存。
+//! and checkdefault； by 。
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -80,7 +80,7 @@ fn stored() -> PluginSettings {
     if !settings.stable && !settings.beta {
         settings.stable = true;
     }
-    // 旧结构没有继承标记；只保留非默认的自定义值，默认值改为跟随软件。
+    // old no has ；default ，default as 。
     if value.get("channelMode").is_none()
         && (settings.beta != defaults.beta || settings.stable != defaults.stable)
     {

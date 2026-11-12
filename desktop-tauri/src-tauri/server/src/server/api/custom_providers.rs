@@ -1,29 +1,29 @@
-//! 自定义提供商管理 API（设置页「自定义提供商」区域）：
+//! API（set「」）：
 //!
-//! - `GET  /api/custom-providers`          → `{providers: [...]}`（按 createdAt 升序）
-//! - `POST /api/custom-providers`          → 新建提供商，**同时**创建该家第一个账号
+//! - `GET /api/custom-providers` → `{providers: [...]}`（ by createdAt ）
+//! - `POST /api/custom-providers` → new ，** when **create this 1 
 //! - `POST /api/custom-providers/update`   → `{id, name?, protocol?, baseUrl?, enabled?}`
-//! - `POST /api/custom-providers/remove`   → `{id}`，级联删除名下全部账号，
-//!                                            并把这家的 id 从各 Key 的可用提供商白名单里摘掉
-//! - `POST /api/custom-providers/models`   → `{providerId, models, mappings}`，整表保存
-//! - `POST /api/custom-providers/fetch-models` → `{providerId}`，服务端代理拉取上游清单
+//! - `POST /api/custom-providers/remove` → `{id}`，delete down ，
+//! and this id from Key available
+//! - `POST /api/custom-providers/models` → `{providerId, models, mappings}`，
+//! - `POST /api/custom-providers/fetch-models` → `{providerId}`，server up 
 //!
-//! 本模块只做「HTTP 形状 ↔ core 调用」的翻译（core 的校验与存储语义见
-//! `core::custom_providers` 与 `account_store::custom_accounts` 的模块头）。
-//! 挂 protected（与 /api/models/manage 同级敏感：它们写配置、写账号库，
-//! fetch-models 还会**真打上游**）。
+//! 「HTTP ↔ core use 」 （core and 
+//! `core::custom_providers` and `account_store::custom_accounts` module header）。
+//! protected（ and /api/models/manage ：config、，
+//! fetch-models will ** up **）。
 //!
-//! ── 为什么「新建」要一次带上第一个账号 ────────────────────────
-//! 用户建一个自定义提供商的动机几乎总是「我要连这个上游」，凭证（apiKey）
-//! 在同一个表单里；分开两个请求会让「建了提供商但没建账号」成为常态中间态
-//! （它不报错、也不可用，界面上是一个空分组）。一次事务式地建齐，失败时
-//! 回滚提供商（见 `create_custom_provider` 的说明），不留半成品。
+//! ── Why「 new 」 need 1 up 1 ────────────────────────
+//! use 1 total is 「 need this up 」，（apiKey）
+//! in 1 ； request will 「 no 」 as in 
+//! （ not 、unavailable， up is 1 empty）。 1 ，failure when 
+//! （ `create_custom_provider` ）， not 。
 //!
-//! ── 模型清单的两步式（fetch → confirm → save）─────────────────
-//! 「获取模型」拉回上游清单**不落盘**（core 的 `fetch_upstream_models` 是纯
-//! 读上游），前端把它并进编辑副本让用户勾选；用户点保存才走 /models 整表
-//! 替换。两步之间没有服务端状态 —— 弹窗关掉即丢弃，重开重新拉，不存在
-//! 「拉了没保存」的悬空数据。
+//! ── （fetch → confirm → save）─────────────────
+//! 「get」 up ** not **（core `fetch_upstream_models` is 
+//! up ）， before and use ； use /models 
+//! 。 no has server —— ， new ， not in 
+//! 「 no 」 empty。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -37,10 +37,10 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// 解析请求体（空 body 视为 `{}`）；非对象形态一律 400。
+/// request（empty body as `{}`）； for 1 400。
 ///
-/// 与 `model_manage::body_object` 同一形状 —— 没有复用是刻意的：那个函数是
-/// 该模块的私有实现，为一次复用把它提升成公共设施反而模糊了归属。
+/// and `model_manage::body_object` 1 —— no has use is ： that is 
+/// this has ， as 1 use 。
 fn body_object(body: &Bytes) -> Result<serde_json::Map<String, Value>, Response> {
     let payload = parse_body(body).map_err(|error| errors::management_error(400, error.message))?;
     payload
@@ -51,25 +51,25 @@ fn body_object(body: &Bytes) -> Result<serde_json::Map<String, Value>, Response>
 
 // ─── GET /api/custom-providers ──────────────────────────────
 
-/// 列出全部自定义提供商（按 createdAt 升序，排序在存储层保证）。
+/// （ by createdAt ， in ）。
 pub async fn get_custom_providers(State(_state): State<ServerState>) -> Response {
     ok_json(json!({ "providers": custom_providers::list() }))
 }
 
 // ─── POST /api/custom-providers ─────────────────────────────
 
-/// 新建提供商 + 该家第一个账号。
+/// new + this 1 。
 ///
-/// body：`{name, protocol, baseUrl, apiKey?}`（`apiKey` 落进账号记录，
-/// `name` 同时作为账号的默认备注名 —— 界面上分组名与账号名相同是刻意的：
-/// 单账号的家里两个名字一致最不容易混淆，用户可以随后在账号上改备注名）。
+/// body：`{name, protocol, baseUrl, apiKey?}`（`apiKey` ，
+/// `name` when as default —— up and is ：
+/// 1 not ， use can after in up ）。
 ///
-/// ── 两步写入的回滚 ────────────────────────────────────────
-/// 提供商先落盘（账号记录的 `provider` 字段要指向它的 id），账号第二步写入
-/// 可能失败（库不可用 / baseUrl 覆盖项非法）。此时**必须把刚建的提供商删掉**
-/// 再返回错误 —— 否则用户重试时会在列表里看到一个空分组，且它不在这次
-/// 请求的响应里，成了「看不见但存在」的幽灵数据。回滚此刻不可能删掉账号
-/// （还没建），所以用同一个 `remove` 入口即可（级联删到 0 条）。
+/// ── ────────────────────────────────────────
+/// （ `provider` need to id），
+/// can can failure（unavailable / baseUrl ）。 when **must **
+/// returnerror —— otherwise use when will in to 1 empty， and not in this 
+/// request response，「 not in 」 。 not can can 
+/// （ no ）， use 1 `remove` can （ to 0 ）。
 pub async fn create_custom_provider(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -90,20 +90,20 @@ pub async fn create_custom_provider(State(state): State<ServerState>, body: Byte
         .and_then(Value::as_str)
         .map(str::to_string);
     let store = state.store();
-    // 首个账号**不抄提供商的 baseUrl**：账号记录上的 `baseUrl` 是**覆盖项**，
-    // 转发时优先于提供商的值（见 `custom_accounts` 的模块头）。这里连同一次
-    // 请求里把提供商地址抄一份到账号上，会让「以后改提供商地址」被账号里的旧值
-    // 挡住 —— 界面显示新地址、实际请求打旧地址，且账号层那份界面上看不到也
-    // 改不掉（issue #455 就是这个形状）。账号不写这个键 = 始终跟随提供商。
+    // ** not baseUrl**： up `baseUrl` is ****，
+    // when （ `custom_accounts` module header）。 this 1 
+    // request 1 to up ， will 「 after 」 old 
+    // —— new 、request old ， and that up not to 
+    // not （issue #455 is this ）。 not this = 。
     let mut account_payload = payload.as_object().cloned().unwrap_or_default();
     account_payload.remove("baseUrl");
     let account_payload = Value::Object(account_payload);
     let upsert = match store.add_custom_account(&provider_id, &account_payload, name.as_deref()) {
         Ok(upsert) => upsert,
         Err(error) => {
-            // 回滚提供商（此刻名下没有账号，级联删除计数为 0）；回滚本身
-            // 失败不再叠加报错 —— 那种情况下日志里会有提供商创建与配置写入
-            // 两条记录可查，重复报错只会让前端拿到第二条错误盖住第一条。
+            // （ down no has ，delete as 0）；
+            // failure not —— that down will has create and config
+            // can ， will before to error 1 。
             if let Err(rollback) = custom_providers::remove(&provider_id, store) {
                 logging::log(
                     "[CustomProvider]",
@@ -124,8 +124,8 @@ pub async fn create_custom_provider(State(state): State<ServerState>, body: Byte
     ok_json(json!({
         "provider": provider,
         "account": upsert.account,
-        // 刚建的提供商名下不可能已有账号，这里恒为 true；带上它是为了让两条
-        // 添加路径的响应形状一致（前端按同一份契约读）
+        // down not can can already has ， this as true； up is as 
+        // path response 1 （ before by 1 ）
         "created": upsert.created,
         "list": store.list_accounts(),
     }))
@@ -133,18 +133,18 @@ pub async fn create_custom_provider(State(state): State<ServerState>, body: Byte
 
 // ─── POST /api/custom-providers/update ──────────────────────
 
-/// 更新提供商（字段缺省不动；校验在 core 层，改 protocol / baseUrl 同样新规）。
+/// update（ not ； in core ， protocol / baseUrl new ）。
 ///
-/// 响应只带更新后的提供商本身，不带账号 —— 改提供商不影响任何账号记录
-/// （账号的 `baseUrl` 是覆盖项，缺省时**转发阶段**才回落到提供商的值，
-/// 不需要在保存时同步）。
+/// responseupdate after ， not —— not 
+/// （ `baseUrl` is ， when **** to ，
+/// not need need in when ）。
 ///
-/// **唯一的例外是改 Base URL**：早先版本新建提供商时会把当时的地址抄进首个
-/// 账号（历史行为，见 `create_custom_provider` 的说明），于是账号里那份旧值
-/// 会一直压过提供商的新值 —— 界面显示 `/v1/responses`、实际请求打
-/// `/responses`（issue #455）。这里在地址真的变化时，把名下**等于旧地址**的
-/// 账号覆盖项清掉，让它们回到「跟随提供商」。值逐字相等才清：导入来的账号
-/// 可能刻意指到另一个地址，那是有意的覆盖项。
+/// ** 1 is Base URL**： new when will when 
+/// （ as ， `create_custom_provider` ）， is that old 
+/// will 1 new —— `/v1/responses`、request
+/// `/responses`（issue #455）。 this in when ， down ** etc old ** 
+/// ， to 「」。 etc ： 
+/// can can to 1 ， that is has 。
 pub async fn update_custom_provider(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -159,19 +159,19 @@ pub async fn update_custom_provider(State(state): State<ServerState>, body: Byte
     if id.is_empty() {
         return errors::management_error(400, "缺少提供商 id");
     }
-    // 旧值只用于日志：报出「到底改了什么」（enabled 之外的字段都经 core 层
-    // 校验，能到这一步的都是合法值）
+    // old used for：「 to 」（enabled core 
+    // ， can to this 1 is ）
     let before = custom_providers::get(&id);
     let updated = match custom_providers::update(&id, &Value::Object(object)) {
         Ok(updated) => updated,
-        // 不存在（404）与校验失败（400）在这里分流 —— core 层的错误文案
-        // 已经是面向用户的一句话，按是否「不存在」区分状态码即可
+        // not in （404） and failure（400） in this —— core error
+        // already is to use 1 ， by is 「 not in 」 can 
         Err(message) if before.is_none() => return errors::management_error(404, message),
         Err(message) => return errors::management_error(400, message),
     };
-    // 地址改了 → 清掉账号里那份「旧地址」的覆盖项（见函数头的说明）。
-    // 清理失败不回滚提供商（地址本身已经存好了），只记一条日志：残留的
-    // 旧覆盖项还能从账号设置里「改回跟随提供商」手动清。
+    // → that 「 old 」 （ ）。
+    // failure not （ already ）， 1 ： 
+    // old can from set「」。
     let before_base = before
         .as_ref()
         .and_then(|item| item.get("baseUrl"))
@@ -214,8 +214,8 @@ pub async fn update_custom_provider(State(state): State<ServerState>, body: Byte
     ok_json(json!({ "provider": updated }))
 }
 
-/// 两次快照之间**值确实变了**的字段名（只给日志用，不含值 —— apiKey 不在这里，
-/// 这些字段名都可展示）
+/// **** （ to use ， not —— apiKey not in this ，
+/// this can ）
 fn describe_changes(before: Option<&Value>, after: &Value) -> String {
     const FIELDS: &[&str] = &["name", "protocol", "baseUrl", "enabled", "balanceScheme"];
     let mut changed: Vec<&str> = Vec::new();
@@ -235,17 +235,17 @@ fn describe_changes(before: Option<&Value>, after: &Value) -> String {
 
 // ─── POST /api/custom-providers/remove ──────────────────────
 
-/// 删除提供商并**级联删除名下全部账号**（语义见 `custom_providers::remove`），
-/// 同时把这家的 id 从各 Key 的「可用提供商」白名单里摘掉（见 `api_keys::
+/// delete and **delete down **（ `custom_providers::remove`），
+/// when this id from Key 「available」（ `api_keys::
 /// strip_provider_from_allowlists`）。
 ///
-/// 响应 `{removed, accountsRemoved, keysUpdated, keysUnrestricted, list}`：
-/// `removed` 是删掉的提供商数（存在即 1），`accountsRemoved` 是随之清掉的账号数
-/// —— 界面据此提示「已删除 N 个账号」，`list` 让前端就地重绘账号页，不必再拉一次。
-/// 后两个字段是白名单清理的读数：`keysUpdated` 是「可用范围里提到过这家」、因此
-/// 被改动的 Key 数；`keysUnrestricted` 是其中**摘完已无任何可用提供商**、于是恢复成
-/// 「不限制」的 Key 数。界面必须把后者说出来 —— 那是这把 Key 的权限从「谁都进不来」
-/// 变成「哪家都能进」，不能在提示里省掉（取舍论证见 core 侧那个函数的说明）。
+/// response `{removed, accountsRemoved, keysUpdated, keysUnrestricted, list}`：
+/// `removed` is （ in 1），`accountsRemoved` is 
+/// —— 「 already delete N 」，`list` before ， not 1 。
+/// after is ：`keysUpdated` is 「available to this 」、
+/// Key ；`keysUnrestricted` is its in ** already noneavailable**、 is 
+/// 「unlimited」 Key 。must after —— that is this Key from 「 not 」
+/// 「 can 」， not can in （ core that ）。
 pub async fn remove_custom_provider(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -260,9 +260,9 @@ pub async fn remove_custom_provider(State(state): State<ServerState>, body: Byte
     if id.is_empty() {
         return errors::management_error(400, "缺少提供商 id");
     }
-    // 删除前取一次名字给日志（删掉之后就查不到了）；顺带用同一次查询做
-    // 404 判定 —— 不去解析 core 层的错误文案（那是个字符串，靠它分流状态码
-    // 太脆），「存在与否」在这一步就能确定
+    // delete before 1 to （ after not to ）； use 1 
+    // 404 —— not core error（ that is ，
+    // ），「 in and 」 in this 1 can 
     if custom_providers::get(&id).is_none() {
         return errors::management_error(404, format!("自定义提供商不存在: {id}"));
     }
@@ -272,10 +272,10 @@ pub async fn remove_custom_provider(State(state): State<ServerState>, body: Byte
         Ok(count) => count,
         Err(message) => return errors::management_error(400, message),
     };
-    // 白名单清理在删家**之后**：反过来的话（先放宽白名单、再删家）一旦第二步失败，
-    // 就留下「限制已经松开、家却还在」的状态 —— 那是静默放宽权限，比留个死 id 严重。
-    // 这一步失败不改变响应（家已经删了，事实如此），失败的后果是那几把 Key 维持
-    // 原来的「谁都进不来」，用户重存一次可用范围即可 —— 与清理前逐字一致。
+    // in ** after **： （、） 1 failure，
+    // down 「limit already 、 in 」 —— that is ， id 。
+    // this 1 failure not response（ already ，），failure after is that Key 
+    // 「 not 」， use 1 available can —— and before 1 。
     let stripped = api_keys::strip_provider_from_allowlists(&id);
     let unrestricted = stripped
         .iter()
@@ -283,8 +283,8 @@ pub async fn remove_custom_provider(State(state): State<ServerState>, body: Byte
         .count();
     let mut note = format!("，连带清除 {accounts_removed} 个账号");
     if !stripped.is_empty() {
-        // 用 `name || id` 列名：Key 名是可选的（允许空串），空名字只会让日志多一个
-        // 「（）」；id 一定能定位到那把 Key
+        // use `name || id` ：Key is optional （empty），empty will 1 
+        // 「（）」；id 1 can to that Key
         let names: Vec<String> = stripped
             .iter()
             .map(|entry| {
@@ -321,12 +321,12 @@ pub async fn remove_custom_provider(State(state): State<ServerState>, body: Byte
 
 // ─── POST /api/custom-providers/models ──────────────────────
 
-/// 整表保存该家的模型清单与映射（`custom_providers::set_models` 的 HTTP 形状）。
+/// this and （`custom_providers::set_models` HTTP ）。
 ///
-/// body：`{providerId, models, mappings}` —— 两个数组是**整体替换**语义
-/// （UI 弹窗「编辑副本 → 保存」的直译，见 core 侧函数的说明）。
-/// 响应 `{provider: 更新后的完整记录}`：前端就地重绘该家的清单行，
-/// 不必再拉一次全量列表。
+/// body：`{providerId, models, mappings}` —— is ****
+/// （UI 「 → 」 ， core ）。
+/// response `{provider: update after }`： before this ，
+/// not 1 。
 pub async fn set_custom_models(State(_state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,
@@ -372,11 +372,11 @@ pub async fn set_custom_models(State(_state): State<ServerState>, body: Bytes) -
 
 // ─── POST /api/custom-providers/fetch-models ────────────────
 
-/// 服务端代理拉取上游模型清单（`custom_providers::fetch_upstream_models`）。
+/// server up （`custom_providers::fetch_upstream_models`）。
 ///
-/// body：`{providerId}`。响应 `{models: ["id", ...]}` —— **不落盘**，
-/// 由前端并进编辑副本让用户确认后再调 /models 保存（两步式的理由见模块头）。
-/// 会**真打上游**（一次 GET），所以挂 protected 且失败文案里带上游原始响应正文。
+/// body：`{providerId}`。response `{models: ["id", ...]}` —— ** not **，
+/// by before and use after /models （ by module header）。
+/// will ** up **（ 1 GET）， protected and failure up response。
 pub async fn fetch_custom_models(State(state): State<ServerState>, body: Bytes) -> Response {
     let object = match body_object(&body) {
         Ok(object) => object,

@@ -1,4 +1,4 @@
-//! 调试模式下的下游正文采集，不对日志副本设置单条大小上限。
+//! down down ， not for setlimit。
 
 pub fn raw_body_text(bytes: &[u8]) -> Option<String> {
     if bytes.is_empty() {
@@ -41,7 +41,7 @@ impl RawCapture {
         if !self.enabled || self.buf.is_empty() {
             return None;
         }
-        // UTF-8 字符可能跨分片，收尾后才解码。
+        // UTF-8 can can ， after 。
         let bytes = std::mem::take(&mut self.buf);
         Some(match String::from_utf8(bytes) {
             Ok(text) => text,

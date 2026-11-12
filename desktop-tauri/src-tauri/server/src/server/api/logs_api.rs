@@ -1,26 +1,26 @@
-//! 运行日志路由（对照 src/workbuddy-log-routes.mjs 逐字段实现）。
+//! by （ for src/workbuddy-log-routes.mjs ）。
 //!
-//!   GET    /api/logs          查询（?limit=&level=&category=&keyword=&sinceId=&start=&end=）
-//!   GET    /api/logs/stats    各级别 / 分类计数（导航徽标、筛选下拉）
-//!   GET    /api/logs/download 导出 JSONL 附件
-//!   DELETE /api/logs          清空
+//! GET /api/logs （?limit=&level=&category=&keyword=&sinceId=&start=&end=）
+//! GET /api/logs/stats / （、 down ）
+//! GET /api/logs/download JSONL 
+//! DELETE /api/logs empty
 //!
-//! 响应里的 `levels` / `categories` / `max` 三个字段由各接口统一附带 ——
-//! 前端 logs-panel.js 用它们填筛选下拉与徽标上限，所以每个响应都要带。
+//! response `levels` / `categories` / `max` by 1 ——
+//! before logs-panel.js use down and limit， response need 。
 //!
-//! 与 Node 版的差异：Node 版对未匹配的 /api/logs/* 子路径返回
-//! `{success:false, error:"Not found: ..."}`（404），本实现把未知子路径交给
-//! 全局 404 兜底（OpenAI 风格 body）。两者都是 404，且前端只访问上面四条路径，
-//! 唯一的区别是未知子路径的错误体形状 —— 未知路径不属于契约，取统一兜底更好维护。
+//! 与 Node 版的差异：Node 版对未匹配的 /api/logs/* pathreturn
+//! `{success:false, error:"Not found: ..."}`（404）， unknownpath to 
+//! 404 （OpenAI body）。 is 404， and before up path，
+//! 1 is unknownpath error —— unknownpath not ， 1 。
 //!
-//! 日志参数解析是本文件的重点：查询串里的值都是字符串，
-//! 与 Node 的 `Number(...)` / `Math.min(Math.max(...))` 语义要一一对上
-//! （NaN 视作缺省、limit 夹在 1..MAX_ENTRIES）。
+//! parameter is file ： is ，
+//! and Node `Number(...)` / `Math.min(Math.max(...))` need 1 1 for up 
+//! （NaN 、limit in 1..MAX_ENTRIES）。
 //!
-//! `start` / `end`（毫秒时间戳）是**新增的可选**参数，Node 版没有：
-//! 日志页的时间筛选需要它。解析规则与报表 API 一致 —— 非法（空串 / 非数字）
-//! **忽略而不是报错**（前端可能发空串表示「不限时间」），
-//! 不传时的过滤链与以前完全一致。
+//! `start` / `end`（ms when ） is **add optional**parameter，Node no has ：
+//! when need need 。 then and API 1 —— （empty / ）
+//! **ignore not is **（ before can can empty「 not when 」），
+//! not when and before 1 。
 
 use std::collections::HashMap;
 
@@ -36,17 +36,17 @@ use crate::server::logging;
 use crate::server::logs_store::{self, LogView, Query as LogQuery};
 use crate::server::ServerState;
 
-/// `/api/logs*` 上未匹配子路径的 404：Node 版这些路由模块自己发的 404
-/// 是管理 API 形状（`{success:false,error:"Not found: <METHOD> <path>"}`），
-/// 与全局兜底的 OpenAI 形状（`{error:{message}}`）不同 —— 两者都是 404，
-/// 但前端与排障脚本按 body 形状区分来源，不能混用。
+/// `/api/logs*` up path 404：Node this by 404
+/// is API （`{success:false,error:"Not found: <METHOD> <path>"}`），
+/// and OpenAI （`{error:{message}}`） not —— is 404，
+/// before and by body ， not can use 。
 pub async fn not_found(request: axum::extract::Request) -> Response {
     let method = request.method().as_str().to_string();
     let path = request.uri().path().to_string();
     crate::server::errors::management_error(404, format!("Not found: {method} {path}"))
 }
 
-/// 查询串里的 `all` 是否显式要求「清空全部」（`all=1` / `all=true`）
+/// `all` is need 「empty」（`all=1` / `all=true`）
 fn explicit_all(params: &Params) -> bool {
     params.get("all").map_or(false, |value| {
         let text = value.trim();
@@ -54,22 +54,22 @@ fn explicit_all(params: &Params) -> bool {
     })
 }
 
-/// 取出全局日志库；未启用时返回与 Node 版一致的 503
+/// ；enabled when return and Node 1 503
 fn store_or_error() -> Result<&'static logs_store::LogStore, Response> {
     logging::store_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
-            raw_json(json!({ "success": false, "error": "日志模块未启用" })),
+            raw_json(json!({ "success": false, "error": "enabled" })),
         )
             .into_response()
     })
 }
 
-/// 查询串里只可能有这几项（axum 的 Query 用 HashMap 接收，
-/// 比给每个参数定义结构体更贴合 Node 版「有则用、无则忽略」的写法）
+/// can can has this （axum Query use HashMap ，
+/// to parameter Node 「 has then use 、none then ignore」 ）
 type Params = HashMap<String, String>;
 
-/// 把查询串里的字符串按 Node 的 Number() 语义转数字：空串/非数字 → None
+/// by Node Number() ：empty/ → None
 fn parse_number(value: Option<&String>) -> Option<f64> {
     let text = value?.trim();
     if text.is_empty() {
@@ -78,10 +78,10 @@ fn parse_number(value: Option<&String>) -> Option<f64> {
     text.parse::<f64>().ok().filter(|item| item.is_finite())
 }
 
-/// limit 的生效值，逐例对齐 Node 版
+/// limit ， for Node 
 /// `Math.min(Math.max(Number(limit) || 200, 1), MAX_ENTRIES)`：
-///   - 缺省 / 非数字 / 0 → 200（JS 里 `0 || 200` 得 200，0 不是有效 limit）
-///   - 负数 → 1；超上限 → MAX_ENTRIES
+/// - / / 0 → 200（JS `0 || 200` 200，0 not is valid limit）
+/// - → 1；limit → MAX_ENTRIES
 fn effective_limit(raw: Option<&String>) -> usize {
     let parsed = parse_number(raw).unwrap_or(0.0);
     let base = if parsed == 0.0 { 200.0 } else { parsed };
@@ -123,8 +123,8 @@ pub async fn query_logs(State(_state): State<ServerState>, Query(params): Query<
     let mut data = match serde_json::to_value(&result) {
         Ok(value) => value,
         Err(error) => {
-            logging::log("[Logs]", &format!("❌ 日志查询结果序列化失败: {error}"));
-            return raw_json(json!({ "success": false, "error": "日志查询失败" }));
+            logging::log("[Logs]", &format!("❌ failure: {error}"));
+            return raw_json(json!({ "success": false, "error": "failure" }));
         }
     };
     if let Some(object) = data.as_object_mut() {
@@ -142,8 +142,8 @@ pub async fn stats_logs(State(_state): State<ServerState>) -> Response {
     let mut data = match serde_json::to_value(store.stats()) {
         Ok(value) => value,
         Err(error) => {
-            logging::log("[Logs]", &format!("❌ 日志统计序列化失败: {error}"));
-            return raw_json(json!({ "success": false, "error": "日志统计失败" }));
+            logging::log("[Logs]", &format!("❌ statisticsfailure: {error}"));
+            return raw_json(json!({ "success": false, "error": "statisticsfailure" }));
         }
     };
     if let Some(object) = data.as_object_mut() {
@@ -154,11 +154,11 @@ pub async fn stats_logs(State(_state): State<ServerState>) -> Response {
 
 /// DELETE /api/logs?level=&category=&keyword=&start=&end=&all=
 ///
-/// 带筛选参数时**只删命中的条目**（「清空筛选结果」—— 与 GET 同一份过滤链，
-/// 界面上筛出什么就删什么）；清空全部必须**显式**带 `all=1`
-/// （不带的空请求给 400）—— 护栏的理由见下面 `explicit_all` 的注释。
-/// 全清沿用 `clear()` 的原语义（id 重新从 1 数起，导航徽标的已读水位有对应处理）。
-/// 响应带删除后的统计，有删除时另带 `removed`（删除条数）。
+/// parameter when ** in **（「empty」—— and GET 1 ，
+/// up ）；emptymust**** `all=1`
+/// （ not emptyrequest to 400）—— by down `explicit_all` 。
+/// use `clear()` （id new from 1 ， already has for ）。
+/// responsedelete after statistics， has delete when `removed`（delete）。
 pub async fn clear_logs(State(_state): State<ServerState>, Query(params): Query<Params>) -> Response {
     let store = match store_or_error() {
         Ok(store) => store,
@@ -175,24 +175,24 @@ pub async fn clear_logs(State(_state): State<ServerState>, Query(params): Query<
         || query.view != LogView::All;
 
     if !has_filters {
-        // ── 护栏：无筛选参数时必须显式声明 all=1 才全清 ──────────────
-        // 为什么值得多一个参数：筛选清空漏传参数（曾经的真实事故：
-        // 前端传了 URLSearchParams 对象、桥接层转成空查询串）的代价是
-        // **全部日志没了**，而「全清」是低频的显式动作 —— 用多一个参数
-        // 把这类事故变成一条 400，很划算。
+        // ── ：noneparameter when must all=1 ──────────────
+        // Why 1 parameter：emptyparameter（ ：
+        // before URLSearchParams for 、empty） is 
+        // ** no **，「」 is —— use 1 parameter
+        // this 1 400，。
         if !explicit_all(&params) {
             return crate::server::errors::management_error(
                 400,
-                "未指定筛选条件：要清空全部日志请显式带 all=1",
+                "： need empty all=1",
             );
         }
         let stats = store.clear();
-        logging::log("[Logs]", "运行日志已清空");
+        logging::log("[Logs]", " already empty");
         return match serde_json::to_value(stats) {
             Ok(value) => ok_json(value),
             Err(error) => {
-                logging::log("[Logs]", &format!("❌ 清空后统计序列化失败: {error}"));
-                raw_json(json!({ "success": false, "error": "日志清空失败" }))
+                logging::log("[Logs]", &format!("❌ empty after statisticsfailure: {error}"));
+                raw_json(json!({ "success": false, "error": "emptyfailure" }))
             }
         };
     }
@@ -200,7 +200,7 @@ pub async fn clear_logs(State(_state): State<ServerState>, Query(params): Query<
     let (removed, stats) = store.clear_where(&query);
     logging::log(
         "[Logs]",
-        &format!("已按筛选条件清空 {removed} 条日志"),
+        &format!(" already by empty {removed} "),
     );
     match serde_json::to_value(stats) {
         Ok(mut value) => {
@@ -211,13 +211,13 @@ pub async fn clear_logs(State(_state): State<ServerState>, Query(params): Query<
             ok_json(value)
         }
         Err(error) => {
-            logging::log("[Logs]", &format!("❌ 清空后统计序列化失败: {error}"));
-            raw_json(json!({ "success": false, "error": "日志清空失败" }))
+            logging::log("[Logs]", &format!("❌ empty after statisticsfailure: {error}"));
+            raw_json(json!({ "success": false, "error": "emptyfailure" }))
         }
     }
 }
 
-/// GET /api/logs/download —— 直接回 JSONL 附件
+/// GET /api/logs/download —— JSONL 
 pub async fn download_logs(State(_state): State<ServerState>, Query(params): Query<Params>) -> Response {
     let store = match store_or_error() {
         Ok(store) => store,
@@ -233,15 +233,15 @@ pub async fn download_logs(State(_state): State<ServerState>, Query(params): Que
         .body(Body::from(body))
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
 
-    // 文件名/长度用 HeaderValue 构造（含非 ASCII 的兜底不 panic）
+    // file/ use HeaderValue （ ASCII not panic）
     if let Ok(value) = HeaderValue::from_str(&format!("attachment; filename=\"{filename}\"")) {
         response.headers_mut().insert(header::CONTENT_DISPOSITION, value);
     }
     response
 }
 
-/// 给响应体补上 levels / categories / max 三个字典字段
-/// （对应 Node 版 `{ ...data, levels: LEVELS, categories: CATEGORIES, max: MAX_ENTRIES }`）
+/// to response up levels / categories / max 
+/// （ for Node `{ ...data, levels: LEVELS, categories: CATEGORIES, max: MAX_ENTRIES }`）
 fn attach_dictionary(object: &mut serde_json::Map<String, Value>) {
     object.insert(
         "levels".to_string(),
@@ -268,9 +268,9 @@ fn attach_dictionary(object: &mut serde_json::Map<String, Value>) {
     object.insert("debugEnabled".to_string(), json!(logging::is_verbose()));
 }
 
-/// 导出文件名的时间戳：对应 Node 版
-/// `new Date().toISOString().replace(/[:.]/g, '-')`（把 : 和 . 换成 -），
-/// 结果形如 `2026-09-17T13-45-02-123Z` —— 冒号在 Windows 文件名里非法，所以必须换。
+/// file when ： for Node 
+/// `new Date().toISOString().replace(/[:.]/g, '-')`（ : and . -），
+/// `2026-09-17T13-45-02-123Z` —— in Windows file，must。
 fn file_stamp() -> String {
     match chrono::DateTime::from_timestamp_millis(logging::now_ms()) {
         Some(now) => now.format("%Y-%m-%dT%H-%M-%S-%3fZ").to_string(),

@@ -28,9 +28,9 @@ export function TextField({ label, fieldKey, value, onChange, hint, type = 'text
 }
 
 /**
- * 网关模型下拉：列目录里的模型；当前值不在目录里时补一项，避免导入或手填的值被悄悄清掉。
+ * down ：directory ；current not in directory when 1 ， or 。
  *
- * 「模型 ID 让用户敲」这件事只在读不到目录时才成立 —— 能选就不该让人手输。
+ * 「 ID use 」 this in not to directory when —— can not this 。
  */
 export function GatewayModelSelect({ label, value, catalog, onChange, disabled, allowEmpty, emptyLabel }: {
   label: string; value: string; catalog: CatalogModel[]; onChange: (value: string) => void
@@ -43,11 +43,11 @@ export function GatewayModelSelect({ label, value, catalog, onChange, disabled, 
 }
 
 /**
- * Claude Code 的四档模型映射（Opus / Sonnet / Haiku / 子 Agent）。
+ * Claude Code （Opus / Sonnet / Haiku / Agent）。
  *
- * Claude Code 自己按档位挑模型（主模型、后台小任务、子代理各走一档），所以接网关时
- * 不是「选一个模型」而是「每档指一个网关模型」—— 四档挤成一列全宽输入框既占地方又
- * 要求用户背模型 ID，这里按两列排、每档给下拉，另配「一键设置」把主模型铺到四档。
+ * Claude Code by （、 after 、 1 ）， when 
+ * not is 「 1 」 is 「 1 」—— 1 
+ * need use ID， this by 、 to down ，「 1 set」 to 。
  */
 export function ClaudeModelFields({ draft, update, catalog, disabled, note }: {
   draft: AgentProfile; update: (patch: Partial<AgentProfile>) => void; catalog: CatalogModel[]; disabled: boolean; note?: string
@@ -126,7 +126,7 @@ export function SingleModelFields({ client, draft, update, catalog, disabled }: 
   const levels = selected?.reasoningLevels.filter(level => allowed.includes(level)) || []
   const pick = draft.kind === 'gateway' && catalog.length > 0
   const modelKey = client.id === 'claude-code' ? 'model / ANTHROPIC_MODEL' : client.id === 'gemini-cli' ? 'model.name' : 'model'
-  // 改主模型时把仍跟随的档一起带过去；Claude Code 的四档通常就等于主模型。
+  // when 1 ；Claude Code etc 。
   const changeModel = (model: string) => update(client.id === 'claude-code'
     ? { model, effort: '', claudeModels: syncClaudeTiers(draft.claudeModels, draft.model, model) }
     : { model, effort: '' })

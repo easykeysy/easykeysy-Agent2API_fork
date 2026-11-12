@@ -143,7 +143,7 @@ pub fn from_request(value: &Value, old: Option<&Profile>) -> Result<Profile, Str
         model.id = model.id.trim().into();
         model.name = model.name.trim().into();
     }
-    // 原生结构与凭证只能由已保存记录或客户端导入提供，不能信任请求里的隐藏字段。
+    // and can by already or client， not can request 。
     profile.native = old
         .map(|p| p.native.clone())
         .unwrap_or_else(|| NativeConfig {

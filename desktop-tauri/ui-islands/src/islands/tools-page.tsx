@@ -36,8 +36,8 @@ export function ToolsPage() {
     setLoading(true); setError('')
     try {
       const rows = await fetchServices()
-      // API 是固定对外的接口，不再作为「工具服务」页的协议条目展示；
-      // 说明在「文档」页，运行时路由不受影响。
+      // API is for ， not as 「」 ；
+      // in 「」， when by not 。
       const visibleRows = rows.filter(row => row.protocol !== 'api')
       setServices(visibleRows)
       if (desktop) void loadTargets(visibleRows)

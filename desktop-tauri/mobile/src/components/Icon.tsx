@@ -1,13 +1,13 @@
 import type { SVGProps } from 'react'
 
 /**
- * 手机端图标集。
+ * 。
  *
- * 与 `ui/icons.js` 同风格（24×24 画布、currentColor、描边 1.8），但只挑手机端
- * 真正用到的那批：桌面端那套有 60 多个图标，移动端菜单只有 5+9 个入口，
- * 全量搬过来只会让 bundle 白胖一圈。
+ * and `ui/icons.js` （24×24 、currentColor、 1.8），
+ * use to that ： that has 60 ， has 5+9 ，
+ * will bundle 1 。
  *
- * 用法：`<Icon name='home' />`，尺寸由外层控制（默认 24）。
+ * use ：`<Icon name='home' />`， by （default 24）。
  */
 
 const PATHS: Record<string, string> = {
@@ -108,7 +108,7 @@ export function Icon({ name, ...props }: IconProps) {
   )
 }
 
-/** 品牌标：与桌面端 icons.js 的 brand 同一造型（蓝底双向箭头） */
+/** ： and icons.js brand 1 （ to ） */
 export function BrandMark({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox='0 0 24 24' aria-hidden='true'>

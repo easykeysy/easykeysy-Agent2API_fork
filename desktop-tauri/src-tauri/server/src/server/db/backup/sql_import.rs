@@ -68,7 +68,7 @@ fn execute(conn: &Connection, file: &mut std::fs::File) -> Result<(), String> {
             if part.last() != Some(&b';') {
                 continue;
             }
-            // SQLite 自己识别字符串与触发器中的分号，只有完整语句才交给执行器。
+            // SQLite and in ， has to 。
             pending.push(0);
             let complete = unsafe { rusqlite::ffi::sqlite3_complete(pending.as_ptr().cast()) };
             pending.pop();

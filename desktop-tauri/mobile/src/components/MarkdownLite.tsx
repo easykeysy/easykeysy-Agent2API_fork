@@ -1,21 +1,21 @@
 import type { ReactNode } from 'react'
 
 /**
- * 极简 Markdown 渲染（只服务助手的回答气泡）。
+ * Markdown （ ）。
  *
- * ── 为什么需要它 ──────────────────────────────────────────────
- * 模型输出天然带 Markdown：`**账号名**`、`` `模型ID` ``、`- 列表项`。直接当
- * 纯文本铺在气泡里，用户看到的是满屏星号和反引号 —— 尤其是账号名 / 模型名
- * 这类本来就该用等宽字显示的内容，反而被符号糊住了。
+ * ── Why need need ──────────────────────────────────────────────
+ * Markdown：`****`、`` `ID` ``、`- `。
+ * in ， use to is and —— its is / 
+ * this this use etc ， 。
  *
- * ── 为什么不上一个 Markdown 库 ────────────────────────────────
- * 手机上只需要三样：粗体、行内代码、列表。引 markdown-it / react-markdown
- * 会给包体加几十 KB，还要处理 HTML 白名单（模型输出是不可信内容，直接
- * `dangerouslySetInnerHTML` 等于开一个 XSS 口子）。这里用 React 元素拼，
- * 天然转义，没有注入面。
+ * ── Why not up 1 Markdown ────────────────────────────────
+ * up need need ：、、。 markdown-it / react-markdown
+ * will to KB， need HTML （ is not can ，
+ * `dangerouslySetInnerHTML` etc 1 XSS ）。 this use React ，
+ * ， no has 。
  *
- * 代码块（```）只按普通段落显示 —— 手机上长代码块本来就该去桌面端看，
- * 为它做一套横向滚动 + 语法高亮不值。
+ * （```） by —— up this ，
+ * as 1 to + not 。
  */
 export function MarkdownLite({ text }: { text: string }) {
   const lines = String(text || '').split('\n')
@@ -38,7 +38,7 @@ export function MarkdownLite({ text }: { text: string }) {
 
   lines.forEach((line, index) => {
     const trimmed = line.trim()
-    // 代码围栏：整行丢掉（内容按普通行渲染，见文件头）
+    // ：（ by ，file）
     if (trimmed.startsWith('```')) return
     const bullet = /^[-*+]\s+(.*)$/.exec(trimmed)
     const numbered = /^\d+[.)]\s+(.*)$/.exec(trimmed)
@@ -55,7 +55,7 @@ export function MarkdownLite({ text }: { text: string }) {
       blocks.push(<div key={`gap-${index}`} style={{ height: 6 }} />)
       return
     }
-    // 标题（## / ###）当成加粗段落：手机气泡里字号层级够多了
+    // （## / ###）：
     const heading = /^#{1,6}\s+(.*)$/.exec(trimmed)
     blocks.push(
       <div key={`line-${index}`} style={{ margin: '1px 0', fontWeight: heading ? 600 : undefined }}>
@@ -68,7 +68,7 @@ export function MarkdownLite({ text }: { text: string }) {
   return <>{blocks}</>
 }
 
-/** 行内：**粗体** 与 `代码`，其余原样 */
+/** ：**** and ``， its */
 function inline(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
   return parts.filter(Boolean).map((part, index) => {

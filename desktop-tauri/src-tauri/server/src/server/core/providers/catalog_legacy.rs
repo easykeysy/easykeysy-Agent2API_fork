@@ -1,4 +1,4 @@
-//! 插件化之前的目录缓存兼容：scope 属于存储契约，旧条目转换为插件目录形态。
+//! before directory：scope ， old as directory。
 
 use serde_json::Value;
 
@@ -87,7 +87,7 @@ fn normalize(kind: ProviderKind, mut model: Value) -> Option<Value> {
             if id.starts_with(models::CLOUD_PREFIX) {
                 return None;
             }
-            // 旧槽包含两池；免费池也有无前缀模型，不能只凭 id 重新归池。
+            // old ； has none before ， not can id new 。
             let pool = object
                 .get("pool")
                 .and_then(Value::as_str)

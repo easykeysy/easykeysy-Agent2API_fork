@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        ### 填之前先看三眼
+        ### before 
 
         下面所有字段都是**选填**，但填得越全，能直接动手修的概率越高。
 

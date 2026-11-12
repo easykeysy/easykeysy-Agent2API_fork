@@ -1,25 +1,25 @@
 /**
- * 模型管理页的**批量操作弹窗**（表头勾选列 + 「批量操作」按钮的落地动作）。
+ * ****（ + 「」 by ）。
  *
- * 入口：勾选若干行后，「获取模型」左边的「批量操作」按钮（models-page.tsx）。
- * 可对选中的行做：启用 / 禁用 / 设置思考等级 / 删除。前三个对**每一行的全部映射**
- * （默认绑定 + 别名 chips）生效 —— 行级「已启用」的判定就是「还有任一条映射开着」
- * （`rowEnabled`），所以批量开关映射才能让整行真的启用 / 禁用；思考等级同样按
- * 映射记（`ManageMapping.reasoning`），设置 / 清除必然落到每条映射上。
+ * ： if after ，「get」 「」 by （models-page.tsx）。
+ * can for in ：enabled / use / set etc / delete。 before for ** 1 **
+ * （default + chips） —— 「 already enabled」 is 「 has 1 」
+ * （`rowEnabled`）， can enabled / use ； etc by 
+ * （`ManageMapping.reasoning`），set / to up 。
  *
- * ── 删除的边界（与操作列那颗「移除」同一条）────────────────────
- * 只有**手动登记**的模型（内置家的 `source === 'manual'`、自定义家的一切）才存在
- * 「删除登记」这回事；上游目录带回来的远程 / 内置行由清单决定存在性，开关映射才是
- * 它的手段。批量删除会跳过不可删除的行并计数，弹窗里先给一行说明。
+ * ── delete （ and that 「」 1 ）────────────────────
+ * has **** （ `source === 'manual'`、 1 ） in 
+ * 「delete」 this ； up directory / by in ， is 
+ * 。delete will not can delete and ， to 1 。
  *
- * ── 执行是逐条串行 ─────────────────────────────────────────
- * 内置家的每个写操作都返回**最新整份视图**（`accept` 就地替换）；自定义家每次写
- * 都是整表提交。串行执行让中间结果逐条落定，任一失败停下时界面上就是「成功的那
- * 一部分已生效」的真实状态，不会整批回滚成更早期的样子。
+ * ── is ─────────────────────────────────────────
+ * return** new **（`accept` ）；
+ * is 。 in ， 1 failure down when up is 「success that 
+ * 1 already 」 ， not will 。
  *
- * ── 失败的处理 ─────────────────────────────────────────────
- * 全部成功 → 关弹窗、清空勾选；有失败 → 弹窗留着、勾选保留（可改完条件重试），
- * 结果行列出失败数与首次失败原因。
+ * ── failure ─────────────────────────────────────────────
+ * success → 、empty； has failure → 、（ can ），
+ * failure and failureReason。
  */
 
 import * as React from 'react'
@@ -50,7 +50,7 @@ import {
 } from './models-panel-state'
 import { t } from '../i18n'
 
-/** 批量动作（RadioGroup 的取值；文案与执行动词共用这里） */
+/** （RadioGroup ； and use this ） */
 const ACTIONS = [
   { value: 'enable', label: t('启用') },
   { value: 'disable', label: t('禁用') },
@@ -60,12 +60,12 @@ const ACTIONS = [
 
 type BatchAction = (typeof ACTIONS)[number]['value']
 
-/** 「删除登记」的边界：手动登记（内置家 manual）或自定义家的一切（见文件头） */
+/** 「delete」 ：（ manual） or 1 （file） */
 function isRemovable(model: ManageModel): boolean {
   return model.source === 'manual' || isCustom(model.provider)
 }
 
-/** 模型名（与账号页同一口径：有名字用名字，没有回退 id） */
+/** （ and 1 ： has use ， no has id） */
 function modelName(model: ManageModel): string {
   return (model.name && model.name !== model.id ? t('{name}（{id}）', { name: model.name, id: model.id }) : model.id) || model.id
 }
@@ -77,10 +77,10 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
 }) {
   const [action, setAction] = React.useState<BatchAction>('enable')
   /**
-   * 思考等级草稿（照 MappingDialog 的形态）：'' = 清除 / 不覆盖、候选等级、CUSTOM_LEVEL。
+   * etc （ MappingDialog ）：'' = / not 、 etc 、CUSTOM_LEVEL。
    *
-   * 候选取各目标可用档位的交集。未声明的目标使用通用候选，明确不可绑定的目标
-   * 不回落；没有交集时只允许清除，避免把通用档位误当成共同支持的档位。
+   * available 。 use use ， not can 
+   * not ； no has when ， use supports 。
    */
   const candidates = commonLevels(getSnapshot().data, models)
   const managedReasoning = models.some(model => typeof model.reasoningBindingSupported === 'boolean')
@@ -95,8 +95,8 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
   const removableCount = models.filter(isRemovable).length
   const label = ACTIONS.find(item => item.value === action)?.label || t('操作')
 
-  /** 批量删除不可逆，按数量做二次确认（与账号页批量删除同一口子，原生 confirm 在
-   *  Tauri WebView 里直接放行，所以一律走 wbConfirm 的应用内确认框） */
+  /** delete not can ， by （ and delete 1 ， confirm in 
+   * Tauri WebView ， 1 wbConfirm use ） */
   async function confirmRemove(count: number): Promise<boolean> {
     return Promise.resolve(shared().wbConfirm?.ask?.({
       title: t('删除选中的模型'),

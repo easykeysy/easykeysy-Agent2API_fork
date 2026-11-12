@@ -19,7 +19,7 @@ pub(super) fn sink(stats: Arc<RequestStats>, id: String) -> impl Fn(RunningProgr
         }
     });
     move |progress| {
-        // 只保留最后一次完整快照；终态写入后的 UPDATE 由 status=0 条件挡住。
+        // after 1 ； after UPDATE by status=0 。
         *pending.lock().unwrap_or_else(|error| error.into_inner()) = Some(progress);
         let _ = sender.try_send(());
     }

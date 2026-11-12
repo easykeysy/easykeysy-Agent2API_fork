@@ -23,11 +23,11 @@ export function AccountSettingsIcon({ name, size = 16 }: { name: string; size?: 
 }
 
 /**
- * 一组设置：分组名在方框外，框内的行以 1px 细线分隔（macOS 系统设置的分组列表）。
+ * 1 set： in ， 1px （macOS set ）。
  *
- * 标题不塞进框里，是为了让「标题 → 框」的层级留在 DOM 上 —— 样式
- * （`acct-dlg-group-label` + `acct-dlg-group`）与读屏顺序都跟着这个结构走。
- * `action` 是分组名右侧的附加件（计数徽章、清除按钮），没有就不渲染。
+ * not ， is as 「 → 」 in DOM up —— 
+ * （`acct-dlg-group-label` + `acct-dlg-group`） and this 。
+ * `action` is （、 by ）， no has not 。
  */
 export function SettingGroup({ title, action, children }: {
   title: React.ReactNode
@@ -124,7 +124,7 @@ export function CustomCredentialFields({ hasApiKey, noAuth, value, onValue, onTo
   </SettingGroup>
 }
 
-/** 与后端 custom_providers::MAX_NAME_CHARS 一致。 */
+/** and after custom_providers::MAX_NAME_CHARS 1 。 */
 const MAX_PROVIDER_NAME_CHARS = 64
 
 export function ProviderSection({ provider, name, protocol, baseUrl, accountBaseUrl, count, emulation,
@@ -133,7 +133,7 @@ export function ProviderSection({ provider, name, protocol, baseUrl, accountBase
   name: string
   protocol: string
   baseUrl: string
-  /** 当前账号自己存的地址覆盖项（空串 = 跟随提供商）；转发时它优先于上面的 Base URL */
+  /** current （empty = ）； when up Base URL */
   accountBaseUrl: string
   count: number
   emulation: string
@@ -154,9 +154,9 @@ export function ProviderSection({ provider, name, protocol, baseUrl, accountBase
   ]
   const current = protocols.find(option => option.value === protocol)?.label || protocol
   const suffix = protocol === 'anthropic' ? '/v1/messages' : protocol === 'responses' ? '/responses' : '/chat/completions'
-  // 请求端点按**这个账号实际会用的地址**算：账号上的覆盖项优先于提供商的 Base URL。
-  // 早先版本新建提供商时会把地址抄进首个账号，改提供商地址不生效就是它挡的
-  // （issue #455）—— 预览必须如实反映这一点，否则界面显示的和实际发出的又是两个值。
+  // request by ** this will use **： up Base URL。
+  // new when will ， not is 
+  // （issue #455）—— must this 1 ，otherwise and is 。
   const override = accountBaseUrl.trim()
   const effectiveBase = override || baseUrl.trim()
   const endpoint = effectiveBase ? `${effectiveBase.replace(/\/+$/, '')}${suffix}` : ''

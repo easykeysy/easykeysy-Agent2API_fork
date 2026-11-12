@@ -1,4 +1,4 @@
-//! 统计归类与请求行为识别分离；自定义规则只改变日志和报表。
+//! statistics and request as ； then and 。
 
 pub mod catalog;
 mod evidence;
@@ -10,7 +10,7 @@ pub use matcher::{identify, rule_matches};
 
 pub const CLIENT_OTHER: &str = "other";
 
-/// 行为判断保留原来的严格识别，不读取显示规则或调用方声明。
+/// as ， not then or use 。
 pub fn classify(ua: &str) -> String {
     let ua = ua.trim();
     if ua.is_empty() { return String::new(); }

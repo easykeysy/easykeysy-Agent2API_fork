@@ -1,18 +1,18 @@
-//! 请求统计的**聚合计算**：日报的折算、整行重算与报表装配。
+//! requeststatistics ****： 、 and 。
 //!
-//! ── 为什么单独一层 ──────────────────────────────────────────
-//! `request_daily` 那一行数据的每一条不变式都靠「同一份累加代码」支撑：
-//! 记账（`record`）、整行重算（`rebuild_day`）与报表装配（`summarize`）
-//! 必须读同一份字段口径，聚合行才不会因为某条路径少算一维而跟明细对不上
-//! 账（「各维之和 = 当天总量」）。这些自由函数与 `request_stats.rs` 里的
-//! 方法们（记账 / 查询 / 存储概况）关注点不同，拆出来后这条不变式写在
-//! 一个文件里，改口径的人一眼能看到全部落点。函数仍是 `request_stats`
-//! 模块树的一部分（`pub(super)`），对外的 API 形状与拆分前逐字相同。
+//! ── Why 1 ──────────────────────────────────────────
+//! `request_daily` that 1 1 not 「 1 」：
+//! （`record`）、（`rebuild_day`） and （`summarize`）
+//! must 1 ， not will as path 1 for not up 
+//! （「 and = total」）。 this by and `request_stats.rs` 
+//! （ / / ） not ， after this not in 
+//! 1 file， 1 can to 。 is `request_stats`
+//! 1 （`pub(super)`）， for API and before 。
 //!
-//! ── 「进行中行不进日报」的口径 ────────────────────────────────
-//! status=0 的行（转发开始时插的，见 `RequestStats::record_started`）没有
-//! 任何终态值，折算进聚合会让报表凭空多一次请求而 token 是 0。这条拦截在
-//! [`fold_into_daily`] —— 唯一的累加入口，记账 / 重算两条路径都被它覆盖。
+//! ── 「 in not 」 ────────────────────────────────
+//! status=0 （ when ， `RequestStats::record_started`） no has 
+//! ， will empty 1 request token is 0。 this in 
+//! [`fold_into_daily`] —— 1 ， / path 。
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -29,25 +29,25 @@ use super::report::{
 use super::{daily, sql};
 use super::legacy;
 
-/// 模型用量口径订正的完成标记键（`kv` 表）。
+/// usage （`kv` ）。
 ///
-/// 与 `legacy::MARKER_*` 同一机制与写法：存在即视为已订正，值恒为 `'true'`。
-/// 为什么需要显式标记（而不是像账号维度回填那样从数据本身检测），见
-/// `RequestStats::remap_model_dimension_once` 的说明。
+/// and `legacy::MARKER_*` 1 and ： in as already ， as `'true'`。
+/// Why need need （ not is that from ），
+/// `RequestStats::remap_model_dimension_once` 。
 const MODEL_UPSTREAM_MARKER: &str = "modelUsageUpstreamRemapped";
 
-/// [`RequestStats::remap_model_dimension_once`] 的库操作体：单事务完成
-/// 「读标记 → 找候选日 → 逐日重算 → 写标记」。
+/// [`RequestStats::remap_model_dimension_once`] ：
+/// 「 → → → 」。
 ///
-/// 重算走 [`rebuild_day`]（与记账 / 清理重算同一段累加代码，
-/// 口径天然一致）；返回真正重算的日期（升序，供日志列出）。
+/// [`rebuild_day`]（ and / 1 ，
+/// 1 ）；return （，）。
 pub(super) fn remap_model_days(conn: &mut rusqlite::Connection) -> rusqlite::Result<Vec<String>> {
     if legacy::marker_present(conn, MODEL_UPSTREAM_MARKER)? {
         return Ok(Vec::new());
     }
     let tx = conn.unchecked_transaction()?;
-    // 明细覆盖到的本地日期（去重升序）。DISTINCT ts 走 ts 索引，
-    // 明细有 2 万行的容量闸，全扫代价可忽略。
+    // to （）。DISTINCT ts ts ，
+    // has 2 ， can ignore。
     let mut days: BTreeSet<NaiveDate> = BTreeSet::new();
     {
         let mut stmt = tx.prepare("SELECT DISTINCT ts FROM requests")?;
@@ -61,15 +61,15 @@ pub(super) fn remap_model_days(conn: &mut rusqlite::Connection) -> rusqlite::Res
     for day in days {
         let key = date_key(day);
         let start = local_midnight_ms(day);
-        // 开区间上界减 1 毫秒：与 rebuild_day 的取法一致（见那里的边界说明）
+        // up 1 ms： and rebuild_day 1 （ that ）
         let end = local_midnight_ms(day + ChronoDuration::days(1)).saturating_sub(1);
         let detail_count: i64 = tx.query_row(
             "SELECT COUNT(*) FROM requests WHERE ts >= ?1 AND ts <= ?2",
             rusqlite::params![start, end],
             |row| row.get(0),
         )?;
-        // 聚合行的当天请求数。读不出（行不存在或读失败）当 0 处理：
-        // 重算是按明细整行重写的安全动作，聚合行缺失时重算顺带把它建全。
+        // request。 not （ not in or failure） 0 ：
+        // is by ， when 。
         let aggregate_requests: i64 = tx
             .query_row(
                 "SELECT requests FROM request_daily WHERE date = ?1",
@@ -77,16 +77,16 @@ pub(super) fn remap_model_days(conn: &mut rusqlite::Connection) -> rusqlite::Res
                 |row| row.get(0),
             )
             .unwrap_or(0);
-        // backfill 同一条判据：明细条数 ≥ 聚合行请求数才说明明细足以代表
-        // 当天（没被手动清理过），才重算 —— 拿残缺明细重算会让当天
-        // 数字凭空缩水（见 `backfill` 模块头的「拿不准就不动」）
+        // backfill 1 ： ≥ request
+        // （ no ）， —— will 
+        // empty（ `backfill` module header 「 not not 」）
         if detail_count >= aggregate_requests {
             rebuild_day(&tx, day)?;
             changed.push(key);
         }
     }
-    // 标记与数据同事务提交：中断（断电 / 崩溃）后标记必然没写，下次启动
-    // 整批重跑 —— 重算本身幂等，代价只是再扫一遍
+    // and ： in （ / ） after no ， down 
+    // —— etc ， is 1 
     tx.execute(
         "INSERT INTO kv (key, value) VALUES (?1, 'true')
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -96,21 +96,21 @@ pub(super) fn remap_model_days(conn: &mut rusqlite::Connection) -> rusqlite::Res
     Ok(changed)
 }
 
-/// 重算某一天的聚合行：从**剩余明细**整行重算；一条不剩就删掉那一行。
+/// 1 ： from **remaining**； 1 not that 1 。
 ///
-/// `day` 是本地自然日，区间按 `[当天零点, 次日零点)` 取 —— 与 `date_key(day_of(ts))`
-/// 的归档口径同源（都用 `clock` 的本地时区工具），所以「某条明细属于哪一天」
-/// 与「重算时按哪个区间取它」不可能对不上。
+/// `day` is ， by `[, )` —— and `date_key(day_of(ts))`
+/// （ use `clock` when ），「 1 」
+/// and 「 when by 」 not can can for not up 。
 fn rebuild_day(conn: &rusqlite::Connection, day: NaiveDate) -> rusqlite::Result<()> {
     let key = date_key(day);
     let start = local_midnight_ms(day);
-    // 开区间上界减 1 毫秒，等价于 `[start, next_start)`；用 1ms 而不是直接取
-    // `next_start - 1` 是为了避开「夏令时切换当天次日零点不存在」这类边界
-    // （`local_midnight_ms` 有兜底，但让它只负责一个方向更简单）
+    // up 1 ms， etc `[start, next_start)`； use 1ms not is 
+    // `next_start - 1` is as 「 when not in 」 this 
+    // （`local_midnight_ms` has ， 1 to ）
     let end = local_midnight_ms(day + ChronoDuration::days(1)).saturating_sub(1);
-    // 重算与实时累加（`fold_into_daily` 的两条调用路径）必须同口径：
-    // 测试行两边都不折进聚合（见 `RequestEntry::is_test`），否则「重算过一天」
-    // 会让那天的数字与重算前对不上
+    // and when （`fold_into_daily` use path）must：
+    // not （ `RequestEntry::is_test`），otherwise「 1 」
+    // will that and before for not up 
     let entries = sql::select_between(conn, start, end, true)?;
     if entries.is_empty() {
         daily::delete_daily(conn, &key)?;
@@ -123,22 +123,22 @@ fn rebuild_day(conn: &rusqlite::Connection, day: NaiveDate) -> rusqlite::Result<
     daily::upsert_daily(conn, &rebuilt)
 }
 
-/// 报表装配：把两张表的读数交给 `report` 的纯函数，拼出 `/api/stats/summary` 的响应。
+/// ： to `report` ， `/api/stats/summary` response。
 ///
-/// 为什么把这段从 `usage_summary` 里抽出来：库不可用时的降级值是「按空库算同一份
-/// 结果」（见该方法的说明），抽成纯函数后两条路径**必然同形** ——
-/// 手写一份全零的 JSON 迟早会与正常路径的形状漂开，而形状漂开是静默的
-/// （前端只会显示空白或 0，不会报错）。
+/// Why this from `usage_summary` ：unavailable when is 「 by empty 1 
+/// 」（ this ）， after path**** ——
+/// 1 JSON will and path ， is 
+/// （ before will empty or 0， not will ）。
 ///
-/// 三份入参各自的来源（改造后明细只进 [SummaryRow] 这一条窄口）：
-///   - `daily`：`request_daily` 整表（overview / 趋势 / 热力图 / 排行都从它算）；
-///   - `cache_totals`：四档命中率的 `(hit, input)` 合计，由 SQL 侧按窗口聚合
-///     （`sql::sum_cache_windows`），不再把窗口内的明细搬回内存；
-///   - `entries`：近 24 小时的**窄行**（`sql::select_summary_rows`），只服务
-///     逐小时的趋势图。
+/// （ after [SummaryRow] this 1 ）：
+/// - `daily`：`request_daily` （overview / / / from ）；
+/// - `cache_totals`： in `(hit, input)` ， by SQL by 
+/// （`sql::sum_cache_windows`）， not ；
+/// - `entries`： 24 when ****（`sql::select_summary_rows`），
+/// when 。
 ///
-/// `custom` 是 `range == "custom"` 时的起止日（本地自然日，由路由层解析校验）：
-/// 非 custom 档传 None（也允许传了不用 —— 只有 custom 分支会读它）。
+/// `custom` is `range == "custom"` when （， by by ）：
+/// custom None（ not use —— has custom will ）。
 pub(super) fn summarize(
     daily: &BTreeMap<String, DailyEntry>,
     cache_totals: &[(i64, i64)],
@@ -151,25 +151,25 @@ pub(super) fn summarize(
     let range = normalize_range(range);
     let (start_date, end_date) = range_bounds(range, daily, now_day, custom);
 
-    // overview / dailyTrend / heatmap 走聚合（跨年；明细只有请求天数）
+    // overview / dailyTrend / heatmap （； has request）
     let totals = range_totals(daily, &start_date, &end_date);
     let top_model = build_top_model(&totals.model_totals, totals.tokens);
-    // providers 与 topModel **同源同区间**：都从这次的 `range_totals` 出，
-    // 于是「按 provider 的请求数之和」必然等于 overview.requests，
-    // 前端把它们并排显示时不会出现互相对不上的数
+    // providers and topModel ****： from this `range_totals` ，
+    // is 「 by provider request and 」 etc overview.requests，
+    // before and when not will for not up 
     let providers = build_providers(&totals.provider_totals);
-    // accounts 与 providers / topModel **同源同区间**（同上）：账号排行的
-    // 请求数之和也等于 overview.requests
+    // accounts and providers / topModel ****（ up ）： 
+    // request and etc overview.requests
     let accounts = build_accounts(&totals.account_totals);
-    // models 同样与 topModel 同源（`topModel` 就是这张表的冠军）：
-    // 报表的「模型用量」环形图读它，各扇区之和等于 overview.tokens
+    // models and topModel （`topModel` is this ）：
+    // 「usage」， and etc overview.tokens
     let models = build_models(&totals.model_totals);
     let trend = daily_trend(daily, &start_date, &end_date);
     let map = heatmap(daily, now_day);
     let consecutive = streak(daily, now_day);
 
-    // cacheRates 走 SQL 侧的窗口合计（四组 (hit, input)，见 `sql::sum_cache_windows`）；
-    // cacheTrend24h 走明细窄行（只有它还需要逐条数据）
+    // cacheRates SQL （ (hit, input)， `sql::sum_cache_windows`）；
+    // cacheTrend24h （ has need need ）
     let rates = cache_rates(cache_totals);
     let cache_trend = cache_trend_24h(entries, now);
 
@@ -185,17 +185,17 @@ pub(super) fn summarize(
             "streak": consecutive,
             "topModel": top_model,
         },
-        // 按 provider 维度的区间汇总（**新增字段，不改既有字段**）。
-        // 前端按「存在则展示、缺失则隐藏」消费，所以旧前端拿到它只会忽略。
-        // 恒为数组（无数据时是空数组而不是 null）：前端不必判两种空形态
+        // by provider total（**add， not has **）。
+        // before by 「 in then 、 then 」， old before to will ignore。
+        // as （none when is empty not is null）： before not empty
         "providers": providers,
-        // 按账号维度的区间汇总（**新增字段，不改既有字段**，与 providers 同形态）。
-        // 账号是比 provider 更细的一维（一家可挂多个账号），所以这张表回答的是
-        // 「具体哪个登录态在出力」——同一家的多个账号会各占一行。
+        // by total（**add， not has **， and providers ）。
+        // is provider 1 （ 1 can ）， this is 
+        // 「 in 」—— 1 will 1 。
         "accounts": accounts,
-        // 按模型维度的区间汇总（**新增字段，不改既有字段**，与上两维同形态）。
-        // 模型比 provider 更细：一家可以承载多个模型，所以这张表回答的是
-        // 「用量花在哪个模型上」——报表的「模型用量」环形图直接读它
+        // by total（**add， not has **， and up ）。
+        // provider ： 1 can ， this is 
+        // 「usage in up 」—— 「usage」
         "models": models,
         "heatmap": map,
         "cacheRates": rates,
@@ -204,18 +204,18 @@ pub(super) fn summarize(
     })
 }
 
-/// 把一条明细累加进当天的聚合行。
+/// 1 。
 ///
-/// `record` 的记账与 `rebuild_day` 的重算（还有迁移的口径回填）共用这一段：
-/// 聚合行的每个字段都**只**由明细逐条累加而来，几条路径手写几遍必然漂移
-/// （对不上账）。三个维度（模型 / provider / 账号）与总量并列累计，
-/// 各维求和都等于当天总量，这是报表之间能对账的前提。
+/// `record` and `rebuild_day` （ has ） use this 1 ：
+/// **** by ，path
+/// （ for not up ）。 （ / provider / ） and total and ，
+/// and etc total， this is can for before 。
 ///
-/// **进行中行（status=0）在这里被拦下**：日报只折算终态。记账路径送进来的
-/// 终态行不会有 status=0（错误至少是 4xx/5xx，见 `GatewayError` 的状态码），
-/// 这条判断实际拦的是 `rebuild_day` / 迁移回填**从库里拉行**时混进来的
-/// 进行中行 —— 没有它，重算会把一条「还没跑完」的请求凭空加进当天请求数
-/// （token 还是 0），日报与明细口径立刻分裂。
+/// ** in （status=0） in this down **：。path 
+/// not will has status=0（error is 4xx/5xx， `GatewayError` ），
+/// this is `rebuild_day` / ** from ** when 
+/// in —— no has ， will 1 「 no 」 requestemptyrequest
+/// （token is 0）， and 。
 pub(super) fn fold_into_daily(day: &mut DailyEntry, item: &RequestEntry) {
     if item.status == 0 || item.is_test {
         return;
@@ -229,15 +229,15 @@ pub(super) fn fold_into_daily(day: &mut DailyEntry, item: &RequestEntry) {
     day.tokens += item.total_tokens;
     day.cache_hit_tokens += item.cache_read_tokens;
     day.cache_input_tokens += item.prompt_tokens;
-    // 模型维度用「上游真名」当统计键（见 `model_stat_key`）：映射只是代名，
-    // 实际请求的仍是上游那一个模型，报表要按它归组
+    // use 「 up 」statistics（ `model_stat_key`）： is ，
+    // request is up that 1 ， need by 
     push_model_accum(
         &mut day.model_tokens,
         model_stat_key(&item.model, &item.upstream_model),
         item.total_tokens,
         1,
     );
-    // 空 provider 也建组（见 push_provider_accum 的注释）
+    // empty provider （ push_provider_accum ）
     push_provider_accum(
         &mut day.provider_stats,
         &item.provider,

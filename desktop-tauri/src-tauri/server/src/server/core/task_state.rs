@@ -1,51 +1,51 @@
-//! 后台任务的**持久化排期**与执行占位（跨重启、跨实例）。
+//! after **** and （、）。
 //!
-//! ── 这个模块解决什么问题 ─────────────────────────────────────
-//! 改造前后台任务的排期只活在内存里（`scheduled_tasks` 的 `RUNS`）：进程一重启
-//! 就清零，首轮又被排到「现在」，于是**每次打开软件都会把上游打一遍** ——
-//! 一分钟内重开几次，GitHub 的匿名限额（60 次/小时，按出口 IP 计）就被同一台
-//! 机器重复消耗；余额查询、模型刷新、凭证维护同理，账号越多代价越大。
+//! ── this ─────────────────────────────────────
+//! before after in （`scheduled_tasks` `RUNS`）： 1 
+//! ， to 「 in 」， is ** will up 1 ** ——
+//! 1 minutes，GitHub （60 / when ， by IP ） 1 
+//! ；、 new 、，。
 //!
-//! 本模块把「上次尝试 / 上次成功 / 下次执行 / 失败冷却」落进统一库的 `kv`
-//! （键 `backgroundTaskState`，见 `db::schema` 的保留键清单），于是：
-//!   - **重启不重置节奏**：10:00 查过更新（间隔 20 分钟），10:05、10:10 反复
-//!     重启都不再查，仍等到 10:20；
-//!   - **停机期间只补一次**：休眠 / 关机错过的那一轮在启动后跑一次，不补跑
-//!     期间的每一轮；
-//!   - **失败有冷却**：连续失败按间隔指数退避（上限一天），并且**重启不清零**
-//!     —— 否则「重启即可绕过冷却」等于没有冷却。手动触发要不要越过它由调用点
-//!     逐处选（见 [`ManualBackoff`]）。
+//! 「 up / up success / down / failure」 1 `kv`
+//! （ `backgroundTaskState`， `db::schema` ）， is ：
+//! - ** not **：10:00 update（ 20 minutes），10:05、10:10 
+//! not ， etc to 10:20；
+//! - ** 1 **： / that 1 in after 1 ， not 
+//! 1 ；
+//! - **failure has **：failure by （limit 1 ），and** not **
+//! —— otherwise「 can 」 etc no has 。 need not need by use 
+//! （ [`ManualBackoff`]）。
 //!
-//! ── 硬约束：请求发出**之前**就记一笔尝试 ─────────────────────
-//! `claim` 在返回执行权之前就把 `lastAttemptAt` / `nextRunAt` 写进库。理由：
-//! 只在成功后记录的话，「请求途中被杀 / 失败 / 上游超时」这几条路径都会留下
-//! 一个「没跑过」的状态，下次启动立刻重试 —— 那正是本模块要消灭的行为。
-//! 代价是「失败的那一次也占用了本轮排期」，由失败冷却（`retry_at`）另行表达。
+//! ── ：request** before ** 1 ─────────────────────
+//! `claim` in return before `lastAttemptAt` / `nextRunAt` 。 by ：
+//! in success after ，「request in / failure / up when 」 this path will down 
+//! 1 「 no 」 ， down —— that is need as 。
+//! is 「failure that 1 use 」， by failure（`retry_at`）。
 //!
-//! ── 执行占位（lease）：进程被杀也不会卡死 ────────────────────
-//! 同一个任务同时只允许一轮真实请求（占位 + 心跳续租 90 秒）。占位**带过期
-//! 时间**而不是一个布尔：进程崩溃 / 强杀后没有人来清标志，只有租约到期才
-//! 会释放 —— 布尔形态会让任务永远卡在「执行中」。心跳任务随 `RunGuard` 一起
-//! 结束，正常收尾（`finish`）与中途取消（`Drop`）都会释放占位。
+//! ── （lease）： not will ────────────────────
+//! 1 when 1 request（ + 90 seconds）。**
+//! when ** not is 1 ： / after no has ， has to 
+//! will —— will in 「 in 」。 `RunGuard` 1 
+//! ，（`finish`） and in （`Drop`） will 。
 //!
-//! ── 为什么键名不带任务前缀、值整份存一个对象 ────────────────
-//! `kv` 的固定键必须登记进 `db::schema::RESERVED_KV_KEYS`（配置写入靠它排除
-//! 「不归我管」的键），一条任务一个键要登记四五项，撞名核对面随之扩大；整份
-//! 存一个对象只加一项，且新增任务不必再动 schema 那份清单。写入是「读改写
-//! 整份」，但整段在一把写事务内完成（`Db::with_mut` + `IMMEDIATE`），不会丢
-//! 别的任务的更新 —— 写入本身也是低频动作（每轮一次，加上 30 秒一次的心跳）。
+//! ── Why not before 、 1 for ────────────────
+//! `kv` must `db::schema::RESERVED_KV_KEYS`（configexcluding
+//! 「 not 」 ）， 1 1 need ， for ；
+//! 1 for 1 ， and add not schema that 。 is 「
+//! 」， in 1 （`Db::with_mut` + `IMMEDIATE`）， not will 
+//! update —— is （ 1 ， up 30 seconds 1 ）。
 //!
-//! ── 双实例共用同一个库 ──────────────────────────────────────
-//! 桌面壳允许开发版与正式版并存（端口与 identifier 各自独立），两者共用同一个
-//! 配置目录与数据库。因此「判定到期 → 占用」必须在一个写事务里完成
-//! （`TransactionBehavior::Immediate` 先拿写锁再读），否则两个进程会在同一
-//! 毫秒各发一次请求。
+//! ── use 1 ──────────────────────────────────────
+//! and and （ and identifier ）， use 1 
+//! configdirectory and 。「 to → use 」must in 1 
+//! （`TransactionBehavior::Immediate` ），otherwise will in 1 
+//! ms 1 request。
 //!
-//! ── 硬约束：持锁期间不打日志 ────────────────────────────────
-//! 与 `config::sql` / `providers::catalog_cache` 同一条：`Db::with*` 拿的是
-//! 全局唯一的连接锁，而 `logging::log` / `verbose` 要往同一个库写 `logs` 表
-//! —— `std::sync::Mutex` 不可重入，在闭包里打日志会当场死锁。本模块的日志
-//! 一律在闭包之外打（`now_ms` 只读时钟，不算 IO）。
+//! ── ： not ────────────────────────────────
+//! and `config::sql` / `providers::catalog_cache` 1 ：`Db::with*` is 
+//! 1 ， `logging::log` / `verbose` need 1 `logs` 
+//! —— `std::sync::Mutex` not can ， in will 。 
+//! 1 in （`now_ms` when ， not IO）。
 
 mod storage;
 
@@ -61,15 +61,15 @@ use self::storage::change;
 use crate::server::db::Db;
 use crate::server::logging;
 
-/// 执行占位的租约时长：心跳每 30 秒续一次，留三倍余量。
+/// when ： 30 seconds 1 ，。
 ///
-/// 为什么不是「任务预计最长多久」：一轮凭证维护可能跨十几个账号的网络请求，
-/// 几分钟是正常的。租约只需满足「活着的那一轮不会被人抢走」，过期时间由心跳
-/// 不断推后；真正的兜底场景是**进程被杀**，那时 90 秒后自动放行。
+/// Why not is 「」： 1 can can request，
+/// minutes is 。 need 「 that 1 not will 」，expiration time by 
+/// not after ； is ** **， that when 90 seconds after 。
 const LEASE_MS: i64 = 90_000;
 
-/// 失败退避的上限（一天）：上游长期不可用时也要保证每天试一次，
-/// 否则「上游恢复了我却还在等」会变成需要重启才能恢复的故障。
+/// failure limit（ 1 ）： up unavailable when need 1 ，
+/// otherwise「 up in etc 」 will need need can 。
 const MAX_BACKOFF_MS: i64 = 24 * 60 * 60_000;
 static DB: OnceLock<Option<Db>> = OnceLock::new();
 static SEQUENCE: AtomicU64 = AtomicU64::new(1);
@@ -104,11 +104,11 @@ impl TaskState {
         self.describe_wait(false)
     }
 
-    /// 手动触发**越过失败冷却**时用的那一条（见 [`ManualBackoff::Bypass`]）。
+    /// **failure** when use that 1 （ [`ManualBackoff::Bypass`]）。
     ///
-    /// 冷却还在只说明「上一轮为什么没成功」，不构成「现在不能试」—— 这时真正
-    /// 挡住这一轮的通常只是在途占位或最短请求间隔。照 [`waiting_message`] 的
-    /// 算法会把用户往「几小时后再试」引，而实际一秒后就能再点一次。
+    /// in 「 up 1 Why no success」， not 「 in not can 」—— this when 
+    /// this 1 is in or request。 [`waiting_message`] 
+    /// will use 「 when after 」， 1 seconds after can 1 。
     pub fn waiting_message_bypassing(&self) -> String {
         self.describe_wait(true)
     }
@@ -129,7 +129,7 @@ impl TaskState {
         if self.last_attempt_at <= now + 60_000 {
             return;
         }
-        // 系统时钟回拨时保留剩余等待量，不能把未来的旧时间当作无限期冷却。
+        // when when remaining etc ， not can old when none。
         let shift = self.last_attempt_at - now;
         self.last_attempt_at = now;
         self.last_run_at = (self.last_run_at - shift).max(0);
@@ -167,11 +167,11 @@ pub(crate) fn update_value(key: &str, update: impl FnOnce(&mut Value)) -> Result
         .map(|state| state.value.unwrap_or(Value::Null))
 }
 
-/// 记录一次**外部发起**的真实请求（用户手动点的那一轮）：把定时排期顺延一个
-/// 间隔，避免「刚点完、到点或重启后又立刻再跑一遍」。
+/// 1 **** request（ use that 1 ）： when 1 
+/// ，「、 to or after 1 」。
 ///
-/// 正在执行的那一轮（占位仍有效）不动 —— 那正是它自己的排期，由 `RunGuard`
-/// 在收尾时统一写。失败也不改冷却：手动动作不该把上游的限流冷却提前解除。
+/// in that 1 （valid） not —— that is ， by `RunGuard`
+/// in when 1 。failure not ： not this up before 。
 pub fn note_external_run(key: &str, interval_ms: i64) -> Result<(), String> {
     change(key, |state| {
         if state.running() {
@@ -185,11 +185,11 @@ pub fn note_external_run(key: &str, interval_ms: i64) -> Result<(), String> {
     .map(|_| ())
 }
 
-/// 把排期置为「现在就到期」（用户在界面上刚把任务从关闭拨到开启时调用）。
+/// as 「 in to 」（ use in up from to when use ）。
 ///
-/// 与 `note_external_run` 的区别是**要不要顺延**：那一条是「刚真跑过一轮」，
-/// 这一条是「用户明确要求这条任务开始工作」—— 后者保留改造前「开启即跑一次」
-/// 的语义，不受上次尝试时间影响（只有失败冷却仍然优先：`due_at` 取两者的较大值）。
+/// and `note_external_run` is ** need not need **： that 1 is 「 1 」，
+/// this 1 is 「 use need this 」—— after before 「 1 」
+/// ， not up when （ has failure：`due_at` ）。
 pub fn schedule_now(key: &str) -> Result<(), String> {
     change(key, |state| {
         let now = logging::now_ms();
@@ -199,16 +199,16 @@ pub fn schedule_now(key: &str) -> Result<(), String> {
     .map(|_| ())
 }
 
-/// 清除一条任务的**失败冷却**（`retry_at` 归零），不动排期与最近尝试时间。
+/// 1 **failure**（`retry_at` ）， not and when 。
 ///
-/// 用途：调用方确认「上次失败的前提条件已经变了」—— 对更新检查就是换出网线路 /
-/// 换 GitHub 令牌（冷却记的是某一个配额桶的恢复时刻，匿名按出口 IP 计、带令牌
-/// 按用户计，换了桶之后旧冷却不再适用）。清掉它让用户立刻能重试一次，而不是
-/// 对着界面上好端端的「检查更新」按钮空等几十分钟。
+/// use ： use 「 up failure before already 」—— for updatecheck is /
+/// GitHub （ is 1 quota when ， by IP 、
+/// by use ， after old not use ）。 use can 1 ， not is 
+/// for up 「checkupdate」 by empty etc minutes。
 ///
-/// 排期（`next_run_at`）**保持不动**：定时任务仍按自己的间隔跑，这条函数只解开
-/// 「现在不让试」的那把锁。`adjust_clock` 与其它入口一样先跑一遍，防系统时钟
-/// 回拨把旧时间当成无限期冷却。
+/// （`next_run_at`）** not **： when by ， this 
+/// 「 in not 」 that 。`adjust_clock` and its 1 1 ， when 
+/// old when none。
 pub fn clear_cooldown(key: &str) -> Result<(), String> {
     change(key, |state| {
         let now = logging::now_ms();
@@ -218,7 +218,7 @@ pub fn clear_cooldown(key: &str) -> Result<(), String> {
     .map(|_| ())
 }
 
-/// 改间隔以最近一次尝试/完成为起点，不因重启或开关切换重新计时。
+/// 1 / as ， not or new when 。
 pub fn reschedule(key: &str, interval_ms: i64) -> Result<(), String> {
     change(key, |state| {
         let now = logging::now_ms();
@@ -236,31 +236,31 @@ pub enum Claim {
     Deferred(TaskState),
 }
 
-/// 手动触发**越不越过失败冷却**（[`claim`] 的显式入参）。
+/// ** not failure**（[`claim`] ）。
 ///
-/// 两种语义在仓库里同时存在，而且各有理由 —— 所以它不藏在 `manual` 里顺带决定：
-///   - [`ManualBackoff::Respect`]：冷却记的是**上游配额桶什么时候恢复**
-///     （检查更新的 GitHub 限额匿名按出口 IP 计、带令牌按用户计）。提前打一次
-///     只会再吃一次 403，还把恢复时刻重新顶到未来，不如如实告诉用户还要等多久；
-///   - [`ManualBackoff::Bypass`]：冷却记的是**上一轮为什么没成功**（模型目录按
-///     上游逐个 401 / 5xx 退避；凭证维护按账号失败退避）。用户按下
-///     「获取模型」/「立即执行」的预期就是「现在真打一次」，而且按按钮往往正是
-///     因为刚把那个原因修好（重新导入登录态、换账号、把坏账号删了）—— 继续拿旧
-///     结论挡着，界面上只会留着上一次的错误文案，看起来就是按钮坏了。
+/// in when in ， and has by —— not in `manual` ：
+/// - [`ManualBackoff::Respect`]： is ** up quota when **
+/// （checkupdate GitHub by IP 、 by use ）。 before 1 
+/// will 1 403， when new to ， not use need etc ；
+/// - [`ManualBackoff::Bypass`]： is ** up 1 Why no success**（directory by 
+/// up 401 / 5xx ； by failure）。 use by down 
+/// 「get」/「」 is 「 in 1 」， and by by is 
+/// as that Reason（ new 、、 ）—— old 
+/// ， up will up 1 error， is by 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ManualBackoff {
     Respect,
     Bypass,
 }
 
-/// 判定到期并占位（两种结果都是 `Ok`：Deferred 不是错误，只是这轮不该跑）。
+/// to and （ is `Ok`：Deferred not is error， is this not this ）。
 ///
-/// `manual`（用户主动触发）跳过普通排期；**是否连失败冷却一起跳过**由 `backoff`
-/// 决定（见 [`ManualBackoff`]，逐个调用点自选）。
+/// `manual`（ use ）；** is failure 1 ** by `backoff`
+/// （ [`ManualBackoff`]， use ）。
 ///
-/// 在途占位与最短请求间隔**手动也不越过**：前者防同一时刻两个入口（或两个进程）
-/// 并排打上游，后者是「同一家一秒内不重复打」的底线 —— 冷却可以商量，并发与连点
-/// 不行：用户连点按钮时，真正保护上游的是这两条，而不是那个动辄几小时的冷却。
+/// in and request** not **： before 1 when （ or ）
+/// and up ， after is 「 1 1 seconds not 」 —— can ， and and 
+/// not ： use by when ， up is this ， not is that when 。
 pub fn claim(
     key: &str,
     interval_ms: i64,

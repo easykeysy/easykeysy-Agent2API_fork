@@ -1,37 +1,37 @@
-//! 本地时区工具 —— 与 `core::auto_checkin` 同一套做法（`chrono` + `Local`）。
+//! when —— and `core::auto_checkin` 1 （`chrono` + `Local`）。
 //!
-//! 为什么单独一层：全模块对「一天」「一小时」的切分口径必须**只有一处实现**。
-//! 热力图按天、缓存趋势按整点、报表窗口按天切分，只要有一处用了 UTC 或自己算
-//! 偏移，报表内部就会自相矛盾（比如热力图的 9 月 18 日与「今天」不是同一天）。
-//! 所以这里只放纯函数，且只依赖 `chrono::Local`。
+//! Why 1 ： for 「 1 」「 1 when 」 must** has 1 **。
+//! by 、 by 、 by ， need has 1 use UTC or 
+//! ， will （e.g. 9 18 and 「」 not is 1 ）。
+//! this ， and `chrono::Local`。
 //!
-//! 与签到链路的口径差异（**有意分叉，别互相「对齐」**）──────────
-//! 这里是**操作者本机时区**（`DateTime<Local>`）——报表回答的是「我的昨天
-//! 用了多少」，跟着操作者的时钟走才是对的。签到链路用**固定 UTC+8**
-//! （`core::beijing`）：那是上游自然日（北京时间零点重置）。两者不可互换 ——
-//! 拿报表的日期键去判签到会重演 issue #138（海外部署下定时整体漂移），
-//! 反过来把报表钉死 UTC+8 会让非中国时区的操作者看到错位的「今天」。
-//! 两套口径都以 `format("%Y-%m-%d")` 落地（**不能用 UTC 归档**：UTC+8 的
-//! 凌晨按 UTC 归档会落到前一天，整份报表的日期口径都会偏一格）。
+//! and to （** has ，「 for 」**）──────────
+//! this is ** when **（`DateTime<Local>`）—— is 「 
+//! use 」， when is for 。 to use ** UTC+8**
+//! （`core::beijing`）： that is up （ when ）。 not can ——
+//! to will issue #138（ down when ），
+//! UTC+8 will in when to 「」。
+//! `format("%Y-%m-%d")` （** not can use UTC **：UTC+8 
+//! by UTC will to before 1 ， will 1 ）。
 
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Timelike};
 
-/// 当前毫秒 Unix 时间戳（复用 logging 的实现，避免两处写法漂移）
+/// currentms Unix when （ use logging ，）
 pub(super) fn now_ms() -> i64 {
     crate::server::logging::now_ms()
 }
 
-/// 本地时区的今天
+/// when 
 pub(super) fn today() -> NaiveDate {
     Local::now().date_naive()
 }
 
-/// 毫秒时间戳 → 本地时区时间。
+/// ms when → when when 。
 ///
-/// `single()` 对任何合法时间戳恒有值；只有手改文件塞进越界数值才会返回 None，
-/// 这时回落到 epoch 而不是 unwrap panic —— 一条脏数据的代价不该是整页崩掉
-/// （`DateTime<Local>` 是 DST 模糊时段的唯一取舍点，用 `single()` 而不是
-/// `earliest()` 是因为时间戳本身无歧义，不需要再挑一个）。
+/// `single()` for when has ； has file will return None，
+/// this when to epoch not is unwrap panic —— 1 not this is 
+/// （`DateTime<Local>` is DST when 1 ， use `single()` not is 
+/// `earliest()` is as when none， not need need 1 ）。
 pub(super) fn ms_to_local(ts: i64) -> DateTime<Local> {
     Local
         .timestamp_millis_opt(ts)
@@ -40,29 +40,29 @@ pub(super) fn ms_to_local(ts: i64) -> DateTime<Local> {
         .unwrap_or_else(Local::now)
 }
 
-/// 毫秒时间戳落在**本地时区**的哪一天（明细归档、按天裁剪都用它）
+/// ms when in ** when ** 1 （、 by use ）
 pub(super) fn day_of(ts: i64) -> NaiveDate {
     ms_to_local(ts).date_naive()
 }
 
-/// 本地日期键 `YYYY-MM-DD`。
+/// `YYYY-MM-DD`。
 ///
-/// 定长 + 字典序即时间序，所以日期比较可以直接用字符串比较
-/// （聚合表用 `BTreeMap<String, _>` 的键就是它）。
+/// + when ， can use 
+/// （ use `BTreeMap<String, _>` is ）。
 pub(super) fn date_key(day: NaiveDate) -> String {
     day.format("%Y-%m-%d").to_string()
 }
 
-/// 本地整点键 `YYYY-MM-DDTHH`（近 24 小时趋势用）。
-/// 取 `%H` 前先把时间戳还原成 `DateTime<Local>`，于是「14 点」就是用户
-/// 时钟上的 14 点，不是 UTC 的 14 点。
+/// `YYYY-MM-DDTHH`（ 24 when use ）。
+/// `%H` before when `DateTime<Local>`， is 「14 」 is use 
+/// when up 14 ， not is UTC 14 。
 pub(super) fn hour_key(now: DateTime<Local>) -> String {
     now.format("%Y-%m-%dT%H").to_string()
 }
 
-/// 本地整点（分/秒/纳秒清零）。
-/// `with_*` 在夏令时切换当天可能返回 None，这时退回原值并只取到小时 ——
-/// 宁可用一个近似值也不要让趋势曲线少一格（中国无夏令时，实际走不到）。
+/// （/seconds/seconds）。
+/// `with_*` in when can can return None， this when and to when ——
+/// available 1 not need 1 （ in none when ， not to ）。
 pub(super) fn hour_floor(now: DateTime<Local>) -> DateTime<Local> {
     now.with_minute(0)
         .and_then(|value| value.with_second(0))
@@ -70,19 +70,19 @@ pub(super) fn hour_floor(now: DateTime<Local>) -> DateTime<Local> {
         .unwrap_or(now)
 }
 
-/// 某个本地自然日的零点对应的毫秒时间戳。
+/// for ms when 。
 ///
-/// 为什么需要它：明细按 ts 升序排好，要按「保留 N 天」裁掉头部时，
-/// 把日期边界换算成一个**数值**下界就能用 `partition_point` 一次定位
-/// （O(log n)、不逐条分配字符串），比拿日期串逐条比较省得多 ——
-/// 这个裁剪在每次记账时都会跑，必须足够便宜。
+/// Why need need ： by ts ， need by 「 N 」 when ，
+/// 1 **** down can use `partition_point` 1 
+/// （O(log n)、 not ）， ——
+/// this in when will ，must。
 ///
-/// 夏令时切换当天零点可能不存在（`LocalResult::None`），这时取当天最早
-/// 的合法时刻（`earliest()`）而不是猜一个偏移；中国无夏令时，实际走不到。
+/// when can can not in （`LocalResult::None`）， this when 
+/// when （`earliest()`） not is 1 ； in none when ， not to 。
 pub(super) fn local_midnight_ms(day: NaiveDate) -> i64 {
     day.and_hms_opt(0, 0, 0)
         .and_then(|naive| Local.from_local_datetime(&naive).earliest())
         .map(|value| value.timestamp_millis())
-        // 兜底：连当天零点都构造不出来时退到 epoch（日期极端越界才会发生）
+        // ： not when to epoch（ will ）
         .unwrap_or(0)
 }

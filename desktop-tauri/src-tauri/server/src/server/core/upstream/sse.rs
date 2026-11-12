@@ -1,65 +1,65 @@
-//! SSE reasoning 帧合并（对照 Node 版 workbuddy-upstream-client.mjs 的
-//! createReasoningCoalescingStream，114-176 行）。
+//! SSE reasoning and （ for Node workbuddy-upstream-client.mjs 
+//! createReasoningCoalescingStream，114-176 ）。
 //!
-//! ── 为什么需要它 ────────────────────────────────────────────
-//! 上游把思考（reasoning_content）拆成 1-2 个词一帧的小分片，部分客户端按
-//! SSE 帧渲染思考块，会把一句思考碎成几十个小块。透传时把相邻 reasoning 帧
-//! 攒到 ≥ REASONING_COALESCE_CHARS（或遇到非 reasoning 事件/流结束）再下发，
-//! **只影响分帧粒度，不改变任何内容**。
+//! ── Why need need ────────────────────────────────────────────
+//! up （reasoning_content） 1-2 1 ，client by 
+//! SSE ， will 1 。 when reasoning 
+//! to ≥ REASONING_COALESCE_CHARS（ or to reasoning /） down ，
+//! **， not **。
 //!
-//! ── 契约（逐条对照 Node 的 Transform）────────────────────────
-//!   - 按 `\n` 切行，**跨 chunk 的半行留在 tail 里**（网络分片不会按行对齐，
-//!     没有 tail 缓冲就会把一帧 JSON 截成两半，两边各自解析失败）
-//!   - 空行跳过；非 `data:` 行**原样 + `\n\n`** 透传（Node 也是这样补的，
-//!     虽然会改变原始帧边界，但这是既有行为，保持一致）
-//!   - `data: [DONE]` → 先冲刷累积的 reasoning 帧，再原样发 `data: [DONE]\n\n`
-//!   - `data:` 里不是合法 JSON → 原样透传（不吞掉上游的异常帧）
-//!   - 合法 JSON：记录帧元数据（id/model/created，取**最近一帧**的有效值）
-//!   - 纯 reasoning 增量（有 reasoning_content 且没有 content/tool_calls/function_call）
-//!     → 只累积，攒够阈值才发一帧
-//!   - 其余事件 → 先把累积的 reasoning 冲刷成一帧，再原样透传该事件
-//!   - 流结束时（flush）冲刷剩余的 reasoning
+//! ── （ for Node Transform）────────────────────────
+//! - by `\n` ，** chunk in tail **（ not will by for ，
+//! no has tail will 1 JSON ，failure）
+//! - empty； `data:` ** + `\n\n`** （Node is this ，
+//! will ， this is has as ， 1 ）
+//! - `data: [DONE]` → reasoning ， `data: [DONE]\n\n`
+//! - `data:` not is JSON → （ not up ）
+//! - JSON：（id/model/created，** 1 ** valid）
+//! - reasoning （ has reasoning_content and no has content/tool_calls/function_call）
+//! → ， 1 
+//! - its → reasoning 1 ， this 
+//! - when （flush）remaining reasoning
 //!
-//! 实现方式是**手写状态机**而不是 `Stream` 适配器：转发链路需要
-//! 「请求 → 响应头 → 字节流」三段的显式控制（见 forward.rs），
-//! 状态机让「一个 chunk 进、零到多个 chunk 出」这件事直白可读。
+//! is **** not is `Stream` ： need need 
+//! 「request → response → 」 （ forward.rs），
+//! 「 1 chunk 、 to chunk 」 this can 。
 //!
-//! ── usage 旁路提取（请求统计）────────────────────────────────
-//! 本状态机是 SSE 逐行解析的**唯一入口**，所以 usage 提取挂在这里
-//! （`handle_line` 里那一段）：只读一眼 JSON 的 `usage` 成员、写进
-//! `usage::RequestTelemetry`，完全不参与帧的构造 —— 帧内容与不接钩子时
-//! 逐字节一致（详见该处的注释）。
+//! ── usage （requeststatistics）────────────────────────────────
+//! is SSE ** 1 **， usage in this 
+//! （`handle_line` that 1 ）： 1 JSON `usage` 、
+//! `usage::RequestTelemetry`， not and —— and not when 
+//! 1 （ this ）。
 //!
-//! ── model 名回写（Agent2API W3-T4）────────────────────────────
-//! 小浣熊上游会把响应 chunk 的 `model` 换成它自己的内部名，而客户端认的是自己
-//! 请求时给的名字（源实现 `raccoon-sse-pipe.mjs` 的 `rewriteSseLine`）。
-//! 「要不要改写」由**适配器**回答（`ProviderAdapter::sse_model_rewrite`），
-//! 本状态机只是唯一的下发出口，因此改写动作落在这里。
-//! **默认关闭**：`rewrite` 为 None 时，帧的字节与接入前完全一致
-//! （workbuddy 的透传逐字节不变是硬要求）。
+//! ── model （Agent2API W3-T4）────────────────────────────
+//! up will response chunk `model` ，client is 
+//! request when to （ `raccoon-sse-pipe.mjs` `rewriteSseLine`）。
+//! 「 need not need 」 by ****（`ProviderAdapter::sse_model_rewrite`），
+//! is 1 down ， in this 。
+//! **default**：`rewrite` as None when ， and before 1 
+//! （workbuddy not is need ）。
 //!
-//! ── 丢弃「整片只有换行」的 content 分片 ──────────────────────
-//! WorkBuddy（copilot.tencent.com）与 AutoClaw 两条上游会在相邻两个正文分片之间
-//! 插一帧 `delta.content` 只含换行的分片 —— 那是它们的保活节拍（同一个流里
-//! `: heartbeat` 注释行也在发），不是模型写的正文。
-//! 实测口径（生产库 `request_raw` 存的是**下发给客户端的字节**，两天 58 发
-//! WorkBuddy 200 请求）：20 发带这类分片（34.5%），脏请求里它们占正文分片
-//! **中位 13.4%**（区间 1.2%–30.8%），干净请求恒 0 —— 分布是**二值**的，
-//! 一条请求要么一个都没有，要么几乎每片之间都插一个。形态共五种（同一批样本
-//! 计数）：`'\n'` 249 / `'\n\n\n'` 47 / `' \n'` 7 / `'\n \n'` 5 / `'\n\n'` 1，
-//! 其中带空格的两种按「宁可不丢」不丢。
-//! ⚠️ 触发条件与耗时**无关**：脏请求中位 12.1 秒、干净的 14.3 秒，脏内部占比
-//! >20% 的那 4 发中位只有 9.8 秒（≤20% 的是 13.3 秒）。早先这里写的
-//! 「生成比保活节拍慢时才发得出来」方向相反，别拿耗时当预测量；节拍更可能绑
-//! 上游的分片节奏与服务端 flush 策略。
-//! 客户端按 markdown 渲染时一个换行就是一个 `<br>`，于是一段
-//! 「Let me run the unit tests」被排成一行一个词 —— 读起来就是「错行」。
+//! ── 「 has 」 content ──────────────────────
+//! WorkBuddy（copilot.tencent.com） and AutoClaw up will in 
+//! 1 `delta.content` —— that is （ 1 
+//! `: heartbeat` in ）， not is 。
+//! （ `request_raw` is ** down to client **， 58 
+//! WorkBuddy 200 request）：20 this （34.5%），request
+//! ** in 13.4%**（ 1.2%–30.8%），request 0 —— is **** ，
+//! 1 request need 1 no has ， need 1 。（ 1 
+//! ）：`'\n'` 249 / `'\n\n\n'` 47 / `' \n'` 7 / `'\n \n'` 5 / `'\n\n'` 1，
+//! its in empty by 「 can not 」 not 。
+//! ⚠️ and when **none**：request in 12.1 seconds、 14.3 seconds，
+//! >20% that 4 in has 9.8 seconds（≤20% is 13.3 seconds）。 this 
+//! 「 when 」 to ， when ； can can 
+//! up and server flush 。
+//! client by markdown when 1 is 1 `<br>`， is 1 
+//! 「Let me run the unit tests」 1 1 —— is 「」。
 //!
-//! 判定与丢弃都放在本状态机：这里是 SSE 逐行解析的唯一出口，透传路径别处再动
-//! 就得给每家插一层转发器。**默认关闭**（`strip_newline_chunks = false`），
-//! 关着时帧的字节与接入前逐字一致；开与不开由**适配器**回答
-//! （`ProviderAdapter::sse_strip_newline_chunks`）。判据刻意做成「宁可不丢」，
-//! 见 [`is_newline_keepalive`]。
+//! and in ： this is SSE 1 ，path
+//! to 1 。**default**（`strip_newline_chunks = false`），
+//! when and before 1 ； and not by ****
+//! （`ProviderAdapter::sse_strip_newline_chunks`）。「 can not 」，
+//! [`is_newline_keepalive`]。
 
 use std::sync::Arc;
 
@@ -70,77 +70,77 @@ use crate::server::logging;
 
 use super::usage::RequestTelemetry;
 
-/// 思考（reasoning_content）帧合并阈值（照抄 Node 的 REASONING_COALESCE_CHARS）
+/// （reasoning_content） and （ Node REASONING_COALESCE_CHARS）
 pub const REASONING_COALESCE_CHARS: usize = 60;
 
-/// 一帧的输出：`Bytes` 已经是完整的 `data: ...\n\n` 字节串
+/// 1 ：`Bytes` already is `data: ...\n\n` 
 pub type Frame = Bytes;
 
-/// model 名回写的参数（见模块头；只有声明了 `sse_model_rewrite()` 的适配器才有）
+/// model parameter（module header； has `sse_model_rewrite()` has ）
 #[derive(Clone, Debug)]
 pub struct ModelRewrite {
-    /// 客户端请求的模型名（回写值）
+    /// clientrequest （）
     pub requested: String,
 }
 
-/// 下发帧的两项改写开关：都由**适配器**回答，通用层（本状态机与 `aggregate`）
-/// 只执行，不在那里出现 provider 分支。
+/// down ： by ****， use （ and `aggregate`）
+/// ， not in that provider 。
 ///
-/// 把两项打包成一个结构而不是各加一个位置参数：它们在链路上**永远同源**
-/// （都来自同一次 `adapter` 查询 + 同一个请求的模型名），拆成两个参数会让
-/// `ForwardStream` / 聚合器的五六个签名各多一个裸 `bool`，调用点上根本读不出
-/// 那个 `true` 是哪一项。
+/// 1 not is 1 parameter： in up ****
+/// （ 1 `adapter` + 1 request ）， parameter will 
+/// `ForwardStream` / 1 `bool`， use up not 
+/// that `true` is 1 。
 #[derive(Clone, Debug, Default)]
 pub struct FramePolicy {
-    /// model 名回写（None = 原样透传上游的 `model`）
+    /// model （None = up `model`）
     pub rewrite: Option<ModelRewrite>,
-    /// 丢弃「整片只有换行」的 content 分片（见模块头与 [`is_newline_keepalive`]）
+    /// 「 has 」 content （module header and [`is_newline_keepalive`]）
     pub strip_newline_chunks: bool,
     pub native_tools: Vec<String>,
 }
 
 impl FramePolicy {
-    /// 只带 model 回写、其余按默认（自定义家的转发路径用它：那家的保活形态
-    /// 没有实测过，不去动它的字节）
+    /// model 、 its by default（ path use ： that 
+    /// no has ， not ）
     pub fn with_rewrite(rewrite: Option<ModelRewrite>) -> Self {
         Self { rewrite, strip_newline_chunks: false, native_tools: Vec::new() }
     }
 
-    /// 由**能力位 × 全局开关**装配（转发链上唯一的生产入口，见
+    /// by ** can × **（ up 1 ，
     /// `provider_loop::frame_policy_of`）。
     ///
-    /// 两者的**顺序**是有意的：能力位在前、开关在后 ⇒ 这个开关只能**收窄**
-    /// （关掉它，一家本来就声明了能力位的提供商退回逐字节透传），不能**扩张**
-    /// （开了它，也不会替一家没实测过的上游凭空开始丢帧）。反过来的话，
-    /// 「改一个部署参数」就能动到任意一家的下发字节 —— 那正是本仓拒绝的形态：
-    /// 丢帧的依据只覆盖实测过的 WorkBuddy / AutoClaw 两家（见模块头），
-    /// 而部署参数是谁都能设的。
+    /// **** is has ： can in before 、 in after ⇒ this can ****
+    /// （， 1 can ）， not can ****
+    /// （， not will 1 no up empty）。 ，
+    /// 「 1 parameter」 can to any 1 down —— that is ：
+    /// WorkBuddy / AutoClaw （module header），
+    /// parameter is can 。
     ///
-    /// 默认关（`config::KEY_STRIP_NEWLINE_KEEPALIVE`）：开着才会吃掉模型真·
-    /// 单独成片的那个换行 —— 少一个换行的外观损失换掉整屏断句，值不值由用户判，
-    /// 所以判权留在面板 / 环境变量上，而不是编译期替他决定。
+    /// default（`config::KEY_STRIP_NEWLINE_KEEPALIVE`）： will ·
+    /// that —— 1 ， not by use ，
+    /// in / up ， not is 。
     pub fn assembled(rewrite: Option<ModelRewrite>, declared: bool, switch_on: bool) -> Self {
         Self { rewrite, strip_newline_chunks: declared && switch_on, native_tools: Vec::new() }
     }
 }
 
-/// 这一帧是不是「整片只有换行」的保活分片（判据全部是**宁可不丢**的方向）。
+/// this 1 is not is 「 has 」 （ is ** can not ** to ）。
 ///
-/// 命中要同时满足下面每一条：
-///   - `choices[0].delta.content` 是非空、且**只由换行符组成**的字符串；
-///   - 同一个 delta 里没有别的有效载荷：`reasoning_content` 为空/缺失、
-///     `tool_calls` 空数组、`function_call` 假值 —— 一帧里只要还有别的真东西，
-///     它就不只是节拍，不能丢；
-///   - 顶层没有收尾/统计/错误载体：`finish_reason` 非真值、`usage` 缺失或 null、
-///     没有 `error` —— 这三样客户端只能从这一帧拿到，所以判据统一在
-///     [`carries_terminal_signal`]（本函数第一句就调它，不再自己抄一份）。
+/// in need when down 1 ：
+/// - `choices[0].delta.content` is empty、 and ** by ** ；
+/// - 1 delta no has valid：`reasoning_content` as empty/、
+/// `tool_calls` empty、`function_call` —— 1 need has ，
+/// not is ， not can ；
+/// - no has /statistics/error：`finish_reason` 、`usage` or null、
+/// no has `error` —— this client can from this 1 to ， 1 in 
+/// [`carries_terminal_signal`]（ 1 ， not 1 ）。
 ///
-/// `delta.role` 存在**不影响**判定：AutoClaw 的每一帧都带 `role:"assistant"`，
-/// 把它算进「有别的东西」就等于一条都丢不掉。
+/// `delta.role` in ** not **：AutoClaw 1 `role:"assistant"`，
+/// 「 has 」 etc 1 not 。
 pub fn is_newline_keepalive(chunk: &Value) -> bool {
-    // 收尾 / 统计 / 错误的豁免**只有一处实现**（见 `carries_terminal_signal`），
-    // 别在这里再抄一份：两份同源判据一改一漏，就是 2026-10 那次「收尾帧被整帧吞掉」
-    // 的翻版（当时正是累积分支缺了这里的两条守卫）。
+    // / statistics / error ** has 1 **（ `carries_terminal_signal`），
+    // in this 1 ： 1 1 ， is 2026-10 that 「 」
+    // （ when is this ）。
     if carries_terminal_signal(chunk) {
         return false;
     }
@@ -162,7 +162,7 @@ pub fn is_newline_keepalive(chunk: &Value) -> bool {
     if !newline_only {
         return false;
     }
-    // 除 content 之外还有别的载荷就不算纯噪声
+    // content has not 
     let carries_reasoning = delta
         .get("reasoning_content")
         .and_then(Value::as_str)
@@ -177,18 +177,18 @@ pub fn is_newline_keepalive(chunk: &Value) -> bool {
     !(carries_reasoning || carries_tool_calls || carries_function_call)
 }
 
-/// 这一帧是否**带着客户端只能从它拿到的信息**：顶层 `error`、顶层 `usage` 有内容、
-/// 或 `choices[0].finish_reason` 为真值。
+/// this 1 is **client can from to **： `error`、 `usage` has 、
+/// or `choices[0].finish_reason` as 。
 ///
-/// 用途是「按帧整体吞掉」的两条路径（保活丢弃、reasoning 累积）都必须先问它：
-/// 一帧可以既有噪声载荷、又是唯一的收尾/统计/错误载体，按载荷形状丢帧就会把
-/// 它们一起丢掉，而这三样客户端**只能**从这一帧拿到（`finish_reason` 缺了，
-/// 以它作为「这一轮结束了」契约的客户端会判流不完整；`error` 缺了，故障被静默）。
+/// use is 「 by 」 path（、reasoning ）must：
+/// 1 can has 、 is 1 /statistics/error， by will 
+/// 1 ， this client** can ** from this 1 to （`finish_reason` ，
+/// as 「 this 1 」 client will not ；`error` ， ）。
 ///
-/// **这是那三样豁免的唯一实现** —— 增删条款只改这里，不要在任何调用点旁边再抄一份：
-/// 2026-10 那次事故（OfficeAce 的收尾帧带一个空 `reasoning_content`，被 reasoning
-/// 累积分支整帧吞掉，客户端永远等不到 stop reason）的成因就是同一份判据散成了两处、
-/// 只有一处补齐了守卫。
+/// ** this is that 1 ** —— this ， not need in use 1 ：
+/// 2026-10 that （OfficeAce 1 empty `reasoning_content`， reasoning
+/// ，client etc not to stop reason） is 1 、
+/// has 1 。
 pub fn carries_terminal_signal(chunk: &Value) -> bool {
     if chunk.get("error").is_some() {
         return true;
@@ -204,7 +204,7 @@ pub fn carries_terminal_signal(chunk: &Value) -> bool {
         .is_some()
 }
 
-/// 帧元数据（对应 Node 的 `meta = { id, model, created }`）
+/// （ for Node `meta = { id, model, created }`）
 #[derive(Default, Clone, Debug)]
 struct FrameMeta {
     id: Option<Value>,
@@ -212,27 +212,27 @@ struct FrameMeta {
     created: Option<Value>,
 }
 
-/// reasoning 合并状态机
+/// reasoning and 
 pub struct ReasoningCoalescer {
     acc: String,
     meta: FrameMeta,
-    /// 跨 chunk 的半行缓冲（网络分片不会按行对齐）
+    /// chunk （ not will by for ）
     ///
-    /// 缓冲的是**字节**而不是 String：思考内容里中文字符占大头，而 TCP 分片
-    /// 完全可能把一个 3 字节的汉字切成两半。Node 版是 `tail += chunk.toString('utf8')`，
-    /// 分片落在字符中间时那一半会被解码成 U+FFFD —— 属于上游分片碰巧导致的
-    /// 内容损坏。这里按字节缓冲、只在完整行上解码，行为上更正确；
-    /// 对「正常分片」的输出与 Node 完全一致。
+    /// is **** not is String： in ， TCP 
+    /// can can 1 3 。Node is `tail += chunk.toString('utf8')`，
+    /// in in when that 1 will U+FFFD —— up 
+    /// 。 this by 、 in up ， as up ；
+    /// for 「」 and Node 1 。
     tail: Vec<u8>,
-    /// usage 旁路槽（可选）：见 `report_usage` 与 `usage.rs` 的模块说明。
-    /// 放在这里是因为**本状态机就是 SSE 逐行解析的唯一入口** —— 上游每个
-    /// `data:` 帧都会经过 `handle_line`，顺手读一眼 `usage` 不需要再插一层
-    /// 转发器，也就不会给透传路径增加任何中间结构。
+    /// usage （optional）： `report_usage` and `usage.rs` 。
+    /// in this is as ** is SSE 1 ** —— up 
+    /// `data:` will `handle_line`， 1 `usage` not need need 1 
+    /// ， not will to path in 。
     telemetry: Option<Arc<RequestTelemetry>>,
-    /// model 名回写参数（可选；见模块头）。None = 原样透传上游的 model 字段
+    /// model parameter（optional；module header）。None = up model 
     rewrite: Option<ModelRewrite>,
-    /// 丢弃保活换行分片（见模块头与 [`is_newline_keepalive`]）。
-    /// false = 帧的字节与接入前逐字一致。
+    /// （module header and [`is_newline_keepalive`]）。
+    /// false = and before 1 。
     strip_newline_chunks: bool,
     native_tools: super::native_tools::Repair,
 }
@@ -256,13 +256,13 @@ impl ReasoningCoalescer {
         }
     }
 
-    /// 带 usage 旁路槽的合并器（流式转发用；`new()` 保留给无统计需求的调用点）
+    /// usage and （ use ；`new()` to nonestatistics need use ）
     pub fn with_telemetry(telemetry: Arc<RequestTelemetry>) -> Self {
         Self { telemetry: Some(telemetry), ..Self::new() }
     }
 
-    /// 装上帧改写策略（model 名回写 + 保活换行的丢弃；见模块头）。
-    /// 未被调用时行为与接入前逐字节一致。
+    /// up （model + ；module header）。
+    /// use when as and before 1 。
     pub fn with_policy(mut self, policy: FramePolicy) -> Self {
         self.native_tools = super::native_tools::Repair::new(&policy.native_tools);
         self.rewrite = policy.rewrite;
@@ -270,11 +270,11 @@ impl ReasoningCoalescer {
         self
     }
 
-    /// 吃一段上游字节，吐出要下发给客户端的帧（0..n 个）
+    /// 1 up ， need down to client （0..n ）
     pub fn push(&mut self, chunk: &[u8]) -> Vec<Frame> {
         let mut out: Vec<Frame> = Vec::new();
         self.tail.extend_from_slice(chunk);
-        // 逐行消费：只处理到最后一个 '\n' 为止，剩下的（半行）留在 tail 里
+        // ： to after 1 '\n' as ， down （） in tail 
         let mut start = 0usize;
         while let Some(offset) = self.tail[start..].iter().position(|byte| *byte == b'\n') {
             let end = start + offset;
@@ -286,16 +286,16 @@ impl ReasoningCoalescer {
         out
     }
 
-    /// 流结束：冲刷累积的 reasoning。
+    /// ： reasoning。
     ///
-    /// ── 为什么不冲刷 tail（与 Node 一致，且更安全）────────────────
-    /// `tail` 里只剩「不以 `\n` 结尾的半行」。两种情形：
-    ///   a. 上游把最后一个事件发完却没有收尾换行 → 那半行其实是一条完整帧；
-    ///   b. 上游在帧中间被切断 → 那半行是残缺 JSON。
-    /// Node 的 flush 只冲刷 acc、**不动 tail**，于是 (b) 被丢掉、(a) 也被丢掉。
-    /// 这里保持同一行为：把残缺帧当普通行透传会送出一条非法 `data:` 行，
-    /// 客户端解析器大概率直接报错；宁可少一帧（且上游正常都以 `\n\n` 收尾，
-    /// 这条路径实际不会走到），也不要制造一次客户端侧解析失败。
+    /// ── Why not tail（ and Node 1 ， and ）────────────────
+    /// `tail` 「 not `\n` 」。：
+    /// a. up after 1 no has → that its is 1 ；
+    /// b. up in in → that is JSON。
+    /// Node flush acc、** not tail**， is (b) 、(a) 。
+    /// this 1 as ： will 1 `data:` ，
+    /// client； can 1 （ and up `\n\n` ，
+    /// this path not will to ）， not need 1 clientfailure。
     pub fn finish(&mut self) -> Vec<Frame> {
         let mut out: Vec<Frame> = Vec::new();
         if !self.acc.is_empty() {
@@ -309,7 +309,7 @@ impl ReasoningCoalescer {
         out
     }
 
-    /// 处理一行（已去掉行尾的 `\r`）
+    /// 1 （ already `\r`）
     fn handle_line(&mut self, raw: &str, out: &mut Vec<Frame>) {
         let line = raw.strip_suffix('\r').unwrap_or(raw);
         if line.trim().is_empty() {
@@ -337,24 +337,24 @@ impl ReasoningCoalescer {
                 "id": self.meta.id, "model": self.meta.model, "created": self.meta.created,
                 "object": "chat.completion.chunk",
             })) { out.push(sse_frame(&frame)); }
-            // 解析失败的行原样透传：上游的异常帧不能被我们吞掉
+            // failure ： up not can 
             out.push(plain_frame(line));
             return;
         };
         if chunk.is_object() {
-            // ── usage 旁路提取（请求统计）──────────────────────────
-            // 位置放在「已确定这是合法 JSON 对象」之后、「本行还没被改写」之前。
-            // 为什么**不会影响透传**：这里只读 `chunk` 的一个成员并把它拷进
-            // 另一个结构体，既不修改 `chunk` 也不参与下面 `out` 的构造 ——
-            // 无论命中与否，本函数吐出的帧都与不接这个钩子时逐字节一致。
-            // 提取失败（usage 缺失/非对象）静默跳过：统计少记一条可以接受，
-            // 因此这里没有错误分支，也就没有「异常帧被吞掉」的可能。
+            // ── usage （requeststatistics）──────────────────────────
+            // in 「 already this is JSON for 」 after 、「 no 」 before 。
+            // Why** not will **： this `chunk` 1 and 
+            // 1 ， not `chunk` not and down `out` ——
+            // none in and ， and not this when 1 。
+            // failure（usage / for ）：statistics 1 can ，
+            // this no has error， no has 「 」 can can 。
             if let Some(telemetry) = &self.telemetry {
                 if let Some(usage) = chunk.get("usage") {
                     telemetry.report_usage(usage);
                 }
             }
-            // 元数据取上游最近一帧的有效值（Node: `if (chunkObj.id) meta.id = ...`）
+            // up 1 valid（Node: `if (chunkObj.id) meta.id = ...`）
             if let Some(id) = chunk.get("id").filter(|value| is_truthy(value)) {
                 self.meta.id = Some(id.clone());
             }
@@ -365,11 +365,11 @@ impl ReasoningCoalescer {
                 self.meta.created = Some(created.clone());
             }
         }
-        // ── 保活换行分片的丢弃（见模块头与 `is_newline_keepalive`）──────
-        // 位置在 usage 旁路与元数据记录**之后**：这一帧带的 usage / id / model /
-        // created 照常进统计与合并帧的元数据，丢的只是「把这一帧下发出去」这个动作。
-        // 这里**不冲刷 acc** —— 一帧纯噪声不该把攒了一半的思考提前结掉，
-        // 否则「开启丢弃」会顺带改变 reasoning 的分帧粒度（那是另一件事）。
+        // ── （module header and `is_newline_keepalive`）──────
+        // in usage and ** after **： this 1 usage / id / model /
+        // created statistics and and ， is 「 this 1 down 」 this 。
+        // this ** not acc** —— 1 not this 1 before ，
+        // otherwise「」 will reasoning （ that is 1 ）。
         if self.strip_newline_chunks && is_newline_keepalive(&chunk) {
             return;
         }
@@ -394,19 +394,19 @@ impl ReasoningCoalescer {
                     .and_then(Value::as_array)
                     .map(|items| !items.is_empty())
                     .unwrap_or(false);
-                // `delta.function_call` 只判存在性（Node 是真值判定）
+                // `delta.function_call` in （Node is ）
                 let function_call = delta.get("function_call").map(is_truthy).unwrap_or(false);
                 content || tool_calls || function_call
             })
             .unwrap_or(false);
 
-        // ── reasoning 累积：只吞「纯思考增量」────────────────────────
-        // 判据用 `reasoning.is_some()`（键在就算），所以 OfficeAce 那种
+        // ── reasoning ：「」────────────────────────
+        // use `reasoning.is_some()`（ in ）， OfficeAce that 
         // `delta:{content:"", reasoning_content:""} + finish_reason + usage`
-        // 的**收尾帧**也会落进这里 —— 空串攒不出任何东西、`acc` 仍为空，
-        // 于是这一帧被整帧吞掉、连 `[DONE]` 处的冲刷都补不回来。
-        // 客户端因此永远等不到 stop reason（Qoder 直接判 incomplete_stream
-        // 且因「已吐过 tool_call 参数」拒绝重试）：见 `carries_terminal_signal`。
+        // **** will this —— empty not 、`acc` as empty，
+        // is this 1 、 `[DONE]` not 。
+        // client etc not to stop reason（Qoder incomplete_stream
+        // and 「 already tool_call parameter」）： `carries_terminal_signal`。
         if reasoning.is_some() && !other_delta && !carries_terminal_signal(&chunk) {
             if let Some(text) = reasoning {
                 self.acc.push_str(&text);
@@ -417,7 +417,7 @@ impl ReasoningCoalescer {
             }
             return;
         }
-        // 非纯 reasoning 事件：先冲刷累积，再透传（可回写 model，见模块头）
+        // reasoning ：，（ can model，module header）
         if !self.acc.is_empty() {
             out.push(self.coalesced_frame());
             self.acc.clear();
@@ -432,18 +432,18 @@ impl ReasoningCoalescer {
         }
     }
 
-    /// 透传一帧，必要时把 `model` 改写成客户端请求的名字。
+    /// 1 ， need when `model` clientrequest 。
     ///
-    /// ── 为什么只改 model、不做别的 ─────────────────────────────
-    /// 回写是**客户端可见语义**的修正（客户端按自己给的名字识别响应），
-    /// 因此值得做；帧里的其它字段一律原样透传 —— 上游的异常/噪声字段
-    /// （空 tool_calls 数组之类）即便看起来像是 bug，也不该由网关擅自删除，
-    /// 那会让「代理看到的内容」与「上游发的」出现无从解释的差异。
-    /// 未配置回写（workbuddy）时返回**原行的字节**，透传逐字节不变。
+    /// ── Why model、 not ─────────────────────────────
+    /// is **client can ** （client by to response），
+    /// ； its 1 —— up /
+    /// （empty tool_calls ） is bug， not this by delete，
+    /// that will 「 to 」 and 「 up 」none from 。
+    /// not configured（workbuddy） when return** **， not 。
     ///
-    /// 序列化用 `serde_json::to_string`（紧凑、无空格），与源实现
-    /// `JSON.stringify(parsed)` 同形；失败时退回原行（宁可少一次改写，
-    /// 也不要下发一条拼坏的帧）。
+    /// use `serde_json::to_string`（、noneempty）， and 
+    /// `JSON.stringify(parsed)` ；failure when （ can 1 ，
+    /// not need down 1 ）。
     fn rewritten_frame(&self, line: &str, chunk: &Value) -> Frame {
         let Some(rewrite) = &self.rewrite else {
             return plain_frame(line);
@@ -451,8 +451,8 @@ impl ReasoningCoalescer {
         let Some(object) = chunk.as_object() else {
             return plain_frame(line);
         };
-        // 上游没带 model 时**不补**：源实现同样只在 `'model' in parsed` 时才改写
-        // （补一个客户端自己会填的字段没有意义，反而给「上游到底回了什么」加噪音）
+        // up no model when ** not **： in `'model' in parsed` when 
+        // （ 1 client will no has ， to 「 up to 」）
         if !object.contains_key("model") {
             return plain_frame(line);
         }
@@ -473,19 +473,19 @@ impl ReasoningCoalescer {
         }
     }
 
-    /// 合并帧：`{id, object:'chat.completion.chunk', created, model, choices:[...]}`
+    /// and ：`{id, object:'chat.completion.chunk', created, model, choices:[...]}`
     ///
-    /// id/created 的兜底文案照抄 Node（`wb-coalesce-<毫秒>` / 当前秒）。
+    /// id/created Node（`wb-coalesce-<ms>` / currentseconds）。
     ///
-    /// ── 为什么手写 JSON 文本而不是 `json!` + 序列化 ──────────────
-    /// 本项目的 serde_json 未开 `preserve_order`，`Value::Object` 是按键排序的
-    /// BTreeMap，序列化出来的成员顺序是 `choices, created, id, model, object`；
-    /// 而 Node 的 `JSON.stringify` 保持对象字面量的**书写顺序**。
-    /// 两者都是合法 JSON、语义等价，但这是**我们自己拼出来的帧**（不同于
-    /// 透传帧 —— 那些是上游原始字节，逐字节不变），完全可以做到与 Node
-    /// 完全一致。既然做得到，就让「相同输入 → 相同字节输出」成立，
-    /// 客户端/测试做字节比对时不会出现假阳性差异。
-    /// 各值用 `serde_json::to_string` 逐个转义，拼出的仍是合法 JSON。
+    /// ── Why JSON not is `json!` + ──────────────
+    /// serde_json `preserve_order`，`Value::Object` is by 
+    /// BTreeMap， is `choices, created, id, model, object`；
+    /// Node `JSON.stringify` for ****。
+    /// is JSON、 etc ， this is ** **（ not 
+    /// —— that is up ， not ）， can to and Node
+    /// 1 。 to ，「 → 」，
+    /// client/ for when not will 。
+    /// use `serde_json::to_string` ， is JSON。
     fn coalesced_frame(&self) -> Frame {
         let id = match &self.meta.id {
             Some(value) if is_truthy(value) => value.clone(),
@@ -496,8 +496,8 @@ impl ReasoningCoalescer {
             _ => Value::from(logging::now_ms() / 1000),
         };
         let model = match &self.meta.model {
-            // 配置了回写时，合并帧也用客户端请求的名字（源实现 takeFrame 就是
-            // 用 requestedModel 拼这一帧）；未配置回写时沿用上游最近一帧的值
+            // config when ， and use clientrequest （ takeFrame is 
+            // use requestedModel this 1 ）；not configured when use up 1 
             _ if self.rewrite.is_some() => Value::String(
                 self.rewrite
                     .as_ref()
@@ -507,7 +507,7 @@ impl ReasoningCoalescer {
             Some(value) if is_truthy(value) => value.clone(),
             _ => Value::String(String::new()),
         };
-        // 逐个值做 JSON 编码（字符串会带引号并转义，数字/布尔/null 原样）
+        // JSON （ will and ，//null ）
         let encode = |value: &Value| serde_json::to_string(value).unwrap_or_else(|_| "null".to_string());
         let text = format!(
             r#"{{"id":{},"object":"chat.completion.chunk","created":{},"model":{},"choices":[{{"index":0,"delta":{{"reasoning_content":{}}},"finish_reason":null}}]}}"#,
@@ -520,18 +520,18 @@ impl ReasoningCoalescer {
     }
 }
 
-/// 一帧 SSE：`data: <JSON>\n\n`（Node 的 sseFrame）
+/// 1 SSE：`data: <JSON>\n\n`（Node sseFrame）
 pub fn sse_frame(value: &Value) -> Frame {
     let text = serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string());
     Bytes::from(format!("data: {text}\n\n"))
 }
 
-/// 非 `data:` 行的透传形态：原样 + `\n\n`（Node: `line + '\n\n'`）
+/// `data:` ： + `\n\n`（Node: `line + '\n\n'`）
 fn plain_frame(line: &str) -> Frame {
     Bytes::from(format!("{line}\n\n"))
 }
 
-/// 真值判定（Node 里这一串 `if (chunkObj.id)` 都是真值判定）
+/// （Node this 1 `if (chunkObj.id)` is ）
 fn is_truthy(value: &Value) -> bool {
     match value {
         Value::Null => false,
@@ -551,8 +551,8 @@ mod tests {
         format!("data: {}\n\n", serde_json::to_string(&value).expect("测试里的帧必须是合法 JSON"))
     }
 
-    /// 上游（WorkBuddy）形态的一帧：带 usage:null 与 finish_reason 两个尾巴字段，
-    /// 与真实流里的样子对齐 —— 判据依赖这两处，测试不能给一个过于干净的形状。
+    /// up （WorkBuddy） 1 ： usage:null and finish_reason ，
+    /// and for —— this ， not can to 1 。
     fn frame(delta: Value) -> String {
         raw(json!({
             "id": "cmb-1",
@@ -585,7 +585,7 @@ mod tests {
         let keepalive = frame(json!({"content": "\n"}));
         let mut off = coalescer(false);
         let out = feed(&mut off, &keepalive);
-        // 关着时是逐字节透传：整帧原样出去
+        // when is ：
         assert_eq!(out, keepalive, "关着时帧的字节必须一模一样");
         assert!(out.contains("\"content\":\"\\n\""), "关着时不能动这一帧: {out}");
     }
@@ -600,8 +600,8 @@ mod tests {
 
     #[test]
     fn autoclaw_shape_is_dropped_too_role_included() {
-        // 本家每一帧都带 `role:"assistant"`，且没有 `finish_reason` 键 ——
-        // role 若算「有别的有效载荷」，这一家一条都丢不掉（见判据的说明）。
+        // 1 `role:"assistant"`， and no has `finish_reason` ——
+        // role if 「 has valid」， this 1 1 not （ ）。
         let dropped = raw(json!({
             "id": "20260927001447d076",
             "created": 1_790_439_287,
@@ -623,8 +623,8 @@ mod tests {
         let mut out = feed(&mut on, &reasoning);
         out.push_str(&feed(&mut on, &keepalive));
         assert!(out.is_empty(), "纯噪声帧既不该下发，也不该把攒了一半的思考结掉: {out}");
-        // 关掉时它是普通的「非 reasoning 事件」，照旧会冲刷 —— 这条对照证明
-        // 开启丢弃确实改变了这一帧的处理路径，而不是一直如此
+        // when is 「 reasoning 」， old will —— this for 
+        // this 1 path， not is 1 
         let mut off = coalescer(false);
         let mut out_off = feed(&mut off, &reasoning);
         out_off.push_str(&feed(&mut off, &keepalive));
@@ -634,11 +634,11 @@ mod tests {
     #[test]
     fn terminal_usage_and_error_frames_are_never_dropped() {
         let cases = vec![
-            // 终端帧：丢了客户端就等不到收尾
+            // ：client etc not to 
             json!({"choices": [{"index": 0, "delta": {"content": "\n"}, "finish_reason": "stop"}]}),
-            // usage 帧：丢了统计少一条
+            // usage ：statistics 1 
             json!({"choices": [{"index": 0, "delta": {"content": "\n"}}], "usage": {"total_tokens": 3}}),
-            // 流内错误帧
+            // error
             json!({"error": {"message": "\n"}, "choices": [{"index": 0, "delta": {"content": "\n"}}]}),
         ];
         for case in cases {
@@ -664,10 +664,10 @@ mod tests {
         }
     }
 
-    /// 生产抓包（NAS `request_raw` 的下发字节，WorkBuddy 的
-    /// `deepseek-v4.1-flash`，请求 id `185d8dbf…`）里连续七帧的**原样字节**：
-    /// 上游把保活换行夹在正文分片之间。最后一帧 `":\n"` 是「真文本 + 换行」，
-    /// 一起丢掉就会把冒号也吞了 —— 这条测试锁住判据的边界。
+    /// （NAS `request_raw` down ，WorkBuddy 
+    /// `deepseek-v4.1-flash`，request id `185d8dbf…`） ****：
+    /// up in 。 after 1 `":\n"` is 「 + 」，
+    /// 1 will —— this 。
     const CAPTURED: [&str; 7] = [
         r#"data: {"id":"cmb-22097200b9bf11f1a8cfb69a5c373198","model":"deepseek-v4.1-flash","object":"chat.completion.chunk","created":1790436599,"choices":[{"index":0,"delta":{"content":"A","reasoning_content":"","function_call":null,"refusal":"","tool_calls":[],"extra_fields":null},"logprobs":null,"finish_reason":""}],"usage":null}"#,
         r#"data: {"id":"cmb-22097200b9bf11f1a8cfb69a5c373198","model":"deepseek-v4.1-flash","object":"chat.completion.chunk","created":1790436599,"choices":[{"index":0,"delta":{"content":"\n","reasoning_content":"","function_call":null,"refusal":"","tool_calls":[],"extra_fields":null},"logprobs":null,"finish_reason":""}],"usage":null}"#,
@@ -686,16 +686,16 @@ mod tests {
             .map(|index| format!("{}\n\n", CAPTURED[index]))
             .collect();
 
-        // 开启：只留带正文的四帧，且每帧逐字节不变（丢帧是整帧丢，不重写）
+        // ： ， and not （ is ， not ）
         let mut on = coalescer(true);
         let dropped = feed(&mut on, &stream);
         assert_eq!(dropped, text_bearing.concat(), "开启时应当只留下带正文的帧");
 
-        // 关闭：七帧原样出去 —— 与接入本功能前的字节完全一致
+        // ： —— and can before 1 
         let mut off = coalescer(false);
         assert_eq!(feed(&mut off, &stream), stream, "关掉时要逐字节透传整段流");
 
-        // 客户端拼出来的正文（两种开关对照）
+        // client （ for ）
         let content_of = |text: &str| -> String {
             text.split("\n")
                 .filter_map(|line| line.strip_prefix("data: "))
@@ -731,14 +731,14 @@ mod tests {
         assert!(!is_newline_keepalive(&json!("")));
     }
 
-    /// 装配规则本身：**能力位 × 开关**，两位都真才丢。
+    /// then ：** can × **，。
     ///
-    /// 三条断言各自对应一个会被搞反的方向 ——
-    ///   - `declared=false, switch=true` ⇒ 不丢：开关只能收窄不能扩张，
-    ///     否则"改一个部署参数"就会动到一家没实测过的上游的下发字节；
-    ///   - `declared=true, switch=false` ⇒ 不丢：默认态（也是关掉时的态），
-    ///     见下面那条端到端字节对照；
-    ///   - 两位都真 ⇒ 丢。
+    /// for 1 will to ——
+    /// - `declared=false, switch=true` ⇒ not ： can not can ，
+    /// otherwise" 1 parameter" will to 1 no up down ；
+    /// - `declared=true, switch=false` ⇒ not ：default（ is when ），
+    /// down that to for ；
+    /// - ⇒ 。
     #[test]
     fn the_strip_needs_both_the_capability_bit_and_the_switch() {
         let rewrite = Some(ModelRewrite { requested: "m".to_string() });
@@ -751,16 +751,16 @@ mod tests {
             "开关关着时，声明了能力位的那两家也不动字节"
         );
         assert!(FramePolicy::assembled(rewrite.clone(), true, true).strip_newline_chunks);
-        // 开关只管丢弃那一项，model 回写不受它影响（两者是两回事）
+        // that 1 ，model not （ is ）
         let policy = FramePolicy::assembled(rewrite, true, false);
         assert_eq!(policy.rewrite.map(|value| value.requested).as_deref(), Some("m"));
     }
 
-    /// 端到端一条：**能力位开着、开关关着**时，那条生产脏流要逐字节原样出去。
+    /// to 1 ：** can 、** when ， that need 。
     ///
-    /// 这条是"默认零影响"的证据，不是上面那条纯函数的重复：它走的是真实状态机
-    /// （`ReasoningCoalescer::push`），万一将来丢弃动作被挪到别处（比如挪到
-    /// reasoning 累积之前），纯函数的断言还会绿，而这条会红。
+    /// this is "default" ， not is up that ： is 
+    /// （`ReasoningCoalescer::push`）， 1 will to （e.g. to 
+    /// reasoning before ）， will ， this will 。
     #[test]
     fn a_capable_provider_with_the_switch_off_still_streams_byte_identical_frames() {
         let stream: String = CAPTURED.iter().map(|line| format!("{line}\n\n")).collect();
@@ -779,9 +779,9 @@ mod tests {
         assert_eq!(out, stream, "开关关着时七帧要一字不动地出去");
     }
 
-    /// OfficeAce 工具调用流的**收尾帧原样字节**（NAS dev `debug_traffic`，
-    /// 请求 `74eeb698…`，上游第 17 帧）：`delta` 里同时有 `content:""` 与
-    /// `reasoning_content:""`，终止信息与统计只挂在**这一帧**上。
+    /// OfficeAce use ****（NAS dev `debug_traffic`，
+    /// request `74eeb698…`， up 17 ）：`delta` when has `content:""` and 
+    /// `reasoning_content:""`， and statistics in ** this 1 ** up 。
     fn officeace_terminal_frame() -> String {
         raw(json!({
             "id": "as-92kpqm9s7j",
@@ -802,11 +802,11 @@ mod tests {
         }))
     }
 
-    /// 客户端拿不到 stop reason 就会判流不完整（Qoder 直接
-    /// `incomplete_stream` 且因已吐过 tool_call 参数而**拒绝重试** ⇒ 整条会话终止）。
-    /// 旧实现里这一帧被 reasoning 累积分支当成"纯思考增量"整帧吞掉：
-    /// `reasoning_content` 只要**键在**就算思考帧，而空串又攒不出任何东西，
-    /// 连 `[DONE]` 处的冲刷都补不回来 —— 这条按上游原字节回放，旧实现必红。
+    /// client not to stop reason will not （Qoder 
+    /// `incomplete_stream` and already tool_call parameter**** ⇒ will ）。
+    /// old this 1 reasoning ""：
+    /// `reasoning_content` need ** in **，empty not ，
+    /// `[DONE]` not —— this by up ， old 。
     #[test]
     fn a_terminal_frame_with_an_empty_reasoning_delta_still_reaches_the_client() {
         let terminal = officeace_terminal_frame();
@@ -820,12 +820,12 @@ mod tests {
         assert!(out.contains("\"usage\":{"), "usage 与终止信息同帧，一起丢了就没处补: {out}");
         assert!(out.contains("data: [DONE]"), "[DONE] 照常透传");
 
-        // 对照：这一帧是**逐字节原样**出去的，没有被改写成"合成的一帧"
+        // for ： this 1 is **** ， no has " 1 "
         assert!(out.contains(terminal.trim_end()), "保留时原样透传: {out}");
     }
 
-    /// 反对照：真正纯粹的思考增量照旧被累积（改动只放开"带终止/统计信息"那一格，
-    /// 没有把透传面扩大成"每帧都原样发"）。
+    /// for ： old （"/statistics" that 1 ，
+    /// no has ""）。
     #[test]
     fn a_pure_reasoning_delta_is_still_absorbed() {
         let mut coalescer = ReasoningCoalescer::new();
@@ -835,40 +835,40 @@ mod tests {
         );
     }
 
-    /// `carries_terminal_signal` 的三支判据各自单独成立。
+    /// `carries_terminal_signal` 。
     ///
-    /// 它是那三样豁免的**唯一**实现（保活与累积两条路径都只调它），所以三支都得能
-    /// 被单独钉住：上面那条端到端用例喂的帧**同时**带 `usage` 与 `finish_reason`，
-    /// 只覆盖了 usage 那一支 —— `finish_reason` 单独一支与 `error` 一支此前无人钉。
+    /// is that ** 1 **（ and path）， can 
+    /// ： up that to use ** when ** `usage` and `finish_reason`，
+    /// usage that 1 —— `finish_reason` 1 and `error` 1 before none。
     #[test]
     fn the_terminal_signal_predicate_answers_each_clause_on_its_own() {
-        // finish_reason 单独一支（没有 usage）：真值算命中
+        // finish_reason 1 （ no has usage）： in 
         assert!(carries_terminal_signal(&json!({
             "choices": [{"delta": {"content": ""}, "finish_reason": "stop"}],
         })));
-        // 假值形态一律不算：null / 空串（判据是 is_truthy，不是「键在不在」）
+        // 1 not ：null / empty（ is is_truthy， not is 「 in not in 」）
         assert!(!carries_terminal_signal(&json!({
             "choices": [{"delta": {"content": ""}, "finish_reason": Value::Null}],
         })));
         assert!(!carries_terminal_signal(&json!({
             "choices": [{"delta": {"content": ""}, "finish_reason": ""}],
         })));
-        // usage 单独一支：非 null 算命中，null 与整键缺失都不算
+        // usage 1 ： null in ，null and not 
         assert!(carries_terminal_signal(&json!({"usage": {"prompt_tokens": 1}})));
         assert!(!carries_terminal_signal(&json!({"usage": Value::Null})));
         assert!(!carries_terminal_signal(&json!({})));
-        // error 那一支：流内错误帧一律不许被按形状丢弃
+        // error that 1 ：error 1 not by 
         assert!(carries_terminal_signal(&json!({"error": {"message": "boom"}})));
-        // 非对象载荷不该被误判成命中
+        // for not this in 
         assert!(!carries_terminal_signal(&json!([1, 2])));
         assert!(!carries_terminal_signal(&json!("data")));
     }
 
-    /// 流内错误帧**带着一个空思考增量**时，不许被 reasoning 累积分支整帧吞掉。
+    /// error** 1 empty** when ， not reasoning 。
     ///
-    /// 这是把两份同源判据合并成一处之后收紧的那一格：保活路径一直护着 `error`，
-    /// 而累积分支此前没有 —— 一个既带 `error`、`choices[0].delta` 里又有个空
-    /// `reasoning_content` 的帧会被当成"纯思考增量"吞掉，故障从此静默。
+    /// this is and 1 after that 1 ：path 1 `error`，
+    /// before no has —— 1 `error`、`choices[0].delta` has empty
+    /// `reasoning_content` will ""， from 。
     #[test]
     fn an_error_frame_with_an_empty_reasoning_delta_is_not_absorbed() {
         let mut coalescer = ReasoningCoalescer::new();
@@ -884,8 +884,8 @@ mod tests {
         assert!(out.contains("upstream exploded"), "错误帧必须下发: {out}");
     }
 
-    /// 攒了一半的思考在前、终止帧在后：顺序不能颠倒（客户端会先把思考当正文），
-    /// 且终止帧之后 `acc` 必须已清空、不再补一帧空的 reasoning。
+    /// 1 in before 、 in after ： not can （client will ），
+    /// and after `acc` must already empty、 not 1 empty reasoning。
     #[test]
     fn the_accumulated_reasoning_is_flushed_before_the_terminal_frame() {
         let terminal = officeace_terminal_frame();

@@ -1,5 +1,5 @@
-//! 账号的业务身份：添加、重新登录与备份导入共用；provider 作用域由调用方隔离。
-//! 插件凭证内的字段优先于顶层旧镜像，缺少身份时只比较完整凭证，不拿昵称或尾号判重。
+//! ：、 new and use ；provider use by use 。
+//! old ， when ， not or 。
 
 use serde_json::{Map, Value};
 
@@ -34,7 +34,7 @@ pub(crate) fn desktop(fields: &Map<String, Value>) -> bool {
 }
 
 pub(crate) fn reference(provider: &str, fields: &Map<String, Value>) -> bool {
-    // KukuAI 和 OrcaTerm 的桌面端导入保存凭证快照，来源徽章不构成另一条身份。
+    // KukuAI and OrcaTerm ， not 1 。
     desktop(fields) && !matches!(kind_from_id(provider), Some(ProviderKind::Kuku | ProviderKind::OrcaTerm))
 }
 

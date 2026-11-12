@@ -46,7 +46,7 @@ export function useProviderDocumentation() {
     const observer = new MutationObserver(refreshVisible)
     if (section) observer.observe(section, { attributes: true, attributeFilter: ['class'] })
     document.addEventListener('visibilitychange', refreshVisible)
-    // 无宿主订阅时仍可随其它窗口的插件安装与卸载变化。
+    // none when can its and 。
     const timer = unsubscribe ? null : window.setInterval(refreshVisible, 20_000)
     refreshVisible()
     return () => {

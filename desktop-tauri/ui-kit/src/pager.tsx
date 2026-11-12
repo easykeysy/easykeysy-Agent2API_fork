@@ -4,35 +4,35 @@ import { cn } from './lib/cn'
 import { t } from './i18n'
 
 /**
- * 分页器（项目扩展，shadcn 标准里没有对应件）。
+ * （，shadcn no has for ）。
  *
- * 为什么另起一个而不是照搬 shadcn 的 Pagination：那个是「链接式页码条」
- * （一组带 href 的页码链接，按页码跳转），适合静态站点；本项目两处用分页的地方
- * （请求日志、运行日志）都是 **offset 真分页 + 后端只给总数**，
- * 界面形态是「上一页 / 下一页 / 第 N / M 页」，页码条既没有信息量、
- * 也会在几千页时铺满一行。
+ * Why 1 not is shadcn Pagination： that is 「」
+ * （ 1 href ， by ），； use 
+ * （request、） is **offset + after to total**，
+ * is 「 up 1 / down 1 / N / M 」， no has 、
+ * will in when 1 。
  *
- * 所以这里只封这一种形态：两颗按钮 + 一行读数。按钮的禁用逻辑（首页不能退、
- * 末页不能进）也一并收进来，免得每个调用点各写一遍边界判断。
+ * this this 1 ： by + 1 。 by use （ not can 、
+ * not can ） 1 and ， use 1 。
  *
- * 视觉对齐 ui/css 的 `.log-pager` / `.log-pager-info`：两颗 sm 档 outline 按钮，
- * 读数用等宽数字（tabular-nums），翻页时数字宽度不跳。
+ * for ui/css `.log-pager` / `.log-pager-info`： sm outline by ，
+ * use etc （tabular-nums）， when not 。
  *
- * 用法：
+ * use ：
  *   <Pager page={page} pageCount={pageCount} onPageChange={setPage} disabled={loading} />
  */
 
 type PagerProps = {
-  /** 当前页，1 起数 */
+  /** current，1 */
   page: number
-  /** 总页数（至少 1；调用方算不出来时传 1） */
+  /** total（ 1； use not when 1） */
   pageCount: number
   onPageChange: (page: number) => void
-  /** 整体禁用（例如请求在途）：两颗按钮都不响应 */
+  /** use （e.g.request in ）： by not response */
   disabled?: boolean
-  /** 读数前的文案，默认「第」；整句形如「第 1 / 3 页」 */
+  /** before ，default「」；「 1 / 3 」 */
   className?: string
-  /** 读数右对齐时用（面板底栏里读数在按钮右边） */
+  /** for when use （ in by ） */
   infoFirst?: boolean
 }
 
@@ -44,15 +44,15 @@ function Pager({
   className,
   infoFirst = false,
 }: PagerProps) {
-  // 页数兜底：后端还没回话时 pageCount 可能是 0 或 NaN，别让它变成「第 1 / 0 页」
+  // ： after no when pageCount can can is 0 or NaN，「 1 / 0 」
   const total = Math.max(1, Number(pageCount) || 1)
   const current = Math.min(Math.max(1, Number(page) || 1), total)
 
   const info = (
     <span
       data-slot='pager-info'
-      // text-subtle（--text-2）而不是 muted-foreground（--text-3）：读数与旁边的
-      // 说明文字是同一档，用更淡的那档在浅色主题下会糊
+      // text-subtle（--text-2） not is muted-foreground（--text-3）： and 
+      // is 1 ， use that in down will 
       className='text-[11.5px] text-subtle [font-variant-numeric:tabular-nums]'
     >
       {t('第 {current} / {total} 页', { current, total })}

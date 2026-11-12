@@ -1,49 +1,49 @@
-//! 自定义提供商账号：手动添加、级联删除、公开形态的字段来源
-//! （架构见 `core::custom_providers` 的模块头）。
+//! ：、delete、 
+//! （ `core::custom_providers` module header）。
 //!
-//! ── 与各家添加路径的关系 ────────────────────────────────────
-//! 内置八家的凭证链路各不相同（JWT / token / apiKey / 桌面端登录态），因此
-//! 各有自己的 `add_*_account`。自定义提供商最简单：**用户直接填一把上游
-//! API Key**，或者显式声明「这家上游不需要鉴权」（`noAuth`，见下）—— 网关
-//! 不代管任何登录态，所以这里没有刷新、没有导入、没有桌面端实时读取，
-//! 只有「写一条记录」。
+//! ── and path ────────────────────────────────────
+//! not （JWT / token / apiKey / ），
+//! has `add_*_account`。：** use 1 up 
+//! API Key**，or「 this up not need need 」（`noAuth`， down ）—— 
+//! not ， this no has new 、 no has 、 no has when ，
+//! has 「 1 」。
 //!
-//! ── 记录形状（与内置家对齐的部分 + 本家特有的键）─────────────
+//! ── （ and for + has ）─────────────
 //! ```json
 //! {
-//!   "id": "custom-acct-8f2c1d4a6b90",  // custom-acct- + 12 位 hex
-//!   "provider": "custom-3f2a91b04c7e", // 指向自定义提供商（外键字符串）
-//!   "name": "我的网关 A 账号",
-//!   "apiKey": "sk-…",                  // 凭证（可空：无需鉴权的上游）
-//!   "noAuth": true,                    // 可选：显式声明「该上游无需鉴权」。
-//!                                      // 与 apiKey 互斥（写入侧归一，见
-//!                                      // `state::no_auth`）；勾了它才不发鉴权头
-//!   "baseUrl": "https://…",            // 可选覆盖项；不存在则用提供商的 baseUrl
-//!   "tokenTail": "…abcd",              // 界面上展示的尾号（apiKey 派生）
+//! "id": "custom-acct-8f2c1d4a6b90", // custom-acct- + 12 hex
+//! "provider": "custom-3f2a91b04c7e", // to （）
+//! "name": " A ",
+//! "apiKey": "sk-…", // （ can empty：none need up ）
+//! "noAuth": true, // optional：「 this up none need 」。
+//! // and apiKey （ 1 ，
+//! // `state::no_auth`）； not 
+//! "baseUrl": "https://…", // optional； not in then use baseUrl
+//! "tokenTail": "…abcd", // up （apiKey ）
 //!   "source": "manual",
-//!   "priority": 5,                     // 全局一条队列（与各家共用号段）
+//! "priority": 5, // 1 （ and use ）
 //!   "enabled": true,
 //!   "addedAt": 1730000000000,
 //!   "updatedAt": 1730000000000
 //! }
 //! ```
 //!
-//! ── 为什么 id 是派生 + 随机的两段式 ─────────────────────────
-//! `apiKey` 非空时用「提供商 ID + Key」的 SHA-256 前 12 位：同一家内重复
-//! 添加才合并更新，不同站点可使用相同的 Key。既有账号按实际凭证匹配，
-//! 更新时保留原 ID，避免升级或导入后改变账号引用。
-//! 没有 key 时（显式声明无需鉴权，或凭证还没配）退化为随机 12 位
-//! （`getrandom`）：没有稳定标识可派生，而且**同一家并存多条无需鉴权账号是
-//! 刻意的**（各自可配不同的出网代理，转发按优先级轮着走），重复添加就该是
-//! 新的一条 —— id 的唯一性靠随机段保证（并发/重装都要安全，理由同
-//! `custom_providers` 的 id）。派生规则见 `identity`。
-//! 前缀 `custom-acct-` 与 provider id 的 `custom-` **刻意不同形**：
-//! `is_custom_provider_id` 按 provider 前缀判定，账号 id 若同形会被误认成
-//! 提供商 id（两套 id 空间混淆是难查的静默错配）。
+//! ── Why id is + ─────────────────────────
+//! `apiKey` empty when use 「 ID + Key」 SHA-256 before 12 ： 1 
+//! and update， not can use Key。 has by ，
+//! update when ID， or after use 。
+//! no has key when （none need ， or no ） as 12 
+//! （`getrandom`）： no has can ， and ** 1 and none need is 
+//! **（ can not ， by ）， this is 
+//! new 1 —— id 1 （ and / need ， by 
+//! `custom_providers` id）。 then `identity`。
+//! before `custom-acct-` and provider id `custom-` ** not **：
+//! `is_custom_provider_id` by provider before ， id if will 
+//! id（ id empty is ）。
 //!
-//! ── 硬约束 ────────────────────────────────────────────────
-//! 本文件全是「读-改-写」文件操作，**没有任何网络请求**（持锁不做网络）。
-//! 绝不 unwrap/expect（release 是 panic=abort）。
+//! ── ────────────────────────────────────────────────
+//! file is 「--」file，** no has request**（ not ）。
+//! not unwrap/expect（release is panic=abort）。
 
 mod identity;
 
@@ -58,59 +58,59 @@ use crate::server::core::custom_providers;
 use crate::server::core::proxies::{resolve_account_proxy_rotating, ResolvedProxy};
 use crate::server::logging;
 
-/// 账号 id 前缀。**与 provider id 的 `custom-` 不同形**（理由见模块头）。
+/// id before 。** and provider id `custom-` not **（ by module header）。
 pub const CUSTOM_ACCOUNT_ID_PREFIX: &str = "custom-acct-";
 
-/// 备注名长度上限（与另外几家一致）
+/// limit（ and 1 ）
 const MAX_NAME_CHARS: usize = 100;
 
-/// apiKey 长度上限（防御：粘贴进一整段文档时不落盘）。
-/// 上游 key 一般 32~256 字符，8192 与 `MAX_TOKEN_LENGTH` 同量级。
+/// apiKey limit（： 1 when not ）。
+/// up key 1 32~256 ，8192 and `MAX_TOKEN_LENGTH` 。
 const MAX_API_KEY_LENGTH: usize = 8192;
 
-/// `add_custom_account` 的返回：落盘记录的公开形态 + 这次是新建还是更新。
+/// `add_custom_account` return： + this is new is update。
 ///
-/// 幂等口径（见 `identity`）会让「同一家、同一把 Key 的重复添加」合并进既有
-/// 记录。这次提交到底落在哪一边只有存储层
-/// 知道（日志里有 🔄 / ✅ 之分），把它作为返回值交给 API 层带出去，前端才能
-/// 把提示说成「已更新」而不是「已添加」（照搬「已添加」会让人以为列表会多
-/// 出一条，实测反馈过的误导）。
+/// etc （ `identity`） will 「 1 、 1 Key 」 and has 
+/// 。 this to in 1 has 
+/// （ has 🔄 / ✅ ）， as return to API ， before can 
+/// 「 already update」 not is 「 already 」（「 already 」 will as will 
+/// 1 ， ）。
 pub struct CustomAccountUpsert {
-    /// 落盘记录的公开形态（与列表快照同一形状，见 `public_account`）
+    /// （ and 1 ， `public_account`）
     pub account: Value,
-    /// `true` = 新建了一条记录；`false` = 合并更新了既有记录（id 命中同 key
-    /// 的账号）
+    /// `true` = new 1 ；`false` = and update has （id in key
+    /// ）
     pub created: bool,
 }
 
 impl AccountStore {
-    // ─── 写：手动添加 ────────────────────────────────────────
+    // ─── ： ────────────────────────────────────────
 
-    /// 添加/更新一个自定义提供商账号（`POST /api/accounts` 的 custom 分支与
-    /// `POST /api/custom-providers` 的「首个账号」共用）。
+    /// /update 1 （`POST /api/accounts` custom and 
+    /// `POST /api/custom-providers` 「 」 use ）。
     ///
-    /// `provider_id` 必须**以 `custom-` 开头**（调用方已用
-    /// `custom_providers::is_custom_provider_id` 校验过它确实存在；这里只做
-    /// 前缀防御 —— 存储层不回头查配置，免得账号层与配置层互相依赖）。
+    /// `provider_id` must** `custom-` **（ use already use 
+    /// `custom_providers::is_custom_provider_id` in ； this 
+    /// before —— not config， and config）。
     ///
-    /// `payload` 认四个键（其余忽略，与各家「未知键不动」口径一致）：
-    ///   - `apiKey`：凭证（可空 —— 部分自建上游不需要 key）；
-    ///   - `noAuth`：**显式声明「该上游无需鉴权」**（布尔，缺省 false）。与
-    ///     `apiKey` **互斥**：为真时 apiKey 强制落空串，非空 apiKey 时该键
-    ///     直接不写。判据这样收，是为了让 `has_credentials` 与「出网发不发
-    ///     鉴权头」都只有一种读法（见 `state::no_auth`）。**它是「无鉴权」
-    ///     与「忘了填 key」的唯一分界**：后者不落这个键，账号在界面上会被
-    ///     标成未配置凭证，转发选路照样跳过；
-    ///   - `baseUrl`：**可选覆盖项**（缺省不写这条键，转发阶段回落到提供商的
-    ///     baseUrl）。校验与提供商侧同一套（`normalize_base_url`）；
-    ///   - `name` 由 `name` 参数决定（调用方已从请求体取好，与各家一致）。
+    /// `payload` （ its ignore， and 「unknown not 」 1 ）：
+    /// - `apiKey`：（ can empty —— up not need need key）；
+    /// - `noAuth`：**「 this up none need 」**（， false）。 and 
+    /// `apiKey` ****： as when apiKey empty，empty apiKey when this 
+    /// not 。 this ， is as `has_credentials` and 「 not 
+    /// 」 has 1 （ `state::no_auth`）。** is 「none」
+    /// and 「 key」 1 **： after not this ， in up will 
+    /// not configured，；
+    /// - `baseUrl`：**optional**（ not this ， to 
+    /// baseUrl）。 and 1 （`normalize_base_url`）；
+    /// - `name` by `name` parameter（ use already from request， and 1 ）。
     ///
-    /// 幂等口径：`apiKey` 非空时同一家、同 Key 重复添加 = 更新既有记录（备注名 /
-    /// baseUrl 覆盖项随之更新，ID、优先级与启用状态沿用）。没有 key（无需鉴权 /
-    /// 凭证未配）则每次都是新建 —— 同一家并存多条无需鉴权账号是刻意的（各自
-    /// 可配不同的出网代理）。撞到**其它 provider** 的账号 id（hash 空间巧合）
-    /// 时报 409 而不是覆写。落在哪一边由返回值的
-    /// [`CustomAccountUpsert::created`] 表达，API 层原样透传给前端。
+    /// etc ：`apiKey` empty when 1 、 Key = update has （ /
+    /// baseUrl update，ID、 and enabled use ）。 no has key（none need /
+    /// ） then is new —— 1 and none need is （
+    /// can not ）。 to ** its provider** id（hash empty）
+    /// when 409 not is 。 in 1 by return 
+    /// [`CustomAccountUpsert::created`] ，API to before 。
     pub fn add_custom_account(
         &self,
         provider_id: &str,
@@ -126,9 +126,9 @@ impl AccountStore {
         let Some(object) = payload.as_object() else {
             return Err(AccountStoreError::bad_request("账号内容必须是 JSON 对象"));
         };
-        // noAuth：类型不对就当场报错（与名/优先级等字段同一取向：「保存成功但
-        // 没生效」比一条 400 难查）。它是「这条账号不需要鉴权」的显式声明，
-        // 与 apiKey 互斥的归一在下面做。
+        // noAuth： not for （ and / etc 1 to ：「success
+        // no 」 1 400 ）。 is 「 this not need need 」 ，
+        // and apiKey 1 in down 。
         let no_auth = match object.get("noAuth") {
             None | Some(Value::Null) => false,
             Some(Value::Bool(flag)) => *flag,
@@ -136,9 +136,9 @@ impl AccountStore {
                 return Err(AccountStoreError::bad_request("noAuth 必须是布尔值"));
             }
         };
-        // apiKey：trim 后落盘（粘贴时常见首尾空白/换行 —— 原样落盘会让
-        // Authorization 头带上换行，请求在网络层就失败，用户看不出为什么）。
-        // 勾了「无需鉴权」就没有 key 可存：两个字段的互斥不变量在这里收口。
+        // apiKey：trim after （ when empty/ —— will 
+        // Authorization up ，request in failure， use not Why）。
+        // 「none need 」 no has key can ： not in this 。
         let api_key = if no_auth {
             String::new()
         } else {
@@ -152,8 +152,8 @@ impl AccountStore {
         if api_key.chars().count() > MAX_API_KEY_LENGTH {
             return Err(AccountStoreError::bad_request("apiKey 过长"));
         }
-        // baseUrl 覆盖项：给了就必须合法（与提供商侧同判据）；**没给不写键** ——
-        // 「没有覆盖项」与「覆盖项指到空串」在转发阶段是两种语义，形状上要能区分
+        // baseUrl ： to must（ and ）；** no to not ** ——
+        // 「 no has 」 and 「 to empty」 in is ， up need can 
         let base_url_override = match object
             .get("baseUrl")
             .and_then(Value::as_str)
@@ -184,11 +184,11 @@ impl AccountStore {
             }
         };
 
-        // 备注名兜底链：显式传入 → 记录里原有的 → 「账号 + apiKey 尾号」。
-        // 尾号对人有参考价值（哪把 key）；无鉴权账号没有尾号可展示，退化成
-        // 「<提供商名>（无需鉴权）」—— 它比一个光秃秃的「自定义账号」更能
-        // 回答「这条是什么」；两者都没有时才是那个通用兜底。兜底名不做查重：
-        // 同家并存的多条无需鉴权账号默认同名（区分靠用户自己起的备注名）。
+        // ： → has → 「 + apiKey 」。
+        // for has （ key）；none no has can ，
+        // 「<>（none need ）」—— 1 「」 can 
+        // 「 this is 」； no has when is that use 。 not ：
+        // and none need default（ use ）。
         let explicit_name = name
             .map(str::trim)
             .filter(|value| !value.is_empty())
@@ -219,9 +219,9 @@ impl AccountStore {
             .as_ref()
             .map(StoredAccount::priority)
             .unwrap_or_else(|| {
-                // 号段取全部账号：优先级全局唯一（所有家共用一条队列，见
-                // `account_store` 模块头）。查询失败（库不可用）回落到默认号段，
-                // 与 cline 的兜底一致。
+                // ： 1 （all use 1 ，
+                // `account_store` module header）。failure（unavailable） to default，
+                // and cline 1 。
                 let used = self
                     .with_conn(&_guard, |conn| sql::priorities_all(conn))
                     .unwrap_or_default();
@@ -229,8 +229,8 @@ impl AccountStore {
             });
 
         let now = logging::now_ms();
-        // 从既有记录的字段表出发（不变量「未知字段全量保留」：用户手加的备注、
-        // 将来版本新增的字段都不能在这一次重建里丢）—— 新建时是空表
+        // from has （ not 「unknown」： use 、
+        // will add not can in this 1 ）—— new when is empty
         let mut fields: Map<String, Value> = existing
             .as_ref()
             .map(|item| item.fields().clone())
@@ -243,9 +243,9 @@ impl AccountStore {
         fields.insert("name".to_string(), Value::String(record_name.clone()));
         mark_name_custom(&mut fields, explicit, existing.as_ref());
         fields.insert("apiKey".to_string(), Value::String(api_key.clone()));
-        // 「无需鉴权」标记：真时才落键，假时**摘掉**键 —— 与模型条目的
-        // capabilities 同一取向（「空表不落键」），老记录读回再写不会凭空多出
-        // 一个 `"noAuth": false`。
+        // 「none need 」： when ， when **** —— and 
+        // capabilities 1 to （「empty not 」）， not will empty
+        // 1 `"noAuth": false`。
         if no_auth {
             fields.insert("noAuth".to_string(), Value::Bool(true));
         } else {
@@ -255,19 +255,19 @@ impl AccountStore {
             Some(base_url) => {
                 fields.insert("baseUrl".to_string(), Value::String(base_url));
             }
-            // 显式传了空 baseUrl（想清掉覆盖项回落到提供商默认值）也要支持：
-            // 请求里**带了这个键**但值为空 → 删掉覆盖项；完全没带 → 保留原值。
-            // 这是「清空覆盖」唯一可行的表达方式（空串不是合法 URL，不能落盘）。
+            // empty baseUrl（ to default） need supports：
+            // request** this ** as empty → ； no → 。
+            // this is 「empty」 1 can （empty not is URL， not can ）。
             None => {
                 if object.contains_key("baseUrl") {
                     fields.remove("baseUrl");
                 }
             }
         }
-        // 余额查询配置（`balanceQuery`，可选）：预置卡带来的余额方案要的那份
-        // 凭证（NewAPI 的访问令牌 / 商汤的控制台账号密码 / 智谱的控制台令牌）。
-        // 与 apiKey 同一层是刻意的：它也是「这条账号的凭证」，只是用于查询
-        // 而不是转发（见 `custom_balance_query_by_id` 的说明）。
+        // config（`balanceQuery`，optional）： need that 
+        // （NewAPI / / ）。
+        // and apiKey 1 is ： is 「 this 」， is used for
+        // not is （ `custom_balance_query_by_id` ）。
         if let Some(value) = object.get("balanceQuery") {
             if !value.is_null() {
                 let Some(patch) = value.as_object() else {
@@ -319,8 +319,8 @@ impl AccountStore {
         fields.insert("updatedAt".to_string(), Value::from(now));
 
         let saved = StoredAccount::from_map(fields);
-        // 单行落地：`put` = DELETE + INSERT（更新既有记录时它落到列表末尾，
-        // 与旧实现 retain + push 的结果一致，见 `sql::put`）
+        // ：`put` = DELETE + INSERT（update has when to ，
+        // and old retain + push 1 ， `sql::put`）
         self.with_conn(&_guard, |conn| sql::put(conn, &saved))?;
         logging::log(
             "[Accounts]",
@@ -339,13 +339,13 @@ impl AccountStore {
         })
     }
 
-    /// 删除某个自定义提供商名下的**全部账号**，返回删除条数。
+    /// delete down ****，returndelete。
     ///
-    /// 只服务级联删除（`custom_providers::remove` 在删掉提供商之前调用它）：
-    /// 逐个删而不是一条批量 SQL —— 账号数量在个位数，而 `sql::delete` 是
-    /// 既有单行删除路径（含「不存在返回 false」的判据），复用它可以不新增
-    /// SQL、也不引入新的事务语义（本操作不需要跨行原子性：删到一半失败时
-    /// 剩下的账号仍在原组里，重试一次即可）。
+    /// delete（`custom_providers::remove` in before use ）：
+    /// not is 1 SQL —— in ， `sql::delete` is 
+    /// has deletepath（「 not in return false」 ）， use can not add
+    /// SQL、 not new （ not need need ： to 1 failure when 
+    /// down in ， 1 can ）。
     pub fn remove_custom_accounts(&self, provider_id: &str) -> Result<usize, AccountStoreError> {
         let provider_id = provider_id.trim();
         let _guard = self.guard();
@@ -360,17 +360,17 @@ impl AccountStore {
         Ok(removed)
     }
 
-    /// 把该提供商名下**等于给定地址**的账号级覆盖项清掉，返回被清理的账号名。
+    /// this down ** etc to ** ，return 。
     ///
-    /// 消费方是「提供商的 Base URL 改动」那次保存（`api::custom_providers::
-    /// update_custom_provider`）。早先版本新建提供商时会把当时的地址抄进首个
-    /// 账号（历史行为），而账号上的 `baseUrl` 是**覆盖项**、转发时优先 ——
-    /// 于是改提供商地址后请求仍打旧地址，界面上看不到那份值也改不掉
-    /// （issue #455 的形状）。
+    /// is 「 Base URL 」 that （`api::custom_providers::
+    /// update_custom_provider`）。 new when will when 
+    /// （ as ）， up `baseUrl` is ****、 when ——
+    /// is after request old ， up not to that not 
+    /// （issue #455 ）。
     ///
-    /// 值**逐字相等**（去首尾空白、去末尾斜杠后）才清：导入来的账号可能刻意
-    /// 指到另一个地址，那是有意的覆盖项，不能一并抹掉。清理是「回到跟随
-    /// 提供商」，不是删除用户的配置 —— 地址仍由提供商那条记录提供。
+    /// ** etc **（empty、 after ）： can can 
+    /// to 1 ， that is has ， not can 1 and 。 is 「 to 
+    /// 」， not is delete use config —— by that 。
     pub fn clear_custom_base_url_overrides(
         &self,
         provider_id: &str,
@@ -406,16 +406,16 @@ impl AccountStore {
         Ok(cleared)
     }
 
-    /// 改一条自定义账号的 **baseUrl 覆盖项**（`PATCH /api/accounts` 的
-    /// `baseUrl` 分支）。
+    /// 1 **baseUrl **（`PATCH /api/accounts` 
+    /// `baseUrl` ）。
     ///
-    /// 语义（与界面上的「改回跟随提供商」一一对应）：
-    ///   - `null` 或空串 = **清除**覆盖项，转回落用提供商的 baseUrl；
-    ///   - 非空字符串 = 校验后写入（与提供商侧同一套 `normalize_base_url`）。
+    /// （ and up 「」 1 1 for ）：
+    /// - `null` or empty = ****， use baseUrl；
+    /// - empty = after （ and 1 `normalize_base_url`）。
     ///
-    /// 为什么提供这个入口：覆盖项在账号公开形态里透出（`baseUrl`），但界面
-    /// 以前只显示提供商那一层，账号里的旧值既看不见也改不掉。早先版本新建
-    /// 提供商时抄进账号的那份旧地址就是这样卡住的（issue #455）。
+    /// Why this ： in （`baseUrl`），
+    /// before that 1 ， old not not 。 new 
+    /// when that old is this （issue #455）。
     pub fn update_custom_base_url(
         &self,
         id: &str,
@@ -480,13 +480,13 @@ impl AccountStore {
         Ok(vec![change])
     }
 
-    /// 按账号 id 取它的 provider —— **仅当它属于自定义提供商时**返回 Some。
+    /// by id provider —— **only when **return Some。
     ///
-    /// 消费方是 `api::accounts::refresh_account` 的分支：自定义账号没有可刷新
-    /// 的凭证（key 是用户填的），若不拦截会落进 workbuddy 的刷新链路并得到
-    /// 一条误导性的「账号不存在」。判据用前缀而不是 `is_custom_provider_id`：
-    /// 这里问的是「这条账号记录是不是自定义形态」，与提供商是否还在无关
-    /// （提供商被删后残留的账号同样不该走 workbuddy 刷新）。
+    /// is `api::accounts::refresh_account` ： no has can new 
+    /// （key is use ）， if not will workbuddy new and to 
+    /// 1 「 not in 」。 use before not is `is_custom_provider_id`：
+    /// this is 「 this is not is 」， and is in none
+    /// （ after not this workbuddy new ）。
     pub fn custom_account_provider(&self, id: &str) -> Option<String> {
         let _guard = self.guard();
         let record = self.record_by_id(&_guard, id)?;
@@ -496,34 +496,34 @@ impl AccountStore {
             .then_some(provider)
     }
 
-    // ─── 读：内部凭证快照（转发 / 拉取模型清单用）────────────────
+    // ─── ：（ / use ）────────────────
 
-    /// 读取一条自定义账号的**转发凭证**（`custom_credential_by_id`）。
+    /// 1 ****（`custom_credential_by_id`）。
     ///
-    /// 消费方：`providers::custom::forward`（对话转发，出网要 apiKey 与
-    /// baseUrl 覆盖项）。**返回值含 apiKey 明文，绝不进任何 HTTP 响应** ——
-    /// 公开形态（`to_custom_public_account`）刻意只有 tokenTail，那是给界面的；
-    /// 这条是网关自身出网的内部读数，两条管道不能共用一个形状。
+    /// ：`providers::custom::forward`（ for ， need apiKey and 
+    /// baseUrl ）。**return apiKey ， not HTTP response** ——
+    /// （`to_custom_public_account`） has tokenTail， that is to ；
+    /// this is ， not can use 1 。
     ///
-    /// 代理在锁内只做**解析**（读 Clash 快照，本地文件 IO；与
-    /// `get_session_by_id` 同一口径），真正的网络动作都在锁外。
+    /// in ****（ Clash ，file IO； and 
+    /// `get_session_by_id` 1 ）， in 。
     pub fn custom_credential_by_id(&self, account_id: &str) -> Option<CustomCredential> {
         let record = self.read_record(account_id)?;
         Some(credential_of_record(&record))
     }
 
-    /// 该自定义提供商下第一个**可用**账号的凭证（`custom_providers::
-    /// fetch_upstream_models` 的取数口径）。
+    /// this down 1 **available** （`custom_providers::
+    /// fetch_upstream_models` ）。
     ///
-    /// 「可用」= 启用 **且**（apiKey 非空 或 显式声明无需鉴权）—— 与
-    /// `has_credentials` 同一判据：拉清单本身就是一次出网，能不能拉成功
-    /// 取决于「这条账号出网时有没有凭证可用」，而不是「有没有填 key」
-    /// （无鉴权上游不填 key 也拉得到，见 `no_auth`）。
+    /// 「available」= enabled ** and **（apiKey empty or none need ）—— and 
+    /// `has_credentials` 1 ： is 1 ， can not can success
+    /// 「 this when has no has available」， not is 「 has no has key」
+    /// （none up not key to ， `no_auth`）。
     ///
-    /// 「第一个」= 优先级最小（`order_key` 与选路同一排序）—— 拉清单是
-    /// 管理动作，没有逐账号轮换的语义，用队首账号即可；多个账号各有清单
-    /// 可见性的场景现实中不存在（同一家上游的清单对每把 key 一致）。
-    /// 一个都没有时报错文案由调用方给（「请先添加账号」），这里以 None 表达。
+    /// 「 1 」= （`order_key` and 1 ）—— is 
+    /// ， no has ， use can ； has 
+    /// can in not in （ 1 up for key 1 ）。
+    /// 1 no has when by use to （「」）， this None 。
     pub fn first_custom_credential(&self, provider_id: &str) -> Option<CustomCredential> {
         let _guard = self.guard();
         self.records_for_provider(&_guard, provider_id)
@@ -533,27 +533,27 @@ impl AccountStore {
             .map(|record| credential_of_record(&record))
     }
 
-    /// 改一条自定义账号的**凭证**：`apiKey`（可清除）与 `noAuth`（无需鉴权
-    /// 标记）。返回变更说明（供界面提示与日志），没有任何变化时返回空表。
+    /// 1 ****：`apiKey`（ can ） and `noAuth`（none need 
+    /// ）。return（ and ）， no has when returnempty。
     ///
-    /// ── 为什么单开一个方法（而不是并进 `update_account` 的 apply_patch）──
-    /// 与 CatPaw 的 `balanceToken`、ZCode 的 `zcodePlan` 同一处境：这是**自定义
-    /// 家独有**的字段。并进通用 patch 意味着内置八家的账号也认识它们，而
-    /// 「普通账号被写进一个 apiKey」只会让选路凭空多出一条无凭证记录。
-    /// 入口在 `api::accounts::patch_account` 里按 id 分流（那里已经有两处同款
-    /// 先例）。
+    /// ── Why 1 （ not is and `update_account` apply_patch）──
+    /// and CatPaw `balanceToken`、ZCode `zcodePlan` 1 ： this is **
+    /// has ** 。 and use patch ，
+    /// 「 1 apiKey」 will empty 1 none。
+    /// in `api::accounts::patch_account` by id （ that already has 
+    /// ）。
     ///
-    /// ── 三条不变量（写入侧的唯一收口处）────────────────────────
-    ///   1. `noAuth` 与 `apiKey` 互斥：开无需鉴权 → key 清空；写入非空 key
-    ///      → 摘掉标记。于是读侧不必判优先级；
-    ///   2. **账号 id 不变**：id 只是身份（限额冷却、请求日志、导出文件都按它
-    ///      关联），换一把 key 是「同一条账号换了凭证」而不是「换了一条账号」。
-    ///      「同 key 合并」只在**添加**路径上成立（那里 id 还没生成）；
-    ///   3. `apiKey` 为 null / 空串 = **清除**（显式动作，沿用界面上的「清除」
-    ///      按钮语义 —— 输入框留空是「不修改」，靠这个键表达「清掉」）。
+    /// ── not （ 1 ）────────────────────────
+    /// 1. `noAuth` and `apiKey` ：none need → key empty；empty key
+    /// → 。 is not ；
+    /// 2. ** id not **：id is （、request、file by 
+    /// ）， 1 key is 「 1 」 not is 「 1 」。
+    /// 「 key and 」 in ****path up （ that id no ）；
+    /// 3. `apiKey` as null / empty = ****（， use up 「」
+    /// by —— empty is 「 not 」， this 「」）。
     ///
-    /// 改 key 会同步刷新 `tokenTail`（界面展示的尾号必须跟着走，否则行上显示的
-    /// 还是上一把 key 的尾号）。
+    /// key will new `tokenTail`（ must，otherwise up 
+    /// is up 1 key ）。
     pub fn update_custom_credentials(
         &self,
         id: &str,
@@ -573,8 +573,8 @@ impl AccountStore {
             ));
         }
         let mut changes: Vec<String> = Vec::new();
-        // ── 两个键的取值都在这里验完再落盘：先算「写完之后是什么样」，
-        // 再一次性写进记录 —— 中途报错不会留下「标记摘了、key 还在」的中间态
+        // ── in this ：「 after is 」，
+        // 1 —— in not will down 「、key in 」 in 
         let mut next_no_auth = record.no_auth();
         let mut next_api_key = record
             .fields()
@@ -583,15 +583,15 @@ impl AccountStore {
             .unwrap_or("")
             .to_string();
         if let Some(value) = object.get("noAuth") {
-            // null = 不改（与全仓「缺省不动」同一取向）：关闭标记要显式传 false，
-            // 免得「带了个 null」被当成一次静默的关闭
+            // null = not （ and 「 not 」 1 to ）： need false，
+            // 「 null」 1 
             if !value.is_null() {
                 let flag = value
                     .as_bool()
                     .ok_or_else(|| AccountStoreError::bad_request("noAuth 必须是布尔值"))?;
                 next_no_auth = flag;
                 if flag {
-                    // 不变量 1：勾了无需鉴权就没有 key 可存
+                    // not 1：none need no has key can 
                     next_api_key = String::new();
                 }
             }
@@ -611,11 +611,11 @@ impl AccountStore {
             }
             next_api_key = key;
             if !next_api_key.is_empty() {
-                // 不变量 1 的另一半：存了 key 就不该再挂「无需鉴权」
+                // not 1 1 ： key not this 「none need 」
                 next_no_auth = false;
             }
         }
-        // ── 差异落盘（三处：标记、key、尾号）──────────────────────
+        // ── （：、key、）──────────────────────
         let before_no_auth = record.no_auth();
         let before_key = record
             .fields()
@@ -645,7 +645,7 @@ impl AccountStore {
         if changes.is_empty() {
             return Ok(changes);
         }
-        // 改凭证不动顺序、不改启用状态：原地更新（与 token 回写同一条路径）
+        // not 、 not enabled：update（ and token 1 path）
         record.set_updated_at(logging::now_ms());
         let name = record.name();
         self.with_conn(&_guard, |conn| sql::update_in_place(conn, &record))?;
@@ -656,37 +656,37 @@ impl AccountStore {
         Ok(changes)
     }
 
-    // ─── 余额查询配置（`balanceQuery`）──────────────────────────
+    // ─── config（`balanceQuery`）──────────────────────────
 
-    /// 读取一条自定义账号的**余额查询配置**（查询链路用）。
+    /// 1 **config**（ use ）。
     ///
-    /// **返回值可能含明文凭证，绝不进任何 HTTP 响应** —— 公开形态只有
-    /// `has*` 标记与两个非密字段（见 `store_view::to_custom_public_account`），
-    /// 与 `custom_credential_by_id` 是同一条纪律。
+    /// **return can can ， not HTTP response** —— has 
+    /// `has*` and （ `store_view::to_custom_public_account`），
+    /// and `custom_credential_by_id` is 1 。
     ///
-    /// 没有这条键（这一家的方案不需要凭证，或用户还没配）给 `None`。
+    /// no has this （ this 1 not need need ， or use no ） to `None`。
     pub fn custom_balance_query_by_id(&self, account_id: &str) -> Option<CustomBalanceQuery> {
         let _guard = self.guard();
         let record = self.record_by_id(&_guard, account_id)?;
         Some(balance_query_of_record(&record))
     }
 
-    /// 改一条自定义账号的余额查询配置。返回变更说明（供界面提示与日志），
-    /// 没有任何变化时返回空表。
+    /// 1 config。return（ and ），
+    /// no has when returnempty。
     ///
-    /// ── 语义（与 `update_custom_credentials` 同一套）────────────
-    ///   · 字段缺省 = 不修改；`null` 或空串 = **清除**（输入框留空是「不修改」，
-    ///     清除必须由显式动作表达，见界面上的「清除」按钮）；
-    ///   · 只认方案里登记的那五个字段（[`BALANCE_QUERY_FIELDS`]），其余键
-    ///     400 —— 静默忽略会让用户以为存进去了；
-    ///   · 非密字段原样落盘（`userId` / `username`），密字段同样落进记录
-    ///     ——整行落库已经是 `enc1:` 密文（见 `sql.rs` 模块头），不再做字段级
-    ///     信封（那会让读数多一层解包、也失去「整行一个信封」的统一处置）。
+    /// ── （ and `update_custom_credentials` 1 ）────────────
+    /// · = not ；`null` or empty = ****（empty is 「 not 」，
+    /// must by ， up 「」 by ）；
+    /// · that （[`BALANCE_QUERY_FIELDS`]）， its 
+    /// 400 —— ignore will use as ；
+    /// · （`userId` / `username`），
+    /// —— already is `enc1:` （ `sql.rs` module header）， not 
+    /// （ that will 1 、「 1 」 1 ）。
     ///
-    /// ── 为什么换凭证要连 JWT 缓存一起清 ─────────────────────────
-    /// 商汤的查询票（`sensenovaJwt`）是用账号密码换来的：密码一换，旧票代表的
-    /// 还是旧账号 —— 留着它会让「改了密码」这件事看起来没生效（查询继续用旧
-    /// 身份成功）。清掉之后下一次查询自然重登。
+    /// ── Why need JWT 1 ─────────────────────────
+    /// （`sensenovaJwt`） is use ： 1 ， old 
+    /// is old —— will 「」 this no （ use old 
+    /// success）。 after down 1 。
     pub fn update_custom_balance_query(
         &self,
         id: &str,
@@ -706,8 +706,8 @@ impl AccountStore {
                 "只有自定义提供商的账号有余额查询配置（balanceQuery）",
             ));
         }
-        // 方案是「这一家的哪条查询链路」的事实来源：没有方案的家没有可配的
-        // 凭证（预置卡的方案在创建时写进提供商记录，见 custom_providers）
+        // is 「 this 1 」 ： no has no has can 
+        // （ in create when ， custom_providers）
         if custom_providers::balance_scheme_of(&provider).is_none() {
             return Err(AccountStoreError::bad_request(
                 "该提供商没有登记余额查询方案，无法配置查询凭证",
@@ -740,10 +740,10 @@ impl AccountStore {
         Ok(changes)
     }
 
-    /// 回写商汤登录换来的 JWT 缓存（查询路径用；失败只影响下一次重登）。
+    /// JWT （path use ；failure down 1 ）。
     ///
-    /// 走与凭证更新同一条落盘路径，但不产生变更日志、不动 `updatedAt` 之外的
-    /// 任何字段 —— 它是一次**缓存**写入，不是用户动作。
+    /// and update 1 path， not 、 not `updatedAt` 
+    /// —— is 1 ****， not is use 。
     pub fn store_custom_balance_jwt(
         &self,
         id: &str,
@@ -775,29 +775,29 @@ impl AccountStore {
     }
 }
 
-/// 自定义账号的**余额查询配置快照**（`custom_balance_query_by_id` 的返回值）。
+/// **config**（`custom_balance_query_by_id` return）。
 ///
-/// 字段与记录里的键一一对应（`userId` → `user_id`…）。`sensenova_jwt` 是
-/// **缓存**而不是用户输入：商汤方案登录一次换来的票，过期前复用、过期后重登
-/// （见 `providers::custom::balance` 的模块头）。
+/// and 1 1 for （`userId` → `user_id`…）。`sensenova_jwt` is 
+/// **** not is use ： 1 ， before use 、 after 
+/// （ `providers::custom::balance` module header）。
 pub struct CustomBalanceQuery {
-    /// NewAPI：New-Api-User 头的取值（新版可空）
+    /// NewAPI：New-Api-User （ new can empty）
     pub user_id: String,
-    /// NewAPI：控制台访问令牌（必填）
+    /// NewAPI：（）
     pub access_token: String,
-    /// 商汤：控制台账号（必填）
+    /// ：（）
     pub username: String,
-    /// 商汤：控制台密码（必填）
+    /// ：（）
     pub password: String,
-    /// 智谱：bigmodel.cn 控制台令牌（必填）
+    /// ：bigmodel.cn （）
     pub token: String,
-    /// 商汤：缓存的登录票（空 = 还没登过）
+    /// ： （empty = no ）
     pub sensenova_jwt: String,
-    /// 商汤：缓存票的到期时刻（毫秒，0 = 未知）
+    /// ： to when （ms，0 = unknown）
     pub sensenova_jwt_expires_at: i64,
 }
 
-/// 记录 → 余额查询快照（读侧只做容错取值，不校验合法性 —— 写入侧已归一）
+/// → （， not —— already 1 ）
 fn balance_query_of_record(record: &StoredAccount) -> CustomBalanceQuery {
     let fields = record
         .fields()
@@ -827,14 +827,14 @@ fn balance_query_of_record(record: &StoredAccount) -> CustomBalanceQuery {
     }
 }
 
-/// 方案可配置的字段（顺序即报错文案与界面顺序）。
+/// can config （ and ）。
 ///
-/// 五个字段横跨三种方案（NewAPI 用前两个、商汤用中间两个、智谱用最后一个），
-/// 合成一张表而不是按方案分开：写入侧不认识方案（它只认字段），按方案建表会
-/// 让「同一字段属于谁」在两处各写一遍。
+/// （NewAPI use before 、 use in 、 use after 1 ），
+/// 1 not is by ： not （）， by will 
+/// 「 1 」 in 1 。
 pub const BALANCE_QUERY_FIELDS: &[&str] = &["userId", "accessToken", "username", "password", "token"];
 
-/// 字段的界面/日志名（变更说明与错误文案用；键名对用户没有意义）
+/// /（ and error use ； for use no has ）
 fn balance_query_field_label(key: &str) -> &'static str {
     match key {
         "userId" => "用户 ID",
@@ -846,13 +846,13 @@ fn balance_query_field_label(key: &str) -> &'static str {
     }
 }
 
-/// 换凭证时要连缓存票一起清的字段（见 `update_custom_balance_query` 的说明）
+/// when need 1 （ `update_custom_balance_query` ）
 const BALANCE_QUERY_IDENTITY_FIELDS: &[&str] = &["accessToken", "username", "password", "token"];
-/// 单个字段的长度上限（防御：粘贴进一整段文档时不落盘；与 apiKey 同量级）
+/// limit（： 1 when not ； and apiKey ）
 const MAX_BALANCE_QUERY_FIELD_CHARS: usize = 8192;
 
-/// 把一份补丁套到余额查询配置上（`add_custom_account` 与
-/// `update_custom_balance_query` **共用同一套语义**：缺省不动、null / 空串清除）。
+/// 1 to config up （`add_custom_account` and 
+/// `update_custom_balance_query` ** use 1 **： not 、null / empty）。
 fn normalize_balance_query_patch(
     query: &mut Map<String, Value>,
     patch: &Map<String, Value>,
@@ -889,7 +889,7 @@ fn normalize_balance_query_patch(
             query.insert((*key).to_string(), Value::String(next));
         }
     }
-    // 身份字段变过 → 缓存的登录票作废（见调用点的说明）
+    // → （ use ）
     if identity_changed {
         query.remove("sensenovaJwt");
         query.remove("sensenovaJwtExpiresAt");
@@ -897,8 +897,8 @@ fn normalize_balance_query_patch(
     Ok(())
 }
 
-/// 两次快照的差异 → 变更说明（**只说字段名与动作，不带值**）。
-/// 缓存票（sensenovaJwt）不进说明：它不是用户动作。
+/// → （** and ， not **）。
+/// （sensenovaJwt） not ： not is use 。
 fn describe_balance_query_changes(
     before: &Map<String, Value>,
     after: &Map<String, Value>,
@@ -920,39 +920,39 @@ fn describe_balance_query_changes(
     changes
 }
 
-/// 自定义账号的**内部凭证快照**（`custom_credential_by_id` /
-/// `first_custom_credential` 的返回值）。
+/// ****（`custom_credential_by_id` /
+/// `first_custom_credential` return）。
 ///
-/// 与公开形态（`to_custom_public_account`）的字段差别只有两个：
-/// `apiKey`（明文，出网鉴权用）与代理的**已解析形态**（`ResolvedProxy`，
-/// 直接可交给 egress；解析失败按直连兜底 —— 公开形态里那是给用户看的
-/// 「解析失败」气泡，这里是转发可执行的出口）。
+/// and （`to_custom_public_account`） has ：
+/// `apiKey`（， use ） and ** already **（`ResolvedProxy`，
+/// can to egress；failure by —— that is to use 
+/// 「failure」， this is can ）。
 pub struct CustomCredential {
-    /// 账号 id
+    /// id
     pub account_id: String,
-    /// 备注名（日志用）
+    /// （ use ）
     pub account_name: String,
-    /// 上游 API Key（`add_custom_account` 落盘的凭证；**可空** —— 无需鉴权的
-    /// 账号没有 key，转发与拉清单都不发鉴权头）
+    /// up API Key（`add_custom_account` ；** can empty** —— none need 
+    /// no has key， and not ）
     pub api_key: String,
-    /// 是否显式声明「该上游无需鉴权」（见 `state::no_auth`）
+    /// is 「 this up none need 」（ `state::no_auth`）
     pub no_auth: bool,
-    /// 账号上的 baseUrl **覆盖项**（None = 未覆盖，转发回落提供商的 baseUrl）
+    /// up baseUrl ****（None = ， baseUrl）
     pub base_url_override: Option<String>,
-    /// 出网代理（None = 未配置 / 解析失败 → 直连）
+    /// （None = not configured / failure → ）
     pub proxy: Option<ResolvedProxy>,
 }
 
-/// 一条记录 → 凭证快照（两个入口共用一份取数口径，不会各漂一份）
+/// 1 → （ use 1 ， not will 1 ）
 fn credential_of_record(record: &StoredAccount) -> CustomCredential {
     let fields = record.fields();
-    // 轮询档取下一个出口：凭证快照的消费方（余额查询、拉清单）都是**真实出网**，
-    // 与转发同一条口径；展示那一路（公开形态）走 `describe_account_proxy`，
-    // 它不动游标（见 `core::proxies` 的两个解析入口）。
+    // down 1 ： （、） is ****，
+    // and 1 ； that 1 （） `describe_account_proxy`，
+    // not （ `core::proxies` ）。
     let proxy = match resolve_account_proxy_rotating(Some(&record.proxy()), record.id()) {
         Some(resolution) => resolution.resolved().cloned(),
-        // 无代理配置 → 直连（与「解析失败回退直连」在出网行为上等价，
-        // 区别只在日志：这里没有请求上下文可挂 notice，静默直连即可）
+        // noneconfig → （ and 「failure」 in as up etc ，
+        // in ： this no has request up down can notice， can ）
         None => None,
     };
     CustomCredential {

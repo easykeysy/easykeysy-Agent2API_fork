@@ -1,30 +1,30 @@
-//! 对话链路的另外两条协议入口（对照 `/v1/chat/completions` 实现）。
+//! for （ for `/v1/chat/completions` ）。
 //!
-//!   POST /v1/responses   Responses API（OpenAI 新协议；Codex 等客户端在用）
-//!   POST /v1/messages    Anthropic Messages API（Claude Code 等客户端在用）
+//! POST /v1/responses Responses API（OpenAI new ；Codex etc client in use ）
+//! POST /v1/messages Anthropic Messages API（Claude Code etc client in use ）
 //!
-//! ── 这两个入口做什么 ────────────────────────────────────────
-//! 两者都是**薄壳**：把下游协议的请求翻译成 Chat Completions，交给与
-//! `/v1/chat/completions` **完全相同**的转发链路（模型解析、账号选路、轮换、
-//! 脱敏、记账都不重写），再把回程翻译回下游协议。翻译规则在
-//! `core::protocol` 里，公共管道在 `api::pipeline` 里 —— 本文件只负责
-//! 「HTTP 层」：取 body、调管道、按协议形态写响应。
+//! ── this ────────────────────────────────────────
+//! is ****： down request Chat Completions， to and 
+//! `/v1/chat/completions` **** （、、、
+//! 、 not ）， down 。 then in 
+//! `core::protocol` ， in `api::pipeline` —— file
+//! 「HTTP 」： body、、 by response。
 //!
-//! ── 为什么不做成「每家适配器各支持两套协议」──────────────────
-//! 见 `core::protocol` 模块头的完整论证。一句话：本项目所有上游经适配器层
-//! 已归一为 Chat，所以在出入口转换一次（2 套）远优于在 6 家适配器里各写
-//! （12 套），且新增上游时不必再补转换。
+//! ── Why not 「supports」──────────────────
+//! `core::protocol` module header 。 1 ：all up 
+//! already 1 as Chat， in 1 （2 ） in 6 
+//! （12 ）， and add up when not 。
 //!
-//! ── 非流式请求为什么也让上游走流式 ──────────────────────────
-//! 各家上游的流式接口才是完整能力（非流式在部分上游上是「聚合后再返回」的
-//! 兼容层）。所以即使下游要非流式，我们也以 `stream:true` 请求上游，
-//! 收完后聚合成本协议的 JSON —— 与 `/v1/chat/completions` 的非流式路径同一做法。
-//! 为此，送给转发层的 body 里 `stream` 恒为 true，而「下游要不要流式」
-//! 由各 handler 自己记住（`ForwardRequest.stream` 传的仍是下游的意愿，
-//! 因为它还决定上游聚合/透传的分支，见 `provider_loop` 的 `ctx.stream`）。
+//! ── requestWhy up ──────────────────────────
+//! up is can （ in up up is 「 after return」 
+//! ）。 down need ， `stream:true` request up ，
+//! after JSON —— and `/v1/chat/completions` path 1 。
+//! as ， to body `stream` as true，「 down need not need 」
+//! by handler （`ForwardRequest.stream` is down ，
+//! as up / ， `provider_loop` `ctx.stream`）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`： unwrap/expect/panic。
 
 use std::sync::Arc;
 
@@ -50,10 +50,10 @@ use super::pipeline::{
     self, error_response, json_response, record_early_failure, sse_response, RecordContext,
 };
 
-/// 把请求体解析成 JSON 对象（失败给 400 + 记账）。
+/// request JSON for （failure to 400 + ）。
 ///
-/// `client` 由调用方从请求头判好带入（早失败也要能看出「是谁发来的」，
-/// 见 `record_early_failure` 的说明）。
+/// `client` by use from request（failure need can 「 is 」，
+/// `record_early_failure` ）。
 fn parse_object(
     state: &ServerState,
     started_at: i64,
@@ -71,17 +71,17 @@ fn parse_object(
     Ok(payload)
 }
 
-/// 一次转发的公共前半段：把已解析的 Chat 形态请求体交给转发层。
+/// 1 before ： already Chat request to 。
 ///
-/// `telemetry` 由**调用方**创建（with_id 生成关联 id）后传入：进行中行
-/// （`record_started`）要在转发开始前插入，而插入点需要 id 与模型名 ——
-/// 那两样都只在 endpoint 手里，所以槽位的创建也上移到 endpoint
-/// （与 `/v1/chat/completions` 的结构对齐）。
+/// `telemetry` by ** use **create（with_id id） after ： in 
+/// （`record_started`） need in before ， need need id and ——
+/// that in endpoint ， create up to endpoint
+/// （ and `/v1/chat/completions` for ）。
 ///
-/// `scope` 是本次请求命中的网关 Key 的限制（R9，`None` = 不限制）：
-/// **提供商**那一半进转发层（选路时按承载家过滤），**模型**那一半在调用方
-/// 的 `pipeline::resolve_model` 里已经判过（见那里的说明 —— 两者分工不同：
-/// 模型是入口校验，提供商是选路过滤）。
+/// `scope` is request in Key limit（R9，`None` = unlimited）：
+/// **** that 1 （ when by ），**** that 1 in use 
+/// `pipeline::resolve_model` already （ that —— not ：
+/// is ， is ）。
 async fn forward_chat(
     state: &ServerState,
     payload: Value,
@@ -91,11 +91,11 @@ async fn forward_chat(
     scope: Option<KeyScope>,
     telemetry: Arc<RequestTelemetry>,
 ) -> Result<ForwardOutcome, GatewayError> {
-    // 自动续写的上下文（开关 `autoContinue` **默认关**，关着时不做任何 clone）。
-    // 放在这条公共前半段里是有意的：两个协议入口都走这里，而此刻 `payload`
-    // 已经是 **Chat 形态**（`chat_from_responses` / `chat_from_anthropic` 之后），
-    // 续写要追加的 assistant / user 两个回合只在 Chat 形态上有定义 ——
-    // 到下游协议那层再拼就把同一条判据写成了两份。
+    // up down （ `autoContinue` **default**， when not clone）。
+    // in this before is has ： this ， `payload`
+    // already is **Chat **（`chat_from_responses` / `chat_from_anthropic` after ），
+    // need assistant / user in Chat up has ——
+    // to down that 1 。
     let continuation = continuation::plan().map(|max_rounds| Continuation {
         service: state.upstream().clone(),
         base_body: payload.clone(),
@@ -114,17 +114,17 @@ async fn forward_chat(
             client_headers: client_headers.clone(),
             telemetry: telemetry.clone(),
             allowed_providers: scope,
-            // 两个协议入口都不是模型测试：不钉账号，走全局优先级队列
+            // not is ： not ，
             pinned_account: None,
-            // 关闭的模型对生产请求保持「模型已在网关中关闭」（`ignore_model_gate`
-            // 是模型测试的直达跳，见 `ForwardRequest` 的说明）
+            // for request「 already in in 」（`ignore_model_gate`
+            // is ， `ForwardRequest` ）
             ignore_model_gate: false,
             proxy_override: None,
         })
         .await;
-    // 续写包装：流式在下游状态机接手之前把整条流换掉（终止帧必须在
-    // `ResponsesStream` / `AnthropicStream` 看到它之前就压住，否则机器会提前
-    // 收尾、后续轮的内容整段被丢）；非流式则在这里把聚合体问完整。
+    // ： in down before （must in 
+    // `ResponsesStream` / `AnthropicStream` to before ，otherwise will before 
+    // 、 after ）； then in this 。
     match (continuation, outcome) {
         (Some(context), Ok(ForwardOutcome::Stream { status, stream })) => {
             Ok(ForwardOutcome::Stream { status, stream: context.stream(stream) })
@@ -142,34 +142,34 @@ async fn forward_chat(
 pub async fn responses_endpoint(
     State(state): State<ServerState>,
     headers: HeaderMap,
-    // R9：中间件放进请求扩展的「命中 Key 的限制」（`None` = 不限制，见
-    // `core::key_scope` 模块头）。用 `Option<Extension<_>>` 而不是裸
-    // `Extension<_>` —— 后者在免鉴权模式下取不到会直接拒绝请求。
+    // R9： in request 「 in Key limit」（`None` = unlimited，
+    // `core::key_scope` module header）。 use `Option<Extension<_>>` not is 
+    // `Extension<_>` —— after in down not to will request。
     key_scope: Option<Extension<KeyScope>>,
     key_identity: Option<Extension<crate::server::request_stats::ApiKeyIdentity>>,
     body: Bytes,
 ) -> Response {
     let scope = key_scope.map(|Extension(scope)| scope);
     let started_at = logging::now_ms();
-    // 请求来源客户端（UA 识别，见 `core::client`）：早失败路径与收尾记账共用
+    // requestclient（UA ， `core::client`）：failurepath and use 
     let source = pipeline::request_source(&headers, key_identity);
     let path = "/v1/responses";
     let raw = match parse_object(&state, started_at, path, &body, &source) {
         Ok(value) => value,
         Err(response) => return response,
     };
-    // 协议翻译前识别，保留原始文本块边界。
+    // before ，。
     let compact_client = compact_routing::client_for_request(&source.behavior_client, &raw, RequestFormat::Responses);
-    // 原始请求体留一份：回程要用它回显请求侧字段（instructions / tools / …），
-    // 而下面会把 payload 改写成 Chat 形态
+    // request 1 ： need use request（instructions / tools / …），
+    // down will payload Chat 
     let original = raw.clone();
-    // 下游等级与下游模型名同一时机采集（读客户端**原始**体：reasoning.effort
-    // 在协议翻译里会搬到 chat_body 的 reasoning_effort，值相同 —— 见
-    // client_reasoning_of 的说明）
+    // down etc and down 1 when （client****：reasoning.effort
+    // in will to chat_body reasoning_effort， —— 
+    // client_reasoning_of ）
     let client_reasoning = pipeline::client_reasoning_of(&raw);
     let stream = raw.get("stream").and_then(Value::as_bool).unwrap_or(false);
 
-    // 协议翻译（有状态字段在这里被拒）
+    // （ has in this ）
     let mut chat_body = match responses::chat_from_responses(&raw) {
         Ok(body) => body,
         Err(message) => {
@@ -188,8 +188,8 @@ pub async fn responses_endpoint(
         return error.payload_response();
     }
 
-    // 模型解析走公共管道（默认模型回落 / 别名映射 / 目录校验）。
-    // 第三参是这把 Key 的可用模型白名单（None = 不限制），同 /v1/chat/completions
+    // （default / / directory）。
+    // is this Key available（None = unlimited）， /v1/chat/completions
     let requested_model = match super::request_prepare::resolve_client_model(&state, &mut chat_body, scope.as_ref(), compact_client).await {
         Ok(model) => model,
         Err(error) => {
@@ -208,15 +208,15 @@ pub async fn responses_endpoint(
     );
     pipeline::write_debug_files(&body, "POST", path, &user_agent);
 
-    // 上游恒走流式（理由见模块头）
-    // scope 的**提供商**那一半进转发层（选路时按承载家过滤）；
-    // 模型那一半已在上面判过（分工见 forward_chat 的说明）。
-    // telemetry 在这里创建（不再由 forward_chat 代建）：进行中行要在
-    // 转发开始前插入，见下方 record_started。
+    // up （ by module header）
+    // scope **** that 1 （ when by ）；
+    // that 1 already in up （ forward_chat ）。
+    // telemetry in this create（ not by forward_chat ）： in need in 
+    // before ， down record_started。
     let telemetry = Arc::new(RequestTelemetry::with_id());
     let client_model = pipeline::model_field_text(&raw);
-    // 「进行中」行（与 /v1/chat/completions 同一处时点：模型解析成功、
-    // 转发开始前；生命周期见 `RequestStats::record_started`）
+    // 「 in 」（ and /v1/chat/completions 1 when ：success、
+    // before ； `RequestStats::record_started`）
     let telemetry_id = telemetry.snapshot().id;
     super::request_prepare::record_started(
         state.request_stats(),
@@ -228,16 +228,16 @@ pub async fn responses_endpoint(
         &source,
         false,
     ).await;
-    // 在途回写（与 /v1/chat/completions 同一处时点与理由，见
+    // in （ and /v1/chat/completions 1 when and by ，
     // `pipeline::live_row_sink`）
     telemetry.set_live_sink(pipeline::live_row_sink(
         state.request_stats(),
         telemetry_id.clone(),
         started_at,
     ));
-    // 手动终止的取消令牌 + 断线兜底守卫（与 /v1/chat/completions 同一处时点
-    // 与同一套语义：登记后详情页可终止这条请求；handler 被 axum 取消时
-    // 由守卫的 Drop 补 408 终态。三条出口见下面的 complete / handoff）
+    // + （ and /v1/chat/completions 1 when 
+    // and 1 ： after can this request；handler axum when 
+    // by Drop 408 。 down complete / handoff）
     if let Some(token) = cancellation::register(&telemetry_id) {
         telemetry.set_cancel_token(token);
     }
@@ -257,18 +257,18 @@ pub async fn responses_endpoint(
         telemetry,
         started_at,
         model: requested_model.clone(),
-        // 下游原始名取自客户端原始请求体（转换前的 model 字段）
+        // down clientrequest（ before model ）
         client_model,
         client_reasoning,
         status: 200,
-        // 下游原始请求体：客户端发来的那一份（协议翻译前）——仅调试模式
-        // 开启时采集（`capture_raw_body`）。响应侧非流式在聚合完成后补，
-        // 流式由 RecordingStream 在流结束时定稿
+        // down request：client that 1 （ before ）——only
+        // when （`capture_raw_body`）。response in after ，
+        // by RecordingStream in when 
         raw_request: pipeline::capture_raw_body(&body),
         raw_response: None,
-        // 真实流量：不是模型测试（见 `RecordContext::is_test`）
+        // ： not is （ `RecordContext::is_test`）
         is_test: false,
-        // 来源客户端：入口判好带进来（见 `RecordContext::client`）
+        // client：（ `RecordContext::client`）
         source: source.clone(),
     };
 
@@ -277,7 +277,7 @@ pub async fn responses_endpoint(
             let status = StatusCode::from_u16(status).unwrap_or(StatusCode::OK);
             let model = requested_model.clone();
             let request = original.clone();
-            // 状态码进记账上下文（明细里记的必须是客户端实际看到的那个码）
+            // up down （ must is client to that ）
             let context = RecordContext { status: i64::from(status.as_u16()), ..context };
             if stream {
                 let mut machine = responses::ResponsesStream::new(&model, &request);
@@ -287,43 +287,43 @@ pub async fn responses_endpoint(
                     pipeline::terminal::RESPONSES,
                     move |chunk| machine.push(chunk),
                 );
-                // 收尾移交给响应流（守卫不再兜底；令牌保持登记到流结束）
+                // to response（ not ； to ）
                 guard.handoff();
                 return sse_response(status, transformed);
             }
-            // 下游要非流式：内部收流，聚合成本协议的 JSON
+            // down need ：， JSON
             let mut collector = responses::ResponsesCollector::new();
             collect_stream(source, &mut |chunk| collector.push(chunk)).await;
             collector.finish();
             let body = collector.into_response(&model, &request);
-            // 响应正文在记账前定稿（完整 JSON 文本；序列化失败或调试模式
-            // 关着给 None，见 `capture_raw_json`）
+            // response in before （ JSON ；failure or 
+            // to None， `capture_raw_json`）
             let context = RecordContext {
                 raw_response: pipeline::capture_raw_json(&body),
                 ..context
             };
             pipeline::record_entry(&context, None);
-            // 记账已完成：解除断线兜底并注销取消令牌
+            // already ： and 
             guard.complete();
             json_response(body)
         }
         Ok(ForwardOutcome::Completion { body: chat }) => {
-            // 上游走了聚合路径（本不该发生：我们恒要流式，但 CatPaw 等
-            // 有状态适配器可能直接给 Completion）。照样翻译，不丢请求。
+            // up path（ not this ： need ， CatPaw etc 
+            // has can can to Completion）。， not request。
             let response = responses::responses_from_chat(&chat, &requested_model, &original);
             let context = RecordContext {
                 raw_response: pipeline::capture_raw_json(&response),
                 ..context
             };
             pipeline::record_entry(&context, None);
-            // 记账已完成：解除断线兜底并注销取消令牌
+            // already ： and 
             guard.complete();
             json_response(response)
         }
         Err(error) => {
             let message = error.message.clone();
-            // 只在终端：`error_response` 会把同一条 message 记进请求日志
-            // （见 `api::chat` 同名分支的说明）。
+            // in ：`error_response` will 1 message request
+            // （ `api::chat` ）。
             logging::console_line("[Model]", &format!("❌ {message}"));
             let response = error_response(context, &error, |status, error| {
                 let code = anthropic::responses_error_code(status);
@@ -331,7 +331,7 @@ pub async fn responses_endpoint(
                     .with_code(code)
                     .payload_response()
             });
-            // 记账已完成（含手动终止的 408）：解除兜底并注销令牌
+            // already （ 408）： and 
             guard.complete();
             response
         }
@@ -344,14 +344,14 @@ pub async fn responses_endpoint(
 pub async fn messages_endpoint(
     State(state): State<ServerState>,
     headers: HeaderMap,
-    // R9：同 responses_endpoint（`Option` + 取不到 = 不限制）
+    // R9： responses_endpoint（`Option` + not to = unlimited）
     key_scope: Option<Extension<KeyScope>>,
     key_identity: Option<Extension<crate::server::request_stats::ApiKeyIdentity>>,
     body: Bytes,
 ) -> Response {
     let scope = key_scope.map(|Extension(scope)| scope);
     let started_at = logging::now_ms();
-    // 请求来源客户端（UA 识别，见 `core::client`）：早失败路径与收尾记账共用
+    // requestclient（UA ， `core::client`）：failurepath and use 
     let source = pipeline::request_source(&headers, key_identity);
     let path = "/v1/messages";
     let raw = match parse_object(&state, started_at, path, &body, &source) {
@@ -361,7 +361,7 @@ pub async fn messages_endpoint(
     let stream = raw.get("stream").and_then(Value::as_bool).unwrap_or(false);
 
     let compact_client = compact_routing::client_for_request(&source.behavior_client, &raw, RequestFormat::Anthropic);
-    // 协议翻译
+    // 
     let mut chat_body = match anthropic::chat_from_anthropic(&raw) {
         Ok(body) => body,
         Err(message) => {
@@ -370,9 +370,9 @@ pub async fn messages_endpoint(
             return anthropic_error_response(&error);
         }
     };
-    // 第三参是这把 Key 的可用模型白名单（None = 不限制），与另两条入口同源。
-    // 下游等级从**翻译后的 chat 体**读：Anthropic 的 thinking/output_config →
-    // reasoning_effort 是网关自己的映射（anthropic_effort），比通用并集链更准
+    // is this Key available（None = unlimited）， and 。
+    // down etc from ** after chat **：Anthropic thinking/output_config →
+    // reasoning_effort is （anthropic_effort）， use and 
     let client_reasoning = pipeline::client_reasoning_of(&chat_body);
     let requested_model = match super::request_prepare::resolve_client_model(&state, &mut chat_body, scope.as_ref(), compact_client).await {
         Ok(model) => model,
@@ -392,18 +392,18 @@ pub async fn messages_endpoint(
     );
     pipeline::write_debug_files(&body, "POST", path, &user_agent);
 
-    // scope 的**提供商**那一半进转发层（选路时按承载家过滤）；
-    // 模型那一半已在上面判过（分工见 forward_chat 的说明）。
-    // telemetry 在这里创建（与 responses_endpoint 同理：进行中行要在
-    // 转发开始前插入）
+    // scope **** that 1 （ when by ）；
+    // that 1 already in up （ forward_chat ）。
+    // telemetry in this create（ and responses_endpoint ： in need in 
+    // before ）
     let telemetry = Arc::new(RequestTelemetry::with_id());
     let client_model = pipeline::model_field_text(&raw);
-    // 流式 `message_start` 的输入锚点：上游 usage 要等流末尾那帧才到，先按
-    // 请求体估算一个（口径同 `/v1/messages/count_tokens`，见 issue #437）。
-    // 必须在这里算 —— `chat_body` 下面会被 move 进 `forward_chat`。
+    // `message_start` ： up usage need etc that to ， by 
+    // request 1 （ `/v1/messages/count_tokens`， issue #437）。
+    // must in this —— `chat_body` down will move `forward_chat`。
     let input_estimate = anthropic::estimate_tokens_for_body(&chat_body);
-    // 「进行中」行（与 /v1/chat/completions 同一处时点：模型解析成功、
-    // 转发开始前；生命周期见 `RequestStats::record_started`）
+    // 「 in 」（ and /v1/chat/completions 1 when ：success、
+    // before ； `RequestStats::record_started`）
     let telemetry_id = telemetry.snapshot().id;
     super::request_prepare::record_started(
         state.request_stats(),
@@ -415,16 +415,16 @@ pub async fn messages_endpoint(
         &source,
         false,
     ).await;
-    // 在途回写（与 /v1/chat/completions 同一处时点与理由，见
+    // in （ and /v1/chat/completions 1 when and by ，
     // `pipeline::live_row_sink`）
     telemetry.set_live_sink(pipeline::live_row_sink(
         state.request_stats(),
         telemetry_id.clone(),
         started_at,
     ));
-    // 手动终止的取消令牌 + 断线兜底守卫（与 /v1/chat/completions 同一处时点
-    // 与同一套语义：登记后详情页可终止这条请求；handler 被 axum 取消时
-    // 由守卫的 Drop 补 408 终态。三条出口见下面的 complete / handoff）
+    // + （ and /v1/chat/completions 1 when 
+    // and 1 ： after can this request；handler axum when 
+    // by Drop 408 。 down complete / handoff）
     if let Some(token) = cancellation::register(&telemetry_id) {
         telemetry.set_cancel_token(token);
     }
@@ -444,18 +444,18 @@ pub async fn messages_endpoint(
         telemetry,
         started_at,
         model: requested_model.clone(),
-        // 下游原始名取自客户端原始请求体（转换前的 model 字段）
+        // down clientrequest（ before model ）
         client_model,
         client_reasoning,
         status: 200,
-        // 下游原始请求体：客户端发来的那一份（协议翻译前）——仅调试模式
-        // 开启时采集（`capture_raw_body`）。响应侧非流式在聚合完成后补，
-        // 流式由 RecordingStream 在流结束时定稿
+        // down request：client that 1 （ before ）——only
+        // when （`capture_raw_body`）。response in after ，
+        // by RecordingStream in when 
         raw_request: pipeline::capture_raw_body(&body),
         raw_response: None,
-        // 真实流量：不是模型测试（见 `RecordContext::is_test`）
+        // ： not is （ `RecordContext::is_test`）
         is_test: false,
-        // 来源客户端：入口判好带进来（见 `RecordContext::client`）
+        // client：（ `RecordContext::client`）
         source: source.clone(),
     };
 
@@ -472,7 +472,7 @@ pub async fn messages_endpoint(
                     pipeline::terminal::ANTHROPIC,
                     move |chunk| machine.push(chunk),
                 );
-                // 收尾移交给响应流（守卫不再兜底；令牌保持登记到流结束）
+                // to response（ not ； to ）
                 guard.handoff();
                 return sse_response(status, transformed);
             }
@@ -480,14 +480,14 @@ pub async fn messages_endpoint(
             collect_stream(source, &mut |chunk| collector.push(chunk)).await;
             collector.finish();
             let body = collector.into_response(&model);
-            // 响应正文在记账前定稿（完整 JSON 文本；序列化失败或调试模式
-            // 关着给 None，见 `capture_raw_json`）
+            // response in before （ JSON ；failure or 
+            // to None， `capture_raw_json`）
             let context = RecordContext {
                 raw_response: pipeline::capture_raw_json(&body),
                 ..context
             };
             pipeline::record_entry(&context, None);
-            // 记账已完成：解除断线兜底并注销取消令牌
+            // already ： and 
             guard.complete();
             json_response(body)
         }
@@ -498,28 +498,28 @@ pub async fn messages_endpoint(
                 ..context
             };
             pipeline::record_entry(&context, None);
-            // 记账已完成：解除断线兜底并注销取消令牌
+            // already ： and 
             guard.complete();
             json_response(response)
         }
         Err(error) => {
             let message = error.message.clone();
-            // 只在终端：`error_response` 会把同一条 message 记进请求日志
-            // （见 `api::chat` 同名分支的说明）。
+            // in ：`error_response` will 1 message request
+            // （ `api::chat` ）。
             logging::console_line("[Model]", &format!("❌ {message}"));
             let response = error_response(context, &error, |status, error| {
                 anthropic_error_response_with_status(status, &error.message)
             });
-            // 记账已完成（含手动终止的 408）：解除兜底并注销令牌
+            // already （ 408）： and 
             guard.complete();
             response
         }
     }
 }
 
-/// 把一条转发流收干（非流式聚合用）。
+/// 1 （ use ）。
 ///
-/// 上游流已经过 `ReasoningCoalescer`，所以这里拿到的字节就是标准 Chat SSE。
+/// up already `ReasoningCoalescer`， this to is Chat SSE。
 async fn collect_stream(
     mut source: Box<dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin>,
     sink: &mut impl FnMut(&[u8]),
@@ -528,8 +528,8 @@ async fn collect_stream(
     while let Some(item) = source.next().await {
         match item {
             Ok(chunk) => sink(&chunk),
-            // 上游中断：已收的内容保留（聚合层会把已有的部分成形），
-            // 与流式路径「不丢用户已经看到的部分」同一取向
+            // up in ： already （ will already has ），
+            // and path「 not use already to 」 1 to 
             Err(error) => {
                 logging::verbose("[Model]", &format!("聚合时上游中断: {error}"));
                 break;
@@ -538,7 +538,7 @@ async fn collect_stream(
     }
 }
 
-/// Anthropic 形态的错误响应（`{type:"error", error:{type, message}}`）
+/// Anthropic errorresponse（`{type:"error", error:{type, message}}`）
 fn anthropic_error_response(error: &GatewayError) -> Response {
     anthropic_error_response_with_status(error.http_status().as_u16(), &error.message)
 }

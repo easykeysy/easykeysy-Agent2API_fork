@@ -102,7 +102,7 @@ export function growthTaskRunnable(task: GrowthTaskState, mode: 'full' | 'claim'
 }
 
 
-/** 条目里的一家：生效时刻 + 今天跑过没有（`builtin` 有值 = 该家自带专属时刻） */
+/** 1 ： when + no has （`builtin` has = this when ） */
 export type ScheduleProviderRow = {
   id: string
   label: string
@@ -114,7 +114,7 @@ export type ScheduleProviderRow = {
   attemptedCount?: number
   pendingCount?: number
   nextAccountAt?: number | null
-  /** 到点了但还没跑（`false` 且 `firedToday=false` = 在等窗口） */
+  /** to no （`false` and `firedToday=false` = in etc ） */
   overdue?: boolean
 }
 
@@ -124,31 +124,31 @@ export type ScheduleEntry = {
   displayLabel: string
   enabled: boolean
   time: string
-  /** 随机签到区间的结束时刻，与 time 同属北京时间当天 */
+  /** to when ， and time when */
   timeEnd?: string
   providers: string[]
-  /** 逐家的时刻覆盖（`{providerId: "HH:MM"}`；空串 = 撤销覆盖） */
+  /** when （`{providerId: "HH:MM"}`；empty = ） */
   providerTimes: Record<string, string>
-  /** 逐家的生效时刻与今日状态（后端算好，界面直接渲染） */
+  /** when and （ after ，） */
   providerRows: ScheduleProviderRow[]
-  /** 补签轮时刻（空串 = 关掉补签轮） */
+  /** when （empty = ） */
   retryTime: string
-  /** 逐家的补签时刻（主签到区间结束 + 等待间隔，不早于 retryTime） */
+  /** when （ to + etc ， not retryTime） */
   providerRetryTimes?: Record<string, string>
-  /** 中性未领取的重试间隔（分钟；0 = 不重试） */
+  /** in （minutes；0 = not ） */
   retryGapMinutes: number
-  /** 每账号每天的重试次数上限（0 = 不重试） */
+  /** limit（0 = not ） */
   retryLimit: number
   lastFiredDate: string | null
   lastFiredToday: boolean
-  /** 今天还没跑的家（界面显示「待执行」） */
+  /** no （「」） */
   pendingProviders: string[]
-  /** 中性未领取、等窗口重试的账号数 */
+  /** in 、 etc */
   retryCount: number
   /**
-   * 今天重试次数已用完的账号 id（后端按 `retryLimit` 记账算出来的）。
-   * 这些账号已经从 `retryCount` 里摘掉了，界面必须单独说一句
-   * 「今天不再重试」，否则数字归零看起来像「没事了」。
+   * already use id（ after by `retryLimit` ）。
+   * this already from `retryCount` ，must 1 
+   * 「 not 」，otherwise「 no 」。
    */
   retryExhausted?: string[]
   nextRunAt: number | null
@@ -208,7 +208,7 @@ export type AutoState = {
   lastFiredToday: boolean
   running: boolean
   providerOptions: { id: string; label: string; builtinTime?: string | null }[]
-  /** 缺省补签时刻（「补签时刻」输入框的 placeholder） */
+  /** when （「 when 」 placeholder） */
   defaultRetryTime?: string
   schedules: ScheduleEntry[]
 }
@@ -217,7 +217,7 @@ export type KeepaliveState = {
   models: string[]
   defaultModels: string[]
   apiKeyId?: string | null
-  /** 没显式选过、用的是第一把可用 Key（界面可以提示一句） */
+  /** no 、 use is 1 available Key（ can 1 ） */
   apiKeyDefaulted?: boolean
   authError?: string | null
 }
@@ -258,9 +258,9 @@ export type RecordRow = {
   date?: string
   accountId?: string
   accountName?: string
-  /** 展示名（后端按 provider id 换过） */
+  /** （ after by provider id ） */
   provider?: string
-  /** 提供商 id（筛选器的取值，历史记录里被移除的提供商也靠它还原） */
+  /** id（ ， ） */
   providerId?: string
   source?: string
   outcome?: string

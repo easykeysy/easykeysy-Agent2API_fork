@@ -232,7 +232,7 @@ fn refresh_inner(accounts: &[serde_json::Value], replace: bool) {
 pub fn note(id: &str, request_id: &str, model: &str, channel: &str, tokens: i64, ts: i64) {
     if id.is_empty() { return; }
     let Some(db) = DB.get().and_then(Option::as_ref) else { return };
-    // 额度台账独立于请求日志；关联 id 用于收尾幂等，清理日志不回退消耗。
+    // request； id used for etc ， not 。
     let inserted = db.with_mut(|conn| -> rusqlite::Result<Option<i64>> {
         let changed = conn.execute(
             "INSERT OR IGNORE INTO account_limiter_events \

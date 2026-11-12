@@ -1,5 +1,5 @@
-//! 指纹脱敏配置：`GET/PUT /api/sanitize`。
-//! 允许部分更新；规则 null = 恢复内置词表，规则 [] = 空词表，提供商 [] = 全部。
+//! config：`GET/PUT /api/sanitize`。
+//! update； then null = ， then [] = empty， [] = 。
 
 use std::sync::Arc;
 
@@ -110,7 +110,7 @@ fn parse_providers(value: &Value) -> Result<Vec<String>, String> {
         if id.is_empty() {
             return Err("应用提供商 id 不能为空".to_string());
         }
-        // 插件暂时卸载时保留已选范围，不能因为保存词表而扩大成全部提供商。
+        // when when already ， not can as 。
         if !providers::is_known_provider_id(&id)
             && !custom_providers::is_custom_provider_id(&id)
             && !previous.contains(&id)

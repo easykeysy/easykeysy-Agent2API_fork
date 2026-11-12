@@ -3,34 +3,34 @@ import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
 import { cn } from './lib/cn'
 
 /**
- * 浮层（标准形态，与 shadcn/ui 的 Popover 一致）。
+ * （， and shadcn/ui Popover 1 ）。
  *
- * 部件划分照标准：Popover / PopoverTrigger / PopoverContent /
+ * ：Popover / PopoverTrigger / PopoverContent /
  * PopoverHeader / PopoverTitle / PopoverDescription / PopoverClose。
- * PopoverContent 自带 Portal + Positioner + Popup 三层，所以调用方只写一个
- * `<PopoverContent>` 就够了，不必自己拼 Base UI 的三件套。
+ * PopoverContent Portal + Positioner + Popup ， use 1 
+ * `<PopoverContent>` ， not Base UI 。
  *
- * 没有 PopoverAnchor：Base UI 的 Popover 把「锚点」交给了 Trigger 自己
- * （触发器就是锚点），没有单独的 Anchor 部件 —— 那是 Radix 的划分。
- * 需要「浮层挂在别的元素上」时用 PopoverContent 的 `anchor` 属性
- * （传元素 / ref / 返回元素的函数），不必把 Trigger 包过去。
+ * no has PopoverAnchor：Base UI Popover 「」 to Trigger 
+ * （ is ）， no has Anchor —— that is Radix 。
+ * need need 「 in up 」 when use PopoverContent `anchor` 
+ * （ / ref / return ）， not Trigger 。
  *
- * 视觉对齐 ui/css/components.css 的浮层一族（与 SelectContent 同一张脸）：
- * 浮层底（--ui-raised）+ 强描边 + --shadow-3、--r-lg 圆角、z-35。
- * z 取 35 而不是弹窗的 30：浮层要压在弹窗之上（表在弹窗里也要能调列），
- * 轻提示（40）仍在它上面。
+ * for ui/css/components.css 1 （ and SelectContent 1 ）：
+ * （--ui-raised）+ + --shadow-3、--r-lg 、z-35。
+ * z 35 not is 30： need in up （ in need can ），
+ * （40） in up 。
  *
- * 与 Select / Tooltip 的分工：
- *   · 需要「从一组里选一个」→ 用 Select（它自带选中语义与键盘 typeahead）；
- *   · 需要「挂一块任意内容」→ 用 Popover（本件）；
- *   · 需要「悬停时说明一下」→ 用 Tooltip。
+ * and Select / Tooltip ：
+ * · need need 「 from 1 1 」→ use Select（ in and typeahead）；
+ * · need need 「 1 any」→ use Popover（）；
+ * · need need 「 when 1 down 」→ use Tooltip。
  *
- * 交互交给 Base UI 的 Popover：点外部关闭、Esc 关闭、焦点归位、
- * 按视口自动翻向与贴边（floating-ui）全部内建 —— 这几条正是自绘浮层最容易做漏的。
+ * to Base UI Popover：、Esc 、、
+ * by to and （floating-ui） —— this is 。
  *
- * 用法：
+ * use ：
  *   <Popover>
- *     <PopoverTrigger render={<Button variant='outline' />}>打开</PopoverTrigger>
+ * <PopoverTrigger render={<Button variant='outline' />}></PopoverTrigger>
  *     <PopoverContent align='end'>…</PopoverContent>
  *   </Popover>
  */
@@ -49,20 +49,20 @@ function PopoverClose(props: PopoverPrimitive.Close.Props) {
 
 type PopoverContentProps = Omit<PopoverPrimitive.Popup.Props, 'className'> & {
   className?: string
-  /** 与锚点的间距，默认 6（与 SelectContent 的 4 略有差别：浮层里通常有内边距，贴太近会像粘住） */
+  /** and ，default 6（ and SelectContent 4 has ： has ， will ） */
   sideOffset?: number
   align?: PopoverPrimitive.Positioner.Props['align']
   side?: PopoverPrimitive.Positioner.Props['side']
   alignOffset?: number
-  /** 贴边时保留的余量，默认 8（四个方向共用） */
+  /** when ，default 8（ to use ） */
   collisionPadding?: PopoverPrimitive.Positioner.Props['collisionPadding']
   /**
-   * 把浮层锚在一个**外部元素**上，而不是 PopoverTrigger。
+   * in 1 **** up ， not is PopoverTrigger。
    *
-   * 存在的理由：调用方的触发按钮有时不归 React 管（命令式建出来的原生按钮，
-   * 插在 legacy 的页面骨架里）。没有这条时只能靠「盖一层透明 Trigger 当锚点」
-   * 绕过去 —— 那样会挡住原按钮的 hover / title，得不偿失。
-   * 传元素、ref 或返回元素的函数都行（Base UI 的 VirtualElement 也接受）。
+   * in by ： use by has when not React （ by ，
+   * in legacy ）。 no has this when can 「 1 Trigger 」
+   * —— that will by hover / title， not 。
+   * 、ref or return （Base UI VirtualElement ）。
    */
   anchor?: PopoverPrimitive.Positioner.Props['anchor']
 }
@@ -86,7 +86,7 @@ function PopoverContent({
         align={align}
         side={side}
         alignOffset={alignOffset}
-        // 浮层自己要能拿到宽度约束：max-w 用 --available-width 才不会顶出视口
+        // need can to ：max-w use --available-width not will 
         collisionPadding={collisionPadding}
         anchor={anchor}
       >
@@ -95,8 +95,8 @@ function PopoverContent({
           className={cn(
             'flex max-h-[min(70vh,560px)] flex-col overflow-hidden rounded-lg border border-border-strong bg-raised text-foreground shadow-3',
             'outline-none',
-            // 入场：淡入 + 轻微上移。不做缩放 —— 浮层常常要「打开后立刻量尺寸摆位置」，
-            // transform 会污染坐标（与 SelectContent 同一条取舍）
+            // ： + up 。 not —— need 「 after 」，
+            // transform will （ and SelectContent 1 ）
             'data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-top-1',
             'data-closed:animate-out data-closed:fade-out-0',
             className
@@ -110,7 +110,7 @@ function PopoverContent({
   )
 }
 
-/** 浮层头部：标题一行，底部一条 hairline。要放操作按钮自己往里塞。 */
+/** ： 1 ， 1 hairline。 need by 。 */
 function PopoverHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div

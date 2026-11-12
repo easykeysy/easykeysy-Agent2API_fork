@@ -1,32 +1,32 @@
-//! 账号存储句柄：CRUD、当前账号派生、凭证/会话查询、限额标记、启动迁移。
+//! ：CRUD、current、/ will 、、。
 //!
-//! 对照 workbuddy-account-store.mjs 的 `createAccountStore` 返回值逐条移植。
-//! 三条硬约束写在 `super::mod` 的头部：未知字段全量保留、优先级**全局唯一**
-//! （所有提供商共用一条队列 —— 不是在 provider 内唯一，那是加多 provider 之前
-//! 的旧口径）、provider 字段缺失时按 workbuddy 兜底。
-//! 「全局唯一」的判据落在 `sql::priority_holder` 的 SQL 上（它**不带** provider
-//! 条件），写入侧冲突一律 409，详见 `priority.rs` 模块头。
+//! for workbuddy-account-store.mjs `createAccountStore` return。
+//! in `super::mod` ：unknown、** 1 **
+//! （all use 1 —— not is in provider 1 ， that is provider before 
+//! old ）、provider when by workbuddy 。
+//! 「 1 」 in `sql::priority_holder` SQL up （** not ** provider
+//! ）， 1 409， `priority.rs` module header。
 //!
-//! ── 持久化：`accounts.json` → SQLite `accounts` 表（本切片的改造）────
-//! 数据从 `{config_dir}/accounts.json` 换到 `{config_dir}/agent2api.db` 的
-//! `accounts` 表（表结构见 `server/db/schema.rs`）。**对外契约一字未改**：
-//! 本文件的 `pub fn` 签名、返回值、错误码全部与改造前相同，调用方
-//! （`api::accounts`、`auth`、`routing`、各 provider 适配器）零改动。
+//! ── ：`accounts.json` → SQLite `accounts` （ ）────
+//! from `{config_dir}/accounts.json` to `{config_dir}/agent2api.db` 
+//! `accounts` （ `server/db/schema.rs`）。** for 1 **：
+//! file `pub fn` 、return、error and before ， use 
+//! （`api::accounts`、`auth`、`routing`、 provider ）。
 //!
-//! 行级 SQL 与投影列的口径集中在 `sql.rs`（账号存储里唯一出现 SQL 的文件）。
-//! 这里只负责：句柄与锁、`AccountState` ↔ 表的两个端点、以及派生逻辑。
+//! SQL and in in `sql.rs`（ 1 SQL file）。
+//! this ： and 、`AccountState` ↔ 、 and 。
 //!
-//! ── 锁还在，但它保护的东西变了 ──────────────────────────────
-//! `guard()` 仍然是那把 `Mutex<()>`，`with_lock` / `load_locked` / `save_locked`
-//! 的签名也**必须**保持不变（`account_transfer` 直接用它们，见那边的模块头）。
-//! 变化在于它保护的**不是文件**了：以前它串行化「整份文件读-改-写」，
-//! 现在它串行化「数据库上的一次读改写周期」。语义等价 —— 两边都是「同一时刻
-//! 只有一个账号域的写者」，而数据库自己的事务保证单次写入的原子性。
-//! 为什么还要留着这把锁而不是全靠 SQLite：账号层的**读-改-写**（读出一条 →
-//! 在 Rust 里改 → 写回）跨了多条语句，中间必须有东西挡住另一个写者；
-//! SQLite 的事务做不到这件事，因为「改」发生在 Rust 内存里、不在事务范围内。
+//! ── in ， ──────────────────────────────
+//! `guard()` is that `Mutex<()>`，`with_lock` / `load_locked` / `save_locked`
+//! **must** not （`account_transfer` use ， that module header）。
+//! in ** not is file**： before 「file--」，
+//! in 「 up 1 」。 etc —— is 「 1 when 
+//! has 1 」， 。
+//! Why need this not is SQLite： **--**（ 1 →
+//! in Rust → ）， in must has 1 ；
+//! SQLite not to this ， as 「」 in Rust 、 not in 。
 //!
-//! 硬约束不变：持锁期间绝不做网络请求（见 super::mod 头部说明）。
+//! not ： not request（ super::mod ）。
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -44,7 +44,7 @@ use crate::server::core::proxies::{
 };
 use crate::server::db::Db;
 
-/// 账号存储错误（对应 Node 版 AccountStoreError，带状态码 → 路由层直接用）。
+/// error（ for Node AccountStoreError， → by use ）。
 #[derive(Clone, Debug)]
 pub struct AccountStoreError {
     pub message: String,
@@ -64,12 +64,12 @@ impl AccountStoreError {
         Self::new(message, 404)
     }
 
-    /// 数据库不可用（连接打开失败，或打开后被判定中毒）。
+    /// unavailable（failure， or after in ）。
     ///
-    /// 取 **500 + 一句可读原因**：账号是网关的核心数据，没有库就没有账号可用，
-    /// 这不是「某个字段没填对」那种 400，也不是「这条记录不存在」那种 404 ——
-    /// 是服务端自身没有可用的存储。状态码与改造前的「账号文件保存失败: …」
-    /// 一致（那条同样是 500），因此前端与路由层的分支一行都不用改。
+    /// **500 + 1 can Reason**： is ， no has no has available，
+    /// this not is 「 no for 」 that 400， not is 「 this not in 」 that 404 ——
+    /// is server no has available 。 and before 「filefailure: …」
+    /// 1 （ that is 500）， before and by 1 not use 。
     pub(crate) fn storage_unavailable(reason: &str) -> Self {
         Self::new(
             format!("账号数据库不可用（{reason}）：请检查磁盘空间与配置目录权限后重启应用"),
@@ -83,12 +83,12 @@ impl std::fmt::Display for AccountStoreError {
     }
 }
 
-/// 共享的账号存储。
+/// 。
 ///
-/// 用 `Arc<Inner>` 做轻量句柄：`ServerState` 可径直 clone，各 handler 拿到的是
-/// 同一个 store。锁是**一把粗粒度 Mutex** —— Node 版是单线程事件循环，
-/// 这里用一把锁换取与它等价的串行语义，锁粒度不做精细拆分。
-/// 硬约束：持锁期间绝不做网络请求（见 super::mod 头部说明）。
+/// use `Arc<Inner>` ：`ServerState` can clone， handler to is 
+/// 1 store。 is ** 1 Mutex** —— Node is ，
+/// this use 1 and etc ， not 。
+/// ： not request（ super::mod ）。
 #[derive(Clone)]
 pub struct AccountStore {
     inner: Arc<Inner>,
@@ -97,48 +97,48 @@ pub struct AccountStore {
 struct Inner {
     pub(super) cache: super::snapshot::SnapshotCache,
     validation: Mutex<Option<crate::server::core::providers::catalog::ValidationCache>>,
-    /// SQLite 句柄。`None` = 数据库打开失败（启动时已记日志）。
+    /// SQLite 。`None` = failure（ when already ）。
     ///
-    /// ── 为什么不做「文件回退」─────────────────────────────────
-    /// 一个自然的想法是：库不可用时退回读写 `accounts.json`，让账号功能照常。
-    /// 不做，理由有三条：
-    ///   1. **回退路径永远没人测**。数据库打不开是罕见故障（磁盘满、权限、
-    ///      库损坏），而回退分支只在那种时刻才被执行 —— 它是一段只在上线机器
-    ///      上第一次运行的代码，本身就是新的故障源。真到那一刻，用户要的是
-    ///      「一句能读懂的错误」，不是「看起来还能用、但数据写进了另一份文件、
-    ///      下次数据库恢复后两边对不上」。
-    ///   2. **两套实现会让口径分叉**。项目的三条不变量（未知字段全量保留、
-    ///      优先级唯一、provider 兜底）在两套存储上各有实现，改一处忘一处是
-    ///      必然的；而账号数据丢了是**不可逆**的用户损失。
-    ///   3. **失败要吵，不要静默**。`None` 让每个账号操作显式报 500，
-    ///      用户在界面上立刻看到「账号数据库不可用」，而不是过几天才发现
-    ///      「我改的账号怎么没保存」。
-    /// 与之相对，`Db::open` 失败**不阻断启动**（网关仍能跑转发、日志、模型）——
-    /// 这是 `ServerState::bootstrap` 已有的决定，本层只是如实承接它的后果。
+    /// ── Why not 「file」─────────────────────────────────
+    /// 1 is ：unavailable when `accounts.json`， can 。
+    /// not ， by has ：
+    /// 1. **path no **。 not is （、、
+    /// ）， in that when —— is 1 in up 
+    /// up 1 ， is new 。 to that 1 ， use need is 
+    /// 「 1 can error」， not is 「 can use 、 1 file、
+    /// down after for not up 」。
+    /// 2. ** will **。 not （unknown、
+    /// 1 、provider ） in up has ， 1 1 is 
+    /// ； is ** not can ** use 。
+    /// 3. **failure need ， not need **。`None` 500，
+    /// use in up to 「unavailable」， not is 
+    /// 「 no 」。
+    /// and for ，`Db::open` failure** not **（ can 、、）——
+    /// this is `ServerState::bootstrap` already has ， is after 。
     db: Option<Db>,
-    /// 库文件的**约定路径**（`{config_dir}/agent2api.db`）。
+    /// file **path**（`{config_dir}/agent2api.db`）。
     ///
-    /// 为什么单独存一份：`file()` / `file_string()` 的契约是「给出账号数据所在的
-    /// 文件位置」，而它有两个消费方都要求这个值非空 —— `/api/session` 的
-    /// `authFile`（显示在面板的「凭证文件」一栏）与 `ServerState::bootstrap`
-    /// 的启动日志。数据库打开失败时若返回空串或空路径，用户看到的是「位置字段
-    /// 是空的」而不是「库没打开」，排查方向会被带偏。
-    /// 库正常时这个值只是备份信息（`Db::file()` 才是权威），因此不该让调用方
-    /// 自己拼路径去猜 —— 拼法只在本层有一份。
+    /// Why 1 ：`file()` / `file_string()` is 「 to in 
+    /// file」， has need this empty —— `/api/session` 
+    /// `authFile`（ in 「file」 1 ） and `ServerState::bootstrap`
+    /// 。failure when if returnempty or emptypath， use to is 「
+    /// is empty 」 not is 「 no 」， to will 。
+    /// when this is （`Db::file()` is ）， not this use 
+    /// path —— in has 1 。
     file_path: PathBuf,
-    /// 串行化「读-改-写」整个周期；只保护账号域的数据库访问，不保护网络请求
+    /// 「--」 ； ， not request
     lock: Mutex<()>,
 }
 
 impl AccountStore {
-    /// 用数据库句柄构造（**本切片起的主流构造方式**）。
+    /// use （** **）。
     ///
-    /// `db` 为 `None` 表示数据库打不开：不阻断构造（`ServerState::bootstrap`
-    /// 需要能继续把状态装起来），但所有账号操作都会以 500 拒绝，理由见
-    /// `Inner::db` 的注释。
+    /// `db` as `None` not ： not （`ServerState::bootstrap`
+    /// need need can ），all will 500 ， by 
+    /// `Inner::db` 。
     ///
-    /// `file_path` 由 `db` 自己给出（`Db::file()`），于是「库在哪」这件事只有
-    /// `Db` 一个事实来源；`db` 为 `None` 时退回约定路径（见 `Inner::file_path`）。
+    /// `file_path` by `db` to （`Db::file()`）， is 「 in 」 this has 
+    /// `Db` 1 ；`db` as `None` when path（ `Inner::file_path`）。
     pub fn with_db(db: Option<Db>) -> Self {
         let file_path = match db.as_ref() {
             Some(db) => db.file().to_path_buf(),
@@ -149,22 +149,22 @@ impl AccountStore {
         }
     }
 
-    // ── 改造中**删掉**的构造函数：`with_config_dir()` ──────────────
-    // 它原本是「记住配置目录，读写时现拼 accounts.json 路径」。账号数据搬到
-    // 库里之后它没有存在价值，且有**实际危害**：它会自己 `Db::open` 一次，
-    // 于是同一个库上出现**第二条连接 + 第二把账号锁** —— 而账号层的读-改-写
-    // 跨多条语句，两把锁互相不可见，两条 store 句柄会交错覆盖对方的修改。
-    // 项目里已经有一条针对这个坑的注释（`providers::adapter` 的
-    // 「自己再造一个就成了绕过主句柄的第二把锁」），留着这个入口等于把那个坑
-    // 摆在手边。唯一调用点（`ServerState::bootstrap`）已经改为把自己打开的
-    // `Db` 传进来，所以这里直接删掉，而不是留一个无人调用的构造器配
-    // `#[allow(dead_code)]` 说明。
+    // ── in **** ：`with_config_dir()` ──────────────
+    // is 「configdirectory， when accounts.json path」。 to 
+    // after no has in ， and has ****： will `Db::open` 1 ，
+    // is 1 up ** + ** —— --
+    // ， not can ， store will for 。
+    // already has 1 for this （`providers::adapter` 
+    // 「 1 」）， this etc that 
+    // in 。 1 use （`ServerState::bootstrap`） already as 
+    // `Db` ， this ， not is 1 none use 
+    // `#[allow(dead_code)]` 。
 
-    /// 账号数据所在的**库文件**路径（`/api/session` 的 authFile 字段用它）。
+    /// in **file**path（`/api/session` authFile use ）。
     ///
-    /// 语义从「账号文件」变成「装着账号数据的库文件」—— 这个字段显示在面板上
-    /// 的「凭证文件」一栏，用户据此知道数据落在哪、该备份什么。库没打开时给的
-    /// 是**约定路径**（而非空路径），理由见 `Inner::file_path`。
+    /// from 「file」「 file」—— this in up 
+    /// 「file」 1 ， use in 、 this 。 no when to 
+    /// is **path**（emptypath）， by `Inner::file_path`。
     pub fn file(&self) -> &Path {
         &self.inner.file_path
     }
@@ -173,12 +173,12 @@ impl AccountStore {
         self.inner.file_path.to_string_lossy().to_string()
     }
 
-    /// 账号数据是否已落盘（Node 版账号存储导出的
-    /// `existsSync: () => existsSync(filePath)` 的对等物）。
+    /// is already （Node 
+    /// `existsSync: () => existsSync(filePath)` for etc ）。
     ///
-    /// 语义随存储一起变化：从「`accounts.json` 这个文件在不在」变成
-    /// 「装着账号的库文件在不在」。当前管理 API 未调用，保留作为该导出的对等物，
-    /// 便于后续「账号数据是否落盘」判定。
+    /// 1 ： from 「`accounts.json` this file in not in 」
+    /// 「 file in not in 」。current API use ， as this for etc ，
+    /// after 「 is 」。
     #[allow(dead_code)]
     pub fn exists(&self) -> bool {
         self.file().exists()
@@ -196,19 +196,19 @@ impl AccountStore {
         self.inner.db.as_ref()
     }
 
-    /// 取锁；锁中毒（某次持锁 panic）不致命：直接接管内部数据继续用，
-    /// 总好过让所有管理 API 永久 500。
+    /// ； in （ panic） not ： use ，
+    /// totalall API 500。
     ///
-    /// ── 为什么这里接管、而 `Db::with` 那边返回 None ─────────────
-    /// 两者的取向看似矛盾，其实判据不同：这把锁保护的是**锁本身要串行化的那个
-    /// 周期**（不含数据），它中毒说明某次账号操作 panic 了，锁内的数据（这里
-    /// 根本没有内存数据）没有中间态可言 —— 接管后照常去数据库读写即可，
-    /// 而数据库自己的事务保证每次写入是原子的。
-    /// `Db::with` 那边不同：它持的是**连接**，panic 可能打断一个未提交的事务，
-    /// 接管后会读到半截数据（详见那边的注释）。所以那边保守回落，这边照常接管。
+    /// ── Why this 、 `Db::with` that return None ─────────────
+    /// to ， its not ： this is ** need that 
+    /// **（ not ）， in panic ， （ this 
+    /// no has ） no has in can —— after can ，
+    /// is 。
+    /// `Db::with` that not ： is ****，panic can can 1 ，
+    /// after will to （ that ）。 that ， this 。
     ///
-    /// 数据库不可用的判定**不在这里**（这里没有返回值可以表达它）—— 每个操作
-    /// 都经 `with_conn` / `with_conn_mut` 取连接，那两个函数负责返回错误。
+    /// unavailable ** not in this **（ this no has return can ）—— 
+    /// `with_conn` / `with_conn_mut` ， that returnerror。
     pub(crate) fn guard(&self) -> MutexGuard<'_, ()> {
         match self.inner.lock.lock() {
             Ok(guard) => guard,
@@ -216,15 +216,15 @@ impl AccountStore {
         }
     }
 
-    /// 在已持锁的前提下执行一段数据库操作；库不可用或 SQL 出错时返回 Err。
+    /// in already before down 1 ；unavailable or SQL when return Err。
     ///
-    /// 这是本文件里访问数据库的**唯一入口**：`_guard` 参数不是装饰 —— 它把
-    /// 「必须持锁」这条纪律写进签名（Rust 不允许凭空造一个 `MutexGuard`），
-    /// 于是「忘了加锁」在编译期就不成立。参数名带下划线只表示函数体不读它。
+    /// this is file ** 1 **：`_guard` parameter not is —— 
+    /// 「must」 this （Rust not empty 1 `MutexGuard`），
+    /// is 「」 in not 。parameter down not 。
     ///
-    /// SQL 错误一律转成 500：与改造前「账号文件保存失败: {io error}」同级
-    /// （那次也是 500）—— 数据库写入失败就是服务端存储出了问题，不是用户输入
-    /// 的问题。错误文案里带上底层原因，用户与排障都能看到是哪一步坏了。
+    /// SQL error 1 500： and before 「filefailure: {io error}」
+    /// （ that is 500）—— failure is server， not is use 
+    /// 。error up Reason， use and can to is 1 。
     pub(crate) fn with_conn<T>(
         &self,
         _guard: &MutexGuard<'_, ()>,
@@ -238,10 +238,10 @@ impl AccountStore {
             .map_err(|error| AccountStoreError::new(format!("账号数据库操作失败: {error}"), 500))
     }
 
-    /// 与 [`with_conn`] 同理，但给 `&mut Connection` —— **需要事务的批量写用这个**。
+    /// and [`with_conn`] ， to `&mut Connection` —— ** need need use this **。
     ///
-    /// `save_state`（整份状态的差异写入）与 `batch_update` / `batch_remove` /
-    /// `migrate_startup` 走它：它们的写入要么全成、要么全不成。
+    /// `save_state`（ ） and `batch_update` / `batch_remove` /
+    /// `migrate_startup` ： need 、 need not 。
     pub(crate) fn with_conn_mut<T>(
         &self,
         _guard: &MutexGuard<'_, ()>,
@@ -255,13 +255,13 @@ impl AccountStore {
             .map_err(|error| AccountStoreError::new(format!("账号数据库操作失败: {error}"), 500))
     }
 
-    /// 读全部账号（调用方需要在同一个账号写锁内继续修改时使用）。
+    /// （ use need need in 1 when use ）。
     ///
-    /// 库不可用时返回**空列表**而不是报错：这个函数的签名（`pub`，且被
-    /// `load_locked` 直接透出）没有表达失败的位置，而它的消费方多是「读快照
-    /// 做展示/派生」—— 拿不到账号就是「没有可用账号」，各调用方本来就要处理
-    /// 这个分支（未登录、无可用账号）。反过来，**写入**路径一律返回
-    /// `Result`，数据库不可用时明确报 500，绝不让写操作静默成功。
+    /// unavailable when return**empty** not is ： this （`pub`， and 
+    /// `load_locked` ） no has failure ， is 「
+    /// /」—— not to is 「 no has available」， use need 
+    /// this （、noneavailable）。，****path 1 return
+    /// `Result`，unavailable when 500， not success。
     pub(crate) fn load(&self, _guard: &MutexGuard<'_, ()>) -> AccountState {
         let Some(db) = self.inner.db.as_ref() else {
             return AccountState::default();
@@ -274,26 +274,26 @@ impl AccountStore {
         AccountState { accounts, priority_scope: priority_scope.ok().flatten() }
     }
 
-    /// 写回全部账号（**按差异写**，见 `sql::save_state`）。
+    /// （** by **， `sql::save_state`）。
     ///
-    /// 这个入口只服务「本来就是整份集合的操作」，眼下三处调用：
-    ///   - `account_transfer::import_accounts`（导入合并，经 `save_locked`）；
-    ///   - `promote_to_front`（置顶要整队重新编号，见 `store_crud.rs`）；
-    ///   - `migrate_startup`（启动迁移的整队与拆池改名，见 `store_admin.rs`）。
-    /// **不属于它的**：单条增删改（各自只碰一行，走 `sql::put` /
-    /// `sql::update_in_place` / `sql::delete`）；批量操作与三家旧数据导入
-    /// （都只需要「逐条写自己那几行」，各自在 `with_conn_mut` 里开事务、
-    /// 直接调 `sql::*`，不经过这里）。
-    /// 换句话说：走到这个函数的都是「手上的 `AccountState` 就是完整目标状态」
-    /// 的场景，`save_state` 的按 id 差异比对才有意义。
+    /// this 「 is 」， down use ：
+    /// - `account_transfer::import_accounts`（ and ， `save_locked`）；
+    /// - `promote_to_front`（ need new ， `store_crud.rs`）；
+    /// - `migrate_startup`（ and ， `store_admin.rs`）。
+    /// ** not **：（ 1 ， `sql::put` /
+    /// `sql::update_in_place` / `sql::delete`）； and old 
+    /// （ need need 「 that 」， in `with_conn_mut` 、
+    /// `sql::*`， not this ）。
+    /// ： to this is 「 up `AccountState` is 」
+    /// ，`save_state` by id for has 。
     ///
-    /// ── 错误文案为什么不再是「账号文件保存失败」──────────────
-    /// 那个措辞（以及它带来的 500）是改造前唯一的一个 500 来源，现在账号数据
-    /// 不再有「文件」这个概念 —— 留着它会让用户按「文件」的方向去排查
-    /// （找 accounts.json、查文件锁、看磁盘权限），而真实原因在数据库那边。
-    /// 状态码仍是 500（前端与路由层不按文案分支），文案改由 `with_conn_mut`
-    /// 统一给出「账号数据库操作失败: {底层原因}」，底层原因里带着 SQLite 的
-    /// 错误码与原话 —— 排障需要的那条信息比旧文案更具体。
+    /// ── errorWhy not is 「filefailure」──────────────
+    /// that （ and 500） is before 1 1 500 ， in 
+    /// not has 「file」 this —— will use by 「file」 to 
+    /// （ accounts.json、file、），Reason in that 。
+    /// is 500（ before and by not by ）， by `with_conn_mut`
+    /// 1 to 「failure: {Reason}」，Reason SQLite 
+    /// error and —— need need that old 。
     pub(crate) fn save(
         &self,
         state: &AccountState,
@@ -302,12 +302,12 @@ impl AccountStore {
         self.with_conn_mut(guard, |conn| sql::save_state(conn, state))
     }
 
-    /// 供导入导出子模块复用：在已持锁的前提下读全部账号
+    /// use ： in already before down 
     pub fn load_locked(&self, guard: &MutexGuard<'_, ()>) -> AccountState {
         self.load(guard)
     }
 
-    /// 供导入导出子模块复用：在已持锁的前提下写回全部账号
+    /// use ： in already before down 
     pub fn save_locked(
         &self,
         state: &AccountState,
@@ -316,19 +316,19 @@ impl AccountStore {
         self.save(state, guard)
     }
 
-    /// 供导入导出子模块复用：加锁后执行一个「读-改-写」周期
+    /// use ： after 1 「--」
     pub fn with_lock<T>(&self, action: impl FnOnce(&MutexGuard<'_, ()>) -> T) -> T {
         let guard = self.guard();
         action(&guard)
     }
 
-    /// 按 id 取一条记录（**只读一行**；不存在或数据库不可用时 None）。
+    /// by id 1 （** 1 **； not in or unavailable when None）。
     ///
-    /// 给「已经知道账号 id」的读路径用：`get_credentials_by_id` /
-    /// `get_session_by_id` 与各家的 `*_account_record`。改造前它们都要
-    /// 「读全量 → 在数组里 find」，现在是一次主键查询 —— 转发链路上这些函数
-    /// 是**每个请求**都会调到的（`rotate` 按 id 取会话、适配器按 id 取记录），
-    /// 于是「每次转发少解析 20 条记录的 JSON」是这条改造里收益最直接的一处。
+    /// to 「 already id」 path use ：`get_credentials_by_id` /
+    /// `get_session_by_id` and `*_account_record`。 before need 
+    /// 「 → in find」， in is 1 —— up this 
+    /// is ** request** will to （`rotate` by id will 、 by id ），
+    /// is 「 20 JSON」 is this 1 。
     pub(crate) fn record_by_id(&self, _guard: &MutexGuard<'_, ()>, id: &str) -> Option<StoredAccount> {
         let db = self.inner.db.as_ref()?;
         let result = db.with(|conn| super::read_rows::by_id(conn, id));
@@ -348,12 +348,12 @@ impl AccountStore {
         }
     }
 
-    /// 取某个 provider 的全部账号（**只读这一家**）。
+    /// provider （** this 1 **）。
     ///
-    /// `current_entry_for_provider` / `accounts_for_provider` 用它：两者的语义
-    /// 都收窄在一家之内（「这一家的队首」/「这一家的启用账号」），
-    /// 没有理由把别家的记录也读出来解析。过滤条件落在投影列 `provider` 上
-    /// （该列的取值口径见 `sql.rs` 模块头）。
+    /// `current_entry_for_provider` / `accounts_for_provider` use ： 
+    /// in 1 （「 this 1 」/「 this 1 enabled」），
+    /// no has by 。 in `provider` up 
+    /// （ this `sql.rs` module header）。
     pub(crate) fn records_for_provider(
         &self,
         _guard: &MutexGuard<'_, ()>,
@@ -368,25 +368,25 @@ impl AccountStore {
             .into_iter().map(|(_, record)| record).collect()
     }
 
-    // ─── 派生：当前账号 ──────────────────────────────────────
+    // ─── ：current ──────────────────────────────────────
 
-    /// 指定 provider 的「当前账号」= **该家**转发顺序里第一个「已启用且有可用凭证」的账号。
+    /// provider 「current」= ** this ** 1 「 already enabled and has available」 。
     ///
-    /// 判据与转发层逐条相同（也是 `current_entry_for_provider` 的内核）：启用 +
-    /// [`StoredAccount::has_credentials`]（桌面端实时账号记录里按设计没有 token，
-    /// 但凭证在客户端登录态文件里，同样算「有凭证」）+ 按 (优先级, 加入时间) 取队首。
-    /// 没有可用账号时返回 None（而不是回落到某个账号）—— 此时这一家转发确实拿不到
-    /// 登录态，界面就不该给它的任何账号打「当前」标记。
+    /// and （ is `current_entry_for_provider` ）：enabled +
+    /// [`StoredAccount::has_credentials`]（ when by no has token，
+    /// in clientfile，「 has 」）+ by (, when ) 。
+    /// no has available when return None（ not is to ）—— when this 1 not to 
+    /// ， not this to 「current」。
     ///
-    /// ── 作用域：这一家的队首 ──────────────────────────────────
-    /// 全局队列之后转发不再逐家排队，本函数只剩「没有账号记录时回落到该家默认登录态」
-    /// 与快照里 `currentAccountIds` 的参考用途。判据与全局的 `pick_current` 相同，
-    /// 只是先缩到该 provider。历史上这里曾出现两个分歧（现已统一）：
-    ///   1. 桌面端账号（raccoon/catpaw/autoclaw 的 `desktop: true`）被整体跳过 ——
-    ///      转发明明会选它，界面却拿不到「它是当前账号」这个事实；
-    ///   2. 只有小浣熊账号的机器上，workbuddy 的「当前账号」会是小浣熊的账号。
-    /// 跨家展示（账号页每组卡片上的 ★）由调用方**逐家调用本函数**得到
-    /// （见 `snapshot` 的 `currentAccountIds`），不要把不同家的结果塞进同一个字段。
+    /// ── use ： this 1 ──────────────────────────────────
+    /// after not ，「 no has when to this default」
+    /// and `currentAccountIds` use 。 and `pick_current` ，
+    /// is to this provider。 up this （ already 1 ）：
+    /// 1. （raccoon/catpaw/autoclaw `desktop: true`） ——
+    /// will ， not to 「 is current」 this ；
+    /// 2. has up ，workbuddy 「current」 will is 。
+    /// （ up ★） by use ** use ** to 
+    /// （ `snapshot` `currentAccountIds`）， not need not 1 。
     pub(crate) fn pick_current_for_provider(
         accounts: &[StoredAccount],
         provider: &str,
@@ -400,19 +400,19 @@ impl AccountStore {
         candidates.into_iter().next()
     }
 
-    /// **全局**队首：所有提供商的账号排在同一条队列里，取第一个「已启用且有可用
-    /// 凭证」的账号。这是账号页 ★ / 「首选」与 `/api/session` 的 `currentAccountId`
-    /// 的数据源。对某个具体模型实际先用谁还要看它是否支持该模型、是否限流中，
-    /// 那是转发层按请求逐次判定的（`routing::pick_account_by_priority`）。
+    /// ****：all in 1 ， 1 「 already enabled and has available
+    /// 」 。 this is ★ / 「」 and `/api/session` `currentAccountId`
+    /// 。 for use need is supports this 、 is in ，
+    /// that is by request （`routing::pick_account_by_priority`）。
     ///
-    /// ── 为什么排除**没有转发能力**的家（历史用法，五家现已都能转发）──
-    /// 这个值的消费方都把它当「会承接请求的那个账号」用：`/api/session` 的
-    /// `currentAccountId` 决定顶栏显示的昵称/过期时间，`clear_session`（退出登录）
-    /// 按它**删除账号**，界面的 ★ / 「设为首选」也按它渲染。Qoder 只有账号管理
-    /// 能力那会儿（转发返回 501）必须排除：排进队首会让顶栏把它显示成当前登录态，
-    /// 而「退出登录」会把它删掉。它接上推理协议后，这条过滤对它就自然失效了 ——
-    /// 判据取自适配器的**恒定能力声明**（`supports_chat`），不写死 provider id，
-    /// 因此两家各自的接线时点都不需要改这里。
+    /// ── Whyexcluding** no has can ** （ use ， already can ）──
+    /// this 「 will request that 」 use ：`/api/session` 
+    /// `currentAccountId` /expiration time，`clear_session`（）
+    /// by **delete**， ★ / 「 as 」 by 。Qoder has 
+    /// can that will （return 501）mustexcluding： will current，
+    /// 「」 will 。 up after ， this for ——
+    /// ** can **（`supports_chat`）， not provider id，
+    /// when not need need this 。
     pub(crate) fn pick_current(accounts: &[StoredAccount]) -> Option<StoredAccount> {
         let mut candidates: Vec<StoredAccount> = accounts
             .iter()
@@ -423,10 +423,10 @@ impl AccountStore {
         candidates.into_iter().next()
     }
 
-    /// 全局「当前账号」id（无账号或全部不可用时为 None）—— 全局队首，见 `pick_current`。
+    /// 「current」id（none or unavailable when as None）—— ， `pick_current`。
     ///
-    /// 这里必须读**全部**账号：队首是跨家的全局派生（`pick_current` 要在所有
-    /// provider 里比优先级），收窄到某一家就没有意义了。
+    /// this must****： is （`pick_current` need in all
+    /// provider ）， to 1 no has 。
     pub fn current_account_id(&self) -> Option<String> {
         let snapshot = self.routing_snapshot();
         snapshot.accounts.iter().filter(|account| {
@@ -437,36 +437,36 @@ impl AccountStore {
             .and_then(|account| account.get("id")?.as_str().map(str::to_string))
     }
 
-    /// workbuddy 默认登录态的凭证与会话（供 workbuddy 专属链路实时取用：
-    /// 模型目录拉取、登录态刷新等）；无可用账号时 None。
+    /// workbuddy default and will （ workbuddy when use ：
+    /// directory、 new etc ）；noneavailable when None。
     ///
-    /// **workbuddy 语义**（收窄到默认 provider）。转发链路不用它 ——
-    /// 转发按全局队列选账号，只有「没有账号记录」时才回落到各家的默认登录态。
+    /// **workbuddy **（ to default provider）。 not use ——
+    /// by ， has 「 no has 」 when to default。
     pub fn get_current_entry(&self) -> Option<CurrentEntry> {
         self.current_entry_for_provider(DEFAULT_PROVIDER_ID)
     }
 
-    /// 实际生效的账号（与 get_current_entry 同一套判据，独立入口只为语义清晰）
+    /// （ and get_current_entry 1 ， as ）
     pub fn get_active_entry(&self) -> Option<CurrentEntry> {
         self.get_current_entry()
     }
 
-    /// 指定 provider 的「当前账号」凭证与会话（Agent2API W2b-T3）。
+    /// provider 「current」 and will （Agent2API W2b-T3）。
     ///
-    /// 判据与 `pick_current_for_provider` 逐条相同（启用 + 有凭证 + 按 (优先级, 加入时间)
-    /// 取队首），只是先在**该 provider 的账号组**里缩一遍。转发层逐家尝试时用它拿
-    /// 「这一家的默认账号」，与 `accounts_for_provider` 的选路口径一致
-    /// （后者用于显式指定的账号链，这里用于「没有账号记录/未登录」时的兜底会话）。
+    /// and `pick_current_for_provider` （enabled + has + by (, when )
+    /// ）， is in ** this provider ** 1 。 when use 
+    /// 「 this 1 default」， and `accounts_for_provider` 1 
+    /// （ after used for ， this used for「 no has /」 when will ）。
     ///
-    /// ── 小浣熊的桌面端实时账号（W3-T4）─────────────────────────
-    /// 它**记录里本来就没有 accessToken**（凭证在 `~/.box-agent/config/auth.json`），
-    /// 因此判据从 `has_token()` 放宽成 `has_credentials()`：带 `desktop: true`
-    /// 标记的 raccoon 记录也算「有凭证」，实际 token 由会话构造时实时读入
-    /// （见 `session_from_record`）。只认 `has_token()` 会让这台机器上
-    /// 小浣熊永远选不中账号，转发直接 401。
+    /// ── when （W3-T4）─────────────────────────
+    /// ** no has accessToken**（ in `~/.box-agent/config/auth.json`），
+    /// from `has_token()` `has_credentials()`： `desktop: true`
+    /// raccoon 「 has 」， token by will when when 
+    /// （ `session_from_record`）。 `has_token()` will this up 
+    /// not in ， 401。
     ///
-    /// 返回 None 表示该 provider 在账号数据里没有可用账号（此时
-    /// `auth::get_current_session_for` 会尝试该 provider 的环境变量旁路）。
+    /// return None this provider in no has available（ when 
+    /// `auth::get_current_session_for` will this provider ）。
     pub fn current_entry_for_provider(&self, provider: &str) -> Option<CurrentEntry> {
         let ids = self.route_account_ids_for_provider(provider);
         let record = self.read_record(ids.first()?)?;
@@ -479,12 +479,12 @@ impl AccountStore {
         })
     }
 
-    /// 指定 id 的账号会话（模型目录刷新按用户在「获取模型」弹窗里点名的账号走这条）。
+    /// id will （directory new by use in 「get」 this ）。
     ///
-    /// 判据与 [`Self::current_entry_for_provider`] 逐条相同（启用 + 有凭证），
-    /// 差别只有「按 id 直取而不是取队首」：**用户点名了就不再替他挑** ——
-    /// 取不到返回 None，由调用方给出「这条账号不存在或不可用」的明确文案，
-    /// 而不是悄悄回落到队首（那会变成「选了 A、用的是 B」的静默错误）。
+    /// and [`Self::current_entry_for_provider`] （enabled + has ），
+    /// has 「 by id not is 」：** use not ** ——
+    /// not to return None， by use to 「 this not in or unavailable」 ，
+    /// not is to （ that will 「 A、 use is B」 error）。
     pub fn session_for_account(&self, account_id: &str) -> Option<CurrentEntry> {
         let record = self.read_record(account_id)?;
         if !record.enabled() || !record.has_credentials() {
@@ -496,25 +496,25 @@ impl AccountStore {
         })
     }
 
-    /// 账号记录 → auth 模块的会话形态（端点/prefixPath/platform 按 edition 兜底）。
+    /// → auth will （/prefixPath/platform by edition ）。
     ///
-    /// `proxy` 是该账号解析出的出口（null = 直连），计费/签到等「拿着 session
-    /// 直接发请求」的调用方无需再单独传代理参数；`proxyError` 非空表示配置的
-    /// 代理解析失败，调用方应回退直连并提示。
+    /// `proxy` is this （null = ），/ to etc 「 session
+    /// request」 use none need parameter；`proxyError` emptyconfig 
+    /// failure， use and 。
     ///
-    /// ── 桌面端账号的凭证来源 ───────────────────────────────────
-    /// 历史上「记录里不落 token、凭证实时读客户端文件」的家（小浣熊 / Cline /
-    /// AutoClaw）已随实现搬到插件，`live_desktop_credentials` 现在恒回 `None`；
-    /// 这类记录在网关侧退化成空 token —— 让上层的「需安装插件」文案去说明原因，
-    /// 本函数不制造错误（它是被 CRUD 与选路大量复用的纯取值路径）。
+    /// ── ───────────────────────────────────
+    /// up 「 not token、 when clientfile」 （ / Cline /
+    /// AutoClaw） already to ，`live_desktop_credentials` in `None`；
+    /// this in empty token —— up 「 need 」Reason，
+    /// not error（ is CRUD and use path）。
     fn session_from_record(&self, record: &StoredAccount) -> Value {
-        // ── edition 的兜底链（issue #380 / #381）─────────────────────
-        // ① 记录里的 edition（顶层 → pluginPublic → pluginSecret，见
-        //    `StoredAccount::edition` 的回落）；
-        // ② 都没有时按 **provider id** 推：`workbuddy-intl` 必然是国际版。
-        //    少了这一档，旧插件（`account_view` 不输出 edition）落库的账号会
-        //    被 `resolve_edition(None)` 判成国内版 —— 计费侧据此把 provider
-        //    反查成 `workbuddy`，余额 / 签到全报「找不到该账号」。
+        // ── edition （issue #380 / #381）─────────────────────
+        // ① edition（ → pluginPublic → pluginSecret，
+        // `StoredAccount::edition` ）；
+        // ② no has when by **provider id** ：`workbuddy-intl` is 。
+        // this 1 ， old （`account_view` not edition） will 
+        // `resolve_edition(None)` —— provider
+        // `workbuddy`， / to 「 not to this 」。
         let edition = match record.edition() {
             Some(explicit) => resolve_edition(Some(&explicit)),
             None => crate::server::core::providers::workbuddy::Region::from_provider_id(
@@ -538,19 +538,19 @@ impl AccountStore {
                 record.expires_at().unwrap_or(0.0),
             ),
         };
-        // ── ZCode 的三个附加键（`zcode::plan` 用）────────────────────
-        // 它家有**两条上游通道**（编码套餐走开放平台、活动套餐走 `zcode.z.ai`
-        // 的 Anthropic 端点），而适配器只能看到会话 —— 走哪条通道、用哪套凭证
-        // 都从这里读。条件是「记录属于 ZCode 系」，因此对别家的会话是**逐字
-        // 空操作**（连键都不会多）：
-        //   - `jwt`：活动套餐通道的 Bearer（与 `accessToken` 不能互相替代）；
-        //   - `deviceMid`：进请求体的 `metadata.user_id.device_id`；
-        //   - `zcodePlan`：通道名（缺失 = 编码套餐，见 `zcode::plan_of`）。
-        // 空值不写：会话里出现空串会让「有没有这条通道的凭证」的判定变成
-        // 「键在不在」，那是两个不同的问法。
-        // 端点三件套只从**记录**里取，没有就是空串：网关不知道任何一家的上游
-        // 该填什么（那套知识随实现搬到了提供商插件）。插件家也不读这三个键 ——
-        // 它从 `store.get` 拿到的 secret 里有自己写的那份。
+        // ── ZCode （`zcode::plan` use ）────────────────────
+        // has ** up **（、 `zcode.z.ai`
+        // Anthropic ）， can to will —— 、 use 
+        // from this 。 is 「 ZCode 」， for will is **
+        // empty**（ not will ）：
+        // - `jwt`： Bearer（ and `accessToken` not can ）；
+        // - `deviceMid`：request `metadata.user_id.device_id`；
+        // - `zcodePlan`：（ = ， `zcode::plan_of`）。
+        // empty not ： will empty will 「 has no has this 」 
+        // 「 in not in 」， that is not 。
+        // from ****， no has is empty： not 1 up 
+        // this （ that to ）。 not this ——
+        // from `store.get` to secret has that 。
         let mut session = json!({
             "endpoint": record.endpoint().unwrap_or_default(),
             "prefixPath": record.prefix_path().unwrap_or_default(),
@@ -594,17 +594,17 @@ impl AccountStore {
                 }
             }
         }
-        // ── Antigravity 的两个附加键（`antigravity::adapter` 用）──────
-        // 与上面 ZCode 同一手法、同一理由：适配器只能看到会话，而这两个字段
-        // 在记录里（`antigravity_accounts.rs` 的落盘形态）：
-        //   - `projectId`：cloudaicompanionProject —— 信封的 `project` 字段
-        //     （规格 §3.3），OAuth 刷新 / 添加账号 / 目录刷新三处发现后回写；
-        //   - `email`：决定信封的 `userAgent` 标记（非 gmail/googlemail →
-        //     `jetski`，Manager 的判定逐字）。会话里的 `account.uid` 对
-        //     Antigravity 也是 email，但那是「展示身份」的通用字段，别让
-        //     协议层去依赖通用字段的取值约定。
-        // 条件判据是 provider id（与 ZCode 的 Region 同一性质），对别家的会话
-        // 是逐字空操作（连键都不会多）。
+        // ── Antigravity （`antigravity::adapter` use ）──────
+        // and up ZCode 1 、 1 by ： can to will ， this 
+        // in （`antigravity_accounts.rs` ）：
+        // - `projectId`：cloudaicompanionProject —— `project` 
+        // （ §3.3），OAuth new / / directory new after ；
+        // - `email`： `userAgent` （ gmail/googlemail →
+        // `jetski`，Manager ）。 will `account.uid` for 
+        // Antigravity is email， that is 「」 use ，
+        // use 。
+        // is provider id（ and ZCode Region 1 ）， for will 
+        // is empty（ not will ）。
         if record.provider() == super::ANTIGRAVITY_PROVIDER_ID {
             if let Some(object) = session.as_object_mut() {
                 for key in ["projectId", "email"] {
@@ -620,16 +620,16 @@ impl AccountStore {
                 }
             }
         }
-        // OfficeAce 的凭据注入已随实现搬到插件：插件从 `store.get` 直接读
-        // secret（不经过会话形态），网关不再需要把它的网关 Basic 那一对
-        // 摊进会话。
+        // OfficeAce already to ： from `store.get` 
+        // secret（ not will ）， not need need Basic that 1 for 
+        // will 。
         session
     }
 
-    /// 指定账号的凭证（Node 版 getCredentialsById）；无凭证/不存在时 None
+    /// （Node getCredentialsById）；none/ not in when None
     ///
-    /// 桌面端账号的实时凭证路径已随实现搬到插件（见 `live_desktop_credentials`），
-    /// 这里只剩记录里的存量值 —— 「有没有可用凭证」在全仓仍是一条判据。
+    /// when path already to （ `live_desktop_credentials`），
+    /// this —— 「 has no has available」 in is 1 。
     pub fn get_credentials_by_id(&self, id: &str) -> Option<CredentialsById> {
         let record = self.read_record(id)?;
         let live = live_desktop_credentials(&record);
@@ -645,8 +645,8 @@ impl AccountStore {
             return None;
         }
         let edition = resolve_edition(record.edition().as_deref());
-        // 轮询档取**下一个**出口（游标属于「这条账号的出网进度」）：凭证读数是
-        // 一次真实的出网准备，与展示口径分开，见 `resolve_account_proxy_rotating`。
+        // ** down 1 **（「 this 」）： is 
+        // 1 ， and ， `resolve_account_proxy_rotating`。
         let resolution = resolve_account_proxy_rotating(Some(&record.proxy()), record.id());
         let (proxy, proxy_error) = split_resolution(resolution);
         Some(CredentialsById {
@@ -667,10 +667,10 @@ impl AccountStore {
         })
     }
 
-    /// 指定账号的完整会话形态（Node 版 getSessionById）；不存在/无凭证时 None
+    /// will （Node getSessionById）； not in /none when None
     ///
-    /// 代理走 `resolve_account_proxy_rotating`：转发的每一次选路都从这里取出口，
-    /// 轮询档因此天然是「一请求一出口」（见 `core::proxy_rotate` 的模块头）。
+    /// `resolve_account_proxy_rotating`： 1 from this ，
+    /// is 「 1 request 1 」（ `core::proxy_rotate` module header）。
     pub fn get_session_by_id(&self, id: &str) -> Option<SessionById> {
         let record = self.read_record(id)?;
         if !record.has_credentials() {
@@ -686,14 +686,14 @@ impl AccountStore {
         })
     }
 
-    /// 轮询档的**下一个**出口（不带会话、只按配置取一条）。
+    /// ** down 1 **（ not will 、 by config 1 ）。
     ///
-    /// 消费方是转发层「429 原地换出口」那条补救：OpenCode Zen 免费档的 429 是
-    /// **按 IP** 判的（这个 IP 的免费额度用完），换一个出口往往就能过 ——
-    /// 换到别的 IP 再试一次比直接罚账号（按模型冷却）更贴近上游的语义。
+    /// is 「429 」 that ：OpenCode Zen 429 is 
+    /// ** by IP** （ this IP use ）， 1 can ——
+    /// to IP 1 （ by ） up 。
     ///
-    /// 返回 `Ok(None)` = 这条账号不是轮询档（调用方不该换出口）；
-    /// `Err(原因)` = 是轮询档但一条候选都取不出来（原因原样报给明细）。
+    /// return `Ok(None)` = this not is （ use not this ）；
+    /// `Err(Reason)` = is 1 not （Reason to ）。
     pub fn next_rotate_proxy(&self, id: &str) -> Result<Option<ResolvedProxy>, String> {
         let Some(record) = self.read_record(id) else {
             return Ok(None);
@@ -708,30 +708,30 @@ impl AccountStore {
     }
 }
 
-/// 桌面端实时账号的凭证（读取那一刻的值）；不是桌面端账号或读不到时 None。
+/// when （ that 1 ）； not is or not to when None。
 ///
-/// ── 现在恒为 None（保留函数的理由）──────────────────────────
-/// 历史上「记录里不落 token、凭证每次实时读客户端文件」的家有三家：
-/// 小浣熊（`~/.box-agent/config/auth.json`）、AutoClaw（`%APPDATA%/AutoClaw/
-/// auth.json` 的 safeStorage 密文）与 Cline（客户端自己的 `providers.json`）。
-/// 三份读取路径都属于**上游客户端知识**，已随各自实现整体搬到提供商插件 ——
-/// 网关不再持有任何一条「去哪儿读官方客户端登录态」的路径。
+/// ── in as None（ by ）──────────────────────────
+/// up 「 not token、 when clientfile」 has ：
+/// （`~/.box-agent/config/auth.json`）、AutoClaw（`%APPDATA%/AutoClaw/
+/// auth.json` safeStorage ） and Cline（client `providers.json`）。
+/// path** up client**， already to ——
+/// not has 1 「client」 path。
 ///
-/// 函数留着而不是删掉：会话构造、凭证读取、公开形态三处都按「实时值优先、
-/// 回落记录」调用它。将来若再出现同类家（凭证不在记录里），在这里补一个分支
-/// 即可，三个调用点一行都不用动；直接删掉会把「这里有第二种凭证来源」这件事
-/// 从代码里抹去，读代码的人只会看到一处凭空分叉的 match。
+/// not is ： will 、、 by 「 when 、
+/// 」 use 。 will if （ not in ）， in this 1 
+/// can ， use 1 not use ； will 「 this has 」 this 
+/// from ， will to 1 empty match。
 ///
-/// 存量记录里的 `desktop: true` 账号仍留在库里、公开形态如实显示；装上插件后
-/// 由插件实时读，没装插件时这类账号的转发会如实报「需要安装插件」。
+/// `desktop: true` in 、； up after 
+/// by when ， no when this will 「 need need 」。
 pub(crate) fn live_desktop_credentials(_record: &StoredAccount) -> Option<(String, String, f64)> {
     None
 }
 
-/// 这条账号记录所属的 provider **是否能承接推理转发**（`ProviderAdapter::supports_chat`）。
+/// this provider ** is can **（`ProviderAdapter::supports_chat`）。
 ///
-/// 全局队首与公开 `chatSupported` 只认真实插件 / 本体执行体的能力，
-/// 不把旧 MissingPlugin 占位或陌生 ID 当成可转发账号。自定义家走独立直连。
+/// and `chatSupported` / can ，
+/// not old MissingPlugin or ID can 。。
 pub(crate) fn forwards_requests(record: &StoredAccount) -> bool {
     provider_forwards_requests(&record.provider())
 }
@@ -750,11 +750,11 @@ pub(super) fn route_order_key(account: &Value) -> (i64, i64) {
         account.get("addedAt").and_then(Value::as_i64).unwrap_or(0))
 }
 
-/// 把解析结果拆成 `(proxy, proxyError)`：失败时 proxy 为 null、
-/// error 说明原因（调用方据此回退直连并提示）。
+/// `(proxy, proxyError)`：failure when proxy as null、
+/// error Reason（ use and ）。
 ///
-/// `proxy` 是 JSON（直接进会话对象）；`proxy_error` 是 `Option<String>`，
-/// 会话形态里的 `proxyError` 由调用方组装成 null/字符串。
+/// `proxy` is JSON（ will for ）；`proxy_error` is `Option<String>`，
+/// will `proxyError` by use null/。
 fn split_resolution(resolution: Option<ProxyResolution>) -> (Value, Option<String>) {
     match resolution {
         None => (Value::Null, None),
@@ -765,7 +765,7 @@ fn split_resolution(resolution: Option<ProxyResolution>) -> (Value, Option<Strin
     }
 }
 
-/// 出口 → JSON（与 ProxyResolution::to_json 的成功分支同形）
+/// → JSON（ and ProxyResolution::to_json success）
 fn proxy_json(proxy: &crate::server::core::proxies::ResolvedProxy) -> Value {
     json!({
         "source": proxy.source,

@@ -1,8 +1,8 @@
-//! 网络搜索 Skill 包：SKILL.md、skill.json 与 Node / Python 两个运行时变体。
+//! Skill ：SKILL.md、skill.json and Node / Python when 。
 //!
-//! 与 OmniProxy 的 Skill 包同一形态，只把服务名与配置文件名换成本项目的：
-//! 服务名 `web-search`，配置文件 `.agent2api.json`（安装时写入 API Key），
-//! 脚本把 JSON 打到标准输出，服务端拒绝或全部条目失败时以非零码退出。
+//! and OmniProxy Skill 1 ， and configfile ：
+//! `web-search`，configfile `.agent2api.json`（ when API Key），
+//! JSON to ，server or failure when 。
 
 use serde::Serialize;
 use serde_json::json;

@@ -1,29 +1,29 @@
-//! Anthropic Messages API（`POST /v1/messages`）↔ Chat Completions 的双向转换。
+//! Anthropic Messages API（`POST /v1/messages`）↔ Chat Completions to 。
 //!
-//! ── 与 Responses 模块的关键结构差异 ──────────────────────────
-//! Anthropic 与 Chat 的差异比 Responses 更大，有三处必须专门处理：
+//! ── and Responses ──────────────────────────
+//! Anthropic and Chat Responses ， has must：
 //!
-//!   1. **system 是顶层字段**（不是 messages 里的一条）—— Chat 侧要把它变成
-//!      一条 `role:"system"` 消息放在最前。
-//!   2. **工具结果在 user 消息里**（`{type:"tool_result"}` 内容块），而 Chat 侧
-//!      是独立的 `role:"tool"` 消息。转换时要把它们拆出来。
-//!   3. **工具调用是 content 块**（`{type:"tool_use"}`），Chat 侧是
-//!      `message.tool_calls` 数组。且 Anthropic **要求** tool_use 与 tool_result
-//!      成对出现，所以回程要保证配对（见 `normalize_tool_pairing`）。
+//! 1. **system is **（ not is messages 1 ）—— Chat need 
+//! 1 `role:"system"` in before 。
+//! 2. ** in user **（`{type:"tool_result"}` ）， Chat 
+//! is `role:"tool"` 。 when need 。
+//! 3. ** use is content **（`{type:"tool_use"}`），Chat is 
+//! `message.tool_calls` 。 and Anthropic ** need ** tool_use and tool_result
+//! for ， need for （ `normalize_tool_pairing`）。
 //!
-//! ── 思考（thinking）怎么映射 ────────────────────────────────
-//! Anthropic 侧是 `thinking` 内容块 + `signature`（签名，用于多轮校验）；
-//! Chat 侧是 `reasoning_content` 字符串。Chat 没有签名这个概念，所以：
-//!   - 回程（Anthropic → Chat）：thinking 块折进 `reasoning_content`，
-//!     signature **丢弃**（Chat 侧无处安放，且下游上游都不校验它）；
-//!   - 去程（Chat → Anthropic）：`reasoning_content` 折成 thinking 块，
-//!     不带 signature（Anthropic 的签名只在它自己的多轮里需要）。
+//! ── （thinking） ────────────────────────────────
+//! Anthropic is `thinking` + `signature`（，used for）；
+//! Chat is `reasoning_content` 。Chat no has this ，：
+//! - （Anthropic → Chat）：thinking `reasoning_content`，
+//! signature ****（Chat none， and down up not ）；
+//! - （Chat → Anthropic）：`reasoning_content` thinking ，
+//! not signature（Anthropic in need need ）。
 //!
-//! `thinking.type:"enabled"` 时 Anthropic 要求 `budget_tokens < max_tokens`，
-//! 所以去程会把 max_tokens 抬高到 budget 之上（参考实现同款处理）。
+//! `thinking.type:"enabled"` when Anthropic need `budget_tokens < max_tokens`，
+//! will max_tokens to budget up （）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! 同 `mod.rs`：零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! `mod.rs`： unwrap/expect/panic。
 
 use serde_json::{json, Map, Value};
 
@@ -35,32 +35,32 @@ use super::{
 use super::responses::ConvertError;
 use crate::server::logging;
 
-/// Anthropic 的 `max_tokens` 缺省值。
+/// Anthropic `max_tokens` 。
 ///
-/// Anthropic 官方**要求**这个字段必填；客户端漏填时给一个保守值而不是报错
-/// （报错会让「只差一个字段」的请求整个失败，而 8192 对绝大多数对话够用）。
+/// Anthropic ** need ** this ；client when to 1 not is 
+/// （ will 「 1 」 request failure， 8192 for for use ）。
 ///
-/// `pub(super)`：出站方向（`anthropic_outbound`）补同一个缺省值 —— 两处
-/// 各定义一份迟早漂移。
+/// `pub(super)`： to （`anthropic_outbound`） 1 —— 
+/// 1 。
 pub(super) const DEFAULT_MAX_TOKENS: i64 = 8192;
 
-// ─── 请求：Anthropic → Chat ─────────────────────────────────
+// ─── request：Anthropic → Chat ─────────────────────────────────
 
-/// Anthropic Messages 请求体 → Chat Completions 请求体。
+/// Anthropic Messages request → Chat Completions request。
 pub fn chat_from_anthropic(body: &Value) -> Result<Value, ConvertError> {
     let mut out = Map::new();
     out.insert("model".to_string(), body.get("model").cloned().unwrap_or(Value::Null));
 
     let mut messages: Vec<Value> = Vec::new();
-    // ① system 顶层字段 → 最前的一条 system 消息
+    // ① system → before 1 system 
     if let Some(system) = body.get("system") {
         let text = system_text(system);
         if !text.trim().is_empty() {
             let mut entry = Map::new();
             entry.insert("role".to_string(), Value::String("system".to_string()));
             entry.insert("content".to_string(), Value::String(text));
-            // system 的缓存断点（Claude Code 打在 system 最后一个块上）同样
-            // 走消息级暂存，出站时落回 system 块
+            // system （Claude Code in system after 1 up ）
+            // ， when system 
             if let Some(cache) = system
                 .as_array()
                 .map(|parts| last_cache_control(parts))
@@ -71,7 +71,7 @@ pub fn chat_from_anthropic(body: &Value) -> Result<Value, ConvertError> {
             messages.push(Value::Object(entry));
         }
     }
-    // ② 逐条消息转换
+    // ② 
     let Some(input) = body.get("messages").and_then(Value::as_array) else {
         return Err("缺少 messages 数组".to_string());
     };
@@ -84,8 +84,8 @@ pub fn chat_from_anthropic(body: &Value) -> Result<Value, ConvertError> {
         "stream".to_string(),
         Value::Bool(body.get("stream").and_then(Value::as_bool).unwrap_or(false)),
     );
-    // max_tokens 是 Anthropic 的必填项；Chat 侧用 max_tokens（部分上游也认
-    // max_completion_tokens，这里给兼容性最好的那个）
+    // max_tokens is Anthropic ；Chat use max_tokens（ up 
+    // max_completion_tokens， this to that ）
     let max_tokens = body
         .get("max_tokens")
         .and_then(Value::as_i64)
@@ -101,12 +101,12 @@ pub fn chat_from_anthropic(body: &Value) -> Result<Value, ConvertError> {
     if let Some(stops) = body.get("stop_sequences").filter(|value| is_truthy(value)) {
         out.insert("stop".to_string(), stops.clone());
     }
-    // 工具：Anthropic 的 `{name, description, input_schema}` → Chat 的嵌套形态；
-    // 服务端工具（`{"type":"web_search_20250305", …}`，上游自己执行）**保真携带**——
-    // 它的 `type` 是准入凭据（DeepSeek 的 Anthropic 端点只认 web_search_*
-    // 两个值，别的形态整轮 400），曾在这里被改写成一只**空壳 function**
-    // （`name` 在、`type` 没了），症状正是「模型自带的搜索工具无法调用」
-    // （issue #61）。去留交给出站侧按目标协议定，见 `native_tool` 模块头。
+    // ：Anthropic `{name, description, input_schema}` → Chat ；
+    // server（`{"type":"web_search_20250305", …}`， up ）****——
+    // `type` is （DeepSeek Anthropic web_search_*
+    // ， 400）， in this 1 **empty function**
+    // （`name` in 、`type` no ）， is 「 none use 」
+    // （issue #61）。 to by ， `native_tool` module header。
     if let Some(tools) = body.get("tools").and_then(Value::as_array) {
         let mut converted: Vec<Value> = Vec::new();
         let mut natives: Vec<Value> = Vec::new();
@@ -141,16 +141,16 @@ pub fn chat_from_anthropic(body: &Value) -> Result<Value, ConvertError> {
     if let Some(choice) = body.get("tool_choice").filter(|value| is_truthy(value)) {
         out.insert("tool_choice".to_string(), tool_choice_to_chat(choice));
     }
-    // 思考档位：Anthropic 的 thinking/output_config → Chat 的 reasoning_effort。
-    // 注意 budget 与 max_tokens 的关系（见模块头），这里只映射档位，
-    // max_tokens 的抬高在 `effort_to_chat` 里一并完成。
+    // ：Anthropic thinking/output_config → Chat reasoning_effort。
+    // Note budget and max_tokens （module header）， this ，
+    // max_tokens in `effort_to_chat` 1 and 。
     if let Some(effort) = anthropic_effort(body) {
         out.insert("reasoning_effort".to_string(), Value::String(effort));
     }
     Ok(Value::Object(out))
 }
 
-/// system 字段的文本（可以是字符串，也可以是 `{type:"text"}` 块数组）
+/// system （ can is ， can is `{type:"text"}` ）
 fn system_text(system: &Value) -> String {
     if let Some(text) = system.as_str() {
         return text.to_string();
@@ -164,31 +164,31 @@ fn system_text(system: &Value) -> String {
         .join("\n\n")
 }
 
-/// 一个内容块上的 cache_control（没有 / 不是对象 → None）
+/// 1 up cache_control（ no has / not is for → None）
 fn block_cache_control(part: &Value) -> Option<Value> {
     part.get("cache_control").filter(|value| value.is_object()).cloned()
 }
 
-/// 块数组里**最后一个**带 cache_control 的断点（Anthropic 的惯例是断点打在
-/// 要缓存的前缀末尾块上，一条消息/一组 system 块里取最后一个即整段语义）
+/// ** after 1 ** cache_control （Anthropic is in 
+/// need before up ， 1 / 1 system after 1 ）
 fn last_cache_control(parts: &[Value]) -> Option<Value> {
     parts.iter().rev().find_map(block_cache_control)
 }
 
-/// 一条 Anthropic 消息 → 一到两条 Chat 消息（追加进 `messages`）。
+/// 1 Anthropic → 1 to Chat （ `messages`）。
 ///
-/// 之所以可能拆成两条：Anthropic 把 tool_result 放在 user 消息的 content 块里，
-/// 而 Chat 要求 tool 结果独立成 `role:"tool"` 消息。一条 user 消息里若既有
-/// 文本又有 tool_result，就要拆成「tool 消息」+「user 消息」—— **顺序不能反**：
-/// 下游两条协议都要求结果紧跟发起调用的 assistant（理由见本函数内「工具结果」一段）。
+/// can can ：Anthropic tool_result in user content ，
+/// Chat need tool `role:"tool"` 。 1 user if has 
+/// has tool_result， need 「tool 」+「user 」—— ** not can **：
+/// down need use assistant（ by 「」 1 ）。
 fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), ConvertError> {
     let role = string_field(message, "role").to_lowercase();
     if role != "user" && role != "assistant" {
-        // Anthropic 只有 user / assistant 两个角色；其它值原样当 user 处理
-        // （报错会让一个只写错 role 的请求整个失败，而它其实能跑）
+        // Anthropic has user / assistant ； its user 
+        // （ will 1 role request failure， its can ）
     }
     let content = message.get("content").unwrap_or(&Value::Null);
-    // 字符串形态：直接一条消息
+    // ： 1 
     if let Some(text) = content.as_str() {
         let role = if role == "assistant" { "assistant" } else { "user" };
         messages.push(json!({ "role": role, "content": text }));
@@ -199,14 +199,14 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
         return Ok(());
     }
 
-    // 分离三类块：工具结果（要独立成 tool 消息）、工具调用（进 tool_calls）、
-    // 其余内容（文本/图片/思考，进常规消息）
+    // ：（ need tool ）、 use （ tool_calls）、
+    // its （//，）
     let mut tool_results: Vec<Value> = Vec::new();
     let mut tool_calls: Vec<Value> = Vec::new();
     let mut reasoning = String::new();
     let mut normal: Vec<Value> = Vec::new();
-    // 块级 cache_control → 消息级暂存（粒度取舍见 mod.rs「内部暂存字段」的说明）。
-    // 思考块按 Anthropic 的规则**不可**挂 cache_control，这里也不收。
+    // cache_control → （ mod.rs「」 ）。
+    // by Anthropic then ** not can ** cache_control， this not 。
     let mut normal_cache: Option<Value> = None;
     let mut tool_use_cache: Option<Value> = None;
     let mut tool_result_caches: Vec<Option<Value>> = Vec::new();
@@ -257,7 +257,7 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
             }
             _ => normal.push(part.clone()),
         }
-        // 常规内容块的断点：最后一个带 cache_control 的块为准（顺序覆盖）
+        // ： after 1 cache_control as （）
         if cache.is_some() && kind != "tool_result" && kind != "tool_use" {
             normal_cache = cache.clone();
         }
@@ -265,28 +265,28 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
 
     let chat_role = if role == "assistant" { "assistant" } else { "user" };
 
-    // 工具结果：每条独立成 tool 消息，且必须排在**本消息正文之前**。
+    // ： tool ， and must in ** before **。
     //
-    // Anthropic 允许同一条 user 消息里既带 tool_result 又带正文（Claude Desktop
-    // 加载 skill 的注入形态），但下游两条协议都要求结果先落地：Chat 侧 tool 消息
-    // 必须紧跟发起调用的 assistant（中间插任何消息都算配对断裂，上游判 11148
-    // "tool calls and tool results do not match"），Anthropic 侧 tool_result 必须
-    // 在 user 内容块最前（否则报 "Did not find 1 tool_result block(s) at the
-    // beginning of this message"）。Anthropic 自身的规范顺序同样是 tool_result
-    // 在前、正文在后 —— 先推正文会把用户消息插进 assistant 与其结果之间，
-    // 严格上游因此对之后每条请求都 400，整条会话报废。
+    // Anthropic 1 user tool_result （Claude Desktop
+    // skill ）， down need ：Chat tool 
+    // must use assistant（ in for ， up 11148
+    // "tool calls and tool results do not match"），Anthropic tool_result must
+    // in user before （otherwise "Did not find 1 tool_result block(s) at the
+    // beginning of this message"）。Anthropic is tool_result
+    // in before 、 in after —— will use assistant and its ，
+    // up for after request 400， will 。
     //
-    // 工具结果里的图片：Chat 的 tool 消息不许带图（OpenAI 直接 400，理由见
-    // `responses::PendingImages`），所以攒起来、在本轮工具结果**全部**落地之后
-    // 落成一条 user 消息。不需要跨 Anthropic 消息暂存 —— Anthropic 要求一条
-    // assistant 的全部 tool_result 都在紧接着的那条 user 消息里。
+    // ：Chat tool not （OpenAI 400， by 
+    // `responses::PendingImages`），、 in **** after 
+    // 1 user 。 not need need Anthropic —— Anthropic need 1 
+    // assistant tool_result in that user 。
     let mut tool_result_images: Vec<Value> = Vec::new();
     for (index, result) in tool_results.iter().enumerate() {
         let tool_use_id = string_field(result, "tool_use_id");
         let output = result.get("content").unwrap_or(&Value::Null);
-        // is_error 是「这次工具执行失败了」的显式标记：丢掉后模型会把失败
-        // 结果当正常输出继续推理。挂在内部暂存字段上，由 anthropic 出站
-        // 恢复；OpenAI 形出口没有这个概念，随 strip 剥离。
+        // is_error is 「 this failure」 ： after will failure
+        // 。 in up ， by anthropic 
+        // ；OpenAI no has this ， strip 。
         let is_error = result.get("is_error").and_then(Value::as_bool) == Some(true);
         let cache = tool_result_caches.get(index).cloned().flatten();
         let parts = tool_result_parts(output, image_to_chat);
@@ -299,7 +299,7 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
         );
         entry.insert(
             "content".to_string(),
-            // 只有图片时 `text` 是空串，占位文案理由见 [`TOOL_IMAGE_PLACEHOLDER`]
+            // has when `text` is empty， by [`TOOL_IMAGE_PLACEHOLDER`]
             Value::String(if parts.text.is_empty() {
                 TOOL_IMAGE_PLACEHOLDER.to_string()
             } else {
@@ -314,14 +314,14 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
         }
         messages.push(Value::Object(entry));
     }
-    // 结果之后、正文之前：图属于工具结果，挨着它最近的位置是这里。
-    // （客户端自己的正文随后照旧成一条消息，两条连续 user 消息不做合并 ——
-    // 上游接受这种形状，合并反而会把我们的合成内容融进客户端的消息）
+    // after 、 before ：， is this 。
+    // （client after old 1 ， user not and ——
+    // up this ， and will client ）
     if !tool_result_images.is_empty() {
         messages.push(json!({ "role": "user", "content": Value::Array(tool_result_images) }));
     }
 
-    // 工具调用：必须挂在 assistant 消息上（Anthropic 的 tool_use 只在 assistant 里）
+    // use ：must in assistant up （Anthropic tool_use in assistant ）
     if !tool_calls.is_empty() {
         let mut entry = Map::new();
         entry.insert("role".to_string(), Value::String("assistant".to_string()));
@@ -334,8 +334,8 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
             entry.insert("reasoning_content".to_string(), Value::String(reasoning.clone()));
         }
         entry.insert("tool_calls".to_string(), Value::Array(tool_calls));
-        // 缓存断点优先取 tool_use 块上的（Claude Code 的惯例断点），否则用
-        // 同一条消息里正文块的断点 —— 本来就是同一条 Anthropic 消息拆开的
+        // tool_use up （Claude Code ），otherwise use 
+        // 1 —— is 1 Anthropic 
         if let Some(cache) = tool_use_cache.or(normal_cache) {
             entry.insert(FIELD_CACHE_CONTROL.to_string(), cache);
         }
@@ -347,7 +347,7 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
             "content".to_string(),
             collapse_content(Value::Array(normal.clone())),
         );
-        // reasoning_content 只在 assistant 上有意义
+        // reasoning_content in assistant up has 
         if chat_role == "assistant" && !reasoning.is_empty() {
             entry.insert("reasoning_content".to_string(), Value::String(reasoning));
         }
@@ -359,33 +359,33 @@ fn convert_message(messages: &mut Vec<Value>, message: &Value) -> Result<(), Con
     Ok(())
 }
 
-/// 工具结果拆出来的两部分（见 [`tool_result_parts`]）
+/// （ [`tool_result_parts`]）
 pub(super) struct ToolResultParts {
-    /// 文本部分（可能为空串 —— 只有图片时由调用方决定补什么）
+    /// （ can can as empty —— has when by use ）
     pub(super) text: String,
-    /// 图片块，**已按调用方给的转换器转成目标协议的形态**
+    /// ，** already by use to **
     pub(super) images: Vec<Value>,
 }
 
-/// 工具结果内容 → 文本 + 图片块。
+/// → + 。
 ///
-/// `convert` 是该方向「图片块 → 目标协议形态」的转换器（入站给
-/// [`image_to_chat`]，出站给 `image_to_anthropic`）：转不出来的块在这里就被
-/// 剔除，所以调用方拿到的 `images` 一定落得下去，不必再判一次。
+/// `convert` is this to 「 → 」 （ to 
+/// [`image_to_chat`]， to `image_to_anthropic`）： not in this 
+/// ， use to `images` 1 down ， not 1 。
 ///
-/// ── 为什么必须拆开（与 responses.rs 的 issue #76 同一类）──────
-/// Anthropic 的 `tool_result.content` 允许**嵌套内容块数组**，官方收
-/// `text` / `image` / `document` / `search_result` 四类，图片是真实用法
-/// （Claude Code 读一张截图、MCP 的截图类工具都这么回）。原实现一律走
-/// [`content_text`] 取文本，**图片被静默丢掉**；只有图片时则退化成 `json_text`
-/// 把 base64 拍平成正文 —— 前者症状是模型看不到图却照上下文编答案（比 token
-/// 暴涨更隐蔽，因为连 token 数都不涨），后者与 issue #76 完全同病。
+/// ── Whymust（ and responses.rs issue #76 1 ）──────
+/// Anthropic `tool_result.content` ****，
+/// `text` / `image` / `document` / `search_result` ， is use 
+/// （Claude Code 1 、MCP this ）。 1 
+/// [`content_text`] ，** **； has when then `json_text`
+/// base64 —— before is not to up down （ token
+/// ， as token not ）， after and issue #76 。
 ///
-/// 拆开之后：文本进 Chat 的 tool 消息，图片由调用方转交相邻的 user 消息
-/// （Chat 的 tool 消息不许带图，理由见 `responses::PendingImages`）。
+/// after ： Chat tool ， by use user 
+/// （Chat tool not ， by `responses::PendingImages`）。
 ///
-/// `pub(super)`：出站方向（`anthropic_outbound`）把 chat 的 tool 消息折回
-/// `tool_result` 时用同一口径，两处各写一份迟早分叉。
+/// `pub(super)`： to （`anthropic_outbound`） chat tool 
+/// `tool_result` when use 1 ， 1 。
 pub(super) fn tool_result_parts(
     content: &Value,
     convert: fn(&Value) -> Option<Value>,
@@ -404,9 +404,9 @@ pub(super) fn tool_result_parts(
                 .collect();
             let text = content_text(content);
             if text.is_empty() && images.is_empty() {
-                // 一个块都落不下来（例如 Anthropic Files API 的 `file` 源图片、
-                // 只有 `search_result` / `document` 的结果）：保持原来的拍平
-                // 兜底，免得整段结果凭空消失
+                // 1 not down （e.g. Anthropic Files API `file` 、
+                // has `search_result` / `document` ）： 
+                // ，empty
                 let raw = json_text(content);
                 return text_only(if raw.is_empty() { "(empty)".to_string() } else { raw });
             }
@@ -419,8 +419,8 @@ pub(super) fn tool_result_parts(
     }
 }
 
-/// 是不是图片块（Anthropic 的 `image` 与 Chat 的 `image_url` / `input_image`
-/// 都认 —— 两个方向的输入各是其中一种，转不转得出来交给 `convert` 判）
+/// is not is （Anthropic `image` and Chat `image_url` / `input_image`
+/// —— to is its in 1 ， not to `convert` ）
 fn is_image_block(part: &Value) -> bool {
     matches!(
         string_field(part, "type").to_lowercase().as_str(),
@@ -428,10 +428,10 @@ fn is_image_block(part: &Value) -> bool {
     )
 }
 
-/// Anthropic 的 image 块 → Chat 的 image_url 块。
+/// Anthropic image → Chat image_url 。
 ///
-/// Anthropic 的 base64 源（`{type:"base64", media_type, data}`）要拼成 data URI，
-/// 因为 Chat 侧只认 URL 形态。
+/// Anthropic base64 （`{type:"base64", media_type, data}`） need data URI，
+/// as Chat URL 。
 fn image_to_chat(part: &Value) -> Option<Value> {
     let source = part.get("source")?;
     let kind = string_field(source, "type").to_lowercase();
@@ -460,7 +460,7 @@ fn image_to_chat(part: &Value) -> Option<Value> {
     }
 }
 
-/// 内容块数组 → Chat content（只有纯文本时降级成字符串）
+/// → Chat content（ has when ）
 fn collapse_content(content: Value) -> Value {
     let parts = match content.as_array() {
         Some(parts) => parts.clone(),
@@ -483,7 +483,7 @@ fn collapse_content(content: Value) -> Value {
     Value::Array(parts)
 }
 
-/// Anthropic 工具 → Chat 工具
+/// Anthropic → Chat 
 fn tool_to_chat(tool: &Value) -> Option<Value> {
     let name = string_field(tool, "name");
     if name.is_empty() {
@@ -503,17 +503,17 @@ fn tool_to_chat(tool: &Value) -> Option<Value> {
     let mut out = Map::new();
     out.insert("type".to_string(), Value::String("function".to_string()));
     out.insert("function".to_string(), Value::Object(function));
-    // 工具定义上的缓存断点（工具清单大而稳定，是 Anthropic 缓存收益最高的
-    // 一段）随内部暂存字段携带，出站时恢复到 anthropic 工具对象上
+    // up （， is Anthropic 
+    // 1 ）， when to anthropic for up 
     if let Some(cache) = block_cache_control(tool) {
         out.insert(FIELD_CACHE_CONTROL.to_string(), cache);
     }
     Some(Value::Object(out))
 }
 
-/// Anthropic 的 tool_choice → Chat 的 tool_choice
+/// Anthropic tool_choice → Chat tool_choice
 ///
-/// 两家的语义对应：`auto`→`auto`、`any`→`required`、`none`→`none`、
+/// for ：`auto`→`auto`、`any`→`required`、`none`→`none`、
 /// `{type:"tool", name}`→`{type:"function", function:{name}}`。
 fn tool_choice_to_chat(choice: &Value) -> Value {
     if let Some(text) = choice.as_str() {
@@ -536,10 +536,10 @@ fn tool_choice_to_chat(choice: &Value) -> Value {
     }
 }
 
-/// Anthropic 的思考档位 → Chat 的 `reasoning_effort`
+/// Anthropic → Chat `reasoning_effort`
 ///
-/// 取值链（参考实现同款）：`thinking.type` 决定开关，`output_config.effort`
-/// 决定档位。`disabled`/`none` 一律不输出（让上游用它自己的默认）。
+/// （）：`thinking.type` ，`output_config.effort`
+/// 。`disabled`/`none` 1 not （ up use default）。
 fn anthropic_effort(body: &Value) -> Option<String> {
     let thinking_type = {
         let raw = string_value(
@@ -557,7 +557,7 @@ fn anthropic_effort(body: &Value) -> Option<String> {
     if !explicit.is_empty() {
         return Some(explicit);
     }
-    // thinking.enabled 但没给档位：按 budget 反推一个
+    // thinking.enabled no to ： by budget 1 
     if thinking_type == "enabled" || thinking_type == "adaptive" {
         let budget = body
             .get("thinking")
@@ -569,7 +569,7 @@ fn anthropic_effort(body: &Value) -> Option<String> {
     None
 }
 
-/// budget → 档位
+/// budget → 
 fn effort_from_budget(budget: i64) -> &'static str {
     if budget <= 0 {
         return "medium";
@@ -587,9 +587,9 @@ fn effort_from_budget(budget: i64) -> &'static str {
     }
 }
 
-// ─── 响应：Chat → Anthropic（非流式）────────────────────────
+// ─── response：Chat → Anthropic（）────────────────────────
 
-/// Chat 的 `chat.completion` → Anthropic 的 `message` 对象。
+/// Chat `chat.completion` → Anthropic `message` for 。
 pub fn anthropic_from_chat(chat: &Value, model: &str) -> Value {
     let choice = chat.pointer("/choices/0");
     let message = choice.and_then(|choice| choice.get("message")).cloned().unwrap_or(Value::Null);
@@ -599,7 +599,7 @@ pub fn anthropic_from_chat(chat: &Value, model: &str) -> Value {
         .unwrap_or_default();
 
     let mut content: Vec<Value> = Vec::new();
-    // 思考块在前（与 Anthropic 官方顺序一致）
+    // in before （ and Anthropic 1 ）
     let reasoning = {
         let from_field = string_field(&message, "reasoning_content");
         if from_field.is_empty() { string_field(&message, "reasoning") } else { from_field }
@@ -626,7 +626,7 @@ pub fn anthropic_from_chat(chat: &Value, model: &str) -> Value {
             }));
         }
     }
-    // Anthropic 要求 content 非空
+    // Anthropic need content empty
     if content.is_empty() {
         content.push(json!({ "type": "text", "text": "" }));
     }
@@ -637,8 +637,8 @@ pub fn anthropic_from_chat(chat: &Value, model: &str) -> Value {
     } else if finish == "stop" || finish.is_empty() {
         "end_turn"
     } else {
-        // 其它 finish_reason（content_filter 等）：Anthropic 没有对应值，
-        // 归到 end_turn（比编一个不存在的值好）
+        // its finish_reason（content_filter etc ）：Anthropic no has for ，
+        // to end_turn（ 1 not in ）
         "end_turn"
     };
     let id = {
@@ -657,10 +657,10 @@ pub fn anthropic_from_chat(chat: &Value, model: &str) -> Value {
     })
 }
 
-/// 把工具参数（字符串或对象）解析成对象
+/// parameter（ or for ） for 
 ///
-/// `pub(super)`：出站方向（`anthropic_outbound`）的 tool_use 块 input 也要
-/// 「保证是对象」这同一归一（上游对非对象 input 会直接 400）。
+/// `pub(super)`： to （`anthropic_outbound`） tool_use input need 
+/// 「 is for 」 this 1 1 （ up for for input will 400）。
 pub(super) fn parse_json_object(value: &Value) -> Value {
     if value.is_object() {
         return value.clone();
@@ -671,12 +671,12 @@ pub(super) fn parse_json_object(value: &Value) -> Value {
     }
     match serde_json::from_str::<Value>(&text) {
         Ok(parsed) if parsed.is_object() => parsed,
-        // 解析不了（上游给了非 JSON 的参数）：包一层，保证 input 是对象
+        // not （ up to JSON parameter）： 1 ， input is for 
         _ => json!({ "raw": text }),
     }
 }
 
-/// Chat 的 usage → Anthropic 的 usage
+/// Chat usage → Anthropic usage
 pub fn usage_to_anthropic(usage: Option<&Value>) -> Value {
     let Some(usage) = usage.filter(|value| value.is_object()) else {
         return json!({ "input_tokens": 0, "output_tokens": 0 });
@@ -690,51 +690,51 @@ pub fn usage_to_anthropic(usage: Option<&Value>) -> Value {
         .unwrap_or(0);
     let input = number("prompt_tokens");
     json!({
-        // Anthropic 的 input_tokens **不含**缓存命中部分，所以这里减掉
+        // Anthropic input_tokens ** not ** in ， this 
         "input_tokens": (input - cached).max(0),
         "output_tokens": number("completion_tokens"),
         "cache_read_input_tokens": cached,
     })
 }
 
-/// 输入 token 估算：字符数 ÷ 3.5（中英混排的经验值，与 Anthropic 官方
-/// 「约 3.5 字符一个 token」同量级）。空文本给 1。
+/// token ： ÷ 3.5（ in ， and Anthropic 
+/// 「 3.5 1 token」）。empty to 1。
 ///
-/// 与 `/v1/messages/count_tokens`（`api::chat::count_tokens`）**共用这一个口径**：
-/// 客户端会拿两个数字互相印证，对不上反而引出新的疑问。要「不估算」的调用方
-/// 请传 `None` / 先判空，而不是靠这个函数返回 0。
+/// and `/v1/messages/count_tokens`（`api::chat::count_tokens`）** use this 1 **：
+/// client will ， for not up new 。 need 「 not 」 use 
+/// `None` / empty， not is this return 0。
 pub fn estimate_tokens_for_text(text: &str) -> i64 {
     let characters = text.chars().count();
     ((characters as f64) / 3.5).ceil().max(1.0) as i64
 }
 
-/// 按请求体估算输入 token（对象走 JSON 文本，见 [`json_text`]）。
+/// by request token（ for JSON ， [`json_text`]）。
 ///
-/// Anthropic 原始体与翻译后的 chat 体都能喂：两者都是对象、字符数量级一致，
-/// 差一个 `model` 字段的值不影响估算用途。
+/// Anthropic and after chat can ： is for 、 1 ，
+/// 1 `model` not use 。
 pub fn estimate_tokens_for_body(body: &Value) -> i64 {
     estimate_tokens_for_text(&json_text(body))
 }
 
-// ─── 流式：Chat SSE → Anthropic SSE ─────────────────────────
+// ─── ：Chat SSE → Anthropic SSE ─────────────────────────
 
-/// Chat 的 SSE 字节流 → Anthropic 的 SSE 字节流（状态机）。
+/// Chat SSE → Anthropic SSE （）。
 ///
-/// ── Anthropic 流的事件顺序（客户端按这个顺序解析）───────────
+/// ── Anthropic （client by this ）───────────
 ///   message_start
-///   content_block_start / content_block_delta / content_block_stop（每块一轮）
-///   message_delta（带 stop_reason 与最终 usage）
+/// content_block_start / content_block_delta / content_block_stop（ 1 ）
+/// message_delta（ stop_reason and usage）
 ///   message_stop
 ///
-/// Anthropic 的块是**严格串行**的：一个块 stop 之后才能 start 下一个。
-/// 所以下面的状态机维护 `block_open`，切换块类型时先关旧的。
+/// Anthropic is **** ： 1 stop after can start down 1 。
+/// down `block_open`， when old 。
 pub struct AnthropicStream {
     buffer: SseLineBuffer,
     message_id: String,
     model: String,
     started: bool,
     finished: bool,
-    /// 当前打开的块：类型 + 索引 + 累积的文本/参数
+    /// current ： + + /parameter
     block_open: bool,
     block_index: i64,
     block_type: String,
@@ -746,18 +746,18 @@ pub struct AnthropicStream {
     has_tool: bool,
     stop_reason: Option<String>,
     usage: Option<Value>,
-    /// 下游请求体的输入 token 估算（`estimate_tokens_for_body`）。
+    /// down request token （`estimate_tokens_for_body`）。
     ///
-    /// 只在 `message_start` 用得上：上游 usage 要等流末尾那帧才到，而客户端
-    /// （Claude Code / Anthropic SDK）在发出 content block 的那一刻就把
-    /// `message_start` 的 usage 快照走了，等不到 `message_delta`。开头填 0
-    /// 会让它退回本地估算并逐轮累加（issue #437：面板 2.6M / 1M 虚高 50 倍）。
+    /// in `message_start` use up ： up usage need etc that to ，client
+    /// （Claude Code / Anthropic SDK） in content block that 1 
+    /// `message_start` usage ， etc not to `message_delta`。 0
+    /// will and （issue #437： 2.6M / 1M 50 ）。
     input_estimate: Option<i64>,
 }
 
 impl AnthropicStream {
-    /// `input_estimate`：`message_start` 用的输入估算，`None` 表示调用方没有
-    /// 请求体可估（保持 0，与修复前一致）。取真实 usage 时始终以流末尾那帧为准。
+    /// `input_estimate`：`message_start` use ，`None` use no has 
+    /// request can （ 0， and before 1 ）。 usage when that as 。
     pub fn new(model: &str, input_estimate: Option<i64>) -> Self {
         Self {
             buffer: SseLineBuffer::new(),
@@ -821,7 +821,7 @@ impl AnthropicStream {
             "message_delta",
             json!({
                 "delta": { "stop_reason": stop_reason, "stop_sequence": Value::Null },
-                // Chat 的 usage 可能末尾才到；message_delta 允许补发累计输入与缓存用量。
+                // Chat usage can can to ；message_delta and usage。
                 "usage": usage_to_anthropic(self.usage.as_ref()),
             }),
         ));
@@ -874,7 +874,7 @@ impl AnthropicStream {
         let Some(delta) = choice.and_then(|choice| choice.get("delta")) else {
             return out;
         };
-        // 思考增量 → thinking 块
+        // → thinking 
         let reasoning = {
             let from_field = string_field(delta, "reasoning_content");
             if from_field.is_empty() { string_field(delta, "reasoning") } else { from_field }
@@ -890,7 +890,7 @@ impl AnthropicStream {
                 }),
             ));
         }
-        // 正文增量 → text 块
+        // → text 
         if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|text| !text.is_empty()) {
             out.extend(self.ensure_block("text"));
             self.block_text.push_str(text);
@@ -902,7 +902,7 @@ impl AnthropicStream {
                 }),
             ));
         }
-        // 工具调用 → tool_use 块
+        // use → tool_use 
         if let Some(calls) = delta.get("tool_calls").and_then(Value::as_array) {
             for call in calls {
                 out.extend(self.consume_tool(call));
@@ -915,7 +915,7 @@ impl AnthropicStream {
         let mut out = Vec::new();
         let name = call.pointer("/function/name").and_then(Value::as_str).unwrap_or("");
         let id = call.get("id").and_then(Value::as_str).unwrap_or("");
-        // 新的工具调用（带 id/name 且与当前块不同）：关掉旧块、开新块
+        // new use （ id/name and and current not ）： old 、 new 
         let is_new = !id.is_empty() && id != self.block_tool_id;
         if is_new || (self.block_type != "tool_use" && !name.is_empty()) {
             out.extend(self.close_block());
@@ -940,7 +940,7 @@ impl AnthropicStream {
                 }),
             ));
         } else if self.block_type != "tool_use" {
-            // 只有参数分片、没见到 id/name：补开一个块（名字待定）
+            // has parameter、 no to id/name： 1 （）
             out.extend(self.close_block());
             self.has_tool = true;
             self.block_open = true;
@@ -963,7 +963,7 @@ impl AnthropicStream {
                 }),
             ));
         }
-        // 名字晚到（先来参数分片、后来 name）：补一次
+        // to （parameter、 after name）： 1 
         if !name.is_empty() && self.block_tool_name.is_empty() {
             self.block_tool_name = name.to_string();
         }
@@ -982,7 +982,7 @@ impl AnthropicStream {
         out
     }
 
-    /// 确保当前打开的是指定类型的块（类型不同则先关旧的）
+    /// current is （ not then old ）
     fn ensure_block(&mut self, kind: &str) -> Vec<bytes::Bytes> {
         if self.block_open && self.block_type == kind {
             return Vec::new();
@@ -1009,8 +1009,8 @@ impl AnthropicStream {
             return Vec::new();
         }
         self.block_open = false;
-        // 工具块收尾前若一个参数分片都没收到，补一个空对象：
-        // Anthropic 的客户端在 input_json_delta 缺失时解析不出 input
+        // before if 1 parameter no to ， 1 empty for ：
+        // Anthropic client in input_json_delta when not input
         let mut out = Vec::new();
         if self.block_type == "tool_use" && !self.saw_arguments {
             out.push(self.event(
@@ -1032,12 +1032,12 @@ impl AnthropicStream {
         self.started = true;
         let mut usage = usage_to_anthropic(self.usage.as_ref());
         usage["output_tokens"] = json!(0);
-        // 上游 usage 通常整条流都不来（要等末尾那帧），而客户端把
-        // `message_start` 的 usage 当作本轮输入的事实快照 —— 填 0 会让它退回
-        // 本地估算并逐轮累加（issue #437）。用调用方给的估算顶上；真值到达时
-        // 由 `message_delta` 校正。上游这次提前带了真实 usage 就保留真值，
-        // 估算不覆盖它。缓存字段此刻本就不存在，也不在这里补 —— 估算值写进
-        // `cache_read_input_tokens` 会把请求统计的缓存命中率抬虚。
+        // up usage not （ need etc that ），client 
+        // `message_start` usage —— 0 will 
+        // and （issue #437）。 use use to up ； to when 
+        // by `message_delta` 。 up this before usage ，
+        // not 。 not in ， not in this —— 
+        // `cache_read_input_tokens` will requeststatistics in 。
         if self.usage.is_none() {
             if let Some(estimate) = self.input_estimate {
                 usage["input_tokens"] = json!(estimate);
@@ -1068,7 +1068,7 @@ impl AnthropicStream {
     }
 }
 
-/// 非流式聚合：把 Chat SSE 字节流收成一个 Anthropic message 对象。
+/// ： Chat SSE 1 Anthropic message for 。
 pub struct AnthropicCollector {
     buffer: SseLineBuffer,
     text: String,
@@ -1213,7 +1213,7 @@ impl Default for AnthropicCollector {
         Self::new()
     }
 }
-/// 把网关错误映射成 Anthropic 的错误类型名（官方枚举）
+/// error Anthropic error（）
 pub fn error_kind_for_status(status: u16) -> &'static str {
     match status {
         400 => "invalid_request_error",
@@ -1227,7 +1227,7 @@ pub fn error_kind_for_status(status: u16) -> &'static str {
     }
 }
 
-/// 把网关错误映射成 Responses 的错误码
+/// error Responses error
 pub fn responses_error_code(status: u16) -> &'static str {
     match status {
         400 => "invalid_request_error",

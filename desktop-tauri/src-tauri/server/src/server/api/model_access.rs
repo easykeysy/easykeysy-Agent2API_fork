@@ -17,24 +17,24 @@ pub const ENV_KEY_ID: &str = "env";
 pub fn is_model_endpoint(path: &str) -> bool {
     matches!(path, "/api/models/test" | "/api/model-access/models" | "/api/assistant/chat" | "/api/assistant/images/generations" | "/api/assistant/images/edits")
         || path.strip_prefix("/api/assistant/sessions/").is_some_and(|tail| tail.ends_with("/title"))
-        // 工具端点自行校验网关 Key；账号型搜索在运行时校验提供商权限，
-        // 独立搜索 API 和网页抓取不使用模型白名单。
+        // Key； in when ，
+        // API and not use 。
         || path.starts_with("/api/web-search")
         || path.starts_with("/skill/")
         || path.starts_with("/mcp/")
 }
 
-/// 认证结果：包含本次请求的 Key 身份/范围，以及（如有）匹配到的可治理 Key 记录。
+/// Auth result: request key identity/scope and, if matched, the governed key entry。
 #[derive(Clone, Debug)]
 pub struct ModelAccess {
     pub scope: Option<KeyScope>,
     pub source: RequestSource,
-    /// 匹配到的网关 Key 记录（环境变量 Key 为 `None`）
+    /// Matched gateway key entry (`None` for env key)
     pub key_entry: Option<api_keys::ApiKeyEntry>,
 }
 
 fn presented_key(headers: &HeaderMap) -> Option<String> {
-    // 显式选择的 x-api-key 不得被 Authorization 中的管理凭证兜底替换。
+    // x-api-key not Authorization in 。
     let presented = if let Some(value) = headers.get("x-api-key") {
         value.to_str().ok()
     } else {
@@ -48,9 +48,9 @@ fn presented_key(headers: &HeaderMap) -> Option<String> {
         .map(|key| key.to_string())
 }
 
-/// 认证并（对可治理 Key）执行配额/过期/RPM 检查。
-/// `count_request=true` 时将本次通过的请求计入配额与 RPM 窗口；
-/// 自助查询等不应消耗配额的场景传 `false`。
+/// Authenticate and enforce quota/expiry/RPM for governed keys。
+/// `count_request=true` when count this admitted request against quota and RPM window；
+/// pass false for self-service/read-only cases that must not consume quota `false`。
 pub fn authenticate(headers: &HeaderMap, client: &str, count_request: bool) -> Result<ModelAccess, GatewayError> {
     let key = presented_key(headers).ok_or_else(|| {
         GatewayError::with_status(401, "模型调用必须选择并携带 API Key，请先在「网关 Key」页创建并启用一把 Key")
@@ -58,7 +58,7 @@ pub fn authenticate(headers: &HeaderMap, client: &str, count_request: bool) -> R
     })?;
     let snapshot = config::current();
     if config::parse::env_api_key_value().as_deref() == Some(key.as_str()) {
-        // 环境变量注入的 Key：不受 per-key 治理配置约束（其生命周期由环境管理）
+        // Key injected via environment variable：not subject to per-key governance config（its lifecycle is managed by the environment）
         return Ok(ModelAccess {
             scope: None,
             source: RequestSource {
@@ -77,7 +77,7 @@ pub fn authenticate(headers: &HeaderMap, client: &str, count_request: bool) -> R
                 .with_code("invalid_api_key")
         })?;
 
-    // 治理检查：过期 / 配额 / RPM（在放行前执行，失败不计入请求）
+    // Governance checks: expiry / quota / RPM (before admit; failures do not count)
     if let Err(reason) = key_governance::admit_request(&entry, count_request) {
         let (status, code, message, retry_after) = key_governance::deny_to_http(&reason);
         let mut err = GatewayError::with_status(status as i32, message).with_code(code);
@@ -102,7 +102,7 @@ pub fn authenticate(headers: &HeaderMap, client: &str, count_request: bool) -> R
     })
 }
 
-/// GET /v1/models —— 按 Key 白名单过滤的模型列表（或无 Key 时公开视图，见 chat.rs）。
+/// GET /v1/models —— Model list filtered by key allowlists (or public view without key, see chat.rs)。
 pub async fn models(
     axum::extract::State(state): axum::extract::State<crate::server::ServerState>,
     headers: HeaderMap,
@@ -115,8 +115,8 @@ pub async fn models(
     }
 }
 
-/// 消费者自助查询：返回当前 Key 的身份、scope、治理限制、用量与剩余。
-/// 不计入请求配额/RPM（只读状态查询）。
+/// Consumer self-service query：Return current key identity, scope, governance limits, usage, and remaining。
+/// Does not consume request quota/RPM (read-only status query)。
 pub async fn key_info(headers: HeaderMap) -> axum::response::Response {
     match authenticate(&headers, "key-info", false) {
         Ok(access) => {
@@ -132,7 +132,7 @@ pub async fn key_info(headers: HeaderMap) -> axum::response::Response {
                     "governance": key_governance::status_json(&entry),
                 }))
             } else {
-                // 环境变量 Key：无 per-key 治理记录
+                // Environment variable key：none per-key 
                 crate::server::http::ok_json(json!({
                     "id": ENV_KEY_ID,
                     "name": "环境变量 Key",

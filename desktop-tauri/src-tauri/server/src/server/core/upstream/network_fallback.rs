@@ -1,4 +1,4 @@
-//! 可选入口与地址容错只作用于可信 HTTPS origin，不改变账号选择和代理出口。
+//! optional and used for can HTTPS origin， not and 。
 
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
@@ -167,7 +167,7 @@ impl Fallback {
         let Some(policy) = &self.policy else {
             return false;
         };
-        // 指定 HTTP/SOCKS 代理的 DNS 由代理负责，不能绕过它去直连解析或连接。
+        // HTTP/SOCKS DNS by ， not can or 。
         if !self.available() || self.current.proxy.is_some() || self.current.system_proxy_when_unset
         {
             return false;

@@ -21,19 +21,19 @@ export type SchedulePatch = {
   time: string
   timeEnd?: string
   providers: string[]
-  /** 逐家的时刻覆盖（不传 = 保持原样；空对象 = 全部撤销） */
+  /** when （ not = ；empty for = ） */
   providerTimes?: Record<string, string>
-  /** 补签轮时刻（空串 = 关掉补签轮） */
+  /** when （empty = ） */
   retryTime?: string
-  /** 中性未领取的重试间隔（分钟；0 = 不重试） */
+  /** in （minutes；0 = not ） */
   retryGapMinutes?: number
-  /** 每账号每天的重试次数上限（0 = 不重试） */
+  /** limit（0 = not ） */
   retryLimit?: number
 }
 
 export type RecordFilters = {
   outcome?: string
-  /** 签到类型：manual / schedule / makeup */
+  /** to ：manual / schedule / makeup */
   kind?: string
   provider?: string
   keyword?: string

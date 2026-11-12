@@ -11,13 +11,13 @@ import { usePolling } from '../lib/usePolling'
 import { t } from '../i18n'
 
 /**
- * 工具服务（手机端）。
+ * （）。
  *
- * ── 手机能做什么、不能做什么 ────────────────────────────────
- * 服务开关、上游提供商密钥、提供商选择与视觉模型配置全部是**网关侧**的数据，
- * 手机上改完立刻生效；这部分与桌面端同一套接口。
- * 「本机接入」（把 Skill / MCP 配置写进客户端目录）作用在**网关所在机器**，
- * 手机上不做 —— 与「Agent 配置」页同一口径：手机上只读/远程操作，改本机文件回桌面端。
+ * ── can 、 not can ────────────────────────────────
+ * 、 up 、 and config is **** ，
+ * up ； this and 1 。
+ * 「」（ Skill / MCP configclientdirectory） use in ** in **，
+ * up not —— and 「Agent config」 1 ： up /，file。
  */
 
 type ToolProtocol = 'skill' | 'mcp' | 'api'

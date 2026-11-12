@@ -1,4 +1,4 @@
-//! 插件可选策略只表达通用动作，不让上游业务码进入编排层。
+//! optional use ， not up 。
 
 use serde::Deserialize;
 

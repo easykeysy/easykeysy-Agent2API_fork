@@ -8,7 +8,7 @@ import { RouteIcon, formatDuration, stickyLabel, strategyLabel } from './routing
 import { isTraceRunning, isTraceSuccess, requestModel, requestSummary, traceAttempts, traceCandidates, tracePhase, traceProvider } from './routing-trace-model'
 import type { ReplayRow } from './routing-types'
 
-/** 回放只读请求当时保存的事实，不以当前配置重算历史。 */
+/** request when ， not currentconfig。 */
 export function RoutingExecTimeline({ row, now, onDetail, onConfig }: {
   row: ReplayRow; now: number; onDetail(row: ReplayRow): void; onConfig(model: string): void
 }) {

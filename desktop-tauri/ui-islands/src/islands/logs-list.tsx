@@ -82,7 +82,7 @@ export function LogDetail({ group, onClose }: { group: LogGroup | null; onClose:
         <DialogBody>
           <DialogDescription>{logSummary(entry, t)}</DialogDescription>
           <div className='event-log-detail-meta'>{groupTime(group)} · {t('原始记录 {n} 条', { n: group.count })}</div>
-          {/* 两档视图：走组件库的分段控件（弹窗档尺寸）—— 原来是两颗按钮切底色假装成分段 */}
+          {/* ： （）—— is by */}
           <SegmentedControl<'detail' | 'raw'>
             aria-label={t('日志详情视图')}
             className={DIALOG_SEG_CLASS}

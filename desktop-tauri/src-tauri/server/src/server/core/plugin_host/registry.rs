@@ -1,4 +1,4 @@
-//! 注册表保留切换期间的只读元数据；业务调用持有对应宿主的使用凭证。
+//! ； use has for use 。
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};

@@ -1,4 +1,4 @@
-//! Windows 服务更新：由受保护目录中的临时进程接手，不占用正在替换的主程序。
+//! Windows update： by directory in when ， not use in 。
 
 #[cfg(windows)]
 mod control;

@@ -1,16 +1,16 @@
-//! 工具服务的运行时端点（对外给客户端调用，自己校验网关 Key）。
+//! when （ for to client use ， Key）。
 //!
-//! 与 OmniProxy 的端点路径逐字对齐（客户端接入地址写死，改动会影响已接入方）：
-//!   · `GET  /skill/web-search`           服务元数据（免鉴权）
-//!   · `POST /skill/web-search/search`    批量搜索
-//!   · `POST /skill/web-search/fetch`     批量抓取
-//!   · `POST /mcp/web-search`             网络搜索 MCP（Streamable HTTP）
-//!   · `POST /mcp/vision`                 视觉分析 MCP
-//!   · `GET  /api/web-search`             REST 元数据（免鉴权）
+//! and OmniProxy path for （client， will already ）：
+//! · `GET /skill/web-search` （）
+//! · `POST /skill/web-search/search` 
+//! · `POST /skill/web-search/fetch` 
+//! · `POST /mcp/web-search` MCP（Streamable HTTP）
+//! · `POST /mcp/vision` MCP
+//! · `GET /api/web-search` REST （）
 //!   · `POST /api/web-search/search|fetch`
 //!
-//! 鉴权复用网关 Key（`Authorization: Bearer <key>` 或 `x-api-key`），与模型调用
-//! 同一把钥匙；账号型搜索遵守 Key 的提供商白名单，独立搜索 API 不按模型过滤。
+//! use Key（`Authorization: Bearer <key>` or `x-api-key`）， and use 
+//! 1 ； Key ， API not by 。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -83,7 +83,7 @@ fn api_disabled() -> Response {
     )
 }
 
-/* ─── Skill 端点 ───────────────────────────────────────────── */
+/* ─── Skill ───────────────────────────────────────────── */
 
 /// GET /skill/web-search
 pub async fn skill_metadata(State(state): State<ServerState>, headers: HeaderMap) -> Response {
@@ -164,7 +164,7 @@ pub async fn skill_fetch(State(state): State<ServerState>, headers: HeaderMap, b
     skill_operation(&state, None, body, "fetch").await
 }
 
-/* ─── REST API 端点 ────────────────────────────────────────── */
+/* ─── REST API ────────────────────────────────────────── */
 
 /// GET /api/web-search
 pub async fn api_metadata(State(state): State<ServerState>, headers: HeaderMap) -> Response {
@@ -244,7 +244,7 @@ pub async fn api_fetch(State(state): State<ServerState>, headers: HeaderMap, bod
     api_operation(&state, None, body, "fetch").await
 }
 
-/* ─── MCP 端点 ─────────────────────────────────────────────── */
+/* ─── MCP ─────────────────────────────────────────────── */
 
 async fn mcp_post(state: &ServerState, headers: HeaderMap, body: Bytes, kind: McpServerKind) -> Response {
     let Ok(access) = model_access::authenticate(&headers, "tool", true) else {
@@ -290,7 +290,7 @@ pub async fn mcp_vision(State(state): State<ServerState>, headers: HeaderMap, bo
     mcp_post(&state, headers, body, McpServerKind::Vision).await
 }
 
-/// 非 POST 方法：按规范用 405 明确告知（本类服务不提供服务端主动推流）
+/// POST ： by use 405 （ not server）
 pub async fn mcp_unsupported() -> Response {
     (
         StatusCode::METHOD_NOT_ALLOWED,
@@ -304,7 +304,7 @@ pub async fn mcp_unsupported() -> Response {
         .into_response()
 }
 
-/// 便于测试与文档引用：错误码 → HTTP 状态
+/// and use ：error → HTTP 
 pub fn status_for(code: SearchErrorCode) -> u16 {
     code.http_status()
 }

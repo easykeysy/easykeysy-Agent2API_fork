@@ -1,4 +1,4 @@
-//! 插件下载任务在服务端执行，进度按包 id 隔离；下载后自动验签、安装并热加载。
+//! down in server， by id ； down after 、 and 。
 
 use std::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};

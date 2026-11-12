@@ -1,39 +1,39 @@
 /**
- * Agent2API · 设置 → 显示 → 侧边栏菜单（React 岛）
+ * Agent2API · set → → （React ）
  *
- * 让用户控制主侧边栏：**显隐 / 顺序 / 分组**。参考了 OmniProxy 的
- * 「设置 → 外观与布局 → 侧边栏菜单显示」（一组开关），但这里多了三件事：
- * 拖拽排序（含跨组）、自定义分组（新建 / 改名 / 删除）、整组隐藏。
+ * use ：** / / **。 OmniProxy 
+ * 「set → and → 」（ 1 ）， this ：
+ * （）、（ new / / delete）、。
  *
- * ── 数据口径不在这里 ─────────────────────────────────────────
- * 布局的读写、校验、默认值、升级补位全部在 `ui/sidebar-layout.js`
- * （经典脚本，经 `window.wbSidebarLayout` 取用）。为什么不分两套：
- * 侧边栏由 `ui/app.js` 渲染、编辑面板是 React 岛，模型放任一侧另一侧就得抄一份
- * 规则，而「默认分组 + 键校验 + 新菜单补位」抄两遍必然漂。本文件只做三件事：
- *   ① 把那份模型包成 React 状态；② 画界面；③ 改完写盘并派 `wb:sidebar-layout`
- *   事件让 app.js 重画侧边栏。
+ * ── not in this ─────────────────────────────────────────
+ * 、、default、 in `ui/sidebar-layout.js`
+ * （， `window.wbSidebarLayout` use ）。Why not ：
+ * by `ui/app.js` 、 is React ， 1 1 1 
+ * then ，「default + + new 」。file：
+ * ① that React ；② ；③ and `wb:sidebar-layout`
+ * app.js 。
  *
- * ── 布局存在哪里 ────────────────────────────────────────────
- * 权威副本在库里（`kv` 的 `sidebarLayout` 键），`api.writeLayout` 写完缓存后
- * 会异步把它推给后端 —— 这一层在 `sidebar-layout.js` 里，本文件不需要知道。
- * 之所以必须落库：桌面壳与网页端是两个 origin、localStorage 隔离，只存本机
- * 的话「在 WebUI 里隐藏的菜单客户端照旧显示」。localStorage 只剩首帧缓存
- * 的角色，见那个模块头。
+ * ── in ────────────────────────────────────────────
+ * in （`kv` `sidebarLayout` ），`api.writeLayout` after 
+ * will to after —— this 1 in `sidebar-layout.js` ，file not need need 。
+ * must： and is origin、localStorage ，
+ * 「 in WebUI client old 」。localStorage 
+ * ， that module header。
  *
- * ── 拖拽为什么不用拖拽库 / HTML5 拖放 ────────────────────────
- * 与账号页分组模式、表格列设置同一取舍：拖动过程中配置一变就要重画，而 HTML5
- * 拖放的会话绑在**那个节点**上，一重画就断；指针事件的状态只在 JS 变量里，
- * 节点换掉不影响会话。视觉照旧：被拖项压淡、跨过哪一行就在哪一行落位、
- * 松手才写盘。
+ * ── Why not use / HTML5 ────────────────────────
+ * and 、set 1 ： in config 1 need ， HTML5
+ * will in ** that ** up ， 1 ； in JS ，
+ * not will 。 old ： 、 1 in 1 、
+ * 。
  *
- * ── 为什么不在面板里再画一个侧边栏预览 ───────────────────────
- * 主侧边栏就在同一屏的左边，改动即时生效 —— 再画一个小预览是重复信息，
- * 还会把面板挤窄（这一页是两栏布局）。所以这里只做「右侧面板 + 左侧真实侧边栏」。
+ * ── Why not in 1 ───────────────────────
+ * in 1 ， when —— 1 is ，
+ * will （ this 1 is ）。 this 「 + 」。
  *
- * ── 与同事改动的边界 ────────────────────────────────────────
- * 本文件只被 settings-page.tsx 的 DisplayPane 引用一行；不碰 settings-state /
- * settings-model 的快照（侧边栏布局走自己的 kv 键，不进后端 config 配置项），
- * 也不碰「云同步」「版本信息」那两个分类。
+ * ── and ────────────────────────────────────────
+ * file settings-page.tsx DisplayPane use 1 ； not settings-state /
+ * settings-model （ kv ， not after config config），
+ * not 「」「」 that 。
  */
 
 import * as React from 'react'
@@ -41,12 +41,12 @@ import { Badge, Button, Input, Popover, PopoverContent, PopoverTrigger, Switch, 
 import { t } from '../i18n'
 import { Empty } from '@ui'
 
-/* ─── 从经典脚本取模型 ─────────────────────── */
+/* ─── from ─────────────────────── */
 
 /**
- * `ui/sidebar-layout.js` 挂上来的接口。这里手写一份类型，而不是 import 那个 .js：
- * 它是经典脚本（给 app.js 用），没有模块导出。两边字段名必须一致 ——
- * 改那边时这里跟着改，TypeScript 会在每个调用点报错，不会静默漂。
+ * `ui/sidebar-layout.js` up 。 this 1 ， not is import that .js：
+ * is （ to app.js use ）， no has 。must 1 ——
+ * that when this ，TypeScript will in use ， not will 。
  */
 type MenuDef = { key: string; label: string; icon: string; fixed?: boolean }
 type LayoutGroup = { id: string; label: string; custom: boolean; hidden: boolean; items: string[] }
@@ -61,11 +61,11 @@ type LayoutApi = {
   normalizeLayout(raw: unknown): Layout
   readLayout(): Layout
   writeLayout(layout: Layout): void
-  /** 与库对齐一次（启动与全局轮询调；桥不可用时是无害的空操作） */
+  /** and for 1 （ and ；unavailable when is none empty） */
   syncFromServer(): Promise<boolean>
   cloneLayout(layout: Layout): Layout
   menuOf(key: string): MenuDef | undefined
-  /** 分组名的展示文本：内置分组查词典，用户自建的原样返回 */
+  /** ：， use return */
   groupLabel(label: string): string
   isFixedMenu(key: string): boolean
   locate(layout: Layout, key: string): { gi: number; index: number } | null
@@ -87,24 +87,24 @@ function layoutApi(): LayoutApi | null {
   return (window as unknown as { wbSidebarLayout?: LayoutApi }).wbSidebarLayout ?? null
 }
 
-/** 图标（icons.js 的内联 SVG 串）：与设置页左栏分类图标同一注入手法 */
+/** （icons.js SVG ）： and set 1 */
 function iconHtml(name: string, size: number): string {
   return (window as unknown as { wbIcons?: { icon?: (n: string, s?: number) => string } })
     .wbIcons?.icon?.(name, size) || ''
 }
 
-/** toast 的统一出口（运行期读 wbApp，不在模块顶层解构 —— 与 settings-model 同口径） */
+/** toast 1 （ wbApp， not in —— and settings-model ） */
 function toast(message: string, kind?: 'err' | 'ok'): void {
   (window as unknown as { wbApp?: { toast?: (m: string, k?: string) => void } })
     .wbApp?.toast?.(message, kind)
 }
 
-/* ─── 图标 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 /**
- * 面板自用的两枚图标（icons.js 里还没有，落地后可以补进去）。
- * 几何与 icons.js 那组描边图标同一套约定（1.8 粗细、圆头圆角），
- * 所以并排放在一起不会觉得是两套风格。
+ * use （icons.js no has ， after can ）。
+ * and icons.js that 1 （1.8 、），
+ * and in 1 not will is 。
  */
 const PLUS_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" '
   + 'stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'
@@ -118,24 +118,24 @@ const GRIP_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="current
   + '<circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/>'
   + '<circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>'
 
-/** 一行菜单 / 一个分组头的网格：把手 / 图标 / 名称 / 尾巴 */
+/** 1 / 1 ： / / / */
 const ITEM_GRID = 'grid grid-cols-[18px_17px_minmax(0,1fr)_auto] items-center gap-2'
 
-/* ─── 主组件 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 /**
- * 侧边栏菜单编辑面板。
+ * 。
  *
- * 状态策略：`layout` 是唯一受控状态，所有变更都走 `apply(next)` ——
- * 那里统一做「空结果 = 无变化」判定、写盘、派事件、刷新本地状态。
- * 编辑过程里的临时态（改名中的输入框、拖拽会话）另用 useState / useRef，
- * 不进 layout，避免把「未提交的编辑」混进存盘。
+ * ：`layout` is 1 ，all `apply(next)` ——
+ * that 1 「empty = none」、、、 new 。
+ * when （ in 、 will ） use useState / useRef，
+ * not layout， 「 」。
  */
 export function SidebarPane() {
   const api = layoutApi()
 
-  // 模型没加载（index.html 里 sidebar-layout.js 被挪走 / 加载失败）：
-  // 面板退化为一句话说明。不抛错、不白屏 —— 设置页其余分类照常可用。
+  // no （index.html sidebar-layout.js / failure）：
+  // as 1 。 not 、 not —— set its available。
   if (!api) {
     return (
       <Card render={<section />} className='panel'>
@@ -147,59 +147,59 @@ export function SidebarPane() {
     )
   }
 
-  // 上面已收窄：把 api 作为 prop 传给内层组件，闭包里就不必到处判空
+  // up already ： api as prop to ， not to empty
   return <SidebarPaneBody api={api} />
 }
 
 /**
- * 面板主体。拆出来只为一件事：让 `api` 在类型上确定非空 ——
- * 拖动 / 键盘排序这些闭包里每一处都要用它，逐处写 `api?.` 会把真正的
- * 「没加载」分支掩盖成静默无操作。
+ * 。 as 1 ： `api` in up empty ——
+ * / this 1 need use ， `api?.` will 
+ * 「 no 」none。
  */
 function SidebarPaneBody({ api }: { api: LayoutApi }) {
   const [layout, setLayout] = React.useState<Layout>(() => api.readLayout())
-  /** 正在改名的分组 id（null = 没有在改） */
+  /** in id（null = no has in ） */
   const [renaming, setRenaming] = React.useState<string | null>(null)
-  /** 改名草稿：只在 renaming 期间有值 */
+  /** ： in renaming has */
   const [renameDraft, setRenameDraft] = React.useState('')
-  /** 新建分组的输入框是否展开 */
+  /** new is */
   const [adding, setAdding] = React.useState(false)
   const [addDraft, setAddDraft] = React.useState('')
-  /** 被拖动的对象（拖动期间只用于压淡原项，不参与数据） */
+  /** for （used for， not and ） */
   const [dragId, setDragId] = React.useState<string | null>(null)
   const dragRef = React.useRef<{ kind: 'group' | 'item'; id: string } | null>(null)
   const dragSessionRef = React.useRef<{ teardown: () => void } | null>(null)
-  /** 最新布局：拖动中的 pointermove 闭包拿不到重绘后的 state，只能从这里读 */
+  /** new ： in pointermove not to after state， can from this */
   const layoutRef = React.useRef<Layout>(layout)
 
   /**
-   * 提交一次布局变更。
+   * 1 。
    *
-   * 三条约定：
-   *   · 变更函数返回 null = 什么都没变（拖回原位 / 改名成同一个字）——
-   *     不写盘、不重绘、不派事件，避免无意义的重画把拖拽会话打断；
-   *   · `api.writeLayout` 内部做两件事：写首帧缓存（同步）+ 推给库（异步，
-   *     尽力而为）。之后立刻派 `wb:sidebar-layout`，app.js 据此重画左侧真实
-   *     侧边栏 —— 不等那次网络往返，界面必须即时响应；
-   *   · 本地 state 用**写盘后规范化过的那份**（api.readLayout），
-   *     而不是变更函数的返回值 —— 存盘时会补位 / 去重，两边必须一致。
+   * ：
+   * · return null = no （ / 1 ）——
+   * not 、 not 、 not ，none will ；
+   * · `api.writeLayout` ：（）+ to （，
+   * as ）。 after `wb:sidebar-layout`，app.js 
+   * —— not etc that ，must when response；
+   * · state use ** after that **（api.readLayout），
+   * not is return —— when will / ，must 1 。
    */
   const apply = React.useCallback((next: Layout | null): boolean => {
     if (!next) return false
     api.writeLayout(next)
     const normalized = api.readLayout()
-    // ref 立刻更新：拖动中下一次 pointermove 可能早于 React 重绘，
-    // 读到旧值就会按过期的下标再排一次，把刚放好的项又挪走
+    // ref update： in down 1 pointermove can can React ，
+    // to old will by down 1 ， 
     layoutRef.current = normalized
     setLayout(normalized)
     window.dispatchEvent(new CustomEvent('wb:sidebar-layout'))
     return true
   }, [api])
 
-  // 布局从别处变了就跟着刷新，两个来源：
-  //   · `storage`：同一台机器上的另一个标签页 / 窗口（同源，localStorage 共享）；
-  //   · `wb:sidebar-layout`：本页内的改动，以及 `syncFromServer` 从库里拉回了
-  //     另一端（桌面壳 ↔ 网页端，两个 origin）改过的布局。
+  // from new ， ：
+  // · `storage`： 1 up 1 / （，localStorage ）；
+  // · `wb:sidebar-layout`： ， and `syncFromServer` from 
+  // 1 （ ↔ ， origin） 。
   React.useEffect(() => {
     const sync = () => {
       const next = api.readLayout()
@@ -214,14 +214,14 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     }
   }, [api])
 
-  // 卸载时把没收尾的拖动会话收干净（与 table-col-settings 同一处理）
+  // when no will （ and table-col-settings 1 ）
   React.useEffect(() => () => { dragSessionRef.current?.teardown() }, [])
 
   const menus = api.MENUS
   const visibleMenus = menus.filter(menu => !layout.hidden.includes(menu.key)).length
   const hiddenGroups = layout.groups.filter(group => group.hidden).length
 
-  /* ── 变更动作 ── */
+  /* ── ── */
 
   const toggleItem = (key: string, visible: boolean) => {
     apply(api.setItemHidden(layout, key, !visible))
@@ -231,8 +231,8 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     const group = layout.groups.find(item => item.id === gid)
     if (!group) return
     if (!group.hidden && api.groupHasFixed(group)) {
-      // 不置灰按钮：置灰的按钮点下去毫无反应，用户只会以为界面坏了。
-      // 允许点，但把「为什么不行、该怎么办」说清楚。
+      // not by ： by down none， use will as 。
+      // ， 「Why not 、 this 」。
       toast(t('「设置」是固定项，含它的分组不能整组隐藏；可以单独隐藏组内其它菜单'))
       return
     }
@@ -270,7 +270,7 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
       if (!ok) return
       if (apply(api.removeGroup(layout, gid))) toast(t('已删除分组「{name}」', { name: group.label }))
     }
-    // 没有确认框（极端时序）时直接删：删分组不销毁任何菜单，是可撤销的低危操作
+    // no has （ when ） when ： not ， is can 
     if (ask) void ask({ title: t('删除分组'), text: message, okText: t('删除'), bodyClass: '' }).then(finish)
     else finish(true)
   }
@@ -294,14 +294,14 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     } else finish(true)
   }
 
-  /* ── 拖拽 ── */
+  /* ── ── */
 
   /**
-   * 开始拖动。用指针事件而不是 HTML5 拖放（理由见文件头）。
+   * 。 use not is HTML5 （ by file）。
    *
-   * 落点判定：菜单行优先（落在某一行上 = 插到它前 / 后），否则退到分组卡片
-   * （落在组头或组内空白 = 追加到该组末尾）。用 `elementFromPoint` 而不是
-   * 事件 target —— 拖动中指针下方是原节点自己，事件 target 不可靠。
+   * ：（ in 1 up = to before / after ），otherwise to 
+   * （ in or empty = to this ）。 use `elementFromPoint` not is 
+   * target —— in down is ， target not can 。
    */
   function startDrag(kind: 'group' | 'item', id: string, event: React.PointerEvent<HTMLElement>) {
     if (event.button !== 0) return
@@ -310,19 +310,19 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     dragRef.current = { kind, id }
     setDragId(id)
     document.body.classList.add('sc-dragging')
-    // 同步给源节点挂上「拖动中」的类，不等 React 重绘。
+    // to up 「 in 」 ， not etc React 。
     //
-    // 为什么必须同步：落点判定用 elementFromPoint，而指针底下压着的**正是源节点
-    // 自己** —— 它要是不吃指针事件（.sc-item.is-dragging / .sc-group.is-dragging
-    // 都是 pointer-events:none），elementFromPoint 永远返回它，落点算不出来，
-    // 拖动就成了「看着能拖、松手没反应」。setDragId 触发的重绘是异步的，
-    // 第一次 pointermove 很可能赶在重绘之前，所以这里直接改 DOM。
+    // Whymust： use elementFromPoint， down ** is 
+    // ** —— need is not （.sc-item.is-dragging / .sc-group.is-dragging
+    // is pointer-events:none），elementFromPoint return， not ，
+    // 「 can 、 no 」。setDragId is ，
+    // 1 pointermove can can in before ， this DOM。
     const source = event.currentTarget.closest<HTMLElement>(
       kind === 'group' ? '[data-sc-group]' : '[data-sc-item]',
     )
     source?.classList.add('is-dragging')
-    // 最新布局放 ref：拖动中每次重排都会换一份 layout，闭包捕获的是开始拖动
-    // 那一刻的旧值 —— 拿旧值算下标，第二下就落错位置。
+    // new ref： in will 1 layout， is 
+    // that 1 old —— old down ， down 。
     layoutRef.current = layout
 
     const onMove = (moveEvent: PointerEvent) => {
@@ -360,7 +360,7 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
         return
       }
 
-      // 不在任何行上：落到分组卡片就追加到该组末尾
+      // not in up ： to to this 
       const card = el.closest<HTMLElement>('[data-sc-group]')
       if (!card) return
       const gi = live.groups.findIndex(group => group.id === (card.dataset.scGroup || ''))
@@ -373,7 +373,7 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
       document.body.classList.remove('sc-dragging')
-      // 源节点可能已被重绘换掉，按选择器找当前那一个摘类（找不到也无所谓）
+      // can can already ， by current that 1 （ not to none）
       document.querySelectorAll('.is-dragging').forEach(node => node.classList.remove('is-dragging'))
       dragRef.current = null
       dragSessionRef.current = null
@@ -388,9 +388,9 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
   }
 
   /**
-   * 键盘排序：把手聚焦后 Alt+↑/↓ 移动一格，跨过组边界时落到相邻组。
-   * 不做这一条的话，「调整顺序」对只能键盘操作的用户就是不可用的 ——
-   * 而侧边栏顺序恰恰是这类偏好的典型场景。
+   * ： after Alt+↑/↓ 1 ， when to 。
+   * not this 1 ，「」 for can use is unavailable ——
+   * is this 。
    */
   function moveByKeyboard(kind: 'group' | 'item', id: string, up: boolean) {
     if (kind === 'group') {
@@ -414,7 +414,7 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     apply(api.moveItem(layout, id, toGi, toIndex))
   }
 
-  /* ── 视图 ── */
+  /* ── ── */
 
   return (
     <>
@@ -611,14 +611,14 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
   )
 }
 
-/* ─── 组头「＋」：把别的菜单移进这一组 ─────────── */
+/* ─── 「＋」： this 1 ─────────── */
 
 /**
- * 一个 Popover，列出「当前不在这一组」的菜单，并标出它们现在在哪一组。
+ * 1 Popover，「current not in this 1 」 ， and in in 1 。
  *
- * 为什么入口放在组头而不是每行一枚「移到分组」：13 个菜单每行再放一枚图标会挤，
- * 而「往这个组里加东西」本来就是组级的动作。拖拽也能做到同一件事，
- * 但拖动跨组需要先把目标组滚进视野，菜单多时并不好用 —— 两条路都留着。
+ * Why in not is 1 「 to 」：13 1 will ，
+ * 「 this 」 is 。 can to 1 ，
+ * need need ， when and not use —— 。
  */
 function GroupPicker({ layout, api, group, onPick }: {
   layout: Layout

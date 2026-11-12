@@ -6,7 +6,7 @@ import { RoutingLivePanel } from './routing-live-panel'
 import { RoutingSelect } from './routing-select'
 import { RouteIcon } from './routing-ui'
 
-/** 草稿也在服务端做纯预演；不触发真实请求、轮转或会话续期。 */
+/** in server； not request、 or will 。 */
 export function RoutingPreviewPanel({ model, group, profile, globalScope = false, onOpenScope }: {
   model: string; group?: RouteGroup; profile?: RouteProfile; globalScope?: boolean; onOpenScope(model: string): void
 }) {

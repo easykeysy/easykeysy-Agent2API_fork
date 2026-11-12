@@ -1,46 +1,46 @@
-//! 插件包的安装、校验与注册表。
+//! 、 and 。
 //!
-//! ── 信任链（顺序不能变）──────────────────────────────────────
-//!   1. **sha256**：zip 自身的摘要记进注册表，用于完整性复核（`InstalledPack::sha256`）。
-//!      它挡「文件传坏了」与「装完之后被换过」—— 校验在 [`verify_installed`]；
-//!   2. **协议版本**：`pack.json` 的 `protocol` 必须等于网关的
-//!      [`proto::PROTOCOL_VERSION`]。挡「版本不匹配」；
-//!   3. **签名**：`pack.json` 里带 `signature` 时做 ed25519 验签（公钥内置，
-//!      见 [`OFFICIAL_PUBKEYS`]）。验签覆盖的是**包内容**（见 [`signing_payload`]），
-//!      不是 zip 字节 —— zip 的压缩方式/时间戳可以变，内容才是要保护的东西。
+//! ── （ not can ）──────────────────────────────────────
+//! 1. **sha256**：zip need ，used for（`InstalledPack::sha256`）。
+//! 「file」 and 「 after 」—— in [`verify_installed`]；
+//! 2. ****：`pack.json` `protocol` must etc 
+//! [`proto::PROTOCOL_VERSION`]。「 not 」；
+//! 3. ****：`pack.json` `signature` when ed25519 （，
+//! [`OFFICIAL_PUBKEYS`]）。 is ****（ [`signing_payload`]），
+//! not is zip —— zip / when can ， is need 。
 //!
-//! 三步都过才允许落盘并登记。**未签名的包仍然允许安装**（第三方/自建包必须
-//! 有活路），但界面标黄 —— 与「官方签名 / 第三方未签名」的策略一致。带签名
-//! 却验不过的包**一律拒绝**：那说明包被改过，或者不是它自称的那个发布者。
+//! and 。** **（/must
+//! has ）， —— and 「 / 」 1 。
+//! not ** 1 **： that ，or not is that 。
 //!
-//! ── 公钥从哪来 ──────────────────────────────────────────────
-//! 编译期常量 [`OFFICIAL_PUBKEYS`]（十六进制 32 字节，可多条以便轮换）。
-//! 运行期不可改 —— 一个能被配置改掉的公钥等于没有签名。
+//! ── from ──────────────────────────────────────────────
+//! [`OFFICIAL_PUBKEYS`]（ 32 ， can ）。
+//! not can —— 1 can config etc no has 。
 //!
-//! ── 目录布局 ────────────────────────────────────────────────
+//! ── directory ────────────────────────────────────────────────
 //! ```text
 //! {config_dir}/plugins/
-//!   plugins.json              注册表（装了哪些、启停状态）
-//!   agent2api-providers/      包 id
-//!     0.1.0/                  版本目录（可并存多版本，便于回滚）
+//! plugins.json （、）
+//! agent2api-providers/ id
+//! 0.1.0/ directory（ can and ，）
 //!       pack.json
 //!       bin/providers.exe
-//!     current -> 0.1.0        当前版本（Windows 上是 current.txt）
+//! current -> 0.1.0 current（Windows up is current.txt）
 //! ```
 //!
-//! ── 为什么要版本目录而不是原地覆盖 ───────────────────────────
-//! 一个包升级失败时要能回滚。原地覆盖会让「新版本起不来」变成「这个功能
-//! 彻底没了」。多版本并存 + `current` 指针是 mihomo 内核那套已经在用的
-//! 形态（`sub_kernel::layout`），复用同一思路让排障心智一致。
+//! ── Why need directory not is ───────────────────────────
+//! 1 failure when need can 。 will 「 new not 」「 this can 
+//! no 」。 and + `current` is mihomo that already in use 
+//! （`sub_kernel::layout`）， use 1 1 。
 //!
-//! ── 安装从哪来（zip 上传）────────────────────────────────────
-//! 用户拿到的是各平台的 zip（`scripts/pack.mjs`（Agent2Providers 仓库） 产出，约 13MB）。
-//! [`install_zip`] 负责解包：先把整包解到**临时目录**，校验清单与入口，
-//! 全过了才 `rename` 进版本目录 —— 半成品包绝不会出现在 `plugins/` 里
-//! （否则 `bootstrap` 会去 spawn 一个不完整的二进制）。
+//! ── from （zip up ）────────────────────────────────────
+//! use to is zip（`scripts/pack.mjs`（Agent2Providers ） ， 13MB）。
+//! [`install_zip`] ： to ** when directory**， and ，
+//! `rename` directory —— not will in `plugins/` 
+//! （otherwise `bootstrap` will spawn 1 not ）。
 //!
-//! zip slip 在两道防线上各挡一次：解包时拒绝越界路径，校验清单时再拒一次
-//! 入口里的 `..`（见 [`validate_manifest`]）。
+//! zip slip in up 1 ： when path， when 1 
+//! `..`（ [`validate_manifest`]）。
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -54,50 +54,50 @@ use crate::server::logging;
 
 pub use super::pack_view::{list_packs, resolve_ui_file, PackProviderSummary, PackSummary, PackUiSummary};
 
-/// 官方发布者公钥表：`(key_id, 32 字节 ed25519 公钥的十六进制)`。
+/// ：`(key_id, 32 ed25519 )`。
 ///
-/// ── 为什么是编译期常量 ──────────────────────────────────────
-/// 一个能被配置改掉的公钥等于没有签名 —— 攻击者只要能改配置，就能换成自己的
-/// 公钥再签一个包。所以公钥只随**网关发版**更新，与插件包的发版节奏解耦。
+/// ── Why is ──────────────────────────────────────
+/// 1 can config etc no has —— need can config， can 
+/// 1 。****update， and 。
 ///
-/// ── 轮换怎么做 ──────────────────────────────────────────────
-/// 表里可以有多条：新密钥先加进来（旧包仍能验过），插件包重新签名后再删旧的。
-/// `key_id` 是给这件事用的标识，不是安全边界 —— 验签只认「表里有没有这把」。
+/// ── ──────────────────────────────────────────────
+/// can has ： new （ old can ）， new after old 。
+/// `key_id` is to this use ， not is —— 「 has no has this 」。
 ///
-/// ── 现在这一把是什么 ────────────────────────────────────────
-/// `official-2026`：2026-10 生成，私钥只存在发布方与插件仓库的 GitHub
-/// Actions secret（`AGENT2API_PLUGIN_KEY`）里，CI 打包后自动签名。
-/// 轮换时把新公钥加进来、等插件包全部重签后再删旧的。
+/// ── in this 1 is ────────────────────────────────────────
+/// `official-2026`：2026-10 ， in and GitHub
+/// Actions secret（`AGENT2API_PLUGIN_KEY`），CI after 。
+/// when new 、 etc after old 。
 pub const OFFICIAL_PUBKEYS: &[(&str, &str)] = &[(
     "official-2026",
     "7cdac378ff9bf23b72ae1b686f19859b3c802c26eed13c699f7df39f027352d6",
 )];
 
-/// 验签结果。
+/// 。
 ///
-/// 三态而不是 bool：`Unsigned`（没带签名）与 `Invalid`（带了但验不过）的处置
-/// 完全不同 —— 前者允许安装并标黄，后者必须拒绝。
+/// not is bool：`Unsigned`（ no ） and `Invalid`（ not ） 
+/// not —— before and ， after must。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SignatureState {
-    /// 包里带了适用于本平台的签名，且验签通过。
+    /// used for ， and 。
     Verified,
-    /// 包里没有适用于本平台的签名（未签名包，或签的是别的平台）。
+    /// no has used for （， or is ）。
     Unsigned,
-    /// 带了签名但验不过（算法不认识 / 公钥不在表里 / 签名不匹配）。
+    /// not （ not / not in / not ）。
     Invalid,
 }
 
 impl SignatureState {
-    /// 是否算「已签名」（界面展示用）。
+    /// is 「 already 」（ use ）。
     pub fn is_signed(self) -> bool {
         matches!(self, Self::Verified)
     }
 }
 
-/// 验一份包的签名。
+/// 1 。
 ///
-/// `dir` 是**已解包**的目录（要读入口二进制算 sha256），`target` 是当前平台。
-/// 返回 `(状态, 失败原因)` —— 原因只在 `Invalid` 时有值，用于安装失败的文案。
+/// `dir` is ** already ** directory（ need sha256），`target` is current。
+/// return `(, failureReason)` —— Reason in `Invalid` when has ，used forfailure 。
 pub fn verify_signature(
     dir: &Path,
     manifest: &proto::PackManifest,
@@ -106,8 +106,8 @@ pub fn verify_signature(
     let Some(signature) = manifest.signature.as_ref() else {
         return (SignatureState::Unsigned, None);
     };
-    // 签名绑定的平台与本平台不一致：当作「没有适用于本平台的签名」。
-    // 多平台包每个平台各签一份，只有匹配的那份能验 —— 见 signing_payload。
+    // and not 1 ：「 no has used for 」。
+    // 1 ， has that can —— signing_payload。
     if signature.target.as_deref() != Some(target) {
         return (SignatureState::Unsigned, None);
     }
@@ -130,7 +130,7 @@ pub fn verify_signature(
         );
     };
     let Some(public_bytes) = hex_to_32(public_hex) else {
-        // 表写错了（编译期常量，只有开发期能犯）：按验不过处理并留下明确原因
+        // （， has can ）： by not and down Reason
         return (
             SignatureState::Invalid,
             Some(format!("内置公钥 {} 的格式无效", signature.key_id)),
@@ -162,15 +162,15 @@ pub fn verify_signature(
     }
 }
 
-/// 收集包里 UI 资源的清单：`[(相对包根的 POSIX 路径, sha256), …]`，按路径排序。
+/// UI ：`[( for POSIX path, sha256), …]`， by path。
 ///
-/// ── 为什么验签要读 UI 资源 ──────────────────────────────────
-/// 插件页面由网关托管、跑在管理面板的 origin 下，能拿到面板令牌（等于能调
-/// 所有 protected API）。只签二进制的话，一个包可以带合法签名的 exe **加**
-/// 一个偷令牌的 js，验签照样通过 —— 那等于给了一条绕过签名的后门。
+/// ── Why need UI ──────────────────────────────────
+/// by 、 in origin down ， can to （ etc can 
+/// all protected API）。 ， 1 can exe ****
+/// 1 js， —— that etc to 1 after 。
 ///
-/// 判据与 `scripts/sign.mjs` 的 `collectUiFiles` 同源：只收 `ui/` 前缀下的
-/// 普通文件。路径分隔符统一成 `/`（Windows 上打的包要在 Linux 上验得过）。
+/// and `scripts/sign.mjs` `collectUiFiles` ： `ui/` before down 
+/// file。path 1 `/`（Windows up need in Linux up ）。
 fn collect_ui_files(dir: &Path) -> Vec<(String, String)> {
     let root = dir.join("ui");
     let mut files: Vec<(String, String)> = Vec::new();
@@ -179,7 +179,7 @@ fn collect_ui_files(dir: &Path) -> Vec<(String, String)> {
     files
 }
 
-/// 递归收集（目录不存在时什么都不做 —— 没有 UI 资源的包是正常形态）。
+/// （directory not in when not —— no has UI is ）。
 fn collect_ui_files_into(root: &Path, dir: &Path, out: &mut Vec<(String, String)>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -199,8 +199,8 @@ fn collect_ui_files_into(root: &Path, dir: &Path, out: &mut Vec<(String, String)
         let Some(relative) = path.strip_prefix(root.parent().unwrap_or(root)).ok() else {
             continue;
         };
-        // 统一成 POSIX 分隔符：签名载荷要求两边逐字节一致，而 Windows 上
-        // `Path::display()` 给的是反斜杠
+        // 1 POSIX ： need 1 ， Windows up 
+        // `Path::display()` to is 
         let name = relative
             .components()
             .map(|part| part.as_os_str().to_string_lossy().to_string())
@@ -210,7 +210,7 @@ fn collect_ui_files_into(root: &Path, dir: &Path, out: &mut Vec<(String, String)
     }
 }
 
-/// ed25519 验签（`Ok` 表示签名有效）。
+/// ed25519 （`Ok` valid）。
 fn verify_ed25519(public: &[u8; 32], message: &[u8], signature: &[u8]) -> bool {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
     let Ok(key) = VerifyingKey::from_bytes(public) else {
@@ -222,7 +222,7 @@ fn verify_ed25519(public: &[u8; 32], message: &[u8], signature: &[u8]) -> bool {
     key.verify(message, &signature).is_ok()
 }
 
-/// 十六进制（64 字符）→ 32 字节。
+/// （64 ）→ 32 。
 fn hex_to_32(text: &str) -> Option<[u8; 32]> {
     let text = text.trim();
     if text.len() != 64 {
@@ -236,7 +236,7 @@ fn hex_to_32(text: &str) -> Option<[u8; 32]> {
     Some(out)
 }
 
-/// 文件 sha256（十六进制小写）。读不到返回 None。
+/// file sha256（）。 not to return None。
 fn sha256_file(path: &Path) -> Option<String> {
     use sha2::{Digest, Sha256};
     let bytes = std::fs::read(path).ok()?;
@@ -251,31 +251,31 @@ fn sha256_file(path: &Path) -> Option<String> {
     )
 }
 
-/// 注册表里的一个包。
+/// 1 。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InstalledPack {
-    /// 包 id。
+    /// id。
     pub id: String,
-    /// 当前版本。
+    /// current。
     pub version: String,
-    /// 是否启用（用户可以在界面上关掉整个包）。
+    /// is enabled（ use can in up ）。
     #[serde(default = "yes")]
     pub enabled: bool,
-    /// 逐 provider 的启停（用户可以只关掉其中一家）。
+    /// provider （ use can its in 1 ）。
     #[serde(default)]
     pub providers: BTreeMap<String, bool>,
-    /// 入口二进制的相对路径（相对版本目录）。
+    /// for path（ for directory）。
     pub entry: String,
-    /// 包的 sha256（安装时算的，用于完整性复核）。
+    /// sha256（ when ，used for）。
     #[serde(default)]
     pub sha256: String,
-    /// 是否已签名并通过验签。
+    /// is already and 。
     #[serde(default)]
     pub signed: bool,
-    /// 安装时刻（毫秒）。
+    /// when （ms）。
     #[serde(default)]
     pub installed_at: i64,
-    /// 包清单里的 provider 列表（缓存，免得每次都读 pack.json）。
+    /// provider （， pack.json）。
     #[serde(default)]
     pub manifest_providers: Vec<proto::PackProvider>,
 }
@@ -284,30 +284,30 @@ fn yes() -> bool {
     true
 }
 
-/// 注册表文件（`plugins.json`）。
+/// file（`plugins.json`）。
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PackRegistry {
     #[serde(default)]
     pub packs: Vec<InstalledPack>,
 }
 
-/// 插件根目录。
+/// directory。
 pub fn plugins_dir() -> PathBuf {
     crate::paths::config_dir().join("plugins")
 }
 
-/// 注册表路径。
+/// path。
 pub fn registry_path() -> PathBuf {
     plugins_dir().join("plugins.json")
 }
 
 impl PackRegistry {
-    /// 读注册表（不存在 = 空表；损坏 = 空表并记日志）。
+    /// （ not in = empty； = empty and ）。
     ///
-    /// ── 为什么损坏不报错 ────────────────────────────────────────
-    /// 注册表是「装了什么」的缓存，真正的数据在版本目录里。读不出来时
-    /// 退化成空表，用户重新安装即可 —— 报错会让整个插件功能不可用，
-    /// 而它本来只是配置。
+    /// ── Why not ────────────────────────────────────────
+    /// is 「」 ， in directory。 not when 
+    /// empty， use new can —— will can unavailable，
+    /// is config。
     pub fn load() -> Self {
         let path = registry_path();
         let Ok(text) = std::fs::read_to_string(&path) else {
@@ -322,7 +322,7 @@ impl PackRegistry {
         }
     }
 
-    /// 写回注册表（原子替换）。
+    /// （）。
     pub fn save(&self) -> Result<(), String> {
         let path = registry_path();
         if let Some(parent) = path.parent() {
@@ -335,12 +335,12 @@ impl PackRegistry {
         std::fs::rename(&tmp, &path).map_err(|e| format!("替换注册表失败: {e}"))
     }
 
-    /// 找一个已启用的包。
+    /// 1 already enabled 。
     pub fn enabled(&self) -> Option<&InstalledPack> {
         self.packs.iter().find(|pack| pack.enabled)
     }
 
-    /// 某个 provider 是否由已启用的包提供。
+    /// provider is by already enabled 。
     pub fn provider_enabled(&self, provider: &str) -> bool {
         if crate::server::core::providers::availability::is_suspended(provider) { return false; }
         self.packs.iter().any(|pack| {
@@ -354,11 +354,11 @@ impl PackRegistry {
     }
 }
 
-/// 校验一份包清单。
+/// 1 。
 ///
-/// ── 返回的错误都要能直接显示给用户 ──────────────────────────
-/// 安装失败时界面就显示这句话。因此文案要说「为什么」与「怎么办」，
-/// 不要只说「校验失败」。
+/// ── return error need can to use ──────────────────────────
+/// failure when this 。 need 「Why」 and 「」，
+/// not need 「failure」。
 pub fn validate_manifest(manifest: &proto::PackManifest, host_protocol: u32) -> Result<(), String> {
     if manifest.protocol != host_protocol {
         return Err(format!(
@@ -375,13 +375,13 @@ pub fn validate_manifest(manifest: &proto::PackManifest, host_protocol: u32) -> 
     if manifest.entry.is_empty() {
         return Err("插件包没有声明入口二进制。".to_string());
     }
-    // 入口路径必须是相对路径且不越界（防 zip slip）
+    // pathmust is for path and not （ zip slip）
     for (target, entry) in &manifest.entry {
-        // ── 为什么两个方向都要判 ────────────────────────────────
-        // `Path::new(x).is_absolute()` 是**按当前平台**判的：Windows 上
-        // `/usr/bin/evil` 不算绝对路径（它没有盘符），但它在包里同样是
-        // 「指向包外」的危险写法。所以除了平台判定，还要显式拒绝以 `/`
-        // 或 `\` 开头的路径。
+        // ── Why to need ────────────────────────────────
+        // `Path::new(x).is_absolute()` is ** by current** ：Windows up 
+        // `/usr/bin/evil` not for path（ no has ）， in is 
+        // 「 to 」 。， need `/`
+        // or `\` path。
         let path = Path::new(entry);
         if path.is_absolute()
             || entry.starts_with('/')
@@ -397,9 +397,9 @@ pub fn validate_manifest(manifest: &proto::PackManifest, host_protocol: u32) -> 
     Ok(())
 }
 
-/// 为当前目标挑一个入口。
+/// as current 1 。
 pub fn entry_for_target(manifest: &proto::PackManifest, target: &str) -> Option<String> {
-    // 先精确匹配，再按「架构-系统」宽松匹配（不同打包工具的三元组写法不一致）
+    // ， by 「-」（ not not 1 ）
     if let Some(entry) = manifest.entry.get(target) {
         return Some(entry.clone());
     }
@@ -412,7 +412,7 @@ pub fn entry_for_target(manifest: &proto::PackManifest, target: &str) -> Option<
         .map(|(_, entry)| entry.clone())
 }
 
-/// 读一个版本目录里的 `pack.json`。
+/// 1 directory `pack.json`。
 pub fn read_manifest(dir: &Path) -> Result<proto::PackManifest, String> {
     let path = dir.join("pack.json");
     let text = std::fs::read_to_string(&path)
@@ -420,14 +420,14 @@ pub fn read_manifest(dir: &Path) -> Result<proto::PackManifest, String> {
     serde_json::from_str(&text).map_err(|e| format!("pack.json 不是合法 JSON: {e}"))
 }
 
-// ─── 安装 / 卸载 / 启停 ─────────────────────────────────────
+// ─── / / ─────────────────────────────────────
 
-/// 安装前先完成校验；宿主生命周期由调用方串行管理。
+/// before ； by use 。
 pub fn install_zip(bytes: &[u8]) -> Result<PackSummary, String> {
     super::packages::prepare(bytes, None, None, false)?.install()
 }
 
-/// 解 zip 到目标目录（拒绝越界路径）。
+/// zip to directory（path）。
 pub(super) fn extract_zip(bytes: &[u8], target: &Path) -> Result<(), String> {
     let reader = std::io::Cursor::new(bytes);
     let mut archive =
@@ -447,8 +447,8 @@ pub(super) fn extract_zip(bytes: &[u8], target: &Path) -> Result<(), String> {
         if expanded > 128 * 1024 * 1024 {
             return Err("插件包解压后超过 128 MB 上限".to_string());
         }
-        // `enclosed_name` 已经做了「不能越出解包目录」的判定（含 `..` 与
-        // 绝对路径两种形态）；返回 None 一律拒绝，不尝试修复路径
+        // `enclosed_name` already 「 not can directory」 （ `..` and 
+        // for path）；return None 1 ， not path
         let Some(relative) = file.enclosed_name() else {
             return Err(format!("包里有越界路径，已拒绝安装：{}", file.name()));
         };
@@ -465,7 +465,7 @@ pub(super) fn extract_zip(bytes: &[u8], target: &Path) -> Result<(), String> {
         let mut file_expanded = 0_u64;
         loop {
             let remaining = 128 * 1024 * 1024 - actual_expanded;
-            // 额度耗尽后仍读最多 1 字节，既区分真实 EOF，也让 zip 完成 CRC 校验。
+            // after 1 ， EOF， zip CRC 。
             let read_len = buffer.len().min((remaining + 1) as usize);
             let count = match file.read(&mut buffer[..read_len]) {
                 Ok(count) => count,
@@ -489,7 +489,7 @@ pub(super) fn extract_zip(bytes: &[u8], target: &Path) -> Result<(), String> {
         if file_expanded != declared_size {
             return Err("插件包条目实际解压尺寸与声明不一致".to_string());
         }
-        // Unix 上要保住可执行位（zip 的 external attributes 高 16 位是 mode）
+        // Unix up need can （zip external attributes 16 is mode）
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -501,31 +501,31 @@ pub(super) fn extract_zip(bytes: &[u8], target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// 目录改名的重试退避：三次，合计约 1.4 秒。
+/// directory ：， 1.4 seconds。
 ///
-/// ── 为什么是「重试」而不是「换个写法」──────────────────────────
-/// `MoveFileEx` 返回 `ERROR_ACCESS_DENIED`（os error 5）时，Windows 没有提供
-/// 「谁占着」的查询接口（`RestartManager` 能查，但要额外的 API 与权限，且对
-/// 杀软的内核回调无效）。而这里的占用**本来就是暂时的**：Defender 扫完就放。
-/// 于是重试是最直接的解法。
+/// ── Why is 「」 not is 「 」──────────────────────────
+/// `MoveFileEx` return `ERROR_ACCESS_DENIED`（os error 5） when ，Windows no has 
+/// 「」 （`RestartManager` can ， need API and ， and for 
+/// invalid）。 this use ** is when **：Defender 。
+/// is is 。
 const DIR_RETRY_DELAYS_MS: [u64; 3] = [80, 250, 1000];
 
-/// 目录改名，遇到「被占用」就退避重试。
+/// directory， to 「 use 」。
 pub(super) fn move_dir_retrying(from: &Path, to: &Path) -> std::io::Result<()> {
     retry_dir_op(|| std::fs::rename(from, to), from)
 }
 
-/// 删目录，遇到「被占用」就退避重试（同 [`move_dir_retrying`]）。
+/// directory， to 「 use 」（ [`move_dir_retrying`]）。
 pub(super) fn remove_dir_retrying(dir: &Path) -> std::io::Result<()> {
     retry_dir_op(|| std::fs::remove_dir_all(dir), dir)
 }
 
-/// 目录操作的统一重试壳。
+/// directory 1 。
 ///
-/// 只对「暂时性」错误重试：Windows 的 `PermissionDenied`（os error 5，杀软
-/// 扫描 / 索引服务占着）与 `ResourceBusy`。其余错误（路径不存在、磁盘满、
-/// 名字非法）立刻返回 —— 那些重试一万次也一样，只会把一次失败的安装拖成
-/// 十秒的等待。
+/// for 「 when 」error：Windows `PermissionDenied`（os error 5，
+/// / ） and `ResourceBusy`。 its error（path not in 、、
+/// ）return —— that 1 1 ， will 1 failure 
+/// seconds etc 。
 fn retry_dir_op<F>(mut op: F, subject: &Path) -> std::io::Result<()>
 where
     F: FnMut() -> std::io::Result<()>,
@@ -552,7 +552,7 @@ where
     Err(explain_dir_error(last, subject))
 }
 
-/// 这个 IO 错误值不值得重试（「暂时被占用」这一类）。
+/// this IO error not （「 when use 」 this 1 ）。
 fn is_transient_io_error(error: &std::io::Error) -> bool {
     matches!(
         error.kind(),
@@ -560,10 +560,10 @@ fn is_transient_io_error(error: &std::io::Error) -> bool {
     )
 }
 
-/// 给最终失败的目录错误补上可操作的说明。
+/// to failure directoryerror up can 。
 ///
-/// 原始的 `os error 5` 对用户没有信息量 —— 他不知道是杀软、是权限、还是
-/// 自己把配置目录设到了只读盘上。这里按 Windows 最常见的那个原因给出指引。
+/// `os error 5` for use no has —— not is 、 is 、 is 
+/// configdirectory to up 。 this by Windows that Reason to 。
 fn explain_dir_error(error: std::io::Error, subject: &Path) -> std::io::Error {
     if !is_transient_io_error(&error) {
         return error;
@@ -580,10 +580,10 @@ fn explain_dir_error(error: std::io::Error, subject: &Path) -> std::io::Error {
     )
 }
 
-/// 卸载一个包：删版本目录 + 从注册表移除。
+/// 1 ：directory + from 。
 ///
-/// 宿主进程由调用方（api 层）先关掉 —— 这里只动磁盘。Windows 上二进制被
-/// 占用时删不掉，那种情况返回明确错误（「请先停用插件再卸载」）。
+/// by use （api ） —— this 。Windows up 
+/// use when not ， that returnerror（「disabled」）。
 pub fn uninstall(id: &str) -> Result<(), String> {
     let mut registry = PackRegistry::load();
     let Some(index) = registry.packs.iter().position(|pack| pack.id == id) else {
@@ -592,7 +592,7 @@ pub fn uninstall(id: &str) -> Result<(), String> {
     let pack = registry.packs.remove(index);
     let dir = plugins_dir().join(&pack.id);
     if dir.exists() {
-        // 走重试版：卸载时同样会撞上杀软扫描（尤其是刚装完还没扫过的包）
+        // ： when will up （ its is no ）
         remove_dir_retrying(&dir).map_err(|e| {
             format!("删除包目录失败（{e}）：如果插件进程还在运行，请先停用插件再卸载")
         })?;
@@ -602,7 +602,7 @@ pub fn uninstall(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// 启用 / 停用整个包。
+/// enabled / disabled 。
 pub fn set_pack_enabled(id: &str, enabled: bool) -> Result<(), String> {
     let mut registry = PackRegistry::load();
     let Some(pack) = registry.packs.iter_mut().find(|pack| pack.id == id) else {
@@ -613,7 +613,7 @@ pub fn set_pack_enabled(id: &str, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// 启用 / 停用包内的某一家 provider。
+/// enabled / disabled 1 provider。
 pub fn set_provider_enabled(id: &str, provider: &str, enabled: bool) -> Result<(), String> {
     let mut registry = PackRegistry::load();
     let Some(pack) = registry.packs.iter_mut().find(|pack| pack.id == id) else {
@@ -631,7 +631,7 @@ pub fn set_provider_enabled(id: &str, provider: &str, enabled: bool) -> Result<(
     Ok(())
 }
 
-/// zip 字节的 sha256（十六进制小写）。
+/// zip sha256（）。
 pub(super) fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -692,17 +692,17 @@ mod tests {
         assert!(validate_manifest(&manifest(1), 1).is_ok());
     }
 
-    // ── 签名 ────────────────────────────────────────────────────
+    // ── ────────────────────────────────────────────────────
     //
-    // 这一组钉住的是「验签的判据」，不是「某个具体签名值」：
-    //   · 没有签名 → Unsigned（允许装，标黄）；
-    //   · 签名平台对不上 → Unsigned（多平台包每个平台各签一份）；
-    //   · 算法不认识 / 密钥不在表里 / 签名不匹配 → Invalid（拒绝装）。
+    // this 1 is 「 」， not is 「 」：
+    // · no has → Unsigned（，）；
+    // · for not up → Unsigned（ 1 ）；
+    // · not / not in / not → Invalid（）。
     //
-    // 用 `ed25519_dalek::SigningKey` 现生成一对密钥，而不是把测试向量写死：
-    // 写死的向量在依赖升级后会莫名其妙地失败，而这里要验的是逻辑。
+    // use `ed25519_dalek::SigningKey` 1 for ， not is to ：
+    // to in after will its failure， this need is 。
 
-    /// 造一个已解包的临时目录（入口二进制写几个字节）。
+    /// 1 already when directory（ ）。
     fn staged_dir(tag: &str, binary: &[u8]) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "a2a-sign-test-{tag}-{}",
@@ -723,7 +723,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// 签名绑定的平台与本平台不一致 → 当作未签名（不是无效）。
+    /// and not 1 → （ not is invalid）。
     #[test]
     fn signature_for_other_target_is_unsigned() {
         let dir = staged_dir("othertarget", b"binary");
@@ -771,10 +771,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// 载荷里必须含二进制摘要：改了二进制，同一份签名就验不过。
+    /// must need ：， 1 not 。
     ///
-    /// 这条是签名机制的核心断言 —— 少了它，签名只覆盖元数据，
-    /// 攻击者换掉 `bin/` 里的二进制而签名照样成立。
+    /// this is —— ，，
+    /// `bin/` 。
     #[test]
     fn payload_covers_binary_and_target() {
         let m = manifest(1);
@@ -787,8 +787,8 @@ mod tests {
         assert!(left.contains("binary=aaaa"));
     }
 
-    /// 完整的「签 → 验」往返：用同一对密钥签出的包必须验过，
-    /// 改一个字节的包必须验不过。
+    /// 「 → 」： use 1 for must，
+    /// 1 must not 。
     #[test]
     fn sign_and_verify_roundtrip() {
         use ed25519_dalek::{Signer, SigningKey};
@@ -813,8 +813,8 @@ mod tests {
             target: Some(target.into()),
         });
 
-        // 公钥表是编译期常量，测试里临时替换不了 —— 所以这里直接调
-        // verify_ed25519 验逻辑（表查找那一段由上面几条 Invalid 用例覆盖）
+        // is ， when not —— this 
+        // verify_ed25519 （ that 1 by up Invalid use ）
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(m.signature.as_ref().map(|s| s.value.clone()).unwrap_or_default())
             .expect("解 base64");
@@ -824,7 +824,7 @@ mod tests {
             &decoded
         ));
 
-        // 换一份内容（模拟包被改过）→ 必须验不过
+        // 1 （ ）→ must not 
         let tampered = proto::signing_payload(&m, target, "0000", &[]);
         assert!(!verify_ed25519(
             &hex_to_32(&public_hex).expect("公钥十六进制"),
@@ -834,7 +834,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// 十六进制解析：长度或字符不对都要返回 None（不 panic）。
+    /// ： or not for need return None（ not panic）。
     #[test]
     fn hex_parsing_rejects_bad_input() {
         assert!(hex_to_32("zz").is_none());

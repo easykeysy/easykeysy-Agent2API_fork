@@ -1,4 +1,4 @@
-//! 路由页的轻量指标与历史回放；按请求模型隔离，不把映射目标的其它请求混进来。
+//! by and ； by request， not its request。
 
 use rusqlite::params;
 use serde_json::{json, Value};

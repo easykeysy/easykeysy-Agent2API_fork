@@ -58,7 +58,7 @@ pub(crate) fn migrate(store: &AccountStore, expected: &str) -> Result<(), String
     global.disabled_providers.clear();
     global.excluded_accounts.clear();
     let serialized = serde_json::to_value(&profiles).map_err(|error| error.to_string())?;
-    // 账号禁用与旧名单清除必须一起提交，不能出现放开路由但尚未禁用账号的中间态。
+    // use and old must 1 ， not can by use in 。
     store.with_conn_mut(&guard, |conn| {
         let tx = conn.transaction()?;
         for account in &disabled { sql::update_in_place(&tx, account)?; }

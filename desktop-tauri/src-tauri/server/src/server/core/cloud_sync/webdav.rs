@@ -1,22 +1,22 @@
-//! WebDAV 传输原语：PROPFIND / MKCOL / PUT / GET。
+//! WebDAV ：PROPFIND / MKCOL / PUT / GET。
 //!
-//! 只做「把一个 URL 上的字节读出来 / 写进去」这一层，不知道 manifest、不知道
-//! 快照。协议层在 `super::mod`，两者分开的理由与 cc-switch 的
-//! `services/webdav.rs` / `services/webdav_sync.rs` 同源：传输可以单测（URL 编码、
-//! 状态码映射），协议层则不必重复处理 HTTP 细节。
+//! 「 1 URL up / 」 this 1 ， not manifest、 not 
+//! 。 in `super::mod`， by and cc-switch 
+//! `services/webdav.rs` / `services/webdav_sync.rs` ： can （URL 、
+//! ）， then not HTTP 。
 //!
-//! ── 出网线路 ────────────────────────────────────────────────
-//! 用 `egress::client_for(None)`（显式直连）还是跟随系统代理？**跟随系统代理**
-//! （`client_for_system_proxy`）：用户机器上能访问 Nextcloud / 坚果云的线路，
-//! 往往就配在系统代理里（浏览器能打开、程序直连不通是常见形态）。这与「登录
-//! 链路」同一取向 —— 云同步没有「账号级出口」这个概念，不该被转发链路的
-//! 「直连就是直连」纪律约束。
+//! ── ────────────────────────────────────────────────
+//! use `egress::client_for(None)`（） is ？****
+//! （`client_for_system_proxy`）： use up can Nextcloud / ，
+//! in （ can 、 not is ）。 this and 「
+//! 」 1 to —— no has 「」 this ， not this 
+//! 「 is 」。
 //!
-//! ── 超时 ────────────────────────────────────────────────────
-//! 传输层单独建 Client，不用 `egress` 的共享 Client：后者的 read_timeout 来自
-//! 「请求超时」设置（面向 SSE，可能被用户调成 600 秒），而云同步要的是
-//! 「连接 30 秒、整次传输 300 秒」这种一次性长任务的口径。建一个不缓存的
-//! Client 的代价（一次连接池）远小于把两套语义挤进一个实例。
+//! ── when ────────────────────────────────────────────────────
+//! Client， not use `egress` Client： after read_timeout 
+//! 「request when 」set（ to SSE， can can use 600 seconds）， need is 
+//! 「 30 seconds、 300 seconds」 this 1 。 1 not 
+//! Client （ 1 ） 1 。
 
 mod download;
 
@@ -25,13 +25,13 @@ use std::time::Duration;
 
 use reqwest::{Method, StatusCode, Url};
 
-/// 普通请求（PROPFIND / MKCOL）的超时
+/// request（PROPFIND / MKCOL） when 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
-/// 大文件传输（PUT / GET 快照）的超时。整次请求的总预算 —— 256MB 上限下，
-/// 300 秒意味着 0.85MB/s 的下限，家用宽带上足够。
+/// file（PUT / GET ） when 。request total —— 256MB limit down ，
+/// 300 seconds 0.85MB/s down ， use up 。
 const TRANSFER_TIMEOUT_SECS: u64 = 300;
 
-/// Basic Auth 的 `(用户名, 密码)`
+/// Basic Auth `( use , )`
 pub(crate) type WebDavAuth = Option<(String, Option<String>)>;
 
 fn method_propfind() -> Method {
@@ -42,9 +42,9 @@ fn method_mkcol() -> Method {
     Method::from_bytes(b"MKCOL").expect("MKCOL 是合法 HTTP 方法")
 }
 
-/// ── 自定义 User-Agent ───────────────────────────────────────
-/// 少数 WebDAV 服务（如中国科技云数据胶囊）把凭据绑到「应用类型」上，并按
-/// User-Agent 校验它；UA 不含该应用名就拒绝。`user_agent` 为空 = 不覆盖。
+/// ── User-Agent ───────────────────────────────────────
+/// WebDAV （ in ） to 「 use 」 up ， and by 
+/// User-Agent ；UA not this use 。`user_agent` as empty = not 。
 fn client(user_agent: &str) -> Result<reqwest::Client, String> {
     client_with_policy(reqwest::redirect::Policy::limited(10), user_agent)
 }
@@ -56,18 +56,18 @@ fn client_with_policy(
     let mut builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
         .redirect(policy);
-    // 只在用户填了才覆盖：空串会被当成「不发 UA」，反而不如默认值
+    // in use ：empty will 「 not UA」， not default
     let user_agent = user_agent.trim();
     if !user_agent.is_empty() {
         builder = builder.user_agent(user_agent.to_string());
     }
-    // 不设总超时（.timeout），按请求逐个设：PROPFIND 30 秒、传输 300 秒
+    // not total when （.timeout）， by request ：PROPFIND 30 seconds、 300 seconds
     builder
         .build()
         .map_err(|error| format!("创建 HTTP 客户端失败: {}", redact_detail(&error.to_string())))
 }
 
-/// 解析并校验 WebDAV 基地址（只认 http / https）。
+/// and WebDAV （ http / https）。
 pub(crate) fn parse_base_url(raw: &str) -> Result<Url, String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -80,7 +80,7 @@ pub(crate) fn parse_base_url(raw: &str) -> Result<Url, String> {
     }
 }
 
-/// 把基地址与路径段拼成完整 URL。每个段单独百分号编码（含空格与中文）。
+/// and path URL。 （empty and in ）。
 pub(crate) fn build_remote_url(base_url: &str, segments: &[String]) -> Result<String, String> {
     let mut url = parse_base_url(base_url)?;
     {
@@ -95,7 +95,7 @@ pub(crate) fn build_remote_url(base_url: &str, segments: &[String]) -> Result<St
     Ok(url.to_string())
 }
 
-/// 用户名 / 密码 → Basic Auth（用户名为空 = 不带认证，兼容匿名 WebDAV）
+/// use / → Basic Auth（ use as empty = not ， WebDAV）
 pub(crate) fn auth_from_credentials(username: &str, password: &str) -> WebDavAuth {
     let user = username.trim();
     if user.is_empty() {
@@ -114,8 +114,8 @@ fn apply_auth(
     }
 }
 
-/// 错误文案里**不能带凭据与查询串**：URL 可能内嵌 `user:pass@`，也可能带
-/// 签名参数。只保留 scheme + host + port + path。
+/// error** not can and **：URL can can `user:pass@`， can can 
+/// parameter。 scheme + host + port + path。
 pub(crate) fn redact_url(raw: &str) -> String {
     match Url::parse(raw) {
         Ok(parsed) => {
@@ -219,11 +219,11 @@ fn transport_error(op: &str, url: &str, error: &reqwest::Error) -> String {
     message
 }
 
-/// 测试连接：对基地址发 `PROPFIND Depth: 0`。
+/// ： for `PROPFIND Depth: 0`。
 ///
-/// 用 PROPFIND 而不是 HEAD：很多 WebDAV 服务对目录的 HEAD 返回 405，而
-/// PROPFIND 是 WebDAV 的「你好，这里有东西吗」，能同时验证「地址对」与
-/// 「这是 WebDAV 而不是普通静态站点」。
+/// use PROPFIND not is HEAD： WebDAV for directory HEAD return 405，
+/// PROPFIND is WebDAV 「， this has 」， can when 「 for 」 and 
+/// 「 this is WebDAV not is 」。
 pub(crate) async fn test_connection(
     base_url: &str,
     auth: &WebDavAuth,
@@ -247,12 +247,12 @@ pub(crate) async fn test_connection(
     Err(status_error("PROPFIND", response.status(), base_url))
 }
 
-/// 逐级创建远端目录（`MKCOL` 必须一级一级来）。
+/// createdirectory（`MKCOL` must 1 1 ）。
 ///
-/// ── 乐观创建 + 歧义回退 ────────────────────────────────────
-/// 直接 MKCOL 比「先 PROPFIND 再决定建不建」少一半往返。已存在时服务端回
-/// 405（METHOD_NOT_ALLOWED）或 409（CONFLICT），这两种都可能是「已存在」也
-/// 可能是「父目录不存在」，所以再补一次 PROPFIND 确认；确认存在就算成功。
+/// ── create + ────────────────────────────────────
+/// MKCOL 「 PROPFIND not 」 1 。 already in when server
+/// 405（METHOD_NOT_ALLOWED） or 409（CONFLICT）， this can can is 「 already in 」
+/// can can is 「directory not in 」， 1 PROPFIND ； in success。
 pub(crate) async fn ensure_remote_directories(
     base_url: &str,
     segments: &[String],
@@ -307,13 +307,13 @@ async fn propfind_exists(
     .await;
     match response {
         Ok(response) => Ok(response.status().is_success() || response.status() == StatusCode::MULTI_STATUS),
-        // 探测失败按「不存在」处理：调用方会给出 MKCOL 的原始错误（比这里
-        // 吞掉错误再报「目录不存在」更接近现场）
+        // failure by 「 not in 」： use will to MKCOL error（ this 
+        // error「directory not in 」）
         Err(_) => Ok(false),
     }
 }
 
-/// PUT 一个文件。
+/// PUT 1 file。
 pub(crate) async fn put_bytes(
     url: &str,
     auth: &WebDavAuth,
@@ -338,10 +338,10 @@ pub(crate) async fn put_bytes(
     Err(status_error("PUT", response.status(), url))
 }
 
-/// GET 一个文件；404 返回 `None`（「远端还没有这份数据」是正常状态，不是错误）。
+/// GET 1 file；404 return `None`（「 no has this 」 is ， not is error）。
 ///
-/// `max_bytes` 是**硬上限**：先看 `Content-Length`，再在流式读取时逐块累计 ——
-/// 只看头不够（服务端可以不发长度，或发一个假的），所以两道都做。
+/// `max_bytes` is **limit**： `Content-Length`， in when ——
+/// not （server can not ， or 1 ），。
 pub(crate) async fn get_bytes(
     url: &str,
     auth: &WebDavAuth,
@@ -351,8 +351,8 @@ pub(crate) async fn get_bytes(
     download::get_bytes(url, auth, max_bytes, user_agent).await
 }
 
-/// 删除一个文件（当前只在「上传失败后清理半截数据」之外使用；保留给将来的
-/// 「清空远端」按钮）。404 视为成功。
+/// delete 1 file（current in 「 up failure after 」 use ； to will 
+/// 「empty」 by ）。404 as success。
 #[allow(dead_code)]
 pub(crate) async fn delete(url: &str, auth: &WebDavAuth, user_agent: &str) -> Result<(), String> {
     let response = apply_auth(

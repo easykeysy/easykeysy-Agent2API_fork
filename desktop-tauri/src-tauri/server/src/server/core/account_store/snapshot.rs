@@ -63,7 +63,7 @@ impl AccountStore {
         let previous = cache.state.read().ok().and_then(|state| state.as_ref().map(|cached| {
             (cached.revision, cached.metadata, cached.data_version, cached.rows.clone())
         }));
-        // 连接锁只复制密文行；解密、规则推导和轻量投影全部在锁外执行。
+        // ；、 then and in 。
         let batch = db.with(|conn| -> rusqlite::Result<_> {
             let data_version: i64 = conn.pragma_query_value(None, "data_version", |row| row.get(0))?;
             let since = previous.as_ref().filter(|(_, old_metadata, old_version, _)| {
@@ -142,7 +142,7 @@ fn empty() -> Arc<RoutingSnapshot> {
     Arc::new(RoutingSnapshot::from_rows(&BTreeMap::new()))
 }
 
-// 复用各家公开投影的字段口径，只缓存选路和发送编排需要的部分。
+// use ， and need need 。
 fn route_account(account: &Value) -> Value {
     let mut public = Map::new();
     for key in [

@@ -38,16 +38,16 @@ async function prepareImage(file: File): Promise<string> {
   return encoded.length < raw.length ? encoded : raw
 }
 
-/** Windows 上 .json 的 MIME 经常为空，所以扩展名也认 */
+/** Windows up .json MIME as empty， */
 function isTextCredentialFile(file: File): boolean {
   return /\.(json|info)$/i.test(file.name) || file.type === 'application/json'
 }
 
 /**
- * 一次读取选中的图片与 JSON / .info 文件。
+ * 1 in and JSON / .info file。
  *
- * 与桌面端同一口径：图片按张数、文件按个数分别限额；文本文件读原文，二进制
- * 或空文件直接给出可读原因（不做静默丢弃）。
+ * and 1 ： by 、file by ；file，
+ * or emptyfile to can Reason（ not ）。
  */
 export async function readMobileAttachments(
   files: FileList | File[],

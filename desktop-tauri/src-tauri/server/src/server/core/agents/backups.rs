@@ -86,7 +86,7 @@ pub fn list(client: &str, path: &Path) -> Result<Vec<Backup>, String> {
             continue;
         }
         let id = name.trim_end_matches(".json");
-        // 旧版备份是未加密原文件，必须与新的事务备份分开。
+        // old is file，must and new 。
         if id.split('-').last().is_none_or(|part| part.len() != 16) {
             continue;
         }

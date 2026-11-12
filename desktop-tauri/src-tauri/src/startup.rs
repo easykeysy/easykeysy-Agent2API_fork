@@ -44,7 +44,7 @@ pub(crate) fn stop() {
     state().send_replace(StartupState::Stopped);
 }
 
-/// 只等待本进程的启动结果，不能把占用同一端口的其它服务当作已就绪。
+/// etc ， not can use 1 its already 。
 pub(crate) async fn wait() -> Result<(), String> {
     let mut receiver = state().subscribe();
     let result = tokio::time::timeout(Duration::from_secs(60), async {

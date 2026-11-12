@@ -16,12 +16,12 @@ import { t } from '../i18n'
 import { Button, Card, InputGroup, InputGroupAddon, InputGroupInput, InputGroupText, Label, Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, Switch as UiSwitch } from '@ui'
 
 /**
- * 定时任务。
+ * when 。
  *
- * 手机上以「只读 + 开关」为主：改间隔要填数字，窄屏上既费事又容易点错，
- * 收进抽屉且给了上下限提示。后端任务额外给「立即执行」。
+ * up 「 + 」 as ： need ， up ，
+ * and to up down 。 after to 「」。
  *
- * 与桌面端一致：签到是每天定点型，不在这张表里（它有自己的页）。
+ * and 1 ： to is ， not in this （ has ）。
  */
 export function TasksPage() {
   const [tasks, setTasks] = useState<ScheduledTask[] | null>(null)

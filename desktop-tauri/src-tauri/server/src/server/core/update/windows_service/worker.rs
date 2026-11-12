@@ -42,7 +42,7 @@ pub(super) fn launch(task: &ServiceUpdateTask, archive: &Path, token: Option<Str
     let worker_pid = child.id();
     let worker_started = control::process_started_at(&control::process(worker_pid)?)?;
     files::write_json(&run.join("process.json"), &json!({ "pid": worker_pid, "createdAt": worker_started }))?;
-    // 凭证只经继承的匿名管道传递，不进入命令行、日志或磁盘文件。
+    // ， not 、 or file。
     let mut input = child.stdin.take().ok_or_else(|| security::error("升级进程输入通道未就绪"))?;
     if let Err(error) = serde_json::to_writer(&mut input, &json!({ "githubToken": token }))
         .map_err(security::error).and_then(|_| input.flush().map_err(security::error))

@@ -13,15 +13,15 @@ export type RequestEntry = {
   clientReasoning?: string; upstreamReasoning?: string
   durationMs?: number; firstResponseMs?: number | null
   promptTokens?: number; completionTokens?: number; totalTokens?: number; cacheReadTokens?: number
-  /** 上游按请求上报的积分消耗（后端 `credit`）；null / 缺键 = 这一家没上报，
-   *  与 0（确实零消耗）是两件事 —— 前者显示「—」 */
+  /** up by request up （ after `credit`）；null / = this 1 no up ，
+   * and 0（） is —— before 「—」 */
   credit?: number | null
   attempts?: number; attemptDetails?: unknown[]; sensitiveHits?: unknown[]
-  /** 模型测试发起的请求（后端 `is_test`；此前落盘的老行没有这个键） */
+  /** request（ after `is_test`； before no has this ） */
   isTest?: boolean
   phase?: string; phaseElapsedMs?: number | null; phaseStartedAt?: number | null
-  /** 来源客户端（后端 `client`：入口按下游 User-Agent 分类的结果；
-   *  空串 / 缺键 = 没有记录 —— 旧行、模型测试、请求未带 UA 的行） */
+  /** client（ after `client`： by down User-Agent ；
+   * empty / = no has —— old 、、request UA ） */
   client?: string
   clientLabel?: string
   clientEvidence?: import('../../../../ui-shared/client-identification').ClientEvidence
@@ -38,9 +38,9 @@ function shared() {
   }
 }
 
-/* ─── 单元格读数 ───────────────────────────── */
+/* ─── ───────────────────────────── */
 
-/** 用时：秒以内给毫秒，分钟以上给分秒（与 OmniProxy 同一格式） */
+/** use when ：seconds to ms，minutes up to seconds（ and OmniProxy 1 ） */
 function formatDuration(ms: unknown): string {
   const rounded = Math.round(Number(ms) || 0)
   if (rounded < 1000) return `${rounded}ms`
@@ -51,27 +51,27 @@ function formatDuration(ms: unknown): string {
 }
 
 /**
- * 生成速度（tok/s）的悬停说明：口径与回落规则都在这里说清 —— 显示出来的数可能
- * 按流式段算、也可能按总用时算（回落），不说明白会让人拿它对不上别的工具。
+ * （tok/s） ： and then in this —— can can 
+ * by 、 can can by total use when （）， not will for not up 。
  */
 const SPEED_TIP = t('生成速度：输出 token ÷ 流式段用时（总用时 − 首响）；流式段不足总用时一半时按总用时计')
 
-/** 流式段的下界（毫秒）：低于它按总用时计，见 tokensPerSecond */
+/** down （ms）： by total use when ， tokensPerSecond */
 const STREAM_MS_FLOOR = 500
 
 /**
- * 生成速度（tok/s）：输出 token ÷ 流式段用时（总用时 − 首响）。
+ * （tok/s）： token ÷ use when （total use when − ）。
  *
- * 分母刻意**不含**「等首帧」的时间 —— 那段若是模型的静默思考（首帧前上游一字节
- * 不发），算进去会把生成速度压得明显偏低。但反过来，流式段只是一条**短尾巴**时
- * 也不能按它算：思考型上游常常整段思考都不发帧，token 在首帧后的一个小窗口里
- * 一股脑到达（上游缓冲、聚合路径、隐藏思考都是这个形态），486 token ÷ 0.6 秒
- * 窗口能算出 800+ tok/s 的假速度 —— 那测的是「下发得快」，不是「生成得快」。
- * 所以护栏两条，不满足就回落按总用时计（宁可给保守的平均速度，不给天文数字）：
- *   · 流式段 ≥ STREAM_MS_FLOOR（非流式响应 duration ≈ 首响，分母趋零）；
- *   · 流式段 ≥ 总用时的一半（内容段要撑得起请求，短尾窗口的读数不可信）。
- * 输出 / 总用时为 0（失败行 token 清零、旧行）→ 空串，调用方整行省掉。
- * 进行中行没有 completionTokens（收尾才记账），自然走空串 —— 速度只有终态行才有。
+ * ** not **「 etc 」 when —— that if is （ before up 1 
+ * not ）， will 。， is 1 **** when 
+ * not can by ： up not ，token in after 1 
+ * 1 to （ up 、path、 is this ），486 token ÷ 0.6 seconds
+ * can 800+ tok/s —— that is 「 down 」， not is 「」。
+ * ， not by total use when （ can to ， not to ）：
+ * · ≥ STREAM_MS_FLOOR（response duration ≈ ，）；
+ * · ≥ total use when 1 （ need request， not can ）。
+ * / total use when as 0（failure token 、 old ）→ empty， use 。
+ * in no has completionTokens（），empty —— has has 。
  */
 function tokensPerSecond(entry: RequestEntry): string {
   const tokens = Number(entry.completionTokens) || 0
@@ -85,8 +85,8 @@ function tokensPerSecond(entry: RequestEntry): string {
 }
 
 /**
- * 首响：上游首帧到达相对请求开始的耗时（OmniProxy 的 ttfb 同义）。null（旧数据没有该字段 /
- * 请求在首帧之前就失败）显示「-」—— 走 formatDuration 会把 null 算成 0ms，假数字比空占位更糟。
+ * ： up to for request when （OmniProxy ttfb ）。null（ old no has this /
+ * request in before failure）「-」—— formatDuration will null 0ms，empty。
  */
 function formatFirstResponse(ms: unknown): string {
   const value = Number(ms)
@@ -94,22 +94,22 @@ function formatFirstResponse(ms: unknown): string {
   return formatDuration(value)
 }
 
-/** 用量读数：量级词与分档交给 units.js 的 formatTokens（与报表页 / 账号页同一口径，
- *  中文「万 / 亿」与英文「k / M」的切换在那边一处）；桥不在位时退回精确千分位 */
+/** usage： and to units.js formatTokens（ and / 1 ，
+ * in 「 / 」 and 「k / M」 in that 1 ）； not in when */
 function formatTokens(value: unknown): string {
   return shared().wbUnits?.formatTokens?.(value) ?? (Number(value) || 0).toLocaleString('zh-CN')
 }
 
 /**
- * 进行中行的「已用时」：now - ts 取整秒（进行中不足 1 秒也显示 1 秒 —— 「0秒」读起来像没动）。
- * 1 秒轮询每拍重绘，这个数自然一秒一跳。
+ * in 「 already use when 」：now - ts seconds（ in not 1 seconds 1 seconds —— 「0seconds」 no ）。
+ * 1 seconds， this 1 seconds 1 。
  */
 function formatElapsed(ts: unknown): string {
   const elapsed = Math.max(0, Date.now() - (Number(ts) || 0))
   return t('{n}秒', { n: Math.max(1, Math.floor(elapsed / 1000)) })
 }
 
-/** 缓存命中率：命中读取 / 输入，分母为 0 时无意义，给「-」 */
+/** in ： in / ， as 0 when none， to 「-」 */
 function cacheRate(entry: RequestEntry): string {
   const prompt = Number(entry.promptTokens) || 0
   if (prompt <= 0) return '-'
@@ -117,9 +117,9 @@ function cacheRate(entry: RequestEntry): string {
 }
 
 /**
- * 成功口径与后端 `RequestEntry::is_success` 逐字对齐：2xx **且**没有错误摘要。流式请求的
- * HTTP 200 在响应头阶段就发出去了，之后的上游断流 / 错误帧只能靠 error 表达 —— 只按状态码判
- * 会把这类失败画成绿色，与后端筛选（status=ok/error）、报表成功率对不上账。
+ * success and after `RequestEntry::is_success` for ：2xx ** and ** no has error need 。request 
+ * HTTP 200 in response， after up / error can error —— by 
+ * will this failure， and after （status=ok/error）、success for not up 。
  */
 export function isOk(entry: RequestEntry): boolean {
   const status = Number(entry.status) || 0
@@ -127,21 +127,21 @@ export function isOk(entry: RequestEntry): boolean {
 }
 
 /**
- * 是否「仍在转发中」：后端契约是 status=0 且没有错误摘要 —— status=0 却带摘要的行是旧口径里
- * 「还没发出请求就失败」的历史数据，仍按失败渲染（那次失败已经落定，不该被画成还在跑）。
+ * is 「 in in 」： after is status=0 and no has error need —— status=0 need is old 
+ * 「 no requestfailure」 ， by failure（ that failure already ， not this in ）。
  */
 export function isRunning(entry: RequestEntry): boolean {
   return (Number(entry?.status) || 0) === 0 && !entry?.error
 }
 
 /**
- * 一行请求在 DOM 里的身份键（悬停面板反查数据用）：优先 id（调试模式下与报文同键、天然唯一），
- * 没有 id 的旧行退回 ts；两者都缺给空串 —— 标签仍会渲染（面板给「未采集」的兜底文案），只是
- * 反查不到数据，比不渲染更不容易让人以为界面坏了。
+ * 1 request in DOM （ use ）： id（ down and 、 1 ），
+ * no has id old ts； to empty —— will （ to 「」 ）， is 
+ * not to ， not not as 。
  */
 const rowKey = (entry: RequestEntry): string => String(entry?.id || entry?.ts || '')
 
-/** 这条请求里所有尝试明细的内部重试总次数（没有明细时为 0） */
+/** this requestall total（ no has when as 0） */
 function countRetries(entry: RequestEntry): number {
   const details = Array.isArray(entry?.attemptDetails) ? entry.attemptDetails : []
   return details.reduce<number>((sum, item) => {
@@ -150,12 +150,12 @@ function countRetries(entry: RequestEntry): number {
   }, 0)
 }
 
-/** 提供商展示名：providers.js 目录（注册名）→ 查词典 → 原样回显 id（行内那一列还优先用后端给的 providerLabel） */
+/** ：providers.js directory（）→ → id（ that 1 use after to providerLabel） */
 export function providerLabelOf(id: string): string {
   return t(shared().wbProviders?.labelOf?.(id) || id)
 }
 
-/** 行 key 的去重：ts 在同一毫秒可能重复（并发请求），重复的补一个序号后缀，避免 React 报重复 key */
+/** key ：ts in 1 ms can can （ and request）， 1 after ， React key */
 export function uniqueRowKeys(rows: RequestEntry[]): string[] {
   const seen = new Set<string>()
   return rows.map((entry, index) => {
@@ -168,11 +168,11 @@ export function uniqueRowKeys(rows: RequestEntry[]): string[] {
   })
 }
 
-/* ─── 单元格渲染 ───────────────────────────── */
+/* ─── ───────────────────────────── */
 
 /**
- * 进行中行的「首响」次行：**有值才渲染**（空串 = 首帧还没到，整行省掉）。与收尾行的写法只差
- * 这一层判断：那边缺失等于「全程没有帧到达」= 失败，用「-」兜住；进行中的缺失只是「还没到」。
+ * in 「」：** has **（empty = no to ，）。 and 
+ * this 1 ： that etc 「 no has to 」= failure， use 「-」； in is 「 no to 」。
  */
 function runningFirstLine(entry: RequestEntry): React.ReactNode {
   const value = Number(entry.firstResponseMs)
@@ -185,11 +185,11 @@ function runningFirstLine(entry: RequestEntry): React.ReactNode {
 }
 
 /**
- * 一个数据单元格（网格项，带 .req-xxx 列类名与 ta-* 对齐类）。
+ * 1 （， .req-xxx and ta-* for ）。
  *
- * 按列 key 建表而不是在行内联九个分支：行只回答「按哪些列、什么顺序」，「某一格长什么样」只有
- * 一处实现 —— 列设置重排时才不会各画一个样。类名与旧实现的产出逐字一致（CSS 与窄窗口重排都按
- * 这些类名走），空态占位的类名也照旧（重试列空时只有 .req-none，没有 .req-retry）。
+ * by key not is in ：「 by 、」，「 1 」 has 
+ * 1 —— set when not will 1 。 and old 1 （CSS and by 
+ * this ），empty old （empty when has .req-none， no has .req-retry）。
  */
 export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntry; column: VisibleColumn; namesHidden: boolean }): React.ReactNode {
   const { align, key } = column
@@ -201,7 +201,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       if (!entry.ts) return <span key={key} className={className}>—</span>
       const d = new Date(entry.ts)
       const pad = (n: number) => String(n).padStart(2, '0')
-      // 明细跨天（最多 30 天），日期与时刻分两行，月日必不可少
+      // （ 30 ）， and when ， not can 
       return (
         <span key={key} className={className}>
           <span>{`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`}</span>
@@ -213,9 +213,9 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
     case 'target': {
       const id = String(entry.provider ?? '').trim()
       const fromBackend = String(entry.providerLabel ?? '').trim()
-      // 后端给的是注册名（「WorkBuddy 国内版」这类），与目录侧一样要过一遍词典
+      // after to is （「WorkBuddy 」 this ）， and directory 1 need 1 
       const provider = fromBackend ? t(fromBackend) : (id ? providerLabelOf(id) : '')
-      // 账号为空 = 请求在选定账号之前就失败了（后端契约：无账号时给空串），显式给破折号而不是留空
+      // as empty = request in before failure（ after ：none when to empty）， to not is empty
       return (
         <span key={key} className={className}>
           {provider ? (
@@ -243,35 +243,35 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       const attempts = Number(entry.attempts) || 1
       const identity = rowKey(entry)
       const tags: React.ReactNode[] = []
-      // 「测试」标记：这一行是模型管理页操作列那颗「测试」发起的（后端 `is_test`）。它与另外两枚
-      // 标签不同 —— **不是**悬停面板的锚点，只是一枚事实标签（brand 档，与模型表的「远程」同义），
-      // 所以不用 render 成 button。它进标签列而不是另开一列：它回答的正是「这一行是什么性质」，
-      // 与「重试 / 敏」同一类读数，而这张表的列是列设置里可拖的固定集合，为一个布尔值加一列不划算
+      // 「」： this 1 is that 「」 （ after `is_test`）。 and 
+      // not —— ** not is ** ， is 1 （brand ， and 「」），
+      // not use render button。 not is 1 ： is 「 this 1 is 」，
+      // and 「 / 」 1 ， this is set can ， as 1 1 not 
       if (entry.isTest) {
         tags.push(
           <Badge key='test' variant='brand' shape='tag'
             title={t('面板内发起的模型调用，消耗额度并记录 Key，不计入生产报表')}>{clientRequestLabel(entry)}</Badge>,
         )
       }
-      // 判据交给悬停面板模块（它要读明细内部字段）；兜底成 attempts > 1：模块没就绪时至少换过
-      // 号的请求仍能显示标签，而不是整列静默变空
+      // to （ need ）； attempts > 1： no when 
+      // request can ， not is empty
       const showChain = shared().wbRequestHover?.hasProcessFacts?.(entry) ?? attempts > 1
       if (showChain) {
         const count = attempts > 1 ? attempts : countRetries(entry)
         tags.push(
-          // Badge 借 render 渲染成**真 button**：悬停面板的委托按 `[data-req-hover]` 找锚点、
-          // 键盘可达靠 focusin 委托，span 两样都给不了。事件与 data-* 由 Base UI 合并到这颗
-          // button 上（不是覆盖），观感则回到组件库的语义档（原来手写的 `warn` 即 warning）
+          // Badge render ** button**： by `[data-req-hover]` 、
+          // can focusin ，span to not 。 and data-* by Base UI and to this 
+          // button up （ not is ）， then to （ `warn` warning）
           <Badge key='chain' variant='warning' shape='tag' render={<Button size='default' variant='ghost' type='button' />}
             className='req-hover-tag' data-req-hover='chain' data-req-id={identity}>
             {count > 1 ? t('重试 {n}', { n: count }) : t('重试')}
           </Badge>,
         )
       }
-      // 敏感词命中：判据是「命中表非空」。标签只写一个「敏」字（这一列只有 52px，三个字会把
-      // 标签撑得比「重试 N」还宽）；完整含义交给悬停面板，aria-label 补上完整说法。
-      // 紫色档（sensitive）是这次给组件库补的：它既不是「失败」也不是「国际版」，
-      // 是第三类事实；详情弹窗的展开形态读的是同一档，两处不会再有色差
+      // in ： is 「 in empty」。 1 「」（ this 1 has 52px， will 
+      // 「 N」）； to ，aria-label up 。
+      // （sensitive） is this to ： not is 「failure」 not is 「」，
+      // is ； is 1 ， not will has 
       if (Array.isArray(entry.sensitiveHits) && entry.sensitiveHits.length) {
         tags.push(
           <Badge key='sensitive' variant='sensitive' shape='tag' render={<Button size='default' variant='ghost' type='button' />}
@@ -286,7 +286,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
     case 'status': {
       if (isRunning(entry)) {
         const phase = window.wbRequestPhase
-        // 阶段模块没就绪（加载顺序是硬要求，但真出问题时这一格不该空着）：回落成改造前的静态徽章
+        // no （ is need ， when this 1 not this empty）： before 
         if (!phase?.badgeHtml) {
           return (
             <span key={key} className={className}>
@@ -301,7 +301,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
         const elapsed = phase.elapsedLineHtml?.(entry) ?? ''
         return (
           <span key={key} className={className}>
-            {/* 徽章与阶段计时都由 wbRequestPhase 产出 HTML（详情弹窗读同一份，两处必须逐字一致） */}
+            {/* and when by wbRequestPhase HTML（ 1 ，must 1 ） */}
             <HtmlContent className='req-status-badge' html={phase.badgeHtml(entry)} render={<span />} />
             {elapsed ? <HtmlContent className='req-status-line' html={elapsed} render={<span />} /> : null}
           </span>
@@ -309,7 +309,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       }
       const status = Number(entry.status) || 0
       const ok = isOk(entry)
-      // 走到这里 status=0 的只剩「还没发出请求就失败」的历史行：写 0 会被读成 HTTP 状态码，退成「失败」
+      // to this status=0 「 no requestfailure」 ： 0 will HTTP ，「failure」
       const title = !ok && status >= 200 && status < 300
         ? t('HTTP {status}，但响应体阶段出错：见错误列', { status })
         : undefined
@@ -329,7 +329,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       const clientLevel = String(entry.clientReasoning ?? '').trim()
       const upstreamLevel = String(entry.upstreamReasoning ?? '').trim()
       const tag = (name: string, level: string) => (level ? `${name}(${level})` : name)
-      // 转发名与请求名一致（绝大多数请求）→ 单行；不一致（映射 / 备援改写发生过）→ 两行
+      // and request 1 （request）→ ； not 1 （ / ）→ 
       if (!client || !upstream || upstream.toLowerCase() === client.toLowerCase()) {
         const text = tag(shown, upstreamLevel || clientLevel)
         return <span key={key} className={className} title={text}>{text || '—'}</span>
@@ -359,7 +359,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
 
     case 'dur': {
       if (isRunning(entry)) {
-        // 进行中行没有 durationMs（收尾才记账）：主行显示已用时（每拍轮询在走）
+        // in no has durationMs（）： already use when （ in ）
         return (
           <span key={key} className={className}>
             <span className='req-dur-line' title={t('已用时（请求仍在转发中）')}>{formatElapsed(entry.ts)}</span>
@@ -384,11 +384,11 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
     }
 
     case 'credit': {
-      // 进行中：积分要等上游最后一个 chunk 的 usage 才到，此刻没有读数可给
-      // （与「用量」列同一处置：留空比「-」更准确）。
+      // in ： need etc up after 1 chunk usage to ， no has can to 
+      // （ and 「usage」 1 ：empty「-」）。
       if (isRunning(entry)) return <span key={key} className={className} />
-      // 失败请求不记录用量（后端 normalize 已把 credit 清成 None）：这里与
-      // 「用量」列用同一句说明，避免把「失败清零」误读成「这一家没上报」。
+      // failurerequest not usage（ after normalize already credit None）： this and 
+      // 「usage」 use 1 ， 「failure」「 this 1 no up 」。
       if (!isOk(entry)) {
         return <span key={key} className={`${className} is-empty`} title={t('失败请求不记录用量')}>—</span>
       }
@@ -407,9 +407,9 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
     }
 
     case 'usage': {
-      // 进行中：用量要等收尾才记账，此刻没有任何读数可给 —— 留空比「-」更准确
+      // in ：usage need etc ， no has can to —— empty「-」
       if (isRunning(entry)) return <span key={key} className={className} />
-      // 失败请求的 token 由后端一律清零，写「0」会让人以为真的消耗了这些量
+      // failurerequest token by after 1 ，「0」 will as this 
       if (!isOk(entry)) {
         return (
           <span key={key} className={className} title={t('失败请求不记录用量')}>
@@ -431,7 +431,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
     }
 
     case 'error': {
-      // 进行中行例外：错误还没有发生，留空 —— 「-」会说成「没出错」，留空才是「还没到有错误的时刻」
+      // in ：error no has ，empty —— 「-」 will 「 no 」，empty is 「 no to has error when 」
       if (isRunning(entry)) return <span key={key} className={className} />
       if (entry.error) {
         return <span key={key} className={className} title={String(entry.error)}>{String(entry.error)}</span>
@@ -455,7 +455,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
   }
 }
 
-/** 表头：按可见列逐格产出，顺序与数据行逐格一致（两处都走 visibleColumns） */
+/** ： by can ， and 1 （ visibleColumns） */
 export function headRow(columns: VisibleColumn[], namesHidden: boolean): React.ReactNode {
   return (
     <div className='req-head' key='__head'>

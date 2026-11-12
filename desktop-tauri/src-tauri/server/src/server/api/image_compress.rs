@@ -1,23 +1,23 @@
-//! 会话图片压缩设置：`GET/PUT /api/image-compress`。
+//! will set：`GET/PUT /api/image-compress`。
 //!
-//! ── 这条设置管什么 ──────────────────────────────────────────
-//! 转发前把对话请求体里**内嵌的 base64 大图**缩到长边上限并重编码成 JPEG，
-//! 既缩小请求体、也降低按像素折算的上游 token 计费；同一张原图在多轮里重复
-//! 出现时复用缓存结果（见 [`crate::server::core::upstream::image_compress`]）。
+//! ── this set ──────────────────────────────────────────
+//! before for request** base64 ** to limit and JPEG，
+//! request、 by up token ； 1 in 
+//! when use （ [`crate::server::core::upstream::image_compress`]）。
 //!
-//!   - `imageCompressEnabled`：总开关（默认**开**，见 `config::KEY_IMAGE_COMPRESS_ENABLED`）；
-//!   - `imageCompressMaxEdge`：长边像素上限（默认 2048，合法 256~8192）；
-//!   - `imageCompressQuality`：JPEG 质量（默认 80，合法 40~95）；
-//!   - `imageCompressThresholdKb`：触发阈值 KB（默认 512，合法 0~10240）。
+//! - `imageCompressEnabled`：total（default****， `config::KEY_IMAGE_COMPRESS_ENABLED`）；
+//! - `imageCompressMaxEdge`：limit（default 2048， 256~8192）；
+//! - `imageCompressQuality`：JPEG （default 80， 40~95）；
+//! - `imageCompressThresholdKb`： KB（default 512， 0~10240）。
 //!
-//! ── 只作用在对话场景 ────────────────────────────────────────
-//! 实施点在 `core::upstream::payload::send_body`：生图 / 图片编辑走独立分支、
-//! 在该函数开头就返回，天然不经过压缩。所以这条设置**不会**影响生图。
+//! ── use in for ────────────────────────────────────────
+//! in `core::upstream::payload::send_body`： / 、
+//! in this return， not 。 this set** not will **。
 //!
-//! ── 形状与 /api/auto-continue 同一族 ────────────────────────
-//! 一个布尔开关 + 若干有界整数、GET 读 / PUT 写（允许部分字段）、响应体就是
-//! 新状态、挂 protected（改的是发给上游的字节）。保存后对下一个请求立即生效
-//! （转发层逐请求读内存快照），不重启进程。
+//! ── and /api/auto-continue 1 ────────────────────────
+//! 1 + if has 、GET / PUT （）、response is 
+//! new 、 protected（ is to up ）。 after for down 1 request
+//! （request）， not 。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -36,16 +36,16 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// GET /api/image-compress —— 当前开关与三项参数
+/// GET /api/image-compress —— current and parameter
 pub async fn get_image_compress(State(_state): State<ServerState>) -> Response {
     ok_json(state_json(config::image_compress_settings()))
 }
 
 /// PUT /api/image-compress —— body `{imageCompressEnabled?, imageCompressMaxEdge?, …}`
 ///
-/// 四项各自独立（缺省项不动），全部校验通过才落盘（与 `put_auto_continue` /
-/// `put_retry` 同一顺序），避免出现「开关开了、参数没改」的半套设置。写配置后
-/// 下一个请求立即生效。
+/// （ not ），（ and `put_auto_continue` /
+/// `put_retry` 1 ），「、parameter no 」 set。config after 
+/// down 1 request。
 pub async fn put_image_compress(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -59,7 +59,7 @@ pub async fn put_image_compress(State(_state): State<ServerState>, body: Bytes) 
         Err(message) => return errors::management_error(400, message),
     };
     if patch == ImageCompressPatch::default() {
-        // 一项都没给：不写盘、不记日志，直接把当前状态原样回给调用方
+        // 1 no to ： not 、 not ， current to use 
         return ok_json(state_json(config::image_compress_settings()));
     }
     if !config::set_image_compress(patch) {
@@ -69,12 +69,12 @@ pub async fn put_image_compress(State(_state): State<ServerState>, body: Bytes) 
     ok_json(state_json(config::image_compress_settings()))
 }
 
-/// 请求体 → 部分更新入参（`Err` 的文本就是 400 的文案）。
+/// request → update（`Err` is 400 ）。
 ///
-/// 抽成纯函数以便单测（与 `api::auto_continue::patch_from` 同一手法）：
-/// 判据要能被钉住，而 handler 需要的 `ServerState` 驱动不了。
+/// （ and `api::auto_continue::patch_from` 1 ）：
+/// need can ， handler need need `ServerState` not 。
 ///
-/// `null` 一律当类型不符（本 PUT 没有「删掉这一项」的语义，缺项即「不动」）。
+/// `null` 1 not （ PUT no has 「 this 1 」 ，「 not 」）。
 fn patch_from(object: &Map<String, Value>) -> Result<ImageCompressPatch, String> {
     let mut patch = ImageCompressPatch::default();
     if let Some(value) = object.get(KEY_IMAGE_COMPRESS_ENABLED) {
@@ -114,8 +114,8 @@ fn patch_from(object: &Map<String, Value>) -> Result<ImageCompressPatch, String>
     Ok(patch)
 }
 
-/// 这次改动的一句话记录（进事件日志）。只写**动过的那几项**，便于事后追问
-/// 「谁把阈值从 512 改成 1024 的」。
+/// this 1 （）。** that **， after 
+/// 「 from 512 1024 」。
 fn change_note(patch: &ImageCompressPatch) -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Some(enabled) = patch.enabled {
@@ -141,7 +141,7 @@ fn change_note(patch: &ImageCompressPatch) -> String {
     }
 }
 
-/// 四项的响应体（GET 与 PUT 共用；键名对前端是契约）
+/// response（GET and PUT use ； for before is ）
 fn state_json(settings: ImageCompressSettings) -> Value {
     json!({
         KEY_IMAGE_COMPRESS_ENABLED: settings.enabled,

@@ -1,14 +1,14 @@
 /**
- * Agent2API · 「登录 / 添加账号」弹窗里各家的表单配置（数据层，无 JSX）。
+ * Agent2API · 「 / 」 config（，none JSX）。
  *
- * 逐字合并旧实现的三份来源：add-provider-forms.js 的 ADD_FORMS、以及
- * add-qoder.js / add-cline.js / add-accio.js / add-zcode.js 四份**纯常量**配置
- * （它们各自是独立文件、注册到 window 上，只被 add-provider-forms.js 读 ——
- * 迁到岛上后同一份数据在一个模块里更省事，因此不再挂 window，见最终报告）。
+ * and old ：add-provider-forms.js ADD_FORMS、 and 
+ * add-qoder.js / add-cline.js / add-accio.js / add-zcode.js ****config
+ * （ is file、 to window up ， add-provider-forms.js ——
+ * to up after 1 in 1 ， not window，）。
  *
- * 文案、字段名、上限、方法与裁剪规则都逐字保留：这些是能跑通上游的既有实现，
- * 迁的只是界面外壳。WorkBuddy 不在这张表里 —— 它的块结构特殊（账号版本 +
- * 打开方式 + 第三方入口开关），单独一个组件，见 add-provider-blocks.tsx。
+ * 、、limit、 and then ： this is can up has ，
+ * is 。WorkBuddy not in this —— （ +
+ * + ）， 1 ， add-provider-blocks.tsx。
  */
 
 import { shared } from './add-account-bridge'
@@ -18,9 +18,9 @@ import { MONKEYCODE, MONKEYCODE_INTL } from './add-provider-monkeycode'
 import { TABBIT, TABBIT_INTL } from './add-provider-tabbit'
 import { t } from '../i18n'
 
-/* ─── 类型 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
-/** 一个手填字段：key 直接对应请求体键名（inputKey 只改 DOM id 的中间段） */
+/** 1 ：key for request（inputKey DOM id in ） */
 export type FieldSpec = {
   key: string
   inputKey?: string
@@ -29,11 +29,11 @@ export type FieldSpec = {
   rows?: number
   placeholder: string
   /**
-   * 整段是一个 JSON（CodeArts 的凭据就是这么落到用户手上的），提交时**逐键并进
-   * 请求体**、原始那串文本不留。为什么在前端展开而不是把整串交给后端：
-   * `POST /api/accounts` 的各家分派读的是平铺字段（`Credential::from_payload`
-   * 认「带外层包装」与「铺平」两种形状，但不认「一个字符串里装着 JSON」），
-   * 让后端再多一种形状 = 给所有家共用的路径加一个只有一家走到的分支。
+   * is 1 JSON（CodeArts is this to use up ）， when ** and 
+   * request**、 that not 。Why in before not is to after ：
+   * `POST /api/accounts` is （`Credential::from_payload`
+   * 「」 and 「」， not 「 1 JSON」），
+   * after 1 = to all use path 1 has 1 to 。
    */
   jsonExpand?: boolean
 }
@@ -42,27 +42,27 @@ export type RegionOption = { value: string; label: string }
 export type MethodMode = { value: string; label: string; hint?: string }
 
 export type WebLoginConfig = {
-  /** 说明里的行内标记（原样注入，与旧实现的 noteOf 同口径） */
+  /** （， and old noteOf ） */
   noteHtml?: string
   button: string
   hint?: string
   busyText?: string
   /**
-   * 有这一级时多一个「打开方式」分段（没有的家只给内嵌窗口）。
+   * has this 1 when 1 「」（ no has to ）。
    *
-   * 只在桌面壳里渲染：网页端（`platform() === 'web'`）没有「内嵌窗口」与
-   * 「系统浏览器」之分 —— 桥接层的 startLogin 收下 mode 后并不会用它，
-   * 一律 `window.open` 开新标签页（见 web_shim.rs 的同名方法）。所以网页端
-   * 整级收起，改由 `webHint` 说明唯一那条路。
+   * in ：（`platform() === 'web'`） no has 「」 and 
+   * 「」 —— startLogin down mode after and not will use ，
+   * 1 `window.open` new （ web_shim.rs ）。
+   * ， by `webHint` 1 that 。
    */
   modes?: MethodMode[]
-  /** 网页端那一条提示（缺省用通用的「将在新标签页中打开」） */
+  /** that 1 （ use use 「 will in new in 」） */
   webHint?: string
-  /** Cookie 捕获需要桌面窗口，网页面板不可发起。 */
+  /** Cookie need need ， not can 。 */
   desktopOnly?: boolean
-  /** 这一家的网页登录只在某个地区可用（当前没有家用它，结构上保留） */
+  /** this 1 in available（current no has use ， up ） */
   region?: string
-  /** 写死的变体选择器（传给壳侧 start_login 的第一个参数） */
+  /** （ to start_login 1 parameter） */
   edition?: string
 }
 
@@ -72,24 +72,24 @@ export type OauthLoginConfig = {
   title?: string
   noteHtml?: string
   hint?: string
-  /** 同 WebLoginConfig.modes：网页端整级收起，用 webHint 替代 */
+  /** WebLoginConfig.modes：， use webHint */
   modes?: MethodMode[]
   webHint?: string
 }
 
-/** 网页端唯一打开方式的提示（没有 webHint 的家用它） */
+/** 1 （ no has webHint use ） */
 export const WEB_LOGIN_HINT = t('将在新标签页中打开授权页；完成后自动加入账号列表。')
 
 /**
- * 回调落在本机 / 网关端口那几家的网页端提示：跨机部署时官方页面跳回的地址
- * 属于浏览器所在电脑、回不到网关，需要用户把最终回调地址粘回来。
+ * in / that ： when 
+ * in 、 not to ， need need use 。
  */
 export const WEB_LOGIN_PASTE_HINT = t('将在新标签页中打开授权页；完成后自动加入账号列表。若页面跳回本机地址后账号没有出现，按提示把地址栏里的完整回调地址粘贴回来即可。')
 
 export type ProviderConfig = {
   provider: string
   label: string
-  /** 手填段的主按钮文案（缺省「添加 X 账号」） */
+  /** by （「 X 」） */
   addButton?: string
   manualTitle?: string
   manualNote?: string
@@ -99,61 +99,61 @@ export type ProviderConfig = {
   smsLogin?: SmsLoginConfig
   oauthLogin?: OauthLoginConfig
   /**
-   * 「访客模式」——本项目的**独一份**：一键换发访客凭证，不需要任何输入。
+   * 「」—— ** 1 **： 1 ， not need need 。
    *
-   * 只有智谱清言有这一条（后端 `guest/access` 空 body 恒可换发，见
-   * `providers::chatglm` 的模块头）。它在界面上是一个**没有表单**的分段：
-   * 一段说明 + 一个按钮，点下去就加号（备注名可选）。
-   * 语义上它不是「登录」，而是「先拿到一个能用的身份」—— 代价是没有积分体系
-   * （余额 / 签到对访客如实跳过），所以说明里必须写清这件事。
+   * has has this 1 （ after `guest/access` empty body can ，
+   * `providers::chatglm` module header）。 in up is 1 ** no has ** ：
+   * 1 + 1 by ， down （optional）。
+   * up not is 「」， is 「 to 1 can use 」—— is no has 
+   * （ / to for ），must this 。
    */
   guestLogin?: { noteHtml: string; button: string; busyText?: string; namePlaceholder?: string }
   regionOptions?: RegionOption[]
   /**
-   * 这一家的登录 / 添加链路要不要显示「登录出网代理」选择器。
+   * this 1 / need not need 「」。
    *
-   * ── 为什么需要这个开关（而不是全开）──────────────────────────
-   * 只有上游在常见网络里**必须经代理才可达**的家才需要它 —— 今天只有
-   * Antigravity（Google）。其余家直连就能到，多一个代理框只会让用户以为
-   * 「不选代理就用不了」。开关打开后：网页登录把代理放进 `options.proxy`
-   * 交给网关的 `login.start`，粘贴凭据把代理放进 `POST /api/accounts` 的
-   * `proxy` 字段（两条路都由插件在自己的出网链路上使用）。
+   * ── Why need need this （ not is ）──────────────────────────
+   * has up in **must can ** need need —— has 
+   * Antigravity（Google）。 its can to ， 1 will use as 
+   * 「 not use not 」。 after ： `options.proxy`
+   * to `login.start`， `POST /api/accounts` 
+   * `proxy` （ by in up use ）。
    */
   loginProxy?: boolean
-  /** false = 这一家没有「从本机导入桌面端登录态」这一条来源 */
+  /** false = this 1 no has 「 from 」 this 1 */
   desktop?: boolean
   desktopNote?: string
   desktopHint?: string
-  /** 登录态是 Electron safeStorage 密文、解密要走 DPAPI（仅 Windows） */
+  /** is Electron safeStorage 、 need DPAPI（only Windows） */
   desktopWindowsOnly?: boolean
   /**
-   * 「导入凭证文件」这一条来源的配置（有它才有那个分段）。
+   * 「file」 this 1 config（ has has that ）。
    *
-   * 与 `desktop` 的语义差别（别混用，见后端 `api::accounts` 的文件导入契约）：
-   * `desktop` 只是建一条「转发时**实时**读本机固定路径」的记录；这里是把用户
-   * **手选**的文件解析后落库 —— 得到可独立转发的账号，文件可以来自别的机器 / 备份。
+   * and `desktop` （ use ， after `api::accounts` file）：
+   * `desktop` is 1 「 when ** when **path」 ； this is use 
+   * **** file after —— to can ，file can / 。
    */
   fileImport?: {
-    /** 文件选择器的 accept（空串 = 不过滤：KukuAI 的 Cookies 文件没有扩展名） */
+    /** file accept（empty = not ：KukuAI Cookies file no has ） */
     accept: string
-    /** 段落说明：选哪个文件、在哪、导入后的凭证落在哪（正文里写清，界面不再折叠） */
+    /** ： file、 in 、 after in （， not ） */
     note: string
-    /** true = 二进制文件，前端读 base64 传 `authFileB64`；否则读文本传 `authFileContent` */
+    /** true = file， before base64 `authFileB64`；otherwise `authFileContent` */
     binary?: boolean
   }
 }
 
-/* ─── 长度上限（与后端逐条对齐，前端先挡一次）────────────── */
+/* ─── limit（ and after for ， before 1 ）────────────── */
 
-/** 备注名长度上限（与后端 truncate_chars(name, 100) 一致） */
+/** limit（ and after truncate_chars(name, 100) 1 ） */
 export const MAX_NAME_LENGTH = 100
-/** uid / deviceId 长度上限（与后端 MAX_USER_UID_LENGTH / MAX_IDENTITY_LENGTH 一致） */
+/** uid / deviceId limit（ and after MAX_USER_UID_LENGTH / MAX_IDENTITY_LENGTH 1 ） */
 export const MAX_IDENTITY_LENGTH = 256
-/** 单行控件的长度上限：备注名按 100，其余标识字段按 256 */
+/** limit： by 100， its by 256 */
 export const maxLengthOf = (field: FieldSpec): number =>
   (field.key === 'name' ? MAX_NAME_LENGTH : MAX_IDENTITY_LENGTH)
 
-/* ─── 各家配置 ─────────────────────────────── */
+/* ─── config ─────────────────────────────── */
 
 const JSON_CREDENTIAL_FILE: NonNullable<ProviderConfig['fileImport']> = {
   accept: '.json,application/json',
@@ -165,20 +165,20 @@ const RACCOON: ProviderConfig = {
   provider: 'raccoon',
   label: '小浣熊',
   addButton: t('添加小浣熊账号'),
-  // 网页登录（后端 providers::raccoon::oauth）：官方登录页 + 一次性授权码回调。
-  // 桌面端仍优先用内嵌窗口；网页端 / Docker 远程面板会把授权页切到官方
-  // redirect 分支自动回调，前提是浏览器以 127.0.0.1/localhost（http + 端口）
-  // 访问面板 —— 上游白名单如此，不满足时网页端发起前就会弹指引拦下
-  // （见 web_shim 的 raccoonCallbackOriginProblem）。
+  // （ after providers::raccoon::oauth）： + 1 。
+  // use ； / Docker will to 
+  // redirect ， before is 127.0.0.1/localhost（http + ）
+  // —— up ， not when before will down 
+  // （ web_shim raccoonCallbackOriginProblem）。
   webLogin: {
-    // 桌面端在内嵌窗口里跑；网页端没有内嵌窗口，统一在新标签页里打开，
-    // 所以这句不写死「内嵌窗口」（否则网页端看到的是一句不成立的话）
+    // in ； no has ， 1 in new ，
+    // this not 「」（otherwise to is 1 not ）
     noteHtml: t('在打开的官方登录页里完成登录，成功后自动加入账号列表。'),
     button: t('打开网页登录'),
     hint: t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待'),
     busyText: t('等待小浣熊登录完成…'),
-    // 网页端走的是官方 redirect 分支（见上方注释），浏览器在哪台机器上都能
-    // 直接回网关，没有粘贴回调那一步
+    // is redirect （ up ）， in up can 
+    // ， no has that 1 
     webHint: WEB_LOGIN_HINT,
   },
   manualTitle: t('粘贴 token / refreshToken'),
@@ -189,9 +189,9 @@ const RACCOON: ProviderConfig = {
     { key: 'refreshToken', inputKey: 'refresh', label: 'refreshToken', rows: 2, optional: true, placeholder: t('可选') },
   ],
   desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。客户端重新登录后点「刷新 Token」同步。'),
-  // 「导入凭证文件」：客户端登录态是明文 JSON，前端读文本传 authFileContent。
-  // 与上面 desktop 那条并排保留是刻意的 —— 一个是「实时读本机固定路径」，
-  // 一个是「把用户手选的文件解析后落库」（文件可来自别的机器 / 备份）。
+  // 「file」：client is JSON， before authFileContent。
+  // and up desktop that and is —— 1 is 「 when path」，
+  // 1 is 「 use file after 」（file can / ）。
   fileImport: {
     accept: '.json,application/json',
     note: t('选择小浣熊客户端的登录态文件 auth.json（Windows：C:\\Users\\<你的用户名>\\.box-agent\\config\\auth.json；macOS / Linux：~/.box-agent/config/auth.json）。导入后凭证直接落在网关、可独立转发，不再依赖本机客户端。'),
@@ -200,11 +200,11 @@ const RACCOON: ProviderConfig = {
 
 const CATPAW: ProviderConfig = {
   // catpaw_accounts::add_catpaw_account：token / accessToken / access_token / auth_token
-  // （即 X-Passport-Token）、uid / userId / loginName、name；没有刷新机制
+  // （ X-Passport-Token）、uid / userId / loginName、name； no has new 
   provider: 'catpaw',
   label: 'CatPaw',
-  // 网页登录：美团 passport 授权页 + loopback 回调；服务端同时轮询 poll-token，
-  // 因此 Docker / 远程面板不依赖浏览器访问容器内的 loopback 端口。
+  // ： passport + loopback ；server when poll-token，
+  // Docker / not loopback 。
   webLogin: {
     noteHtml: t('用 CatPaw 账号完成登录（美团 passport），成功后自动加入账号列表。'),
     button: t('打开 CatPaw 网页登录'),
@@ -229,19 +229,19 @@ const CATPAW: ProviderConfig = {
 }
 
 /**
- * AutoClaw 两个地区各占一项（与 Cline 两池同一手法）：`autoclaw`（国内版，id 不变
- * —— 存量账号的落盘契约）与 `autoclaw-intl`（国际版）。两项相邻排列。
+ * AutoClaw 1 （ and Cline 1 ）：`autoclaw`（，id not 
+ * —— ） and `autoclaw-intl`（）。。
  *
- * 两地的差别：域名（后端 `autoclaw::region`，前端不体现）；桌面端导入两地都给
- * （auth.json 两地共用、没有地区标记，地区由用户在哪一项下点导入决定）；
- * **登录方式完全不同** —— 国内版只有手机验证码，国际版只有 Zai / Google OAuth。
+ * ：（ after `autoclaw::region`， before not ）； to 
+ * （auth.json use 、 no has ， by use in 1 down ）；
+ * ** not ** —— has ， has Zai / Google OAuth。
  */
 const AUTOCLAW: ProviderConfig = {
   provider: 'autoclaw',
   label: t('AutoClaw 国内版'),
   fileImport: JSON_CREDENTIAL_FILE,
   manualNote: t('token 支持 enc: 前缀（Windows 上自动解密）。未填 refreshToken 无法自动续期。'),
-  // 国内版**唯一**的官方登录方式（它的登录页不渲染 OAuth 按钮，已核对构建产物）
+  // ** 1 ** （ not OAuth by ， already for ）
   smsLogin: {
     noteHtml: t('用绑定的手机号登录：点「获取验证码」后填入即可。这是国内版官方唯一的登录方式。'),
   },
@@ -253,22 +253,22 @@ const AUTOCLAW: ProviderConfig = {
   ],
   desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。'),
   desktopHint: t('读取 %APPDATA%/AutoClaw/auth.json 并解密，仅 Windows'),
-  // 登录态是 Electron safeStorage 密文，解密要走 DPAPI（仅 Windows），
-  // 因此 macOS 上整段收起（理由见 desktopImportAvailable）
+  // is Electron safeStorage ， need DPAPI（only Windows），
+  // macOS up （ by desktopImportAvailable）
   desktopWindowsOnly: true,
 }
 
 const AUTOCLAW_INTL: ProviderConfig = {
-  // AutoClaw 国际版（autoglm-api.autoglm.ai）：与国内版同一套协议与签名指纹
-  // （appId/appKey 两地逐字相同，已实测），只有站点不同。
+  // AutoClaw （autoglm-api.autoglm.ai）： and 1 and 
+  // （appId/appKey ， already ）， has not 。
   provider: 'autoclaw-intl',
   label: t('AutoClaw 国际版'),
   fileImport: JSON_CREDENTIAL_FILE,
   manualNote: t('国际版与国内版账号体系独立，请填国际版的凭证。未填 refreshToken 无法自动续期。'),
-  // OAuth 网页登录：国际版**唯一**的登录方式（登录页只渲染 Zai / Google 两个按钮）。
-  // 与另外五家的差别：授权地址前有一次强制风控验证码（阿里云滑块），
-  // 必须在浏览器里跑完才能拿地址，因此点按钮后会先在本弹窗里弹滑块
-  // （见 ui/autoclaw-oauth.js 的文件头）。
+  // OAuth ：** 1 ** （ Zai / Google by ）。
+  // and ： before has 1 （），
+  // must in can ， by after will in 
+  // （ ui/autoclaw-oauth.js file）。
   oauthLogin: {
     title: t('网页登录（Zai / Google）'),
     noteHtml: t('点按钮后先过一次滑块验证（官方风控），随后打开登录页，登录完成即自动添加账号。<br>这是国际版官方唯一的登录方式；已在客户端登录过的，用「导入桌面端登录态」更快。'),
@@ -276,8 +276,8 @@ const AUTOCLAW_INTL: ProviderConfig = {
       { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('内嵌窗口打开；关窗即取消等待（Google 账号被拒时改用系统浏览器）') },
       { value: 'external', label: t('系统浏览器'), hint: t('系统浏览器打开（复用已登录的 Zai / Google 账号）；完成后自动加入列表') },
     ],
-    // 网页端由 web_shim 的 runLoginFlow 开新标签页；这条链靠服务端轮询
-    // 落定结果（不是回调），所以不需要「粘贴回调地址」那句话
+    // by web_shim runLoginFlow new ； this server
+    // （ not is ）， not need need 「」 that 
     webHint: WEB_LOGIN_HINT,
   },
   fields: [
@@ -286,20 +286,20 @@ const AUTOCLAW_INTL: ProviderConfig = {
     { key: 'deviceId', label: 'deviceId', optional: true, placeholder: t('可选，续期时带上') },
     { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用 userId') },
   ],
-  // 桌面端登录态导入两个地区都给：auth.json 没有地区标记、本机判断不了，
-  // 用户在哪一项下点导入就得到哪一家的账号，猜错的后果是可见的上游 401。
+  // to ：auth.json no has 、 not ，
+  // use in 1 down to 1 ， after is can up 401。
   desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。用 Zai / Google 登录客户端的用户走这一条。'),
   desktopHint: t('读取 %APPDATA%/AutoClaw/auth.json 并解密，仅 Windows'),
   desktopWindowsOnly: true,
 }
 
 /**
- * Qoder 两个地区（中国版 / 国际版）：同一套设备授权协议，只有站点主机不同。
+ * Qoder （ in / ）： 1 ， has not 。
  *
- * 为什么不是一个配置带一个「地区」下拉（拆家，2026-10）：与 AutoClaw / Accio /
- * ZCode 同一思路 —— 地区是 **provider 身份**而不是账号属性。拆家前两地区账号
- * 混在一个「模型来源」下拉里、一次「获取模型」只能刷到队首账号所属地区的目录；
- * 按两家建模后各自有独立的账号、清单与启停（除 id / 标签 / 文案外同构）。
+ * Why not is 1 config 1 「」 down （，2026-10）： and AutoClaw / Accio /
+ * ZCode 1 —— is **provider ** not is 。 before 
+ * in 1 「」 down 、 1 「get」 can to directory；
+ * by after has 、 and （ id / / ）。
  */
 function qoderForm(spec: { provider: string; label: string; siteNote: string }): ProviderConfig {
   const { provider, label, siteNote } = spec
@@ -307,10 +307,10 @@ function qoderForm(spec: { provider: string; label: string; siteNote: string }):
     provider,
     label,
     desktop: false,
-    // 地区写死在 provider 身份里（后端按 provider id 反查），不再走地区分段
+    // in provider （ after by provider id ）， not 
     webLogin: {
-      // 两站是同一套 PKCE 设备授权协议，只有站点主机不同；edition 由 provider
-      // 身份决定（后端按 provider id 反查地区，请求里的 edition 只是回显字段）
+      // is 1 PKCE ， has not ；edition by provider
+      // （ after by provider id ，request edition is ）
       noteHtml: t('打开官方授权页完成设备码授权，登录的是{label}（{site}）的账号。', { label, site: siteNote }),
       button: t('打开 Qoder 网页登录'),
       busyText: t('等待 Qoder 授权完成…'),
@@ -333,19 +333,19 @@ const QODER = qoderForm({ provider: 'qoder', label: t('中国版'), siteNote: 'q
 const QODER_INTL = qoderForm({ provider: 'qoder-intl', label: t('国际版'), siteNote: 'qoder.com' })
 
 /**
- * 千问办公两版（国内版 `qwenwork` / 国际版 `qwenwork-intl`）。
+ * （ `qwenwork` / `qwenwork-intl`）。
  *
- * ── 登录链路 2026-11-03 换过一次（先读插件 `providers/qoder/authorize.rs`）──
- * 旧实现照社区参考实现抄的是**设备码授权**，上游已经把这个入口关了：那个地址
- * 对任何请求都回 400。现在走**授权码 + 本机回调**（官方 CLI / IDE 那条路）：
- * 浏览器打开官方登录页，登录完成后跳回本插件在本机开的随机端口，账号随即自动
- * 加入列表。国内版可用；国际版上游只认它自己注册的回调地址，授权码回不到本机，
- * 所以界面上直接写明「暂时无法登录」，而不是给一个点了必然报错的按钮。
+ * ── 2026-11-03 1 （ `providers/qoder/authorize.rs`）──
+ * old is ****， up already this ： that 
+ * for request 400。 in ** + **（ CLI / IDE that ）：
+ * ， after in ，
+ * 。available； up ， not to ，
+ * up 「 when none」， not is to 1 by 。
  *
- * **只有网页登录这一条**：千问办公没有个人访问令牌（PAT）接口，
- * 后端 `Site::supports_pat` 为假，登录方式也只申报了网页登录 —— 界面上给一个
- * 点了必然报错的入口比不给更糟，所以这里不配 `manualTitle` / `fields`
- * （Qoder 那一份才有 PAT 段）。
+ * ** has this 1 **： no has （PAT），
+ * after `Site::supports_pat` as ， —— up to 1 
+ * not to ， this not `manualTitle` / `fields`
+ * （Qoder that 1 has PAT ）。
  */
 function qwenworkForm(spec: {
   provider: string
@@ -358,7 +358,7 @@ function qwenworkForm(spec: {
     provider,
     label,
     desktop: false,
-    // 站点写死在 provider 身份里（后端按 provider id 反查）
+    // in provider （ after by provider id ）
     webLogin: {
       noteHtml: loginable
         ? t('在打开的页面里登录千问办公{label}（{site}）的账号，登录完成后会自动加入列表。两版的账号与凭证不通用。', { label, site: siteNote })
@@ -391,23 +391,23 @@ const QWENWORK_INTL = qwenworkForm({
 })
 
 /**
- * Cline 是两个提供商（Cline Free / Cline Pass）。
+ * Cline is （Cline Free / Cline Pass）。
  *
- * 为什么不是一个配置带一个「额度池」下拉：上游模型带计费通道前缀
- * （`cline-free/…` / `cline-pass/…`），池是**账号的属性**，混在一起会让
- * 「哪个池能用」在界面上看不出来、同一模型的启停规则跨池互相影响。
- * 按两家建模后各占一个分组、各有一套账号与模型清单。除 id / 标签 / 文案外同构。
+ * Why not is 1 config 1 「」 down ： up before 
+ * （`cline-free/…` / `cline-pass/…`）， is ** **， in 1 will 
+ * 「 can use 」 in up not 、 1 then 。
+ * by after 1 、 has 1 and 。 id / / 。
  */
 function clineForm(spec: { provider: string; label: string; poolNote: string }): ProviderConfig {
   const { provider, label, poolNote } = spec
   return {
     provider,
     label,
-    // 桌面登录态本身不属于任何池，两家都能导入（想要两个池都用就在两家各导入一次）
+    // not ， can （ need use in 1 ）
     desktop: true,
     webLogin: {
-      // 设备授权登录（WorkOS RFC 8628）：没有回调、没有自定义协议，
-      // 就是「打开授权页 → 用户确认 → 网关轮询拿到令牌」，因此两种打开方式都可行。
+      // （WorkOS RFC 8628）： no has 、 no has ，
+      // is 「 → use → to 」， can 。
       noteHtml: t('打开授权页完成确认，账号自动加入 <b>{label}</b>{note}', { label, note: poolNote }),
       button: t('打开 Cline 授权页'),
       busyText: t('等待 Cline 授权确认…'),
@@ -425,8 +425,8 @@ function clineForm(spec: { provider: string; label: string; poolNote: string }):
     ],
     desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。这一条归入 {label}。', { label }),
     desktopHint: t('读取 ~/.cline/data/settings/providers.json，需已在 Cline 客户端登录'),
-    // 「导入凭证文件」：providers.json 是**设置**文件（明文 JSON），前端读文本传
-    // authFileContent。归池与 desktop 那条同一口径：在哪一项下导入就归入哪个池。
+    // 「file」：providers.json is **set**file（ JSON）， before 
+    // authFileContent。 and desktop that 1 ： in 1 down 。
     fileImport: {
       accept: '.json,application/json',
       note: t('选择 Cline 客户端的登录态文件 providers.json（Windows：C:\\Users\\<你的用户名>\\.cline\\data\\settings\\providers.json；macOS / Linux：~/.cline/data/settings/providers.json）。导入后凭证直接落在网关、可独立转发，不再依赖本机客户端；这一条归入 {label}。', { label }),
@@ -435,16 +435,16 @@ function clineForm(spec: { provider: string; label: string; poolNote: string }):
 }
 
 /**
- * Accio 两个地区（国际版 / 国内版）：同一个网关、同一套接口，只有登录站点与
- * x-package-region 头不同。地区不是账号的字段而是身份，因此输出两份配置。
+ * Accio （ / ）： 1 、 1 ， has and 
+ * x-package-region not 。 not is is ，config。
  */
 function accioForm(spec: { provider: string; label: string; site: string; siteNote: string }): ProviderConfig {
   const { provider, label, site, siteNote } = spec
   return {
     provider,
     label,
-    // OAuth 2.0 授权码 + PKCE：同机直接接收 loopback；Docker / 远程面板
-    // 由网页 shim 提示粘贴最终回调地址（与 CodeArts 同一兜底形态）。
+    // OAuth 2.0 + PKCE： loopback；Docker / 
+    // by shim （ and CodeArts 1 ）。
     webLogin: {
       noteHtml: t('打开 Accio <b>{label}</b>的官方登录页（<code>{site}</code>）并用你的 Accio 账号登录：登录成功后官方页面会跳回本机；同机自动完成，Docker / 远程面板按提示粘贴回调地址即可（授权码只在本机传给网关，界面不显示明文 token）。', { label, site }),
       button: t('打开 Accio {label}登录页', { label }),
@@ -466,8 +466,8 @@ function accioForm(spec: { provider: string; label: string; site: string; siteNo
 }
 
 /**
- * ZCode 两个地区（国内版 / 国际版）：同一个 zcode 平面（登录 / 领取都在
- * zcode.z.ai），只有推理站点不同，因此输出两份配置。
+ * ZCode （ / ）： 1 zcode （ / in 
+ * zcode.z.ai）， has not ，config。
  */
 function zcodeForm(spec: { provider: string; label: string; site: string; planNote: string }): ProviderConfig {
   const { provider, label, site, planNote } = spec
@@ -475,13 +475,13 @@ function zcodeForm(spec: { provider: string; label: string; site: string; planNo
     provider,
     label,
     fileImport: JSON_CREDENTIAL_FILE,
-    // 本家没有「桌面端实时登录态」可导入：凭证在它自己的加密存储里，
-    // 没有 auth.json 那种稳定可读的形态（与 Accio 同一处境）
+    // no has 「 when 」 can ： in ，
+    // no has auth.json that can （ and Accio 1 ）
     desktop: false,
     webLogin: {
-      // 授权地址由**服务端**给且不回本机：网关拿到一次性授权地址，用户在浏览器里
-      // 授权后由 ZCode 服务端记录结果，网关在后台轮询取回凭证。因此两种打开方式
-      // 都走得通（与 Accio 同构），但「页面最后提示无法打开 zcode:// 链接」是正常的。
+      // by **server** to and not ： to 1 ， use in 
+      // after by ZCode server， in after 。
+      // （ and Accio ），「 after none zcode:// 」 is 。
       noteHtml: t('打开 ZCode <b>{label}</b>的官方授权页并用你的账号登录。授权结果由 ZCode 服务端记录，网关在后台自动取回凭证并加入账号列表。', { label }),
       button: t('打开 ZCode {label}授权页', { label }),
       busyText: t('等待 ZCode {label}授权完成…', { label }),
@@ -498,8 +498,8 @@ function zcodeForm(spec: { provider: string; label: string; site: string; planNo
         label: t('编码套餐 API Key'),
         rows: 3,
         optional: true,
-        // 这里不能填 OAuth 登录态：那个串拿去转发会被上游按「OAuth 令牌」那条路
-        // 校验并回 401。官方客户端与「网页登录」这条链都是先换成编码套餐 API Key 再用。
+        // this not can OAuth ： that will up by 「OAuth 」 that 
+        // and 401。client and 「」 this is API Key use 。
         placeholder: t('用于转发；形如 apiKey.secret 两段点分（不填则这个账号不能转发）'),
       },
       { key: 'jwt', label: 'Coding Plan JWT', inputKey: 'jwt', rows: 3, optional: true, placeholder: t('用于领取套餐与查询余额；不填则这个账号不能领取与查余额') },
@@ -510,34 +510,34 @@ function zcodeForm(spec: { provider: string; label: string; site: string; planNo
 }
 
 /**
- * CodeArts（华为云 AI 代码助手 / snap-access）。
+ * CodeArts（ as AI / snap-access）。
  *
- * ── 网页登录（OAuth 授权码 + PKCE）────────────────────────
- * 授权地址由网关拼（`providers::codearts::oauth::authorize_url`，参数与官方扩展
- * 逐字对过向量），portal 完成后把浏览器送回**网关自己的端口**上的
- * `http://127.0.0.1:<port>/oauth/callback` —— 路径不是我们能挑的：portal 只认授权
- * 地址里给的 `port`。所以浏览器与网关在同一台机器时两次回调（先 secret+redirect、
- * 再 code）都能落地；不在同一台时浏览器跳的是它自己的 127.0.0.1，到不了网关。
- * 那种部署（网关跑在 NAS / 服务器上）的用法写在下面的提示里，两条通道都通：
- *   · Docker / 远程面板直接把地址栏中的最终回调地址粘贴回网页 shim —— 带 `code` 就直接落账；
- *   · 只带 `secret` 时网关会转去走 ticket 轮询通道，代价是**拿不到 refresh token**
- *     （约一小时后要重新登录一次），界面上这句提示是照实说的。
+ * ── （OAuth + PKCE）────────────────────────
+ * by （`providers::codearts::oauth::authorize_url`，parameter and 
+ * for to ），portal after ** ** up 
+ * `http://127.0.0.1:<port>/oauth/callback` —— path not is can ：portal 
+ * to `port`。 and in 1 when （ secret+redirect、
+ * code） can ； not in 1 when is 127.0.0.1， to not 。
+ * that （ in NAS / up ） use in down ，：
+ * · Docker / in shim —— `code` ；
+ * · `secret` when will ticket ， is ** not to refresh token**
+ * （ 1 when after need new 1 ）， up this is 。
  *
- * ── 凭据为什么是一整块、且只有一个 JSON 框 ──────────────────
- * CodeArts 的凭据是一次 OAuth/PKCE 登录换来的**临时三元组**（AK/SK/STS，实测约
- * 一小时到期），续期还要出示**当初那次登录的 PKCE verifier 与 DPoP 私钥**，
- * 所以少搬一半到期就刷不回来。而用户手上这份数据的**原生形状就是一段 JSON**
- * （官方插件写 `codearts_provider_credential`、CLIProxyAPI 的 auth 文件整份包在
- * 里面）：拆成六个框会把「粘哪一格」变成六次出错机会，`oauth_context` 本身还是
- * 嵌套对象、框里塞不下。因此一个框整份粘，由 `jsonExpand` 解析后铺开。
+ * ── Why is 1 、 and has 1 JSON ──────────────────
+ * CodeArts is 1 OAuth/PKCE ** when **（AK/SK/STS，
+ * 1 when to ）， need ** that PKCE verifier and DPoP **，
+ * 1 to not 。 use up this ** is 1 JSON**
+ * （ `codearts_provider_credential`、CLIProxyAPI auth file in 
+ * ）： will 「 1 」 will ，`oauth_context` is 
+ * for 、 not down 。 1 ， by `jsonExpand` after 。
  */
 const CODEARTS: ProviderConfig = {
   provider: 'codearts',
   label: 'CodeArts',
-  // 本家**没有**「读本机客户端登录态」这条后端路径（凭据只能靠网页登录或粘贴）。
-  // 不显式关掉的话，桌面壳里会出现一个选了之后什么都没有的分段：chip 只看
-  // `desktop !== false`，而下面的 desktopNote 缺席就返回空串。
-  // 浏览器面板看不到这个洞（platform()==='web' 时整段收起），只有 App 里会露。
+  // ** no has **「client」 this after path（ can or ）。
+  // not ， will 1 after no has ：chip 
+  // `desktop !== false`， down desktopNote returnempty。
+  // not to this （platform()==='web' when ）， has App will 。
   desktop: false,
   webLogin: {
     noteHtml: t('打开华为云 CodeArts 的官方授权页登录：登录完成后官方页面会把浏览器带回<b>网关自己的</b> <code>/oauth/callback</code>，网关用一次性授权码换取临时凭据并加入账号列表。<br>网关跑在另一台机器上时，网页端会提示把地址栏中的最终回调地址直接粘贴回面板。'),
@@ -564,7 +564,7 @@ const CODEARTS: ProviderConfig = {
       key: 'credentialJson',
       label: t('凭据 JSON'),
       rows: 8,
-      // 解析后按字段铺开进请求体（后端 `Credential::from_payload` 嵌套/平铺都认）
+      // after by request（ after `Credential::from_payload` /）
       jsonExpand: true,
       placeholder: '{"codearts_provider_credential":{"access_key_id":"HSTA…","secret_access_key":"…",'
         + '"security_token":"…","expires_at":"2026-09-27T16:17:00.327Z","domain_id":"…","user_id":"…",'
@@ -575,22 +575,22 @@ const CODEARTS: ProviderConfig = {
 }
 
 /**
- * Trae（国内账号，Agent / IDE 聊天通道按模型目录选择）。
+ * Trae（，Agent / IDE by directory）。
  *
- * ── 为什么只有一张卡、没有「地区」下拉 ──────────────────────
- * 国内 Agent / IDE 共用 trae.cn 账号，历史 cn / solo 谱系继续保留。
- * 国际版仍需独立 provider id 与目录，两地令牌不能混用；不将地区做成账号字段。
+ * ── Why has 1 、 no has 「」 down ──────────────────────
+ * Agent / IDE use trae.cn ， cn / solo 。
+ * need provider id and directory， not can use ； not will 。
  *
- * ── 为什么回调必须落在本机 ────────────────────────────────
- * 上游对回调地址是**逐字正则校验**的（`^http://127.0.0.1:<port>/authorize$`），
- * 且回调里**没有 state** —— 一轮登录只能靠端口认回来。所以浏览器必须与网关同机；
- * 容器 / 远程部署形态收不到回调，只能在有浏览器的机器上登录后走粘贴那条路。
+ * ── Whymust in ────────────────────────────────
+ * up for is ** then ** （`^http://127.0.0.1:<port>/authorize$`），
+ * and ** no has state** —— 1 can 。must and ；
+ * / not to ， can in has up after that 。
  */
 const TRAE: ProviderConfig = {
   provider: 'trae',
   label: 'Trae',
-  // Trae 桌面端的登录态在它自己的加密存储里（与 Accio / ZCode 同一处境），
-  // 没有 auth.json 那种稳定可读的形态 —— 给了入口只会稳定失败。
+  // Trae in （ and Accio / ZCode 1 ），
+  // no has auth.json that can —— to will failure。
   desktop: false,
   webLogin: {
     noteHtml: t('打开 <b>Trae</b> 的官方授权页（<code>trae.cn</code>）并用你的 Trae 账号登录：授权完成后官方页面会跳回<b>本机</b>的一个临时端口；同机部署自动接收，Docker / 远程面板请按提示复制地址栏回调地址。'),
@@ -608,8 +608,8 @@ const TRAE: ProviderConfig = {
         hint: t('将用系统默认浏览器打开授权页（会复用浏览器里已登录的 Trae 账号）；同机完成后自动加入，Docker / 远程面板按提示粘贴地址栏回调地址。'),
       },
     ],
-    // 回调只落在本机端口（上游逐字校验 127.0.0.1），浏览器与网关不同机时
-    // 官方页面跳回的地址回不到容器 —— 网页端必须说明「可能要粘回来」
+    // in （ up 127.0.0.1）， and not when 
+    // not to —— must「 can can need 」
     webHint: WEB_LOGIN_PASTE_HINT,
   },
   manualTitle: t('填写凭证'),
@@ -625,15 +625,15 @@ const TRAE: ProviderConfig = {
 }
 
 /**
- * Loomy（讯飞）：短信登录 + 粘贴 session。
+ * Loomy（）： + session。
  *
- * ── 三处与别家不同（都有上游依据，别照抄别家）────────────────
- *   1. 短信链路是**另一套**（端点 `/api/session/login/loomy/sms/*`、中间态字段
- *      叫 `msgid` 而不是 `deviceId`、请求带 HMAC-SHA1 签名头）——
- *      由 `ui/sms-login.js` 的 SMS_PROFILES 与壳侧桥接按 provider 分派；
- *   2. 粘贴的是**登录 session**（它同时是模型网关的 token，不是 JWT）；
- *   3. **没有续期**：session 约 14 天，过期只能重新登录（所以不渲染
- *      「刷新 Token」那一类控件）。
+ * ── and not （ has up ，）────────────────
+ * 1. is ** 1 **（ `/api/session/login/loomy/sms/*`、 in 
+ * `msgid` not is `deviceId`、request HMAC-SHA1 ）——
+ * by `ui/sms-login.js` SMS_PROFILES and by provider ；
+ * 2. is ** session**（ when is token， not is JWT）；
+ * 3. ** no has **：session 14 ， can new （ not 
+ * 「 new Token」 that 1 ）。
  */
 const LOOMY: ProviderConfig = {
   provider: 'loomy',
@@ -649,43 +649,43 @@ const LOOMY: ProviderConfig = {
     { key: 'phone', label: t('手机号'), optional: true, placeholder: t('可选，展示用') },
     { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用脱敏手机号或 userId') },
   ],
-  // 登录态在客户端自己的加密存储里（没有 auth.json 那种稳定可读的文件形态），
-  // 不提供「导入桌面端登录态」（与 Accio / ZCode 同一处境，理由见各自配置注释）。
+  // in client （ no has auth.json that can file），
+  // not 「」（ and Accio / ZCode 1 ， by config）。
   desktop: false,
 }
 
 /**
- * KukuAI（百度文库「库库 AI / GenFlowPro」）：一家一个 provider，没有地区之分。
+ * KukuAI（「 AI / GenFlowPro」）： 1 1 provider， no has 。
  *
- * ── 凭证形态 ────────────────────────────────────────────────
- * 三个 Cookie 就能认证：`BDUSS` / `STOKEN` / `gfprotpl=genflowpro`（后一个
- * 恒附加，不用填）。粘贴支持三种形态（与后端 `kuku::credentials` 同口径）：
- *   1. 整段 Cookie 头（`BDUSS=…; STOKEN=…; …`）；
- *   2. Cookie 编辑器导出的 `[{name, value}, …]` JSON 数组；
- *   3. `{BDUSS, STOKEN}` JSON 对象。
+ * ── ────────────────────────────────────────────────
+ * Cookie can ：`BDUSS` / `STOKEN` / `gfprotpl=genflowpro`（ after 1 
+ * ， not use ）。supports（ and after `kuku::credentials` ）：
+ * 1. Cookie （`BDUSS=…; STOKEN=…; …`）；
+ * 2. Cookie `[{name, value}, …]` JSON ；
+ * 3. `{BDUSS, STOKEN}` JSON for 。
  *
- * ── 导入桌面端 ──────────────────────────────────────────────
- * 客户端是 Electron 套壳，登录态在 `%APPDATA%\baidugenflowpro\Network\Cookies`
- * （SQLite **明文**，无需解密）。客户端运行时该文件被独占锁，导入失败时
- * 提示先关闭客户端（占用冲突的两段式处置与 CatPaw 导入同一交互）。
+ * ── ──────────────────────────────────────────────
+ * client is Electron ， in `%APPDATA%\baidugenflowpro\Network\Cookies`
+ * （SQLite ****，none need ）。client when this file ，failure when 
+ * client（ use and CatPaw 1 ）。
  *
- * ── 没有刷新机制 ────────────────────────────────────────────
- * BDUSS 是百度通行证登录态，上游没有刷新接口，过期后重新导入/重新粘贴即可
- * （与 CatPaw 同一处境，所以不渲染「刷新 Token」那一类控件）。
+ * ── no has new ────────────────────────────────────────────
+ * BDUSS is ， up no has new ， after new / new can 
+ * （ and CatPaw 1 ， not 「 new Token」 that 1 ）。
  */
 const KUKU: ProviderConfig = {
   provider: 'kuku',
   label: 'KukuAI',
-  // 主站登录（最终方案）：打开 kuku.baidu.com，用户像平时用网页版一样登录
-  // （手机验证码 / 扫码都由官方页面自己处理风控 —— 不再在登录页上做任何
-  // 自动化）。登录成功后壳侧检测到 Cookie 里出现 BDUSS，自动读取**完整会话**
-  // （含 HttpOnly 的 BAIDUID_BFESS 等）交回网关，窗口自动关闭、账号落列表。
+  // （）： kuku.baidu.com， use when use 1 
+  // （ / by —— not in up 
+  // ）。success after to Cookie BDUSS，** will **
+  // （ HttpOnly BAIDUID_BFESS etc ），、。
   webLogin: {
     noteHtml: t('在打开的登录页里用百度账号登录 KukuAI 主站（手机验证码 / 扫码均可），登录成功后自动加入账号列表。网关会向百度换发 KukuAI 业务会话令牌（依赖本机已安装库库AI 客户端）。'),
     button: t('打开网页登录'),
     busyText: t('等待 KukuAI 登录完成…'),
-    // 这条链靠壳侧读本机客户端的 Cookie 落定（网页端没有壳，见 web_shim.rs
-    // 的登录状态机），因此文案只描述「登录页已打开」，不承诺完成方式
+    // this client Cookie （ no has ， web_shim.rs
+    // ），「 already 」， not 
     webHint: WEB_LOGIN_HINT,
   },
   manualTitle: t('粘贴 Cookie'),
@@ -697,39 +697,39 @@ const KUKU: ProviderConfig = {
   desktop: true,
   desktopHint: t('读取本机 KukuAI 客户端登录态（%APPDATA%\\baidugenflowpro\\Network\\Cookies），需已在 KukuAI 客户端登录'),
   desktopNote: t('读本机客户端当前登录态（明文 Cookie，无需解密）。客户端运行时 Cookies 文件被独占占用，导入前请先关闭 KukuAI 客户端。'),
-  // 「导入凭证文件」：**二进制** SQLite（文件名就叫 Cookies、没有后缀），
-  // 原生文件读 base64 传 authFileB64；软件导出的 JSON 走统一单账号回流。
-  // 与 desktop 那条的关键差别：网关读的是用户选中文件的**副本**（先解成临时
-  // 文件再解析），不碰客户端正在用的那份 —— 因此这里无需先关闭客户端，
-  // 文案要把这一点说清，否则用户会以为与上面那条同一个坑。
+  // 「file」：**** SQLite（file Cookies、 no has after ），
+  // file base64 authFileB64； JSON 1 。
+  // and desktop that ： is use in file ****（ when 
+  // file）， not client in use that —— this none need client，
+  // need this 1 ，otherwise use will as and up that 1 。
   fileImport: {
     binary: true,
-    // 文件名无扩展名、文件类型也无从按扩展名筛：空串 = 选择器不过滤（全都能选）
+    // filenone、filenone from by ：empty = not （ can ）
     accept: '',
     note: t('选择 KukuAI 客户端的 Cookies 文件（%APPDATA%\\baidugenflowpro\\Network\\Cookies）：它是**二进制** SQLite 数据库（无扩展名，不是 JSON）。导入时读的是你选中文件的副本、不和运行中的客户端抢占用，因此**无需先关闭客户端**。导入后凭证直接落在网关、可独立转发。'),
   },
 }
 
 /**
- * Command Code（`api.commandcode.ai`）：一家一个 provider，没有地区之分
- * （规格 §9：参考里只有这一个主机，没有 cn / intl 双域名、没有 region 头）。
+ * Command Code（`api.commandcode.ai`）： 1 1 provider， no has 
+ * （ §9： has this 1 ， no has cn / intl 、 no has region ）。
  *
- * ── 凭证是一枚 `user_` 前缀的 API Key，粘贴式 ─────────────────
- * 来源是官方 CLI 的 `~/.commandcode/auth.json` 或网页 studio
- * （commandcode.ai/studio）。粘贴形态很杂（裸 key / 带成对引号 /
- * `Authorization: Bearer …` 整行 / key 后面还跟着别的字段），网关会自己扫描
- * `user_` 剥成裸 key —— 整行直接粘就行，不用手工裁剪。
+ * ── is 1 `user_` before API Key， ─────────────────
+ * is CLI `~/.commandcode/auth.json` or studio
+ * （commandcode.ai/studio）。（ key / for /
+ * `Authorization: Bearer …` / key after ）， will 
+ * `user_` key —— ， not use 。
  *
- * ── 无续期、无桌面端导入 ───────────────────────────────────
- * key 是静态的：上游没有 refresh 接口、也不会过期，失效只能重新获取（所以
- * 不渲染「刷新 Token」那一类控件）。本机 `~/.commandcode/auth.json` 是 CLI
- * 自己的凭证文件，不是可导入的「客户端登录态」，没有那条路径（与 Loomy /
- * MonkeyCode 同一处境）。
+ * ── none、none ───────────────────────────────────
+ * key is ： up no has refresh 、 not will ， can new get（
+ * not 「 new Token」 that 1 ）。 `~/.commandcode/auth.json` is CLI
+ * file， not is can 「client」， no has that path（ and Loomy /
+ * MonkeyCode 1 ）。
  *
- * ── 添加时的一次线上探活 ───────────────────────────────────
- * 网关在添加时会打一次**轻量探活**（`GET /alpha/billing/credits`）：只有拿到
- * 401/403 才判 key 无效，网络失败 / 5xx / 未知一律放行 —— 失败不阻断添加，
- * 只作提示（不让一次上游抖动把用户挡在门外）。
+ * ── when 1 up ───────────────────────────────────
+ * in when will 1 ****（`GET /alpha/billing/credits`）： has to 
+ * 401/403 key invalid，failure / 5xx / unknown 1 —— failure not ，
+ * （ not 1 up use in ）。
  */
 const COMMANDCODE: ProviderConfig = {
   provider: 'commandcode',
@@ -745,46 +745,46 @@ const COMMANDCODE: ProviderConfig = {
 }
 
 /**
- * Antigravity（Google 的 AI IDE，本次接它提供的 Gemini 模型）。
+ * Antigravity（Google AI IDE， Gemini ）。
  *
- * ── 网页登录（Google OAuth 授权码 + loopback）───────────────
- * 后端适配器本地拼授权地址（`accounts.google.com`，6 个 scope +
- * `access_token=offline` / `prompt=consent`），完成后浏览器回到**网关自己的**
- * loopback 端口 `/oauth-callback`（redirect_uri 就是网关端口拼出来的，见
- * `providers::antigravity::oauth`）。回调落在网关，因此内嵌窗口与系统浏览器
- * 两种方式都能用（与 CatPaw 同款）；远程 / Docker 场景下浏览器到不了容器内
- * 的 loopback 端口时，可把地址栏整条回调 URL 粘回登录弹窗。
+ * ── （Google OAuth + loopback）───────────────
+ * after （`accounts.google.com`，6 scope +
+ * `access_token=offline` / `prompt=consent`）， after to ** **
+ * loopback `/oauth-callback`（redirect_uri is ，
+ * `providers::antigravity::oauth`）。 in ， and 
+ * can use （ and CatPaw ）； / Docker down to not 
+ * loopback when ， can URL 。
  *
- * ── 粘贴 Google refresh token（仍保留的手工入口）──────────────
- * 已从别处（官方 IDE / 参考实现）拿到 refresh_token 的用户可以直接粘贴；
- * 令牌以 `1//` 开头，直接粘贴含 `refresh_token=` 的整行也行（网关会归一化，
- * `1//` 本体留着）。
+ * ── Google refresh token（ ）──────────────
+ * already from （ IDE / ） to refresh_token use can ；
+ * `1//` ， `refresh_token=` （ will 1 ，
+ * `1//` ）。
  *
- * ── 有自动续期 ─────────────────────────────────────────────
- * access_token 约一小时过期（Google 侧的 expires_in），refresh_token 是长寿命
- * 的主凭证：网页登录与粘贴式都会在添加时打一次 Google token 端点做**真实校验**
- * 并顺手拿到 access token，之后到期由网关自动续期 —— 令牌丢了只能重新走
- * Google 授权。
+ * ── has ─────────────────────────────────────────────
+ * access_token 1 when （Google expires_in），refresh_token is 
+ * ： and will in when 1 Google token ****
+ * and to access token， after to by —— can new 
+ * Google 。
  *
- * ── projectId 可以留空 ─────────────────────────────────────
- * `projectId`（`cloudaicompanionProject`）是聊天请求必需、但每个 Google 账号
- * 各不相同的值（不在 token 里）：留空时网关会 best-effort 自动发现
- * （`loadCodeAssist` → 无则 `onboardUser`），失败不阻断添加，刷模型清单时会
- * 再试。`email` 同样可选，只用于展示与身份识别（网页登录会自己取 userinfo）。
+ * ── projectId can empty ─────────────────────────────────────
+ * `projectId`（`cloudaicompanionProject`） is requestrequired、 Google 
+ * not （ not in token ）：empty when will best-effort 
+ * （`loadCodeAssist` → none then `onboardUser`），failure not ， when will 
+ * 。`email` optional，used for and （ will userinfo）。
  *
- * ── 没有「导入桌面端登录态」────────────────────────────────
- * 登录态在 Antigravity IDE 自己的存储里，没有 `auth.json` 那种稳定可读的
- * 形态（与 Accio / ZCode / Loomy 同一处境）。
+ * ── no has 「」────────────────────────────────
+ * in Antigravity IDE ， no has `auth.json` that can 
+ * （ and Accio / ZCode / Loomy 1 ）。
  */
 const ANTIGRAVITY: ProviderConfig = {
   provider: 'antigravity',
   label: t('Antigravity'),
   desktop: false,
-  // 上游是 Google：多数网络里只有经代理才可达。无头服务器上没有系统代理，
-  // 「登录 / 换证出网线路」只能由用户在这里选（见 `loginProxy` 的说明）。
+  // up is Google： has can 。none up no has ，
+  // 「 / 」 can by use in this （ `loginProxy` ）。
   loginProxy: true,
-  // 网页登录：Google 账号授权页 + loopback 回调。回调落在网关自己的端口，
-  // 所以两种打开方式都可用（会复用系统浏览器里已登录的 Google 账号）。
+  // ：Google + loopback 。 in ，
+  // available（ will use already Google ）。
   webLogin: {
     noteHtml: t('在打开的登录页里登录 Google 账号（Antigravity 的授权页），授权完成后自动加入账号列表。'),
     button: t('打开 Antigravity 网页登录'),
@@ -805,19 +805,19 @@ const ANTIGRAVITY: ProviderConfig = {
 }
 
 /**
- * OfficeAce（华为云果办 / OfficeClaw）：一家一个 provider，没有地区之分。
+ * OfficeAce（ as / OfficeClaw）： 1 1 provider， no has 。
  *
- * ── 两条来源（都落在后端 `add_officeace_account`）──────────────
- * ① **浏览器登录（自助 OAuth）**：网关向云端要 state、拼授权地址，用户在浏览器里
- *    登华为云，网关**轮询云端**取授权码并换到网关凭据 —— **不需要装 OfficeAce
- *    桌面端**（云端回调页不往本机跳，所以壳侧也不用开回调监听）。
- * ② **粘贴凭据**：从别的机器（或桌面端 `models.json`）拿 `baseUrl` 与
- *    `modelAppKey`/`modelAppSecret` 贴进来。只给这三个也能转发（网关凭据不过期）；
- *    控制面临时凭据（`accessKeyId` 等）可选。
+ * ── （ in after `add_officeace_account`）──────────────
+ * ① **（ OAuth）**： to need state、， use in 
+ * as ，**** and to —— ** not need need OfficeAce
+ * **（ not ， not use ）。
+ * ② ****： from （ or `models.json`） `baseUrl` and 
+ * `modelAppKey`/`modelAppSecret` 。 to this can （ not ）；
+ * when （`accessKeyId` etc ）optional。
  *
- * ── 没有「导入桌面端登录态」这条后端路径 ──────────────────────
- * 与 CodeArts 同：凭据只能靠网页登录或粘贴，所以显式 `desktop: false`
- * （不写的话桌面壳里会多出一个选了之后什么都没有的分段）。
+ * ── no has 「」 this after path ──────────────────────
+ * and CodeArts ： can or ， `desktop: false`
+ * （ not will 1 after no has ）。
  */
 const OFFICEACE: ProviderConfig = {
   provider: 'officeace',
@@ -825,12 +825,12 @@ const OFFICEACE: ProviderConfig = {
   fileImport: JSON_CREDENTIAL_FILE,
   desktop: false,
   webLogin: {
-    // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
+    // is 1 t() ：（ not to ）， not 
     noteHtml: t('打开华为云授权页登录：登录完成后网关会自动<b>轮询云端</b>取回授权码并加入账号列表（不需要装 OfficeAce 桌面端，也无需手工回填回调地址）。'),
     button: t('打开授权页'),
     busyText: t('等待 OfficeAce 登录完成…'),
-    // 两种打开方式都可用：授权码是网关**轮询云端**取回的（云端回调页不往本机
-    // 跳），壳侧不开回调监听，因此浏览器在哪台机器上都不影响判定。
+    // available： is **** （ not 
+    // ）， not ， in up not 。
     modes: [
       {
         value: 'embedded',
@@ -843,13 +843,13 @@ const OFFICEACE: ProviderConfig = {
         hint: t('将用系统默认浏览器打开授权页（会复用浏览器里已登录的华为云账号）；授权码由网关轮询云端取回，与浏览器跑在哪台机器无关，完成后自动加入账号列表'),
       },
     ],
-    // 授权码由网关轮询云端取回，浏览器在哪都一样
+    // by ， in 1 
     webHint: WEB_LOGIN_HINT,
   },
   manualTitle: t('粘贴网关凭据'),
   manualNoteHtml: t('从别的机器（或 OfficeAce 桌面端 <code>models.json</code>）取三项贴进来：模型网关基址（<code>baseUrl</code>，形如 <code>https://modelgw-…/v2</code>）与 <code>modelAppKey</code> / <code>modelAppSecret</code>。这三项就能转发（网关凭据不过期）；控制面临时凭据（<code>accessKeyId</code> 等）可选，留空则额度/自动续期不可用，但不影响转发。'),
   fields: [
-    // 字段名与 URL 示例不包 t()（各语言相同，与 CodeArts 的 JSON 示例同一处置）
+    // and URL not t()（， and CodeArts JSON 1 ）
     { key: 'baseUrl', label: t('模型网关基址'), placeholder: 'https://modelgw-…huaweicloud-agentarts.com/v2' },
     { key: 'modelAppKey', label: t('网关 Key'), placeholder: 'model_app_key' },
     { key: 'modelAppSecret', label: t('网关 Secret'), placeholder: 'model_app_secret' },
@@ -858,42 +858,42 @@ const OFFICEACE: ProviderConfig = {
 }
 
 /**
- * OrcaTerm（腾讯云遨驰终端桌面客户端）：一家一个 provider，没有地区之分。
+ * OrcaTerm（client）： 1 1 provider， no has 。
  *
- * ── 凭证形态 ────────────────────────────────────────────────
- * 微信 OAuth 登录后的一枚 JWT（`oauth_access_token`，约 2 小时时效），
- * `Authorization: Bearer` 直达上游。粘贴支持（与后端 `orcaterm::credentials`
- * 同口径）：裸 token、`Authorization: Bearer …` 整行、`ot_session=…`（Web 版
- * Cookie 名），或整个 `data.bin` 的 JSON —— 网关会自己剥出 token。
+ * ── ────────────────────────────────────────────────
+ * OAuth after 1 JWT（`oauth_access_token`， 2 when when ），
+ * `Authorization: Bearer` up 。supports（ and after `orcaterm::credentials`
+ * ）： token、`Authorization: Bearer …` 、`ot_session=…`（Web 
+ * Cookie ）， or `data.bin` JSON —— will token。
  *
- * ── 三条添加路径 ────────────────────────────────────────────
- * 网页登录（官方 OAuth 授权页微信扫码，回调交回网关换令牌）/
- * 导入桌面端登录态 / 粘贴 accessToken。三条最终都归一成同一枚 JWT
- * （见后端 `providers::orcaterm::login` 与 `api::accounts` 的 OrcaTerm 分支）。
+ * ── path ────────────────────────────────────────────
+ * （ OAuth ，）/
+ * / accessToken。 1 1 JWT
+ * （ after `providers::orcaterm::login` and `api::accounts` OrcaTerm ）。
  *
- * ── 导入桌面端 ──────────────────────────────────────────────
- * 客户端是 Tauri 应用，登录态在 `%APPDATA%\com.orcaterm-desktop.app\data.bin`
- * （**明文 JSON**，无需解密）。导入即复制当前令牌进账号记录，之后由网关接管。
+ * ── ──────────────────────────────────────────────
+ * client is Tauri use ， in `%APPDATA%\com.orcaterm-desktop.app\data.bin`
+ * （** JSON**，none need ）。current， after by 。
  *
- * ── 有真续期接口 ───────────────────────────────────────────
- * 上游 `OAuthRefreshToken` 传旧 token 即可换新（2026-10-16 实测），因此账号
- * 添加后由网关自动续期，用户不需要跟着 2 小时时效手动换令牌（与 KukuAI /
- * CatPaw「过期只能重登」不同）。令牌丢了（被顶号 / 上游拒认）才需要重新导入。
+ * ── has ───────────────────────────────────────────
+ * up `OAuthRefreshToken` old token can new （2026-10-16 ），
+ * after by ， use not need need 2 when when （ and KukuAI /
+ * CatPaw「 can 」 not ）。（ / up ） need need new 。
  */
 const ORCATERM: ProviderConfig = {
   provider: 'orcaterm',
   label: 'OrcaTerm',
   fileImport: { ...JSON_CREDENTIAL_FILE, accept: '.json,.bin,application/json' },
-  // 网页登录（后端 providers::orcaterm::login）：打开**官方 OAuth 授权页**，
-  // 它直接跳到微信二维码；扫完上游把浏览器带回自定义协议
-  // `orcaterm://oauth_callback?session_id=…`，壳侧截下这一跳交回网关换令牌。
+  // （ after providers::orcaterm::login）：** OAuth **，
+  // to ； up 
+  // `orcaterm://oauth_callback?session_id=…`， down this 1 。
   webLogin: {
     noteHtml: t('在打开的<strong>官方授权页</strong>里用微信扫码登录（页面会直接显示二维码）。扫码成功后自动加入账号列表。'),
     button: t('打开网页登录'),
     hint: t('内嵌窗口打开；扫码完成后自动加入列表，关窗即取消等待'),
     busyText: t('等待 OrcaTerm 登录完成…'),
-    // 网页端：授权页把浏览器带到 orcaterm:// 自定义协议，网页端没有壳去接它；
-    // 结果由网关侧轮询落定，所以只承诺「新标签页打开」
+    // ： to orcaterm:// ， no has ；
+    // by ，「 new 」
     webHint: WEB_LOGIN_HINT,
   },
   desktop: true,
@@ -908,24 +908,24 @@ const ORCATERM: ProviderConfig = {
 }
 
 /**
- * 智谱清言（`chatglm.cn`）。逆向来源：客户端 2.0.7 的 `app.asar` +
- * `agentmore` 线上包（见后端 `providers::chatglm` 的模块头）。
+ * （`chatglm.cn`）。 to ：client 2.0.7 `app.asar` +
+ * `agentmore` up （ after `providers::chatglm` module header）。
  *
- * ── 三条添加路径（本家在这一点上最特别）────────────────────────
- *   1. **访客模式**（`guestLogin`）：不需要手机号也不需要扫码，后台空 body
- *      打一次 `guest/access` 就换到一对令牌 + 一个新设备号。本家「零配置就能用」
- *      的入口 —— 代价是**没有积分体系**（余额 / 签到 / 活动领取对访客如实跳过），
- *      说明里必须写清；
- *   2. **粘贴令牌**：从浏览器开发者工具复制 `chatglm_token` 的 cookie 值
- *      （或整条 JWT）。适合已有登录账号的用户 —— 这类账号有积分，签到可用；
- *   3. **导入本机登录态**：读本机客户端 Cookies。与 KukuAI 的明文列不同，
- *      本家那份是 **DPAPI 加密**的（Chromium os_crypt），只有 Windows 能解，
- *      因此 `desktopWindowsOnly`。
+ * ── path（ in this 1 up ）────────────────────────
+ * 1. ****（`guestLogin`）： not need need not need need ， after empty body
+ * 1 `guest/access` to 1 for + 1 new 。「config can use 」
+ * —— is ** no has **（ / to / for ），
+ * must；
+ * 2. ****： from `chatglm_token` cookie 
+ * （ or JWT）。 already has use —— this has ， to available；
+ * 3. ****：client Cookies。 and KukuAI not ，
+ * that is **DPAPI ** （Chromium os_crypt）， has Windows can ，
+ * `desktopWindowsOnly`。
  *
- * ── 有真续期接口 ────────────────────────────────────────────
- * `POST /chatglm/user-api/user/refresh`（refresh_token 换新令牌，实测可用）。
- * 访客令牌失效时网关会用**同一个设备号**重新换发（设备号是身份的一部分，
- * 换掉等于换一个新访客）。
+ * ── has ────────────────────────────────────────────
+ * `POST /chatglm/user-api/user/refresh`（refresh_token new ，available）。
+ * when will use ** 1 ** new （ is 1 ，
+ * etc 1 new ）。
  */
 const CHATGLM: ProviderConfig = {
   provider: 'chatglm',
@@ -955,24 +955,24 @@ const CHATGLM: ProviderConfig = {
 }
 
 /**
- * ModelScope（魔搭）的两个站点：一家一个 provider，粘贴 `ms-` 令牌。
+ * ModelScope（） ： 1 1 provider， `ms-` 。
  *
- * ── 一枚令牌两用（这是本家最省事的地方）──────────────────────
- * 同一个 `ms-` 令牌既作 `Authorization: Bearer` 调推理，又作
- * `Cookie: m_session_id=<令牌>` 读账号身份 / 魔粒余额 / 每日签到（实测确认）。
- * 所以凭据只有一个字段，用户从魔搭的「访问令牌」页复制一次就够。
+ * ── 1 use （ this is ）──────────────────────
+ * 1 `ms-` `Authorization: Bearer` ，
+ * `Cookie: m_session_id=<>` / / daily to （）。
+ * has 1 ， use from 「」 1 。
  *
- * ── 两个站点是两套独立账号 ─────────────────────────────────
- * 国内站（modelscope.cn）与国际站（modelscope.ai）账号体系分开：令牌打错站点
- * 会得到 401，所以两家各一张卡、各填各的令牌。
+ * ── is ─────────────────────────────────
+ * （modelscope.cn） and （modelscope.ai）：
+ * will to 401， 1 、 。
  *
- * ── 没有续期、没有桌面端导入 ───────────────────────────────
- * 令牌长期有效（上游没有 refresh 接口），失效只能重新获取；魔搭没有桌面客户端
- * （与 Loomy / MonkeyCode 同一处境），因此不渲染「导入桌面端登录态」。
+ * ── no has 、 no has ───────────────────────────────
+ * valid（ up no has refresh ）， can new get； no has client
+ * （ and Loomy / MonkeyCode 1 ）， not 「」。
  *
- * ── 添加时的一次探活（会拦下添加）──────────────────────────
- * 令牌不透明、解不出身份，所以网关添加前必须打一次上游换回账号身份 ——
- * 令牌无效 / 站点点错会在添加的那一刻就说清楚，而不是等第一次转发才失败。
+ * ── when 1 （ will down ）──────────────────────────
+ * not 、 not ， before must 1 up ——
+ * invalid / will in that 1 ， not is etc 1 failure。
  */
 function modelscopeForm(spec: {
   provider: string
@@ -985,13 +985,13 @@ function modelscopeForm(spec: {
     provider,
     label,
     fileImport: JSON_CREDENTIAL_FILE,
-    // 没有桌面客户端，也就没有可导入的登录态文件（理由见上方注释）
+    // no has client， no has can file（ by up ）
     desktop: false,
     manualTitle: t('粘贴 API 令牌'),
-    // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
+    // is 1 t() ：（ not to ）， not 
     manualNoteHtml: t('粘贴 ModelScope 的 API 令牌（<code>ms-</code> 开头，在 {site} 的「访问令牌」页获取）。<br>{siteNote}<br>这枚令牌<b>两用</b>：网关既用它调推理，也用它读账号身份、魔粒余额与每日签到。令牌长期有效、没有续期接口，失效后重新获取再粘一次即可。', { site, siteNote }),
     fields: [
-      // 字段名不包 t()（各语言相同，与别家同一处置）
+      // not t()（， and 1 ）
       { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('ms- 开头的 API 令牌') },
       { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用上游账号昵称') },
     ],
@@ -1013,19 +1013,19 @@ const MODELSCOPE_INTL = modelscopeForm({
 })
 
 /**
- * AtomCode（AtomGit / GitCode）：把 AtomGit 的免费 CodingPlan 接进本网关。
+ * AtomCode（AtomGit / GitCode）： AtomGit CodingPlan 。
  *
- * ── 两条来源 ────────────────────────────────────────────────
- * ① **浏览器登录**（推荐）：网关向代理现取授权地址 → 用户在浏览器里登 AtomGit
- *    → 网关**轮询代理**判完成并取回令牌对（授权回调由代理自己在
- *    `acs.atomgit.com/callback` 终结，**不往本机跳**，所以壳侧不需要开回调监听）。
- * ② **粘贴令牌对**（后备）：`accessToken` + `refreshToken`。⚠️ `refreshToken`
- *    强烈建议填 —— 本家的令牌**不是 JWT**（实测 7 天到期，读不到 `exp`），
- *    没有它账号无法自动续期，到期只能重新登录
- *    （见 `providers/atomcode/credentials.rs` 的模块头）。
+ * ── ────────────────────────────────────────────────
+ * ① ****（）： to → use in AtomGit
+ * → **** and for （ by in 
+ * `acs.atomgit.com/callback` ，** not **， not need need ）。
+ * ② ** for **（ after ）：`accessToken` + `refreshToken`。⚠️ `refreshToken`
+ * —— ** not is JWT**（ 7 to ， not to `exp`），
+ * no has none， to can new 
+ * （ `providers/atomcode/credentials.rs` module header）。
  *
- * `desktop: false`：与 CodeArts / OfficeAce 同 —— 没有「导入桌面端登录态」这条
- * 后端路径（AtomCode 把令牌写在 `auth.toml` 里，且需要额外的机器指纹，不做这条入口）。
+ * `desktop: false`： and CodeArts / OfficeAce —— no has 「」 this 
+ * after path（AtomCode in `auth.toml` ， and need need ， not this ）。
  */
 const ATOMCODE: ProviderConfig = {
   provider: 'atomcode',
@@ -1033,16 +1033,16 @@ const ATOMCODE: ProviderConfig = {
   fileImport: JSON_CREDENTIAL_FILE,
   desktop: false,
   webLogin: {
-    // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
+    // is 1 t() ：（ not to ）， not 
     noteHtml: t('打开 AtomGit 授权页登录：登录完成后网关会自动<b>轮询代理</b>取回令牌并加入账号列表（授权回调由代理终结，不回到本机，因此无需手工回填回调地址）。'),
     button: t('打开授权页'),
     busyText: t('等待 AtomCode 登录完成…'),
   },
   manualTitle: t('粘贴令牌对'),
-  // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
+  // is 1 t() ：（ not to ）， not 
   manualNoteHtml: t('在 AtomGit 的 AtomCode 页面登出后取得两项贴进来：<code>accessToken</code> 与 <code>refreshToken</code>。<b>续期令牌建议填写</b>——本家令牌不是 JWT（约 7 天到期，读不到过期时间），没有它账号无法自动续期，到期只能重新登录。'),
   fields: [
-    // 字段名与示例值不包 t()（各语言相同，与 CodeArts 的 JSON 示例同一处置）
+    // and not t()（， and CodeArts JSON 1 ）
     { key: 'accessToken', label: t('访问令牌'), placeholder: 'access_token' },
     { key: 'refreshToken', label: t('续期令牌'), optional: true, placeholder: 'refresh_token' },
     { key: 'userId', label: t('用户 ID'), optional: true, placeholder: t('可选，用于生成账号标识') },
@@ -1051,36 +1051,36 @@ const ATOMCODE: ProviderConfig = {
 }
 
 /**
- * LobsterAI（网易有道「有道龙虾」`lobsterai.youdao.com`）：一家一个 provider，
- * 没有地区 / 额度池之分。
+ * LobsterAI（ has 「 has 」`lobsterai.youdao.com`）： 1 1 provider，
+ * no has / 。
  *
- * ── 只有一条添加路径：浏览器登录（授权码 + 本机 loopback 回调）──────
- * 网关按 state 登记一轮登录并拼出授权地址，用户在门户授权（手机号 / 微信）后
- * 门户 302 回**网关自己的端口**：`http://127.0.0.1:<网关端口>/auth/callback`，
- * 网关拿授权码换令牌后落账号（见后端 `providers::lobsterai::oauth` 与
- * `core::login::lobsterai`）。回调路径是裸 `/auth/callback`（不是 `-lobsterai`
- * 后缀）：那是参考实现已验证的形状，门户是否对路径有白名单没有实测支撑。
+ * ── has 1 path：（ + loopback ）──────
+ * by state 1 and ， use in （ / ） after 
+ * 302 ** **：`http://127.0.0.1:<>/auth/callback`，
+ * after （ after `providers::lobsterai::oauth` and 
+ * `core::login::lobsterai`）。path is `/auth/callback`（ not is `-lobsterai`
+ * after ）： that is already ， is for path has no has 。
  *
- * ── 没有「填写凭证」这条路径（后端如实拒绝，不是界面漏做）──────────
- * 续期要**换码那一刻**由上游下发的三件载荷（`uuid` + 两个 `keyfrom`），粘贴
- * 给不出它们（见后端 `account_store::lobsterai_accounts` 的模块头）。所以后端
- * `api::accounts` 对 LobsterAI 的粘贴入口**始终回 400**，这里也就不提供手填段。
- * `fields` 留空是被 `ProviderConfig` 逼的（该键在类型里是必填），不是漏写：
- * 本家唯一入口就是上面那条「网页登录」。
+ * ── no has 「」 this path（ after ， not is ）──────────
+ * need ** that 1 ** by up down （`uuid` + `keyfrom`），
+ * to not （ after `account_store::lobsterai_accounts` module header）。 after 
+ * `api::accounts` for LobsterAI ** 400**， this not 。
+ * `fields` empty is `ProviderConfig` （ this in is ）， not is ：
+ * 1 is up that 「」。
  *
- * ── 没有「导入桌面端登录态」这条路径 ──────────────────────────
- * 客户端登录态在它自己的存储里，没有 `data.bin` 那种稳定可读的明文形态
- * （与 Accio / ZCode 同一处境），所以显式 `desktop: false`。
+ * ── no has 「」 this path ──────────────────────────
+ * client in ， no has `data.bin` that can 
+ * （ and Accio / ZCode 1 ）， `desktop: false`。
  */
 const LOBSTERAI: ProviderConfig = {
   provider: 'lobsterai',
   label: t('LobsterAI'),
   desktop: false,
-  // 授权页把浏览器送回**本机端口**（与 Accio 同一形态）：同机自动完成，
-  // 跨机（Docker / 远程面板）到不了网关 —— 本家没有「粘贴最终回调地址」那条
-  // 兜底，所以说明里只讲同机这一条前提，不承诺粘贴通道。
+  // ****（ and Accio 1 ）：，
+  // （Docker / ） to not —— no has 「」 that 
+  // ， this 1 before ， not 。
   webLogin: {
-    // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
+    // is 1 t() ：（ not to ）， not 
     noteHtml: t('打开 <b>LobsterAI（有道龙虾）</b>的官方登录页（<code>lobsterai.youdao.com</code>）并用你的 LobsterAI 账号登录：登录成功后官方页面会跳回本机并自动加入账号列表 —— 回调落在<b>网关自己的端口</b>上，所以浏览器要与网关在同一台机器上；授权码只在本机传给网关，界面不显示明文 token。'),
     button: t('打开 LobsterAI 登录页'),
     busyText: t('等待 LobsterAI 登录完成…'),
@@ -1088,100 +1088,100 @@ const LOBSTERAI: ProviderConfig = {
       { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('将打开内嵌窗口；登录完成后自动加入账号列表。关掉窗口即取消等待') },
       { value: 'external', label: t('系统浏览器'), hint: t('将用系统默认浏览器打开登录页（会复用浏览器里已登录的 LobsterAI 账号）；完成登录后自动加入账号列表，关掉弹窗即取消等待') },
     ],
-    // 本家没有粘贴兜底：跨机时网页端只能靠用户自己在浏览器地址栏确认
-    // 页面跳回去了，所以提示里只承诺「新标签页打开」
+    // no has ： when can use in 
+    // ，「 new 」
     webHint: WEB_LOGIN_HINT,
   },
   fields: [],
 }
 
-/** 内置家的表单块，顺序与旧 ADD_FORMS 一致（只影响 DOM 里的块顺序，不影响界面） */
+/** ， and old ADD_FORMS 1 （ DOM ， not ） */
 export const BUILTIN_CONFIGS: ProviderConfig[] = [
   RACCOON,
   CATPAW,
   AUTOCLAW,
   AUTOCLAW_INTL,
-  // Qoder 两个地区相邻（拆家后是两家 provider，与 AutoClaw / Accio / ZCode
-  // 同一理由）：中国版在前，与存量账号的归属一致
+  // Qoder （ after is provider， and AutoClaw / Accio / ZCode
+  // 1 by ）： in in before ， and 1 
   QODER,
   QODER_INTL,
-  // 千问办公两版紧随其后（同一套协议栈的另一家产品，两版相邻）：
-  // 国内版在前，与后端注册表 PROVIDERS 的排列一致
+  // its after （ 1 1 ，）：
+  // in before ， and after PROVIDERS 1 
   QWENWORK,
   QWENWORK_INTL,
-  // Cline 顺序即界面上「提供商」分段的顺序：免费池在前（无门槛，更常用）
+  // Cline up 「」 ： in before （none， use ）
   clineForm({ provider: 'cline-free', label: 'Cline Free', poolNote: t('（免费额度池，模型名带 cline-free/ 前缀）。') }),
   clineForm({ provider: 'cline-pass', label: 'Cline Pass', poolNote: t('（订阅池，模型名带 cline-pass/ 前缀，需要账号有对应订阅）。') }),
-  // Accio 顺序：国际版在前（默认安装的版本）
+  // Accio ： in before （default ）
   accioForm({ provider: 'accio', label: t('国际版'), site: 'www.accio.com', siteNote: t('国际版与国内版是**两套独立的账号**（同一账号体系的两个站点），凭证不通用。') }),
   accioForm({ provider: 'accio-cn', label: t('国内版'), site: 'www.accio-ai.com', siteNote: t('国内版的登录站点是 www.accio-ai.com，与国际版不是同一站。') }),
-  // ZCode 顺序：国内版在前（国内网络环境下更常被添加的那个，与后端注册表 PROVIDERS 的排列一致）
+  // ZCode ： in before （ down that ， and after PROVIDERS 1 ）
   zcodeForm({ provider: 'zcode', label: t('国内版'), site: 'open.bigmodel.cn', planNote: t('国内版与**国际版是两套独立的账号与套餐**，凭证与领取的套餐都不通用。') }),
   zcodeForm({ provider: 'zcode-intl', label: t('国际版'), site: 'api.z.ai', planNote: t('国际版的推理站点是 api.z.ai，与国内版不是同一站；套餐也各自独立。') }),
-  // CodeArts（华为云 AI 代码助手）：一家一个 provider，没有地区/额度池之分
-  // （region 写死 cn-north-4，与 token 签发地必须一致）。
+  // CodeArts（ as AI ）： 1 1 provider， no has /
+  // （region cn-north-4， and token must 1 ）。
   CODEARTS,
-  // Trae 当前登记国内账号；国际版接入时使用独立身份。
+  // Trae current； when use 。
   TRAE,
-  // Loomy（讯飞）：单一入口（手机验证码登录），排在末尾 —— 与后端注册表
-  // PROVIDERS 的排列一致（新增的一家加在表尾）
+  // Loomy（）： 1 （）， in —— and after 
+  // PROVIDERS 1 （add 1 in ）
   LOOMY,
-  // KukuAI（百度文库库库 AI）：粘贴 Cookie / 导入本机登录态，排在末尾
-  // （与后端注册表 PROVIDERS 的排列一致，2026-10 接入）
+  // KukuAI（ AI）： Cookie / ， in 
+  // （ and after PROVIDERS 1 ，2026-10 ）
   KUKU,
-  // MonkeyCode（长亭科技）的两个站点相邻（与 AutoClaw / Qoder 同一拆法）：
-  // 国内版在前 —— 与后端注册表 PROVIDERS 的追加顺序一致（2026-10 接入）。
+  // MonkeyCode（） （ and AutoClaw / Qoder 1 ）：
+  // in before —— and after PROVIDERS 1 （2026-10 ）。
   MONKEYCODE,
   MONKEYCODE_INTL,
-  // Command Code / Antigravity：单一入口、没有地区伴生，同样按后端注册表
-  // PROVIDERS 的追加顺序排在表尾（后到居后，新增的家加在末尾）。
+  // Command Code / Antigravity： 1 、 no has ， by after 
+  // PROVIDERS in （ after to after ，add in ）。
   COMMANDCODE,
   ANTIGRAVITY,
-  // OfficeAce（华为云果办 / OfficeClaw）：浏览器登录（自助 OAuth）或粘贴网关
-  //凭据，排在末尾（与后端注册表 PROVIDERS 的排列一致，2026-10 接入）
+  // OfficeAce（ as / OfficeClaw）：（ OAuth） or 
+  //， in （ and after PROVIDERS 1 ，2026-10 ）
   OFFICEACE,
-  // OrcaTerm（腾讯云遨驰终端桌面客户端）：粘贴 accessToken / 导入桌面端登录态，
-  // 排在末尾（与后端注册表 PROVIDERS 的排列一致，2026-10 接入）
+  // OrcaTerm（client）： accessToken / ，
+  // in （ and after PROVIDERS 1 ，2026-10 ）
   ORCATERM,
-// 智谱清言（chatglm.cn）：访客模式 / 粘贴令牌 / 导入本机登录态，排在末尾
-  // （与后端注册表 PROVIDERS 的排列一致，2026-10 接入）
+// （chatglm.cn）： / / ， in 
+  // （ and after PROVIDERS 1 ，2026-10 ）
   CHATGLM,
   MODELSCOPE,
   MODELSCOPE_INTL,
-  // AtomCode（AtomGit / GitCode）：浏览器登录 + 粘贴令牌对，排在末尾
-  // （与后端注册表 PROVIDERS 的排列一致，后到居后）
+  // AtomCode（AtomGit / GitCode）： + for ， in 
+  // （ and after PROVIDERS 1 ， after to after ）
   ATOMCODE,
-  // LobsterAI（网易有道「有道龙虾」）：只有浏览器登录一条入口，排在末尾
-  // （与后端注册表 PROVIDERS 的排列一致，后到居后）
+  // LobsterAI（ has 「 has 」）： has 1 ， in 
+  // （ and after PROVIDERS 1 ， after to after ）
   LOBSTERAI,
   DOUBAOWORK,
   DEEPSEEK_WEB,
-  // Tabbit 浏览器（国内站 / 国际站）：两站账号不通用，成对相邻排列。
+  // Tabbit （ / ）： not use ， for 。
   TABBIT,
   TABBIT_INTL,
 ]
 
-/** WorkBuddy 的块 id（结构特殊，单独一个组件） */
+/** WorkBuddy id（， 1 ） */
 export const WORKBUDDY_PROVIDER = 'workbuddy'
-/** 自定义提供商的块 id（后注册块的 provider 取值） */
+/** id（ after provider ） */
 export const CUSTOM_PROVIDER = 'custom'
 
 /**
- * WorkBuddy 在**添加账号入口**上的展示名：中性品牌名，不带地区。
+ * WorkBuddy in **** up ： in ， not 。
  *
- * ── 为什么不用注册表里的名字（拆家后是「WorkBuddy 国内版」）──────
- * 这个入口是**两版共用**的：第 1 步只有一张卡，卡片里的「账号版本」分段负责
- * 切国内版 / 国际版（同一个 `WorkBuddyBlock` 的两个选项，见 add-provider-pick
- * 的说明）。名字带「国内版」而用户当场就能切到国际版，读起来就是自相矛盾 ——
- * 卡片与弹窗标题都因此用品牌名。
+ * ── Why not use （ after is 「WorkBuddy 」）──────
+ * this is ** use ** ： 1 has 1 ， 「」
+ * / （ 1 `WorkBuddyBlock` ， add-provider-pick
+ * ）。「」 use can to ， is ——
+ * and use 。
  *
- * 两处**都**走这个常量而不是各写一份：卡片与标题是同一个入口的两个步骤，
- * 名字不一致时用户会以为点了别的东西。
+ * **** this not is 1 ： and is 1 ，
+ * not 1 when use will as 。
  *
- * ── 别处仍用注册表名 ────────────────────────────────────────
- * 账号页徽章、模型页、Key 页用的是注册表名（带地区）：那些地方要能分清两家，
- * 而这里一家代表两版。别家不需要这一层 —— AutoClaw / Accio / ZCode 的两版
- * 是**两张卡**，各自的注册名就是各自的身份。
+ * ── use ────────────────────────────────────────
+ * 、、Key use is （）： that need can ，
+ * this 1 。 not need need this 1 —— AutoClaw / Accio / ZCode 
+ * is ****， is 。
  */
 export const WORKBUDDY_ENTRY_LABEL = 'WorkBuddy'
 
@@ -1189,21 +1189,21 @@ export function configOf(providerId: string): ProviderConfig | undefined {
   return BUILTIN_CONFIGS.find(item => item.provider === providerId)
 }
 
-/* ─── 添加方式（分段项）─────────────────────────
+/* ─── （）─────────────────────────
  *
- * 文案要短（并排一行，太长会把弹窗挤到换行），详细说明留在各段自己的标题与正文里。
- * 露出哪些项由 methodsOf 按各家配置裁剪。
+ * need （ and 1 ， will to ）， in and 。
+ * by methodsOf by config。
  *
- * `oauth` 单独一项而不并进「网页登录」：对用户来说两者都是「跳去官方页面登录」，
- * 但交互不同 —— 网页登录点一下就开窗口（等待态由 web-login.js 统一管），而
- * AutoClaw 国际版要先在本弹窗里弹一个阿里云滑块让用户拖完才能拿到授权地址。
- * 并进去会让那个引擎多出「有些家要先跑一段验证码」的分支，且两者的发起时序与
- * 按钮布局都不一样（这一项是两个变体各一个按钮）。
+ * `oauth` 1 not and 「」： for use is 「」，
+ * not —— 1 down （ etc by web-login.js 1 ），
+ * AutoClaw need in 1 use can to 。
+ * and will that 「 has need 1 」 ， and when and 
+ * by not 1 （ this 1 is 1 by ）。
  *
- * `file` 紧跟 `manual` 而不并进 `desktop`：两者都是「导入本机登录态」，但
- * `desktop` 建的是「转发时实时读本机固定路径」的记录（只有本机能用），`file`
- * 是把用户手选的凭证文件解析后落库（可独立转发，文件可来自任意机器 / 备份）。
- * 失败处置与文案也各不相同（后者要选文件、要预检 JSON），因此各占一项。 */
+ * `file` `manual` not and `desktop`： is 「」，
+ * `desktop` is 「 when when path」 （ has can use ），`file`
+ * is use file after （ can ，file can any / ）。
+ * failure and not （ after need file、 need JSON）， 1 。 */
 export const ADD_METHODS = [
   { id: 'guest', label: t('访客模式（免登录）') },
   { id: 'oauth', label: t('网页登录（Zai / Google）') },
@@ -1217,43 +1217,43 @@ export const ADD_METHODS = [
 export type MethodId = (typeof ADD_METHODS)[number]['id']
 
 /**
- * 壳的编译目标平台（'macos' / 'windows' / 'linux' / 'web'），由桥接脚本注入。
+ * （'macos' / 'windows' / 'linux' / 'web'）， by 。
  *
- * 浏览器直开（没有壳）时拿不到它，退回空串 —— 此时按「不裁剪」处理：
- * 浏览器直连网关本来就用不了这些壳侧功能，多显示一个选项不会误导谁，
- * 而误裁掉一个**本来可用**的功能会让 Windows 用户莫名其妙少一项。
+ * （ no has ） when not to ，empty —— when by 「 not 」：
+ * use not this can ， 1 not will ，
+ * 1 **available** can will Windows use its 1 。
  */
 export const platform = (): string => shared().workbuddyDesktop?.platform || ''
 
 /**
- * 桌面端导入在这一家、这个平台是否可用。
+ * in this 1 、 this is available。
  *
- * `desktopWindowsOnly` 的家（AutoClaw / 智谱清言）要按平台裁掉：它们读本机
- * 客户端的登录态，而那份数据是 Electron / Chromium 的 **DPAPI 密文**
- * （AutoClaw 的 `%APPDATA%/AutoClaw/auth.json`、智谱清言客户端 Cookies 的
- * os_crypt 列），要先过 `CryptUnprotectData` 才能解出密钥 —— DPAPI 只有
- * Windows 有。
+ * `desktopWindowsOnly` （AutoClaw / ） need by ：
+ * client ， that is Electron / Chromium **DPAPI **
+ * （AutoClaw `%APPDATA%/AutoClaw/auth.json`、client Cookies 
+ * os_crypt ）， need `CryptUnprotectData` can —— DPAPI has 
+ * Windows has 。
  *
- * ── 判据是「不是 Windows」而不是「是 macOS」────────────────────
- * 原来这里写的是 `platform() === 'macos'`，那是双平台时代的写法；第三端
- * （Linux 桌面壳）进来之后必须反过来判 —— 否则 Linux 会**照常列出**这个入口，
- * 用户点下去只能拿到「解密失败」，比不显示更糟。所以判据统一成
- * 「除 Windows 外一律收起」，将来再多一个桌面平台也自动正确。
+ * ── is 「 not is Windows」 not is 「 is macOS」────────────────────
+ * this is `platform() === 'macos'`， that is when ；
+ * （Linux ） after must —— otherwise Linux will **** this ，
+ * use down can to 「failure」， not 。 1 
+ * 「 Windows 1 」， will 1 。
  *
- * 其余几家（小浣熊 `~/.box-agent`、CatPaw `~/.meituan-catpaw`、Cline
- * `~/.cline`）读的都是 `HOME` 下的明文 JSON，macOS / Linux 上照样能导入，
- * 因此不受这一条影响（见各 ProviderConfig 的 desktopNote）。
+ * its （ `~/.box-agent`、CatPaw `~/.meituan-catpaw`、Cline
+ * `~/.cline`） is `HOME` down JSON，macOS / Linux up can ，
+ * not this 1 （ ProviderConfig desktopNote）。
  */
 export function desktopImportAvailable(config: ProviderConfig): boolean {
   if (config.desktop === false) return false
-  // 网页端（headless 托管面板注入 platform='web'）：没有本机桌面客户端可读
+  // （headless platform='web'）： no has client can 
   const current = platform()
   if (current === 'web') return false
   if (config.desktopWindowsOnly && current !== 'windows') return false
   return true
 }
 
-/** 网页登录那一段只在某个地区露出时的判据（当前没有家用，结构上保留） */
+/** that 1 in when （current no has use ， up ） */
 export function methodsOf(config: ProviderConfig, region: string): MethodId[] {
   return ADD_METHODS.filter(method => {
     if (method.id === 'guest') return Boolean(config.guestLogin)
@@ -1266,16 +1266,16 @@ export function methodsOf(config: ProviderConfig, region: string): MethodId[] {
   }).map(method => method.id)
 }
 
-/** 手填表单标题：默认「填写凭证添加」，小浣熊沿用原文案 */
+/** ：default「」， use */
 export const manualTitleOf = (config: ProviderConfig): string => config.manualTitle || t('填写凭证添加')
-/** 说明中的行内标记优先，否则按纯文本渲染（React 的文本节点天然转义） */
+/** in ，otherwise by （React ） */
 export const manualNoteOf = (config: ProviderConfig): { html?: string; text?: string } =>
   (config.manualNoteHtml ? { html: config.manualNoteHtml } : { text: config.manualNote || '' })
 
-/** 手填段主按钮文案 */
+/** by */
 export const addButtonTextOf = (config: ProviderConfig): string =>
   config.addButton || t('添加 {name} 账号', { name: config.label })
 
-/** 字段的 DOM id（inputKey 保留小浣熊既有的 refresh-input id，请求体键仍为 refreshToken） */
+/** DOM id（inputKey has refresh-input id，request as refreshToken） */
 export const fieldIdOf = (config: ProviderConfig, field: FieldSpec): string =>
   `${config.provider}-${field.inputKey || field.key}-input`

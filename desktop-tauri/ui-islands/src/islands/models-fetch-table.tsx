@@ -29,7 +29,7 @@ type Props = {
   formatTime: (value: number) => string
 }
 
-// 列宽层按表 id / data-col 定位，卸载失败态后重新挂载时必须恢复列宽与拖动把手。
+// by id / data-col ，failure after new when must and 。
 const TABLE_ID = { intl: 'fm-table-intl', custom: 'fm-table-custom' }
 const TABLE_COL_ID = { intl: 'fetch-models', custom: 'fetch-models-custom' }
 const COLS_INTL = ['provider', 'source', 'state', 'count', 'note', 'updated', 'op']
@@ -87,7 +87,7 @@ export function ModelsFetchTable({
   function rowPick(event: React.MouseEvent<HTMLTableRowElement>, id: string, added: boolean) {
     if (added) return
     const target = event.target as Element | null
-    // 复选框已经处理过点击；拖选模型 id 时也不能改变勾选状态。
+    // already ； id when not can 。
     if (target?.closest('[data-slot="checkbox"], input[type="checkbox"]')) return
     const selection = window.getSelection()
     if (selection && !selection.isCollapsed && event.currentTarget.contains(selection.anchorNode)) return

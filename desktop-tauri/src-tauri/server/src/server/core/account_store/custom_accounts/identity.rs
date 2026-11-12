@@ -18,7 +18,7 @@ pub(super) fn existing(
     let ids = statement
         .query_map([provider_id], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    // 按实际凭证兼容旧 ID；写入前逐条严格加载，不把解密失败当作账号不存在。
+    // by old ID； before ， not failure not in 。
     for id in ids {
         if let Some(record) = sql::load_by_id(conn, &id)? {
             if record.fields().get("apiKey").and_then(Value::as_str) == Some(api_key) {

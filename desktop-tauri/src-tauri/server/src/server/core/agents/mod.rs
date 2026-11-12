@@ -1,4 +1,4 @@
-//! 本机客户端的原生配置管理。保存的方案与磁盘上的实际配置分别读取。
+//! client config。 and up config。
 
 pub mod apply;
 mod backups;

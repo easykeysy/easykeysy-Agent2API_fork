@@ -21,11 +21,11 @@ import { t } from '../i18n'
 import { Card, Button } from '@ui'
 
 /**
- * 首页。
+ * 。
  *
- * 回答三个问题：网关活着吗、今天花了多少、还有什么该做。
- * 这三件事在桌面端分散在报表 / 签到 / 设置三页 —— 手机上一屏给全，
- * 其余细节点进去看。
+ * ：、、 has this 。
+ * this in in / to / set —— up 1 to ，
+ * its 。
  */
 export function HomePage() {
   const state = useStore()
@@ -40,7 +40,7 @@ export function HomePage() {
 
   const load = async () => {
     try {
-      // 今日请求数走报表汇总（区间内的请求数）；该接口失败不应拖垮整页，失败时按 0 显示
+      // requesttotal（ request）； this failure not ，failure when by 0 
       const [center, page, summary] = await Promise.all([
         fetchCheckinCenter(),
         fetchRequests({ limit: 3 }),
@@ -55,8 +55,8 @@ export function HomePage() {
     }
   }
 
-  // 首页只轮询签到与最近请求：会话本身由 App 启动时拉一次，
-  // 用户下拉刷新（下面的按钮）才重拉
+  // to and request： will by App when 1 ，
+  // use down new （ down by ）
   usePolling(load, 60_000)
 
   const pull = usePullToRefresh({
@@ -89,7 +89,7 @@ export function HomePage() {
 
       {state.sessionError ? <ErrorNote text={state.sessionError} /> : null}
 
-      {/* 运行状态与今日读数 */}
+      {/* and */}
       <div className='m-section' style={{ marginTop: 0 }}>
         <Card
           className='m-card'
@@ -175,7 +175,7 @@ export function HomePage() {
 
       <HiddenAccountsNotice hidden={session?.accounts?.hiddenAccounts} />
 
-      {/* 签到中心是固定入口；没有可用能力时由内置页展示空态。 */}
+      {/* to in is ； no has available can when by empty。 */}
         <div className='m-section'>
           <Card className='m-card' style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 15 }}>
             <Ring percent={percent} />
@@ -197,7 +197,7 @@ export function HomePage() {
           </Card>
         </div>
 
-      {/* 高频操作入口 */}
+      {/* */}
       <div className='m-section'>
         <Card
           className='m-card'
@@ -214,7 +214,7 @@ export function HomePage() {
         </Card>
       </div>
 
-      {/* 限流告警：只留一条，按严重度取最需要处理的那条 */}
+      {/* ： 1 ， by need need that */}
       {limited > 0 ? (
         <div className='m-section'>
           <Button size='default' variant='ghost'
@@ -242,7 +242,7 @@ export function HomePage() {
         </div>
       ) : null}
 
-      {/* 最近请求 */}
+      {/* request */}
       <div className='m-section'>
         <SectionHead title={t('最近请求')} action={{ label: t('全部'), onClick: () => store.push('requests') }} />
         <Card className='m-card'>
@@ -275,7 +275,7 @@ export function HomePage() {
         </Card>
       </div>
 
-      {/* 提供商概览 */}
+      {/* */}
       <div className='m-section'>
         <SectionHead title={t('账号分布')} action={{ label: t('管理'), onClick: () => store.go('accounts') }} />
         <Card className='m-card'>
@@ -406,7 +406,7 @@ function QuickEntry({
   )
 }
 
-/** 状态圆点：成功绿、4xx/5xx 红、在途黄 */
+/** ：success、4xx/5xx 、 in */
 export function StatusDot({ status }: { status?: number }) {
   const tone = !status ? 'warn' : status >= 200 && status < 400 ? 'ok' : 'bad'
   const color = tone === 'ok' ? 'var(--m-ok)' : tone === 'warn' ? 'var(--m-warn)' : 'var(--m-danger)'

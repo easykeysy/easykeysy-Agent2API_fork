@@ -1,22 +1,22 @@
 /**
- * AI 助手的对话流（SSE）。
+ * AI for （SSE）。
  *
- * ── 请求走哪条路 ──────────────────────────────────────────────
- * `POST /api/assistant/chat`，**由网关转发到上游**。手机端只负责把消息发出去、
- * 把流回来的 delta 画出来 —— 模型路由、账号选取、429 换号、协议翻译、记账
- * 全在网关那一侧（见 `api::assistant` 的模块头）。手机不持有任何上游凭证，
- * 也不直连任何模型服务。
+ * ── request ──────────────────────────────────────────────
+ * `POST /api/assistant/chat`，** by to up **。 、
+ * delta —— by 、、429 、、
+ * in that 1 （ `api::assistant` module header）。 not has up ，
+ * not 。
  *
- * ── 为什么不复用 apiCall ──────────────────────────────────────
- * `apiCall` 会把响应体整个读成文本再解 `{success, data}` 信封；对话是 SSE，
- * 要边读边渲染。所以这里单独发一次 fetch，只共用 client.ts 的地址拼接、
- * 鉴权头与 401 续期（那三件事必须与其它请求同一份实现，否则「登录过期」
- * 在对话页会表现成另一种样子）。
+ * ── Why not use apiCall ──────────────────────────────────────
+ * `apiCall` will response `{success, data}` ； for is SSE，
+ * need 。 this 1 fetch， use client.ts 、
+ * and 401 （ that must and its request 1 ，otherwise「」
+ * in for will 1 ）。
  *
- * ── 帧格式 ────────────────────────────────────────────────────
- * 与 OpenAI 流式一致：`data: {choices:[{delta:{content, tool_calls}}]}`，
- * 以 `data: [DONE]` 收尾。正文按 delta 累加；`tool_calls` 按 `index` 聚合
- * （同一只工具的参数会被拆成多片，不能逐片当独立调用）。
+ * ── ────────────────────────────────────────────────────
+ * and OpenAI 1 ：`data: {choices:[{delta:{content, tool_calls}}]}`，
+ * `data: [DONE]` 。 by delta ；`tool_calls` by `index` 
+ * （ 1 parameter will ， not can use ）。
  */
 
 import { ApiError, apiCall, authHeaders, refreshPanelAuth, refreshPanelAuthIfExpiring, resolveUrl } from '../api/client'
@@ -32,7 +32,7 @@ export type { ChatEvent, ToolCall } from '../../../ui-shared/assistant-stream'
 
 export type ChatRole = 'user' | 'assistant' | 'tool'
 
-/** 助手配置（只读用得到的几项） */
+/** config（ use to ） */
 export type AssistantConfig = {
   model?: string | null
   apiKeyId?: string | null
@@ -42,7 +42,7 @@ export type AssistantConfig = {
   systemPrompt?: string
   titleModel?: string | null
   titlePrompt?: string
-  /** 工具勾选表：tool id → 是否勾选（后端已把缺省值展开） */
+  /** ：tool id → is （ after already ） */
   tools?: Record<string, boolean>
 }
 
@@ -59,15 +59,15 @@ export async function fetchAssistantConfig(): Promise<AssistantConfig> {
 }
 
 /**
- * 发一轮对话并把流式事件回调出去。
+ * 1 for and 。
  *
- * `signal` 用来实现「停止」：abort 之后读取循环以 AbortError 结束 —— 那是
- * 用户的意图，不是错误（调用方按 `signal.aborted` 区分）。
+ * `signal` use 「」：abort after AbortError —— that is 
+ * use ， not is error（ use by `signal.aborted` ）。
  */
 export async function streamAssistantChat(options: {
   apiKey: string
   messages: ChatMessage[]
-  /** 勾选过的工具表（OpenAI tools 形态）；空数组 = 纯聊天 */
+  /** （OpenAI tools ）；empty = */
   tools?: Array<Record<string, unknown>>
   model?: string | null
   reasoning?: string | null
@@ -77,11 +77,11 @@ export async function streamAssistantChat(options: {
   const body: Record<string, unknown> = {
     messages: options.messages.map(wireMessage),
   }
-  // 不传 model 时由网关用「助手设置」里存的默认模型兜底
+  // not model when by use 「set」 default
   if (options.model) body.model = options.model
   if (options.reasoning) body.reasoning = options.reasoning
-  // 工具表为空时**不要发空数组**：后端按「有没有 tools」决定注不注入系统提示词
-  // （见 config::AssistantConfig::system_prompt），空数组与不发不是一回事
+  // as empty when ** not need empty**： after by 「 has no has tools」 not 
+  // （ config::AssistantConfig::system_prompt），empty and not not is 1 
   if (options.tools && options.tools.length) body.tools = options.tools
 
   const identity = serverIdentity()
@@ -96,11 +96,11 @@ export async function streamAssistantChat(options: {
     })
   }
 
-  // 到期前先换令牌：这条不走 apiCall，不补这一步就会在 access 过期那一刻
-  // 产生一条 401（见 client.ts 的 refreshPanelAuthIfExpiring）
+  // to before ： this not apiCall， not this 1 will in access that 1 
+  // 1 401（ client.ts refreshPanelAuthIfExpiring）
   await refreshPanelAuthIfExpiring()
   let response = await send()
-  // 401 静默续期一次（与 apiCall 同一语义）：续上了就重发，续不上交给界面
+  // 401 1 （ and apiCall 1 ）： up ， not up to 
   if (response.status === 401 && (await refreshPanelAuth())) {
     response = await send()
   }
@@ -112,7 +112,7 @@ export async function streamAssistantChat(options: {
       const parsed = JSON.parse(text)
       message = String(parsed?.error?.message || parsed?.error || message)
     } catch {
-      /* 非 JSON 错误体：原样用文本 */
+      /* JSON error： use */
     }
     if (response.status === 404 && message === 'Not found: POST /api/assistant/chat') {
       throw new ApiError(t('这一版网关还没有 AI 助手接口（HTTP 404），请升级网关后重试。'), 404)
@@ -128,11 +128,11 @@ export async function streamAssistantChat(options: {
 }
 
 /**
- * 一条消息 → 发给上游的 wire 形态。
+ * 1 → to up wire 。
  *
- * 与 OpenAI 的约定逐字对齐：assistant 带工具调用时要有 `tool_calls`，
- * 工具结果用 `role: "tool"` + `tool_call_id` 回灌 —— 少任何一个字段，
- * 上游都会拒掉整轮请求（或在下一轮丢掉上下文）。
+ * and OpenAI for ：assistant use when need has `tool_calls`，
+ * use `role: "tool"` + `tool_call_id` —— 1 ，
+ * up will request（ or in down 1 up down ）。
  */
 function wireMessage(message: ChatMessage): Record<string, unknown> {
   if (message.role === 'tool') {

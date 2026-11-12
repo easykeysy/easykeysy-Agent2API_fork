@@ -9,11 +9,11 @@ import { BottomNavigation, BottomNavigationItem, Button, Dialog, DialogBody, Dia
 const feedbackManager = createToastManager()
 
 /**
- * 应用外壳：页面容器 + 底部标签栏 + 轻提示 + 凭证缺失层。
+ * use ： + + + 。
  *
- * ── 标签栏的显示规则 ─────────────────────────────────────────
- * 一级页显示，二级页隐藏（把高度让给内容）。助手页要撑满视口，所以它的
- * 滚动容器自己管（见 pages/AssistantPage 的 as-mode 处理）。
+ * ── then ─────────────────────────────────────────
+ * 1 ，（ to ）。 need ， 
+ * （ pages/AssistantPage as-mode ）。
  */
 
 export type TabDef = { id: string; label: string; icon: IconName }
@@ -26,25 +26,25 @@ const TABS: TabDef[] = [
   { id: 'more', label: t('更多'), icon: 'grid' },
 ]
 
-/** 一级页集合：这些 screen 显示底部标签栏 */
+/** 1 ： this screen */
 export const PRIMARY_SCREENS = new Set(TABS.map(tab => tab.id))
 
 /**
- * 软键盘是否弹起。
+ * is 。
  *
- * ── 为什么需要这个判断 ────────────────────────────────────────
- * Android 的 `adjustResize` 会让 WebView 随键盘一起缩小，标签栏是 flex 布局
- * 的最后一个子项，于是它被顶到键盘正上方 —— 用户看到的是「输入框 + 一条
- * 导航栏 + 键盘」，而他要的是「输入框 + 键盘」。聊天类应用的通行做法就是
- * 键盘弹起时把标签栏收起来（WhatsApp / Telegram 都是这样）。
+ * ── Why need need this ────────────────────────────────────────
+ * Android `adjustResize` will WebView 1 ， is flex 
+ * after 1 ， is to up —— use to is 「 + 1 
+ * + 」， need is 「 + 」。 use is 
+ * when （WhatsApp / Telegram is this ）。
  *
- * ── 怎么判 ────────────────────────────────────────────────────
- * `visualViewport` 的高度比 `innerHeight` 小出一大截（> 120px）就是键盘在
- * 占位。阈值取 120 而不是 0：移动浏览器的地址栏收起 / 展开也会让两者差几十
- * 像素，那是正常滚动，不该把标签栏闪一下。
+ * ── ────────────────────────────────────────────────────
+ * `visualViewport` `innerHeight` 1 （> 120px） is in 
+ * 。 120 not is 0： / will 
+ * ， that is ， not this 1 down 。
  *
- * 没有 `visualViewport` 的老 WebView 直接返回 false —— 标签栏常驻，行为与
- * 改动前一致，不会因为拿不到 API 就少一条导航。
+ * no has `visualViewport` WebView return false —— ， as and 
+ * before 1 ， not will as not to API 1 。
  */
 export function useKeyboardOpen(): boolean {
   const [open, setOpen] = useState(false)
@@ -74,7 +74,7 @@ export function TabBar() {
   const keyboardOpen = useKeyboardOpen()
   const active = state.stack.length === 0 ? state.route.screen : ''
   if (!PRIMARY_SCREENS.has(state.route.screen) || state.stack.length > 0) return null
-  // 键盘弹起时让位：那一条高度留给输入框，而不是导航
+  // when ： that 1 to ， not is 
   if (keyboardOpen) return null
   const limited = state.session?.accounts?.accounts?.filter(a => a.enabled && isRateLimited(a)).length || 0
   return (
@@ -95,7 +95,7 @@ export function TabBar() {
   )
 }
 
-/** 轻提示 */
+/** */
 export function Toast() {
   const { toast } = useStore()
   useEffect(() => {
@@ -105,16 +105,16 @@ export function Toast() {
 }
 
 /**
- * 凭证缺失层。
+ * 。
  *
- * 两种来路，文案与动作都不同：
- *   · `login` —— 管理员已注册、会话过期：APK 弹应用内登录表单；
- *     浏览器（PWA）跳服务端登录页，带回跳。
- *   · `key`   —— 兼容模式（没注册管理员）没配 Key：就地输入，存 localStorage
+ * ， and not ：
+ * · `login` —— already 、 will ：APK use ；
+ * （PWA）server，。
+ * · `key` —— （ no ） no Key：， localStorage
  *
- * 为什么 APK 不能跳 `/login`：那个页面由网关出，而 APK 的界面在包里 ——
- * 跳过去等于离开应用、进一个风格不一致的网页，而且跨源之后服务端种的
- * cookie 也带不回来（见 lib/servers.ts 的说明）。
+ * Why APK not can `/login`： that by ， APK in ——
+ * etc use 、 1 not 1 ， and after server 
+ * cookie not （ lib/servers.ts ）。
  */
 export function AuthGate() {
   const state = useStore()
@@ -123,14 +123,14 @@ export function AuthGate() {
   if (!state.authLost) return null
 
   /**
-   * APK 里登录页是整屏的，用户被登出后看不到「设置 → 服务器」。
-   * 登录页给了「换一台服务器」入口，它把用户压进服务器页 —— 这一屏必须让开，
-   * 否则登录页盖住整个界面，列表点不到。authLost 故意不清：用户取消返回后
-   * 登录页会重新盖上来，换到新服务器也会按新地址重新弹。
+   * APK is ， use after not to 「set → 」。
+   * to 「 1 」， use —— this 1 must，
+   * otherwise ， not to 。authLost not ： use return after 
+   * will new up ， to new will by new new 。
    */
   if (state.packaged && state.route.screen === 'servers') return null
 
-  // 打包形态走整屏的应用内登录页（login / key 两种模式它都覆盖）
+  // use （login / key ）
   if (state.packaged) return <LoginPage mode={state.authLost} />
 
   const submit = async () => {
@@ -162,10 +162,10 @@ export function AuthGate() {
 }
 
 /**
- * 主题同步：把 store 的主题写到 <html>。
+ * ： store to <html>。
  *
- * 单独一个组件而不是在 store 构造时做，是为了让 React 的首帧与 DOM 属性
- * 一致 —— 首帧闪烁（先浅色再切深色）在手机上是可见的。
+ * 1 not is in store when ， is as React and DOM 
+ * 1 —— （） in up is can 。
  */
 export function ThemeSync() {
   const { theme } = useStore()

@@ -3,7 +3,7 @@ import { Alert, AlertTitle, Button } from '@ui'
 import { t } from '../i18n'
 
 function responseOf(message: string): { status?: string; body: string; upstream: boolean } {
-  // 管理接口保留「上游返回 {status}: {正文}」格式，桥接层只传递错误字符串。
+  // 「 up return {status}: {}」，error。
   const upstream = /^上游返回\s+([1-5]\d{2})[:：] ?/.exec(message)
   if (upstream) return { status: upstream[1], body: message.slice(upstream[0].length), upstream: true }
   const http = /^HTTP\s+([1-5]\d{2})(?:\b|$)/i.exec(message)

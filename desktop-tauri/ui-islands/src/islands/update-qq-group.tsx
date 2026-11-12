@@ -12,42 +12,42 @@ import { COMMUNITY_LINKS, QQ_GROUPS, handleExternalClick, shared } from './updat
 import { t } from '../i18n'
 
 /**
- * 「加入交流群」弹窗（更新日志卡片页脚那颗按钮打开）。
+ * 「」（update that by ）。
  *
- * ── 布局：四张卡片，不是四行文字 ──────────────────────────
- * 平铺成「标签 | 值 | 操作」四行读起来像一张表格，也不告诉人哪个入口更该点。
- * 改成卡片：每张卡左边一枚品牌标（QQ / Telegram 官方造型，见
- * icons.js 那两枚）、右边主标题 + 副标题，整张卡可点。QQ 三张卡是「复制群号」
- * （群号本身就是要拿走的文本），另一张是「打开链接」（外链交给系统浏览器）。
+ * ── ：， not is ──────────────────────────
+ * 「 | | 」 1 ， not this 。
+ * ： 1 （QQ / Telegram ，
+ * icons.js that ）、 + ， can 。QQ is 「」
+ * （ is need ）， 1 is 「」（ to ）。
  *
- * 群 1、群 2 的「即将满员」放在卡片右上角而不是标题旁：它是这张卡的**状态**，
- * 挂在标题上会把标题挤成两截，扫视时也看不出这是「整张卡」的属性。
+ * 1、 2 「 will 」 in up not is ： is this ****，
+ * in up will ， when not this is 「」 。
  *
- * ── 为什么不再摆二维码 ────────────────────────────────────
- * 二维码是打进包里的静态图，换群 / 换码必须跟着发一次版（见 update-shared.ts
- * 上 QQ_GROUPS 的注释）。现在群号本来就会变（群 1 满员、以后可能再开群），
- * 只留群号 + 复制就没有这个负担，改一个常量即可。
+ * ── Why not ────────────────────────────────────
+ * is ， / must 1 （ update-shared.ts
+ * up QQ_GROUPS ）。 in will （ 1 、 after can can ），
+ * + no has this ， 1 can 。
  */
 export function QqGroupDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  /** 取一枚内联 SVG（icons.js 由 index.html 在岛之前加载，正常总是就位） */
+  /** 1 SVG（icons.js by index.html in before ，total is ） */
   function iconHtml(name: string, size: number): string {
     return shared().wbIcons?.icon?.(name, size) || ''
   }
 
   return (
-    // 受控 open（面板按状态条件渲染本组件）：关窗一律由 onClose 收口，
-    // Esc / 点遮罩 / 右上角 ✕ 由 Base UI Dialog 内建（与「更新设置」弹窗同一套）
+    // open（ by ）： 1 by onClose ，
+    // Esc / / up ✕ by Base UI Dialog （ and 「updateset」 1 ）
     <Dialog open={open} onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent className='w-[min(440px,calc(100vw-48px))]'>
         <DialogHeader>
           <DialogTitle>{t('加入交流群')}</DialogTitle>
         </DialogHeader>
-        {/* 外链委托挂在 DialogBody 上：卡片是渲染出来的，逐个绑 onClick 既费事又容易漏 */}
+        {/* in DialogBody up ： is ， onClick */}
         <DialogBody className='gap-2.5' onClick={handleExternalClick}>
           <p className='qq-intro'>{t('遇到问题或有使用心得，欢迎到群里交流。')}</p>
 
           <div className='qq-cards'>
-            {/* 群 1、群 2 都提示优先加群 3，放在各卡片副标题旁。 */}
+            {/* 1、 2 3， in 。 */}
             {QQ_GROUPS.map((group, index) => (
               <Item render={<Button variant='outline' />} variant='outline'
                 key={group.no}
@@ -75,8 +75,8 @@ export function QqGroupDialog({ open, onClose }: { open: boolean; onClose: () =>
               </Item>
             ))}
 
-            {/* Telegram：整张卡是外链。标签直接写字面量（不取 link 上的字段
-                再包一层）—— 扫描器只认字符串字面量首参，变量形式提不出键，会一直漏翻 */}
+            {/* Telegram： is 。（ not link up 
+                 1 ）—— ， not ， will 1 */}
             {COMMUNITY_LINKS.map(link => (
               <Item render={<a href={link.url} target='_blank' rel='noopener' />} variant='outline'
                 key={link.id}

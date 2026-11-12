@@ -5,19 +5,19 @@ import { COMMUNITY_LINKS, QQ_GROUPS, openExternal } from '../lib/community'
 import { t } from '../i18n'
 
 /**
- * 「社区与支持」面板（设置页底部那一行点开）。
+ * 「 and supports」（set that 1 ）。
  *
- * ── 为什么是抽屉而不是二级页 ──────────────────────────────────
- * 里面只有四张卡（三个 QQ 群 + Telegram），没有需要记住的状态、
- * 也没有下一步。做成二级页会多一层返回栏、多一条浏览器历史，用户点完就退。
+ * ── Why is not is ──────────────────────────────────
+ * has （ QQ + Telegram）， no has need need 、
+ * no has down 1 。 will 1 return、 1 ， use 。
  *
- * ── QQ 卡片是「复制群号」，另一张是「打开链接」───────────────
- * 群号本身就是用户要拿走的东西（去 QQ 里搜），所以点一下复制；Telegram
- * 是 https 链接，交给系统浏览器。两类卡片的副标题把这个差别写出来，
- * 不用用户猜。
+ * ── QQ is 「」， 1 is 「」───────────────
+ * is use need （ QQ ）， 1 down ；Telegram
+ * is https ， to 。 this ，
+ * not use use 。
  *
- * ── 为什么不再摆二维码 ────────────────────────────────────────
- * 与桌面端同一理由：二维码是打进包里的静态图，换群 / 换码得跟着发版。
+ * ── Why not ────────────────────────────────────────
+ * and 1 by ： is ， / 。
  */
 export function CommunitySheet({
   open,
@@ -127,10 +127,10 @@ export function CommunitySheet({
 }
 
 /**
- * 品牌标（QQ / Telegram）。
+ * （QQ / Telegram）。
  *
- * 路径取自 simple-icons（与桌面端 `ui/icons.js` 的 brand 集同一来源、同一份
- * 路径），填充色写在 path 上 —— 这两个品牌有官方色，跟着文字色走反而不像。
+ * path simple-icons（ and `ui/icons.js` brand 1 、 1 
+ * path）， in path up —— this has ， not 。
  */
 function BrandGlyph({ id }: { id: 'qq' | 'telegram' }) {
   const path =

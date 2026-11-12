@@ -1,9 +1,9 @@
-//! 应用共享状态。
+//! use 。
 //!
-//! 只放可变、跨命令共享的部分：进程内服务器句柄、登录会话，以及窗口生命周期
-//! 相关的两个开关（退出标志、关闭到托盘）。
-//! 窗口句柄不在这里 —— 由 Tauri 的 `AppHandle::get_webview_window` 按标签查找，
-//! 避免自己维护一份可能失同步的副本。
+//! can 、 ：、 will ， and 
+//! （、 to ）。
+//! not in this —— by Tauri `AppHandle::get_webview_window` by ，
+//! 1 can can 。
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -12,59 +12,59 @@ use tokio::sync::oneshot;
 
 use crate::port_conflict::StartupFailure;
 
-/// 进程内 HTTP 服务器的停机句柄。
+/// HTTP 。
 ///
-/// 旧版本这里放的是 `Option<Child>`（外部 node 子进程）；后端改成进程内服务器后
-/// 不再有子进程可杀，改为「发送一次停机信号 + 记下端口」。
-/// 语义上的关键差别：现在是**无条件**持有句柄 —— 不再有「复用外部已运行服务」
-/// 那种「没有 child 就什么都不做」的分支，因为服务器一定由本进程启动。
+/// old this is `Option<Child>`（ node ）； after after 
+/// not has can ， as 「 1 + down 」。
+/// up ： in is **none** has —— not has 「 use already 」
+/// that 「 no has child not 」 ， as 1 by 。
 #[derive(Default)]
 pub struct BackendHandle {
-    /// 停机信号发送端；take 走后不再持有（shutdown 幂等）
+    /// ；take after not has （shutdown etc ）
     pub shutdown_tx: Option<oneshot::Sender<()>>,
     pub port: u16,
-    /// 最近一次启动失败（成功启动后清空）。
+    /// 1 failure（success after empty）。
     ///
-    /// 为什么要存下来：`backend:error` 是一次性事件，而界面可能在事件发出**之后**
-    /// 才订阅（窗口还没加载完、用户刷新了 WebView）。只靠事件的话，用户重启界面
-    /// 就再也看不到「为什么起不来」——只能看到一个永远灰着的状态灯。
-    /// 存一份让界面随时能查，事件只负责「提醒你现在就去查」。
+    /// Why need down ：`backend:error` is 1 ， can can in ** after **
+    /// （ no 、 use new WebView）。 ， use 
+    /// not to 「Why not 」—— can to 1 。
+    /// 1 when can ，「 in 」。
     pub failure: Option<StartupFailure>,
 }
 
-/// 一次进行中的登录：state 用于轮询后端，edition/mode 供界面展示与取消时判断。
+/// 1 in ：state used for after ，edition/mode and when 。
 #[derive(Clone)]
 pub struct ActiveLogin {
     pub state: String,
     pub edition: String,
     pub mode: String,
-    /// 这次登录属于哪一家（provider id）。
+    /// this 1 （provider id）。
     ///
-    /// 壳侧为什么也要记：登录窗口的导航拦截要判断「这个 URL 是不是本家的回调」，
-    /// 而各家的回调协议不同（小浣熊是 `office-raccoon://auth/callback`，
-    /// workbuddy 没有回调 —— 它的凭证由后端轮询上游拿）。把 provider 记在
-    /// 活动登录上，拦截逻辑就不必猜、也不必让前端多传一个参数。
+    /// Why need ： need 「 this URL is not is 」，
+    /// not （ is `office-raccoon://auth/callback`，
+    /// workbuddy no has —— by after up ）。 provider in 
+    /// up ， not 、 not before 1 parameter。
     pub provider: String,
 }
 
-/// 与窗口生命周期相关的开关。
+/// and 。
 ///
-/// `exiting` 必须在「用户主动退出」与「关窗被拦下」之间做区分：
-/// 两者都会走到 `RunEvent::ExitRequested`，只看 `close_to_tray`
-/// 会让托盘的「退出」永远退不掉。
+/// `exiting` must in 「 use 」 and 「 down 」：
+/// will to `RunEvent::ExitRequested`， `close_to_tray`
+/// will 「」 not 。
 ///
-/// `close_to_tray` / `lightweight` 各缓存一份当前设置：窗口事件回调
-/// （含 `ExitRequested`）是同步的、每关一次窗都可能触发，不该每次都去读磁盘。
+/// `close_to_tray` / `lightweight` 1 currentset：
+/// （ `ExitRequested`） is 、 1 can can ， not this 。
 #[derive(Default)]
 pub struct WindowState {
     pub exiting: AtomicBool,
     pub close_to_tray: AtomicBool,
-    /// 轻量模式：关窗时销毁窗口（释放 WebView2 内存）而不是隐藏
+    /// ： when （ WebView2 ） not is 
     pub lightweight: AtomicBool,
 }
 
 impl WindowState {
-    /// 用户主动退出（托盘菜单）：置位后 `ExitRequested` 必须放行
+    /// use （）： after `ExitRequested` must
     pub fn begin_exit(&self) {
         self.exiting.store(true, Ordering::SeqCst);
     }
@@ -102,7 +102,7 @@ impl AppState {
         Self::default()
     }
 
-    /// 用户主动退出：置位后 `RunEvent::ExitRequested` 不再拦截
+    /// use ： after `RunEvent::ExitRequested` not 
     pub fn begin_exit(&self) {
         self.window.begin_exit();
     }

@@ -1,22 +1,22 @@
-//! 积分 / 签到 / 运营活动路由（对照 server.mjs 871-911 行逐条实现）。
+//! / to / by （ for server.mjs 871-911 ）。
 //!
-//!   GET  /api/usage                     积分简报（queryCreditsSummary）
-//!   GET  /api/checkin/status            签到活动状态
-//!   POST /api/checkin                   领取每日签到（result.success ? 200 : 409）
-//!   POST /api/checkin/claim-and-report  签到 + 回报最新积分
-//!   GET  /api/activity/banner           运营 banner
-//!   GET  /api/activity/ambassador       大使状态
-//!   GET  /api/checkin-keepalive         国际版日活保活的模型链（读）
-//!   POST /api/checkin-keepalive         国际版日活保活的模型链（存）
+//! GET /api/usage （queryCreditsSummary）
+//! GET /api/checkin/status to 
+//! POST /api/checkin daily to （result.success ? 200 : 409）
+//! POST /api/checkin/claim-and-report to + new 
+//! GET /api/activity/banner banner
+//! GET /api/activity/ambassador 
+//! GET /api/checkin-keepalive （）
+//! POST /api/checkin-keepalive （）
 //!
-//! ── 响应形态的两个坑（务必别统一）──────────────────────────
-//!   ① 成功响应都是管理 API 信封 `{success:true, data}`；
-//!   ② `POST /api/checkin` 的**状态码随结果变**：领取成功 200、已领取 409，
-//!      且 body 的 `success` 跟着结果走（不是恒 true）。前端账号页据此把
-//!      「今天已签到」显示成一条 warn 而不是错误。
-//!   ③ 未登录/上游失败时，Node 版这几条都在最外层大 try 里 → 走 errorPayload
-//!      的 OpenAI 风格 body（`{error:{message,type,upstream_code?}}`），
-//!      **不是**管理 API 的 `{success:false,error}` 信封。所以这里用
+//! ── response （ 1 ）──────────────────────────
+//! ① successresponse is API `{success:true, data}`；
+//! ② `POST /api/checkin` ****：success 200、 already 409，
+//! and body `success` （ not is true）。 before 
+//! 「 already to 」 1 warn not is error。
+//! ③ / up failure when ，Node this in try → errorPayload
+//! OpenAI body（`{error:{message,type,upstream_code?}}`），
+//! ** not is ** API `{success:false,error}` 。 this use 
 //!      `BillingError::to_gateway_error().into_response()`。
 
 use axum::body::Bytes;
@@ -31,19 +31,19 @@ use crate::server::http::ok_json;
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// 计费错误 → 响应。
+/// error → response。
 ///
-/// 走 OpenAI 风格 body（理由见模块头部第 ③ 条），状态码保留 BillingError 里的值
-/// （504 超时 / 401 登录态过期 / 上游 HTTP 码 / 400 国际版无签到活动）。
+/// OpenAI body（ by module header ③ ）， BillingError 
+/// （504 when / 401 / up HTTP / 400 none to ）。
 fn billing_error(error: BillingError) -> Response {
     logging::log("[Billing]", &format!("❌ {}", error.message));
     error.to_gateway_error().into_response()
 }
 
-/// GET /api/usage —— 积分简报
+/// GET /api/usage —— 
 ///
-/// Node 版是 `billing.queryCreditsSummary({ locale: opts.locale })`，
-/// locale 来自 config.json 的 locale（默认 zh-CN）。
+/// Node is `billing.queryCreditsSummary({ locale: opts.locale })`，
+/// locale config.json locale（default zh-CN）。
 pub async fn get_usage(State(state): State<ServerState>) -> Response {
     match state.billing().query_credits_summary_default().await {
         Ok(data) => ok_json(data),
@@ -51,7 +51,7 @@ pub async fn get_usage(State(state): State<ServerState>) -> Response {
     }
 }
 
-/// GET /api/checkin/status —— 签到活动状态（无活动/无数据时为 null）
+/// GET /api/checkin/status —— to （none/none when as null）
 pub async fn checkin_status(State(state): State<ServerState>) -> Response {
     match state.billing().get_checkin_status(None).await {
         Ok(data) => ok_json(data),
@@ -59,12 +59,12 @@ pub async fn checkin_status(State(state): State<ServerState>) -> Response {
     }
 }
 
-/// POST /api/checkin —— 领取每日签到积分
+/// POST /api/checkin —— daily to 
 ///
-/// **状态码语义**（server.mjs 885-889 行）：
+/// ****（server.mjs 885-889 ）：
 ///   `sendJson(res, result.success ? 200 : 409, { success: result.success, data: result })`
-/// 即「已领取」这次调用会返回 409 + `success:false`，body 里带着上游的
-/// msg（如「今日已签到」）—— 前端按 warn 展示，不是错误。
+/// 「 already 」 this use will return 409 + `success:false`，body up 
+/// msg（「 already to 」）—— before by warn ， not is error。
 pub async fn claim_checkin(State(state): State<ServerState>) -> Response {
     let result = match state.billing().claim_daily_checkin(None).await {
         Ok(result) => result,
@@ -78,7 +78,7 @@ pub async fn claim_checkin(State(state): State<ServerState>) -> Response {
         let detail = result.get("msg").and_then(serde_json::Value::as_str).unwrap_or("");
         logging::log("[Billing]", &format!("签到未领取（{detail}）"));
     }
-    // 状态码与 body 的 success 都由结果决定，不能用 ok_json（它恒为 200/true）
+    // and body success by ， not can use ok_json（ as 200/true）
     let status = if success {
         axum::http::StatusCode::OK
     } else {
@@ -87,7 +87,7 @@ pub async fn claim_checkin(State(state): State<ServerState>) -> Response {
     (status, axum::Json(json!({ "success": success, "data": result }))).into_response()
 }
 
-/// POST /api/checkin/claim-and-report —— 签到 + 查余额
+/// POST /api/checkin/claim-and-report —— to + 
 pub async fn claim_and_report(State(state): State<ServerState>) -> Response {
     match state.billing().checkin_and_report_default().await {
         Ok(data) => ok_json(data),
@@ -95,29 +95,29 @@ pub async fn claim_and_report(State(state): State<ServerState>) -> Response {
     }
 }
 
-/// GET /api/activity/banner —— 运营 banner（拉不到时为 null）
+/// GET /api/activity/banner —— banner（ not to when as null）
 pub async fn activity_banner(State(state): State<ServerState>) -> Response {
     let data = state.billing().get_activity_banner(None).await;
     ok_json(data)
 }
 
-/// GET /api/activity/ambassador —— 大使状态（拉不到时为 null）
+/// GET /api/activity/ambassador —— （ not to when as null）
 pub async fn activity_ambassador(State(state): State<ServerState>) -> Response {
     let data = state.billing().get_ambassador_status(None).await;
     ok_json(data)
 }
 
-/// GET /api/checkin-keepalive —— WorkBuddy 国际版日活保活的模型链（读）
+/// GET /api/checkin-keepalive —— WorkBuddy （）
 pub async fn get_keepalive() -> Response {
     ok_json(crate::server::core::billing::keepalive::state())
 }
 
-/// POST /api/checkin-activity —— WorkBuddy 国际版日活任务的**手动粒度入口**。
+/// POST /api/checkin-activity —— WorkBuddy ****。
 ///
-/// body：`{id, mode}`，`mode ∈ full | claim | keepalive`（缺省 full）。
-/// 与单账号签到（/api/accounts/checkin）分开端点的理由：那条入口对国际版恒走
-/// 完整组合（定时与批量也走它），粒度细分只属于手动按钮 —— 三颗按钮各打各的
-/// 粒度，结果行与签到同形（`{id, name, claim, activity}`），前端 toast 分流共用。
+/// body：`{id, mode}`，`mode ∈ full | claim | keepalive`（ full）。
+/// and to （/api/accounts/checkin） by ： that for 
+/// （ when and ）， by —— by 
+/// ， and to （`{id, name, claim, activity}`）， before toast use 。
 pub async fn run_activity(State(state): State<ServerState>, body: Bytes) -> Response {
     let payload = match serde_json::from_slice::<Value>(&body) {
         Ok(value) => value,
@@ -136,8 +136,8 @@ pub async fn run_activity(State(state): State<ServerState>, body: Bytes) -> Resp
     }
     let mode = WorkbuddyActivity::parse(payload.get("mode").and_then(Value::as_str));
 
-    // 账号必须存在且属于 WorkBuddy 国际版 —— 别的家的会话打进国际版的活跃
-    // 接口只会稳定报错（与 checkin_for 按提供商分派是同一条理由）
+    // must in and WorkBuddy —— will 
+    // will （ and checkin_for by is 1 by ）
     let account = state
         .store()
         .list_accounts()
@@ -155,8 +155,8 @@ pub async fn run_activity(State(state): State<ServerState>, body: Bytes) -> Resp
     if account.get("provider").and_then(Value::as_str) != Some(Region::Intl.provider_id()) {
         return GatewayError::with_status(400, "该账号不是 WorkBuddy 国际版账号").into_response();
     }
-    // 展示名快照：统一展示名优先（与账号页 / 请求日志同口径，见
-    // `store_view::display_name_of`），缺键（旧快照）按旧口径回落 name
+    // ： 1 （ and / request，
+    // `store_view::display_name_of`），（ old ） by old name
     let name = account
         .get("displayName")
         .filter(|value| value.as_str().is_some_and(|text| !text.is_empty()))
@@ -177,19 +177,19 @@ pub async fn run_activity(State(state): State<ServerState>, body: Bytes) -> Resp
         "claim": activity.get("claim").cloned().unwrap_or(Value::Null),
         "activity": activity.get("activity").cloned().unwrap_or(Value::Null),
     });
-    // 签到记录台账：这条路径不走 run_checkin（没有唯一记账点可借），单独补
-    // 一条（source=activity）—— 判定在 checkin_records::record_activity
-    // （keepalive 只看保活读数，见那里的说明）。写失败在台账侧只打日志，
-    // 不影响本响应。
+    // to ： this path not run_checkin（ no has 1 can ），
+    // 1 （source=activity）—— in checkin_records::record_activity
+    // （keepalive ， that ）。failure in ，
+    // not response。
     crate::server::core::checkin_records::record_activity(
         &row,
         account.get("provider").and_then(Value::as_str).unwrap_or(""),
         mode.as_str(),
     );
-    // 落 `checkinAt`：手动粒度入口与批量/定时（`run_checkin`）必须同口径 ——
-    // 判据是 `day_completed`（领取成功 / 活跃上报 / 网页会话任一），否则
-    // 手动跑完一轮后签到中心仍显示「待签」，与台账已记的 already/ok 矛盾。
-    // 写盘失败只打日志，不影响本响应（与 run_checkin 的取舍同构）。
+    // `checkinAt`： and / when （`run_checkin`）must ——
+    // is `day_completed`（success / up / will 1 ），otherwise
+    // 1 after to in 「」， and already already/ok 。
+    // failure， not response（ and run_checkin ）。
     if crate::server::core::billing::checkin::day_completed(&row)
         && !state
             .store()
@@ -203,12 +203,12 @@ pub async fn run_activity(State(state): State<ServerState>, body: Bytes) -> Resp
     ok_json(row)
 }
 
-/// POST /api/checkin-keepalive —— 保存保活模型链。
+/// POST /api/checkin-keepalive —— 。
 ///
-/// body：`{ models: string[] }`（前端把输入框按分隔符拆好再传；也收逗号 /
-/// 顿号 / 空白分隔的单个字符串，后端统一拆）。空清单 = 恢复缺省链
-/// （语义见 `billing::keepalive::set_models`）。返回保存后的完整状态
-/// （`{models, defaultModels}`），前端拿它直接覆盖快照里的 keepalive 段。
+/// body：`{ models: string[] }`（ before by ； /
+/// / empty ， after 1 ）。empty = 
+/// （ `billing::keepalive::set_models`）。return after 
+/// （`{models, defaultModels}`）， before keepalive 。
 pub async fn save_keepalive(body: Bytes) -> Response {
     let payload = match serde_json::from_slice::<serde_json::Value>(&body) {
         Ok(value) => value,
@@ -216,8 +216,8 @@ pub async fn save_keepalive(body: Bytes) -> Response {
             return GatewayError::new(format!("请求体不是合法 JSON：{error}")).into_response()
         }
     };
-    // 两种入参都收：数组（规范形态）与字符串（输入框原样）——
-    // 字符串按逗号 / 顿号 / 空白拆，省得前端再写一遍分隔逻辑。
+    // ：（） and （）——
+    // by / / empty， before 1 。
     let raw: Vec<String> = match payload.get("models") {
         Some(serde_json::Value::Array(items)) => items
             .iter()

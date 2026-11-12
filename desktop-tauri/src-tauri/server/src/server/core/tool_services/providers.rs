@@ -1,9 +1,9 @@
-//! 四家搜索提供商的上游客户端（搜索 + 抓取）。
+//! up client（ + ）。
 //!
-//! 请求体与响应字段逐条对齐 OmniProxy 的实现（Tavily / Querit / Firecrawl /
-//! Ollama Web Search）。统一由 [`post_json`] 发请求：超时跟随服务的执行超时
-//! 设置，非 2xx / 401/403 / 429 / 超时 / `success:false` 归一成稳定错误码；
-//! 错误信息只保留清洗后的片段，绝不暴露密钥或整段上游响应体。
+//! request and response for OmniProxy （Tavily / Querit / Firecrawl /
+//! Ollama Web Search）。 1 by [`post_json`] request： when when 
+//! set， 2xx / 401/403 / 429 / when / `success:false` 1 error；
+//! error after ， not or up response。
 
 use std::time::Duration;
 
@@ -33,7 +33,7 @@ pub fn display_name(provider: &str) -> &'static str {
     }
 }
 
-/// 从上游错误体里取一段简短可展示信息（绝不含密钥）
+/// from up error 1 can （ not ）
 fn sanitized_detail(body: Option<&Value>, status: u16) -> String {
     let mut candidates: Vec<String> = Vec::new();
     if let Some(value) = body {
@@ -61,7 +61,7 @@ fn sanitized_detail(body: Option<&Value>, status: u16) -> String {
     format!("HTTP {status}")
 }
 
-/// 发一次 POST JSON 请求并解析响应；失败按稳定错误码抛 [`SearchError`]
+/// 1 POST JSON request and response；failure by error [`SearchError`]
 pub async fn post_json(
     url: &str,
     payload: Value,
@@ -518,7 +518,7 @@ async fn ollama_fetch(
     Ok((pages, errors))
 }
 
-/* ─── 分发 ─────────────────────────────────────────────────── */
+/* ─── ─────────────────────────────────────────────────── */
 
 pub async fn search(
     provider: &str,
@@ -550,7 +550,7 @@ pub async fn fetch(
     }
 }
 
-/// 管理端「测试连接」：用该提供商做一次最小搜索
+/// 「」： use this 1 
 pub async fn test_provider(provider: &str) -> Value {
     let started = crate::server::logging::now_ms();
     let duration = || (crate::server::logging::now_ms() - started) as u64;

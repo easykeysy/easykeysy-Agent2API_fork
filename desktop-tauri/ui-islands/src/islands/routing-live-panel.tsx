@@ -5,7 +5,7 @@ import { formatDuration, RouteIcon, stickyLabel, strategyLabel } from './routing
 import { RoutingStateText } from './routing-state-text'
 import type { RouteEntry, RoutePreview } from './routing-types'
 
-/** 服务端只读预演；紧凑摘要与完整候选共用同一结果。 */
+/** server； need and use 1 。 */
 export function RoutingLivePanel({ workspace, model, loading, error, dirty, globalScope, modelsAvailable, onOpenScope, onRefresh, preview = false, compact = false }: {
   workspace: Pick<RoutePreview, 'customized' | 'queue'> | null
   model: string

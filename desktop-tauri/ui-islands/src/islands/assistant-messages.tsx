@@ -1,16 +1,16 @@
 /**
- * AI 助手页的「一轮对话」渲染单元：用户消息 / 助手消息 / 工具卡 / 确认卡。
+ * AI 「 1 for 」： use / / / 。
  *
- * ── 为什么从 page 里拆出来 ──────────────────────────────────
- * assistant-page.tsx 已经同时装着 agent loop、会话持久化、输入区与设置抽屉；
- * 再把四种卡片的外形塞进去就过千行了。这里只负责**怎么画**，不知道 agent loop
- * 的存在 —— 所有状态都由调用方以 props 传进来（见 `assistant-page` 顶部的
- * UiMessage 说明）。
+ * ── Why from page ──────────────────────────────────
+ * assistant-page.tsx already when agent loop、 will 、 and set；
+ * 。 this ****， not agent loop
+ * in —— all by use props （ `assistant-page` 
+ * UiMessage ）。
  *
- * ── 两条视觉口径 ────────────────────────────────────────────
- *   · 助手消息不套气泡：占满内容列（里面要放表格与工具卡，气泡会把它们压窄）；
- *   · 工具卡默认收成**一行摘要**，只有「待确认 / 失败」才展开主体 ——
- *     一次任务会连续调好几次工具，每张都摊开会把对话读成日志。
+ * ── ────────────────────────────────────────────
+ * · not ：（ need and ， will ）；
+ * · default** 1 need **， has 「 / failure」 ——
+ * 1 will ， will for 。
  */
 
 import * as React from 'react'
@@ -43,7 +43,7 @@ export type ToolCardItem = {
   detail?: string
   images?: ImageAsset[]
   error?: string
-  /** 完全访问模式下自动执行的（卡头换成「已自动执行」） */
+  /** down （「 already 」） */
   auto?: boolean
 }
 
@@ -54,7 +54,7 @@ export type UiMessage =
   | { kind: 'notice'; text: string; bad?: boolean }
   | { kind: 'images'; images: ImageAsset[] }
 
-/* ─── 助手正文的 Markdown（走全局 wbMarkdown，与更新日志同一份实现）─── */
+/* ─── Markdown（ wbMarkdown， and update 1 ）─── */
 
 export function renderMarkdown(text: string): string {
   const api = (window as unknown as { wbMarkdown?: { render?: (text: string) => string } }).wbMarkdown
@@ -62,7 +62,7 @@ export function renderMarkdown(text: string): string {
   return text.replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] || ch))
 }
 
-/** 助手的头像：一枚主色圆底 + spark。内联画，不依赖 icons.js 的注入时序。 */
+/** ： 1 + spark。， not icons.js when 。 */
 function Avatar() {
   return (
     <span className='asst-avatar' aria-hidden='true'>
@@ -82,7 +82,7 @@ function timeLabel(): string {
   }
 }
 
-/* ─── 用户消息 ─────────────────────────────────────────────── */
+/* ─── use ─────────────────────────────────────────────── */
 
 function UserMessage({ text, images, files, children }: { text: string; images?: string[]; files?: AssistantTextFile[]; children?: React.ReactNode }) {
   return (
@@ -115,7 +115,7 @@ function UserMessage({ text, images, files, children }: { text: string; images?:
   )
 }
 
-/* ─── 助手消息 ─────────────────────────────────────────────── */
+/* ─── ─────────────────────────────────────────────── */
 
 function BotMessage({ text, streaming, model, children }: { text: string; streaming?: boolean; model: string; children?: React.ReactNode }) {
   if (!text && !streaming && !children) return null
@@ -139,9 +139,9 @@ function BotMessage({ text, streaming, model, children }: { text: string; stream
   )
 }
 
-/* ─── 工具卡 ───────────────────────────────────────────────── */
+/* ─── ───────────────────────────────────────────────── */
 
-/** 状态对应的文案与色调（done 以外的状态都会让卡片默认展开） */
+/** for and （done will default） */
 function toolStateText(item: ToolCardItem): { text: string; tone: 'ok' | 'bad' | 'muted' } {
   switch (item.state) {
     case 'running':
@@ -158,12 +158,12 @@ function toolStateText(item: ToolCardItem): { text: string; tone: 'ok' | 'bad' |
 }
 
 /**
- * 工具卡。
+ * 。
  *
- * 形态分三层：
- *   · 卡片头（图标 + 工具名 + 状态）永远在；
- *   · **待确认**才展开计划（用户要看清楚将要改什么）；
- *   · 其余状态收成一行，点一下才展开参数 / 结果。
+ * ：
+ * · （ + + ） in ；
+ * · ****（ use need will need ）；
+ * · its 1 ， 1 down parameter / 。
  */
 function ToolCard({ item, onConfirm }: { item: ToolCardItem; onConfirm: (run: boolean) => void }) {
   const tool = toolById(item.call.name)
@@ -264,7 +264,7 @@ function planRowCount(plan?: ToolPlan): number {
   return plan.table?.rows.length ?? 1
 }
 
-/* ─── 汇总渲染 ─────────────────────────────────────────────── */
+/* ─── total ─────────────────────────────────────────────── */
 
 export function MessageList({ messages, onConfirm, model, actions }: {
   messages: UiMessage[]

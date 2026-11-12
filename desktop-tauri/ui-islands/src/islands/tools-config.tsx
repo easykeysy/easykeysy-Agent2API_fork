@@ -15,9 +15,9 @@ import {
   type VisionKeyOption,
 } from './tools-data'
 
-/* ─── 网络搜索：上游提供商 ─────────────────────────────────── */
+/* ─── ： up ─────────────────────────────────── */
 
-/** 稳定错误码 → 界面文案（代码是后端口径，文案是中文键，便于扫描进词典） */
+/** error → （ is after ， is in ，） */
 const TEST_FAILURE_TEXT: Record<string, string> = {
   invalid_provider_key: t('密钥或账号登录态无效'),
   rate_limited: t('触发上游限流'),
@@ -45,11 +45,11 @@ export function WebSearchConfig() {
   const [editing, setEditing] = React.useState<ProviderRow | null>(null)
 
   /**
-   * `silent` = 只刷新数据、不切换到「正在加载」骨架。
+   * `silent` = new 、 not to 「 in 」。
    *
-   * 开关提供商、清密钥这类「就地更新」必须走 silent：切骨架会把整块配置
-   * 卸载重挂，页面高度瞬间归零，浏览器就把滚动位置拉回顶部 —— 用户点一下
-   * 开关，页面自己跳回最上面。
+   * 、 this 「update」must silent： will config
+   * ，， —— use 1 down 
+   * ， up 。
    */
   const load = React.useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -71,7 +71,7 @@ export function WebSearchConfig() {
   const fetchOptions = providers.filter(provider => provider.supports_fetch !== false)
     .map(provider => ({ value: provider.provider, label: provider.display_name }))
   const selected = new Set(selection.search_providers)
-  // 选择范围和可用状态分开：密钥或账号配置失效时，明确显示会跳过哪些来源。
+  // and available： or config when ， will 。
   const readySelected = providers.filter(provider => selected.has(provider.provider) && provider.enabled && provider.configured)
   const missing = providers.filter(provider => selected.has(provider.provider) && !(provider.enabled && provider.configured))
   const aggregateReady = readySelected.length > 0
@@ -265,7 +265,7 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: ProviderRow;
   </Dialog>
 }
 
-/* ─── 视觉分析 ─────────────────────────────────────────────── */
+/* ─── ─────────────────────────────────────────────── */
 
 type ManageModel = { id: string; provider: string; enabled: boolean; kind?: string }
 type ManageProvider = { provider: string; providerLabel?: string; count?: number }
@@ -290,7 +290,7 @@ export function VisionConfigPanel() {
   const [error, setError] = React.useState('')
   const [notice, setNotice] = React.useState('')
 
-  // 与 WebSearchConfig 的 load 同一理由：保存后只刷新数据，不切骨架
+  // and WebSearchConfig load 1 by ： after new ， not 
   const load = React.useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     setError('')

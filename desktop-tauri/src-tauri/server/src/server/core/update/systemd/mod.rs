@@ -1,4 +1,4 @@
-//! systemd 升级的网关侧：本机受限通道、任务快照与后台下载。
+//! systemd ：、 and after down 。
 
 pub use super::service_task::ServiceUpdateTask as UpdateTask;
 use serde_json::{json, Value};
@@ -19,7 +19,7 @@ pub const STATUS_PATH: &str = "/var/lib/agent2api-updater/status.json";
 pub const READY_PATH: &str = "/var/lib/agent2api-updater/ready.json";
 const TASK_KEY: &str = "systemdUpdate";
 
-/// 不依赖新环境开关判断“是否 systemd”；旧安装也能得到正确的手动接入提示。
+/// not new “ is systemd”； old can to 。
 pub fn unavailable_reason() -> Option<&'static str> {
     if super::version::server_bundle_name().is_none() {
         return Some("unsupported_arch");
@@ -93,7 +93,7 @@ pub fn run_helper() -> i32 {
     }
 }
 
-/// 本地就绪通知不含密钥；升级程序核对目标版本、PID 与 systemd 主进程后才报成功。
+/// not ； for 、PID and systemd after success。
 pub fn notify_ready() {
     if crate::server::core::system_info::deployment() != "systemd" {
         return;
@@ -109,7 +109,7 @@ pub fn notify_ready() {
 }
 
 impl UpdateManager {
-    /// 用户只提交目标版本；下载地址、文件名与校验来源均取已核对的发布信息。
+    /// use ； down 、file and already for 。
     pub fn start_systemd_update(&self, wanted: &str) -> Result<Value, UpdateError> {
         if crate::server::core::system_info::deployment() != "systemd" {
             return Err(UpdateError::with_status(400, "当前运行形态不是 systemd 服务"));

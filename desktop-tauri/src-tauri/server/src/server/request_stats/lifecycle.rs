@@ -12,7 +12,7 @@ pub(super) fn add_to_daily(conn: &Connection, entry: &RequestEntry) -> rusqlite:
     daily::upsert_daily(conn, &day)
 }
 
-/// 收尾与日报在同一个事务里完成；重复收尾不能把同一请求再累计一次。
+/// and in 1 ； not can 1 request 1 。
 pub(super) fn finish_stale(conn: &Connection, cutoff: i64, now: i64) -> rusqlite::Result<()> {
     let exists: bool = conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM requests WHERE status = 0 AND ts < ?1)", params![cutoff], |row| row.get(0),

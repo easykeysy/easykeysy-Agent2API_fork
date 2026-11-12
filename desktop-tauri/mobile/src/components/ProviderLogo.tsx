@@ -3,9 +3,9 @@ import { Icon } from './Icon'
 import { providerIcon, providerLabel } from '../lib/providers'
 
 /**
- * 提供商图标块：有图用图，没图用首字。
+ * ： has use ， no use 。
  *
- * 尺寸档与 `.m-logo` 一致（34px / `lg` 40px），这里只负责内容。
+ * and `.m-logo` 1 （34px / `lg` 40px）， this 。
  */
 export function ProviderLogo({
   id,
@@ -30,7 +30,7 @@ export function ProviderLogo({
   )
 }
 
-/** 通用图标块：给「不是提供商」的入口用（签到、Key、代理…） */
+/** use ： to 「 not is 」 use （ to 、Key、…） */
 export function GlyphLogo({
   name,
   size = 'default',

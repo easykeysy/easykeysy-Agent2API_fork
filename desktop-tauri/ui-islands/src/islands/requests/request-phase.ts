@@ -7,16 +7,16 @@ function escapeHtml(value: string): string {
   }[ch] ?? ch))
 }
 
-/* ─── 转发阶段（原 ui/request-phase.js，仍挂 window）──────────
+/* ─── （ ui/request-phase.js， window）──────────
  *
- * 同一套阶段要在**两处**渲染且必须逐字一致：列表的状态列（本文件）与详情弹窗
- * （islands/request-detail.tsx 的 StatusCell，它读 window.wbRequestPhase 的 badgeHtml /
- * elapsedLineHtml 并原样注入）。所以文案 / 类名 / 计时的唯一实现在这里，窗口接口照旧导出 ——
- * 不能并进列表渲染后就撤掉：那会让详情弹窗那格静默失去阶段显示（回落成「进行中」）。
+ * 1 need in **** and must 1 ： （file） and 
+ * （islands/request-detail.tsx StatusCell， window.wbRequestPhase badgeHtml /
+ * elapsedLineHtml and ）。 / / when 1 in this ， old ——
+ * not can and after ： that will that （「 in 」）。
  *
- * 数据来自后端在途期间写入的 `phase` / `phaseStartedAt`（见 core::upstream::usage::LogPhase）：
- * phase 空串 = 不在途（终态行、旧行），回落成通用的「进行中」。
- * 文案（含悬停说明）在模块求值时走 t()：岛加载晚于 head 里的 i18n 词典注入，拿得到译文。
+ * after in `phase` / `phaseStartedAt`（ core::upstream::usage::LogPhase）：
+ * phase empty = not in （、 old ）， use 「 in 」。
+ * （） in when t()： head i18n ， to 。
  */
 const PHASES: Record<string, { label: string; cls: string }> = {
   connecting: { label: t('连接中'), cls: 'phase-connecting' },
@@ -27,7 +27,7 @@ const PHASES: Record<string, { label: string; cls: string }> = {
 }
 const PHASE_FALLBACK_LABEL = t('进行中')
 const PHASE_FALLBACK_CLS = 'running'
-/** 每个阶段的悬停说明：徽章只有四个字，落点要说清「这一步在干什么」 */
+/** ： has ， need 「 this 1 in 」 */
 const PHASE_TITLES: Record<string, string> = {
   connecting: t('请求已受理，正在选路、取凭证、建立上游连接'),
   waiting: t('上游请求已发出，正在等第一个字节到达（模型的思考时间也在这段）'),
@@ -37,24 +37,24 @@ const PHASE_TITLES: Record<string, string> = {
   '': t('请求正在转发中，用时列显示的是已用时'),
 }
 
-/** 行对象里那个阶段字面量，非法值一律按「没有阶段」处理（不猜） */
+/** for that ， 1 by 「 no has 」（ not ） */
 export function phaseOf(entry: unknown): string {
   const raw = String((entry as RequestEntry | null)?.phase ?? '').trim().toLowerCase()
   return Object.prototype.hasOwnProperty.call(PHASES, raw) ? raw : ''
 }
 
-/** 阶段文案（空串阶段 → 「进行中」） */
+/** （empty → 「 in 」） */
 export function phaseLabelOf(entry: unknown): string {
   const phase = phaseOf(entry)
   return phase ? PHASES[phase].label : PHASE_FALLBACK_LABEL
 }
 
 /**
- * 阶段耗时 → 展示文案（N秒 / N分M秒，与「用时」列同族）。
+ * when → （Nseconds / NMseconds， and 「 use when 」）。
  *
- * 必须先排除空值再转数字：`Number(null)` **是 0**（不是 NaN），只判 Number.isFinite 会把
- * 「没有这个读数」的 null 当成「0 毫秒」，于是 max(1, …) 渲染出一个凭空编出来的「1秒」。
- * 拿不到读数返回空串，调用方据此整行省掉。
+ * mustexcludingempty：`Number(null)` ** is 0**（ not is NaN）， Number.isFinite will 
+ * 「 no has this 」 null 「0 ms」， is max(1, …) 1 empty 「1seconds」。
+ * not to returnempty， use 。
  */
 export function phaseElapsedText(ms: unknown): string {
   if (ms === null || ms === undefined || ms === '') return ''
@@ -66,8 +66,8 @@ export function phaseElapsedText(ms: unknown): string {
 }
 
 /**
- * 当前阶段计时的读数（毫秒），取不到给 null。优先用服务端现算的 `phaseElapsedMs`（与库里的
- * 阶段起点同一时钟，浏览器时钟偏了也不会离谱）；老响应没有该字段时用 phaseStartedAt 本地减一次。
+ * current when （ms）， not to to null。 use server `phaseElapsedMs`（ and 
+ * 1 when ， when not will ）；response no has this when use phaseStartedAt 1 。
  */
 function phaseElapsedMsOf(entry: unknown): number | null {
   const raw: unknown = (entry as RequestEntry | null)?.phaseElapsedMs
@@ -81,7 +81,7 @@ function phaseElapsedMsOf(entry: unknown): number | null {
   return Number.isFinite(local) ? Math.max(0, local) : null
 }
 
-/** 阶段徽章（呼吸点 + 文案）。只返回徽章本身，不含外层列容器 —— 列表与详情弹窗的容器不同 */
+/** （ + ）。return， not —— and not */
 export function phaseBadgeHtml(entry: unknown): string {
   const phase = phaseOf(entry)
   const label = phase ? PHASES[phase].label : PHASE_FALLBACK_LABEL
@@ -91,7 +91,7 @@ export function phaseBadgeHtml(entry: unknown): string {
     + `<span class="req-live-dot" aria-hidden="true"></span>${escapeHtml(label)}</span>`
 }
 
-/** 阶段计时的第二行；**有值才渲染**（整行省掉而不是写占位：缺失的成因是「还没测到」） */
+/** when ；** has **（ not is ： is 「 no to 」） */
 export function phaseElapsedLineHtml(entry: unknown): string {
   const text = phaseElapsedText(phaseElapsedMsOf(entry))
   if (!text) return ''

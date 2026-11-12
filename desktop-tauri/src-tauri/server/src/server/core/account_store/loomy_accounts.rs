@@ -1,31 +1,31 @@
-//! Loomy 账号：手机号登录落账号、粘贴 session、公开形态。
+//! Loomy ：、 session、。
 //!
-//! ── 账号字段（对照客户端登录响应的实际字段）────────────────────
+//! ── （ for clientresponse ）────────────────────
 //! ```text
-//!   本项目记录：{ id, provider:"loomy", name, userId, phone, accessToken(=session),
+//! ：{ id, provider:"loomy", name, userId, phone, accessToken(=session),
 //!                tokenTail, addedAt, updatedAt, source, priority, enabled }
-//!   客户端登录响应：{ session, userid, phone }（data.data，见 providers/loomy/login.rs）
+//! clientresponse：{ session, userid, phone }（data.data， providers/loomy/login.rs）
 //! ```
-//! `accessToken` 落盘存的是**登录 session**（它同时是模型网关的 `token`）——
-//! 键名与别家统一（`has_token()` / `access_token()` 一族认这个键），
-//! 粘贴形态另外兼容 `session` / `token`。
+//! `accessToken` is ** session**（ when is `token`）——
+//! and 1 （`has_token()` / `access_token()` 1 this ），
+//! `session` / `token`。
 //!
-//! ── 为什么不写 `expiresAt` ──────────────────────────────────
-//! 上游登录响应只有 `{session, userid, phone}`，**没有到期时刻**。曾经按「登录
-//! 时刻 + 14 天」估一个值写进 `expiresAt` 当有效期展示，结果账号用满两周就红着
-//! 写「已过期」，而上游照常放行（实测估算到期后仍能签到、能转发）。估算值不是
-//! 事实，现在不写、也不展示：失效只认上游的 `020002` / `100002`，那时由网关给
-//! 账号落 `needsRelogin`（见 `upstream::provider_loop`）。
-//! 存量记录上可能还留着历史估算的 `expiresAt`：本文件不再更新它，公开形态也
-//! **不再输出它**（见 [`AccountStore::to_loomy_public_account`]）。
+//! ── Why not `expiresAt` ──────────────────────────────────
+//! up response has `{session, userid, phone}`，** no has to when **。 by 「
+//! when + 14 」 1 `expiresAt` valid， use 
+//! 「expired」， up （ to after can to 、 can ）。 not is 
+//! ， in not 、 not ： up `020002` / `100002`， that when by to 
+//! `needsRelogin`（ `upstream::provider_loop`）。
+//! up can can `expiresAt`：file not update，
+//! ** not **（ [`AccountStore::to_loomy_public_account`]）。
 //!
-//! ── 与别家添加路径的关系 ────────────────────────────────────
-//! 三条来源共用这一个入口：短信登录（`api::session::login_loomy_sms_verify`）、
-//! 粘贴 session（`api::accounts::add_account` 的 loomy 分支）。**没有桌面端导入**
-//! —— Loomy 的登录态不在可读文件里（见 `credentials.rs` 的模块头）。
+//! ── and path ────────────────────────────────────
+//! use this 1 ：（`api::session::login_loomy_sms_verify`）、
+//! session（`api::accounts::add_account` loomy ）。** no has **
+//! —— Loomy not in can file（ `credentials.rs` module header）。
 //!
-//! 本文件全是「读-改-写」文件操作，**没有任何网络请求**（持锁不做网络）。
-//! 绝不 unwrap/expect（release 是 panic=abort）。
+//! file is 「--」file，** no has request**（ not ）。
+//! not unwrap/expect（release is panic=abort）。
 
 use serde_json::{Map, Value};
 
@@ -35,16 +35,16 @@ use crate::server::core::account_store::state::{mark_name_custom, StoredAccount}
 use crate::server::core::account_store::{AccountStore, AccountStoreError, LOOMY_PROVIDER_ID};
 use crate::server::logging;
 
-/// 备注名长度上限（与别家同一口径）
+/// limit（ and 1 ）
 const MAX_NAME_LENGTH: usize = 100;
 
-/// 身份字段（userId / phone）长度上限
+/// （userId / phone）limit
 const MAX_IDENTITY_LENGTH: usize = 256;
 
-/// session 长度上限（超过这个长度的输入一定是粘错了东西）
+/// session limit（ this 1 is ）
 const MAX_SESSION_LENGTH: usize = 8192;
 
-/// 截断到 `max` 个**字符**（不是字节；昵称可能有中文）
+/// to `max` ****（ not is ； can can has in ）
 fn truncate_chars(value: &str, max: usize) -> String {
     if value.chars().count() <= max {
         return value.to_string();
@@ -52,14 +52,14 @@ fn truncate_chars(value: &str, max: usize) -> String {
     value.chars().take(max).collect()
 }
 
-/// session 尾 4 字符（公开形态的展示字段，别家同款）
+/// session 4 （ ，）
 fn session_tail(session: &str) -> String {
     let chars: Vec<char> = session.chars().collect();
     let start = chars.len().saturating_sub(4);
     chars[start..].iter().collect()
 }
 
-/// 从 payload 里取第一个非空字符串（候选键覆盖本项目落盘名与粘贴形态）
+/// from payload 1 empty（ and ）
 fn pick(payload: &Value, keys: &[&str]) -> String {
     for key in keys {
         let value = payload
@@ -75,11 +75,11 @@ fn pick(payload: &Value, keys: &[&str]) -> String {
 }
 
 impl AccountStore {
-    /// 取一条 Loomy 账号记录（公开形态的原始 JSON）。
+    /// 1 Loomy （ JSON）。
     ///
-    /// `account_id` 非空 → 按 id 直查（不属于本家返回 None）；
-    /// 为空 → 本家**启用中**账号里优先级最靠前的一条（与 `autoclaw_account_record`
-    /// 的语义一致：转发默认用队首账号）。
+    /// `account_id` empty → by id （ not return None）；
+    /// as empty → **enabled in ** before 1 （ and `autoclaw_account_record`
+    /// 1 ：default use ）。
     pub fn loomy_account_record(&self, account_id: &str) -> Option<Value> {
         let guard = self.guard();
         if !account_id.is_empty() {
@@ -95,22 +95,22 @@ impl AccountStore {
         candidates.into_iter().next().map(|item| item.to_value())
     }
 
-    /// 添加/更新一个 Loomy 账号（短信登录与粘贴 session 共用的落账号入口）。
+    /// /update 1 Loomy （ and session use ）。
     ///
-    /// payload（两种来源形状一致）：
-    ///   - `session` / `accessToken` / `token`：登录 session（必填）；
-    ///   - `userId` / `userid`：讯飞 userid；
-    ///   - `phone`：手机号（可选，展示用）。
+    /// payload（ 1 ）：
+    /// - `session` / `accessToken` / `token`： session（）；
+    /// - `userId` / `userid`： userid；
+    /// - `phone`：（optional， use ）。
     ///
-    /// payload 里的 `expiresAt` **被忽略**：上游不给到期时刻，估算值不是事实
-    /// （见模块头）。
+    /// payload `expiresAt` ** ignore**： up not to to when ， not is 
+    /// （module header）。
     ///
-    /// 校验：session 非空且不超长；userId 与 phone 至少有一个（否则记不出
-    /// 可辨认的身份，`loomy-` 前缀的 id 会撞在一起）。
+    /// ：session empty and not ；userId and phone has 1 （otherwise not 
+    /// can ，`loomy-` before id will in 1 ）。
     ///
-    /// 撞 id（本机已有同 id 记录）时：同 provider 就地更新（保留优先级与启用
-    /// 状态、沿用用户改过的备注名），撞到**别的 provider** 时报错 ——
-    /// 绝不覆写他人记录（与另外几家同一策略）。
+    /// id（ already has id ） when ： provider update（ and enabled
+    /// 、 use use ）， to ** provider** when ——
+    /// not （ and 1 ）。
     pub fn add_loomy_account(
         &self,
         payload: &Value,
@@ -137,7 +137,7 @@ impl AccountStore {
                 400,
             ));
         }
-        // 身份标识：优先 userid（稳定）；没有就退回手机号
+        // ： userid（）； no has 
         let identity = if user_id.is_empty() { phone.clone() } else { user_id.clone() };
         let id = format!("loomy-{identity}");
 
@@ -155,7 +155,7 @@ impl AccountStore {
                 ));
             }
         }
-        // 备注名兜底：显式传入 → 既有记录里的备注名 → 脱敏手机号 → userId
+        // ： → has → → userId
         let explicit_name = name
             .map(str::trim)
             .filter(|value| !value.is_empty())
@@ -179,7 +179,7 @@ impl AccountStore {
         let priority = match existing.as_ref() {
             Some(record) => record.priority(),
             None => {
-                // 优先级全局唯一（各家共用一条队列），取全库已用号段
+                // 1 （ use 1 ）， already use 
                 let used = self.with_conn(&guard, |conn| sql::priorities_all(conn))?;
                 next_free_priority(&used)
             }
@@ -190,11 +190,11 @@ impl AccountStore {
         record.insert("id".to_string(), Value::String(id.clone()));
         record.insert("provider".to_string(), Value::String(LOOMY_PROVIDER_ID.to_string()));
         record.insert("name".to_string(), Value::String(record_name.clone()));
-        // 备注名标记：用户显式传了名或既有记录已打标时置位，界面据此决定
-        // 「备注名赢过昵称等默认口径」还是「维持原展示行为」。与其余八家同一
-        // 口径（见 `state::mark_name_custom`）—— 本家走自己的保存路径（不经过
-        // `store_crud::upsert_account` 的统一打标），所以必须在这里显式调用，
-        // 漏了会让添加时填的备注名在将来被昵称顶掉。
+        // ： use or has already when ，
+        // 「 etc default」 is 「 as 」。 and its 1 
+        // （ `state::mark_name_custom`）—— path（ not 
+        // `store_crud::upsert_account` 1 ），must in this use ，
+        // will when in will 。
         mark_name_custom(&mut record, name.is_some_and(|value| !value.trim().is_empty()), existing.as_ref());
         if !user_id.is_empty() {
             record.insert("userId".to_string(), Value::String(user_id));
@@ -204,8 +204,8 @@ impl AccountStore {
         }
         record.insert("accessToken".to_string(), Value::String(session.clone()));
         record.insert("tokenTail".to_string(), Value::String(session_tail(&session)));
-        // 不写 `expiresAt`：上游不给到期时刻（见模块头）。重新登录时顺带清掉
-        // 存量记录上的历史估算值 —— 留着它只会让旧值继续被别处当成事实读。
+        // not `expiresAt`： up not to to when （module header）。 new when 
+        // up —— will old 。
         record.remove("expiresAt");
         record.insert("source".to_string(), Value::String("manual".to_string()));
         record.insert("priority".to_string(), Value::from(priority));
@@ -229,7 +229,7 @@ impl AccountStore {
             ),
         );
         record.insert("updatedAt".to_string(), Value::from(now));
-        // 未知字段全量保留（用户手工加过的字段不能因为一次「更新账号」丢掉）
+        // unknown（ use not can as 1 「update」）
         let mut merged = record;
         if let Some(existing) = existing.as_ref() {
             for (key, value) in existing.fields() {
@@ -237,7 +237,7 @@ impl AccountStore {
             }
         }
         let saved = StoredAccount::from_map(merged);
-        // 单行落地：`put` = DELETE + INSERT（与别家一致）
+        // ：`put` = DELETE + INSERT（ and 1 ）
         self.with_conn(&guard, |conn| sql::put(conn, &saved))?;
         logging::log(
             "[Accounts]",
@@ -246,11 +246,11 @@ impl AccountStore {
         Ok(self.public_account(&saved))
     }
 
-    /// Loomy 账号的**公开形态**（进 HTTP 响应）：去掉 session 本体，只留尾 4 位。
+    /// Loomy ****（ HTTP response）： session ， 4 。
     ///
-    /// 同时摘掉 `expiresAt`：存量记录上那份是历史估算值（登录时刻 + 14 天），
-    /// 不是上游给的事实，下发出去只会让界面把仍然可用的账号标成「已过期」。
-    /// 失效由 `needsRelogin` 表达（网关在收到 `020002` / `100002` 时落）。
+    /// when `expiresAt`： up that is （ when + 14 ），
+    /// not is up to ， down will available 「expired」。
+    /// by `needsRelogin` （ in to `020002` / `100002` when ）。
     pub fn to_loomy_public_account(&self, record: &StoredAccount) -> Value {
         let mut value = record.to_value();
         if let Some(object) = value.as_object_mut() {

@@ -1,4 +1,4 @@
-//! Images 响应聚合：不经 Chat 翻译器，保留 OpenAI data 或 Gemini inlineData。
+//! Images response： not Chat ， OpenAI data or Gemini inlineData。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -78,8 +78,8 @@ async fn collect_body(
     telemetry: &Arc<RequestTelemetry>,
 ) -> Result<Value, ImageFailure> {
     const MAX_RESPONSE_BYTES: usize = 96 * 1024 * 1024;
-    // 豆包工作：出图在对话流里、且流里给的是带水印预览，要再换一次原图 ——
-    // 两步都归 `doubao_body`（那里有为什么必须放在宿主侧的说明）。
+    // ： in for 、 and to is ， need 1 ——
+    // `doubao_body`（ that has Whymust in ）。
     if matches!(kind, ImageResponseKind::Doubao) {
         return doubao_body(response, transport, telemetry).await;
     }
@@ -161,9 +161,9 @@ async fn collect_body(
                 if let Some(usage) = payload.get("usage") {
                     telemetry.report_usage(usage);
                 }
-                // 有的家把本次消耗的积分 / 点数**直接放在响应顶层**（不在 usage 里）：
-                // Loomy 生图的 `points_consumed` 就是实测形态。按 credit 单键补报一次，
-                // 让它进报表的积分列而不是被当成 token。
+                // has / ** in response**（ not in usage ）：
+                // Loomy `points_consumed` is 。 by credit 1 ，
+                // not is token。
                 if let Some(credit) = payload
                     .as_object()
                     .and_then(|object| super::usage::credit_from_object(object))
@@ -189,32 +189,32 @@ async fn collect_body(
     Ok(result)
 }
 
-/// 豆包工作的生图响应：从对话流里取图片，优先取**无水印原图**。
+/// response： from for ，**none**。
 ///
-/// ── 为什么放在宿主侧 ────────────────────────────────────────
-/// 上游没有独立的生图接口：出图就是**在对话里让 agent 干活**，结果作为
-/// `gen_image_block`（`block_type = 10010`）挂在同一条 SSE 流里。而这一路是
-/// `ImageResponseKind::Doubao` 才有的解析（普通的 OpenAI / Gemini 聚合在这里
-/// 全都不适用），与 `ModelscopeAsync`（提交后轮询）是同一取舍：插件的
-/// `ImagePlan` 只表达"一次请求"，读这种流要按豆包的块结构来。
+/// ── Why in ────────────────────────────────────────
+/// up no has ： is ** in for agent **， as 
+/// `gen_image_block`（`block_type = 10010`） in 1 SSE 。 this 1 is 
+/// `ImageResponseKind::Doubao` has （ OpenAI / Gemini in this 
+/// not use ）， and `ModelscopeAsync`（ after ） is 1 ： 
+/// `ImagePlan` " 1 request"， this need by 。
 ///
-/// ── 无水印原图从哪来 ────────────────────────────────────────
-/// 实测（2026-11-03）流里有两种块：`10010` 给的是**带水印的压缩预览**
-/// （`~tplv-…-downsize_watermark…`，134 KB、左上角带「AI 生成」角标），
-/// `10084`（`rich_media_layout_block`）另外给了**无水印原图**
-/// （`~tplv-…-image_raw.png`）—— 它与官方
-/// `/creativity/resource/get_without_watermark` 的 `cgen_wm0` **字节完全相同**
-/// （4624288 字节、同一 md5），而且晚一步到。所以默认一次请求就够；
-/// [`doubao_without_watermark`] 只在流里没给原图时补一次（旧版本/画布块缺失）。
+/// ── none from ────────────────────────────────────────
+/// （2026-11-03） has ：`10010` to is ** **
+/// （`~tplv-…-downsize_watermark…`，134 KB、 up 「AI 」），
+/// `10084`（`rich_media_layout_block`） to **none**
+/// （`~tplv-…-image_raw.png`）—— and 
+/// `/creativity/resource/get_without_watermark` `cgen_wm0` ****
+/// （4624288 、 1 md5）， and 1 to 。default 1 request；
+/// [`doubao_without_watermark`] in no to when 1 （ old /）。
 ///
-/// ── 换原图失败不致命 ────────────────────────────────────────
-/// 拿不到原图就退回预览：有图总比报错好，只记一行日志。
+/// ── failure not ────────────────────────────────────────
+/// not to ： has total， 1 。
 async fn doubao_body(
     response: reqwest::Response,
     transport: &super::request::TransportRequest,
     telemetry: &Arc<RequestTelemetry>,
 ) -> Result<Value, ImageFailure> {
-    /// 生图这一轮里 agent 会顺带说不少话，给个上限（正常几十 KB）。
+    /// this 1 agent will not ， to limit（ KB）。
     const MAX_STREAM_BYTES: usize = 8 * 1024 * 1024;
     let status = response.status().as_u16();
     let capture = telemetry.capture();
@@ -237,9 +237,9 @@ async fn doubao_body(
     let text = String::from_utf8_lossy(&bytes);
     let images = doubao_images(&text);
     if images.is_empty() {
-        // 上游可能是直接报错（风控 / 参数）：把它的错误摘出来，
-        // 别报成"没有生成图片"。两种形态都看 —— 流内 `data:` 帧，以及
-        // 整段就是一个 JSON 对象（有些失败分支不走 SSE，实测风控那次就是）。
+        // up can can is （ / parameter）： error，
+        // " no has "。 —— `data:` ， and 
+        // is 1 JSON for （ has failure not SSE， that is ）。
         let failure = doubao_stream_failure(&text).or_else(|| {
             serde_json::from_str::<Value>(text.trim())
                 .ok()
@@ -252,8 +252,8 @@ async fn doubao_body(
             "豆包没有返回图片（可能被内容策略拦截），未把文字回复当作生图成功",
         ));
     }
-    // 流里通常已经带了无水印原图（`10084` 的 `image_ori_raw`）；只有缺了才去调
-    // 官方去水印接口 —— 那是一次额外请求，能省就省（见 `DoubaoImage::raw`）。
+    // already none（`10084` `image_ori_raw`）； has 
+    // —— that is 1 request， can （ `DoubaoImage::raw`）。
     let missing: Vec<DoubaoImage> = images
         .iter()
         .filter(|image| image.raw.is_none())
@@ -286,23 +286,23 @@ async fn doubao_body(
     }))
 }
 
-/// 流里收到的一张图（两种块都会报同一张，按对象键合并）。
+/// to 1 （ will 1 ， by for and ）。
 #[derive(Clone)]
 struct DoubaoImage {
-    /// 对象键（`tos-cn-i-…/rc_gen_image/x.jpeg`），换原图那个接口收的就是它。
+    /// for （`tos-cn-i-…/rc_gen_image/x.jpeg`）， that is 。
     key: String,
-    /// 无水印原图（`10084` 的 `image_ori_raw` / `~tplv-…-image_raw.png`）。
+    /// none（`10084` `image_ori_raw` / `~tplv-…-image_raw.png`）。
     ///
-    /// 实测（2026-11-03）同一张图：流里这份 `image_raw` 与官方
-    /// `/creativity/resource/get_without_watermark` 返回的 `cgen_wm0` **字节完全
-    /// 相同**（4624288 字节、同一 md5）。所以正常情况下一次请求就够，**不必**
-    /// 再发第二次；`doubao_without_watermark` 只服务"流里没给"的兜底情形。
+    /// （2026-11-03） 1 ： this `image_raw` and 
+    /// `/creativity/resource/get_without_watermark` return `cgen_wm0` **
+    /// **（4624288 、 1 md5）。 down 1 request，** not **
+    /// ；`doubao_without_watermark` " no to " 。
     raw: Option<String>,
-    /// 带水印的预览（`10010` 的 `uri` / `10084` 的 `image_ori`），最后的兜底。
+    /// （`10010` `uri` / `10084` `image_ori`）， after 。
     preview: String,
 }
 
-/// 按对象键把一张图并进结果（先到的补预览、后到的补原图，两种顺序都成立）。
+/// by for 1 and （ to 、 after to ，）。
 fn doubao_merge(
     found: &mut Vec<DoubaoImage>,
     key: String,
@@ -325,13 +325,13 @@ fn doubao_merge(
     });
 }
 
-/// 从豆包的 SSE 文本里取图片（按对象键去重、保持先后）。
+/// from SSE （ by for 、 after ）。
 ///
-/// ── 两种块都要看 ────────────────────────────────────────────
-/// `10010`（`gen_image_block`，交付结果）给的是**带水印的预览**；
-/// `10084`（`rich_media_layout_block`，画布渲染）给的是**无水印原图**
-/// （`image_ori_raw`）与对象键。只认前者就只能拿到带水印那张，只认后者则在
-/// 画布块缺失时就什么都没有 —— 所以两边都收，按对象键合并（见 `DoubaoImage`）。
+/// ── need ────────────────────────────────────────────
+/// `10010`（`gen_image_block`，） to is ** **；
+/// `10084`（`rich_media_layout_block`，） to is **none**
+/// （`image_ori_raw`） and for 。 before can to that ， after then in 
+/// when no has —— ， by for and （ `DoubaoImage`）。
 fn doubao_images(text: &str) -> Vec<DoubaoImage> {
     let mut found: Vec<DoubaoImage> = Vec::new();
     for data in doubao_data_frames(text) {
@@ -426,11 +426,11 @@ fn doubao_images(text: &str) -> Vec<DoubaoImage> {
     found
 }
 
-/// 图片地址 → 对象键。
+/// → for 。
 ///
-/// 地址形如 `https://host/tos-cn-i-…/rc_gen_image/x.jpeg~tplv-…?…`，对象键是
-/// `~` 之前、去掉协议与 host 的那一段（`tos-cn-i-…/rc_gen_image/x.jpeg`）——
-/// 换原图的那个接口收的就是它。
+/// `https://host/tos-cn-i-…/rc_gen_image/x.jpeg~tplv-…?…`， for is 
+/// `~` before 、 and host that 1 （`tos-cn-i-…/rc_gen_image/x.jpeg`）——
+/// that is 。
 fn doubao_object_key(url: &str) -> Option<String> {
     let without_query = url.split('?').next().unwrap_or(url);
     let path = without_query.split('~').next().unwrap_or(without_query);
@@ -442,7 +442,7 @@ fn doubao_object_key(url: &str) -> Option<String> {
     (!key.is_empty()).then(|| key.to_string())
 }
 
-/// 从 SSE 文本里取 `data:` 载荷（不关心 `event:` 名字 —— 这里只看内容）。
+/// from SSE `data:` （ not `event:` —— this ）。
 fn doubao_data_frames(text: &str) -> Vec<String> {
     let mut frames = Vec::new();
     for block in text.split("\n\n") {
@@ -459,7 +459,7 @@ fn doubao_data_frames(text: &str) -> Vec<String> {
     frames
 }
 
-/// 流里没有图片时，多半是上游直接报了错：逐帧取错误，让用户看到原因。
+/// no has when ， is up ：error， use to Reason。
 fn doubao_stream_failure(text: &str) -> Option<ImageFailure> {
     doubao_data_frames(text)
         .iter()
@@ -467,13 +467,13 @@ fn doubao_stream_failure(text: &str) -> Option<ImageFailure> {
         .find_map(|value| doubao_value_failure(&value))
 }
 
-/// 一个豆包失败体 → 归一化失败：把 code/message 摘出来，风控那条 `710022004`
-/// 单独给一句能照做的文案（与插件侧同一口径）。
+/// 1 failure → 1 failure： code/message ， that `710022004`
+/// to 1 can （ and 1 ）。
 ///
-/// 只认豆包错误信封自己的键（`error_code` / `error_msg` / `error_message` /
-/// `detail`，实测形如 `{"error_code":710022004,"error_msg":"rate limited","extra":…}`）：
-/// 不去认通用的 `message` / `msg` —— 正常流里也有 `message` 这个**对象**字段，
-/// 认宽了会把一次正常但没出图的答复报成上游故障。
+/// error （`error_code` / `error_msg` / `error_message` /
+/// `detail`， `{"error_code":710022004,"error_msg":"rate limited","extra":…}`）：
+/// not use `message` / `msg` —— has `message` this ** for **，
+/// will 1 no up 。
 fn doubao_value_failure(value: &Value) -> Option<ImageFailure> {
     let code = value.get("error_code").and_then(Value::as_u64);
     let message = ["error_msg", "error_message", "detail"]
@@ -498,10 +498,10 @@ fn doubao_value_failure(value: &Value) -> Option<ImageFailure> {
     })
 }
 
-/// 拿对象键换无水印原图地址（对象键 → 地址）。
+/// for none（ for → ）。
 ///
-/// 失败一律返回空表（调用方退回预览地址）：这一步只是"锦上添花"，不该因为它
-/// 把已经生成好的图片整条丢掉。
+/// failure 1 returnempty（ use ）： this 1 is " up "， not this as 
+/// already 。
 async fn doubao_without_watermark(
     transport: &super::request::TransportRequest,
     images: &[DoubaoImage],
@@ -512,8 +512,8 @@ async fn doubao_without_watermark(
     let Ok(mut target) = base.join("/creativity/resource/get_without_watermark") else {
         return Vec::new();
     };
-    // 查询串要照搬：那几个 client 参数（device_id / pc_version / fp …）是接口
-    // 认这个账户与设备的依据，缺了就会被当成未受信客户端。
+    // need ： that client parameter（device_id / pc_version / fp …） is 
+    // this and ， will client。
     target.set_query(base.query());
     let keys: Vec<&str> = images.iter().map(|image| image.key.as_str()).collect();
     let client = crate::server::core::egress::client_without_redirects(transport.proxy.as_ref());
@@ -522,8 +522,8 @@ async fn doubao_without_watermark(
         .timeout(Duration::from_secs(60))
         .json(&json!({ "uri": keys }));
     for (name, value) in &transport.headers {
-        // `content-length` / `content-type` 交给 reqwest 按 `.json()` 自己写：
-        // 照搬会多出第二条同名字段（父请求的长度还是 SSE 那份）。
+        // `content-length` / `content-type` to reqwest by `.json()` ：
+        // will （request is SSE that ）。
         if name.eq_ignore_ascii_case("content-length") || name.eq_ignore_ascii_case("content-type")
         {
             continue;
@@ -539,7 +539,7 @@ async fn doubao_without_watermark(
         Err(error) => {
             crate::server::logging::verbose(
                 "[Upstream]",
-                &format!("豆包换无水印原图失败，改用预览地址：{error}"),
+                &format!("nonefailure， use ：{error}"),
             );
             return Vec::new();
         }
@@ -548,7 +548,7 @@ async fn doubao_without_watermark(
     let Ok(value) = response.json::<Value>().await else {
         crate::server::logging::verbose(
             "[Upstream]",
-            "豆包换无水印原图的响应不是 JSON，改用预览地址",
+            "none response not is JSON， use ",
         );
         return Vec::new();
     };
@@ -556,13 +556,13 @@ async fn doubao_without_watermark(
     {
         crate::server::logging::verbose(
             "[Upstream]",
-            &format!("豆包换无水印原图被拒（HTTP {status}），改用预览地址"),
+            &format!("none （HTTP {status}）， use "),
         );
         return Vec::new();
     }
     let data = value.get("data").unwrap_or(&Value::Null);
     if data.get("without_watermark").and_then(Value::as_bool) != Some(true) {
-        crate::server::logging::verbose("[Upstream]", "该账号没有无水印权益，改用预览地址");
+        crate::server::logging::verbose("[Upstream]", " this no has none， use ");
         return Vec::new();
     }
     let mut found = Vec::new();
@@ -629,7 +629,7 @@ fn gemini_frame(
         if response.pointer("/promptFeedback/blockReason").is_some() {
             return Err(ImageFailure {
                 status: 400,
-                body: json!({ "code": "content_policy_violation", "message": "上游内容策略拦截了生图提示词" }),
+                body: json!({ "code": "content_policy_violation", "message": " up " }),
             });
         }
         return Ok(());
@@ -682,18 +682,18 @@ fn gemini_frame(
         {
             return Err(ImageFailure {
                 status: 400,
-                body: json!({ "code": "content_policy_violation", "message": "上游内容策略拦截了图片输出" }),
+                body: json!({ "code": "content_policy_violation", "message": " up " }),
             });
         }
     }
     Ok(())
 }
 
-/// WorkBuddy 的图片响应多一层 `{code, msg, request_id, data:{data:[…], usage:{credit}}}`
-/// 信封：`code != 0` 是业务失败（HTTP 可能仍是 200），图片数组在 `data.data[]`
-/// 里（条目与 OpenAI 同形：`b64_json` 或 `url`），`data.usage.credit` 是本单消耗
-/// 的积分 —— 不是 token，所以按 `credit` 单键上报，让它进报表的积分列而不是
-/// 伪装成 token 用量。
+/// WorkBuddy response 1 `{code, msg, request_id, data:{data:[…], usage:{credit}}}`
+/// ：`code != 0` is failure（HTTP can can is 200）， in `data.data[]`
+/// （ and OpenAI ：`b64_json` or `url`），`data.usage.credit` is 
+/// —— not is token， by `credit` up ， not is 
+/// token usage。
 fn workbuddy_body(
     payload: &Value,
     http_status: u16,
@@ -725,7 +725,7 @@ fn failure_from(payload: &Value, http_status: u16) -> ImageFailure {
         .get("message")
         .or_else(|| error.get("msg"))
         .and_then(Value::as_str)
-        .unwrap_or("上游没有返回有效的图片数据");
+        .unwrap_or(" up no has returnvalid ");
     let upstream_status = error.get("status").and_then(Value::as_str).unwrap_or("");
     let status = if http_status >= 400 {
         http_status

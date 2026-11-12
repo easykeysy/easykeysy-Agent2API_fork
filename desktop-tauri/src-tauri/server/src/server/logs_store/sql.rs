@@ -1,5 +1,5 @@
-//! 日志表 SQL 访问。调用方持有数据库锁，锁内不得再次写日志。
-//! id 使用 kv 高水位，删除历史记录不会复用已读水位。
+//! SQL 。 use has ， not 。
+//! id use kv ，delete not will use already 。
 
 use rusqlite::types::Value as SqlValue;
 use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
@@ -77,13 +77,13 @@ impl FilterPlan {
             .map(|value| value.trim().to_lowercase())
             .filter(|value| LEVELS.contains(&value.as_str()))
             .map(|value| level_rank(&value));
-        // 视图与级别是枚举，能安全下推的只有「超集」形式：
-        //   · important / info 及以上 → 存储的 debug 行一定不是；存储的 info
-        //     行可能被 `prepare` 按旧插件兼容规则改判成 debug（下面 Rust 侧
-        //     的 matches 会再滤一次），所以 SQL 只做「排除 debug」。
-        //   · debug 视图不下推 —— 旧插件那批 info 行读出来才改判 debug，
-        //     SQL 先按 level='debug' 过滤会漏掉它们。
-        //   · warn / error 只会从 info 改判出来，不会从 warn/error 改走，精确。
+        // and is ， can down has 「」：
+        // · important / info and up → debug 1 not is ； info
+        // can can `prepare` by old then debug（ down Rust 
+        // matches will 1 ）， SQL 「excluding debug」。
+        // · debug not down —— old that info debug，
+        // SQL by level='debug' will 。
+        // · warn / error will from info ， not will from warn/error ，。
         match query.view {
             LogView::Important => fragments.push("level <> 'debug'"),
             LogView::Debug | LogView::All => {}
@@ -105,9 +105,9 @@ impl FilterPlan {
             .map(|value| value.trim().to_lowercase())
             .filter(|value| CATEGORIES.iter().any(|(key, _)| *key == value));
         if let Some(category) = category.as_ref() {
-            // 兼容读取会把存储的 server / plugin 按消息标签改判成别的分类，
-            // 所以 SQL 只能取「精确分类 + 这两个待改判来源」的超集，最终由
-            // Rust 侧 matches 精确筛。
+            // will server / plugin by ，
+            // SQL can 「 + this 」 ， by 
+            // Rust matches 。
             fragments.push("(category = ? OR category IN ('server', 'plugin'))");
             binds.push(SqlValue::Text(category.clone()));
         }
@@ -132,12 +132,12 @@ impl FilterPlan {
         }
     }
 
-    // 历史插件的分类和级别先按兼容规则还原，再筛选；关键词沿用 Unicode 大小写折叠。
+    // and by then ，； use Unicode 。
     //
-    // 关键词**不能**下推给 SQL：SQLite 的 LIKE / lower() 只折叠 ASCII 大小写，
-    // 而这里要的是 Unicode 折叠（葡语、土耳其语这类带重音的字母会差一批结果）。
-    // 分类 / 级别 / 视图是枚举，已经在 WHERE 里过滤；这一层仍保留同样的判断，
-    // 既兜住旧数据里大小写不规范的分类，也让「SQL 过滤」与「内存过滤」不会漂。
+    // ** not can ** down to SQL：SQLite LIKE / lower() ASCII ，
+    // this need is Unicode （、 its this will 1 ）。
+    // / / is ， already in WHERE ； this 1 ，
+    // old not ，「SQL 」 and 「」 not will 。
     fn matches(&self, entry: &LogEntry) -> bool {
         self.view.matches(entry)
             && self
@@ -156,8 +156,8 @@ impl FilterPlan {
     }
 }
 
-/// 日志页的全局统计：一次 `GROUP BY` 拿到按级别 / 分类的条数，避免原先
-/// `COUNT(*)`、`GROUP BY level`、`GROUP BY category` 三次全表扫描。
+/// statistics： 1 `GROUP BY` to by / ，
+/// `COUNT(*)`、`GROUP BY level`、`GROUP BY category` 。
 pub(super) fn stats_snapshot(
     conn: &Connection,
 ) -> rusqlite::Result<(usize, u64, Vec<(String, String, i64)>)> {
@@ -211,7 +211,7 @@ pub(super) fn insert(conn: &Connection, entry: &LogEntry) -> rusqlite::Result<()
     Ok(())
 }
 
-/// 只读高水位（不推进）。文件后端用它给内存计数器播种。
+/// （ not ）。file after use to 。
 pub(super) fn peek_next_id(conn: &Connection) -> rusqlite::Result<u64> {
     let stored: Option<String> = conn
         .query_row(

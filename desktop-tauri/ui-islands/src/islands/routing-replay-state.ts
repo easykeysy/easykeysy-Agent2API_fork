@@ -5,10 +5,10 @@ import { bridge, errorMessage, host, type RoutingWorkspace, type StickyEntry } f
 export type ReplayQuery = { model?: string; minutes: number; scope: 'window' | 'running'; search?: string }
 
 /**
- * 请求回放页的外壳状态：工作台快照（模型清单、策略、账号状态）与会话绑定。
+ * request ：（、、） and will 。
  *
- * 请求列表自己按条件拉 `getRoutingFlow(detail=requests)`；这里不再拉聚合流向，
- * 因此画布移除后不会再有每 2.5 秒一次的 300 条路径计算。
+ * request by `getRoutingFlow(detail=requests)`； this not to ，
+ * after not will has 2.5 seconds 1 300 path。
  */
 export function useRoutingReplay(active: boolean, workspaceModel?: string) {
   const [model, setModel] = React.useState('')

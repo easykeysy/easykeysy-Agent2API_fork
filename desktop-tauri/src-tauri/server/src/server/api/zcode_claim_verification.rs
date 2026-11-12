@@ -1,4 +1,4 @@
-//! 定时领取的界面验证桥。任务在插件内关联账号和套餐，网关只转发已认证的管理请求。
+//! when 。 in and ， already request。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -40,7 +40,7 @@ pub async fn verification(State(state): State<ServerState>, body: Bytes) -> Resp
     };
     match adapter.admin_action(state.store(), account_id, action, &payload).await {
         Ok(value) => ok_json(value),
-        // 旧插件不认识新增动作时不反复报错，也不降级成空凭据领取。
+        // old not add when not ， not empty。
         Err(error) if action == "claim.verification.poll"
             && error.message.contains("claim.verification.poll")
             && ["不认识管理动作", "没有实现管理动作", "不支持管理动作", "unknown action", "unsupported action"]

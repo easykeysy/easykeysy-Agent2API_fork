@@ -1,82 +1,82 @@
-//! 上游智谱清言 SSE（`parts` 逐帧文本）→ 标准 chat SSE 增量帧（状态机）。
+//! up SSE（`parts` ）→ chat SSE （）。
 //!
-//! ── 为什么需要新的一台状态机（而不是复用任何一台）──────────────
-//! 本家的流是 SSE（`data: {...}` 逐帧），但**帧语义与 OpenAI 完全不同**：
-//!
-//! ```text
-//!   智谱清言：每帧给 `parts:[{id, logic_id, status, content:[{type,text|think}]}]`
-//!   OpenAI ：每帧给「这一拍的增量 delta」
-//!     {choices:[{delta:{content:"新增的几个字"}, index:0}]}
-//! ```
-//!
-//! ── 帧语义（live 抓帧实测，2026-10）─────────────────────────
-//! 同一轮回答里混着**两种**帧，靠 `status` 区分，**不能一律按快照差分**
-//! （那正是「AI 回答两遍」的成因，见 `advance` 的注释）：
+//! ── Why need need new 1 （ not is use 1 ）──────────────
+//! is SSE（`data: {...}` ），** and OpenAI not **：
 //!
 //! ```text
-//!   [1] top=init   part=init    text="1"            ← 增量帧：本帧就是新增内容
-//!   [2] top=init   part=init    text="\n"           ← 增量帧
-//!   [3] top=init   part=init    text="2\n3"         ← 增量帧
-//!   [4] top=init   part=finish  text="1\n2\n3"      ← 全文快照帧（注意 part 先 finish）
-//!   [5] top=finish part=finish  text="1\n2\n3"      ← 全文快照帧 + 终态
+//! ： to `parts:[{id, logic_id, status, content:[{type,text|think}]}]`
+//! OpenAI ： to 「 this 1 delta」
+//! {choices:[{delta:{content:"add "}, index:0}]}
 //! ```
 //!
-//! 因此规则是：**`part.status == "init"` 的帧原样下发并追加进基准；
-//! 出现 finish 的帧（顶层或 part）给的是整段全文，只补基准之后的后缀。**
-//! 长回答实测：23 个 init 帧拼接 = 157 字，与收尾快照的 157 字逐字相同。
+//! ── （live ，2026-10）─────────────────────────
+//! 1 ****， `status` ，** not can 1 by **
+//! （ that is 「AI 」 ， `advance` ）：
 //!
-//! ── 分段（`logic_id`）与占位段 ──────────────────────────────
-//! 一轮回答是**分段**的，每段一个 `logic_id`（实测四段：占位段 → 表单段 →
-//! 思考段 → 正文段）。换段即换基准：新段首帧若被拿去和旧段比对，会被误判成
-//! 「对不上」而整段重发。另有「占位段」（`meta_data.engine.action == "loading"`，
-//! 内容是「正在梳理您的需求～」这句状态文案）—— 官方客户端会把它替换掉，
-//! 我们一旦下发就收不回来，所以整段跳过（见 `is_loading_placeholder`）。
+//! ```text
+//! [1] top=init part=init text="1" ← ： is add
+//! [2] top=init part=init text="\n" ← 
+//! [3] top=init part=init text="2\n3" ← 
+//! [4] top=init part=finish text="1\n2\n3" ← （Note part finish）
+//! [5] top=finish part=finish text="1\n2\n3" ← + 
+//! ```
 //!
-//! 一帧可能带多个 part：本实现按**整帧文本**处理（所有 `text` 块按顺序拼成一条），
-//! 因为下游 chat 协议只有一条正文流。`think` 块单独走 `reasoning_content` 通道，
-//! 与正文各自维护基准。
+//! then is ：**`part.status == "init"` down and ；
+//! finish （ or part） to is ， after after 。**
+//! ：23 init = 157 ， and 157 。
 //!
-//! ── 收尾判定 ────────────────────────────────────────────────
-//! `status == "finish"`（顶层）为终态：发 `finish_reason` 帧 + usage 帧 +
-//! `data: [DONE]`。上游**不发 `[DONE]`**（测过完整流），所以由这里补。
-//! 一个内容帧都没给就结束 → 按空响应报错（不把空回答记成成功）。
+//! ── （`logic_id`） and ──────────────────────────────
+//! 1 is **** ， 1 `logic_id`（： → →
+//! → ）。： new if and old for ， will 
+//! 「 for not up 」。 has 「」（`meta_data.engine.action == "loading"`，
+//! is 「 in need ～」 this ）—— client will ，
+//! 1 down not ，（ `is_loading_placeholder`）。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! 1 can can part： by ****（all `text` by 1 ），
+//! as down chat has 1 。`think` `reasoning_content` ，
+//! and 。
+//!
+//! ── ────────────────────────────────────────────────
+//! `status == "finish"`（） as ： `finish_reason` + usage +
+//! `data: [DONE]`。 up ** not `[DONE]`**（）， by this 。
+//! 1 no to → by emptyresponse（ not emptysuccess）。
+//!
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{json, Value};
 
 use super::{chat_frame, content_parts, json_number_of, random_id, string_field, SseLineBuffer};
 
-/// 上游每帧的 `parts[*].content[*]` 里，哪些 `type` 算正文 / 思考
+/// up `parts[*].content[*]` ， `type` / 
 const KIND_TEXT: &str = "text";
 const KIND_THINK: &str = "think";
 
-/// 上游 SSE 字节流 → 标准 chat SSE 增量帧（状态机）。
+/// up SSE → chat SSE （）。
 pub struct ChatFromChatglmStream {
     buffer: SseLineBuffer,
-    /// 输出帧的 model（发给上游的真名；ForwardStream 的回写层按需改写）
+    /// model（ to up ；ForwardStream by need ）
     model: String,
     id: String,
     created: i64,
-    /// 已下发过首帧（role assistant）
+    /// already down （role assistant）
     started: bool,
     finished: bool,
-    /// 当前内容段的 key（上游 `logic_id`，缺失时退回落 `part.id`）。
+    /// current key（ up `logic_id`， when `part.id`）。
     ///
-    /// 上游一轮回答是**分段**的（实测：`占位段 → 表单段 → 思考段 → 正文段`，
-    /// 每段一个 `logic_id`）。换段意味着上一段结束、新的一段开始，
-    /// 差分基准必须跟着清零，否则新段的首帧会被拿去和旧段比对。
+    /// up 1 is **** （：` → → → `，
+    /// 1 `logic_id`）。 up 1 、 new 1 ，
+    /// must，otherwise new will and old for 。
     segment_key: String,
-    /// **当前段**已下发的正文全文（差分基准）
+    /// **current** already down （）
     segment_text: String,
-    /// **当前段**已下发的思考全文（差分基准）
+    /// **current** already down （）
     segment_thinking: String,
-    /// 上游最后一次给出的会话 id（收尾帧里回填，便于排查）
+    /// up after 1 to will id（，）
     conversation_id: String,
-    /// 上游最后一次给出的业务错误（若有）
+    /// up after 1 to error（ if has ）
     upstream_error: Option<String>,
-    /// usage（上游不给 token 计数，恒为空 —— 见 `usage_payload`）
+    /// usage（ up not to token ， as empty —— `usage_payload`）
     usage: Option<Value>,
 }
 
@@ -98,16 +98,16 @@ impl ChatFromChatglmStream {
         }
     }
 
-    /// 吃一段上游字节，吐出要下发的 chat SSE 帧
+    /// 1 up ， need down chat SSE 
     pub fn push(&mut self, chunk: &[u8]) -> Vec<bytes::Bytes> {
         let mut out = Vec::new();
         for payload in self.buffer.push(chunk) {
-            // `None` = 上游发来了 `[DONE]`（本家实测不发，但收下不亏）
+            // `None` = up `[DONE]`（ not ， down not ）
             let Some(line) = payload else {
                 out.extend(self.finish());
                 continue;
             };
-            // 本家的保活帧是裸 `HEARTBEAT`（**不带花括号**），不是 JSON
+            // is `HEARTBEAT`（** not **）， not is JSON
             if line.trim().eq_ignore_ascii_case("HEARTBEAT") {
                 continue;
             }
@@ -127,12 +127,12 @@ impl ChatFromChatglmStream {
         out
     }
 
-    /// 上游流结束：按「有没有见过终态」收尾
+    /// up ： by 「 has no has 」
     pub fn finish(&mut self) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
         }
-        // 先冲刷残留半行（上游可能最后一帧不带换行）
+        // （ up can can after 1 not ）
         let mut out = Vec::new();
         for payload in self.buffer.finish() {
             if let Some(line) = payload {
@@ -150,14 +150,14 @@ impl ChatFromChatglmStream {
         if self.finished {
             return out;
         }
-        // 没有终态就 EOF：上游契约里是「没走完」。但本家实测**正常流末尾一定带
-        // `status:"finish"`**，因此走到这里只可能是真截断 —— 如实报错，
-        // 不补 finish_reason（那等于把截断谎报成完整回答）。
+        // no has EOF： up is 「 no 」。** 1 
+        // `status:"finish"`**， to this can can is —— ，
+        // not finish_reason（ that etc ）。
         out.extend(self.fail_message("上游流在收到完成信号之前结束（响应被截断）", 502));
         out
     }
 
-    /// 一帧 → 零到多个 chat 帧
+    /// 1 → to chat 
     fn consume(&mut self, event: &Value) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
@@ -165,13 +165,13 @@ impl ChatFromChatglmStream {
         let Some(object) = event.as_object() else {
             return Vec::new();
         };
-        // 会话 id（首帧给出，后续帧重复；留最后一次）
+        // will id（ to ， after ； after 1 ）
         let conversation_id = string_field(event, "conversation_id");
         if !conversation_id.is_empty() {
             self.conversation_id = conversation_id;
         }
-        // 业务错误：本家把失败也放在 200 的 SSE 里（如 -1001 积分不足），
-        // 字段名实测是 `error_code` + `error`（见 `engine/stream` 的探测）
+        // error： failure in 200 SSE （ -1001 not ），
+        // is `error_code` + `error`（ `engine/stream` ）
         if let Some(code) = object.get("error_code").and_then(Value::as_i64) {
             if code != 0 {
                 let message = string_field(event, "error");
@@ -192,18 +192,18 @@ impl ChatFromChatglmStream {
             return self.fail_with_code(&message, 502);
         }
 
-        // 正文 / 思考：本帧文本 + 本帧是「增量」还是「全文快照」（见 `advance`）
+        // / ： + is 「」 is 「」（ `advance`）
         let (full_text, full_thinking) = collect_text(event);
         let is_snapshot = frame_is_snapshot(event);
         let (text_delta, thinking_delta) =
             self.advance(event, &full_text, &full_thinking, is_snapshot);
 
-        // 终态判定：顶层 status == "finish"（实测顶层先变成 finish，其次 part）
+        // ： status == "finish"（ finish， its part）
         let frame_status = string_field(event, "status").to_lowercase();
         let is_finish = frame_status == "finish" || frame_status == "finished";
 
         let mut out = Vec::new();
-        // 增量帧先发（内容永远先于收尾帧）
+        // （）
         if !text_delta.is_empty() || !thinking_delta.is_empty() {
             out.extend(self.start());
             let mut delta = serde_json::Map::new();
@@ -224,23 +224,23 @@ impl ChatFromChatglmStream {
         out
     }
 
-    /// 本帧 → 要下发的 `(正文增量, 思考增量)`，并推进当前段的累积基准。
+    /// → need down `(, )`， and current 。
     ///
-    /// ── 三种帧（实测，逐条对应真实流）──────────────────────────
-    /// 1. **占位段**（`part.meta_data.engine.action == "loading"`）：
-    ///    上游在真正回答前先发一段状态文案（实测原文：「让我们先核对下本轮任务的
-    ///    目标与偏好，正在梳理您的需求～」）。它**不是回答的一部分** —— 官方客户端
-    ///    也只是短暂显示再替换掉。我们一旦下发就收不回来，所以整段跳过。
-    /// 2. **增量帧**（`part.status == "init"`）：本帧文本就是新增的一小段，
-    ///    原样下发并追加进基准。
-    /// 3. **全文快照帧**（`part.status` / 顶层 `status` 为 finish）：本帧给的是
-    ///    **整段全文**，只补「还没下发过」的那一截。
+    /// ── （， for ）──────────────────────────
+    /// 1. ****（`part.meta_data.engine.action == "loading"`）：
+    /// up in before 1 （：「 for down 
+    /// and ， in need ～」）。** not is 1 ** —— client
+    /// is 。 1 down not ，。
+    /// 2. ****（`part.status == "init"`）： is add 1 ，
+    /// down and 。
+    /// 3. ****（`part.status` / `status` as finish）： to is 
+    /// ****，「 no down 」 that 1 。
     ///
-    /// ── 为什么第 3 条不能像以前那样"对不上就发全文"（真实故障）──────
-    /// 曾经对每帧一律做前缀差分，而收尾帧给的是全文、与前一段增量对不上，
-    /// 于是整段回答被**再下发一遍** —— 用户看到的就是「AI 回答了两遍」。
-    /// 快照对不上只可能是上游改写/回退，那种情况下重复一遍比漏几个字更糟
-    /// （重复是稳定可见的故障，改写极少见且下游无法撤回已发内容）。
+    /// ── Why 3 not can before that " for not up "（）──────
+    /// for 1 before ， to is 、 and before 1 for not up ，
+    /// is ** down 1 ** —— use to is 「AI 」。
+    /// for not up can can is up /， that down 1 
+    /// （ is can ， and down none already ）。
     fn advance(
         &mut self,
         event: &Value,
@@ -251,7 +251,7 @@ impl ChatFromChatglmStream {
         if is_loading_placeholder(event) {
             return (String::new(), String::new());
         }
-        // 换段（logic_id 变了）⇒ 新的一段开始，基准清零
+        // （logic_id ）⇒ new 1 ，
         let key = segment_key_of(event);
         if !key.is_empty() && key != self.segment_key {
             self.segment_key = key;
@@ -263,7 +263,7 @@ impl ChatFromChatglmStream {
         (text, thinking)
     }
 
-    /// 首帧（role assistant），只发一次
+    /// （role assistant）， 1 
     fn start(&mut self) -> Vec<bytes::Bytes> {
         if self.started {
             return Vec::new();
@@ -275,13 +275,13 @@ impl ChatFromChatglmStream {
         vec![self.delta_frame(json!({ "role": "assistant", "content": "" }))]
     }
 
-    /// 正常收尾：finish 帧 + usage 帧 + `[DONE]`
+    /// ：finish + usage + `[DONE]`
     fn complete(&mut self) -> Vec<bytes::Bytes> {
         if self.finished {
             return Vec::new();
         }
-        // 一个内容帧都没给就收尾：这是「成功但什么都没有」的流，
-        // 记成成功会让下游按空回答计费（判据与 AI SDK NDJSON 那台同款）
+        // 1 no to ： this is 「success no has 」 ，
+        // success will down by empty（ and AI SDK NDJSON that ）
         if !self.started {
             return self.fail_message("上游返回空响应（没有任何内容）", 429);
         }
@@ -300,10 +300,10 @@ impl ChatFromChatglmStream {
         out
     }
 
-    /// 流内错误 → 错误帧 + `[DONE]`（只做一次）
+    /// error → error + `[DONE]`（ 1 ）
     fn fail_with_code(&mut self, message: &str, code: i64) -> Vec<bytes::Bytes> {
-        // -1001「剩余积分不足」是本家最常见的失败：它是**额度**问题而不是
-        // 服务故障，因此给 429（下游据此退避 / 换账号，比塌成 502 更有用）
+        // -1001「remaining not 」 is failure： is **** not is 
+        // ， to 429（ down / ， 502 has use ）
         let status = if code == -1001 { 429 } else { 502 };
         let kind = if status == 429 {
             "rate_limit_error"
@@ -322,11 +322,11 @@ impl ChatFromChatglmStream {
         self.fail_message_with_kind(message, kind, status, None)
     }
 
-    /// 落一个协议级失败帧（错误帧 + `[DONE]`，只做一次）。
+    /// 1 failure（error + `[DONE]`， 1 ）。
     ///
-    /// 错误路径**不**补 usage 帧：带 `usage` 且 `choices` 为空的帧正是 OpenAI
-    /// 流式的收尾形态，部分客户端据此判定「流已结束」—— 在它之后补错误帧
-    /// 等于让那些客户端看不到失败（与 AI SDK NDJSON 那台的论证逐字相同）。
+    /// errorpath** not ** usage ： `usage` and `choices` as empty is OpenAI
+    /// ，client「 already 」—— in after error
+    /// etc that client not to failure（ and AI SDK NDJSON that ）。
     fn fail_message_with_kind(
         &mut self,
         message: &str,
@@ -359,7 +359,7 @@ impl ChatFromChatglmStream {
         out
     }
 
-    /// 上游（实测）不给 token 计数 —— 如实回 0，不编造数字
+    /// up （） not to token —— 0， not 
     fn usage_payload(&self) -> Value {
         match self.usage.clone() {
             Some(usage) => usage,
@@ -371,7 +371,7 @@ impl ChatFromChatglmStream {
         }
     }
 
-    /// 组装一条 chat 增量帧
+    /// 1 chat 
     fn delta_frame(&self, delta: Value) -> bytes::Bytes {
         chat_frame(&json!({
             "id": self.id,
@@ -382,7 +382,7 @@ impl ChatFromChatglmStream {
         }))
     }
 
-    /// 组装收尾帧
+    /// 
     fn finish_frame(&self, reason: &str) -> bytes::Bytes {
         chat_frame(&json!({
             "id": self.id,
@@ -394,11 +394,11 @@ impl ChatFromChatglmStream {
     }
 }
 
-/// 求一段文本相对**当前段已下发内容**的增量，并推进基准。
+/// 1 for **current already down ** ， and 。
 ///
-/// - `is_snapshot == false`（增量帧）：本帧就是新内容，原样下发；
-/// - `is_snapshot == true`（全文快照帧）：以已下发内容为前缀，只补后缀；
-///   对不上（上游改写/回退）时**不补发** —— 补发就是「回答两遍」（见 `advance`）。
+/// - `is_snapshot == false`（）： is new ， down ；
+/// - `is_snapshot == true`（）： already down as before ， after ；
+/// for not up （ up /） when ** not ** —— is 「」（ `advance`）。
 fn advance_segment(emitted: &mut String, frame: &str, is_snapshot: bool) -> String {
     if frame.is_empty() {
         return String::new();
@@ -407,7 +407,7 @@ fn advance_segment(emitted: &mut String, frame: &str, is_snapshot: bool) -> Stri
         emitted.push_str(frame);
         return frame.to_string();
     }
-    // `emitted` 为空时 `strip_prefix` 返回整段，因此新段的第一个快照帧会整段下发
+    // `emitted` as empty when `strip_prefix` return， new 1 will down 
     match frame.strip_prefix(emitted.as_str()) {
         Some(rest) => {
             emitted.push_str(rest);
@@ -417,10 +417,10 @@ fn advance_segment(emitted: &mut String, frame: &str, is_snapshot: bool) -> Stri
     }
 }
 
-/// 本帧是不是「全文快照」帧。
+/// is not is 「」。
 ///
-/// 实测：`part.status` 会先于顶层 `status` 变 finish（从 1 数到 5 的流里，
-/// 第 6 帧 `top=init / part=finish` 且文本已是全文），因此两处都要认。
+/// ：`part.status` will `status` finish（ from 1 to 5 ，
+/// 6 `top=init / part=finish` and already is ）， need 。
 fn frame_is_snapshot(event: &Value) -> bool {
     if is_finish_status(&string_field(event, "status")) {
         return true;
@@ -440,10 +440,10 @@ fn is_finish_status(status: &str) -> bool {
     matches!(status.to_lowercase().as_str(), "finish" | "finished")
 }
 
-/// 本帧是不是「回答前的临时占位段」（实测标记：`engine.action == "loading"`）。
+/// is not is 「 before when 」（：`engine.action == "loading"`）。
 ///
-/// 这类段有自己的 `logic_id`（与正文段不同），内容是一句状态文案。**不能下发**：
-/// 官方客户端会把它替换掉，而下游收到的是最终正文，混进去就是一段永久的噪音。
+/// this has `logic_id`（ and not ）， is 1 。** not can down **：
+/// client will ， down to is ， is 1 。
 fn is_loading_placeholder(event: &Value) -> bool {
     event
         .get("parts")
@@ -457,10 +457,10 @@ fn is_loading_placeholder(event: &Value) -> bool {
         })
 }
 
-/// 本帧所属内容段的 key：`logic_id` 优先，缺失退回落 `part.id`。
+/// key：`logic_id` ， `part.id`。
 ///
-/// 两个都没有（上游形态变了）时返回空串，调用方按「不换段」处理 ——
-/// 宁可沿用旧基准，也不要在读到空串时把基准清掉（那会让整段重新下发一遍）。
+/// no has （ up ） when returnempty， use by 「 not 」 ——
+/// can use old ， not need in to empty when （ that will new down 1 ）。
 fn segment_key_of(event: &Value) -> String {
     let Some(parts) = event.get("parts").and_then(Value::as_array) else {
         return String::new();
@@ -478,9 +478,9 @@ fn segment_key_of(event: &Value) -> String {
     String::new()
 }
 
-/// 把一帧里所有 part 的 text / think 块按顺序拼成两条全文。
+/// 1 all part text / think by 。
 ///
-/// 返回 `(正文全文, 思考全文)`。
+/// return `(, )`。
 fn collect_text(event: &Value) -> (String, String) {
     let mut text = String::new();
     let mut thinking = String::new();
@@ -501,7 +501,7 @@ fn collect_text(event: &Value) -> (String, String) {
     (text, thinking)
 }
 
-/// 保留：usage 归一（本家暂不用，留给将来上游补 token 计数时接）
+/// ：usage 1 （ not use ， to will up token when ）
 #[allow(dead_code)]
 fn normalized_usage(value: &Value) -> Value {
     let prompt = json_number_of(value, &["prompt_tokens", "input_tokens"]);
@@ -518,7 +518,7 @@ fn normalized_usage(value: &Value) -> Value {
 mod tests {
     use super::*;
 
-    /// 把下行帧拼成 (正文, 思考) 便于断言
+    /// down (, ) 
     fn collect(frames: &[bytes::Bytes]) -> (String, String, Option<String>) {
         let mut text = String::new();
         let mut thinking = String::new();
@@ -564,11 +564,11 @@ mod tests {
         format!("data: {payload}\n\n").into_bytes()
     }
 
-    /// **回归：回答不能重复下发**（用户实测「AI 回答了两遍」）。
+    /// **： not can down **（ use 「AI 」）。
     ///
-    /// 帧序列逐条照抄 live 抓帧：前五帧 `part=init` 是**增量**，收尾两帧给**全文**。
-    /// 旧实现把每帧都按快照做前缀差分，收尾全文与前一段增量对不上就「发全文」，
-    /// 于是整段回答被再下发一遍 —— 拼接结果正好是两遍回答。
+    /// live ： before `part=init` is ****， to ****。
+    /// old by before ， and before 1 for not up 「」，
+    /// is down 1 —— is 。
     #[test]
     fn deltas_then_finish_snapshot_do_not_repeat_the_answer() {
         let mut machine = ChatFromChatglmStream::new("glm-5.3-flash");
@@ -579,11 +579,11 @@ mod tests {
                 text.replace('\n', "\\n")
             ))));
         }
-        // 收尾第一拍：part 先 finish，这一帧已经是全文
+        // 1 ：part finish， this 1 already is 
         frames.extend(machine.push(&sse(
             r#"{"id":"m","conversation_id":"c","status":"init","parts":[{"logic_id":"s","status":"finish","content":[{"type":"text","text":"1\n2\n3\n4\n5"}]}]}"#,
         )));
-        // 收尾第二拍：顶层终态，又来一遍同样的全文
+        // ：， 1 
         frames.extend(machine.push(&sse(
             r#"{"id":"m","conversation_id":"c","status":"finish","parts":[{"logic_id":"s","status":"finish","content":[{"type":"text","text":"1\n2\n3\n4\n5"}]}]}"#,
         )));
@@ -592,7 +592,7 @@ mod tests {
         assert_eq!(finish.as_deref(), Some("stop"));
     }
 
-    /// 短回答：首帧增量本身就是全文，收尾快照不得再补一遍（旧实现这里也发两遍）
+    /// ： is ， not 1 （ old this ）
     #[test]
     fn whole_answer_in_first_delta_is_not_repeated() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -609,7 +609,7 @@ mod tests {
         assert_eq!(text, "AAA");
     }
 
-    /// 收尾快照比增量累计更长时，只补缺口那一段
+    /// when ， that 1 
     #[test]
     fn finish_snapshot_only_emits_the_missing_tail() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -625,7 +625,7 @@ mod tests {
         assert_eq!(text, "加尾");
     }
 
-    /// 占位段（`engine.action == "loading"`）整段跳过，正文段照常下发
+    /// （`engine.action == "loading"`）， down 
     #[test]
     fn loading_placeholder_is_skipped() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -634,7 +634,7 @@ mod tests {
         ));
         let (text, _, _) = collect(&frames);
         assert_eq!(text, "", "占位文案不是回答，下发就收不回来了");
-        // 正文段（另一个 logic_id）开始 → 基准清零，首帧整段下发
+        // （ 1 logic_id） → ， down 
         let frames = machine.push(&sse(
             r#"{"status":"init","parts":[{"logic_id":"body","status":"init","content":[{"type":"text","text":"真正的回答"}]}]}"#,
         ));
@@ -642,7 +642,7 @@ mod tests {
         assert_eq!(text, "真正的回答");
     }
 
-    /// 换段（logic_id 变了）必须重置基准，否则新段的首帧会被旧段基准吞掉
+    /// （logic_id ）must，otherwise new will old 
     #[test]
     fn segment_change_resets_the_baseline() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -657,7 +657,7 @@ mod tests {
         assert_eq!(thinking, "", "新段没有思考内容");
     }
 
-    /// 思考内容走 reasoning_content 通道，与正文同一套「增量 / 快照」规则
+    /// reasoning_content ， and 1 「 / 」 then 
     #[test]
     fn thinking_uses_reasoning_channel() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -672,7 +672,7 @@ mod tests {
         assert_eq!(thinking, "一会", "快照只补后缀");
     }
 
-    /// 正文与思考同帧给出时各走各的通道
+    /// and to when 
     #[test]
     fn text_and_thinking_are_separated() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -684,7 +684,7 @@ mod tests {
         assert_eq!(thinking, "推理");
     }
 
-    /// HEARTBEAT 帧被跳过（不带花括号的裸文本）
+    /// HEARTBEAT （ not ）
     #[test]
     fn heartbeat_is_ignored() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -692,7 +692,7 @@ mod tests {
         assert!(frames.is_empty());
     }
 
-    /// 快照对不上（上游改写/回退）时**不补发**：整段重发的故障比漏几个字更糟
+    /// for not up （ up /） when ** not **： 
     #[test]
     fn mismatched_snapshot_is_not_replayed() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -706,7 +706,7 @@ mod tests {
         assert_eq!(text, "", "对不上的快照不得整段重发");
     }
 
-    /// 多 part 按顺序拼接后差分
+    /// part by after 
     #[test]
     fn multiple_parts_are_concatenated() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -717,7 +717,7 @@ mod tests {
         assert_eq!(text, "前半后半");
     }
 
-    /// 业务错误码（积分不足）→ 429 错误帧
+    /// error（ not ）→ 429 error
     #[test]
     fn quota_error_becomes_rate_limit() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -730,7 +730,7 @@ mod tests {
         assert!(raw.contains("429"));
     }
 
-    /// 正常流末尾带 finish；没有终态就 EOF 要报截断（不谎报成功）
+    /// finish； no has EOF need （ not success）
     #[test]
     fn truncated_stream_reports_error() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -742,7 +742,7 @@ mod tests {
         assert!(raw.contains("截断") || raw.contains("upstream_error"), "实际: {raw}");
     }
 
-    /// 一个内容都没有就 finish → 空响应报错（不记成空回答成功）
+    /// 1 no has finish → emptyresponse（ not emptysuccess）
     #[test]
     fn empty_stream_reports_error() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -753,7 +753,7 @@ mod tests {
         assert!(raw.contains("空响应"), "实际: {raw}");
     }
 
-    /// 收尾必须带 [DONE]（上游自己不发）
+    /// must [DONE]（ up not ）
     #[test]
     fn done_marker_is_appended() {
         let mut machine = ChatFromChatglmStream::new("m");
@@ -768,33 +768,33 @@ mod tests {
         assert!(joined.contains("data: [DONE]"));
     }
 
-    /// 空响应判据不会被「只有 role 首帧」绕过
+    /// emptyresponse not will 「 has role 」
     #[test]
     fn role_only_start_is_not_content() {
         let mut machine = ChatFromChatglmStream::new("m");
-        // 只给空 parts，直接 finish
+        // to empty parts， finish
         let frames = machine.push(&sse(r#"{"status":"finish","parts":[]}"#));
         let raw = String::from_utf8_lossy(&frames[0]).to_string();
         assert!(raw.contains("error"));
     }
 
-    /// 差分工具本身：增量原样、快照只补后缀、对不上不发
+    /// ：、 after 、 for not up not 
     #[test]
     fn advance_segment_rules() {
         let mut emitted = String::new();
-        // 增量帧：本帧就是新内容，原样下发并累积
+        // ： is new ， down and 
         assert_eq!(advance_segment(&mut emitted, "abc", false), "abc");
         assert_eq!(advance_segment(&mut emitted, "def", false), "def");
-        // 快照帧：只补还没下发过的后缀
+        // ： no down after 
         assert_eq!(advance_segment(&mut emitted, "abcdefgh", true), "gh");
-        // 与已下发内容完全一致 → 无增量（最要紧的一条：不能重复下发）
+        // and already down 1 → none（ need 1 ： not can down ）
         assert_eq!(advance_segment(&mut emitted, "abcdefgh", true), "");
-        // 对不上（上游改写 / 回退）→ 不发，绝不整段重发
+        // for not up （ up / ）→ not ， not 
         assert_eq!(advance_segment(&mut emitted, "xyz", true), "");
-        // 空帧 → 无增量
+        // empty → none
         assert_eq!(advance_segment(&mut emitted, "", true), "");
         assert_eq!(advance_segment(&mut emitted, "", false), "");
-        // 新段的第一个快照帧（基准为空）→ 整段下发
+        // new 1 （ as empty）→ down 
         let mut fresh = String::new();
         assert_eq!(advance_segment(&mut fresh, "整段", true), "整段");
     }

@@ -15,17 +15,17 @@ const resourceRequest: ResourceRequest = (method, path, body) => apiCall(path, {
 import { confirmDialog } from '@ui'
 
 /**
- * Agent 接管。
+ * Agent 。
  *
- * ── 手机上只读，这是有意的 ────────────────────────────────────
- * 这一页的作用是改写**本机 AI 客户端的配置文件**（`~/.claude/settings.json`
- * 之类）。手机读不到那台机器的文件系统 —— 它连的是网关，而网关跑在另一台
- * 机器上。所以手机上：
- *   · 看得到有哪些客户端、各自的配置路径、是否已接管；
- *   · 可以「还原」（走网关的 `/api/agents/restore`，那是网关在替我们写）；
- *   · **不能**改配置内容（那需要浏览本机文件、选 profile）。
+ * ── up ， this is has ────────────────────────────────────
+ * this 1 use is ** AI client configfile**（`~/.claude/settings.json`
+ * ）。 not to that file —— is ， in 1 
+ * up 。 up ：
+ * · to has client、 configpath、 is already ；
+ * · can 「」（ `/api/agents/restore`， that is in ）；
+ * · ** not can **config（ that need need file、 profile）。
  *
- * 页内明说这一点，免得用户以为功能坏了。
+ * this 1 ， use as can 。
  */
 export function AgentPage() {
   const [clients, setClients] = useState<AgentClient[] | null>(null)

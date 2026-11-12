@@ -1,4 +1,4 @@
-//! 客户端压缩请求识别。只匹配当前请求末尾的完整模板，不搜索历史里的关键词。
+//! clientrequest。currentrequest ， not 。
 
 use std::borrow::Cow;
 use serde_json::Value;
@@ -7,7 +7,7 @@ pub(crate) mod parameters;
 
 pub const ROUTE_FIELD: &str = "_wb_compact_route";
 
-// 来源：ZCode core/compact/prompt.ts。模型用途仅存在于 CLI 内部，HTTP 没有专用端点或用途头。
+// ：ZCode core/compact/prompt.ts。 use only in CLI ，HTTP no has use or use 。
 const ZCODE_PREAMBLE: &str = "CRITICAL: Respond with TEXT ONLY. Do NOT call any tools.\n\n\
 - Do NOT use Read, Bash, Grep, Glob, Edit, Write, or ANY other tool.\n\
 - You already have all the context you need in the conversation above.\n\
@@ -31,7 +31,7 @@ fn template_matches(text: &str) -> bool {
     let normalized = if text.contains('\r') { Cow::Owned(text.replace("\r\n", "\n")) } else { Cow::Borrowed(text) };
     let Some(rest) = normalized.trim().strip_prefix(ZCODE_PREAMBLE) else { return false; };
     if !rest.starts_with(ZCODE_TASK) || !rest.ends_with(ZCODE_TRAILER) { return false; }
-    // 固定段必须顺序出现；用户的 Additional Instructions 允许变化，不参与特征选择。
+    // must； use Additional Instructions ， not and 。
     let mut remaining = rest;
     for marker in ZCODE_STRUCTURE {
         let Some((_, tail)) = remaining.split_once(marker) else { return false; };
@@ -50,7 +50,7 @@ pub fn client_for_request(client: &str, body: &Value, format: RequestFormat) -> 
     let messages = body.get(match format { RequestFormat::Responses => "input", _ => "messages" })?.as_array()?;
     let last = messages.last()?;
     if last.get("role")?.as_str()? != "user" { return None; }
-    // 前文至少有一次助手响应；孤立粘贴模板不是已发生的会话压缩。
+    // before has 1 response； not is already will 。
     if !messages[..messages.len().saturating_sub(1)].iter().any(|message|
         message.get("role").and_then(Value::as_str) == Some("assistant")
             || matches!(format, RequestFormat::Responses) && message.get("type").and_then(Value::as_str) == Some("function_call")) { return None; }
@@ -58,7 +58,7 @@ pub fn client_for_request(client: &str, body: &Value, format: RequestFormat) -> 
     let matches = if let Some(text) = content.as_str() {
         template_matches(text)
     } else {
-        // 必须在协议翻译前读：Anthropic 的连续 user 会合并为内容块，翻成 Chat 后纯文本块会被拼成一个字符串。
+        // must in before ：Anthropic user will and as ， Chat after will 1 。
         let part = content.as_array()?.last()?;
         let text_type = match format { RequestFormat::Responses => "input_text", _ => "text" };
         if part.get("type").and_then(Value::as_str) != Some(text_type) { return None; }

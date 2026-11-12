@@ -1,4 +1,4 @@
-//! 可选 Images 扩展的过线形态；与插件 SDK 的 images 模块保持一致。
+//! optional Images ； and SDK images 1 。
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -49,11 +49,11 @@ pub enum ImageResponseKind {
     Openai,
     Gemini,
     ModelscopeAsync,
-    /// WorkBuddy：`{code, msg, data:{data:[…], usage:{credit}}}` 一层信封。
+    /// WorkBuddy：`{code, msg, data:{data:[…], usage:{credit}}}` 1 。
     Workbuddy,
-    /// 豆包工作：出图是对话流里的一次 agent 任务（SSE 的 `gen_image_block`），
-    /// 带水印的预览与**无水印原图**都在流里（后者在 `rich_media_layout_block`），
-    /// 流里没给才去调官方去水印接口。见 `core/upstream/images.rs` 的 `doubao_body`。
+    /// ： is for 1 agent （SSE `gen_image_block`），
+    /// and **none** in （ after in `rich_media_layout_block`），
+    /// no to 。 `core/upstream/images.rs` `doubao_body`。
     Doubao,
 }
 

@@ -3,16 +3,16 @@ use serde_json::{json, Value};
 
 use super::{entry_json, sql, RequestStats};
 
-/// 流向视图里的客户端身份：把面板内置 AI 助手的几个内部用途标识并成一个。
+/// to client： AI use and 1 。
 ///
-/// 内置助手的三个入口（对话 / 图片工具 / 标题总结）各自带着自己的用途标识入库
-/// （见 `api::model_access` 的常量），请求日志按用途分开显示是对的 —— 那边要看
-/// 「这次调用是生图还是总结标题」。但路由页回答的是「谁在发请求」：同一个助手
-/// 被拆成三个客户端节点，会让人误以为是三个不同的下游。这里在读取侧统一成一个
-/// 身份 `assistant`，存储与请求日志不变。
+/// （ for / / total） use 
+/// （ `api::model_access` ），request by use is for —— that need 
+/// 「 this use is is total」。 by is 「 in request」： 1 
+/// client， will as is not down 。 this in 1 1 
+/// `assistant`， and request not 。
 ///
-/// 写成内联表达式而不是单独的常量：`BASE` 是 `const &str`，字符串里插不进别的
-/// 常量（`concat!` 只吃字面量），拼起来反而更难读。
+/// not is ：`BASE` is `const &str`， not 
+/// （`concat!` ），。
 const BASE: &str = "WITH flow AS (
     SELECT row_id, id, ts,
       CASE WHEN client IN ('assistant', 'assistant_images', 'assistant_title') THEN 'assistant' ELSE client END AS client,
@@ -79,9 +79,9 @@ impl RequestStats {
                     let entries = ids.into_iter().map(|id| value_at(conn, id)).collect::<rusqlite::Result<Vec<_>>>()?;
                     return Ok(json!({ "available": true, "entries": entries, "matched": matched, "now": now }));
                 }
-                // 筛选下拉的模型候选：只列**当前时间窗内真的发过请求**的模型，
-                // 与请求列表同一套时间/在途口径。这里刻意不带模型条件 ——
-                // 否则选中一个模型后下拉里就只剩它自己。按请求数降序，常用的排前面。
+                // down ：**current when request** ，
+                // and request 1 when / in 。 this not ——
+                // otherwise in 1 after down 。 by request， use before 。
                 if detail == Some("models") {
                     let model_free = params![now, since, "", query.running_only, query.search, query.path,
                         query.session, crate::server::logging::process_started_at(), query.client.is_some(), query.client.as_deref().unwrap_or(""), query.provider, query.account, query.session_search];

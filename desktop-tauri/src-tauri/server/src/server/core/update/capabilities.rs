@@ -14,7 +14,7 @@ pub struct UpdateCapability {
     pub reason: Option<&'static str>,
 }
 
-/// 运行形态与安装能力分别判断：服务端关闭自动安装后，仍然要取服务端包。
+/// and can ：server after ， need server。
 pub fn current() -> UpdateCapability {
     let deployment = system_info::deployment();
     let server = deployment != "desktop";

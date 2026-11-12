@@ -55,12 +55,12 @@ function applyTokenUsage(
   return changed
 }
 
-/** 批量只查有余额能力且凭证完整的账号；禁用不影响余额查询。 */
+/** has can and ； use not 。 */
 function batchUsageTargets(): AccountRecord[] {
   return allAccounts().filter(account => supportsUsage(account) && account.available !== false)
 }
 
-/** 行级时间戳优先，避免其他账号的查询时间覆盖这条失败结论的时刻。 */
+/** when ， its when this failure when 。 */
 export function applyBalances(
   balances: { results?: Array<Record<string, unknown>>; at?: unknown } | null | undefined,
 ): number {
@@ -84,7 +84,7 @@ function detailMissing(account: AccountRecord): boolean {
   return !Array.isArray(entry.credits)
 }
 
-/** 每个会话只补一次旧版读数的明细；查询失败也必须保留失败状态。 */
+/** will 1 old ；failuremustfailure。 */
 async function repairStaleDetail(): Promise<void> {
   if (shapeRepairStarted) return
   shapeRepairStarted = true
@@ -101,7 +101,7 @@ async function repairStaleDetail(): Promise<void> {
 export async function syncBalancesSnapshot(): Promise<boolean> {
   try {
     const data = await shared().workbuddyDesktop?.getBalancesSnapshot?.()
-    // Token 消耗独立于余额查询变化，不能被余额的时间戳早退挡住。
+    // Token ， not can when 。
     const limiterApplied = adoptLimiterSnapshot(data)
     const sortingApplied = !getStore().sortBusy && adoptAccountSorting(data?.sorting)
     const tokenApplied = applyTokenUsage(data) || limiterApplied || sortingApplied
@@ -116,7 +116,7 @@ export async function syncBalancesSnapshot(): Promise<boolean> {
     void repairStaleDetail()
     return true
   } catch {
-    // 快照读取失败不代表上游余额查询失败，保留当前结果等待下次轮询。
+    // failure not up failure，current etc down 。
     return false
   }
 }
@@ -203,7 +203,7 @@ export async function queryUsageOnce(id: string): Promise<void> {
   }
 }
 
-/** 签到或领取套餐后刷新余额，但不能用余额 toast 顶掉刚完成的动作结果。 */
+/** to or after new ， not can use toast 。 */
 export async function refreshUsageAfterCheckin(id?: string): Promise<void> {
   if (id) {
     const account = findAccount(id)

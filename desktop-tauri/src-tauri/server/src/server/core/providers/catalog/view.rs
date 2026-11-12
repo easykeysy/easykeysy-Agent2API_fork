@@ -1,4 +1,4 @@
-//! 模型的管理视图和对外视图。所有对外出口使用相同的开启绑定集合。
+//! and for 。all for use 。
 
 use std::collections::HashSet;
 
@@ -14,16 +14,16 @@ use crate::server::core::models::{list_item, list_response_from, model_id, sugge
 use super::routing::{builtin_target, entry_id_in_manifest};
 use super::{active_manifests, aggregate_source, managed_manifests, manifest_for_provider, refresh_meta_for_provider};
 
-/// 一家会对外广告哪些名字：清单里原生的上游 id + **已启用**的映射别名。
+/// 1 will for ： up id + ** already enabled** 。
 ///
-/// ── `enabled` 这一道过滤不能少（曾经的漏洞）──────────────────
-/// 漏掉它时，被关掉的别名仍会进候选名，然后在 [`builtin_target`] 里绕开
-/// 「映射分支」的启停判定走另一条路：`entry_id_in_manifest` 按 id 找不到会
-/// **回落到比对上一条目的展示名（`name`）**，命中后按 `default_enabled` 判定
-/// —— 那与别名映射的开关无关。于是「关了映射、`/v1/models` 里却还在」。
-/// 实测：`space-bunny-alpha`（与展示名逐字相同）会中，`mimo-v2.6-flash`
-/// （展示名是 `Mimo V2.6 Flash`，比不中）不会中 —— 同一个开关两种结果。
-/// 模块头那句「所有对外出口使用相同的开启绑定集合」说的就是这里必须过滤。
+/// ── `enabled` this 1 not can （ ）──────────────────
+/// when ， will ， after in [`builtin_target`] 
+/// 「」 1 ：`entry_id_in_manifest` by id not to will 
+/// ** to for up 1 （`name`）**， in after by `default_enabled` 
+/// —— that and none。 is 「、`/v1/models` in 」。
+/// ：`space-bunny-alpha`（ and ） will in ，`mimo-v2.6-flash`
+/// （ is `Mimo V2.6 Flash`， not in ） not will in —— 1 。
+/// module header that 「all for use 」 is this must。
 fn advertised_names(
     rules: &model_rules::ModelRules,
     provider: &str,
@@ -37,8 +37,8 @@ fn advertised_names(
     names
 }
 
-/// 先在各提供商内判断绑定，再按对外名去重；不能先合并上游 ID 再拼别名，
-/// 否则某家关闭的映射会借另一家的同名上游重新出现在列表中。
+/// in ， by for ； not can and up ID ，
+/// otherwise will 1 up new in in 。
 fn public_builtin_items(active: &[(String, Vec<Value>)]) -> Vec<(String, Value)> {
     let rules = model_rules::shared();
     let mut claimed = std::collections::HashMap::<String, usize>::new();
@@ -101,11 +101,11 @@ pub(super) fn models_response_with_active(
     list_response_from(data, source, refreshed_at)
 }
 
-/// 一家可用提供商都没有时（没加账号），入口校验要跳过「广告里有才放行」与
-/// Key 白名单两条判定，把「没有可用账号」那句更可操作的错误留给转发层 ——
-/// 与改造前的两条例外逐字同源（见 `pipeline::resolve_model` 的说明）。
+/// 1 available no has when （ no ）， need 「 has 」 and 
+/// Key ， 「 no has available」 that can error to ——
+/// and before （ `pipeline::resolve_model` ）。
 ///
-/// 插件与本体 runtime ID 同样算可用，不能仅因它们没有旧枚举身份而跳过校验。
+/// and runtime ID available， not can only no has old 。
 pub fn has_available_providers(store: &AccountStore) -> bool {
     super::validation_snapshot(store).available
 }
@@ -161,7 +161,7 @@ pub fn models_by_provider(store: &AccountStore) -> Value {
     Value::Object(map)
 }
 
-/// 管理视图里的一行模型（`models` 数组的一项）+ 它对应的默认映射。
+/// 1 （`models` 1 ）+ for default。
 #[allow(clippy::too_many_arguments)]
 fn push_managed_model(
     rules: &model_rules::ModelRules,
@@ -209,7 +209,7 @@ fn push_managed_model(
     let source = if item.get("_manualModel").and_then(Value::as_bool) == Some(true) {
         "manual"
     } else { source };
-    // 覆盖键列表从本次规则快照里查，不逐行重新获取配置。
+    // from then ， not new getconfig。
     let cap_overrides: Vec<String> = rules
         .capabilities
         .iter()
@@ -228,65 +228,65 @@ fn push_managed_model(
         "supports_image_generation": super::super::images::provider_model_supports_generation(provider, &item),
         "supports_image_editing": super::super::images::provider_model_supports_editing(provider, &item),
         "capOverrides": cap_overrides,
-        // 每个能力键的**来源**（`upstream` / `modelsdev` / `user`，见
-        // `core::model_meta` 的模块头）。管理页据它把「上游实测」「社区
-        // 库补的」「用户改的」三档分开显示 —— 没有它，六个键看起来一样
-        // 可信，而它们的可信度差着量级。缺失（没有这个键）= 那一项没有
-        // 任何来源（未声明）。
+        // can ****（`upstream` / `modelsdev` / `user`，
+        // `core::model_meta` module header）。 「 up 」「
+        // 」「 use 」 —— no has ， 1 
+        // can ， can 。（ no has this ）= that 1 no has 
+        // （）。
         "capSources": item.get("capSources"),
-        // 模型**自己能配哪些思考档位**（出口键名，由 `core::model_meta`
-        // 在清单成型处归一：这家自己声明的 > models.dev 的 effort 列表）。
-        // 与上面 `mappings[].reasoning`（用户给某条映射**指定**的档位）
-        // 是两件事：这里回答「这个模型支持哪些档」，那里回答「这条映射
-        // 用哪一档」。缺失（null）= 该模型未声明，界面据此回落通用档位表。
+        // ** can **（， by `core::model_meta`
+        // in 1 ： this > models.dev effort ）。
+        // and up `mappings[].reasoning`（ use to **** ）
+        // is ： this 「 this supports」， that 「 this 
+        // use 1 」。（null）= this ， use 。
         "reasoningLevels": item.get("reasoningLevels"),
         "reasoningDefaultLevel": item.get("reasoningDefaultLevel"),
         "reasoningFixedLevel": item.get("reasoningFixedLevel"),
         "reasoningBindingSupported": item.get("reasoningBindingSupported"),
         "reasoningSource": item.get("reasoningSource"),
-        // 这一家的清单是什么时候拉到的（毫秒；0 = 从未成功拉过）。
-        // 缓存恢复的清单与刚拉的清单**都是 `remote`**，时效只能靠这个
-        // 时间戳说明（见 `providers::catalog_cache` 的模块头）。
+        // this 1 is when to （ms；0 = from success）。
+        // and ** is `remote`**， when can this 
+        // when （ `providers::catalog_cache` module header）。
         "refreshedAt": refreshed_at,
-        // **可见性**：这个模型在官方客户端里是否会被列出。
+        // ** can **： this in client is will 。
         //
-        // `"shown"` / `"hidden"` / `"undeclared"` 三态，由各家 `models.rs`
-        // 在自己的解析层算出（判据各不相同：Antigravity 按世代、Qoder 读
-        // 上游 `enable`、Raccoon 读 `visible`、CodeArts 读 `display_enabled`）。
-        // 聚合层不重新判断 —— 它不认识各家的规则，只负责透传。
+        // `"shown"` / `"hidden"` / `"undeclared"` ， by `models.rs`
+        // in （ not ：Antigravity by 、Qoder 
+        // up `enable`、Raccoon `visible`、CodeArts `display_enabled`）。
+        // not new —— not then ，。
         //
-        // 缺失（`null`）= 这家没有可见性判据（当前是除上面四家之外的所有
-        // provider）。界面据此显示 `—`，**不**把它当成「可见」或「不可见」：
-        // 「这家没这个信息」和「这家说它不可见」是两件事。
+        // （`null`）= this no has can （current is up all
+        // provider）。 `—`，** not ** 「 can 」 or 「 not can 」：
+        // 「 this no this 」 and 「 this not can 」 is 。
         "upstreamStatus": item.get("upstreamStatus"),
         "visibility": item.get("visibility").cloned().unwrap_or(Value::Null),
     }));
 }
 
-/// 每条原始 ID 都返回一个默认绑定；历史的同名映射合并进默认绑定，避免两个开关
-/// 控制同一个请求名。默认绑定不可删除，关闭不影响这一行的其他别名。
+/// ID return 1 default； and default， 
+/// 1 request。default not can delete， not this 1 its 。
 ///
-/// ── 能力位（`capabilities` / `capOverrides`）─────────────────
-/// 每行带两个能力字段（管理页的「上下文 / 输出」与「能力」两列读它们）：
-///   · `capabilities`：**生效值**（清单原值 + 用户覆盖，六项齐全，
-///     `null` = 未声明 —— 与「不支持 / 0」区分开，用户编辑时要靠它分辨
-///     「不知道」与「明确不支持」）；
-///   · `capOverrides`：被用户覆盖的键（管理页据此给「已改」标记；
-///     空数组 = 全部继承清单原值）。
-/// 清单原值已由 `manifest_for_provider` 应用过覆盖，所以这里读到的就是生效值。
-/// 某个 `(provider, target)` 还能不能在管理页上落到一行模型行。
+/// ── can （`capabilities` / `capOverrides`）─────────────────
+/// can （ 「 up down / 」 and 「 can 」）：
+/// · `capabilities`：****（ + use ，，
+/// `null` = —— and 「unsupported / 0」， use when need 
+/// 「 not 」 and 「unsupported」）；
+/// · `capOverrides`： use （ to 「 already 」；
+/// empty = ）。
+/// already by `manifest_for_provider` use ， this to is 。
+/// `(provider, target)` can not can in up to 1 。
 ///
-/// 判据与 [`manage_view`] 把映射标成 `dangling` 的那条路径**同源**：行的来源是
-/// [`managed_manifests`]（有可用账号的家），带 `provider` 的映射只挂在自己那家、
-/// 旧版全局条目（provider 缺失）挂到任何承载 target 的家。
+/// and [`manage_view`] `dangling` that path****： is 
+/// [`managed_manifests`]（ has available ）， `provider` in that 、
+/// old （provider ） to target 。
 ///
-/// ── 用途：自映射（默认绑定）能不能删 ─────────────────────────
-/// `POST /api/models/mappings/remove` 用它判断一条 `alias == target` 的默认绑定
-/// 能不能删。默认绑定跟着模型行走，正常只能关、不能删；但**模型行已经不在了**
-/// （上游把模型下线、那家被移除或没有可用账号）时，它的开关没有落点，删除是唯一
-/// 出路 —— 管理页的「未挂载的模型映射」正是给这批条目留的入口（见 [`manage_view`]
-/// 末尾的 dangling 分支）。这里与视图共用同一份「有没有行」的判据，免得出现
-/// 「界面显示为未挂载、点删除却被后端拒掉」的死锁。
+/// ── use ：（default） can not can ─────────────────────────
+/// `POST /api/models/mappings/remove` use 1 `alias == target` default
+/// can not can 。default， can 、 not can ；** already not in **
+/// （ up down 、 that or no has available） when ， no has ，delete is 1 
+/// —— 「 」 is to this （ [`manage_view`]
+/// dangling ）。 this and use 1 「 has no has 」 ，
+/// 「 as 、delete after 」 。
 pub(crate) fn host_row_exists(store: &AccountStore, provider: Option<&str>, target: &str) -> bool {
     managed_manifests(store)
         .into_iter()
@@ -302,16 +302,16 @@ pub fn manage_view(store: &AccountStore) -> Value {
     let mut mappings = Vec::new();
     let mut providers = Vec::new();
     let mut attached = HashSet::new();
-    // `(provider, id 小写)` 的出口去重（修复 #177 的兜底一层）。
+    // `(provider, id )` （ #177 1 ）。
     //
-    // 各家的目录解析**应**在源头去重（如 Trae 的 `parse_catalog` 按
-    // `config_name`），但上游形态随时可能变化、别家未必有同样的去重 —— 管理页
-    // 是「清单的可视检查」，同 id 画出两行会连带下面那条默认映射也重复一条。
-    // 这一层独立于源头：不管哪家目录出了脏数据，这里只认第一次出现的那条。
+    // directory**** in （ Trae `parse_catalog` by 
+    // `config_name`）， up when can can 、 has —— 
+    // is 「 can check」， id will down that default 1 。
+    // this 1 ： not directory， this 1 that 。
     let mut claimed: HashSet<(String, String)> = HashSet::new();
-    // 本视图里**真正出现了的家**（= 有可用账号的家）。悬空映射的归属家不在这份名单里
-    // 时就不列它 —— 页面上根本没有这一家（左栏也不会有它），把它名下的映射列出来
-    // 只会多出一批用户在这儿无从下手的条目（要管那家得先去账号页把它加回来）。
+    // ** **（= has available ）。empty not in this 
+    // when not —— up no has this 1 （ not will has ）， down 
+    // will 1 use in this none from down （ need that ）。
     let mut managed_providers = HashSet::new();
     for (provider, mut manifest) in managed_manifests(store) {
         managed_providers.insert(provider.to_lowercase());
@@ -336,9 +336,9 @@ pub fn manage_view(store: &AccountStore) -> Value {
     }
     for (index, mapping) in rules.mappings.iter().enumerate() {
         if attached.contains(&index) { continue; }
-        // 归属的家不在本视图里就跳过（见 `managed_providers` 的说明）。旧版全局
-        // 条目（provider 缺失）不属于任何一家，不受这条约束 —— 它是「对所有家生效」
-        // 的遗留形态，没有「哪一家没出现」这回事。
+        // not in （ `managed_providers` ）。 old 
+        // （provider ） not 1 ， not this —— is 「 for all」
+        // ， no has 「 1 no 」 this 。
         if let Some(provider) = mapping.provider.as_deref() {
             if !managed_providers.contains(&provider.to_lowercase()) {
                 continue;
@@ -363,9 +363,9 @@ pub fn manage_view(store: &AccountStore) -> Value {
         "mappings": mappings,
         "providers": providers,
         "reasoningLevels": model_rules::REASONING_LEVELS,
-        // models.dev 元数据的当前状态（`builtin` / `cache` / `network` + 生成
-        // 时刻 + 条数）。它服务的是「这份档位/能力是什么时候的数据」这个问题 ——
-        // 界面上那些档位来自哪一份、新不新，只能由这里回答。
+        // models.dev current（`builtin` / `cache` / `network` + 
+        // when + ）。 is 「 this / can is when 」 this ——
+        // up that 1 、 new not new ， can by this 。
         "modelsDev": model_meta::status(),
     })
 }
@@ -374,20 +374,20 @@ pub fn manage_view(store: &AccountStore) -> Value {
 mod tests {
     use super::*;
 
-    /// `from_raw` 收的是整份 config（它自己取 `modelRules` 键），所以包一层
+    /// `from_raw` is config（ `modelRules` ）， 1 
     fn rules_with(mappings: Value) -> model_rules::ModelRules {
         let raw = json!({ "modelRules": { "mappings": mappings } });
         model_rules::ModelRules::from_raw(raw.as_object().expect("对象字面量"))
     }
 
-    /// 一条展示名与别名逐字相同的上游条目（`space-bunny-alpha` 是实测命中的那个）
+    /// 1 and up （`space-bunny-alpha` is in that ）
     fn manifest() -> Vec<Value> {
         vec![json!({ "id": "stealth/space-bunny-alpha", "name": "space-bunny-alpha" })]
     }
 
-    /// 被关掉的映射别名不能进广告候选名。漏了这道过滤时，别名会经由
-    /// `builtin_target` 的「展示名回落」绕开启停判定 —— 于是「关了映射，
-    /// `/v1/models` 里却还在」（2026-10-03 实测复现）。
+    /// not can 。 this when ， will by 
+    /// `builtin_target` 「」 —— is 「，
+    /// `/v1/models` in 」（2026-10-03 ）。
     #[test]
     fn disabled_mapping_alias_is_not_advertised() {
         let rules = rules_with(json!([
@@ -399,11 +399,11 @@ mod tests {
             !names.iter().any(|name| name == "space-bunny-alpha"),
             "关掉的别名不该出现在候选名里: {names:?}"
         );
-        // 原生 id 不受影响（开关只管别名）
+        // id not （）
         assert!(names.iter().any(|name| name == "stealth/space-bunny-alpha"));
     }
 
-    /// 开着的映射别名照旧进候选 —— 不能让这次修复把功能一起修没
+    /// old —— not can this can 1 no 
     #[test]
     fn enabled_mapping_alias_is_advertised() {
         let rules = rules_with(json!([
@@ -414,7 +414,7 @@ mod tests {
         assert!(names.iter().any(|name| name == "space-bunny-alpha"));
     }
 
-    /// 缺 `enabled` 键 = 开关功能上线前的历史条目 = 默认启用（升级不改行为）
+    /// `enabled` = can up before = defaultenabled（ not as ）
     #[test]
     fn mapping_without_enabled_key_is_advertised() {
         let rules = rules_with(json!([
@@ -425,7 +425,7 @@ mod tests {
         assert!(names.iter().any(|name| name == "space-bunny-alpha"));
     }
 
-    /// 别家的映射别名不该混进这一家的候选（provider 过滤仍在）
+    /// not this this 1 （provider in ）
     #[test]
     fn other_providers_alias_is_not_included() {
         let rules = rules_with(json!([

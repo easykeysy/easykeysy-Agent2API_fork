@@ -1,5 +1,5 @@
-//! 账号型搜索的宿主接线：配置只存账号引用，上游协议与凭证全部留在插件。
-//! 可选动作沿用 admin.action，不升级基础握手；能力探测不发上游请求。
+//! ：config use ， up and in 。
+//! optional use admin.action， not ； can not up request。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,7 +19,7 @@ fn configuration(message: &str) -> SearchError {
     SearchError::new(SearchErrorCode::Configuration, message)
 }
 
-/// 公开账号视图只投影 id/name/enabled，不能把整条账号或插件 secret 送给前端。
+/// id/name/enabled， not can or secret to before 。
 fn account_options(store: &AccountStore, provider: &str) -> Vec<Value> {
     store.list_visible_accounts().get("accounts").and_then(Value::as_array)
         .into_iter().flatten()
@@ -144,7 +144,7 @@ fn search_failure(error: crate::server::errors::GatewayError) -> SearchError {
         _ if error.status_code == 403 => (SearchErrorCode::ProviderUnavailable, "搜索服务拒绝了该账号，请检查账号权限"),
         _ => (SearchErrorCode::ProviderUnavailable, "账号搜索暂不可用，请检查账号及插件状态"),
     };
-    // 插件错误可能包含认证或代理内部信息，公开层只回稳定错误说明。
+    // error can can or ，error。
     SearchError::new(code, message)
 }
 

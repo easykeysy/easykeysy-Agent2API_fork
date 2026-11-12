@@ -8,11 +8,11 @@ import { t } from '../i18n'
 import { Card, Button, SegmentedControl } from '@ui'
 
 /**
- * 更多。
+ * 。
  *
- * 桌面端 13 个一级菜单在这里收成三组宫格。**宫格不是垃圾桶**：按
- * 「转发链路 / 诊断 / 系统」分组，每组内部按使用频率排；每个入口带实时
- * 角标（待签数、限流数），不用点进去才知道有事。
+ * 13 1 in this 。** not is **： by 
+ * 「 / / 」， by use ； when 
+ * （、）， not use has 。
  */
 
 type Entry = { id: string; label: string; icon: IconName; badge?: string }
@@ -22,7 +22,7 @@ export function MorePage() {
   const accounts = session?.accounts?.accounts || []
   const limited = accounts.filter(item => item.enabled && isRateLimited(item)).length
 
-  // 本页没有自己的列表请求：下拉只需重拉会话（角标与网关状态都来自它）
+  // no has request： down need will （ and ）
   const pull = usePullToRefresh({ onRefresh: () => store.refresh(true) })
 
   const groups: Array<{ title: string; entries: Entry[] }> = [
@@ -195,7 +195,7 @@ export function MorePage() {
   )
 }
 
-/** 主题三档：跟随系统 / 浅色 / 深色 */
+/** ： / / */
 export function ThemeSwitch() {
   const { theme } = useStore()
   const options: Array<{ value: 'system' | 'light' | 'dark'; label: string }> = [

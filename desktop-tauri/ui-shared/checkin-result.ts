@@ -2,7 +2,7 @@ import type { CheckinAccount, CheckinResultRow, DailyCheckinState } from './chec
 
 export type AccountCheckinStatus = 'done' | 'pending' | 'confirming' | 'inactive' | 'ineligible' | 'captcha' | 'failed'
 
-/** 新插件的当日状态优先；旧插件仍按 checkedInToday 展示。 */
+/** new ； old by checkedInToday 。 */
 export function accountCheckinStatus(account: CheckinAccount): AccountCheckinStatus {
   if (account.checkedInToday) return 'done'
   switch (account.dailyCheckin?.status) {
@@ -46,7 +46,7 @@ export function checkinActionLabel(account: CheckinAccount): string {
   return account.checkedInToday ? '重签' : '签到'
 }
 
-/** 套餐旧状态未声明 status；新的普通签到状态不套用“份套餐”的单位。 */
+/** old status； new to not use “” 。 */
 export function checkinPlanProgress(state?: DailyCheckinState | null): boolean {
   return Boolean(state && (state.kind === 'plans' || state.status === undefined) && state.totalCount > 0)
 }

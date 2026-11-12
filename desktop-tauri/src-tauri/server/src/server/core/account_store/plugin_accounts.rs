@@ -1,8 +1,8 @@
-//! 插件与本体订阅共用的标准账号读写（`pluginSecret` / `pluginPublic` / 台账）。
+//! and use （`pluginSecret` / `pluginPublic` / ）。
 //!
-//! 凭证放在不透明 secret 中，公开字段由执行体提供；两者复用普通 `accounts`
-//! 记录的优先级、并发与冷却逻辑。`source` 只记来源，provider runtime id 才是归属。
-//! 旧插件继续使用 `plugin_upsert_account`，本体使用带来源的同一落库内核。
+//! in not secret in ， by ； use `accounts`
+//! 、 and and 。`source` ，provider runtime id is 。
+//! old use `plugin_upsert_account`， use 1 。
 
 use serde_json::{Map, Value};
 
@@ -12,20 +12,20 @@ use crate::server::core::account_store::AccountStore;
 use crate::server::core::proxies::{describe_account_proxy, normalize_account_proxy, resolve_account_proxy, ProxyResolution};
 use crate::server::logging;
 
-/// 凭证键（不透明 JSON；公开出口只读取白名单标量派生字段）。
+/// （ not JSON；）。
 const SECRET_KEY: &str = "pluginSecret";
-/// 插件公开视图键（提供商专属展示字段）。
+/// （）。
 const PUBLIC_KEY: &str = "pluginPublic";
-/// 台账键的前缀：`pluginLedger.<kind>`。
+/// before ：`pluginLedger.<kind>`。
 const LEDGER_PREFIX: &str = "pluginLedger.";
 
-/// 网关骨架键：这些**不进**摊平后的 secret（它们是记录的元数据，不是凭证）。
+/// ： this ** not ** after secret（ is ， not is ）。
 ///
-/// ── 为什么需要这张表 ────────────────────────────────────────
-/// 见 [`flatten_builtin_secret`]：内置家的记录没有 `pluginSecret`，插件要读
-/// 它的凭证只能「摊平整条记录」。骨架键混进去会让插件的 `store::record` 看到
-/// 一堆它不认识的键（`priority` / `enabled` / `addedAt`…），更糟的是写回时
-/// 它们会被当成 secret 的一部分参与「比较再写」，永远比不相等。
+/// ── Why need need this ────────────────────────────────────────
+/// [`flatten_builtin_secret`]： no has `pluginSecret`， need 
+/// can 「」。 will `store::record` to 
+/// 1 not （`priority` / `enabled` / `addedAt`…）， is when 
+/// will secret 1 and 「」， not etc 。
 const SKELETON_KEYS: &[&str] = &[
     "id",
     "provider",
@@ -53,20 +53,20 @@ const SKELETON_KEYS: &[&str] = &[
     "usageQuery",
 ];
 
-/// 把一条**内置家**记录的凭证字段摊成插件认的 secret 形态。
+/// 1 **** secret 。
 ///
-/// ── 为什么需要这条回落（迁移过渡期的关键）─────────────────────
-/// 把一家 provider 从「编译进网关」切到「插件」时，**已有账号不会被重写**：
-/// 库里还是内置形态（`refreshToken` / `accessToken` / `projectId` …），没有
-/// `pluginSecret`。若插件只认 `pluginSecret`，切换开关一打开所有存量账号都会
-/// 「消失」（`store.get` 报 NOT_FOUND）。
+/// ── Why need need this （ ）─────────────────────
+/// 1 provider from 「」 to 「」 when ，** already has not will **：
+/// is （`refreshToken` / `accessToken` / `projectId` …）， no has 
+/// `pluginSecret`。 if `pluginSecret`， 1 all will 
+/// 「」（`store.get` NOT_FOUND）。
 ///
-/// 摊平是安全的：插件的 secret 键名本来就沿用网关的驼峰名（见插件侧
-/// `store.rs` 的模块头），所以 `refreshToken` 这些键在两边是同一个意思。
+/// is ： secret use （
+/// `store.rs` module header）， `refreshToken` this in is 1 。
 ///
-/// 写回时（[`AccountStore::plugin_update_secret`]）会把它落到 `pluginSecret`
-/// 里，**并镜像**几个令牌键回顶层（见 [`MIRROR_KEYS`]）—— 于是内置实现仍能
-/// 读到自己那份，卸载插件后也能继续用，切换可以随时回退。
+/// when （[`AccountStore::plugin_update_secret`]） will to `pluginSecret`
+/// ，** and ** （ [`MIRROR_KEYS`]）—— is can 
+/// to that ， after can use ， can when 。
 fn flatten_builtin_secret(record: &StoredAccount) -> Value {
     let mut secret = Map::new();
     for (key, value) in record.fields() {
@@ -78,18 +78,18 @@ fn flatten_builtin_secret(record: &StoredAccount) -> Value {
     Value::Object(secret)
 }
 
-/// 写回时顺手镜像回**顶层**的令牌键。
+/// when **** 。
 ///
-/// ── 为什么是这三个 ──────────────────────────────────────────
-/// 内置家的续期路径读的就是它们（各家的 `from_record` 取值链都落在这三个
-/// 名字上）。不镜像的后果是：插件刷新后内置字段仍是旧令牌，**卸载插件**就
-/// 退化成一个拿失效令牌的账号 —— 而卸载是个正常操作，不该毁账号。
+/// ── Why is this ──────────────────────────────────────────
+/// path is （ `from_record` in this 
+/// up ）。 not after is ： new after is old ，****
+/// 1 —— is ， not this 。
 ///
-/// 只镜像「记录顶层本来就有这个键」的那几个：新账号（纯插件形态）不写顶层
-/// 字段，内置实现本来也不认识它们，没必要凭空造一份内置形态。
+/// 「 has this 」 that ： new （） not 
+/// ， not ， no need empty 1 。
 const MIRROR_KEYS: [&str; 3] = ["accessToken", "refreshToken", "expiresAt"];
 
-/// 这条记录的插件 secret（`pluginSecret` 优先，否则摊平内置字段）。
+/// this secret（`pluginSecret` ，otherwise）。
 fn secret_of(record: &StoredAccount) -> Value {
     let mut secret = match record.get(SECRET_KEY) {
         Some(value) if !value.is_null() => value.clone(),
@@ -105,41 +105,41 @@ fn secret_of(record: &StoredAccount) -> Value {
     secret
 }
 
-/// 进程级账号存储句柄（bootstrap 时 install 一次）。
+/// （bootstrap when install 1 ）。
 ///
-/// ── 为什么需要它 ────────────────────────────────────────────
-/// 插件家的**登录回调**要把账号落库，而那条链路（`RpcAdapter` 的
-/// `exchange_login_code`）拿不到 `ServerState` —— 它是 trait 方法，签名里
-/// 只有一个 `&AccountStore` 参数，而插件实现**不用**那个参数（凭证在插件
-/// 那边）。与 `sub_kernel::install_store` 同一形态：bootstrap 装一次句柄。
+/// ── Why need need ────────────────────────────────────────────
+/// **** need ， that （`RpcAdapter` 
+/// `exchange_login_code`） not to `ServerState` —— is trait ，
+/// has 1 `&AccountStore` parameter，** not use ** that parameter（ in 
+/// that ）。 and `sub_kernel::install_store` 1 ：bootstrap 1 。
 ///
-/// `None`（库不可用）时登录回调会以 503 明确拒绝，而不是静默丢掉账号。
+/// `None`（unavailable） when will 503 ， not is 。
 static SHARED: std::sync::OnceLock<AccountStore> = std::sync::OnceLock::new();
 
-/// 接线（`ServerState::bootstrap` 调用）。重复调用无副作用。
+/// （`ServerState::bootstrap` use ）。 use none use 。
 pub fn install_shared(store: AccountStore) {
     let _ = SHARED.set(store);
 }
 
-/// 取进程级账号存储（没装过 = 未初始化）。
+/// （ no = ）。
 pub fn shared() -> Option<AccountStore> {
     SHARED.get().cloned()
 }
 
 impl AccountStore {
-    /// 读一条插件账号（`{id, provider, secret, public, proxy}`）。
+    /// 1 （`{id, provider, secret, public, proxy}`）。
     ///
-    /// ── 两种记录形态都读（迁移过渡期）───────────────────────────
-    ///   1. **插件写的记录**：凭证在 `pluginSecret` 里，原样还回去；
-    ///   2. **内置家的存量记录**（切换开关打开后由插件接手）：没有
-    ///      `pluginSecret`，凭证散在顶层字段里 —— 按 [`flatten_builtin_secret`]
-    ///      摊平成 secret。
+    /// ── （）───────────────────────────
+    /// 1. ** **： in `pluginSecret` ，；
+    /// 2. ** **（ after by ）： no has 
+    /// `pluginSecret`， in —— by [`flatten_builtin_secret`]
+    /// secret。
     ///
-    /// ── 为什么这不会让插件看到别人的凭证 ─────────────────────────
-    /// 调用方（宿主）只在**这个 id 属于该插件**时才调这里（`provider` 过滤在
-    /// `accounts_for_provider` 那一层）；插件拿不到不属于自己的 id。这条与
-    /// 「第三方插件读不到内置家账号」不冲突 —— 那个保证由 provider 路由维持，
-    /// 不是靠「字段里没有 pluginSecret」。
+    /// ── Why this not will to ─────────────────────────
+    /// use （） in ** this id this ** when this （`provider` in 
+    /// `accounts_for_provider` that 1 ）； not to not id。 this and 
+    /// 「 not to 」 not —— that by provider by ，
+    /// not is 「 no has pluginSecret」。
     pub fn plugin_account(&self, id: &str) -> Option<Value> {
         let record = self.read_record(id)?;
         let secret = secret_of(&record);
@@ -149,7 +149,7 @@ impl AccountStore {
             .or_else(|| secret.get("proxy"))
             .cloned()
             .unwrap_or(Value::Null);
-        // 出口不能并进 secret：代理池更新不应让凭证的比较再写失效。
+        // not can and secret：update not 。
         let config = config
             .get("config")
             .filter(|value| value.is_object())
@@ -202,38 +202,38 @@ impl AccountStore {
         }))
     }
 
-    /// 一条账号记录属于哪个 provider（不存在时 `None`）。
+    /// 1 provider（ not in when `None`）。
     ///
-    /// ── 为什么要这个入口 ────────────────────────────────────────
-    /// 账号级的管理动作（强制刷新、删除前的分支、签到选路）手里只有一个 id，
-    /// 而「做哪一套」取决于它归属的 provider。插件家不能靠各家的
-    /// `*_account_record` 探测（那些函数只认自己那套内置字段，对
-    /// `pluginSecret` 一律返回 None），所以先按 id 读出归属再决定叫谁。
+    /// ── Why need this ────────────────────────────────────────
+    /// （ new 、delete before 、 to ） has 1 id，
+    /// 「 1 」 provider。 not can 
+    /// `*_account_record` （ that that ， for 
+    /// `pluginSecret` 1 return None）， by id 。
     ///
-    /// 读的是**投影列**（`record.provider()`），不解析 `pluginSecret`
-    /// —— 归属是网关的事实，不是插件的事实。
+    /// is ****（`record.provider()`）， not `pluginSecret`
+    /// —— is ， not is 。
     pub fn account_provider_of(&self, id: &str) -> Option<String> {
         self.route_account(id)?.get("provider")?.as_str().map(str::to_string)
     }
 
-    /// 反查账号 id：按 (provider, uid) 定位。
+    /// id： by (provider, uid) 。
     ///
-    /// ── 什么时候需要它 ────────────────────────────────────────
-    /// `BillingService` 的几条入口收的是**会话**（`get_session_by_id` 的产物），
-    /// 而管理动作（`admin.action`）必须带账号 id 才能路由到对应的插件进程。
-    /// 会话里刻意没有 `id` 键（它会经 `api/assistant` 之类的路径透给前端，
-    /// 塞进去没有消费方），所以只能反查。
+    /// ── when need need ────────────────────────────────────────
+    /// `BillingService` is ** will **（`get_session_by_id` ），
+    /// （`admin.action`）must id can by to for 。
+    /// will no has `id` （ will `api/assistant` path to before ，
+    /// no has ）， can 。
     ///
-    /// 判据是「uid 相等且 provider 相符」：同一家内 uid 唯一（落库时就是这么
-    /// 去重的，见各家 `*_accounts.rs` 的 `identity`）。取不到（老记录没 uid、
-    /// 环境变量旁路造的会话）返回 None，调用方按「没有账号」处理。
+    /// is 「uid etc and provider 」： 1 uid 1 （ when is this 
+    /// ， `*_accounts.rs` `identity`）。 not to （ no uid、
+    /// will ）return None， use by 「 no has 」。
     ///
-    /// ── uid 为空时为什么退到记录 id（issue #380）──────────────────
-    /// 插件登录落库的记录曾经只写 `pluginSecret` / `pluginPublic`，顶层没有
-    /// `uid`。那批账号的 id 恰好就是 `user-<uid>`（`accounts::identity_of` 的
-    /// 产出），所以 `id` 本身带着同一份身份。空 uid 直接返回 None 会让这批
-    /// 账号的签到 / 余额链路整体报「找不到该会话对应的账号记录」—— 而它们
-    /// 转发完全正常，用户看到的是一个自相矛盾的状态。
+    /// ── uid as empty when Why to id（issue #380）──────────────────
+    /// `pluginSecret` / `pluginPublic`， no has 
+    /// `uid`。 that id is `user-<uid>`（`accounts::identity_of` 
+    /// ）， `id` 1 。empty uid return None will this 
+    /// to / 「 not to this will for 」—— 
+    /// ， use to is 1 。
     pub fn account_id_of_identity(&self, provider: &str, uid: &str) -> Option<String> {
         let records = self.read_provider(provider);
         let uid = uid.trim();
@@ -246,10 +246,10 @@ impl AccountStore {
             .map(|record| record.id().to_string())
     }
 
-    /// 按 `user-<uid>` 形态的记录 id 反查（`account_id_of_identity` 的退路）。
+    /// by `user-<uid>` id （`account_id_of_identity` ）。
     ///
-    /// 只在该家身份规则确实是 `user-<uid>` 时才有意义 —— 判据交给调用方
-    /// （计费侧在 uid 为空时调它），这里只做字符串匹配，不猜各家规则。
+    /// in this then is `user-<uid>` when has —— to use 
+    /// （ in uid as empty when ）， this ， not then 。
     pub fn account_id_of_user_id_suffix(&self, provider: &str, uid: &str) -> Option<String> {
         let uid = uid.trim();
         if uid.is_empty() {
@@ -261,18 +261,18 @@ impl AccountStore {
         }).map(|_| expected)
     }
 
-    /// 比较-再写凭证。
+    /// -。
     ///
-    /// ── 为什么需要「比较」这一步 ──────────────────────────────
-    /// 插件可能在两个并发请求里各刷新一次令牌。没有这一步，后写的会静默
-    /// 覆盖先写的 —— 而先写的那份可能已经是上游认可的新令牌。`expect` 是
-    /// 插件读到的那份 secret，网关只在「当前值仍等于它」时写入。
+    /// ── Why need need 「」 this 1 ──────────────────────────────
+    /// can can in and request new 1 。 no has this 1 ， after will 
+    /// —— that can can already is up can new 。`expect` is 
+    /// to that secret， in 「current etc 」 when 。
     ///
-    /// 返回 `Ok(false)` = 期望值已变（另一个刷新先落盘了），不是错误。
+    /// return `Ok(false)` = already （ 1 new ）， not is error。
     ///
-    /// ── 内置存量记录：写 `pluginSecret`，并镜像令牌键回顶层 ──────────
-    /// 镜像只为「卸载插件后还能用」（见 [`MIRROR_KEYS`]）；只镜像记录顶层
-    /// **本来就有**的那几个，不凭空造内置形态。
+    /// ── ： `pluginSecret`， and ──────────
+    /// as 「 after can use 」（ [`MIRROR_KEYS`]）；
+    /// ** has ** that ， not empty。
     pub fn plugin_update_secret(
         &self,
         id: &str,
@@ -304,7 +304,7 @@ impl AccountStore {
             if let Some(public) = public.filter(|value| value.is_object()) {
                 record.set(PUBLIC_KEY, public.clone());
             }
-            // 镜像（只对顶层已存在的键）：卸载插件后内置实现仍拿得到新令牌
+            // （ for already in ）： after to new 
             for key in MIRROR_KEYS {
                 let existed = record.get(key).is_some();
                 if !existed {
@@ -319,7 +319,7 @@ impl AccountStore {
                 public.retain(|key, _| !super::plugin_public::is_private_field(key));
                 record.set(PUBLIC_KEY, Value::Object(public));
             }
-            // 授权状态与当前凭据一并条件写入，不能让旧刷新失败覆盖重新登录的新凭据。
+            // and current 1 and ， not can old new failure new new 。
             if record.provider() == "codearts" {
                 if secret.get("needsRelogin").and_then(Value::as_bool) == Some(true) {
                     record.set("needsRelogin", Value::Bool(true));
@@ -340,14 +340,14 @@ impl AccountStore {
         .map_err(|error| format!("写账号失败: {}", error.message))?
     }
 
-    /// 读插件台账（`kind` 是插件自己定义的名字，网关只当键用）。
+    /// （`kind` is ， use ）。
     pub fn plugin_ledger(&self, id: &str, kind: &str) -> Value {
         let guard = self.guard();
         let Some(record) = self.record_by_id(&guard, id) else {
             return Value::Null;
         };
         let key = format!("{LEDGER_PREFIX}{kind}");
-        // 显式 null 表示插件已清除记忆，不能回落到其他台账或存量字段。
+        // null already ， not can to its or 。
         record
             .get(&key)
             .or_else(|| match kind {
@@ -364,7 +364,7 @@ impl AccountStore {
             .unwrap_or(Value::Null)
     }
 
-    /// 写插件台账。
+    /// 。
     pub fn plugin_set_ledger(&self, id: &str, kind: &str, value: &Value) -> Result<(), String> {
         let guard = self.guard();
         let Some(mut record) = self.record_by_id(&guard, id) else {
@@ -384,7 +384,7 @@ impl AccountStore {
             }
         }
         record.set(&key, value.clone());
-        // 两种名称指向同一份结清记忆，写入和清除必须同步。
+        // to 1 ， and must。
         let alias = match kind {
             "onboarding" => Some("onboardingSettled"),
             "onboardingSettled" => Some("onboarding"),
@@ -402,10 +402,10 @@ impl AccountStore {
         .map_err(|error| format!("写台账失败: {}", error.message))
     }
 
-    /// 建一条插件账号（登录流程成功后由 `login` 那条路调）。
+    /// 1 （success after by `login` that ）。
     ///
-    /// 插件提供稳定身份提示；同 provider 的业务身份匹配优先，旧主键保持不变。
-    /// 新主键由网关隔离提供商作用域，不能直接把插件 identity 当作全局主键。
+    /// ； provider ， old not 。
+    /// new by use ， not can identity 。
     pub fn plugin_upsert_account(
         &self,
         id: &str,
@@ -418,9 +418,9 @@ impl AccountStore {
         self.plugin_upsert_account_with_source(id, provider, name, secret, public, desktop, "plugin")
     }
 
-    /// 标准账号的共享落库入口；来源由网关选择，不读取 secret 中的 provider/source。
-    /// 更新仍保留旧主键、备注与运营属性，插件默认来源及公开脱敏规则不变。
-    /// 旧接口不指定新代理，不覆盖存量出口。
+    /// ； by ， not secret in provider/source。
+    /// update old 、 and ，default and then not 。
+    /// old not new ， not 。
     pub fn plugin_upsert_account_with_source(
         &self,
         id: &str,
@@ -435,8 +435,8 @@ impl AccountStore {
             .map(|(account, _)| account)
     }
 
-    /// proxy 仅接受 API 已归一配置。None 保留旧出口；Some(direct) 保存显式直连。
-    /// 配置与不透明 secret 同一行原子提交，回读一致才返回 proxySaved=true。
+    /// proxy only API already 1 config。None old ；Some(direct) 。
+    /// config and not secret 1 ， 1 return proxySaved=true。
     pub fn plugin_upsert_account_with_source_and_proxy(
         &self,
         id: &str,
@@ -460,7 +460,7 @@ impl AccountStore {
         let (id, existing) = self.plugin_account_for_upsert(&guard, provider, identity, &account)?;
         let (saved, proxy_saved) = self.with_conn_mut(&guard, |conn| {
             let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-            // 身份分配后再在事务中读当前行，不用旧内存记录覆盖运营属性。
+            // after in in current， not use old 。
             let current = crate::server::core::account_store::sql::load_by_id(&tx, &id)?;
             if current.is_some() != existing.is_some()
                 || current.as_ref().zip(existing.as_ref())
@@ -472,13 +472,13 @@ impl AccountStore {
             let mut record = if let Some(mut record) = current {
                 let zcode_plan = super::is_zcode_family(&record.provider()).then(|| record.zcode_plan());
                 record.set_provider(provider);
-                // 原插件调用保留历史来源；本体接管或首次缺来源时记当前执行来源。
+                // use ； or when current。
                 if source == "builtin" || record.get("source").is_none() {
                     record.set("source", Value::String(source.to_string()));
                 }
                 record.set("desktop", Value::Bool(desktop));
-                // 旧账号可能只在 secret.proxy 中保存出口。未选新代理时保留该出口
-                // 到账号配置层，不把它混入替换后的 RAW secret。
+                // old can can in secret.proxy in 。 new when this 
+                // to config， not after RAW secret。
                 if proxy.is_none() && record.get("proxy").is_none() {
                     if let Some(previous) = secret_of(&record).get("proxy").filter(|value| !value.is_null()).cloned() {
                         let previous = normalize_account_proxy(&previous).ok().flatten().unwrap_or(previous);
@@ -489,7 +489,7 @@ impl AccountStore {
                 record.set(PUBLIC_KEY, public.clone());
                 super::plugin_identity::remember_identity(&mut record, provider, identity);
                 if let Some(plan) = zcode_plan.filter(|plan| !plan.trim().is_empty()) { record.set_zcode_plan(&plan); }
-                // 重新登录拿到新凭证后，同次清掉旧凭证的重登录标记。
+                // new to new after ， old 。
                 record.remove("needsRelogin");
                 record.remove("needsReloginReason");
                 record
@@ -506,12 +506,12 @@ impl AccountStore {
                 record.set_priority(priority);
                 record
             };
-            // 身份 / 端点字段镜像到顶层（issue #380）：网关的计费、签到、余额
-            // 几条读路径只认顶层 `uid` / `edition`，缺了它们新建账号会报
-            // 「找不到该会话对应的账号记录」而对话却正常。新建与更新都要走，
-            // 否则「重新登录一次」不会把旧记录的缺字段补上。
+            // / to （issue #380）： 、 to 、
+            // path `uid` / `edition`， new will 
+            // 「 not to this will for 」 for 。 new and update need ，
+            // otherwise「 new 1 」 not will old up 。
             super::plugin_identity::mirror_identity(&mut record, provider);
-            // RAW secret 原样保留；旧凭证镜像契约不变，代理配置只写账号顶层。
+            // RAW secret ； old not ，config。
             if let Some(proxy) = proxy { record.set_proxy(proxy.clone()); }
             record.set_updated_at(logging::now_ms());
             if is_new {
@@ -534,19 +534,19 @@ impl AccountStore {
         Ok((self.public_account(&saved), proxy_saved))
     }
 
-    /// 插件家的公开形态。
+    /// 。
     ///
-    /// 提供商专属展示字段来自 `pluginPublic`；身份、运营属性和用户备注由
-    /// 网关记录决定。凭证派生标量按白名单取最新值，兼容旧插件与缺失快照。
+    /// `pluginPublic`；、 and use by 
+    /// 。 by new ， old and 。
     ///
-    /// ── 凭证绝不下发 ────────────────────────────────────────────
-    /// `pluginSecret` 一个字节都不进这里。这是账号列表接口，前端与局域网内
-    /// 的浏览器都能读到它。
+    /// ── not down ────────────────────────────────────────────
+    /// `pluginSecret` 1 not this 。 this is ， before and 
+    /// can to 。
     pub(crate) fn to_plugin_public_account(&self, record: &StoredAccount) -> Value {
         let mut public = Map::new();
         public.insert("name".to_string(), record.get("name").cloned().unwrap_or(Value::Null));
         public.insert("tokenTail".to_string(), Value::Null);
-        // 插件拥有提供商专属展示字段；用户备注以账号顶层记录为准。
+        // has ； use as 。
         if let Some(Value::Object(extra)) = record.get(PUBLIC_KEY) {
             for (key, value) in extra {
                 if !super::plugin_public::is_private_field(key) {
@@ -555,7 +555,7 @@ impl AccountStore {
             }
         }
         super::plugin_public::credential_fields(record, &mut public);
-        // 身份、启用状态与队列元数据归网关，不能被插件展示字段覆盖。
+        // 、enabled and ， not can 。
         public.insert("id".to_string(), Value::String(record.id().to_string()));
         public.insert("provider".to_string(), Value::String(record.provider()));
         if let Some(region) = crate::server::core::providers::qoder::endpoints::Region::from_provider_id(&record.provider()) {

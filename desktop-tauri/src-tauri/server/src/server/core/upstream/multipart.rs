@@ -1,4 +1,4 @@
-//! 插件 multipart 信封只承载内联文件；此层不读本地路径、不拉取外部 URL。
+//! multipart file； not path、 not URL。
 
 use base64::Engine;
 use serde::Deserialize;

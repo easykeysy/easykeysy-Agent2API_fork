@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="system">
 <head>
 <meta charset="utf-8" />
-<!-- viewport-fit=cover：让安全区（刘海 / 底部横条）由 env() 接管，
+<!-- viewport-fit=cover：（ / ） by env() ，
      全屏时内容不会钻到系统栏下面。 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#f3f3f6" media="(prefers-color-scheme: light)" />
@@ -14,15 +14,15 @@
 <link rel="stylesheet" href="mobile.css" />
 
 <script>
-  // 语言引导：与 ui/m.html / index.html 同一套解析规则（改一处必须同步改另两处）。
-  // 必须早于业务脚本，否则首屏会先按简体渲染再跳一下。
+  // ： and ui/m.html / index.html 1 then （ 1 must）。
+  // must，otherwise will by 1 down 。
   //
-  // 与浏览器形态的差别：APK 里的词典是**打包进来**的（构建时从 ui/i18n 拷到
-  // android-www/i18n），不是网关托管，所以路径是相对本文件的 `i18n/...`。
+  // and ：APK is **** （ when from ui/i18n to 
+  // android-www/i18n）， not is ，path is for file `i18n/...`。
   (function () {
     var CODES = ['zh-Hans', 'zh-Hant', 'en', 'ja', 'ko', 'pt-BR'];
     var raw = null;
-    try { raw = localStorage.getItem('workbuddy-desktop-locale'); } catch (e) { /* 存储被禁 */ }
+    try { raw = localStorage.getItem('workbuddy-desktop-locale'); } catch (e) { /* */ }
     var locale = 'en';
     if (raw && raw !== 'auto' && CODES.indexOf(raw) >= 0) {
       locale = raw;
@@ -39,7 +39,7 @@
       }
     }
     document.documentElement.lang = locale;
-    // 简体没有词典目录（查不到即显示简体原文）；其余语言注入 manifest + 各域文件。
+    // no has directory（ not to ）； its manifest + file。
     if (locale === 'zh-Hans') return;
     document.write('<script src="i18n/manifest.js"><\/script>');
   })();
@@ -47,10 +47,10 @@
 <script src="i18n.js"></script>
 
 <script>
-  // 主题引导：在首帧之前把 data-theme 定下来，避免浅色闪一下再切深色。
+  // ： in before data-theme down ， 1 down 。
   (function () {
     var mode = 'system';
-    try { mode = localStorage.getItem('workbuddy-desktop-theme') || 'system'; } catch (e) { /* 忽略 */ }
+    try { mode = localStorage.getItem('workbuddy-desktop-theme') || 'system'; } catch (e) { /* ignore */ }
     if (mode !== 'light' && mode !== 'dark') mode = 'system';
     document.documentElement.dataset.theme = mode;
     var dark = mode === 'dark' || (mode === 'system'
@@ -66,7 +66,7 @@
 </head>
 <body>
 <div id="root"></div>
-<!-- APK 里没有 Service Worker：界面来自包内文件，不经过 HTTP，离线本来就能开。
+<!-- APK no has Service Worker：file， not HTTP， can 。
      数据请求照常打网关，连不上时各页面自己报错。 -->
 <script src="mobile.js"></script>
 </body>

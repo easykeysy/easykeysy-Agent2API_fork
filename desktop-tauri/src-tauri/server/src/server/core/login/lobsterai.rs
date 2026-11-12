@@ -1,20 +1,20 @@
-//! LobsterAI 的网页登录收尾（**loopback 回调路由专用**）。
+//! LobsterAI （**loopback by use **）。
 //!
-//! ── 这条链属于哪一型 ────────────────────────────────────────
-//! 与 Accio / AutoClaw 同族：**浏览器把用户带回本机 HTTP 端口**
-//! （`GET /auth/callback?code=…&state=…`）。授权地址与换码都在**插件**里
-//! （`agent2api-providers` 的 `lobsterai/oauth.rs`），网关这边只做三件事：
-//! 校验这次回调属于哪个登录任务 → 把整条回调交给插件换码 → 写回任务状态。
+//! ── this 1 ────────────────────────────────────────
+//! and Accio / AutoClaw ：** use HTTP **
+//! （`GET /auth/callback?code=…&state=…`）。 and in ****
+//! （`agent2api-providers` `lobsterai/oauth.rs`）， this ：
+//! this → to → 。
 //!
-//! ── 与 `submit_login_callback` 的关系 ───────────────────────
-//! 那个函数服务「壳侧把回调 URL 交回来」的通用入口（`POST
-//! /api/session/login/callback`），插件接管的家在那里走同一条
-//! `exchange_login_code`。本文件是**第二条**入口：浏览器直接导航到
-//! `/auth/callback`，路由拿不到 `ServerState` 之外的东西，所以收尾单独写。
-//! 两条路最终都落到插件的 `login.callback` RPC。
+//! ── and `submit_login_callback` ───────────────────────
+//! that 「 URL 」 use （`POST
+//! /api/session/login/callback`）， in that 1 
+//! `exchange_login_code`。file is ****： to 
+//! `/auth/callback`， by not to `ServerState` ，。
+//! to `login.callback` RPC。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本文件零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`：file unwrap/expect/panic。
 
 use serde_json::{Value, json};
 
@@ -25,15 +25,15 @@ use crate::server::logging;
 use super::{LoginService, finish_task_error};
 
 impl LoginService {
-    /// 浏览器回调：校验归属 → 用授权码换凭证 → 落账号 → 标记任务完成。
+    /// ： → use → → 。
     ///
-    /// ── 校验口径（与 accio 同一套，逐条都有理由）───────────────
-    /// 回调落在本机 HTTP 端口上，任何本机进程都能伪造一次 GET，因此：
-    ///   1. `state` 必须对应一个**进行中且属于 LobsterAI** 的登录任务；
-    ///   2. 插件侧那一轮 pending 由它自己取走即失效（`login.callback` 里
-    ///      `take_pending`）——「授权码只能兑一次」的闸门在插件进程里；
-    ///   3. 任务已完成时直接返回成功：用户刷新页面 / 浏览器预取会重复回调，
-    ///      第二次必然拿到「授权码已失效」，把一次成功变成一次失败。
+    /// ── （ and accio 1 ， has by ）───────────────
+    /// in HTTP up ， can 1 GET，：
+    /// 1. `state` must for 1 ** in and LobsterAI** ；
+    /// 2. that 1 pending by （`login.callback` 
+    /// `take_pending`）——「 can 1 」 in ；
+    /// 3. already when returnsuccess： use new / will ，
+    /// to 「 already 」， 1 success 1 failure。
     pub async fn finish_lobsterai_login(
         &self,
         code: &str,
@@ -61,7 +61,7 @@ impl LoginService {
             return Err(GatewayError::with_status(400, "这次登录不属于 LobsterAI"));
         }
         if handle.snapshot().done {
-            // 幂等：重复回调不是错误（见校验口径 3）
+            // etc ： not is error（ 3）
             return Ok(String::new());
         }
         let Some(adapter) = crate::server::core::providers::adapter::adapter_by_id(provider)

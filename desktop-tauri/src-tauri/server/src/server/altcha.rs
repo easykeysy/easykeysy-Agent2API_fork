@@ -1,32 +1,32 @@
-//! ALTCHA 机器人校验（proof-of-work，协议见 https://altcha.org；用法照
-//! OmniProxy：登录 / 注册前必须先解一道题，服务端验签 + 防重放）。
+//! ALTCHA （proof-of-work， https://altcha.org； use 
+//! OmniProxy： / before must 1 ，server + ）。
 //!
-//! ── 它防什么 ────────────────────────────────────────────────
-//! `POST /api/panel/login` 与 `/api/panel/setup` 是公开的认证边界，脚本可以
-//! 无限打：暴破密码、抢注管理员。失败锁定（access::ATTEMPTS）拦的是「同一
-//! 来源高频失败」，换 IP 就绕开了。ALTCHA 补的是另一维：**每个请求必须先
-//! 花一次算力**——登录页向网关领题、浏览器后台把答案算出来一起提交；脚本
-//! 每试一个密码都要先领题再解一道哈希枚举，批量攻击从零成本变成逐请求
-//! 成本。对真人完全无感：题目在页面加载时就算完了。
+//! ── ────────────────────────────────────────────────
+//! `POST /api/panel/login` and `/api/panel/setup` is ， can 
+//! none：、。failure（access::ATTEMPTS） is 「 1 
+//! failure」， IP 。ALTCHA is 1 ：** requestmust
+//! 1 **—— to 、 after 1 ；
+//! 1 need 1 ， from request
+//! 。 for none： in when 。
 //!
-//! ── 协议（SHA-256 模式）─────────────────────────────────────
-//! 网关签发 challenge（JSON）：
-//!   `algorithm = "SHA-256"`、`salt`（随机 hex）、
-//!   `challenge = sha256(salt + number)` 的 hex（number 不下发，客户端枚举）、
-//!   `maxnumber`（枚举上限）、
-//!   `signature = HMAC-SHA256(secret, challenge字段)` —— 防伪造/篡改。
-//! 客户端提交 payload（base64 的 JSON）：`{algorithm, challenge, number,
+//! ── （SHA-256 ）─────────────────────────────────────
+//! challenge（JSON）：
+//! `algorithm = "SHA-256"`、`salt`（ hex）、
+//! `challenge = sha256(salt + number)` hex（number not down ，client）、
+//! `maxnumber`（limit）、
+//! `signature = HMAC-SHA256(secret, challenge)` —— /。
+//! client payload（base64 JSON）：`{algorithm, challenge, number,
 //! salt, signature}`。
-//! 验证 = 签名一致 + `sha256(salt+number) == challenge` + **台账在案**
-//! （这台服务器签发过的才有效，伪造的题直接拒）+ 未过期 + **用后即焚**
-//! （同一个 payload 不能换第二个密码，防重放）。
+//! = 1 + `sha256(salt+number) == challenge` + ** in **
+//! （ this valid， ）+ + ** use after **
+//! （ 1 payload not can ，）。
 //!
-//! ── 密钥与状态 ──────────────────────────────────────────────
-//! secret 首次使用时生成（32 字节 hex）落库（`kv` 的 `panelAltchaSecret`，
-//! 见 `RESERVED_KV_KEYS`——**配置写入绝不能动它**），此后常驻；只经 HMAC
-//! 使用，从不外发。台账（challenge → 过期时刻）在内存：进程重启清空，
-//! 重启窗口内已下发未用的 challenge 重放一次的风险由 10 分钟过期兜底 ——
-//! 登录页拿到题到提交之间通常只有几秒。
+//! ── and ──────────────────────────────────────────────
+//! secret use when （32 hex）（`kv` `panelAltchaSecret`，
+//! `RESERVED_KV_KEYS`——**config not can **）， after ； HMAC
+//! use ， from not 。（challenge → when ） in ：empty，
+//! already down use challenge 1 by 10 minutes ——
+//! to to has seconds。
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -40,17 +40,17 @@ use crate::server::access;
 use crate::server::config;
 
 const KV_SECRET_KEY: &str = "panelAltchaSecret";
-/// challenge 有效期：登录页加载到提交的合理上限（OmniProxy 同款 10 分钟）
+/// challenge valid： to limit（OmniProxy 10 minutes）
 const CHALLENGE_TTL_MS: i64 = 10 * 60 * 1000;
-/// 枚举上限量级：浏览器同步分批枚举 5–10 万次 SHA-256 在百毫秒到一秒级，
-/// 对「每请求都要解一道」的脚本已是持续成本；再大只拖慢真人
+/// limit： 5–10 SHA-256 in ms to 1 seconds，
+/// for 「request need 1 」 already is ；
 const MAXNUMBER_MIN: u32 = 50_000;
 const MAXNUMBER_MAX: u32 = 100_000;
-/// 台账容量上限：忘清理也只占这点内存（每条 ~几十字节）
+/// limit： this （ ~）
 const STORE_CAP: usize = 4096;
 
-/// challenge → 过期时刻（毫秒）。键就是 challenge 的 hex —— 台账只认
-/// 「本服务器签发过的题」，客户端自造的题不在案，直接拒。
+/// challenge → when （ms）。 is challenge hex —— 
+/// 「 」，client not in ，。
 static STORE: OnceLock<Mutex<HashMap<String, i64>>> = OnceLock::new();
 
 fn store() -> &'static Mutex<HashMap<String, i64>> {
@@ -77,7 +77,7 @@ fn hmac_hex(secret: &str, message: &str) -> String {
     format!("{:x}", mac.finalize().into_bytes())
 }
 
-/// 随机一个 `[min, max]` 区间的 u32（getrandom 的字节流取模）
+/// 1 `[min, max]` u32（getrandom ）
 fn random_range(min: u32, max: u32) -> u32 {
     let span = max - min + 1;
     let mut buf = [0u8; 4];
@@ -85,8 +85,8 @@ fn random_range(min: u32, max: u32) -> u32 {
     min + (u32::from_le_bytes(buf) % span)
 }
 
-/// HMAC 签名密钥：库里没有就现场生成并落库（幂等：库不可用时退化为
-/// 进程内随机 —— 桌面形态没有登录页，无所谓；headless 必有库）。
+/// HMAC ： no has and （ etc ：unavailable when as 
+/// —— no has ，none；headless has ）。
 fn secret() -> String {
     let existing = access::kv_get(KV_SECRET_KEY);
     if let Some(value) = existing {
@@ -99,14 +99,14 @@ fn secret() -> String {
     generated
 }
 
-/// 机器人校验是否启用（设置页开关，默认开）。`local_panel` 决定读哪一端
-/// 的开关（桌面壳恒 true、headless 恒 false，见 `config::captcha_enabled`）。
+/// is enabled（set，default）。`local_panel` 1 
+/// （ true、headless false， `config::captcha_enabled`）。
 pub fn enabled(local_panel: bool) -> bool {
     config::current().captcha_enabled(local_panel)
 }
 
-/// 签发一道 challenge（登录页的 `GET /api/panel/captcha` 用）。
-/// 开关关闭时返回 `None`（端点回 400，前端跳过校验）。
+/// 1 challenge（ `GET /api/panel/captcha` use ）。
+/// when return `None`（ 400， before ）。
 pub fn challenge(local_panel: bool) -> Option<Value> {
     if !enabled(local_panel) {
         return None;
@@ -123,7 +123,7 @@ pub fn challenge(local_panel: bool) -> Option<Value> {
             Err(poisoned) => poisoned.into_inner(),
         };
         let now = now_ms();
-        // 顺手清过期 + 超容量时先扔最早过期的（容量只是防御性的兜底）
+        // + when （ is ）
         table.retain(|_, expires| *expires > now);
         if table.len() >= STORE_CAP {
             table.retain(|_, _| false);
@@ -140,8 +140,8 @@ pub fn challenge(local_panel: bool) -> Option<Value> {
     }))
 }
 
-/// 验证登录 / 注册请求携带的 ALTCHA payload。
-/// 失败返回给用户看的原因（端点原样转 400）。
+/// / request ALTCHA payload。
+/// failurereturn to use Reason（ 400）。
 pub fn verify(token: &str) -> Result<(), String> {
     let decoded = base64::Engine::decode(
         &base64::engine::general_purpose::STANDARD,
@@ -169,7 +169,7 @@ pub fn verify(token: &str) -> Result<(), String> {
     }
     let number = number.unwrap();
 
-    // 签名先验（防伪造 challenge），再验答案本身
+    // （ challenge），
     if !constant_time_eq(
         signature.as_bytes(),
         hmac_hex(&secret(), challenge_field).as_bytes(),
@@ -183,7 +183,7 @@ pub fn verify(token: &str) -> Result<(), String> {
         return Err("机器人校验无效，请刷新页面重试".to_string());
     }
 
-    // 台账：在案（本服务器签发）+ 未过期 + 用后即焚（防重放）
+    // ： in （）+ + use after （）
     let mut table = match store().lock() {
         Ok(table) => table,
         Err(poisoned) => poisoned.into_inner(),

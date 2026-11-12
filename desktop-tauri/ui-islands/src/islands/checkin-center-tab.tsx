@@ -20,26 +20,26 @@ import {
 } from '../../../ui-shared/checkin-result'
 
 /**
- * 「签到中心」标签页：总览卡 + 每日签到 + 新手福利 + 活动套餐 + 成长任务。
+ * 「 to in 」：total + daily to + new + + 。
  *
- * ── 数据全部来自快照 ────────────────────────────────────────
- * 分组、已签判定、范围外原因都在网关算好（`api::checkin_center`）。这里只画。
- * **不要**按 provider id 写死任何判断 —— 那是插件申报的（`description` /
+ * ── ────────────────────────────────────────
+ * 、 already 、Reason in （`api::checkin_center`）。 this 。
+ * ** not need ** by provider id —— that is （`description` /
  * `modes` / `uiHooks` / `onboarding` / `plans` / `growth`）。
  *
- * ── 惰性块 ──────────────────────────────────────────────────
- * 新手福利与成长任务的**明细**要打上游，快照刻意不带（快照必须「零上游请求」）。
- * 行上有「查询任务」按钮，点了才查。
+ * ── ──────────────────────────────────────────────────
+ * new and **** need up ， not （must「 up request」）。
+ * up has 「」 by ，。
  */
 
-/* ─── 空态 ─────────────────────────────────── */
+/* ─── empty ─────────────────────────────────── */
 
 /**
- * 没装插件时的空态。
+ * no when empty。
  *
- * 这是「签到中心常驻菜单」的代价，也是它的价值：用户看到一个明确的说明与去处，
- * 而不是一个凭空消失的菜单项。判定依据是快照里 `checkinFeatures` 为空 ——
- * 那是插件申报表，空 = 没有任何插件提供签到能力。
+ * this is 「 to in 」 ， is ： use to 1 and ，
+ * not is 1 empty 。 is `checkinFeatures` as empty ——
+ * that is ，empty = no has to can 。
  */
 function EmptyState(): React.ReactElement {
   const hasFeature = Object.keys(store.center?.checkinFeatures ?? {}).length > 0
@@ -59,7 +59,7 @@ function EmptyState(): React.ReactElement {
       <Empty className="ck-empty-state">
         <p>{message}</p>
         <div className="ck-empty-actions">
-          {/* 用壳的 `showPage` 而不是改 location：宿主是单页应用，没有 hash 路由 */}
+          {/* use `showPage` not is location： is use ， no has hash by */}
           <Button
             size="sm"
             variant="outline"
@@ -76,7 +76,7 @@ function EmptyState(): React.ReactElement {
   )
 }
 
-/* ─── 总览卡 ───────────────────────────────── */
+/* ─── total ───────────────────────────────── */
 
 function StatCard({ label, value, foot, extra, onClick }: {
   label: string
@@ -101,11 +101,11 @@ function StatCard({ label, value, foot, extra, onClick }: {
 }
 
 /**
- * 总览卡（四张，与旧实现逐项一致）。
+ * total（， and old 1 ）。
  *
- * 旧版是：今日签到（带进度条）/ 定时签到（可点进「定时签到」页）/
- * 待领新手福利 / 累计签到记录（可点进「签到记录」页）。
- * 点卡切页走自定义事件，理由见 `checkin-page.tsx` 的 `wb:checkin-tab`。
+ * old is ： to （）/ when to （ can 「 when to 」）/
+ * new / to （ can 「 to 」）。
+ * ， by `checkin-page.tsx` `wb:checkin-tab`。
  */
 function StatsGrid({ center }: { center: CheckinCenter }): React.ReactElement {
   const { daily, extras } = center
@@ -115,14 +115,14 @@ function StatsGrid({ center }: { center: CheckinCenter }): React.ReactElement {
     : 0
   const outCount = daily.outOfScope.reduce((sum, item) => sum + item.count, 0)
 
-  // 定时签到卡：启用的条目数与下一条的执行时刻
+  // when to ：enabled and down 1 when 
   const enabledEntries = (auto?.schedules ?? []).filter(entry => entry.enabled)
   const nextRun = enabledEntries
     .map(entry => Number(entry.nextRunAt))
     .filter(stamp => Number.isFinite(stamp) && stamp > 0)
     .sort((a, b) => a - b)[0]
 
-  // 新手福利卡：已查到的账号里有几项待领
+  // new ： already to has 
   let onboardingChecked = 0
   let onboardingPending = 0
   for (const row of extras.onboarding) {
@@ -181,11 +181,11 @@ function StatsGrid({ center }: { center: CheckinCenter }): React.ReactElement {
 }
 
 /**
- * 范围外账号的说明（**卡内的一行**，不是独立卡片）。
+ * （** 1 **， not is ）。
  *
- * 旧实现就是把它挂在「每日签到」卡底部的 `ck-fold-note` 里：它是那张卡的
- * **脚注**（解释「为什么这些账号没出现在上面的列表里」），独立成卡会显得
- * 它们是另一类功能。这是我早先迁移时漏掉的一处。
+ * old is in 「daily to 」 `ck-fold-note` ： is that 
+ * ****（「Why this no in up 」）， will 
+ * is 1 can 。 this is when 1 。
  */
 function OutOfScopeNote({ items }: { items: { label: string; reason: string; count: number }[] }): React.ReactElement {
   const list = items
@@ -198,14 +198,14 @@ function OutOfScopeNote({ items }: { items: { label: string; reason: string; cou
   )
 }
 
-/* ─── 每日签到 ─────────────────────────────── */
+/* ─── daily to ─────────────────────────────── */
 
 function StatusBadge({ status }: { status: AccountCheckinStatus }): React.ReactElement {
   const variants = { ok: 'success', warn: 'warning', bad: 'destructive', mute: 'outline', brand: 'brand' } as const
   return <Badge variant={variants[checkinStatusTone(status)]} shape='tag'>{t(checkinStatusLabel(status))}</Badge>
 }
 
-/** 同类未完成状态明确显示；混合状态仍保留“部分 / 待签”汇总。 */
+/** ；“ / ”total。 */
 function GroupBadge({ group }: { group: ProviderGroup }): React.ReactElement {
   if (!group.totalCount) return <Badge variant="outline" shape="tag">无账号</Badge>
   if (group.doneCount >= group.totalCount) return <StatusBadge status='done' />
@@ -219,11 +219,11 @@ function GroupBadge({ group }: { group: ProviderGroup }): React.ReactElement {
   return <StatusBadge status='pending' />
 }
 
-/** 账号明细表（展开区） */
+/** （） */
 function AccountTable({ group }: { group: ProviderGroup }): React.ReactElement {
   const modes = modesOf(group)
-  // 分档执行由插件申报：keepalive / claim / full 各一颗按钮 —— 领取才加积分、
-  // 保活只维持活跃，分开是刻意的
+  // by ：keepalive / claim / full 1 by —— 、
+  // ， is 
   const dailyActivity = modes.some(mode => mode === 'keepalive' || mode === 'claim' || mode === 'full')
   return (
     <Table container={false} className="ck-table">
@@ -257,7 +257,7 @@ function AccountRow({ account, modes, dailyActivity, manualPlans }: {
     <TableRow>
       <TableCell>
         {account.name}
-        {/* 连登天数：0 = 还没读到过，不显示成「连登 0 天」 */}
+        {/* ：0 = no to ， not 「 0 」 */}
         {account.streakDays > 0
           ? <span className="ck-sub"> · 连登 {account.streakDays} 天</span>
           : null}
@@ -329,13 +329,13 @@ function ProviderRow({ group }: { group: ProviderGroup }): React.ReactElement {
   )
 }
 
-/* ─── 新手福利 ─────────────────────────────── */
+/* ─── new ─────────────────────────────── */
 
 /**
- * 新手福利行。
+ * new 。
  *
- * 明细要打上游，快照不带 —— 所以这里的按钮是「查询任务」，点了才查。
- * 状态缓存在 `store.onboarding`（跨标签页保留，切走再回来不用重查）。
+ * need up ， not —— this by is 「」，。
+ * in `store.onboarding`（， not use ）。
  */
 function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
   const cache = onboardingOf(row.id)
@@ -406,13 +406,13 @@ function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
   )
 }
 
-/* ─── 活动福利（ZCode 套餐）────────────────── */
+/* ─── （ZCode ）────────────────── */
 
 /**
- * 今天（北京时间）在本地台账里领过的套餐 id。
+ * （ when ） in id。
  *
- * 上游按北京判「今天」，所以日界也按北京算 —— 与宿主 `claimedPlanIdsToday`
- * 同一口径（跟本机时区走会在海外的部署上把「今天」判错）。
+ * up by 「」， by —— and `claimedPlanIdsToday`
+ * 1 （ when will in up 「」）。
  */
 function claimedPlansToday(claimPlans: Record<string, number> | null | undefined): string[] {
   if (!claimPlans || typeof claimPlans !== 'object') return []
@@ -427,11 +427,11 @@ function claimedPlansToday(claimPlans: Record<string, number> | null | undefined
 }
 
 /**
- * 活动福利的一行（ZCode 限时体验套餐）。
+ * 1 （ZCode when ）。
  *
- * 这一行只提供**入口**：套餐明细与逐份领取在宿主那个弹窗里（`wbZcodePlans`）。
- * 迁到客户端之后可以直接调它 —— 早先页面在 iframe 里拿不到那个岛，只能靠
- * postMessage 请宿主代开，宿主没响应时就退化成一句「去账号页操作」。
+ * this 1 ****： and in that （`wbZcodePlans`）。
+ * to client after can —— in iframe not to that ， can 
+ * postMessage ， no response when 1 「」。
  */
 function PlanRow({ row }: { row: PlanEntry }): React.ReactElement {
   const claimed = claimedPlansToday(row.claimPlans)
@@ -474,16 +474,16 @@ function PlanRow({ row }: { row: PlanEntry }): React.ReactElement {
   )
 }
 
-/* ─── 成长任务（WorkBuddy 国内版）────────────── */
+/* ─── （WorkBuddy ）────────────── */
 
 /**
- * 成长任务的一行。
+ * 1 。
  *
- * 三块内容：任务树（逐条点亮 / 领奖）、开学季（任务 + 抽奖）、猫猫旅行。
- * 明细要打一次上游，所以行上是「查询任务」按钮，点了才查。
+ * ：（ / ）、（ + ）、。
+ * need 1 up ， up is 「」 by ，。
  *
- * 「一键完成」逐条调用单任务端点（见 `runGrowth` 的说明）：全量一次请求会
- * 超过管理 API 的 60 秒转发超时。
+ * 「 1 」 use （ `runGrowth` ）： 1 request will 
+ * API 60 seconds when 。
  */
 function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
   const cache = growthOf(row.id)
@@ -572,7 +572,7 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
           </div>
         )
       })}
-      {/* 开学季与猫猫旅行：各自一个动作按钮（不走任务树的逐条执行） */}
+      {/* and ： 1 by （ not ） */}
       <div className="ck-grow-extra">
         <Button
           size="sm"
@@ -603,7 +603,7 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
   )
 }
 
-/* ─── 主体 ─────────────────────────────────── */
+/* ─── ─────────────────────────────────── */
 
 export function CenterTab({ center }: { center: CheckinCenter }): React.ReactElement {
   const { daily, extras } = center
@@ -643,7 +643,7 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
           </CardHeader>
           <div>
             {daily.providers.map(group => <ProviderRow key={group.id} group={group} />)}
-            {/* 范围外账号是这张卡的**脚注**（见 OutOfScopeNote 的说明） */}
+            {/* is this ****（ OutOfScopeNote ） */}
             {daily.outOfScope.length > 0 ? <OutOfScopeNote items={daily.outOfScope} /> : null}
           </div>
         </Card>

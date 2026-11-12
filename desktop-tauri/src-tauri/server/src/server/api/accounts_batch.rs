@@ -1,4 +1,4 @@
-//! 账号批量管理端点；配置写入复用单账号 apply_patch。
+//! ；config use apply_patch。
 
 use axum::body::Bytes;
 use axum::response::Response;
@@ -14,7 +14,7 @@ pub async fn batch_accounts(state: &ServerState, body: &Bytes) -> Response {
         Ok(value) => value,
         Err(response) => return response,
     };
-    // ids 去重 + 过滤空串，逐字照抄 Node 版
+    // ids + empty， Node 
     let mut ids: Vec<String> = Vec::new();
     if let Some(items) = payload.get("ids").and_then(Value::as_array) {
         for item in items {
@@ -42,15 +42,15 @@ pub async fn batch_accounts(state: &ServerState, body: &Bytes) -> Response {
             state.store().batch_update(&ids, &json!({ "enabled": enabled }))
         }
         "proxy" => {
-            // 允许 proxy=null（批量改为直连）；缺字段是显式报错
+            // proxy=null（ as ）； is 
             let Some(target) = payload.get("proxy") else {
                 return management_error(400, "批量修改代理时缺少 proxy 字段");
             };
             state.store().batch_update(&ids, &json!({ "proxy": target }))
         }
         "concurrency" => {
-            // 并发上限（0 = 不限）；缺字段是显式报错，值本身由 store 归一
-            // （非负整数、封顶 999，与单账号设置面板同一份校验）
+            // and limit（0 = not ）； is ， by store 1 
+            // （、 999， and set 1 ）
             let Some(target) = payload.get("maxConcurrent") else {
                 return management_error(400, "批量设置并发上限时缺少 maxConcurrent 字段");
             };
@@ -91,7 +91,7 @@ pub async fn batch_accounts(state: &ServerState, body: &Bytes) -> Response {
 
     match result {
         Ok(value) => {
-            // 响应带上 action，与 Node 版 `{ action, ...result, list }` 一致
+            // response up action， and Node `{ action, ...result, list }` 1 
             let mut merged = Map::new();
             merged.insert("action".to_string(), Value::String(action));
             if let Some(object) = value.as_object() {

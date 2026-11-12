@@ -1,44 +1,44 @@
-//! 会话图片压缩：转发前把对话请求体里内嵌的 base64 大图压小。
+//! will ： before for request base64 。
 //!
-//! ── 它解决什么 ──────────────────────────────────────────────
-//! 客户端把截图 / 照片以 `data:image/...;base64,` 内联进消息，一张手机照片
-//! 动辄几 MB base64，既撑大请求体、也拉高上游 token 计费（多数视觉模型按
-//! 图片像素折算 token）。多轮对话里同一张图还会被客户端**每轮重发**一遍。
-//! 本模块在**某一家即将发送之前**把超阈值的图缩到长边上限并重编码成 JPEG，
-//! 顺带把「同一张原图 → 同一份压缩结果」缓存起来（见 [`Cache`]），于是第二轮
-//! 起不再重复解码编码。语义与 OmniProxy 的 `gatewayImageCompress.ts` 对齐，
-//! 默认参数（长边 2048 / 质量 80 / 阈值 512KB）也照抄它。
+//! ── ──────────────────────────────────────────────
+//! client / `data:image/...;base64,` ， 1 
+//! MB base64，request、 up token （ by 
+//! token）。 for 1 will client**** 1 。
+//! in ** 1 will before ** to limit and JPEG，
+//! 「 1 → 1 」（ [`Cache`]）， is 
+//! not 。 and OmniProxy `gatewayImageCompress.ts` for ，
+//! defaultparameter（ 2048 / 80 / 512KB）。
 //!
-//! ── 只认 Chat 形态，为什么 ──────────────────────────────────
-//! 三条下游协议入口（chat / responses / anthropic）在 `api::protocol` 里都已
-//! **先归一成 Chat Completions 形态**再进转发层（`chat_from_responses` /
-//! `chat_from_anthropic`），所以本模块看到的图片块永远是
-//! `{"type":"image_url","image_url":{"url":…}}`（对象形态）或
-//! `{"type":"image_url","image_url":"…"}`（字符串形态，部分客户端如此）。
-//! `input_image` 一并认（防御性：归一化若漏了某条路径也不会静默跳过）。http(s)
-//! 引用、gif / svg 一律不碰。
+//! ── Chat ，Why ──────────────────────────────────
+//! down （chat / responses / anthropic） in `api::protocol` already 
+//! ** 1 Chat Completions **（`chat_from_responses` /
+//! `chat_from_anthropic`）， to is 
+//! `{"type":"image_url","image_url":{"url":…}}`（ for ） or 
+//! `{"type":"image_url","image_url":"…"}`（，client）。
+//! `input_image` 1 and （： 1 if path not will ）。http(s)
+//! use 、gif / svg 1 not 。
 //!
-//! ── 生图为什么不经过这里 ────────────────────────────────────
-//! `send_body` 在 `ctx.images.is_some()`（生图 / 图片编辑）时提前返回，本层的
-//! 调用点在它之后 —— 生图链路天然不经过压缩（需求：本功能只作用在对话场景）。
+//! ── Why not this ────────────────────────────────────
+//! `send_body` in `ctx.images.is_some()`（ / ） when before return， 
+//! use in after —— not （ need ： can use in for ）。
 //!
-//! ── 与 CatPaw 插件里的 `image_compress.rs` 是什么关系 ──────────
-//! 那是**另一份**实现：跑在插件进程、面向 CatPaw 上游约 200KB 的硬限制（阈值
-//! 60KB、长边 1568、固定参数）。本模块是网关侧的**通用可选压缩**：参数可配、
-//! 覆盖所有家、带缓存复用。两者都在「发送前」，若某家插件自己也压，最坏是压
-//! 两遍（插件那份拿到的已是压过的、多半已低于它的 60KB 触发线），不冲突。
+//! ── and CatPaw `image_compress.rs` is ──────────
+//! that is ** 1 **： in 、 to CatPaw up 200KB limit（
+//! 60KB、 1568、parameter）。 is ** use optional**：parameter can 、
+//! all、 use 。 in 「 before 」， if ， is 
+//! （ that to already is 、 already 60KB ）， not 。
 //!
-//! ── 硬约束（release 是 panic=abort）─────────────────────────
-//! 全程**零 unwrap / expect / panic / 越界索引**：格式不符、base64 解不开、
-//! 图片解不开、编码失败、尺寸非法 —— 一律原样返回输入。宁可超重发出去（上游
-//! 报错可见），也不让整个进程被一张坏图带走。纯内存操作，无网络、无磁盘 IO。
+//! ── （release is panic=abort）─────────────────────────
+//! ** unwrap / expect / panic / **： not 、base64 not 、
+//! not 、failure、 —— 1 return。 can （ up 
+//! can ）， not 1 。，none、none IO。
 //!
-//! ── 与 OmniProxy 的两处实现差异（语义等价或更保守）───────────
-//! 1. **透明图**：OmniProxy 把带 alpha 的图转 WebP；本模块统一**合成白底转
-//!    JPEG**（与 CatPaw 插件那份同一做法，且不需引 WebP 编码器）。画面观感
-//!    在截图 / 照片场景无差别，代价是透明背景会被填白。
-//! 2. **动图**：png / jpeg 本就没有多帧；WebP 可能是动图，检出 `ANIM` 块即
-//!    整张跳过（不改写动图），与 OmniProxy 一致。
+//! ── and OmniProxy （ etc or ）───────────
+//! 1. ****：OmniProxy alpha WebP； 1 **
+//! JPEG**（ and CatPaw that 1 ， and not need WebP ）。
+//! in / none， is will 。
+//! 2. ****：png / jpeg no has ；WebP can can is ， `ANIM` 
+//! （ not ）， and OmniProxy 1 。
 
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -54,9 +54,9 @@ use serde_json::Value;
 
 use crate::server::config::ImageCompressSettings;
 
-/// data URL 的 base64 解/编码引擎：标准字母表，解码放宽到贴近 Node 的
-/// `Buffer.from(x, 'base64')`（允许少填充与非零尾随位）—— 松一点只会让我们
-/// 多压几张图，收紧了会把本该压的图原样放行。编码方向用规范填充。
+/// data URL base64 /：， to Node 
+/// `Buffer.from(x, 'base64')`（ and ）—— 1 will 
+/// ， will this 。 to use 。
 const DATA_URL_BASE64: GeneralPurpose = GeneralPurpose::new(
     &base64::alphabet::STANDARD,
     GeneralPurposeConfig::new()
@@ -64,14 +64,14 @@ const DATA_URL_BASE64: GeneralPurpose = GeneralPurpose::new(
         .with_decode_allow_trailing_bits(true),
 );
 
-/// 本次压缩的统计（日志用；只统计**发生替换**的图）。
+/// statistics（ use ；statistics**** ）。
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ImageCompressStats {
-    /// 发生替换的图片数
+    /// 
     pub compressed: usize,
-    /// 替换项压缩前的 data URI 字节量
+    /// before data URI 
     pub bytes_before: usize,
-    /// 替换项压缩后的 data URI 字节量
+    /// after data URI 
     pub bytes_after: usize,
 }
 
@@ -81,9 +81,9 @@ impl ImageCompressStats {
     }
 }
 
-/// 压缩请求体里**所有**内嵌 base64 图片（就地改写 `messages[].content[]`）。
+/// request**all** base64 （ `messages[].content[]`）。
 ///
-/// 单图失败或无需压缩时原样保留，绝不阻断请求。返回值只统计发生替换的项。
+/// failure or none need when ， not request。returnstatistics 。
 pub fn compress_images_in_place(
     body: &mut Value,
     settings: &ImageCompressSettings,
@@ -114,10 +114,10 @@ pub fn compress_images_in_place(
     stats
 }
 
-/// 请求体里有没有可压缩的候选图（内嵌 base64 的 jpeg/png/webp）。
+/// request has no has can （ base64 jpeg/png/webp）。
 ///
-/// 只读扫描一遍，供调用方在「一个候选都没有」时**省掉一次请求体克隆** ——
-/// 多数请求根本没有内嵌图，这条早退让绝大多数对话免于 `into_owned`。
+/// 1 ， use in 「 1 no has 」 when ** 1 request** ——
+/// request no has ， this for `into_owned`。
 pub fn has_compressible(body: &Value) -> bool {
     let Some(messages) = body.get("messages").and_then(Value::as_array) else {
         return false;
@@ -134,7 +134,7 @@ pub fn has_compressible(body: &Value) -> bool {
     })
 }
 
-/// 收集所有「内嵌 base64 图片」的位置与原始 data URI（只读借用一遍）。
+/// all「 base64 」 and data URI（ use 1 ）。
 fn collect_targets(body: &Value) -> Vec<(usize, usize, String)> {
     let mut out = Vec::new();
     let Some(messages) = body.get("messages").and_then(Value::as_array) else {
@@ -154,8 +154,8 @@ fn collect_targets(body: &Value) -> Vec<(usize, usize, String)> {
     out
 }
 
-/// 取一个内容块里的图片 URL（**只认 Chat 形态**：`image_url` / `input_image`，
-/// 值可以是字符串也可以是 `{url}` 对象）。非图片块返回 None。
+/// 1 URL（** Chat **：`image_url` / `input_image`，
+/// can is can is `{url}` for ）。return None。
 fn image_uri_of(part: &Value) -> Option<&str> {
     let kind = part.get("type").and_then(Value::as_str).unwrap_or("");
     if !kind.eq_ignore_ascii_case("image_url") && !kind.eq_ignore_ascii_case("input_image") {
@@ -168,8 +168,8 @@ fn image_uri_of(part: &Value) -> Option<&str> {
     }
 }
 
-/// 把压缩结果写回内容块：字符串形态直接替换，对象形态替换 `url` 字段。
-/// 其它字段（如 `detail`）原样保留。
+/// ：， for `url` 。
+/// its （ `detail`）。
 fn set_image_uri(part: &mut Value, next: String) {
     let Some(field) = part.get_mut("image_url") else {
         return;
@@ -183,9 +183,9 @@ fn set_image_uri(part: &mut Value, next: String) {
     }
 }
 
-/// 带缓存的单张压缩：先查缓存，未命中再压（成败都入缓存）。
+/// ：， in （）。
 fn compress_with_cache(uri: &str, settings: &ImageCompressSettings) -> Option<String> {
-    // 非压缩候选（http 引用、gif / svg 等）直接跳过，不入缓存
+    // （http use 、gif / svg etc ）， not 
     if !uri.starts_with("data:image/") {
         return None;
     }
@@ -194,23 +194,23 @@ fn compress_with_cache(uri: &str, settings: &ImageCompressSettings) -> Option<St
         return hit;
     }
     let next = compress_data_uri(uri, settings).filter(|next| next.as_str() != uri);
-    // 「不需要压 / 坏图」也入缓存（null），避免历史里的同一张图每轮重复解码
+    // 「 not need need / 」（null）， 1 
     Cache::store(key, next.clone());
     next
 }
 
-/// 压缩单个 data URI；`None` = 保持原样（格式不符 / 低于阈值 / 动图 / 压缩后
-/// 反而更大 / 处理失败）。
+/// data URI；`None` = （ not / / / after 
+/// / failure）。
 fn compress_data_uri(uri: &str, settings: &ImageCompressSettings) -> Option<String> {
     let base64_body = split_data_uri(uri.trim())?;
-    // 阈值判定在**解码前**、按 base64 文本长度估算解码后字节数（与 OmniProxy
-    // 同口径），避免为了一张小图白解码一次。
+    // in ** before **、 by base64 after （ and OmniProxy
+    // ）， as 1 1 。
     let estimate = decoded_len_estimate(base64_body);
     let threshold = settings.threshold_kb.max(0) as usize * 1024;
     if estimate < threshold {
         return None;
     }
-    // 解码：先去换行（原实现里 base64 允许 \r\n，解码时忽略）
+    // ：（ base64 \r\n， when ignore）
     let compact: String = base64_body
         .chars()
         .filter(|ch| *ch != '\r' && *ch != '\n')
@@ -219,13 +219,13 @@ fn compress_data_uri(uri: &str, settings: &ImageCompressSettings) -> Option<Stri
     if input.is_empty() {
         return None;
     }
-    // 动图（WebP 的 ANIM 块）不处理：改写会把动图变成静帧
+    // （WebP ANIM ） not ： will 
     if has_anim_chunk(&input) {
         return None;
     }
     let decoded = image::load_from_memory(&input).ok()?;
     let encoded = encode_jpeg(&decoded, settings)?;
-    // 压完反而更大就保留原图（原实现的 `output.length >= input.length` 判定）
+    // （ `output.length >= input.length` ）
     if encoded.len() >= input.len() {
         return None;
     }
@@ -235,10 +235,10 @@ fn compress_data_uri(uri: &str, settings: &ImageCompressSettings) -> Option<Stri
     ))
 }
 
-/// 取出 `data:image/<subtype>;base64,<body>` 里的 base64 主体。
+/// `data:image/<subtype>;base64,<body>` base64 。
 ///
-/// 只认 jpeg / png / webp 三种基格式（大小写不敏感），其余（gif / svg / avif…）
-/// 一律不候选 —— 与 OmniProxy 的 `DATA_URI_RE` 同一白名单。
+/// jpeg / png / webp （ not ）， its （gif / svg / avif…）
+/// 1 not —— and OmniProxy `DATA_URI_RE` 1 。
 fn split_data_uri(uri: &str) -> Option<&str> {
     let rest = uri.strip_prefix("data:image/")
         .or_else(|| strip_prefix_ignore_ascii_case(uri, "data:image/"))?;
@@ -257,13 +257,13 @@ fn split_data_uri(uri: &str) -> Option<&str> {
     Some(body)
 }
 
-/// 大小写不敏感的前缀剥离（返回剥掉前缀后的剩余串）。
+/// not before （return before after remaining）。
 fn strip_prefix_ignore_ascii_case<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
     let head = text.get(..prefix.len())?;
     head.eq_ignore_ascii_case(prefix).then(|| &text[prefix.len()..])
 }
 
-/// base64 文本长度换算解码后字节数（估算，用于阈值判定，避免先解码再比较）。
+/// base64 after （，used for，）。
 fn decoded_len_estimate(base64: &str) -> usize {
     let trimmed = base64.trim_end_matches(['\r', '\n']);
     let padding = if trimmed.ends_with("==") {
@@ -276,8 +276,8 @@ fn decoded_len_estimate(base64: &str) -> usize {
     (trimmed.len() * 3 / 4).saturating_sub(padding)
 }
 
-/// 是不是动图：只在 WebP 里可能出现 `ANIM` 块。扫到即跳过（保守方向 —— 误判
-/// 只会「少压一张」，不会改坏动图）。
+/// is not is ： in WebP can can `ANIM` 。 to （ to —— 
+/// will 「 1 」， not will ）。
 fn has_anim_chunk(bytes: &[u8]) -> bool {
     if bytes.len() < 4 || &bytes[0..4] != b"RIFF" {
         return false;
@@ -285,13 +285,13 @@ fn has_anim_chunk(bytes: &[u8]) -> bool {
     bytes.windows(4).any(|window| window == b"ANIM")
 }
 
-/// 解码 → 等比缩到长边上限（不放大）→ 合成白底 → JPEG 编码。
+/// → etc to limit（ not ）→ → JPEG 。
 fn encode_jpeg(image: &DynamicImage, settings: &ImageCompressSettings) -> Option<Vec<u8>> {
     let max_edge = settings.max_edge.clamp(256, 8192) as u32;
     let quality = settings.quality.clamp(1, 100) as u8;
     let long_edge = image.width().max(image.height());
     let shrunk;
-    // 不需要缩时就地借用原图，省掉一次整图克隆（大图上是 MB 级的内存拷贝）
+    // not need need when use ， 1 （ up is MB ）
     let source: &DynamicImage = if long_edge > max_edge {
         shrunk = image.resize(max_edge, max_edge, FilterType::Lanczos3);
         &shrunk
@@ -301,7 +301,7 @@ fn encode_jpeg(image: &DynamicImage, settings: &ImageCompressSettings) -> Option
     let rgb = flatten_to_rgb8(source)?;
     let (width, height) = rgb.dimensions();
     if width == 0 || height == 0 {
-        // JPEG 编码器内部取样会用 width-1 兜底，0 尺寸会踩到它的边界假设
+        // JPEG will use width-1 ，0 will to 
         return None;
     }
     let mut output = Vec::new();
@@ -310,8 +310,8 @@ fn encode_jpeg(image: &DynamicImage, settings: &ImageCompressSettings) -> Option
     Some(output)
 }
 
-/// 拍平成不含 alpha 的 8 位 RGB：有 alpha 的按白底合成（over 运算取整），
-/// 没有的直接转 RGB8。等价于 sharp 的 `.flatten({background:'#ffffff'})`。
+/// not alpha 8 RGB： has alpha by （over ），
+/// no has RGB8。 etc sharp `.flatten({background:'#ffffff'})`。
 fn flatten_to_rgb8(image: &DynamicImage) -> Option<RgbImage> {
     if !image.color().has_alpha() {
         return Some(image.to_rgb8());
@@ -337,13 +337,13 @@ fn flatten_to_rgb8(image: &DynamicImage) -> Option<RgbImage> {
     RgbImage::from_raw(width, height, data)
 }
 
-// ─── 压缩结果缓存（「复用」）────────────────────────────────────
+// ─── （「 use 」）────────────────────────────────────
 
-/// 缓存键 = 原图 data URI 的 sha256 + 三个压缩参数。
+/// = data URI sha256 + parameter。
 ///
-/// 参数参与键生成 → 改设置即自动换键，无需失效逻辑（与 OmniProxy 一致）。
-/// 用**强哈希**而不是 DefaultHasher：键碰撞会把 A 图的压缩结果写给 B 图，
-/// 那是「发出一张错的图」这类静默事故，代价远高于一次哈希的算力。
+/// parameter and → set，none need （ and OmniProxy 1 ）。
+/// use **** not is DefaultHasher： will A to B ，
+/// that is 「 1 」 this ， 1 。
 fn cache_key(uri: &str, settings: &ImageCompressSettings) -> String {
     format!(
         "{}|{}|{}|{}",
@@ -364,11 +364,11 @@ fn sha256_hex(bytes: &[u8]) -> String {
     out
 }
 
-/// 多轮对话的历史里客户端会**反复携带同一张原图**，逐轮重新解码 + 缩放 + JPEG
-/// 编码是纯重复劳动（一张几 MB 的图单次压缩几百毫秒）。这里以「原图内容哈希 +
-/// 参数」为键缓存压缩结果，「无需压缩 / 处理失败」的 `None` 结果同样入缓存
-/// （历史里的坏图 / 低于阈值的图也就不用每轮重走解码）。条目数与总字节双上限，
-/// 超限时淘汰**最久未用**的一条。
+/// for client will ** 1 **， new + + JPEG
+/// is （ 1 MB ms）。 this 「 +
+/// parameter」 as ，「none need / failure」 `None` 
+/// （ / not use ）。 and totallimit，
+/// when ** use ** 1 。
 struct Cache {
     entries: HashMap<String, CacheEntry>,
     bytes: usize,
@@ -381,23 +381,23 @@ struct CacheEntry {
     used: u64,
 }
 
-/// 条目数上限：与 OmniProxy 一致（500）。条目数**不**随环境变量走 —— 内存占用
-/// 的决定项是总字节上限，条目数只兜「几百张小图」这种情形，写死的 500 已经够
-/// 用，多一个旋钮只会多一处可写坏的地方。
+/// limit： and OmniProxy 1 （500）。** not ** —— use 
+/// is totallimit，「」 this ， 500 already 
+/// use ， 1 will 1 can 。
 const CACHE_MAX_ENTRIES: usize = 500;
-/// 总字节上限的默认值：128 MiB。桌面端进程常态内存，压过的图通常几百 KB，
-/// 足以覆盖活跃会话里反复出现的那些原图。
+/// totallimit default：128 MiB。， KB，
+/// will that 。
 const DEFAULT_CACHE_MAX_MB: usize = 128;
 const MIN_CACHE_MAX_MB: usize = 8;
 const MAX_CACHE_MAX_MB: usize = 4096;
 const ENV_CACHE_MAX_MB: &str = "AGENT2API_IMAGE_COMPRESS_CACHE_MB";
 
-/// 总字节上限（Issue #420）：`AGENT2API_IMAGE_COMPRESS_CACHE_MB`
-/// （MiB，默认 128，范围 8~4096）。
+/// totallimit（Issue #420）：`AGENT2API_IMAGE_COMPRESS_CACHE_MB`
+/// （MiB，default 128， 8~4096）。
 ///
-/// 口径与 `api::image_assets::max_cache_bytes` 逐字相同（非法 / 越界回落默认值、
-/// 不夹紧、每次现读）—— 两者是同一类常驻内存缓存的同类旋钮，改动要一起改，
-/// 免得两个上限对同一个环境变量文本给出两种解读。
+/// and `api::image_assets::max_cache_bytes` （ / default、
+/// not 、）—— is 1 ， need 1 ，
+/// limit for 1 to 。
 fn cache_max_bytes() -> usize {
     let mb = std::env::var(ENV_CACHE_MAX_MB)
         .ok()
@@ -422,17 +422,17 @@ fn cache() -> &'static Mutex<Cache> {
 }
 
 impl Cache {
-    /// 命中返回 `Some(压缩结果或 None)`；未命中返回 `None`。
+    /// in return `Some( or None)`； in return `None`。
     ///
-    /// 注意「命中且结果为 None（无需压）」与「未命中」在返回值上都表现成
-    /// `Option<Option<String>>` 的外层：`Some(None)` = 命中且无需压，
-    /// `None` = 未命中。调用方（[`compress_with_cache`]）只关心「有没有拿到
-    /// 可直接用的结果」，两者它都按 `None` 结果处理，差别只在省不省一次解码。
+    /// Note「 in and as None（none need ）」 and 「 in 」 in return up 
+    /// `Option<Option<String>>` ：`Some(None)` = in and none need ，
+    /// `None` = in 。 use （[`compress_with_cache`]）「 has no has to 
+    /// can use 」， by `None` ， in not 1 。
     fn lookup(key: &str) -> Option<Option<String>> {
         let mut guard = cache().lock().ok()?;
         let seq = guard.seq.wrapping_add(1);
-        // 先推进全局序号，再借 entries —— 否则 `entry` 的可变借用与 `guard.seq`
-        // 的写入在同一作用域里会撞上借用检查
+        // ， entries —— otherwise `entry` can use and `guard.seq`
+        // in 1 use will up use check
         guard.seq = seq;
         let entry = guard.entries.get_mut(key)?;
         entry.used = seq;
@@ -462,7 +462,7 @@ impl Cache {
     }
 
     fn evict(&mut self) {
-        // 上限现读一次，别在循环条件里反复读环境变量（每轮一次系统调用）。
+        // limit 1 ， in （ 1 use ）。
         let max_bytes = cache_max_bytes();
         while self.entries.len() > CACHE_MAX_ENTRIES
             || (self.bytes > max_bytes && self.entries.len() > 1)

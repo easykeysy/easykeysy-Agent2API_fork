@@ -1,22 +1,22 @@
-//! 对话链路的公共管道：模型解析、请求记账、响应构造、调试落盘。
+//! for ：、request、response、。
 //!
-//! ── 为什么需要这个模块 ──────────────────────────────────────
-//! 网关对外提供三条对话入口（`/v1/chat/completions`、`/v1/responses`、
-//! `/v1/messages`），它们的**差异只在协议翻译**上，其余三件事完全相同：
-//!   1. 模型解析（默认模型回落 → 映射别名 → 禁用/存在性校验）
-//!   2. 请求记账（每个用户请求恰好一条明细，流式也要覆盖到最后字节）
-//!   3. 响应构造（JSON / SSE 的头与状态码）
-//! 这三件事从 `api/chat.rs` 抽到这里，三条入口共用一份 —— 否则任何一处
-// 口径调整（比如记账字段、默认模型回落顺序）都要在三个文件里各改一遍，
-// 迟早会漂移成三套不一致的行为。
+//! ── Why need need this ──────────────────────────────────────
+//! for for （`/v1/chat/completions`、`/v1/responses`、
+//! `/v1/messages`）， ** in ** up ， its ：
+//! 1. （default → → use / in ）
+//! 2. request（ use request 1 ， need to after ）
+//! 3. response（JSON / SSE and ）
+//! this from `api/chat.rs` to this ， use 1 —— otherwise 1 
+// （e.g.、default） need in file 1 ，
+// will not 1 as 。
 //!
-//! ── 与 `api/chat.rs` 的关系 ─────────────────────────────────
-//! `chat.rs` 仍是对外入口（`/v1/chat/completions` 的 handler），它现在从本模块
-//! 取公共件；`api/protocol.rs` 里的两个新入口同理。**本模块不认识任何具体
-//! 协议**（不看 messages / input / content），协议差异一律留在各 handler 里。
+//! ── and `api/chat.rs` ─────────────────────────────────
+//! `chat.rs` is for （`/v1/chat/completions` handler）， in from 
+//! ；`api/protocol.rs` new 。** not 
+//! **（ not messages / input / content）， 1 in handler 。
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`： unwrap/expect/panic。
 
 use std::sync::Arc;
 
@@ -44,122 +44,122 @@ mod raw;
 pub use raw::{capture_raw_body, capture_raw_json, raw_body_text};
 use raw::RawCapture;
 
-/// 调试落盘的目录名与文件名（Node 版 `join(CONFIG_DIR, 'debug', ...)`）
+/// directory and file（Node `join(CONFIG_DIR, 'debug', ...)`）
 const DEBUG_DIR: &str = "debug";
 const DEBUG_REQUEST_FILE: &str = "last-request.json";
 const DEBUG_META_FILE: &str = "last-request.meta.txt";
 
-/// 非调试请求的错误摘要上限；调试请求保留完整错误。
+/// request error need limit；requesterror。
 const ERROR_SUMMARY_CHARS: usize = 200;
 
-/// 客户端中断 / 服务退出导致响应流被提前丢弃时的错误摘要。
+/// client in / response before when error need 。
 ///
-/// HTTP 状态早就发出去了（2xx），明细里只能靠这条文案解释「为什么没有 token」。
+/// HTTP （2xx）， can this 「Why no has token」。
 pub const STREAM_ABORTED: &str = "响应流未完整下发（客户端中断或服务退出）";
 
-/// 一条「本协议收尾帧」的字节特征（见 [`RecordingStream`] 的说明）。
+/// 1 「」 （ [`RecordingStream`] ）。
 ///
-/// 由**调用方**按自己那条协议给出（三条入口各知道自己发什么收尾），本模块
-/// 只当字节比对，不认识任何协议 —— 这是 `api::pipeline` 的既定边界
-/// （见模块头：「本模块不认识任何具体协议」）。
+/// by ** use ** by that to （），
+/// for ， not —— this is `api::pipeline` 
+/// （module header：「 not 」）。
 ///
-/// 匹配串**必须带帧尾**（至少一个真换行）：收尾帧在线上是完整的一帧
-/// （`data:[DONE]\n` / `event: response.completed\n`），带上 `\n` 才不会误命中正文里
-/// 出现的同名字符串 —— 模型完全可以吐出一段包含 `data: [DONE]` 的文字，那种命中会让
-/// 一次**真的**中断被记成成功。一个真换行就够这个精度：JSON 字符串里的换行必须转义
-/// （`\n` 在字节上是反斜杠加 n），SSE 的 `data:` 字段也不允许内嵌裸换行，所以
-/// 「特征串紧跟一个真换行」只可能出现在帧边界上。这个精度是刻意的：宁可少认
-/// （退化成改前的行为，只是多一条摘要），也不能把真实中断洗成成功。
+/// **must**（ 1 ）： in up is 1 
+/// （`data:[DONE]\n` / `event: response.completed\n`）， up `\n` not will in 
+/// —— can 1 `data: [DONE]` ， that in will 
+/// 1 ** ** in success。 1 this ：JSON must
+/// （`\n` in up is n），SSE `data:` not ，
+/// 「 1 」 can can in up 。 this is ： can 
+/// （ before as ， is 1 need ）， not can in success。
 pub type TerminalFrames = &'static [&'static [u8]];
 
-/// SSE 收尾帧的字节特征表（三条入口各取自己那几条）。
+/// SSE （ that ）。
 ///
-/// 单独定义在这几个常量里而不是散在调用点：它们与各状态机的产出是**成对**
-/// 的事实，写在一起才能一眼看出「谁跟谁对得上」。
+/// in this not is in use ： and is ** for **
+/// ， in 1 can 1 「 for up 」。
 pub mod terminal {
-    /// Chat Completions：`data:[DONE]`，冒号后可省空格、行尾可为 LF / CRLF。
+    /// Chat Completions：`data:[DONE]`， after can empty、 can as LF / CRLF。
     ///
-    /// ── 为什么是四条而不是原来那一条 ────────────────────────
-    /// 生产实测（2026-10-02，`requests`×`request_raw` 联表，取正文没撞采集上限的
-    /// 383 条「响应流未完整下发」行）：**381 条的响应正文里本来就有 DONE 帧**，
-    /// 只是写的是 `data:[DONE]\n\n` —— 冒号后面**没有那个空格**。原表只收
-    /// `data: [DONE]\n\n`，于是走**字节透传**的 CodeArts（1176 条，占全部中断行的
-    /// 98%）每一次按帧收尾都被记成中断，再被「失败清零 token」的归一连带抹掉用量。
-    /// 经 `ReasoningCoalescer`（`upstream::sse`）的路径由我们自己重写那帧，所以带着
-    /// 空格、一直是命中的 —— 这也解释了为什么这个 bug 只在这一家身上成规模地出现。
+    /// ── Why is not is that 1 ────────────────────────
+    /// （2026-10-02，`requests`×`request_raw` ， no limit 
+    /// 383 「response down 」）：**381 response has DONE **，
+    /// is is `data:[DONE]\n\n` —— after ** no has that empty**。
+    /// `data: [DONE]\n\n`， is **** CodeArts（1176 ， in 
+    /// 98%） 1 by in ， 「failure token」 1 usage。
+    /// `ReasoningCoalescer`（`upstream::sse`） path by that ，
+    /// empty、 1 is in —— this Why this bug in this 1 up 。
     ///
-    /// SSE 规范里冒号后的**那一个**空格是可选的（解析时剥掉至多一个），所以匹配侧
-    /// 必须两种写法都认，而不是要求上游照我们的写法发。`\r\n` 同一取向：多一种行尾
-    /// 只是多一条特征串，少一种就又是一批假中断。
+    /// SSE after ** that 1 **empty is optional （ when 1 ），
+    /// must， not is need up 。`\r\n` 1 to ： 1 
+    /// is 1 ， 1 is 1 in 。
     ///
-    /// 帧尾只要求**一个**换行（改前要两个）：多的那个空行不是帧的一部分，
-    /// 「DONE 之后没有空行」的真收尾会被它漏掉，而它换来的精度是零（见
-    /// [`super::TerminalFrames`] 的说明：裸换行只可能出现在帧边界）。
+    /// need ** 1 **（ before need ）： that empty not is 1 ，
+    /// 「DONE after no has empty」 will ， is （
+    /// [`super::TerminalFrames`] ： can can in ）。
     pub const CHAT: super::TerminalFrames = &[
         b"data: [DONE]\n",
         b"data:[DONE]\n",
         b"data: [DONE]\r\n",
         b"data:[DONE]\r\n",
     ];
-    /// Responses：正常收尾 `response.completed`，失败收尾 `response.failed`
+    /// Responses： `response.completed`，failure `response.failed`
     pub const RESPONSES: super::TerminalFrames =
         &[b"event: response.completed\n", b"event: response.failed\n"];
-    /// Anthropic Messages：`message_stop`（成功与流内错误都以它收尾）
+    /// Anthropic Messages：`message_stop`（success and error）
     pub const ANTHROPIC: super::TerminalFrames = &[b"event: message_stop\n"];
 }
 
-// ─── 模型解析 ───────────────────────────────────────────────
+// ─── ───────────────────────────────────────────────
 
-/// 解析并落地请求体里的模型名，返回**实际使用**的模型。
+/// and request ，return** use ** 。
 ///
-/// 顺序（与改造前的 `/v1/chat/completions` 逐条一致）：
-///   ① 未指定 → 默认模型回落链（config 的 defaultModel → 目录 isDefault → 目录首项）
-///   ② 路由全链（原生 + 映射）全关闭 → 404（`model_not_found`）
-///   ③ **广告视图里没有** → 404（带相近模型提示，`model_not_found`）
+/// （ and before `/v1/chat/completions` 1 ）：
+/// ① → default（config defaultModel → directory isDefault → directory）
+/// ② by （ + ） → 404（`model_not_found`）
+/// ③ ** no has ** → 404（，`model_not_found`）
 ///
-/// ── ② 与 ③ 的状态码为什么是 404（本轮修正）────────────────────
-/// 这两个判定的语义都是「这个模型对你（下游）不存在」：② 是网关主动关闭、
-/// ③ 是目录里压根没有。改造前用 400 表达「请求有问题」，但 OpenAI 兼容协议
-/// 对「模型不存在」的约定是 **404 + code=model_not_found**（OmniProxy 的
-/// `fail(res, ..., 404, 'model_not_found')` 同一形态，客户端据此识别并刷新
-/// 模型列表）。改用 404 还消除了一个不一致：R9 白名单那条原本就是 404，
-/// 同一个 code 下的三条路径现在状态码也一致了。
+/// ── ② and ③ Why is 404（）────────────────────
+/// this is 「 this for （ down ） not in 」：② is 、
+/// ③ is directory no has 。 before use 400 「request has 」， OpenAI 
+/// for 「 not in 」 is **404 + code=model_not_found**（OmniProxy 
+/// `fail(res, ..., 404, 'model_not_found')` 1 ，client and new 
+/// ）。 use 404 1 not 1 ：R9 that is 404，
+/// 1 code down path in 1 。
 ///
-/// ── ③ 为什么以广告视图为准（「列表里没有就拒绝」）──────────────
-/// 客户端手里的模型清单来自 `/v1/models`；点一个那里没有的名字，应当立刻
-/// 404，而不是转给上游换回一个与真实原因无关的上游报错。收窄掉的模型
-/// （Cline 按账号额度池收窄、没有可用账号的家、被关闭的）因此**不再
-/// 可点名调用** —— 校验口径与广告口径就此统一，不存在「列表里看不到却能调通」
-/// 的中间态。判定见 `catalog::advertised_manifest_contains`。
+/// ── ③ Why as （「 no has 」）──────────────
+/// client `/v1/models`； 1 that no has ，
+/// 404， not is to up 1 and Reasonnone up 。 
+/// （Cline by 、 no has available 、 ）** not 
+/// can use ** —— and 1 ， not in 「 not to can 」
+/// in 。 `catalog::advertised_manifest_contains`。
 ///
-/// 两处**例外**（都不做这层判定，交给转发层给更准确的错误）：
-///   - 客户端**没点名**（走 ① 注入的默认模型）：默认值是网关自己挑的，
-///     不该被自己的广告视图否掉；
-///   - **一家可用提供商都没有**（没加账号）：此时广告视图必然为空，
-///     一律报「模型不存在」会盖掉「没有可用账号，无账号可转发」这条
-///     可操作的提示。同一条例外对下面的白名单判定也生效（理由见那里）。
+/// ****（ not this ， to to error）：
+/// - client** no **（ ① default）：default is ，
+/// not this ；
+/// - ** 1 available no has **（ no ）： when as empty，
+/// 1 「 not in 」 will 「 no has available，none can 」 this 
+/// can 。 1 for down （ by that ）。
 ///
-/// ── 映射为什么不再在这里改写（照抄 OmniProxy 的候选语义）──────
-/// 改造前的映射是「请求名命中 alias → payload 整体改写成 target」：请求名
-/// 与上游 id 同名时，改写会**遮蔽**那个同名的上游模型（它的原生路由收不到
-/// 流量），所以旧版干脆禁止同名。映射语义重做后（同名允许、同名校多提供商
-/// 主备），改写下沉到**发送侧按家进行**（`payload::send_body` →
-/// `catalog::wire_target_for_provider`）：请求名全程保持客户端原值，原生承载
-/// 家收到本名、映射家收到各自的 target —— 候选链的展开在
+/// ── Why not in this （ OmniProxy ）──────
+/// before is 「request in alias → payload target」：request
+/// and up id when ， will **** that up （ by not to 
+/// ）， old 。 after （、
+/// ）， down to ** by **（`payload::send_body` →
+/// `catalog::wire_target_for_provider`）：requestclient，
+/// to 、 to target —— in 
 /// `providers::router::route_for_forward`。
 ///
-/// `payload` 会被就地改写（仅填默认模型）：后续转发与记账都用一致的请求名，
-/// 而客户端原始 body 的去重键在调用方算（见各 handler）。
+/// `payload` will （onlydefault）： after and use 1 request，
+/// client body in use （ handler）。
 ///
-/// ── `scope`：网关 Key 的可用模型白名单（R9）────────────────────
-/// `None` 只表示不限制白名单；调用方必须先完成 Key 鉴权。
-/// 有 scope 时在**这里**判，而不是留到转发层：模型白名单的语义是
-/// 「这个模型对你这把 Key 不存在」，所以拒绝形态与「模型不在目录里」逐字相同
-/// （404 + `model_not_found`，照抄 OmniProxy 的
-/// `if (!keyAllowsModel(...)) return fail(res, \`模型 '${publicModel}' 不可用\`, 404, 'model_not_found')`）——
-/// 连「存在性」都不该向下游暴露：能列出却打不通，是比 404 更难解释的一种。
+/// ── `scope`： Key available（R9）────────────────────
+/// `None` unlimited； use must Key 。
+/// has scope when in ** this **， not is to ： is 
+/// 「 this for this Key not in 」， and 「 not in directory」
+/// （404 + `model_not_found`， OmniProxy 
+/// `if (!keyAllowsModel(...)) return fail(res, \` '${publicModel}' unavailable\`, 404, 'model_not_found')`）——
+/// 「 in 」 not this to down ： can not ， is 404 1 。
 ///
-/// 默认模型回落也必须收窄到 Key 的模型白名单；权限检查不因缺少账号而跳过。
+/// defaultmust to Key ；check not 。
 pub fn resolve_model(
     state: &ServerState,
     payload: &mut Value,
@@ -188,15 +188,15 @@ fn resolve_model_for(
         object.remove("_wb_route_continue");
     }
     let requested = model_field_text(payload);
-    // 客户端是否**点名**了模型：默认值注入后这个事实就丢了，先记下来
+    // client is ****：default after this ， down 
     let client_named = !requested.is_empty();
     if !client_named {
-        // 客户端没点名 → 网关默认。三级回落链的候选集合走
-        // `default_model_catalog()`（按「认不认默认模型概念」收窄后的聚合清单）：
-        // 一家都不认时不注入 model，按「未指定」处理（让上游用它自己的默认）
+        // client no → default。 
+        // `default_model_catalog()`（ by 「 not default」 after ）：
+        // 1 not when not model， by 「」（ up use default）
         let snapshot = config::current();
         let default_model = snapshot.default_model();
-        // 白名单收窄：不限制时 `allowed` 恒真，等价于原逻辑（零行为差异）
+        // ：unlimited when `allowed` ， etc （ as ）
         let allowed = |name: &str| key_scope::allows_model(scope, name);
         let models = default_model_catalog();
         let fallback = if (config::routing_profiles().group_for_model(default_model).is_some() || default_model_usable(default_model)) && allowed(default_model) {
@@ -233,9 +233,9 @@ fn resolve_model_for(
                 object.insert("model".to_string(), Value::String(fallback));
             }
         } else if scope.is_some_and(KeyScope::restricts_models) {
-            // 这条 Key 限制了模型、而目录里**没有一个是它被授权的**：
-            // 继续往下走只会让上游拿它自己的默认模型去回答（白名单形同虚设），
-            // 所以在这里就明确拒绝。文案指向该去改什么（管理页那两处）。
+            // this Key limit、directory** no has 1 is **：
+            // down will up default（），
+            // in this 。 to this （ that ）。
             return Err(GatewayError::bad_request(
                 "这把网关 Key 的可用模型列表里没有任何当前可用的模型：请到「网关 Key」页为它勾选可用模型",
             )
@@ -243,7 +243,7 @@ fn resolve_model_for(
         }
     }
     let requested_model = model_field_text(payload);
-    // 空路由也是已登记入口；权限照常检查，具体不可用原因交给组内选路报告。
+    // empty by is already ；check，unavailableReason to 。
     if let Some(group) = config::routing_profiles().group_for_model(&requested_model) {
         if !key_scope::allows_model(scope, &requested_model) {
             return Err(GatewayError::with_status(404, "此路由组不在网关 Key 的可用模型列表里").with_code("model_not_found"));
@@ -256,27 +256,27 @@ fn resolve_model_for(
         config::remember_request_model(&group.model);
         return Ok(group.model.clone());
     }
-    // 按提供商区分启停后，404 判定是「路由全链（原生 + 映射）都不可用」
+    // by after ，404 is 「 by （ + ）unavailable」
     if !requested_model.is_empty() && model_blocked_everywhere(&requested_model) {
         return Err(GatewayError::with_status(404, format!(
             "模型已在网关中关闭: {requested_model}。完整列表见 GET /v1/models"
         ))
         .with_code("model_not_found"));
     }
-    // ③ 广告视图里没有 → 400（「列表里没有就拒绝」；例外见函数头说明）
+    // ③ no has → 400（「 no has 」；）
     if client_named && !requested_model.is_empty() {
-        // 例外：**一家可用提供商都没有**（没加账号）时跳过本判定 —— 广告视图
-        // 必然为空，一律报「模型不存在」会盖掉「没有可用账号，无账号可转发」
-        // 这条更可操作的提示（见函数头两条例外的第二条例）。
-        // ── 这里的 active 用**未按 Key 收窄**的那一份（刻意）───────────
-        // `/v1/models` 按 Key 的提供商白名单收窄后再广告（见
-        // `catalog::models_response`），这里却用全量：两者的差异正好构成
-        // 「模型存在、但这把 Key 不允许任何承载它的家」这一种情形。
-        // 那种情形**必须由转发层拒**（`provider_loop::forward_with_providers`
-        // 的可用提供商分支），因为只有它手里有候选链、能说清「提供它的家都被
-        // 你这把 Key 挡了」；在这里按全量放行、到转发层给准确文案，
-        // 比在这里用收窄后的视图报一句笼统的「模型不存在」对用户有用得多
-        //（后者会让人去查模型管理页的启停，而真正要改的是 Key 的可用提供商）。
+        // ：** 1 available no has **（ no ） when —— 
+        // as empty， 1 「 not in 」 will 「 no has available，none can 」
+        // this can （ ）。
+        // ── this active use ** by Key ** that 1 （）───────────
+        // `/v1/models` by Key after （
+        // `catalog::models_response`）， this use ： 
+        // 「 in 、 this Key not 」 this 1 。
+        // that **must by **（`provider_loop::forward_with_providers`
+        // available）， as has has 、 can 「 
+        // this Key 」； in this by 、 to to ，
+        // in this use after 1 「 not in 」 for use has use 
+        //（ after will ， need is Key available）。
         if has_available_providers(state.store())
             && !advertised_manifest_contains(state.store(), &requested_model)
         {
@@ -307,19 +307,19 @@ fn resolve_model_for(
             )).with_code("image_generation_required"));
         }
     }
-    // 记录本次实际用的模型（默认值已填充完毕），供账号页筛选默认选中
+    // use （default already ），default in 
     if !requested_model.is_empty() && !image_generation {
         config::remember_request_model(&requested_model);
     }
     Ok(requested_model)
 }
 
-/// 请求体里的 model → 供校验/记录用的文本。
+/// request model → / use 。
 ///
-/// 复刻 Node 的取值链：`if (!body.model)` 先做真值判定（null/""/0/false 都算
-/// 未指定），真值再交给目录查（`get()` 内部是 `String(id).toLowerCase()`），
-/// 所以数字/对象这类非字符串值也会被字符串化后参与比对 —— 本函数做的就是
-/// 那个字符串化，且**不改动 payload 里的原值**。
+/// Node ：`if (!body.model)` （null/""/0/false 
+/// ）， to directory（`get()` is `String(id).toLowerCase()`），
+/// / for this will after and for —— is 
+/// that ， and ** not payload **。
 pub fn model_field_text(payload: &Value) -> String {
     let Some(value) = payload.get("model") else {
         return String::new();
@@ -333,20 +333,20 @@ pub fn model_field_text(payload: &Value) -> String {
     }
 }
 
-/// 下游请求体里客户端显式指定的思考等级（请求日志「下游等级」；空串 = 没指定）。
+/// down requestclient etc （request「 down etc 」；empty = no ）。
 ///
-/// 与 [`model_field_text`] 同一采集时机（入口 handler 在解析出 payload 后取一次，
-/// 随 [`RecordContext`] 一路带到记账点）。读取器是
-/// `model_rules::reasoning::read_client_level` —— 那是**两家的并集链、只服务
-/// 显示**：转发时「客户端指定了没有」由各家适配器自己的 resolver 判，两边
-/// 口径的差异（CatPaw 空串会 400、Qoder 链到第一个键为止）不影响这里要显示
-/// 的意图值。注意 payload 传入前可能已被 [`resolve_model`] 就地改写 —— 但它只
-/// 动 `model` 字段，等级键不受影响，前后取值一致。
+/// and [`model_field_text`] 1 when （ handler in payload after 1 ，
+/// [`RecordContext`] 1 to ）。 is 
+/// `model_rules::reasoning::read_client_level` —— that is ** and 、
+/// **： when 「client no has 」 by resolver ，
+/// （CatPaw empty will 400、Qoder to 1 as ） not this need 
+/// 。Note payload before can can already [`resolve_model`] —— 
+/// `model` ， etc not ， before after 1 。
 pub fn client_reasoning_of(payload: &Value) -> String {
     crate::server::core::model_rules::read_client_level(payload).unwrap_or_default()
 }
 
-/// JS 真值判定（`Boolean(x)`）
+/// JS （`Boolean(x)`）
 pub fn value_is_truthy(value: &Value) -> bool {
     match value {
         Value::Null => false,
@@ -357,7 +357,7 @@ pub fn value_is_truthy(value: &Value) -> bool {
     }
 }
 
-/// 从请求头取 User-Agent（日志用；缺失给 `-`）
+/// from request User-Agent（ use ； to `-`）
 pub fn user_agent_of(headers: &axum::http::HeaderMap) -> String {
     headers
         .get(header::USER_AGENT)
@@ -387,65 +387,65 @@ pub fn request_source(
     }
 }
 
-// ─── 请求记账（请求统计的唯一写入点）────────────────────────
+// ─── request（requeststatistics 1 ）────────────────────────
 
-/// 一条请求的收尾上下文：流式分支要把它交给响应流，等流真的结束时再记账。
+/// 1 request up down ： need to response， etc when 。
 ///
-/// 为什么字段是「值」而不是引用：`RecordContext` 会被移进响应流，
-/// 而响应流是 `'static`（它要活得比 handler 的栈帧久）。
+/// Why is 「」 not is use ：`RecordContext` will response，
+/// response is `'static`（ need handler ）。
 pub struct RecordContext {
-    /// 统计存储句柄（`Arc` 克隆，与 ServerState 里那份是同一实例）
+    /// statistics（`Arc` ， and ServerState that is 1 ）
     pub stats: Arc<RequestStats>,
-    /// usage / 尝试次数旁路槽
+    /// usage / 
     pub telemetry: Arc<RequestTelemetry>,
-    /// 请求开始时刻（毫秒 Unix 时间戳）
+    /// request when （ms Unix when ）
     pub started_at: i64,
-    /// **请求侧解析**的模型（默认模型回落、目录兜底都已生效；映射**不改写**
-    /// 它 —— 客户端点名映射别名时就是别名本身，见 `resolve_model` 的说明）。
-    /// 请求日志的主列显示它；报表按模型聚合**不**用它（映射别名会被当成
-    /// 独立模型），统计键是明细里的 `upstream_model`（空回落本字段，
-    /// 见 `fold_into_daily` 的 `model_stat_key`）。
+    /// **request** （default、directory already ；** not **
+    /// —— client when is ， `resolve_model` ）。
+    /// request ； by ** not ** use （ will 
+    /// ），statistics is `upstream_model`（empty，
+    /// `fold_into_daily` `model_stat_key`）。
     pub model: String,
-    /// **下游请求的**模型名（客户端请求体里的原值，映射 / 默认注入生效前；
-    /// 客户端没点名时为空串）。请求日志用它和上游名（telemetry 的
-    /// `upstream_model`）分两行展示「请求的什么 → 转发的什么」。
+    /// ** down request **（clientrequest ， / default before ；
+    /// client no when as empty）。request use and up （telemetry 
+    /// `upstream_model`）「request → 」。
     pub client_model: String,
-    /// **下游请求体里**客户端显式指定的思考等级（`max` 等；空串 = 没指定）。
-    /// 请求日志给下游模型名带 `(等级)` 后缀；与上游侧的
-    /// `snapshot.upstream_reasoning` 分开记 —— 「客户端要的档位」与「实际发出的
-    /// 档位」是两个读数（客户端没指定时映射绑定可补一个，承载家也可能归并）。
-    /// 采集时机与 [`Self::client_model`] 相同（入口解析出 payload 后取一次）。
+    /// ** down request**client etc （`max` etc ；empty = no ）。
+    /// request to down `( etc )` after ； and up 
+    /// `snapshot.upstream_reasoning` —— 「client need 」 and 「 
+    /// 」 is （client no when can 1 ， can can and ）。
+    /// when and [`Self::client_model`] （ payload after 1 ）。
     pub client_reasoning: String,
-    /// 下发给客户端的 HTTP 状态码
+    /// down to client HTTP 
     pub status: i64,
-    /// **下游原始请求体文本**（`request_raw` 表的请求侧；完整保存，None = 未采集）。
+    /// ** down request**（`request_raw` request；，None = ）。
     pub raw_request: Option<String>,
-    /// **完整响应正文文本**（`request_raw` 表的响应侧）。
-    /// 非流式由入口填入，流式在结束时从采集缓冲定稿。
+    /// **response**（`request_raw` response）。
+    /// by ， in when from 。
     pub raw_response: Option<String>,
-    /// 这条请求是不是**模型测试**发起的（默认 false，见
+    /// this request is not is **** （default false，
     /// `request_stats::RequestEntry::is_test`）。
     ///
-    /// 只有 `api::model_test` 传 true：测试与真实请求走同一条转发链路、明细
-    /// 同形，唯一的分野就是「谁发起的」—— 存档时要能把它标出来（报表排除、
-    /// 请求日志标记）。
+    /// has `api::model_test` true： and request 1 、
+    /// ， 1 is 「 」—— when need can （excluding、
+    /// request）。
     pub is_test: bool,
-    /// 入口采集的统计分类、识别依据与已鉴权的 Key 身份。
+    /// statistics、 and already Key 。
     pub source: crate::server::request_stats::RequestSource,
 }
 
-/// 转发前就失败（body 非法 / 缺字段 / 模型不在目录）时的记账。
+/// before failure（body / / not in directory） when 。
 ///
-/// 这些请求**一次都没往上游发**，所以 attempts 记 0 会被存储层夹成 1
-/// （契约是「含首次、恒 ≥1」）。用 1 表示「至少被处理过一次」，
-/// 这与「上游被打了 N 次」在报表里是两回事，报表侧靠 status 与 error 区分。
+/// this request** 1 no up **， attempts 0 will 1
+/// （ is 「、 ≥1」）。 use 1 「 1 」，
+/// this and 「 up N 」 in is ， status and error 。
 ///
-/// 为什么这几条也要记：`model_not_found` 是客户端配置错误最常见的形态，
-/// 不记的话用户在报表里看不到「请求全在失败」，只会以为统计漏了。
+/// Why this need ：`model_not_found` is clientconfigerror ，
+/// not use in not to 「request in failure」， will as statistics。
 ///
-/// `client` 由调用方从请求头判好带入（`core::client::classify`）：早失败
-/// 恰恰最需要知道「是谁发来的」（客户端配错模型就是典型场景）；拿不到
-/// headers 的路径传空串（见 `RequestEntry::client`）。
+/// `client` by use from request（`core::client::classify`）：failure
+/// need need 「 is 」（client is ）； not to 
+/// headers pathempty（ `RequestEntry::client`）。
 pub fn record_early_failure(
     state: &ServerState,
     started_at: i64,
@@ -461,10 +461,10 @@ pub fn record_early_failure(
         client_model: model.to_string(),
         client_reasoning: client_reasoning.to_string(),
         model: model.to_string(),
-        // 与 `payload_response` 同一口径：非法状态码会被归一成 500
+        // and `payload_response` 1 ： will 1 500
         status: i64::from(error.http_status().as_u16()),
-        // 转发前就失败：没有 id（telemetry 是空的）、也没有任何原始报文 ——
-        // 请求侧的正文可能解析都没解析成功，存半截没有意义
+        // before failure： no has id（telemetry is empty ）、 no has ——
+        // request can can no success， no has 
         raw_request: None,
         raw_response: None,
         is_test: source.is_internal(),
@@ -473,23 +473,23 @@ pub fn record_early_failure(
     record_entry(&context, Some(error.message.clone()));
 }
 
-/// 在途回写的接线：把 telemetry 的每一次状态变化写进那条「进行中」行。
+/// in ： telemetry 1 that 「 in 」。
 ///
-/// ── 它解决什么 ──────────────────────────────────────────────
-/// `record_started` 插的进行中行只有 id / ts / 模型名 —— 选路与发送体定稿都发生
-/// 在它之后，所以整段转发期间列表里那一行看不出「谁在承载、转发的是哪个模型、
-/// 已经试了几轮」。而这几样在请求真正发出去之前就已经确定，只是此前没有回写的
-/// 落点（`requests` 表上原本只有收尾与僵尸行清理两条写路径）。
+/// ── ──────────────────────────────────────────────
+/// `record_started` in has id / ts / —— and 
+/// in after ， that 1 not 「 in 、 is 、
+/// already 」。 this in request before already ， is before no has 
+/// （`requests` up has and path）。
 ///
-/// ── 为什么是闭包而不是让 telemetry 直接持有 `Arc<RequestStats>` ──
-/// `core::upstream` 不认识 `request_stats`（依赖方向见 `core/mod.rs` 的约定），
-/// 而「快照 → 落库形态」的转换本来就在本模块（`record_entry` 收尾时做的是同一件
-/// 事，两份转换共用下面两个 `stored_*` 函数）。接线在这里，core 只负责在状态
-/// 变化时调一下。
+/// ── Why is not is telemetry has `Arc<RequestStats>` ──
+/// `core::upstream` not `request_stats`（ to `core/mod.rs` ），
+/// 「 → 」 in （`record_entry` when is 1 
+/// ， use down `stored_*` ）。 in this ，core in 
+/// when 1 down 。
 ///
-/// `started_at` 由调用方带进来：首响在 telemetry 里存的是**绝对时刻**，而明细里
-/// 那一列是相对请求开始的毫秒数（口径见 `RequestEntry::first_response_ms`）——
-/// 减法只能在这里做，telemetry 不知道请求什么时候开始的。
+/// `started_at` by use ： in telemetry is ** for when **，
+/// that 1 is for request ms（ `RequestEntry::first_response_ms`）——
+/// can in this ，telemetry not request when 。
 pub fn live_row_sink(
     stats: Arc<RequestStats>,
     id: String,
@@ -504,16 +504,16 @@ pub fn live_row_sink(
                 account_name: snapshot.account_name.clone(),
                 upstream_model: snapshot.upstream_model.clone(),
                 upstream_reasoning: snapshot.upstream_reasoning.clone(),
-                // 与收尾同口径：一次都没发出去（0）按 1 次算，理由见
-                // `TelemetrySnapshot::attempts` 的说明
+                // and ： 1 no （0） by 1 ， by 
+                // `TelemetrySnapshot::attempts` 
                 attempts: snapshot.attempts.max(1),
                 first_response_ms: snapshot.first_response_at.map(|at| (at - started_at).max(0)),
-                // 阶段与阶段起点：起点为 None 只可能是「还停在初始阶段（连接中）、
-                // 一次都没切换过」——那个阶段的起点就是**请求开始时刻**（下面这个
-                // started_at，与插入在途行时写进 phase_started_at 的值同源），
-                // 所以用 started_at 兜底。不兜的话这一列会写进 NULL，
-                // 而状态列的第二行按它算「连接中已持续多久」会算出个负数或
-                // 干脆没有 —— 两种都不该出现在「已受理但还没发出去」的请求上
+                // and ： as None can can is 「 in （ in ）、
+                // 1 no 」—— that is **request when **（ down this 
+                // started_at， and in when phase_started_at ），
+                // use started_at 。 not this 1 will NULL，
+                // by 「 in already 」 will or 
+                // no has —— not this in 「 already no 」 request up 
                 phase: snapshot.phase.as_str().to_string(),
                 phase_started_at: snapshot.phase_started_at.or(Some(started_at)),
                 attempt_details: stored_attempt_details(&snapshot.attempts_detail),
@@ -524,10 +524,10 @@ pub fn live_row_sink(
     }
 }
 
-/// telemetry 的尝试明细 → 落库形态。
+/// telemetry → 。
 ///
-/// 收尾记账（`record_entry`）与在途回写共用这一份：两处各写一遍转换，迟早会因为
-/// 「只改了一处」让进行中行与收尾行显示成两种样子。
+/// （`record_entry`） and in use this 1 ： 1 ， will as 
+/// 「 1 」 in and 。
 fn stored_attempt_details(list: &[usage::AttemptDetail]) -> Vec<AttemptDetail> {
     list.iter()
         .map(|item| AttemptDetail {
@@ -555,13 +555,13 @@ fn stored_attempt_details(list: &[usage::AttemptDetail]) -> Vec<AttemptDetail> {
                 })
                 .collect(),
             notice: item.notice.clone(),
-            // 体字节数原样透传（None = 这一轮没发出去；采集侧的理由见 usage 的字段说明）
+            // （None = this 1 no ； by usage ）
             body_bytes: item.body_bytes,
         })
         .collect()
 }
 
-/// telemetry 的脱敏命中 → 落库形态（与 [`stored_attempt_details`] 同一理由）
+/// telemetry in → （ and [`stored_attempt_details`] 1 by ）
 fn stored_sensitive_hits(list: &[usage::SensitiveHit]) -> Vec<SensitiveHit> {
     list.iter()
         .map(|hit| SensitiveHit {
@@ -571,24 +571,24 @@ fn stored_sensitive_hits(list: &[usage::SensitiveHit]) -> Vec<SensitiveHit> {
         .collect()
 }
 
-/// 记一条请求日志。
+/// 1 request。
 ///
-/// ── 记账为什么绝不能影响请求 ─────────────────────────────────
-/// `RequestStats::record` 本身不返回 `Result`：内部对写盘失败只打
-/// `[Stats] 统计写入失败`，锁中毒走 `poisoned.into_inner()` 继续用，
-/// 序列化失败跳过该条 —— 存储层已把「统计失败」全部收敛成「少记一条」，
-/// 没有任何 unwind 路径，所以这里不需要 `catch_unwind`。
+/// ── Why not can request ─────────────────────────────────
+/// `RequestStats::record` not return `Result`： for failure
+/// `[Stats] statisticsfailure`， in `poisoned.into_inner()` use ，
+/// failure this —— already 「statisticsfailure」「 1 」，
+/// no has unwind path， this not need need `catch_unwind`。
 ///
-/// ── 字段口径 ────────────────────────────────────────────────
-///   ts          请求**开始**时刻（不是记账时刻）：趋势图要按「用户什么时候
-///               发的请求」归日
-///   durationMs  收尾 - 开始（含排队、选路、上游等待、流下发）
-///   firstResponseMs  首帧到达 - 开始；全程没有帧到达时为 null
-///   attempts    旁路槽里累计的上游请求数；一次都没发出去时回落 1
-///   error       旁路槽里的原因优先（更接近根因），否则用调用方给的兜底文案
+/// ── ────────────────────────────────────────────────
+/// ts request**** when （ not is when ）： need by 「 use when 
+/// request」
+/// durationMs - （、、 up etc 、 down ）
+/// firstResponseMs to - ； no has to when as null
+/// attempts up request； 1 no when 1
+/// error Reason（），otherwise use use to 
 pub fn record_entry(context: &RecordContext, fallback_error: Option<String>) {
     let mut snapshot = context.telemetry.snapshot();
-    // 收尾时刻只取一次：明细里的 durationMs 与日志里打的那一个是同一个值
+    // when 1 ： durationMs and that 1 is 1 
     let finished_at = logging::now_ms();
     let duration_ms = finished_at - context.started_at;
     let first_response_ms = snapshot
@@ -607,56 +607,56 @@ pub fn record_entry(context: &RecordContext, fallback_error: Option<String>) {
     let attempts = snapshot.attempts.max(1);
     let mut entry = NewRequestEntry::new(context.model.clone(), context.status);
     entry.ts = Some(context.started_at);
-    // 关联 id：调试模式的原始报文按它取（见 `core::debug_traffic`）。
-    // 空串 = 该请求没生成 id（转发前就失败的路径），前端不显示详情入口。
-    // clone 而不是 move：snapshot.id 下面给 store_raw 复用（同一关联键）
+    // id： by （ `core::debug_traffic`）。
+    // empty = this request no id（ before failure path）， before not 。
+    // clone not is move：snapshot.id down to store_raw use （ 1 ）
     entry.id = snapshot.id.clone();
     entry.duration_ms = duration_ms;
     entry.first_response_ms = first_response_ms;
     entry.attempts = attempts;
-    // 存储契约里这两个字段是 String（不是 Option），空串就是「没有账号」的表示
+    // this is String（ not is Option），empty is 「 no has 」 
     entry.account_id = snapshot.account_id;
     entry.account_name = snapshot.account_name;
     entry.provider = snapshot.provider;
-    // 下游名 / 上游名分记：下游名是客户端原值（context 带入），上游名是
-    // 实际发出的名字（telemetry 采集，空串 = 一次都没发出去）。两者都空时
-    // 前端回落显示 model 一行 —— 旧数据没有这两个键，同一口径。
+    // down / up ： down is client（context ）， up is 
+    // （telemetry ，empty = 1 no ）。empty when 
+    // before model 1 —— old no has this ， 1 。
     entry.client_model = context.client_model.clone();
     entry.upstream_model = snapshot.upstream_model;
-    // 等级双端透传（与上面两行同源）：下游等级来自入口采集（context），
-    // 上游等级来自发送体定稿处的采集（telemetry 快照）
+    // etc （ and up ）： down etc （context），
+    // up etc （telemetry ）
     entry.client_reasoning = context.client_reasoning.clone();
     entry.upstream_reasoning = snapshot.upstream_reasoning;
-    // 两个明细字段（本次改造）：都是「有采集才有值」的旁路数据，采集点在
-    // 转发链路上（`core::upstream::usage` 槽），这里只负责搬运。
-    //   · attemptDetails：每次上游尝试的（provider / 账号 / 状态码 / 错误摘要
-    //     / 本轮内部的退避重试 / 提示），请求日志「重试」列的弹层显示它；
-    //     转发前就失败的请求没有它（空表）。
-    //   · sensitiveHits：本次命中的敏感词与次数，同一列的紫色标签显示它。
-    // 存储层的两个类型与采集侧**各自定义、当前同形**（见 `RequestEntry` 的
-    // 注释），所以这里逐字段转一次 —— 不做 `From` impl 是为了让两处结构能
-    // 各自演化（把「转发期形态」与「落库形态」绑成一个类型，将来改一处
-    // 就得同时改另一处，而它们的变化理由本来不同）。
-    // 转换走 `stored_*` 两个函数：在途回写（`live_row_sink`）用的是同一份，
-    // 两处各写一遍迟早会让进行中行与收尾行显示成两种样子。
+    // （）： is 「 has has 」 ， in 
+    // up （`core::upstream::usage` ）， this 。
+    // · attemptDetails： up （provider / / / error need 
+    // / / ），request「」 ；
+    // before failure request no has （empty）。
+    // · sensitiveHits： in and ， 1 。
+    // and **、current**（ `RequestEntry` 
+    // ）， this 1 —— not `From` impl is as can 
+    // （ 「」 and 「」 1 ， will 1 
+    // when 1 ， by not ）。
+    // `stored_*` ： in （`live_row_sink`） use is 1 ，
+    // 1 will in and 。
     entry.attempt_details = stored_attempt_details(&snapshot.attempts_detail);
     entry.sensitive_hits = stored_sensitive_hits(&snapshot.sensitive_hits);
-    // 选路决策快照：有采集才落（没走到选路的请求是 Null，前端不渲染那一段）
+    // ： has （ no to request is Null， before not that 1 ）
     entry.route = snapshot.route.unwrap_or(Value::Null);
-    // 来源标记：入口带进来的事实，存储层据此排除报表聚合（见该字段的说明）
+    // ： ，excluding（ this ）
     entry.is_test = context.is_test;
-    // 来源客户端：入口解析请求头判好的类型（`core::client::classify`），
-    // 存储层只搬运不重判 —— UA 规则只有一份
+    // client：request （`core::client::classify`），
+    // not —— UA then has 1 
     entry.source = context.source.clone();
     entry.error = error;
     entry.prompt_tokens = snapshot.prompt_tokens;
     entry.completion_tokens = snapshot.completion_tokens;
     entry.total_tokens = snapshot.total_tokens;
     entry.cache_read_tokens = snapshot.cache_read_tokens;
-    // Token 限制器的增量记账（先取快照再 record：entry 的字段已被 move）。
-    // 请求收尾立刻把本次消耗加进当前窗口，选路的 Token 跳过判定不必等下一轮
-    // 10 秒刷新。account_id 为空 = 没走到任何账号（转发前就失败的路径），
-    // tokens ≤ 0 在记账函数里也会拦 —— 失败请求通常没有用量，加了也是零。
+    // Token limit （ record：entry already move）。
+    // request current， Token not etc down 1 
+    // 10 seconds new 。account_id as empty = no to （ before failure path），
+    // tokens ≤ 0 in will —— failurerequest no has usage， is 。
     let limited_account = entry.account_id.clone();
     let limited_tokens = entry.total_tokens;
     let limited_model = if entry.upstream_model.is_empty() { entry.model.clone() } else { entry.upstream_model.clone() };
@@ -670,12 +670,12 @@ pub fn record_entry(context: &RecordContext, fallback_error: Option<String>) {
     if !limited_account.is_empty() {
         limiter::note_request_tokens(&limited_account, limited_tokens, finished_at);
     }
-    // 原始正文落库（request_raw 表）：与明细同 id、同开始时刻。独立于 record
-    // 的一次写入（大字段不进记账热路径，理由见 `RequestStats::store_raw`）；
-    // 两侧的采集在入口已按调试模式 gate（见 `capture_raw_body` / `capture_raw_json`
-    // —— 这里的两侧通常都是 None，store_raw 提前返回不写行）；id 为空 / 两侧
-    // 全空也在 store_raw 内部拦下，失败只打控制台 —— 正文是排障辅助，
-    // 丢一侧不能影响已经收尾的请求
+    // （request_raw ）： and id、 when 。 record
+    // 1 （ not path， by `RequestStats::store_raw`）；
+    // in already by gate（ `capture_raw_body` / `capture_raw_json`
+    // —— this is None，store_raw before return not ）；id as empty / 
+    // empty in store_raw down ，failure —— is ，
+    // 1 not can already request
     context.stats.store_raw(
         &snapshot.id,
         context.started_at,
@@ -698,7 +698,7 @@ pub fn record_entry(context: &RecordContext, fallback_error: Option<String>) {
     );
 }
 
-/// 按字符截断（超出部分用 `…` 收尾）。
+/// by （ use `…` ）。
 pub fn truncate_chars(text: &str, limit: usize) -> String {
     if text.chars().count() <= limit {
         return text.to_string();
@@ -708,44 +708,44 @@ pub fn truncate_chars(text: &str, limit: usize) -> String {
     out
 }
 
-/// 边透传边记账的响应流。
+/// response。
 ///
-/// ── 为什么包一层（而不是在 handler 里记账）────────────────────
-/// 流式请求的「用户视角完成点」是**最后一个字节发完**，而 handler 在交出
-/// 响应头时就返回了。包一层之后，明细的 durationMs 覆盖整个下发过程，
-/// 客户端中途断开、上游断流这两种「非正常收尾」也能各记一条。
+/// ── Why 1 （ not is in handler ）────────────────────
+/// request 「 use 」 is ** after 1 **， handler in 
+/// response when return。 1 after ， durationMs down ，
+/// client in 、 up this 「」 can 1 。
 ///
-/// ── 透传是否受影响 ──────────────────────────────────────────
-/// 不影响：本类型对每个 `Item` 原样转发（只补一个「是不是到 None 了」的
-/// 观察），不读、不改、不缓存字节，也不吞错误。
+/// ── is ──────────────────────────────────────────
+/// not ： for `Item` （ 1 「 is not is to None 」 
+/// ）， not 、 not 、 not ， not error。
 ///
-/// ── 为什么还要认「收尾帧」（`terminals`）─────────────────────
-/// 上面那条「跑到 `None` 才算成功」的判据，对**按帧收尾**的客户端是不成立的：
-/// 它们在收到本协议的收尾帧时就已知这一轮结束，**当场关连接**，从不读到 EOF。
-/// 于是 `Drop` 里那支「没跑到 None」的分支会被触发 —— 一次**成功**的请求被记成
-/// 「响应流未完整下发」，并因「失败清零 token」的归一（`NewRequestEntry::normalize`）
-/// 把真实用量一并抹掉。这不是偶发竞态：只要客户端这么收尾，它就**稳定**复现。
+/// ── Why need 「」（`terminals`）─────────────────────
+/// up that 「 to `None` success」 ， for ** by ** client is not ：
+/// in to when already this 1 ，****， from not to EOF。
+/// is `Drop` that 「 no to None」 will —— 1 **success** request 
+/// 「response down 」， and 「failure token」 1 （`NewRequestEntry::normalize`）
+/// usage 1 and 。 this not is ： need client this ，****。
 ///
-/// 实测到的两类客户端都这样：
-///   - Codex Desktop（`/v1/responses`）：收到 `response.completed` 即断开；
-///   - 任何读到 `data: [DONE]` 就停的 Chat 客户端（含 Node 的
-///     `reader.cancel()` 写法）：`/v1/chat/completions` 同样中招。
+/// to client this ：
+/// - Codex Desktop（`/v1/responses`）： to `response.completed` ；
+/// - to `data: [DONE]` Chat client（ Node 
+/// `reader.cancel()` ）：`/v1/chat/completions` in 。
 ///
-/// 所以判据补一条：**已经下发过本协议的收尾帧** ⇒ 这一轮在协议层已经完整，
-/// 之后客户端怎么关都算正常收尾。收尾帧表由调用方给（各入口知道自己发什么），
-/// 本类型只做字节比对。
+/// 1 ：** already down ** ⇒ this 1 in already ，
+/// after client。 by use to （），
+/// for 。
 ///
-/// 注意这不改变「谁先到算谁」的语义：真中断（客户端在收尾帧之前就跑掉）仍然
-/// 按 `STREAM_ABORTED` 记，`error` 也仍然由各转发层写进 telemetry。
+/// Note this not 「 to 」 ： in （client in before ）
+/// by `STREAM_ABORTED` ，`error` by telemetry。
 struct TerminalScan {
-    /// 待匹配的收尾帧字节特征
+    /// 
     frames: TerminalFrames,
-    /// 跨 chunk 的匹配窗口：收尾帧可能被 TCP 分片切开
+    /// chunk ： can can TCP 
     ///
-    /// 窗口只留「最长特征 - 1」个字节 —— 够接上被切开的那一段，又不会
-    /// 随着整段响应无界增长（一次 SSE 响应动辄数百 KB）。
+    /// 「 - 1」 —— up that 1 ， not will 
+    /// responsenone（ 1 SSE response KB）。
     window: Vec<u8>,
-    /// 已经命中过（幂等标记，命中后不再扫）
+    /// already in （ etc ， in after not ）
     seen: bool,
 }
 
@@ -754,19 +754,19 @@ impl TerminalScan {
         Self { frames, window: Vec::new(), seen: false }
     }
 
-    /// 吃一段刚下发的字节，返回「本次是否首次命中收尾帧」。
+    /// 1 down ，return「 is in 」。
     fn push(&mut self, chunk: &[u8]) -> bool {
         if self.seen || self.frames.is_empty() {
             return false;
         }
-        // 窗口 = 上次残留 + 本段：收尾帧被 TCP 分片切开时，靠这段残留把两半接上
+        // = up + ： TCP when ， this up 
         self.window.extend_from_slice(chunk);
         let hit = self
             .frames
             .iter()
             .any(|frame| contains(&self.window, frame));
-        // 只留「最长特征 - 1」个字节：比这更长的残留接不上任何一帧的开头，
-        // 留着只会让窗口随响应体积无界增长（一次 SSE 响应动辄数百 KB）
+        // 「 - 1」 ： this not up 1 ，
+        // will responsenone（ 1 SSE response KB）
         let longest = self.frames.iter().map(|frame| frame.len()).max().unwrap_or(0);
         let keep = longest.saturating_sub(1);
         if self.window.len() > keep {
@@ -780,11 +780,11 @@ impl TerminalScan {
     }
 }
 
-/// `haystack` 里是否包含 `needle`（空 needle 恒假）。
+/// `haystack` is `needle`（empty needle ）。
 ///
-/// 逐字节朴素匹配：特征串最长也就 30 来个字节、窗口不超过它的两倍，
-/// 单段响应里扫这点字节的开销可以忽略（对比之下，为它引一个字符串搜索
-/// 依赖或写 KMP 都是过度设计）。
+/// ： 30 、 not ，
+/// response this can ignore（ for down ， as 1 
+/// or KMP is ）。
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     !needle.is_empty()
         && haystack.len() >= needle.len()
@@ -793,50 +793,50 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
 
 pub struct RecordingStream {
     inner: Box<dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin>,
-    /// 收尾上下文；`take()` 走即表示「已记账」（保证恰好记一条）
+    /// up down ；`take()` 「 already 」（ 1 ）
     context: Option<RecordContext>,
-    /// 收尾帧扫描器（`None` = 该入口没提供特征，等价于改前的行为）
+    /// （`None` = this no ， etc before as ）
     terminal: Option<TerminalScan>,
-    /// 响应正文累积缓冲（`request_raw` 表的响应侧采集，见 [`RawCapture`]）
+    /// response（`request_raw` response， [`RawCapture`]）
     raw: RawCapture,
 }
 
 impl RecordingStream {
-    /// 带收尾帧识别的构造（见 [`RecordingStream`] 的说明）。
+    /// （ [`RecordingStream`] ）。
     ///
-    /// `frames` 由调用方按自己那条协议给出（`terminal::CHAT` 等）——
-    /// 三条入口**都必须**传自己那份：漏传等于退回改前的行为（客户端按帧收尾时
-    /// 成功请求被记成中断），所以这里不再提供「不带特征」的构造入口。
+    /// `frames` by use by that to （`terminal::CHAT` etc ）——
+    /// **must** that ： etc before as （client by when 
+    /// successrequest in ）， this not 「 not 」 。
     pub fn with_terminals(
         inner: Box<dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin>,
         context: RecordContext,
         frames: TerminalFrames,
     ) -> Self {
         let terminal = if frames.is_empty() { None } else { Some(TerminalScan::new(frames)) };
-        // 响应侧采集与请求侧同一道闸：调试模式关着就不攒缓冲（零开销）——
-        // 这里定格一次，本请求的响应侧行为此后不再看开关（见 `RawCapture` 的说明）
+        // response and request 1 ： not （）——
+        // this 1 ，request response as after not （ `RawCapture` ）
         let raw = RawCapture::new(crate::server::core::debug_traffic::enabled());
         Self { inner, context: Some(context), terminal, raw }
     }
 
-    /// 记账并清空上下文（幂等：第二次调用什么都不做）。
+    /// and empty up down （ etc ： use not ）。
     ///
-    /// 响应正文在这里定稿：流的收尾点（跑到 None / 被丢弃）正是「正文完整了」
-    /// 或「正文就这么多」的时刻，此后不再有字节。
+    /// response in this ： （ to None / ） is 「」
+    /// or 「 this 」 when ， after not has 。
     fn settle(&mut self, fallback_error: Option<String>) {
         if let Some(mut context) = self.context.take() {
-            // 流式路径构造时 raw_response 恒为 None，这里用缓冲定稿直接覆盖；
-            // 若未来有入口想预填响应正文，那它不该再走流式包装（自相矛盾的约定）
+            // path when raw_response as None， this use ；
+            // if has response， that not this （ ）
             context.raw_response = self.raw.into_text();
             record_entry(&context, fallback_error);
-            // 手动终止的令牌在此注销：流的结束点 = 请求不再在途（与
-            // DisconnectGuard::complete 同一条生命周期；settle 由 Drop 兜底
-            // 调用，所以「客户端断开」「流跑完」「服务退出」三条路都会走到这里）
+            // in ： = request not in （ and 
+            // DisconnectGuard::complete 1 ；settle by Drop 
+            // use ，「client」「」「」 will to this ）
             crate::server::core::upstream::cancellation::unregister(&context.telemetry.id());
         }
     }
 
-    /// 本协议收尾帧是否已下发（`true` = 这一轮在协议层已经完整）
+    /// is already down （`true` = this 1 in already ）
     fn terminal_seen(&self) -> bool {
         self.terminal.as_ref().is_some_and(|scan| scan.seen)
     }
@@ -850,23 +850,23 @@ impl futures::Stream for RecordingStream {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         use futures::StreamExt;
-        // 本类型的字段全部是 Unpin，自身也就 Unpin，get_mut 是安全的
+        // is Unpin， Unpin，get_mut is 
         let this = self.get_mut();
-        // 已记账（说明上游流已结束）→ 不再去 poll 上游，直接报结束
+        // already （ up already ）→ not poll up ，
         if this.context.is_none() {
             return std::task::Poll::Ready(None);
         }
         let polled = this.inner.poll_next_unpin(cx);
         match &polled {
             std::task::Poll::Ready(Some(Ok(bytes))) => {
-                // 首响采集：**下发的第一个字节**到达时记一次（挂在透传流上而不是
-                // 上游字节流上，于是各条转发路径在此收敛为同一处）
+                // ：** down 1 ** to when 1 （ in up not is 
+                // up up ， is path in as 1 ）
                 if let Some(context) = &this.context {
                     context.telemetry.note_first_frame();
                 }
-                // 采集完整响应副本，透传字节原样不动。
+                // response， not 。
                 this.raw.push(bytes);
-                // 收尾帧识别：命中即说明客户端接下来随时可能断开，那属于正常收尾
+                // ： in client down when can can ， that 
                 if let Some(scan) = &mut this.terminal {
                     if scan.push(bytes) {
                         logging::verbose(
@@ -889,10 +889,10 @@ impl futures::Stream for RecordingStream {
 
 impl Drop for RecordingStream {
     fn drop(&mut self) {
-        // 走到这里说明响应流**没有**跑到 None 就被丢弃了。分两种：
-        //   · 本协议的收尾帧已经下发过 → 客户端按协议收尾（正常），不写摘要；
-        //   · 否则是真的提前丢弃（客户端中途断开 / 服务退出）→ 记一条中断摘要。
-        // 两者都仍记一条 —— 请求确实发生了，控制流已经走到 settle 之外。
+        // to this response** no has ** to None 。：
+        // · already down → client by （）， not need ；
+        // · otherwise is before （client in / ）→ 1 in need 。
+        // 1 —— request， already to settle 。
         if self.terminal_seen() {
             self.settle(None);
         } else {
@@ -901,25 +901,25 @@ impl Drop for RecordingStream {
     }
 }
 
-/// 把一条响应流包进「协议转换 + 记账」两层的通用装配。
+/// 1 response「 + 」 use 。
 ///
-/// ── 为什么顺序是「先转换、后记账」────────────────────────────
-/// `RecordingStream` 的职责是记账与首响采集，它必须看到**最终下发**的字节
-/// （客户端视角的完成点）。协议转换层（Responses / Anthropic 的流式状态机）
-/// 在它**里面**，于是：
-///   转换器 → RecordingStream → axum Body
-/// 首响时刻因此是「转换后的第一帧到达客户端」的时刻，与客户端感知一致。
+/// ── Why is 「、 after 」────────────────────────────
+/// `RecordingStream` is and ，must to ** down ** 
+/// （client ）。（Responses / Anthropic ）
+/// in ****， is ：
+/// → RecordingStream → axum Body
+/// when is 「 after 1 to client」 when ， and client 1 。
 ///
-/// `transform` 是一个「吃字节吐字节」的闭包：转换状态机自己持有，
-/// 本函数不认识任何协议。
+/// `transform` is 1 「」 ： has ，
+/// not 。
 ///
-/// `terminals` 是**本协议收尾帧的字节特征**，由调用方按自己那条入口给出
-/// （见 [`RecordingStream`] 的说明）—— 本函数同样只当字节比对，不做协议判断。
+/// `terminals` is ** **， by use by that to 
+/// （ [`RecordingStream`] ）—— for ， not 。
 ///
-/// ── 为什么收 `Box<dyn Stream>` 而不是泛型 `S` ────────────────
-/// 泛型要额外要求 `S: Unpin`（`flat_map` 的组合流不自动 Unpin），
-/// 而调用点手里本来就是 `ForwardOutcome::Stream` 给的装箱流 —— 直接收装箱
-/// 少一层泛型参数，也不必在调用点写 `Unpin` 约束。
+/// ── Why `Box<dyn Stream>` not is `S` ────────────────
+/// need need `S: Unpin`（`flat_map` not Unpin），
+/// use is `ForwardOutcome::Stream` to —— 
+/// 1 parameter， not in use `Unpin` 。
 pub fn transformed_stream(
     source: Box<dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin>,
     context: RecordContext,
@@ -927,11 +927,11 @@ pub fn transformed_stream(
     mut transform: impl FnMut(&[u8]) -> Vec<Bytes> + Send + 'static,
 ) -> Box<dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin> {
     use futures::StreamExt;
-    // 上游字节流 → 转换后的帧流
+    // up → after 
     let converted = source.flat_map(move |item| {
         let frames = match item {
             Ok(chunk) => transform(&chunk),
-            // 上游断流：把错误原样透出（由 axum 结束连接）
+            // up ： error（ by axum ）
             Err(error) => return futures::stream::iter(vec![Err(error)]).boxed(),
         };
         futures::stream::iter(frames.into_iter().map(Ok)).boxed()
@@ -939,18 +939,18 @@ pub fn transformed_stream(
     Box::new(RecordingStream::with_terminals(Box::new(converted), context, terminals))
 }
 
-// ─── 响应构造 ───────────────────────────────────────────────
+// ─── response ───────────────────────────────────────────────
 
-/// 非流式响应：`Content-Type: application/json; charset=utf-8` + 200。
+/// response：`Content-Type: application/json; charset=utf-8` + 200。
 ///
-/// 状态码固定 200：上游非 2xx 时转发层已经抛出（不会走到这里），
-/// 与 Node 的 `res.writeHead(200, ...)` 一致。charset 显式写上 ——
-/// 响应体里有中文（错误文案/思考内容）。
+/// 200： up 2xx when already （ not will to this ），
+/// and Node `res.writeHead(200, ...)` 1 。charset up ——
+/// response has in （error/）。
 pub fn json_response(body: Value) -> Response {
     let text = match serde_json::to_string(&body) {
         Ok(text) => text,
         Err(error) => {
-            // 序列化失败只可能是内部数据坏了：给一个 500，绝不 panic
+            // failure can can is ： to 1 500， not panic
             let message = format!("响应序列化失败: {error}");
             logging::log("[Model]", &format!("❌ {message}"));
             return GatewayError::with_status(500, message).payload_response();
@@ -965,11 +965,11 @@ pub fn json_response(body: Value) -> Response {
     response
 }
 
-/// 流式响应：`Content-Type: text/event-stream; charset=utf-8` +
-/// `Cache-Control: no-cache` + `Connection: keep-alive`，状态码透传。
+/// response：`Content-Type: text/event-stream; charset=utf-8` +
+/// `Cache-Control: no-cache` + `Connection: keep-alive`，。
 ///
-/// 收 `StatusCode` 而不是 `u16`：调用点要先做一次「非法码落 200」的归一
-/// （记账要用同一个值），归一放在调用点、这里只负责下发。
+/// `StatusCode` not is `u16`： use need 1 「 200」 1 
+/// （ need use 1 ）， 1 in use 、 this down 。
 pub fn sse_response(
     status: StatusCode,
     stream: Box<dyn futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin>,
@@ -986,30 +986,30 @@ pub fn sse_response(
     response
 }
 
-/// 非 2xx 的转发错误 → 按协议形态下发的错误响应。
+/// 2xx error → by down errorresponse。
 ///
-/// 三条入口的错误体形态不同（OpenAI / Responses / Anthropic），所以形态由
-/// 调用方给的闭包决定；本函数只负责把「状态码归一 + 记账」这两件共同的事做掉。
+/// error not （OpenAI / Responses / Anthropic）， by 
+/// use to ； 「 1 + 」 this 。
 ///
-/// `convert` 收 `(status, error)`，返回该协议的错误响应体。
+/// `convert` `(status, error)`，return this errorresponse。
 pub fn error_response(
     context: RecordContext,
     error: &GatewayError,
     convert: impl FnOnce(u16, &GatewayError) -> Response,
 ) -> Response {
     let status = error.http_status().as_u16();
-    // 记账里的状态码必须与客户端看到的那个一致
+    // must and client to that 1 
     let recorded = RecordContext { status: i64::from(status), ..context };
     record_entry(&recorded, Some(error.message.clone()));
     convert(status, error)
 }
 
-// ─── 调试落盘 ───────────────────────────────────────────────
+// ─── ───────────────────────────────────────────────
 
-/// 调试落盘：原始 body + 一行 meta（覆盖写；**失败不影响请求**）。
+/// ： body + 1 meta（；**failure not request**）。
 ///
-/// 与 Node 版一致：目录不存在时创建，任何 IO 失败都静默吞掉 ——
-/// 调试落盘是排障辅助，不能因为它失败就让用户的请求失败。
+/// and Node 1 ：directory not in when create， IO failure ——
+/// is ， not can as failure use requestfailure。
 pub fn write_debug_files(body: &[u8], method: &str, path: &str, user_agent: &str) {
     let dir = config::config_dir().join(DEBUG_DIR);
     if std::fs::create_dir_all(&dir).is_err() {
@@ -1024,7 +1024,7 @@ pub fn write_debug_files(body: &[u8], method: &str, path: &str, user_agent: &str
     let _ = std::fs::write(dir.join(DEBUG_META_FILE), meta);
 }
 
-/// ISO-8601 UTC 时间戳（对应 Node 的 `new Date().toISOString()`）
+/// ISO-8601 UTC when （ for Node `new Date().toISOString()`）
 pub fn iso_timestamp() -> String {
     let millis = logging::now_ms();
     match chrono::DateTime::from_timestamp_millis(millis) {
@@ -1033,7 +1033,7 @@ pub fn iso_timestamp() -> String {
     }
 }
 
-/// 请求体 sha256（十六进制小写）——去重键，对应 Node 的
+/// request sha256（）——， for Node 
 /// `createHash('sha256').update(rawBody).digest('hex')`
 pub fn sha256_hex(body: &[u8]) -> String {
     use sha2::{Digest, Sha256};
@@ -1049,25 +1049,25 @@ pub fn sha256_hex(body: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    //! 收尾帧特征表。这三张表决定「客户端提前挂断」算不算一次成功收尾，
-    //! 而判错方向的代价是不对称的：漏认 ⇒ 成功请求被记成中断、连带被
-    //! 「失败清零」抹掉用量（生产上 1176 行就是这个形状）；多认 ⇒ 把真实
-    //! 中断洗成成功（报表再也看不出断流）。所以这一组用例两头都要钉住。
+    //! 。 this 「client before 」 not 1 success，
+    //! to is not for ： ⇒ successrequest in 、 
+    //! 「failure」usage（ up 1176 is this ）； ⇒ 
+    //! in success（ not ）。 this 1 use need 。
 
     use super::{terminal, RecordContext, RecordingStream, TerminalFrames, TerminalScan};
     use crate::server::request_stats::Retention;
 
-    /// 生产实测到的收尾帧写法（CodeArts 走字节透传，上游发什么就下发什么）：
-    /// 冒号后面**没有**那个空格。取自 `request_raw.response_body` 的真实尾巴。
+    /// to （CodeArts ， up down ）：
+    /// after ** no has ** that empty。 `request_raw.response_body` 。
     const UNSPACED_DONE: &str = "data:[DONE]\n\n";
-    /// 我们自己重写的那一帧（`ReasoningCoalescer` 与各转换器的收尾）带空格。
+    /// that 1 （`ReasoningCoalescer` and ）empty。
     const SPACED_DONE: &str = "data: [DONE]\n\n";
-    /// 改前的整张 Chat 表 —— 正对照用：同一份字节，旧表认不出的必须认不出。
+    /// before Chat —— for use ： 1 ， old not must not 。
     const OLD_CHAT: TerminalFrames = &[b"data: [DONE]\n\n"];
-    /// 最后一帧的内容部分（带 finish_reason 与 usage，与生产同一形状）
+    /// after 1 （ finish_reason and usage， and 1 ）
     const LAST_CHUNK: &str = r#"data: {"id":"c1","choices":[{"index":0,"finish_reason":"stop"}],"usage":{"prompt_tokens":71476}}"#;
 
-    /// 按某条入口的特征表喂完这些片段，返回「是否认出了收尾帧」。
+    /// by this ，return「 is 」。
     fn seen_after(frames: TerminalFrames, chunks: &[&str]) -> bool {
         let mut scan = TerminalScan::new(frames);
         for chunk in chunks {
@@ -1076,13 +1076,13 @@ mod tests {
         scan.seen
     }
 
-    /// 最长特征的长度（匹配窗口的上界由它决定）。
+    /// （ up by ）。
     fn longest(frames: TerminalFrames) -> usize {
         frames.iter().map(|frame| frame.len()).max().unwrap_or(0)
     }
 
-    /// 这次改动的本体：透传写法必须认得出来。最后一句是正对照 —— 同一份字节
-    /// 喂给改前那张表，必须**不**命中，否则那 1176 行假中断就不是这个原因。
+    /// this ：must。 after 1 is for —— 1 
+    /// to before that ，must** not ** in ，otherwise that 1176 in not is this Reason。
     #[test]
     fn unspaced_done_counts_as_terminal() {
         assert!(seen_after(terminal::CHAT, &[LAST_CHUNK, UNSPACED_DONE]));
@@ -1090,50 +1090,50 @@ mod tests {
         assert!(!old_table_hits, "旧表若能命中，那 1176 行就不是这个原因");
     }
 
-    /// 带空格的写法不能因为加了新特征而漏掉 —— 那是改前唯一命中的形状，
-    /// 经 `ReasoningCoalescer` 的各家全靠左它。
+    /// empty not can as new —— that is before 1 in ，
+    /// `ReasoningCoalescer` 。
     #[test]
     fn spaced_done_still_counts() {
         assert!(seen_after(terminal::CHAT, &[LAST_CHUNK, SPACED_DONE]));
         assert!(seen_after(OLD_CHAT, &[LAST_CHUNK, SPACED_DONE]), "旧表绿的不许变红");
     }
 
-    /// CRLF 行尾（上游按 SSE 规范用 `\r\n` 时）两种空格写法都算收尾。
+    /// CRLF （ up by SSE use `\r\n` when ）empty。
     #[test]
     fn crlf_line_endings_count() {
         assert!(seen_after(terminal::CHAT, &["data: [DONE]\r\n\r\n"]));
         assert!(seen_after(terminal::CHAT, &["data:[DONE]\r\n\r\n"]));
     }
 
-    /// 收尾帧被 TCP 分片切开仍然要认出来 —— 跨 chunk 的窗口就是为它存在的；
-    /// 反过来，帧没吐完就断（只到 `data:[DON`）仍然**不**算收尾，那是真中断。
+    /// TCP need —— chunk is as in ；
+    /// ， no （ to `data:[DON`）** not **， that is in 。
     #[test]
     fn only_a_whole_frame_counts_when_chunks_split() {
         let split = &[LAST_CHUNK, "\n\ndata:[DON", "E]\n\n"];
         assert!(seen_after(terminal::CHAT, split));
         assert!(seen_after(terminal::CHAT, &["\n\ndata:[DON", "E]\n\n"]));
-        // 「只差一字节」的切法：窗口只留 longest-1，这种切法最容易暴露算错保留量
+        // 「 1 」 ： longest-1， this 
         assert!(seen_after(terminal::CHAT, &["data:[DONE]", "\n"]));
         let half_frame = seen_after(terminal::CHAT, &["data:[DON", "E]"]);
         assert!(!half_frame, "半截帧不算收尾");
     }
 
-    /// 精度边界：模型把 `data: [DONE]` 当**正文**吐出来时不算收尾。JSON 里的换行
-    /// 必须转义（字节上是反斜杠加 n），SSE 的 `data:` 字段也不允许内嵌裸换行，
-    /// 所以特征串要求的那个裸换行不会被正文命中。
+    /// ： `data: [DONE]` **** when not 。JSON 
+    /// must（ up is n），SSE `data:` not ，
+    /// need that not will in 。
     #[test]
     fn done_echoed_inside_content_is_not_a_terminal_frame() {
         let echoed = "data: {\"content\":\"示例：data: [DONE]\\n\\n 就是结束标记\"}\n\n";
         assert!(!seen_after(terminal::CHAT, &[echoed]));
         let unspaced = "data: {\"content\":\"示例：data:[DONE] 就是结束标记\"}\n\n";
         assert!(!seen_after(terminal::CHAT, &[unspaced]));
-        // 凑出了 `data:[DONE]` 但后面跟的不是换行 → 仍不算
+        // `data:[DONE]` after not is → not 
         let near_miss = &["data:[DONE", "\", \"x\":1}", "\n"];
         assert!(!seen_after(terminal::CHAT, near_miss));
     }
 
-    /// 匹配窗口必须有界：一次 SSE 响应动辄数百 KB，窗口跟着涨等于把整条响应
-    /// 复制进内存（改造前真出过这个形状的问题，所以窗口只留 longest-1 字节）。
+    /// must has ： 1 SSE response KB， etc response
+    /// （ before this ， longest-1 ）。
     #[test]
     fn scan_window_stays_bounded() {
         let chunk = "data: {\"content\":\"很长的一段回答内容\"}\n\n";
@@ -1145,25 +1145,25 @@ mod tests {
         assert!(scan.window.len() <= cap, "窗口留了 {} 字节，上限 {}", scan.window.len(), cap);
     }
 
-    /// 另外两条入口的特征原样不动（帧名带协议前缀，不存在空格方言问题）。
-    /// 这条钉的是「本次改动只碰了 Chat」，而特征表是逐入口给出的 —— 传错一张
-    /// 表就等于给那条入口悄悄换了判据。
+    /// not （ before ， not in empty）。
+    /// this is 「 Chat」， is to —— 1 
+    /// etc to that 。
     #[test]
     fn other_entries_keep_their_own_frames() {
         assert!(seen_after(terminal::RESPONSES, &["event: response.completed\n"]));
         assert!(seen_after(terminal::RESPONSES, &["event: response.failed\n"]));
         assert!(seen_after(terminal::ANTHROPIC, &["event: message_stop\n"]));
-        // DONE 是 Chat 方言：喂给另外两张表都不该命中
+        // DONE is Chat ： to not this in 
         assert!(!seen_after(terminal::RESPONSES, &[UNSPACED_DONE, SPACED_DONE]));
         assert!(!seen_after(terminal::ANTHROPIC, &[UNSPACED_DONE, SPACED_DONE]));
     }
 
-    // ── 记账结果本身（匹配器之外还有两处代码）──────────────────
+    // ── （ has ）──────────────────
     //
-    // 上面那组只证明「认得出收尾帧」。但红色与 0 token 来自**另外两处**：
-    // `Drop` 写进去的 `fallback_error`，加上 `NewRequestEntry::normalize` 的
-    // 「失败清零」。所以这里用一条真流 + 一个真统计库把结果读回来对质，
-    // 正反各一条：收尾帧之后挂断 ⇒ 绿且有用量；收尾帧之前挂断 ⇒ 仍然红。
+    // up that 「」。 and 0 token ****：
+    // `Drop` `fallback_error`， up `NewRequestEntry::normalize` 
+    // 「failure」。 this use 1 + 1 statistics for ，
+    // 1 ： after ⇒ and has usage； before ⇒ 。
 
     use std::sync::Arc;
 
@@ -1175,8 +1175,8 @@ mod tests {
     use crate::server::db::Db;
     use crate::server::request_stats::{RequestQuery, RequestStats};
 
-    /// 临时库的 RAII 守卫：**返回给调用点持有**（只在创建时删一次的写法会让
-    /// 用例失败或提前 return 时把目录留下，累积成几百个）。
+    /// when RAII ：**return to use has **（ in create when 1 will 
+    /// use failure or before return when directory down ， ）。
     struct TempDir(std::path::PathBuf);
 
     impl Drop for TempDir {
@@ -1185,7 +1185,7 @@ mod tests {
         }
     }
 
-    /// 一个只属于本次用例的统计库（进程号 + 计数 + tag 三重去重）
+    /// 1 use statistics（ + + tag ）
     fn temp_stats(tag: &str) -> (Arc<RequestStats>, TempDir) {
         static SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let id = SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -1196,7 +1196,7 @@ mod tests {
         (Arc::new(RequestStats::with_db(Some(db), Retention::default)), TempDir(dir))
     }
 
-    /// 建一条上下文：用量按生产实测的那份填（71476 / 56）
+    /// 1 up down ：usage by that （71476 / 56）
     fn context_for(stats: Arc<RequestStats>) -> (RecordContext, Arc<RequestTelemetry>) {
         let telemetry = Arc::new(RequestTelemetry::new());
         telemetry.report_usage(&serde_json::json!({
@@ -1209,9 +1209,9 @@ mod tests {
             model: "deepseek-v4.1-flash".to_string(),
             client_model: "deepseek-v4.1-flash".to_string(),
             client_reasoning: String::new(),
-            // 模拟真实流量：不是模型测试发起的（见 `RecordContext::is_test`）
+            // ： not is （ `RecordContext::is_test`）
             is_test: false,
-            // 客户端不参与本用例的断言，给空串（无 UA 的形态）
+            // client not and use ， to empty（none UA ）
             source: Default::default(),
             status: 200,
             raw_request: None,
@@ -1220,8 +1220,8 @@ mod tests {
         (context, telemetry)
     }
 
-    /// 「内容帧 + 收尾帧 + **永远不再给 EOF**」——最后一帧之后上游还挂着，
-    /// 正是 Qoder 那类客户端的做法：读到收尾帧就地挂断，连接由**客户端**先关。
+    /// 「 + + ** not to EOF**」—— after 1 after up ，
+    /// is Qoder that client ： to ， by **client**。
     fn stream_ending_at(
         frames: Vec<&'static [u8]>,
     ) -> impl futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + Unpin {
@@ -1229,7 +1229,7 @@ mod tests {
             .chain(futures::stream::pending::<Result<Bytes, std::io::Error>>())
     }
 
-    /// 取回那条明细（本次用例的库里只有一条）
+    /// that （ use has 1 ）
     fn only_row(stats: &RequestStats) -> serde_json::Value {
         let query = RequestQuery {
             offset: 0,
@@ -1251,8 +1251,8 @@ mod tests {
             .unwrap_or_else(|| panic!("应当恰好落一条明细，实际读到 {page}"))
     }
 
-    /// 走一遍「已下发这些帧、之后上游不再给 EOF」的流，然后在客户端的位置丢弃它，
-    /// 返回真正落库的那一行。三个用例只差在**帧**与**特征表**上，判据的差别才是真的。
+    /// 1 「 already down this 、 after up not to EOF」 ， after in client ，
+    /// return that 1 。 use in **** and **** up ， is 。
     async fn record_after_hangup(frames: &[&'static [u8]], terminals: TerminalFrames) -> Value {
         let (stats, _dir) = temp_stats("row");
         let (context, _telemetry) = context_for(stats.clone());
@@ -1261,11 +1261,11 @@ mod tests {
             context,
             terminals,
         );
-        // 把已知的几帧消费掉（第二帧起就可能命中收尾特征）
+        // already （ can can in ）
         for _ in 0..frames.len() {
             assert!(stream.next().await.is_some(), "这一帧应当能取到");
         }
-        // 再 poll 一次：上游还挂着（`stream_ending_at` 后面接了 pending）
+        // poll 1 ： up （`stream_ending_at` after pending）
         let still_pending =
             futures::future::poll_fn(|cx| match std::pin::Pin::new(&mut stream).poll_next(cx) {
                 std::task::Poll::Ready(_) => std::task::Poll::Ready(false),
@@ -1277,8 +1277,8 @@ mod tests {
         only_row(&stats)
     }
 
-    /// 正例：透传的 `data:[DONE]`（冒号后没空格）已经下发，客户端随即挂断 ⇒
-    /// 行是绿的、用量必须留着。这就是生产那 1176 行的形状。
+    /// ： `data:[DONE]`（ after no empty） already down ，client ⇒
+    /// is 、usagemust。 this is that 1176 。
     #[tokio::test]
     async fn hangup_right_after_unspaced_done_records_success_with_usage() {
         let row =
@@ -1289,8 +1289,8 @@ mod tests {
         assert_eq!(row["completionTokens"], Value::from(56), "用量不能被清零：{row}");
     }
 
-    /// 同一份字节、同一套丢弃动作，喂给**改前那张表** ⇒ 必须是红且 0 token。
-    /// 这条是上一条的正对照：没有它，「绿」可能只是因为这套脚手架根本不写库。
+    /// 1 、 1 ， to ** before that ** ⇒ must is and 0 token。
+    /// this is up 1 for ： no has ，「」 can can is as this not 。
     #[tokio::test]
     async fn the_old_needle_would_have_recorded_the_same_stream_as_an_abort() {
         let row = record_after_hangup(&[LAST_CHUNK.as_bytes(), UNSPACED_DONE.as_bytes()], OLD_CHAT).await;
@@ -1299,9 +1299,9 @@ mod tests {
         assert_eq!(row["promptTokens"], Value::from(0), "旧口径的失败清零：{row}");
     }
 
-    /// 反面对照：客户端在收尾帧**之前**就挂断 ⇒ 仍然是中断、仍然是红。
-    /// 少了这条，正例就只是「什么都不报」的空跑 —— 任何把中断一律写成成功的改动
-    /// 都能同时过两条，只有成对出现才说明判据真的落在收尾帧上。
+    /// for ：client in ** before ** ⇒ is in 、 is 。
+    /// this ， is 「 not 」 empty —— in 1 success 
+    /// can when ， has for in up 。
     #[tokio::test]
     async fn hangup_before_the_terminal_frame_stays_an_abort() {
         let row = record_after_hangup(&[LAST_CHUNK.as_bytes()], terminal::CHAT).await;

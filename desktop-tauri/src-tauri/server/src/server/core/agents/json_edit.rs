@@ -139,7 +139,7 @@ fn patch_array(array: CstArray, before: &[Value], after: &[Value]) -> Result<(),
             .filter(|id| old_ids.contains(id))
             .cloned()
             .collect();
-        // 调整已有顺序会改变注释归属；仅追加或删除时逐条保留原节点。
+        // already has will ；only or delete when 。
         if kept_old == kept_new
             && after
                 .iter()

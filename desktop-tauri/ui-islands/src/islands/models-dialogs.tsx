@@ -14,48 +14,48 @@ import {
 } from './models-panel-state'
 import { t } from '../i18n'
 
-/* ─── 映射弹窗 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
-/** 映射等级只在客户端未显式指定思考参数时作为默认值。 */
+/** etc in clientparameter when as default。 */
 const REASONING_TIP = t('思考等级绑定是这条映射的默认值，客户端显式指定时不覆盖。WorkBuddy 按当前地区的上游目录注入 reasoning_effort；不支持的正向等级取不高于请求的最高可用档，固定档位不能调高，目录未声明时跳过。off / none 不由映射注入；自定义等级只有提供商能确认支持时才发送。注入、归一与跳过原因写入详细日志。')
 
-/** 上游下拉的初值：候选里有就用候选里的原始拼写（value 必须与 option 逐字相同才会选中） */
+/** up down ： has use （value must and option will in ） */
 function pickUpstream(providerId: string, keep: string, locked: boolean): string {
   const options = upstreamOptions(providerId)
   const wanted = (keep || '').trim()
   const hit = options.find(item => item.id.toLowerCase() === wanted.toLowerCase())
   if (hit) return hit.id
-  // 锁定态**保住** keep：孤儿映射的 target 恰恰常常不在该家清单里（那正是它挂不上行的原因），
-  // 丢掉它会让「设置思考等级」保存时把三元组换成另一个模型，等级存到错的地方而界面上看不出异常
+  // **** keep： target not in this （ that is not up Reason），
+  // will 「set etc 」 when 1 ， etc to up not 
   if (locked && wanted) return wanted
   return options[0]?.id || ''
 }
 
 /**
- * 映射弹窗。入口只剩行内两处 —— 行尾「＋ 映射」新建、点别名 chip 改等级 —— 所以 context
- * 总是带着这一行的身份：提供商与上游模型锁定（改了就变成另一条映射），`context.alias` 有值时
- * 连对外名也锁定，只留等级可动（「设置思考等级」形态）。
+ * 。 —— 「＋ 」 new 、 chip etc —— context
+ * total is this 1 ： and up （ 1 ），`context.alias` has when 
+ * for ， etc can （「set etc 」）。
  *
- * 上游模型**只能是下拉**（数据来自该家当前清单）。这里曾经放开过「手动输入上游模型 ID」，
- * 已删除：对外名只有在目标模型已被广告时才会跟着进广告视图，而入口校验以广告视图为准 ——
- * 手输一个清单里没有的名字，映射建了也永远调不通。要用清单外的模型，正确做法是顶部的
- * 「＋ 添加模型」把它登记进该家清单，之后它自然出现在这里的下拉里。
+ * up ** can is down **（ this current）。 this 「 up ID」，
+ * already delete： for has in already when will ， as ——
+ * 1 no has ， not 。 need use ， is 
+ * 「＋ 」 this ， after in this down 。
  */
 export function MappingDialog({ context, onClose }: { context: MappingContext; onClose: () => void }) {
   const editing = Boolean(context.alias)
   const [provider, setProvider] = React.useState(() => context.provider || providerOptions()[0]?.id || '')
   const [alias, setAlias] = React.useState(context.alias || '')
-  // 初值用上面那个 provider（context.provider 为空时它已经落到了首项），两者必须同源
+  // use up that provider（context.provider as empty when already to ），must
   const [upstream, setUpstream] = React.useState(() => pickUpstream(provider, context.target, true))
   const [status, setStatus] = React.useState('')
   const [saving, setSaving] = React.useState(false)
   /**
-   * 思考等级：`select` 是下拉的当前值（'' = 不覆盖 / 某个等级 / CUSTOM_LEVEL），`custom` 是
-   * 自定义输入框里的字。keep 不在候选里（用户上次填的自定义值、或后端调整过候选表）时落到
-   * 「自定义」那一项并把值填进输入框 —— 直接丢掉会让「改别的字段时顺手把等级抹掉」。
+   * etc ：`select` is down current（'' = not / etc / CUSTOM_LEVEL），`custom` is 
+   * 。keep not in （ use up 、 or after ） when to 
+   * 「」 that 1 and —— will 「 when etc 」。
    *
-   * 候选表按**当前选中的目标模型**取（三级回落见 `models-reasoning.levels`）：先把等级绑在
-   * A 模型上、再把上游改成 B，B 不认识这个档位时同样落到「自定义」，不静默改值。
+   * by **current in **（ `models-reasoning.levels`）： etc in 
+   * A up 、 up B，B not this when to 「」， not 。
    */
   const [reasoning, setReasoning] = React.useState(() => {
     const candidates = reasoningLevels(getSnapshot().data, modelRowOf(provider, upstream))
@@ -68,7 +68,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
   const reasoningInfo = modelReasoning(targetModel)
   const candidates = reasoningLevels(getSnapshot().data, targetModel)
   const allowsCustomLevel = reasoningInfo.bindingSupported === null
-  /** 提供商候选：表格里出现过的家，再补上上下文那一家（孤儿映射可能属于「整个没进表格」的家） */
+  /** ： ， up up down that 1 （ can can 「 no 」 ） */
   const providerChoices = (() => {
     const options = providerOptions()
     for (const id of [context.provider, provider]) {
@@ -78,7 +78,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
     }
     return options
   })()
-  /** 上游候选：锁定态下 keep 不在清单里时补进去（见 pickUpstream 的说明） */
+  /** up ： down keep not in when （ pickUpstream ） */
   const upstreamChoices = (() => {
     const options = upstreamOptions(provider)
     const wanted = (upstream || '').trim()
@@ -90,8 +90,8 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
 
   const providerLabel = providerChoices.find(item => item.id === provider)?.label || provider || t('(全局)')
   /**
-   * 显示用的等级：已选的档位不在当前候选里（换了上游 / 后端换了候选表）时按「自定义」呈现
-   * —— 与初始化同一条规则，值留在输入框里而不是被静默抹掉（派生态，不改 state）。
+   * use etc ： already not in current（ up / after ） when by 「」
+   * —— and 1 then ， in not is （， not state）。
    */
   const active = reasoning.select && reasoning.select !== CUSTOM_LEVEL && !candidates.includes(reasoning.select)
     ? { select: CUSTOM_LEVEL, custom: reasoning.custom || reasoning.select }
@@ -112,7 +112,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
             ? t('上游可用档位：{levels}', { levels: reasoningInfo.levels.join(' / ') })
             : ''
 
-  /** 换了一家，上游候选整体换掉（保留同名项，切回来时不用重选） */
+  /** 1 ， up （， when not use ） */
   function changeProvider(next: string): void {
     setProvider(next)
     setUpstream(pickUpstream(next, upstream, true))
@@ -124,7 +124,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
     const wanted = editing ? (context.alias || '') : alias.trim()
     const target = upstream
     if (!wanted) { setStatus(t('请填写对外映射名')); return }
-    // 下拉为空 = 这一家清单里一个模型都没有（还没加账号 / 清单没拉到）
+    // down as empty = this 1 1 no has （ no / no to ）
     if (!target) { setStatus(t('该提供商当前没有可选的上游模型')); return }
     if (!provider) { setStatus(t('请选择提供商')); return }
     if (level && reasoningInfo.bindingSupported === true && !effectiveLevel) {
@@ -138,15 +138,15 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
     setSaving(true)
     setStatus(t('保存中…'))
     try {
-      // `reasoning` **总是显式给出**（空串 = 清空绑定）：三元组相同走的也是这条接口，而用户
-      // 在这个弹窗里看到的就是他要的结果 —— 传 undefined（= 不改）会让「从 high 改成不覆盖」
-      // 这一步静默无效
+      // `reasoning` **total is to **（empty = empty）： is this ， use 
+      // in this to is need —— undefined（= not ） will 「 from high not 」
+      // this 1 invalid
       accept(await writeBinding(provider, wanted, target, { reasoning: level, create: !editing }))
       setSaving(false)
       onClose()
       const suffix = level ? t(' · 思考等级 {level}', { level }) : ''
-      // 展示名走注册表 / 自定义目录：直接印 provider id 时，自定义家会显示成一串
-      // custom-3f2a91b04c7e，用户认不出是哪一家
+      // / directory： provider id when ， will 1 
+      // custom-3f2a91b04c7e， use not is 1 
       const label = t(shared().wbProviders?.labelOf?.(provider) || provider)
       toast(editing ? t('✅ 已更新 {name} 的思考等级', { name: wanted }) : t('✅ 已添加映射 {name} → {target}（{label}）{suffix}', { name: wanted, target, label, suffix }))
     } catch (error) {
@@ -164,8 +164,8 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
   return (
     <Dialog open onOpenChange={(next, eventDetails) => {
       if (next) return
-      // 保存中不许关：关掉会让「到底存没存进去」变成未知状态。必须走 eventDetails.cancel()
-      // —— 光「不更新 open prop」拦不住 Base UI 的 store
+      // in not ： will 「 to no 」unknown。must eventDetails.cancel()
+      // —— 「 not update open prop」 not Base UI store
       if (saving) { eventDetails.cancel(); return }
       onClose()
     }}>
@@ -176,7 +176,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
         <DialogBody>
           <div className='flex flex-col gap-1.5'>
             <Label htmlFor='mapping-provider'>{t('提供商')}</Label>
-            {/* 锁定 = 行内入口：提供商与上游模型就是这一行，不允许改 */}
+            {/* = ： and up is this 1 ， not */}
             <Select value={provider} disabled onValueChange={next => changeProvider(String(next))}>
               <SelectTrigger id='mapping-provider' className='w-full'>
                 <SelectValue>{providerChoices.find(item => item.id === provider)?.label || provider}</SelectValue>
@@ -212,7 +212,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
               </Select>
             </div>
           </div>
-          {/* 预览：当前选择会变成哪一条映射（等级一起显示，保存前就能核对） */}
+          {/* ：current will 1 （ etc 1 ， before can for ） */}
           <div className='rounded-md border border-border bg-surface-inset px-3 py-2.5 font-mono text-[12px] text-subtle'>
             {t('下游请求 ')}<b className='text-primary-fg'>{alias.trim() || t('<对外名>')}</b>{t(' → 转发')}{' '}
             <b className='text-primary-fg'>{upstream || t('<上游模型>')}</b>{t('（{label}）', { label: providerLabel })}
@@ -221,7 +221,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
           <div className='flex flex-col gap-1.5'>
             <div className='flex items-center gap-[7px]'>
               <Label htmlFor='mapping-reasoning'>{t('思考等级')}</Label>
-              {/* 问号走组件库 Tooltip（旧的 data-tip + desktop-tooltip.tsx 是同一目标的更简陋版本） */}
+              {/* Tooltip（ old data-tip + desktop-tooltip.tsx is 1 ） */}
               <Tooltip>
                 <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('思考等级的注入规则')} />}>?</TooltipTrigger>
                 <TooltipContent>{REASONING_TIP}</TooltipContent>
@@ -231,7 +231,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
               const value = String(next)
               setReasoning(prev => ({ ...prev, select: value }))
             }}>
-              {/* 改等级形态没别的可填，把焦点直接放在等级下拉上（旧实现是 setTimeout 里 focus） */}
+              {/* etc no can ， in etc down up （ old is setTimeout focus） */}
               <SelectTrigger id='mapping-reasoning' className='w-full' autoFocus={editing}>
                 <SelectValue>{active.select === CUSTOM_LEVEL
                   ? t('自定义等级…')
@@ -261,7 +261,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
           <p className='text-xs leading-[1.65] text-subtle'>
             {t('对外名可以是中文、字母、数字与 ')}<code>- _ . / :</code>{t(' 这类符号，但不能含空格或换行，且不超过 128 个字符。同一提供商内，同名绑定最多启用一条；已有启用绑定时不能新增，启用备用绑定会自动关闭其他同名绑定。不同提供商可各启用一条同名绑定，用于主备切换。')}
           </p>
-          {/* 状态行：高度固定，出现错误时弹窗不跳高 */}
+          {/* ：，error when not */}
           <div className='min-h-[18px] text-xs text-subtle' role='status'>{duplicateError || status}</div>
         </DialogBody>
         <DialogFooter>
@@ -276,13 +276,13 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
   )
 }
 
-/* ─── 添加模型弹窗 ───────────────────────────── */
+/* ─── ───────────────────────────── */
 
 /**
- * 「＋ 添加模型」：手动登记一个「上游目录里没有、但实际能路由」的模型（灰度中的新模型、按
- * 账号下发却没进目录的模型）。登记后它**真的进入该家清单**（后端在 `catalog::manifest_for`
- * 里拼接），于是表格里出现这一行、`/v1/models` 会广告它、路由与转发也都认它 —— 与内置模型
- * 相比只少几个能力位元数据（用户无从知道那些值，编一个等于对下游撒谎）。
+ * 「＋ 」： 1 「 up directory no has 、 can by 」 （ in new 、 by 
+ * down no directory ）。 after ** this **（ after in `catalog::manifest_for`
+ * ）， is this 1 、`/v1/models` will 、 by and —— and 
+ * can （ use none from that ， 1 etc for down ）。
  */
 export function CustomModelDialog({ initial, onClose }: { initial: CustomModelContext; onClose: () => void }) {
   const [provider, setProvider] = React.useState(initial.provider)
@@ -297,7 +297,7 @@ export function CustomModelDialog({ initial, onClose }: { initial: CustomModelCo
     }
     return options
   })()
-  // 候选里没有当前值时退回首项（原生 select 赋一个不存在的值也是这个结果）
+  // no has current when （ select 1 not in is this ）
   const providerValue = choices.some(item => item.id === provider) ? provider : (choices[0]?.id || '')
   const providerLabel = choices.find(item => item.id === providerValue)?.label || providerValue || t('(未选)')
   const duplicateError = id.trim() ? addModelError(providerValue, id.trim()) : ''
@@ -318,11 +318,11 @@ export function CustomModelDialog({ initial, onClose }: { initial: CustomModelCo
       onClose()
       const label = choices.find(item => item.id === providerValue)?.label || providerValue
       if (customSource.isCustom(providerValue)) {
-        // 自定义家的清单就是用户自己的登记表，登记了必然出现在表里，所以只有一句成功提示
+        // is use ， in ， has 1 success
         toast(t('✅ 已登记模型 {name}（{label}）', { name: value, label }))
       } else {
-        // 内置家：登记成功但表格里看不到这一行时，必须说清为什么 —— 表格只列「当前有可用
-        // 登录态」的家，给一个还没加账号的家登记模型不会立刻出现。不说的话用户会以为没保存成功
+        // ：success not to this 1 when ，mustWhy —— 「current has available
+        // 」 ， to 1 no not will 。 not use will as no success
         const view = next as ManageView | null
         const visible = Array.isArray(view?.models)
           && view.models.some(item => item.id === value && (item.provider || '') === providerValue)
@@ -343,7 +343,7 @@ export function CustomModelDialog({ initial, onClose }: { initial: CustomModelCo
 
   return (
     <Dialog open onOpenChange={(next, eventDetails) => {
-      // 保存中不许关：关掉会让「到底存没存进去」变成未知状态
+      // in not ： will 「 to no 」unknown
       if (next) return
       if (saving) { eventDetails.cancel(); return }
       onClose()

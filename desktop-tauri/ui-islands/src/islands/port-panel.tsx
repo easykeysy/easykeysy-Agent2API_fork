@@ -18,109 +18,109 @@ import { t } from '../i18n'
 import { API_ENDPOINTS } from '../../../ui-shared/docs-api-endpoints'
 
 /**
- * Agent2API · 端口状态面板（React 岛）。
+ * Agent2API · （React ）。
  *
- * 替换 ui/port-panel.js。对外接口与原实现**完全一致**：
+ * ui/port-panel.js。 for and ** 1 **：
  *   `window.wbPortPanel = { render, sync, portLabel, isReady }`
- * 调用点全在 ui/app.js（sync 157 / 820 / 856、isReady 183、portLabel 186、
- * render 588），一行都不用改。差别只在两处控件的实现：状态条那两个按钮走
- * 组件库的 Button，弹窗走 Dialog 一族 + Input / Label，排版类名从 ui/css 的
- * `.modal-*` / `.field-row` / `.detail` 换成 Tailwind 工具类。
+ * use in ui/app.js（sync 157 / 820 / 856、isReady 183、portLabel 186、
+ * render 588）， 1 not use 。 in ： that by 
+ * Button， Dialog 1 + Input / Label， from ui/css 
+ * `.modal-*` / `.field-row` / `.detail` Tailwind 。
  *
- * ── 这个面板负责什么（与 app.js 的分工）──────────────────────
- *   · 侧栏底部的网关状态条：网关**进程**在不在监听、端口是多少；
- *   · 端口冲突时的两个出口：结束占用进程 / 更换端口；
- *   · 「文档」页那几行接口地址的端口补写（元素 id 是 api-*，住在文档页，
- *     但只按 id 找元素，不关心在哪个页面里）。
- *   · app.js 负责页面 render() 编排与账号 / 会话 state；本文件**不碰 state**。
+ * ── this （ and app.js ）──────────────────────
+ * · ：**** in not in 、 is ；
+ * · when ： use / ；
+ * · 「」 that （ id is api-*， in ，
+ * by id ， not in ）。
+ * · app.js render() and / will state；file** not state**。
  *
- * 与 `state.health` 是两件事，别混：这里说的是网关进程，state.health 说的是
- * 上游凭证（有没有可用账号）。
+ * and `state.health` is ，： this is ，state.health is 
+ * up （ has no has available）。
  *
- * ── 形态：常驻状态条 + 按需弹窗，两块（本文件与其它面板岛不同的地方）──
+ * ── ： + by need ，（file and its not ）──
  *
- * 第一块 `#sidebar-status` 是**常驻**的：它就在页面骨架里，永远可见，
- * 所以这里在模块加载时当场挂一个 React root 上去、之后一直活着。
- * 第二块「更换端口」是**按需**的：只在端口冲突时点开，所以照 conc-dialog /
- * request-clear-modal 的手法「点击时建宿主、关闭即卸」，不再依赖 index.html
- * 里的 #port-modal* 静态节点（那些 id 一个都不读）。
+ * 1 `#sidebar-status` is **** ： in ， can ，
+ * this in when 1 React root up 、 after 1 。
+ * 「」 is ** by need ** ： in when ， conc-dialog /
+ * request-clear-modal 「 when 、」， not index.html
+ * #port-modal* （ that id 1 not ）。
  *
- * ── 为什么状态条直接挂在 .sidebar-status 上、不套宿主 ─────────
- * `.sidebar-status` 的子元素按 flex column 排（见 layout.css），`.status-line`
- * 与 `.status-actions` 的间距、窄侧栏下的换行都靠这层父子关系。中间插一层
- * wrapper 会多出一个盒子，flex 子项变成 wrapper，间距规则全部错位。所以这里
- * 清空它原有的静态子节点后直接 createRoot 到它本身 —— 它是 root 容器，
- * React 不碰它的属性，那个 title（悬停提示）由组件按状态改写。
+ * ── Why in .sidebar-status up 、 not ─────────
+ * `.sidebar-status` by flex column （ layout.css），`.status-line`
+ * and `.status-actions` 、 down this 。 in 1 
+ * wrapper will 1 ，flex wrapper， then 。 this 
+ * empty has after createRoot to —— is root ，
+ * React not ， that title（） by by 。
  *
- * ── 共享状态为什么走「外部 store」而不是组件 state ─────────────
- * `sync()` 会被 app.js 从 React 之外调用（20 秒轮询、切页、首屏），它拿到的
- * 后端状态必须立刻反映到状态条上。用 useState 就只能靠「命令式重渲染」把两
- * 边接起来；这里改成模块级快照 + useSyncExternalStore：sync() 直接改快照并
- * 通知订阅者，界面自己跟上，两边不会漂移。
+ * ── Why「 store」 not is state ─────────────
+ * `sync()` will app.js from React use （20 seconds、、）， to 
+ * after must to up 。 use useState can 「」 
+ * ； this + useSyncExternalStore：sync() and 
+ * ， up ， not will 。
  *
- * ── 轮询节奏与停表 ──────────────────────────────────────────
- * 本面板**不自建定时器**：节奏由 app.js 掌握（首屏 sync、切页 sync、20 秒
- * 主轮询 856 行），旧实现也是这个分工。唯一的订阅是壳侧的 `backend:error`
- * 事件（端口冲突等场景发出，只当「现在就去查一次」的提醒），它在 effect 里
- * 订阅、卸载即退订 —— 不留悬挂监听。
+ * ── and ──────────────────────────────────────────
+ * ** not when **： by app.js （ sync、 sync、20 seconds
+ * 856 ）， old is this 。 1 is `backend:error`
+ * （ etc ，「 in 1 」 ）， in effect 
+ * 、 —— not 。
  */
 
-/* ─── 常量与类型 ─────────────────────────────── */
+/* ─── and ─────────────────────────────── */
 
-/** 3065 是官方默认端口；真实端口由 getBackendStatus 异步补上 */
+/** 3065 is default； by getBackendStatus up */
 const FALLBACK_PORT = 3065
 
 /**
- * web 模式（面板由网关自己托管）下**地址栏就是权威的网关地址**。
+ * web （ by ） down ** is **。
  *
- * 为什么不能沿用「壳侧上报的端口」：`getBackendStatus` 给的是**进程自己监听的端口**，
- * 而 Docker 端口映射、反向代理、内网穿透之后，外面的真实地址进程从原理上不可知
- * —— 拿容器内的 `127.0.0.1:3065` 拼出来的地址，指向的是访问者自己的电脑。浏览器
- * 自带的那一份（`location.origin`）天然穿透这三层，是唯一正确的答案。
+ * Why not can use 「 up 」：`getBackendStatus` to is ** **，
+ * Docker 、 to 、 after ， from up not can 
+ * —— `127.0.0.1:3065` ， to is 。
+ * that 1 （`location.origin`） this ， is 1 。
  *
- * 项目自己已经这么用过：小浣熊网页登录的回调 URL 就是用 `location.origin` 拼的
- * （`web_shim::buildRaccoonWebAuthUrl`）。两处口径从这里起一致。
+ * already this use ： URL is use `location.origin` 
+ * （`web_shim::buildRaccoonWebAuthUrl`）。 from this 1 。
  *
- * **桌面模式必须保持现状**：那时 origin 是 Tauri 的自定义协议（`tauri://localhost`
- * 之类），不是网关地址，真端口只能问壳侧。所以这个函数在非 web 模式返回 null，
- * 由调用方回落到端口路径。
+ * **must**： that when origin is Tauri （`tauri://localhost`
+ * ）， not is ， can 。 this in web return null，
+ * by use to path。
  */
 function webOrigin(): string | null {
   if (shared().workbuddyDesktop?.platform !== 'web') return null
   const origin = typeof window === 'undefined' ? '' : window.location?.origin
-  // 非 http(s) 场景（file:// 等）origin 是字面量 "null"，那不是可用地址
+  // http(s) （file:// etc ）origin is "null"， that not is available
   return origin && origin !== 'null' ? origin : null
 }
 
-/** 本次该展示的网关基址：web 模式信地址栏，桌面模式用壳侧上报的真实端口 */
+/** this ：web ， use up */
 function gatewayBaseFor(port: number, current: string): string {
   return webOrigin() ?? (port ? `http://127.0.0.1:${port}` : current)
 }
 
 /**
- * 壳侧 `backend_status` 返回的启动失败详情（Rust 的 StartupFailure，
- * camelCase 序列化）。`label` 是侧栏那一行用的短标签（「端口被占用」这类），
- * 由后端给 —— 界面不自己拼，否则侧栏、弹窗、日志里会出现三套说法。
+ * `backend_status` return failure（Rust StartupFailure，
+ * camelCase ）。`label` is that 1 use （「 use 」 this ），
+ * by after to —— not ，otherwise、、 will 。
  */
 type PortFailure = {
-  /** 给人看的完整说明（可能上百字，只进 title 与弹窗） */
+  /** to （ can can up ， title and ） */
   message?: string
   label?: string
-  /** 端口冲突详情；非端口原因（配置迁移失败等）时为空 */
+  /** ；Reason（configfailure etc ） when as empty */
   conflict?: unknown
   /**
-   * 这个失败能不能靠结束进程解决（决定「结束占用进程」给不给）。
+   * this failure can not can （「 use 」 to not to ）。
    *
-   * 注意：旧实现读的是**顶层** `backendStatus.canEndOccupant`，而
-   * `backend_status` 命令的返回里只有 `{ready, port, portFromEnv, failure}`
-   * —— 顶层没有这个字段，于是旧界面上那颗按钮恒为 hidden、永远不出现
-   *（与它自己注释里写的意图相反）。这里按 Rust 的实际结构（StartupFailure）
-   * 从 failure 里读，把文档里那条「能杀进程才给这个出口」的规矩复原。
+   * Note: old is **** `backendStatus.canEndOccupant`，
+   * `backend_status` return has `{ready, port, portFromEnv, failure}`
+   * —— no has this ， is old up that by as hidden、 not 
+   *（ and ）。 this by Rust （StartupFailure）
+   * from failure ， that 「 can to this 」 。
    */
   canEndOccupant?: boolean
 }
 
-/** `getBackendStatus` 的返回；null = 还没查过（不是「不正常」） */
+/** `getBackendStatus` return；null = no （ not is 「 not 」） */
 type BackendStatus = {
   ready?: boolean
   port?: number
@@ -128,17 +128,17 @@ type BackendStatus = {
   failure?: PortFailure | null
 }
 
-/** `getPortOccupant` 的返回 */
+/** `getPortOccupant` return */
 type PortOccupantInfo = {
   port?: number
   occupant?: { name?: string; pid?: number; path?: string } | null
 }
 
-/** 本岛用到的壳侧接口：端口探测、结束占用进程、写盘、重启（见 bridge.rs） */
+/** use to ：、 use 、、（ bridge.rs） */
 type PortBridge = {
-  /** 桥接层注入的平台标识（'windows' / 'macos' / 'linux' / 'web'）。
-   *  本面板读它是为了区分「网页端托管面板」与桌面壳 —— 两者算网关地址的
-   *  依据不同（见 webOrigin）。 */
+  /** （'windows' / 'macos' / 'linux' / 'web'）。
+   * is as 「」 and —— 
+   * not （ webOrigin）。 */
   readonly platform?: string
   getBackendStatus(): Promise<BackendStatus | null | undefined>
   getPortOccupant(): Promise<PortOccupantInfo | null | undefined>
@@ -146,32 +146,32 @@ type PortBridge = {
   checkPort(port: number): Promise<{ ok?: boolean; message?: string; same?: boolean } | null | undefined>
   changePort(port: number): Promise<{ changed?: boolean } | null | undefined>
   restartApp(): Promise<unknown>
-  /** 订阅启动失败事件；返回值即退订函数（见 bridge.rs 的 on） */
+  /** failure；return（ bridge.rs on） */
   onBackendError?(callback: (payload: unknown) => void): (() => void) | void
   onBackendReady?(callback: () => void): (() => void) | void
 }
 
 /**
- * window 上由其它脚本 / 其它岛挂载的共享桥。
+ * window up by its / its 。
  *
- * 刻意用「局部窄类型 + 转型」而不是 declare global 往 Window 上加属性：
- * workbuddyDesktop / wbApp / wbConfirm 是多个岛共用的桥，各岛各 declare 一份
- * 会因同名属性类型不一致直接报 TS2717。本文件只声明自己独占的 wbPortPanel。
+ * use 「 + 」 not is declare global Window up ：
+ * workbuddyDesktop / wbApp / wbConfirm is use ， declare 1 
+ * will not 1 TS2717。file wbPortPanel。
  */
 type SharedWindow = {
   workbuddyDesktop?: PortBridge
   wbApp?: {
     toast?: (message: string, kind?: 'err' | 'ok') => void
-    /** 顶栏徽标也要显示网关是否就绪，状态一变就重画（app.js 导出） */
+    /** need is ， 1 （app.js ） */
     renderTopbarStatus?: () => void
   }
   wbConfirm?: {
     ask?: (options: {
       title?: string
-      /** 纯文本正文，换行保留（confirm-dialog 渲染前转义） */
+      /** ，（confirm-dialog before ） */
       text?: string
       okText?: string
-      /** danger = 不可恢复的危险操作（确认键走红） */
+      /** danger = not can （） */
       okClass?: string
     }) => Promise<boolean>
   }
@@ -185,28 +185,28 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** 脚注 / toast 的统一出口（与其它面板一致） */
+/** / toast 1 （ and its 1 ） */
 function toast(message: string, kind?: 'err' | 'ok'): void {
   shared().wbApp?.toast?.(message, kind)
 }
 
-/* ─── 共享快照（外部 store）──────────────────── */
+/* ─── （ store）──────────────────── */
 
 type PortSnapshot = {
-  /** 壳侧上报的后端状态（getBackendStatus 的最近一次结果） */
+  /** up after （getBackendStatus 1 ） */
   backend: BackendStatus | null
-  /** 当前展示的网关地址（不带 /v1）：默认端口起步，拿到真实端口后替换 */
+  /** current （ not /v1）：default， to after */
   gatewayBase: string
 }
 
 let snapshot: PortSnapshot = {
   backend: null,
-  // web 模式下到这里就已经能拿到地址栏（web_shim 注入在 `<head>` 之后、所有界面脚本
-  // 之前），所以初值直接给真地址 —— 不必先闪一下 `127.0.0.1:3065` 再改成对的
+  // web down to this already can to （web_shim in `<head>` after 、all
+  // before ）， to —— not 1 down `127.0.0.1:3065` for 
   gatewayBase: gatewayBaseFor(0, `http://127.0.0.1:${FALLBACK_PORT}`),
 }
 
-/** 快照的订阅者（当前只有状态条那一个 root） */
+/** （current has that 1 root） */
 const subscribers = new Set<() => void>()
 
 function getSnapshot(): PortSnapshot {
@@ -224,28 +224,28 @@ function subscribe(listener: () => void): () => void {
   }
 }
 
-/** 整体替换快照并通知界面：useSyncExternalStore 靠引用比较判变化 */
+/** and ：useSyncExternalStore use */
 function publish(next: PortSnapshot): void {
   snapshot = next
   for (const listener of subscribers) listener()
 }
 
-/** 端口号（顶栏徽标与状态行共用；不带协议） */
+/** （ and use ； not ） */
 function portLabel(): string {
   return snapshot.gatewayBase.replace(/^https?:\/\//, '')
 }
 
-/** 网关进程是否在监听（顶栏徽标用；null = 还没查过） */
+/** is in （ use ；null = no ） */
 function isReady(): boolean {
   return snapshot.backend?.ready === true
 }
 
 /**
- * 只负责写接口条里的地址元素，首次渲染与端口补更新共用，避免两处文案走偏。
+ * ， and update use ，。
  *
- * 对话协议三种都写出来（Chat Completions / Responses / Anthropic Messages）：
- * 客户端支持哪种就填哪一行，三家共用同一套模型与账号池。
- * 元素缺失（不在「文档」页 / 旧 DOM）时静默跳过，别让 render 崩。
+ * for （Chat Completions / Responses / Anthropic Messages）：
+ * clientsupports 1 ， use 1 and 。
+ * （ not in 「」 / old DOM） when ， render 。
  */
 function paintGatewayAddress(base: string): void {
   const paint = (id: string, text: string) => {
@@ -257,14 +257,14 @@ function paintGatewayAddress(base: string): void {
   }
 }
 
-/** 防止并发重复请求（轮询与切页可能同时触发） */
+/** and request（ and can can when ） */
 let syncing = false
 
 /**
- * 问一次壳侧后端状态并铺开：状态条、顶栏徽标、文档页地址都从这里更新。
+ * 1 after and ：、、 from this update。
  *
- * 端口可能被用户改（「更换端口」会重启应用），所以**不做一次性缓存**：
- * 每次 sync 都重新问一次，改完端口重启回来就能立刻显示新地址。
+ * can can use （「」 will use ），** not 1 **：
+ * sync new 1 ， can new 。
  */
 async function sync(): Promise<void> {
   if (syncing) return
@@ -276,44 +276,44 @@ async function sync(): Promise<void> {
     const port = Number(status?.port) || 0
     const current = getSnapshot()
     const next: PortSnapshot = {
-      // 就绪与否、失败原因都可能在这一刻变化；字段缺失按「没查过」处理
+      // and 、failureReason can can in this 1 ； by 「 no 」
       backend: status ?? null,
-      // web 模式取地址栏（端口映射 / 反代 / 穿透后的真实地址）；桌面模式取端口，
-      // 取不到就保持原值：页面照常显示，不留空也不报错
+      // web （ / / after ）；，
+      // not to ：， not empty not 
       gatewayBase: gatewayBaseFor(port, current.gatewayBase),
     }
     if (next.gatewayBase !== current.gatewayBase) paintGatewayAddress(next.gatewayBase)
     publish(next)
     shared().wbApp?.renderTopbarStatus?.()
   } catch (error) {
-    // 壳侧命令不可用（浏览器直开调试）或调用失败：保持上一次的结果，不清空
-    // —— 清空会让状态灯无故熄灭
+    // unavailable（） or use failure： up 1 ， not empty
+    // —— empty will none
     console.warn('读取后端状态失败:', errorMessage(error))
   } finally {
     syncing = false
   }
 }
 
-/** 由 app.js 的 render() 调用：重画地址与状态，并异步补上真实端口 */
+/** by app.js render() use ： and ， and up */
 function render(): void {
   paintGatewayAddress(snapshot.gatewayBase)
   void sync()
 }
 
-/** 重启应用（壳侧会拉起新进程）；提示语由调用方给，因为触发场景不同 */
+/** use （ will new ）； by use to ， as not */
 async function restartApp(message?: string): Promise<void> {
   toast(message || t('正在重启…'))
   try {
     await shared().workbuddyDesktop?.restartApp()
-    // 重启会带走本进程，新窗口由壳侧拉起；这里不做后续处理
+    // will ， new by ； this not after 
   } catch (error) {
     toast(t('重启失败：{reason}', { reason: errorMessage(error) }), 'err')
   }
 }
 
-/* ─── 第一块：侧栏常驻状态条 ─────────────────── */
+/* ─── 1 ： ─────────────────── */
 
-/** 「结束占用进程」的进行阶段：按钮文案与禁用都看它 */
+/** 「 use 」 ： by and use */
 type EndPhase = 'idle' | 'querying' | 'ending'
 
 const END_LABELS: Record<EndPhase, string> = {
@@ -323,16 +323,16 @@ const END_LABELS: Record<EndPhase, string> = {
 }
 
 /**
- * 侧栏底部的网关状态：常驻显示，不必切到「网关」页也能确认服务是否在监听。
+ * ：， not to 「」 can is in 。
  *
- * ── 只说网关进程这一件事（别把账号可用性并回来）──────────────
- * 判据只认 `backend.ready`（壳侧 is_ready 探测），**不依赖本页面能否调通
- * 管理 API**（端口冲突时管理 API 全打不通，那时 state 是 null，只有这份状态
- * 能说清发生了什么）。历史上这里混用过 /api/session 的 upstreamConfigured
- * （= 有没有可用账号），于是「没有账号」被说成「网关没就绪」。
+ * ── this 1 （ available and ）──────────────
+ * `backend.ready`（ is_ready ），** not can 
+ * API**（ when API not ， that when state is null， has this 
+ * can ）。 up this use /api/session upstreamConfigured
+ * （= has no has available）， is 「 no has 」 「 no 」。
  *
- * props.container 是那个 .sidebar-status 元素本身（root 容器）：
- * 它的 title（悬停显示完整说明）由这里按状态改写。
+ * props.container is that .sidebar-status （root ）：
+ * title（） by this by 。
  */
 function SidebarStatus({ container }: { container: HTMLElement }) {
   const { backend, gatewayBase } = React.useSyncExternalStore(subscribe, getSnapshot)
@@ -342,8 +342,8 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
   const port = portLabel()
   const ready = backend?.ready
 
-  // ── 状态灯与那一行文案：三种状态 + 「还没查过」 ──
-  // 文案里的端口用 portLabel()（与顶栏徽标同一份读数），短标签由后端给
+  // ── and that 1 ： + 「 no 」 ──
+  // use portLabel()（ and 1 ）， by after to 
   let dotVariant: StatusDotProps['variant'] = 'muted'
   let text = t('正在检查… · {port}', { port })
   if (ready === true) {
@@ -356,22 +356,22 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
     text = t('网关启动中… · {port}', { port })
   }
 
-  /** 完整说明（可能上百字）只进 title 与弹窗：状态条只有一行 */
+  /** （ can can up ） title and ： has 1 */
   const title = failure
     ? failure.message ?? ''
     : ready === true
       ? t('本地网关正在监听 {url}，可直接调用 OpenAI 兼容接口', { url: gatewayBase })
       : t('正在确认网关是否已就绪')
 
-  // 启动失败事件可能早于订阅，挂载时读取当前状态补齐。
+  // failure can can ， when current。
   React.useEffect(() => {
     void sync()
   }, [])
 
   /**
-   * 订阅启动失败事件：`backend:error` 在端口冲突等场景下由壳侧发出。
-   * 事件只是「现在就去查一次」的提醒 —— 真正的状态以 getBackendStatus 为准
-   *（事件可能在界面订阅之前就发过了）。
+   * failure：`backend:error` in etc down by 。
+   * is 「 in 1 」 —— getBackendStatus as 
+   *（ can can in before ）。
    */
   React.useEffect(() => {
     const api = shared().workbuddyDesktop
@@ -379,17 +379,17 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
     return () => { for (const unsubscribe of subscriptions) if (typeof unsubscribe === 'function') unsubscribe() }
   }, [])
 
-  // title 写在 root 容器上（React 不管容器的属性）；完整说明不截断
+  // title in root up （React not ）； not 
   React.useEffect(() => {
     container.title = title
   }, [container, title])
 
   /**
-   * 出口一：结束占用端口的进程。
+   * 1 ： use 。
    *
-   * 结束之前**必须让用户看清要动的是谁**：这是唯一一处会结束本机其它进程的
-   * 操作，而「占用端口的进程」既可能是上次没退干净的旧网关，也可能是用户自己
-   * 起的服务。把进程名与路径摆出来，用户才有机会说「不」。
+   * before **must use need is **： this is 1 1 will its 
+   * ，「 use 」 can can is up no old ， can can is use 
+   * 。 and path， use has will 「 not 」。
    */
   async function handleEndOccupant(): Promise<void> {
     if (phase !== 'idle') return
@@ -400,8 +400,8 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
       const info = await api.getPortOccupant()
       const occupant = info?.occupant
       if (!occupant) {
-        // 没查到进程：多半是系统保留段（那里根本没有进程可杀）。
-        // 这里不引导用户去杀进程，直接把出路指向换端口。
+        // no to ： is （ that no has can ）。
+        // this not use ， to 。
         toast(t('端口 {port} 上没有查到监听进程，请改用「更换端口」', { port: info?.port ?? '' }), 'err')
         return
       }
@@ -414,8 +414,8 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
         '',
         t('结束它会强制退出该程序未保存的数据。确认继续？'),
       ]
-      // 原生 confirm 在 Tauri 的 WebView 里不弹窗、直接放行（等于没有确认）——
-      // 走自绘确认弹窗（wbConfirm）；text 形态内部会转义并保留换行
+      // confirm in Tauri WebView not 、（ etc no has ）——
+      // （wbConfirm）；text will and 
       const ask = shared().wbConfirm?.ask
       if (!ask) return
       const confirmed = await ask({
@@ -433,8 +433,8 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
           name: String(occupant.name),
           pid: String(occupant.pid),
         }))
-        // 端口释放了，但网关还没起来（它启动时端口被占，已经放弃）。
-        // 问一句是否现在重启，而不是替用户决定重启。
+        // ， no （ when ， already ）。
+        // 1 is in ， not is use 。
         if (
           await ask({
             title: t('重启程序'),
@@ -480,18 +480,18 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
   )
 }
 
-/** 侧栏状态条的 React root：常驻（页面生命周期内不卸），只挂一次 */
+/** React root：（ not ）， 1 */
 let sidebarRoot: ReturnType<typeof createRoot> | null = null
 let sidebarContainer: HTMLElement | null = null
 
 /**
- * 把状态条挂到页面骨架里的 `#sidebar-status` 上。
+ * to `#sidebar-status` up 。
  *
- * 直接挂在这个 div 上（不套宿主）的理由见文件头。两处细节：
- *   · createRoot 不会替我们清掉容器里的静态子节点，先 replaceChildren()
- *     ——否则旧骨架那两条会与 React 子树并存；属性（title）不动。
- *   · 节点不在（页面骨架变了 / 本 bundle 被别的页面复用）就静默跳过：
- *     契约方法照常注册，顶栏徽标与文档页地址不受状态条缺席影响。
+ * in this div up （ not ） by file。：
+ * · createRoot not will ， replaceChildren()
+ * ——otherwise old that will and React and ；（title） not 。
+ * · not in （ / bundle use ）：
+ * ， and not 。
  */
 function mountSidebarStatus(): void {
   const container = document.getElementById('sidebar-status')
@@ -506,9 +506,9 @@ function mountSidebarStatus(): void {
 }
 window.addEventListener('wb:shell-layout', mountSidebarStatus)
 
-/* ─── 第二块：「更换端口」弹窗（按需建、关闭即卸）── */
+/* ─── ：「」（ by need 、）── */
 
-/** 保存流程的阶段：按钮文案与禁用都看它 */
+/** ： by and use */
 type SavePhase = 'idle' | 'checking' | 'saving'
 
 const SAVE_LABELS: Record<SavePhase, string> = {
@@ -518,46 +518,46 @@ const SAVE_LABELS: Record<SavePhase, string> = {
 }
 
 type PortModalProps = {
-  /** 打开那一刻的后端状态（用来写「当前状态」并预填候选端口） */
+  /** that 1 after （ use 「current」 and ） */
   status: BackendStatus | null
   onClose: () => void
 }
 
 function PortModal({ status, onClose }: PortModalProps) {
   const currentPort = Number(status?.port) || FALLBACK_PORT
-  // 预填一个大概率可用的候选：当前端口 +1（避开当前那个占用者）；
-  // 65535 已经顶格，往回退一格
+  // 1 available ：current +1（current that use ）；
+  // 65535 already ， 1 
   const [value, setValue] = React.useState(() =>
     currentPort < 65535 ? String(currentPort + 1) : String(currentPort - 1)
   )
   const [phase, setPhase] = React.useState<SavePhase>('idle')
-  /** 字段旁的就地提示（端口可用性 / 已相同） */
+  /** （available / already ） */
   const [hint, setHint] = React.useState('')
-  /** 流程异常（调用失败）：与 hint 分开，因为它的位置与含义都不同 */
+  /** （ use failure）： and hint ， as and not */
   const [message, setMessage] = React.useState('')
-  /** 打开时全选只做一次，之后用户点进输入框不该再被全选 */
+  /** when 1 ， after use not this */
   const selectOnFocusRef = React.useRef(true)
 
   const preview = Number(value) || 0
   const statusText = status?.failure?.message || t('当前端口 {port}，网关运行正常。', { port: currentPort })
 
   /**
-   * 保存新端口并重启：**先探测、再写盘、再重启**（顺序照旧，别调换）。
+   * new and ：**、、**（ old ，）。
    *
-   * 写盘前先让后端做一次真实 bind 探测（`checkPort`）—— 用户填的端口可能同样
-   * 被占或落在系统保留段里，那时候写盘 + 重启只会让程序起不来（设置文件里留下
-   * 一个起不来的端口，下次开机照样起不来）。探测用的判据与启动时完全一致，
-   * 所以这里说可用就是真可用。changePort 内部还会再探一次，那是最后防线。
+   * before after 1 bind （`checkPort`）—— use can can 
+   * or in ， that when + will not （setfile down 
+   * 1 not ， down not ）。 use and when 1 ，
+   * this available is available。changePort will 1 ， that is after 。
    *
-   * 关窗是即时的（旧实现同样允许在途关闭）：写盘已经发生就必须重启，所以
-   * 卸载后仍继续走 restartApp；后续的 setState 落在已卸载的 root 上会被
-   * React 丢弃，没有副作用。
+   * is when （ old in ）： already must，
+   * after restartApp； after setState in already root up will 
+   * React ， no has use 。
    */
   async function handleSave(): Promise<void> {
     if (phase !== 'idle') return
     const api = shared().workbuddyDesktop
     if (!api) return
-    // 归一：number 输入框的 value 可能是空串 / 'abc'（Number → NaN），一律按 0
+    // 1 ：number value can can is empty / 'abc'（Number → NaN）， 1 by 0
     const port = Number(value) || 0
     if (!port || port < 1024 || port > 65535) {
       setMessage(t('端口需在 1024-65535 之间'))
@@ -570,7 +570,7 @@ function PortModal({ status, onClose }: PortModalProps) {
     try {
       const check = await api.checkPort(port)
       if (!check?.ok) {
-        // 不可用的原因由后端给（含「被系统保留」的完整说明），直接显示
+        // unavailable Reason by after to （「 」 ），
         setHint(check?.message || t('该端口不可用'))
         return
       }
@@ -594,8 +594,8 @@ function PortModal({ status, onClose }: PortModalProps) {
   }
 
   return (
-    // 受控 open（恒为 true）：关窗一律由 onClose 收口。Esc / 点遮罩 / 右上角 ✕
-    // 都由 Base UI 的 Dialog 内建（旧实现自己听 document 的 Escape）。
+    // open（ as true）： 1 by onClose 。Esc / / up ✕
+    // by Base UI Dialog （ old document Escape）。
     <Dialog open onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent>
         <DialogHeader>
@@ -604,14 +604,14 @@ function PortModal({ status, onClose }: PortModalProps) {
         <DialogBody>
           <DialogSection>
             <h3>{t('当前状态')}</h3>
-            {/* 完整说明由后端给（状态条那行塞不下），这里原样显示 */}
+            {/* by after to （ that not down ）， this */}
             <p>{statusText}</p>
           </DialogSection>
 
           <DialogSection>
             <h3>{t('新端口')}</h3>
-            {/* 原来是 .field-row（标签自然宽度 + 控件吃剩余），这里用同样的
-                弹性行表达；数字输入框由 ui/css 的 input[type=number] 限宽 130px */}
+            {/* is .field-row（ + remaining）， this use 
+                ； by ui/css input[type=number] 130px */}
             <div className='flex flex-wrap items-center gap-2.5'>
               <Label htmlFor='port-input' className='text-[12.5px] whitespace-nowrap text-subtle'>
                 {t('端口号')}
@@ -629,8 +629,8 @@ function PortModal({ status, onClose }: PortModalProps) {
                 onChange={event => { setValue(event.currentTarget.value) }}
                 onKeyDown={event => { if (event.key === 'Enter') void handleSave() }}
                 autoFocus
-                // 与旧实现打开时的 input.select() 等价：焦点由弹窗给出，
-                // 全选只在这一次焦点事件里做
+                // and old when input.select() etc ： by to ，
+                // in this 1 
                 onFocus={event => {
                   if (!selectOnFocusRef.current) return
                   selectOnFocusRef.current = false
@@ -644,8 +644,8 @@ function PortModal({ status, onClose }: PortModalProps) {
 
           <DialogSection>
             <h3>{t('换端口后要改的地方')}</h3>
-            {/* 内联 <code> 是协议关键字、不进词典；两边中文碎片各自走 t()
-                （与 docs-page.tsx 同一条手法：整句塞一个键就保不住行内强调） */}
+            {/* <code> is 、 not ； in t()
+                （ and docs-page.tsx 1 ： 1 not ） */}
             <p>
               {t('网关地址会变成 ')}
               <code>{`http://127.0.0.1:${preview || '—'}`}</code>
@@ -653,8 +653,8 @@ function PortModal({ status, onClose }: PortModalProps) {
             </p>
           </DialogSection>
 
-          {/* 流程异常（调用失败）留一份在正文里：toast 几秒后就没了。
-              min-h 是预留一行，出错时弹窗不会突然长高。 */}
+          {/* （ use failure） 1 in ：toast seconds after no 。
+              min-h is 1 ， when not will 。 */}
           <p className='min-h-[18px] text-[11.5px] text-muted-foreground'>{message}</p>
         </DialogBody>
         <DialogFooter>
@@ -671,7 +671,7 @@ function PortModal({ status, onClose }: PortModalProps) {
   )
 }
 
-/* ─── 弹窗的命令式外壳（与旧实现的点击即开、关闭即卸一致）── */
+/* ─── （ and old 、 1 ）── */
 
 let modalRoot: ReturnType<typeof createRoot> | null = null
 let modalHost: HTMLElement | null = null
@@ -688,11 +688,11 @@ function unmountPortModal(): void {
 }
 
 /**
- * 打开「更换端口」弹窗：点击时才建宿主与 root，关闭即摘掉。
+ * 「」： when and root，。
  *
- * 状态优先用轮询里那份（绝大多数时候都是热的），还没有（首屏、或从没 sync
- * 成功过）就现问一次壳侧；问不到就按兜底端口渲染，弹窗照常可用。
- * 重复点击先拆上一份（与 conc-dialog 同一手法）。
+ * use that （ when is ）， no has （、 or from no sync
+ * success） 1 ； not to by ，available。
+ * up 1 （ and conc-dialog 1 ）。
  */
 async function openPortModal(): Promise<void> {
   let status = getSnapshot().backend
@@ -706,12 +706,12 @@ async function openPortModal(): Promise<void> {
   modalRoot.render(<PortModal status={status} onClose={unmountPortModal} />)
 }
 
-/* ─── 注册：契约 + 挂载 ─────────────────────── */
+/* ─── ： + ─────────────────────── */
 
 /**
- * 挂载时机：本 bundle 在 body 末尾同步加载（见 index.html），骨架已经解析完。
- * readyState 判断只是兜底 —— 万一将来把 <script> 挪进 <head>，也不会因为
- * 找不到 #sidebar-status 而整块状态条失踪。
+ * when ： bundle in body （ index.html）， already 。
+ * readyState is —— 1 will <script> <head>， not will as 
+ * not to #sidebar-status 。
  */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', mountSidebarStatus, { once: true })
@@ -723,20 +723,20 @@ window.wbPortPanel = { render, sync, portLabel, isReady, gatewayBase: () => snap
 
 declare global {
   interface Window {
-    /** 端口状态面板（替换 ui/port-panel.js，接口与原实现一致） */
+    /** （ ui/port-panel.js， and 1 ） */
     wbPortPanel?: {
-      /** app.js 的 render() 转发：重画文档页地址与状态条，并异步补真实端口 */
+      /** app.js render() ： and ， and */
       render(): void
-      /** 问一次壳侧后端状态（首屏 / 切页 / 20 秒轮询都调它） */
+      /** 1 after （ / / 20 seconds） */
       sync(): Promise<void>
-      /** 网关地址（不含协议），顶栏徽标用 */
+      /** （ not ）， use */
       portLabel(): string
-      /** 网关进程是否在监听，顶栏徽标用 */
+      /** is in ， use */
       isReady(): boolean
       /**
-       * 网关基址（含协议）。插件页的 iframe 用它拼绝对地址 —— 桌面端的页面
-       * 来自 `tauri://` 协议，`/plugins/...` 这样的相对路径会打到壳的资源
-       * 目录而不是网关。
+       * （）。 iframe use for —— 
+       * `tauri://` ，`/plugins/...` this for path will to 
+       * directory not is 。
        */
       gatewayBase(): string
     }

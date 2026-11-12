@@ -1,22 +1,22 @@
 /**
- * AI 助手的工具集（手机端）。
+ * AI （）。
  *
- * ── 为什么手机端也要有工具表 ──────────────────────────────────
- * 后端的 `/api/assistant/chat` 有一条产品口径（见 `config::AssistantConfig::
- * system_prompt`）：**一只工具都没勾 → 不注入系统提示词**。而系统提示词正是
- * 告诉模型「你是 Agent2API 的内置助手，管的是本机模型转发配置」的那段话。
- * 手机端早先只发 messages、不带 tools，于是模型拿到的是一个没有身份设定的
- * 通用对话 —— 用户问「各账号余额」，它答成了银行账户余额。
+ * ── Why need has ──────────────────────────────────
+ * after `/api/assistant/chat` has 1 （ `config::AssistantConfig::
+ * system_prompt`）：** 1 no → not **。 is 
+ * 「 is Agent2API ， is config」 that 。
+ * messages、 not tools， is to is 1 no has 
+ * use for —— use 「」，。
  *
- * 原有九只操作/查询工具、共享的六只诊断工具、图片工具，以及附件读取 / 账号
- * 文件导入工具都走**网关的管理 API**（手机端本来就在用那些接口），不经过桌面
- * 壳的桥。
+ * has /、 、， and / 
+ * file** API**（ in use that ）， not 
+ * 。
  *
- * ── 与桌面端的差异 ────────────────────────────────────────────
- *   · 执行层从 `window.workbuddyDesktop` 换成 `api/gateway` 的 HTTP 调用；
- *   · 自定义提供商（`custom-` 前缀）的读写走 `/api/custom-providers`；
- *   · 写操作与额度消耗遵守同一份 confirm / full 配置，手机端用确认弹窗展示参数；
- *     未勾选的工具不进入请求，执行入口仍须再次核对权限。
+ * ── and ────────────────────────────────────────────
+ * · from `window.workbuddyDesktop` `api/gateway` HTTP use ；
+ * · （`custom-` before ） `/api/custom-providers`；
+ * · and 1 confirm / full config， use parameter；
+ * not request， for 。
  */
 
 import {
@@ -57,7 +57,7 @@ export type AssistantTool = {
   run: (args: Record<string, unknown>, context?: ImageToolContext) => Promise<ToolResult>
 }
 
-/* ─── 入参读取（模型给的东西不一定守规矩，坏值一律当缺）── */
+/* ─── （ to not 1 ， 1 ）── */
 
 function str(value: unknown, max = 256): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -74,7 +74,7 @@ function rows(value: unknown): Array<Record<string, unknown>> {
     : []
 }
 
-/** 分页：模型与映射共用（一页塞太多会撑爆上下文窗口） */
+/** ： and use （ 1 will up down ） */
 const PAGE_DEFAULT = 100
 const PAGE_MAX = 500
 
@@ -94,7 +94,7 @@ function paginate<T>(items: T[], offset: number, limit: number) {
   }
 }
 
-/** 账号点名：id 精确 > 名字精确 > 名字子串（唯一命中才算） */
+/** ：id > > （ 1 in ） */
 function findAccount(accounts: Account[], ref: string): Account {
   const needle = ref.trim()
   if (!needle) throw new Error(t('没给账号名'))
@@ -116,7 +116,7 @@ function findAccount(accounts: Account[], ref: string): Account {
 
 async function readAccounts(): Promise<Account[]> {
   const data = await fetchAccounts()
-  // 全局队列 = priority 升序（后端 priority 越小越靠前）
+  // = priority （ after priority before ）
   return (data.accounts || [])
     .slice()
     .sort((a, b) => Number(a.priority ?? 0) - Number(b.priority ?? 0))
@@ -129,9 +129,9 @@ async function readModels(): Promise<{ models: ManageModel[]; mappings: Record<s
   return { models: [...view.models, ...custom.models] as ManageModel[], mappings: [...(mappings || []), ...custom.mappings] }
 }
 
-/* ─── 原有工具（诊断读取由 assistant-read-tools 共享）── */
+/* ─── has （ by assistant-read-tools ）── */
 
-/** 1 · 获取模型列表（只读，分页） */
+/** 1 · get（，） */
 const listModels: AssistantTool = {
   id: 'list_models',
   label: t('获取模型列表'),
@@ -202,7 +202,7 @@ const listAccountBalance: AssistantTool = createBalanceTool({
   refreshBalance: id => fetchAccountUsage(id),
 }, t)
 
-/** 3 · 启用 / 禁用模型（改动） */
+/** 3 · enabled / use （） */
 const setModelEnabledTool: AssistantTool = {
   id: 'set_model_enabled',
   label: t('启用 / 禁用模型'),
@@ -238,7 +238,7 @@ const setModelEnabledTool: AssistantTool = {
   }, t),
 }
 
-/** 4 · 设置模型映射 ID（改动） */
+/** 4 · set ID（） */
 const setModelMapping: AssistantTool = {
   id: 'set_model_mapping',
   label: t('设置模型映射 ID'),
@@ -280,7 +280,7 @@ const setModelMapping: AssistantTool = {
   }, t),
 }
 
-/** 5 · 修改模型能力（改动） */
+/** 5 · can （） */
 const CAPABILITY_KEYS = [
   'maxInputTokens',
   'maxOutputTokens',
@@ -363,7 +363,7 @@ const setModelCapability: AssistantTool = {
   },
 }
 
-/** 6 · 发起模型测试（消耗额度） */
+/** 6 · （） */
 const testModel: AssistantTool = {
   id: 'test_model',
   label: t('发起模型测试'),
@@ -413,7 +413,7 @@ const testModel: AssistantTool = {
   },
 }
 
-/** 7 · 调整提供商顺位（改动）—— 整组移动 */
+/** 7 · （）—— */
 const setProviderOrder: AssistantTool = {
   id: 'set_provider_order',
   label: t('调整提供商顺位'),
@@ -453,7 +453,7 @@ const setProviderOrder: AssistantTool = {
   },
 }
 
-/** 8 · 调整账号优先级（改动） */
+/** 8 · （） */
 const setAccountOrder: AssistantTool = {
   id: 'set_account_order',
   label: t('调整账号优先级'),
@@ -491,7 +491,7 @@ const setAccountOrder: AssistantTool = {
   },
 }
 
-/** 9 · 启用 / 禁用账号（高危） */
+/** 9 · enabled / use （） */
 const setAccountEnabledTool: AssistantTool = {
   id: 'set_account_enabled',
   label: t('启用 / 禁用账号'),
@@ -528,13 +528,13 @@ const setAccountEnabledTool: AssistantTool = {
   },
 }
 
-/** 附件读取与账号文件导入：与桌面端共用同一份定义，注入手机端的 HTTP 调用。 */
+/** and file： and use 1 ， HTTP use 。 */
 const readAttachment = createAttachmentReadTool(t)
 const importAccount = createAccountImportTool({
   post: (path, body, signal) => apiCall(path, { method: 'POST', body, signal }),
 }, t)
 
-/** 全部工具（顺序 = 设置页清单顺序：只读在前，改动在后，高危最后） */
+/** （ = set： in before ， in after ， after ） */
 export const ASSISTANT_TOOLS: AssistantTool[] = [
   ...ASSISTANT_READ_TOOLS,
   readAttachment,
@@ -555,7 +555,7 @@ export function toolById(id: string): AssistantTool | undefined {
   return ASSISTANT_TOOLS.find(tool => tool.id === id)
 }
 
-/** 按勾选表组装 OpenAI tools 数组（顺序固定 = ASSISTANT_TOOLS 的顺序） */
+/** by OpenAI tools （ = ASSISTANT_TOOLS ） */
 export function toolsPayload(enabled: Record<string, boolean>): Array<Record<string, unknown>> {
   return ASSISTANT_TOOLS.filter(tool => enabled[tool.id]).map(tool => ({
     type: 'function',

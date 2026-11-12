@@ -40,14 +40,14 @@ export function dailyTrendData(series: StatsDay[], colors: Map<string, string>, 
     const models = modelSlices(day.models, colors)
     const sum = models.reduce((value, model) => value + model.tokens, 0)
     const segments = models.map(model => ({ ...model }))
-    // 老聚合可能只有总量；缺失的模型明细不能让堆叠柱少画一部分用量。
+    // can can has total； not can 1 usage。
     if (sum < total) {
       const name = unknownLabel;
       const unknown = segments.find(model => model.name === name)
       if (unknown) unknown.tokens += total - sum
       else segments.push({ name, tokens: total - sum, fill: colors.get(name) || TIP_DOT_FALLBACK })
     } else if (sum > total) {
-      // 明细与合计不一致时仍以合计画柱，提示框保留原始模型读数。
+      // and not 1 when ，。
       segments.splice(0, segments.length, { name: t('总 Token'), tokens: total, fill: TIP_DOT_FALLBACK })
     }
     segments.sort((left, right) => right.tokens - left.tokens || left.name.localeCompare(right.name))

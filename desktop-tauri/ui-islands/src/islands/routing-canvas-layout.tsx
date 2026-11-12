@@ -5,7 +5,7 @@ import { RouteIcon } from './routing-ui'
 
 type Edge = { id: string; d: string; x: number; y: number }
 
-/** 连线表达账号启用或路由参与关系，不把当前请求流量混入配置。 */
+/** enabled or by and ， not currentrequestconfig。 */
 function RoutingCanvasEdges({ root }: { root: React.RefObject<HTMLDivElement | null> }) {
   const [drawing, setDrawing] = React.useState<{ width: number; height: number; x: number; y: number; edges: Edge[] } | null>(null)
   React.useEffect(() => {

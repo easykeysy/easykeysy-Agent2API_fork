@@ -1,45 +1,45 @@
 /**
- * AI 助手的账号文件工具：读取聊天里的文本附件 + 把凭证文件导入成账号。
+ * AI file： + file。
  *
- * ── 为什么是两只工具 ────────────────────────────────────────
- * 文件原文只在用户上传的那条消息里；模型每一轮只看到「元信息 + 顶层字段 +
- * 前 1200 字符」。先 `read_attachment` 看全文（可分页），确认是哪一家的凭证
- * 之后，再 `import_account_file` 导入 —— 这样一份几十 KB 的 JSON 不会在每次
- * 工具来回里重复占上下文。
+ * ── Why is ────────────────────────────────────────
+ * file in use up that ； 1 to 「 + +
+ * before 1200 」。 `read_attachment` （ can ）， is 1 
+ * after ， `import_account_file` —— this 1 KB JSON not will in 
+ * up down 。
  *
- * ── 导入走既有的加账号接口 ──────────────────────────────────
- * 网关的 `POST /api/accounts` 本来就接受「文件文本」（`authFileContent`），
- * 由对应提供商的插件解析；本软件导出的单账号 JSON 也会在同一条链路里被识别。
- * 这里只做三件事：解析附件引用、把文件文本/模型修正后的 JSON 提交、把结果
- * 裁成模型需要的最小形状（**不返回整份账号列表**）。
+ * ── has ──────────────────────────────────
+ * `POST /api/accounts` 「file」（`authFileContent`），
+ * by for ； JSON will in 1 。
+ * this ： use 、 file/ after JSON 、 
+ * need need （** not return**）。
  *
- * ── 失败要让模型能接着改 ────────────────────────────────────
- * 后端 / 插件的错误文案会原样抛回给模型（工具执行失败的提示里）。模型据此
- * 修正 JSON 后可以用 `content` 再调一次；系统提示词约定最多重试两次，缺凭证
- * 字段就问用户，不许编造。
+ * ── failure need can ────────────────────────────────────
+ * after / error will to （failure ）。
+ * JSON after can use `content` 1 ；，
+ * use ， not 。
  *
- * ── 全量导出 ────────────────────────────────────────────────
- * 文件里是 `accounts` 数组（整库导出）时走 `POST /api/accounts/import` 批量
- * 导入，返回计数与失败明细；单账号文件仍走加账号接口，以便复用各家的解析。
+ * ── ────────────────────────────────────────────────
+ * file is `accounts` （） when `POST /api/accounts/import` 
+ * ，return and failure；file， use 。
  */
 
 import { assistantFileOf, jsonTopLevelKeys } from './assistant-files'
 import type { ImageToolContext } from './assistant-image-tools'
 import type { Translate } from './assistant-read-types'
 
-/** 单次导入的文本上限（字符）：再大应该走添加账号页或整库导入 */
+/** limit（）： this or */
 const MAX_IMPORT_CHARS = 2_000_000
-/** 读取附件时一页的默认 / 最大字符数 */
+/** when 1 default / */
 const READ_DEFAULT = 20_000
 const READ_MAX = 40_000
 
-/** 模型侧的一段提示：不认识的提供商时可以照着问用户 */
+/** 1 ： not when can use */
 const PROVIDER_HINT = 'workbuddy / workbuddy-intl（WorkBuddy）、raccoon（小浣熊）、catpaw、autoclaw / autoclaw-intl、cline-free / cline-pass、zcode / zcode-intl、loomy、commandcode、officeace、orcaterm、chatglm（智谱清言）、modelscope / modelscope-intl、atomcode、doubaowork（豆包工作）、deepseek-web'
 
 export type AccountImportApi = {
-  /** 发一条管理请求（桌面与手机各自注入，见两端的工具表） */
+  /** 1 request（ and ， ） */
   post: (path: string, body: unknown, signal?: AbortSignal) => Promise<unknown>
-  /** 导入成功后刷新账号列表（桌面端有；手机端可不传） */
+  /** success after new （ has ； can not ） */
   refresh?: () => void
 }
 
@@ -50,7 +50,7 @@ export type AccountImportTool = {
   desc: string
   params: Record<string, unknown>
   plan?: (args: Record<string, unknown>) => { lead: string; table?: { head: string[]; rows: string[][] }; note?: string }
-  /** 工具参数在界面展开时用的遮蔽形态（凭证原文不长期显示在参数里） */
+  /** parameter in when use （ not in parameter） */
   redactArgs?: (args: Record<string, unknown>) => Record<string, unknown>
   run: (args: Record<string, unknown>, context?: ImageToolContext) => Promise<{ text: string; summary: string }>
 }
@@ -59,7 +59,7 @@ function str(value: unknown, max = 256): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-/** 附件引用允许字符串（attachment:1 / 1 / 文件名）与数字（1） */
+/** use （attachment:1 / 1 / file） and （1） */
 function refText(value: unknown, max = 256): string {
   if (typeof value === 'string') return value.trim().slice(0, max)
   if (typeof value === 'number' && Number.isFinite(value)) return String(value)
@@ -82,8 +82,8 @@ function errorText(error: unknown): string {
 }
 
 /**
- * 模型有时会把 `read_attachment` 的整个结果（`{name, totalChars, text, …}`）
- * 原样塞进 `content`。认得这个形状就取出正文，避免把包装层当成凭证文件。
+ * has when will `read_attachment` （`{name, totalChars, text, …}`）
+ * `content`。 this ， file。
  */
 function unwrapAttachmentRead(value: string): string {
   try {
@@ -92,17 +92,17 @@ function unwrapAttachmentRead(value: string): string {
     if (row && typeof row.text === 'string' && typeof row.name === 'string' && typeof row.totalChars === 'number') {
       return row.text
     }
-  } catch { /* 不是 JSON：按原文处理 */ }
+  } catch { /* not is JSON： by */ }
   return value
 }
 
-/** 全量导出的内层（兼容 `{success, data}` 信封与直接导出的顶层） */
+/** （ `{success, data}` and ） */
 function exportRoot(parsed: unknown): Record<string, unknown> | null {
   const root = record(parsed)
   if (!root) return null
   const data = record(root.data)
-  // 只认明确的管理信封：`success: true` 或内层带 accounts。WorkBuddy 的 .info
-  // 是顶层 auth / account，不能被一个无关的 data 字段带偏。
+  // ：`success: true` or accounts。WorkBuddy .info
+  // is auth / account， not can 1 none data 。
   if (data
     && root.accounts === undefined
     && root.provider === undefined
@@ -112,13 +112,13 @@ function exportRoot(parsed: unknown): Record<string, unknown> | null {
   return root
 }
 
-/** 文件里的 accounts 数组（空数组按「没有可导入账号」处理，不当批量文件） */
+/** file accounts （empty by 「 no has can 」， not file） */
 function batchAccounts(parsed: unknown): unknown[] | null {
   const accounts = exportRoot(parsed)?.accounts
   return Array.isArray(accounts) && accounts.length ? accounts : null
 }
 
-/** 从标准导出 / WorkBuddy 登录态里推断 provider；推不出返回空串 */
+/** from / WorkBuddy provider； not returnempty */
 function inferProvider(parsed: unknown): string {
   const root = exportRoot(parsed)
   if (!root) return ''
@@ -131,7 +131,7 @@ function inferProvider(parsed: unknown): string {
   return ''
 }
 
-/** 只读：按编号 / 文件名读取附件正文，支持分页 */
+/** ： by / file，supports */
 export function createAttachmentReadTool(t: Translate): AccountImportTool {
   return {
     id: 'read_attachment',
@@ -187,7 +187,7 @@ export function createAttachmentReadTool(t: Translate): AccountImportTool {
   }
 }
 
-/** 改动：把一个凭证文件导入成账号（或整库批量导入） */
+/** ： 1 file（ or ） */
 export function createAccountImportTool(api: AccountImportApi, t: Translate): AccountImportTool {
   return {
     id: 'import_account_file',
@@ -301,8 +301,8 @@ export function createAccountImportTool(api: AccountImportApi, t: Translate): Ac
 
       const body: Record<string, unknown> = {
         provider,
-        // 网页端曾把单账号导出存成 {success, data} 信封；顶层是 exportRoot 时
-        // 先把内层发给网关，导出文件的 provider 校验才认得出 format。
+        // {success, data} ； is exportRoot when 
+        // to ，file provider format。
         authFileContent: root && str(root.format) === 'agent2api-account' && root !== parsed
           ? JSON.stringify(root)
           : text,
@@ -339,7 +339,7 @@ export function createAccountImportTool(api: AccountImportApi, t: Translate): Ac
   }
 }
 
-/** 设置页清单里这两只工具的中文名与一句话说明 */
+/** set this in and 1 */
 export function accountImportMeta(t: Translate): Array<{ id: string; label: string; desc: string; tag?: 'danger' | 'cost' }> {
   return [
     {

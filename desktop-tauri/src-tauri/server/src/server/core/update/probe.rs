@@ -48,7 +48,7 @@ pub(super) async fn rank(
         source_state::sort(&mut candidates);
         candidates.sort_by_key(|candidate| u8::from(candidate.id != winner));
     }
-    // 轻量探测超时不等于文件不可下载，正式请求仍有自己的超时和校验。
+    // when not etc file not can down ，request has when and 。
     Ok(candidates)
 }
 

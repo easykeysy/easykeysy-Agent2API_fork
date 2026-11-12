@@ -1,4 +1,4 @@
-//! 本机壳的短效管理会话：只在进程内签发与保存，不提供 HTTP 签发入口。
+//! will ： in and ， not HTTP 。
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};

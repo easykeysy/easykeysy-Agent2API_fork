@@ -1,4 +1,4 @@
-//! 进程本地会话粘滞。管理读取不续期，清除后在途请求不得把旧绑定写回来。
+//! will 。 not ， after in request not old 。
 
 use std::collections::HashMap;
 use std::sync::Mutex;

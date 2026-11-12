@@ -1,31 +1,31 @@
-//! 会话读取、登录态状态与登出（**只剩编排**）。
+//! will 、 and （****）。
 //!
-//! ── 这里原来有什么 ──────────────────────────────────────────
-//! 对照 Node 版 `workbuddy-auth.mjs` 的完整实现：会话存储、`buildAuthHeaders`、
-//! `refreshSession`（打上游 `/auth/token/refresh`）、12153 判死与
-//! `needsRelogin` 标记、`fetchAccounts` / `fetchLoginAccount`、环境变量旁路
-//! （`WORKBUDDY_TOKEN`）、`Context` 端点拼装。
+//! ── this has ──────────────────────────────────────────
+//! for Node `workbuddy-auth.mjs` ： will 、`buildAuthHeaders`、
+//! `refreshSession`（ up `/auth/token/refresh`）、12153 and 
+//! `needsRelogin` 、`fetchAccounts` / `fetchLoginAccount`、
+//! （`WORKBUDDY_TOKEN`）、`Context` 。
 //!
-//! 那些是「怎么伪装成官方客户端打上游」的知识，按项目的风险隔离要求已整体
-//! 搬到提供商插件（`agent2api-providers` 的 `workbuddy` 模块）。本模块现在只
-//! 做三件事：
+//! that is 「client up 」 ， by need already 
+//! to （`agent2api-providers` `workbuddy` ）。 in 
+//! ：
 //!
-//!   1. **读会话**：从账号库里取「当前账号」的会话形态（`get_current_session`
-//!      / `get_current_session_for`），供 `/api/session`、计费编排与转发兜底用；
-//!   2. **报状态**：`get_status` / `unconfigured_status` / `get_config_summary`
-//!      —— 全是**纯本地**的读数，不发网络；
-//!   3. **登出**：`clear_session`（删掉当前账号）。
+//! 1. ** will **： from 「current」 will （`get_current_session`
+//! / `get_current_session_for`）， `/api/session`、 and use ；
+//! 2. ****：`get_status` / `unconfigured_status` / `get_config_summary`
+//! —— is **** ， not ；
+//! 3. ****：`clear_session`（current）。
 //!
-//! ── 续期去哪了 ──────────────────────────────────────────────
-//! 续期是各家自己的协议（端点、头、业务码、轮换语义），现在由适配器
-//! （插件）的 `refresh_access_token` 负责。`api/accounts.rs` 的刷新入口按
-//! 「账号归属的 provider 是否由插件服务」分流，WorkBuddy 也走那条通用链。
+//! ── ──────────────────────────────────────────────
+//! is （、、、）， in by 
+//! （） `refresh_access_token` 。`api/accounts.rs` new by 
+//! 「 provider is by 」，WorkBuddy that use 。
 //!
-//! ── 环境变量旁路（`WORKBUDDY_TOKEN`）去哪了 ─────────────────
-//! 它同样搬到了插件：插件在 `provider.info` 里申报
-//! `anonymous_default_session` / `env_credentials`，转发链路在「一个账号都
-//! 没有」时向插件要默认登录态的 token（`ensure_access_token(store, "")`）。
-//! 网关不再自己读那几个变量 —— 读它就意味着网关知道某一家有这条旁路。
+//! ── （`WORKBUDDY_TOKEN`） ─────────────────
+//! to ： in `provider.info` 
+//! `anonymous_default_session` / `env_credentials`， in 「 1 
+//! no has 」 when to need default token（`ensure_access_token(store, "")`）。
+//! not that —— 1 has this 。
 
 use serde_json::{json, Value};
 
@@ -34,28 +34,28 @@ use crate::server::core::account_store::AccountStore;
 use crate::server::core::proxies::ResolvedProxy;
 use crate::server::logging;
 
-// 传输层与错误类型对本模块的调用方再导出一次（`autoclaw` 等内置家直接用
-// `send_raw`；`WorkBuddyAuthError` 是管理接口失败的最小公共形状）。
+// and error for use 1 （`autoclaw` etc use 
+// `send_raw`；`WorkBuddyAuthError` is failure ）。
 #[allow(unused_imports)]
 pub use crate::server::core::auth_http::{
     send_raw, ApiResponse, WorkBuddyAuthError, REFRESH_WINDOW_MS,
 };
 
-// ─── 会话与凭证 ─────────────────────────────────────────────
+// ─── will and ─────────────────────────────────────────────
 
-/// 鉴权服务句柄：账号存储。
+/// ：。
 ///
-/// 名字保留 `AuthService` 是为了不改动 `ServerState` 的字段与各处构造点 ——
-/// 它现在只是一个「账号库 + 会话派生」的薄封装。
+/// `AuthService` is as not `ServerState` and ——
+/// in is 1 「 + will 」 。
 #[derive(Clone)]
 pub struct AuthService {
     store: AccountStore,
 }
 
-/// 刷新结果（供适配器与路由层共用）。
+/// new （ and by use ）。
 ///
-/// 本模块已不做续期，这个类型保留给仍在内置实现里的几家（Raccoon / AutoClaw /
-/// CodeArts）与插件侧的会话写回路径复用。
+/// already not ， this to in （Raccoon / AutoClaw /
+/// CodeArts） and will path use 。
 #[derive(Clone, Debug)]
 pub struct RefreshedAuth {
     pub access_token: String,
@@ -69,51 +69,51 @@ impl AuthService {
         Self { store }
     }
 
-    /// 与 `new` 同一入口（保留旧名，改造前它是「用默认上下文构造」）。
+    /// and `new` 1 （ old ， before is 「 use default up down 」）。
     pub fn for_store(store: AccountStore) -> Self {
         Self::new(store)
     }
 
-    /// 账号库句柄（克隆即共享）。
+    /// （）。
     ///
-    /// 给「手上已经有会话、但要按账号 id 调适配器」的路径用 —— 目前是
-    /// `BillingService`：它按会话入参，而 `admin.action` 必须带账号 id 才能
-    /// 路由到该 provider 的插件进程。
+    /// to 「 up already has will 、 need by id 」 path use —— before is 
+    /// `BillingService`： by will ， `admin.action` must id can 
+    /// by to this provider 。
     pub fn store(&self) -> AccountStore {
         self.store.clone()
     }
 
-    /// 账号数据所在的**文件**（Node 版 `auth.authFile` 的对等字段）。
+    /// in **file**（Node `auth.authFile` for etc ）。
     ///
-    /// 取值来自 `AccountStore::file_string()`，改造后是 **SQLite 库文件**
-    /// （`{config_dir}/agent2api.db`）—— 账号记录在它的 `accounts` 表里，
-    /// 不再是早期那个 `accounts.json`。面板上的「凭证文件」一栏显示的就是它，
-    /// 用户据此知道该备份什么（WAL 模式下还有 `-wal` / `-shm` 两个附属文件）；
-    /// 库没打开时会回落到那个库的**约定路径**，而不是空串。
+    /// `AccountStore::file_string()`， after is **SQLite file**
+    /// （`{config_dir}/agent2api.db`）—— in `accounts` ，
+    /// not is that `accounts.json`。 up 「file」 1 is ，
+    /// use this （WAL down has `-wal` / `-shm` file）；
+    /// no when will to that **path**， not is empty。
     ///
-    /// Windows 下把分隔符统一成 `\`：Node 的 `path.join` 在 Windows 上就是这么
-    /// 输出的，而这个路径会直接显示给用户（面板上的「凭证文件」）并给壳侧打开
-    /// 目录用，反斜杠形态才与 Node 版一致。
+    /// Windows down 1 `\`：Node `path.join` in Windows up is this 
+    /// ， this path will to use （ up 「file」） and to 
+    /// directory use ， and Node 1 。
     pub fn auth_file(&self) -> String {
         normalize_display_path(&self.store.file_string())
     }
 
-    /// 当前可用凭证；**不再自动刷新**（续期在插件里，见模块头）。
+    /// currentavailable；** not new **（ in ，module header）。
     ///
-    /// 优先级：账号存储当前账号（WorkBuddy 国内版）。
-    /// 返回 None 表示没有任何可用凭证（未登录）。
+    /// ：current（WorkBuddy ）。
+    /// return None no has available（）。
     ///
-    /// **转发链路不用它** —— 转发必须只看目标 provider 的账号，
-    /// 走 `get_current_session_for`。
+    /// ** not use ** —— must provider ，
+    /// `get_current_session_for`。
     pub async fn get_current_session(&self) -> Result<Option<Value>, WorkBuddyAuthError> {
         self.session_of(None).await
     }
 
-    /// 指定 provider 的当前可用凭证。
+    /// provider currentavailable。
     ///
-    /// 「当前账号」在该 provider 的账号组内派生（`current_entry_for_provider`），
-    /// 而不是全局队首 —— 否则「只有 raccoon 账号」的机器上，
-    /// workbuddy 的默认登录态会借到 raccoon 账号的凭证（发出去必然 401）。
+    /// 「current」 in this provider （`current_entry_for_provider`），
+    /// not is —— otherwise「 has raccoon 」 up ，
+    /// workbuddy default will to raccoon （ 401）。
     pub async fn get_current_session_for(
         &self,
         provider: &str,
@@ -121,7 +121,7 @@ impl AuthService {
         self.session_of(Some(provider)).await
     }
 
-    /// 会话读取的共用内核；`scope` 为 None 表示全局当前账号。
+    /// will use ；`scope` as None current。
     async fn session_of(&self, scope: Option<&str>) -> Result<Option<Value>, WorkBuddyAuthError> {
         let store = self.store.clone();
         let scope = scope.map(str::to_string);
@@ -132,7 +132,7 @@ impl AuthService {
         Ok(entry.map(|entry| entry.session))
     }
 
-    /// 会话状态只读本地凭证；续期由维护任务和实际转发按需触发。
+    /// will ； by and by need 。
     pub fn get_status(&self) -> Value {
         let session = self.store.get_current_entry().map(|entry| entry.session);
         let Some(session) = session else {
@@ -149,9 +149,9 @@ impl AuthService {
             .and_then(Value::as_str)
             .unwrap_or("");
         let account = session.get("account").cloned().unwrap_or(Value::Null);
-        // 这几个字段 Node 用的是 `|| null` —— 空串也会变成 null（而不仅缺失时）。
-        // 界面据此判断「是不是企业账号」（enterpriseId 为 null 就不显示企业标记），
-        // 给空串会让所有个人账号都带上一个空的企业标记。
+        // this Node use is `|| null` —— empty will null（ not only when ）。
+        // 「 is not is 」（enterpriseId as null not ），
+        // to empty will all up 1 empty 。
         let nullable_text = |key: &str| -> Value {
             account
                 .get(key)
@@ -185,7 +185,7 @@ impl AuthService {
         })
     }
 
-    /// 未登录态（`/health`、`/api/session` 的 login 字段用它）
+    /// （`/health`、`/api/session` login use ）
     pub fn unconfigured_status(&self) -> Value {
         json!({
             "loggedIn": false,
@@ -198,14 +198,14 @@ impl AuthService {
         })
     }
 
-    /// 上游配置摘要（对照 workbuddy-upstream-client.mjs 的 `getConfigSummary`）。
+    /// up config need （ for workbuddy-upstream-client.mjs `getConfigSummary`）。
     ///
-    /// **纯本地**：只查凭证是否存在，不发任何网络请求。它不做 token 临期刷新，
-    /// 否则 /health 会被上游网络状况拖慢 —— 它是壳侧的就绪探针，探一次就出网
-    /// 会让「网关是否就绪」取决于上游网络。
+    /// ****： is in ， not request。 not token new ，
+    /// otherwise /health will up —— is ， 1 
+    /// will 「 is 」 up 。
     ///
-    /// `authApiBase` / `chatApiUrl` 两栏已删除：它们是**上游端点**，网关不再
-    /// 持有那套知识（`baseUrl` 仍报记录里存的值，那是账号自己的字段）。
+    /// `authApiBase` / `chatApiUrl` already delete： is ** up **， not 
+    /// has that （`baseUrl` ， that is ）。
     pub fn get_config_summary(&self) -> Value {
         let Some(entry) = self.store.get_current_entry() else {
             return json!({
@@ -244,19 +244,19 @@ impl AuthService {
         })
     }
 
-    // ─── 续期（仅内置家使用）──────────────────────────────────
+    // ─── （only use ）──────────────────────────────────
 
-    /// 单飞表的进程级实例（见 `refresh_flight` 的模块头）。
+    /// （ `refresh_flight` module header）。
     ///
-    /// 仍在网关里的几家（Raccoon / AutoClaw / CodeArts）各自的 `refresh.rs`
-    /// 直接用 `refresh_flight::Table`，所以这里没有包装方法 —— 保留这个
-    /// 类型别名只为让上面的 `RefreshedAuth` 有明确归属。
+    /// in （Raccoon / AutoClaw / CodeArts） `refresh.rs`
+    /// use `refresh_flight::Table`， this no has —— this 
+    /// as up `RefreshedAuth` has 。
 
-    /// 清空登录态。
+    /// empty。
     ///
-    /// store 模式下「清空」= 删掉当前账号（Node 版 `clearSession` 同样如此）：
-    /// 当前账号由优先级派生，删掉它之后自动变成下一个可用账号。
-    /// 没有任何可用账号时（无操作可做）返回 false，让调用方能如实写日志。
+    /// store down 「empty」= current（Node `clearSession` ）：
+    /// current by ， after down 1 available。
+    /// no has available when （none can ）return false， use can 。
     pub fn clear_session(&self) -> bool {
         let Some(entry) = self.store.get_current_entry() else {
             logging::verbose("[Auth]", "当前没有可用账号，无需清理登录态");
@@ -278,12 +278,12 @@ impl AuthService {
     }
 }
 
-/// 把路径分隔符统一成 Windows 形态（`C:/a/b` → `C:\a\b`）。
+/// path 1 Windows （`C:/a/b` → `C:\a\b`）。
 ///
-/// `PathBuf::to_string_lossy` 在 Windows 上给的是 `C:\a\b`，但 config_dir 可能是
-/// 从环境变量（AGENT2API_PROXY_HOME，旧名 WORKBUDDY_PROXY_HOME 仍可读）拼出来的
-/// 正斜杠形式。这个串会显示给用户、也会被壳侧用来打开目录，统一成 Node 的
-/// `path.join` 输出形态最不容易出错。
+/// `PathBuf::to_string_lossy` in Windows up to is `C:\a\b`， config_dir can can is 
+/// from （AGENT2API_PROXY_HOME， old WORKBUDDY_PROXY_HOME can ） 
+/// 。 this will to use 、 will use directory， 1 Node 
+/// `path.join` not 。
 fn normalize_display_path(path: &str) -> String {
     if cfg!(windows) {
         path.replace('/', "\\")
@@ -292,15 +292,15 @@ fn normalize_display_path(path: &str) -> String {
     }
 }
 
-/// 未登录原因文案（getConfigSummary 用）。
+/// Reason（getConfigSummary use ）。
 ///
-/// Node 版这条是「尚未登录（node server.mjs --login）」；壳内 Rust 版没有
-/// 那个命令行入口（登录走 UI 的 /api/session/login/*），用它会指向一个不存在
-/// 的命令，因此取与启动横幅一致的措辞。
-pub const UNCONFIGURED_REASON: &str = "暂无可用登录态";
+/// Node this is 「（node server.mjs --login）」； Rust no has 
+/// 那个命令行入口（登录走 UI 的 /api/session/login/*）， use will to 1 not in 
+/// ， and 1 。
+pub const UNCONFIGURED_REASON: &str = "noneavailable";
 
-/// 在 auth 对象上补 expiresAt / refreshExpiresAt / lastRefreshTime。
-/// Node 版 `withExpiresAt`：已有值优先，否则拿 expiresIn（秒）换算。
+/// in auth for up expiresAt / refreshExpiresAt / lastRefreshTime。
+/// Node `withExpiresAt`： already has ，otherwise expiresIn（seconds）。
 pub fn with_expires_at(mut auth: Value) -> Value {
     let now = logging::now_ms() as f64;
     let Some(object) = auth.as_object_mut() else {
@@ -335,16 +335,16 @@ pub fn with_expires_at(mut auth: Value) -> Value {
         .and_then(Value::as_f64)
         .filter(|value| *value != 0.0)
         .unwrap_or(now);
-    // 时间戳写成整数形态（json_number）：Node 的 `JSON.stringify` 对
-    // `Date.now() + n*1000` 这种整数值不会输出 `.0`，浮点会让 accounts.json
-    // 与本机展示的时间戳出现「看起来一样但文本不同」的差异
+    // when （json_number）：Node `JSON.stringify` for 
+    // `Date.now() + n*1000` this not will `.0`， will accounts.json
+    // and when 「 1 not 」 
     object.insert("expiresAt".to_string(), json_number(expires_at));
     object.insert("refreshExpiresAt".to_string(), json_number(refresh_expires_at));
     object.insert("lastRefreshTime".to_string(), json_number(last_refresh));
     auth
 }
 
-/// token 是否临期（过期前 5 分钟内视为需要刷新）
+/// token is （ before 5 minutes as need need new ）
 pub fn is_token_expiring(expires_at: f64) -> bool {
     if expires_at <= 0.0 {
         return false;
@@ -352,7 +352,7 @@ pub fn is_token_expiring(expires_at: f64) -> bool {
     expires_at - REFRESH_WINDOW_MS <= logging::now_ms() as f64
 }
 
-/// 把刷新响应包成 RefreshedAuth（字段缺失时给 None，让调用方保留原值）
+/// new response RefreshedAuth（ when to None， use ）
 pub fn refresh_result_from(data: &Value) -> RefreshedAuth {
     let enriched = with_expires_at(data.clone());
     RefreshedAuth {
@@ -377,5 +377,5 @@ pub fn refresh_result_from(data: &Value) -> RefreshedAuth {
     }
 }
 
-/// 刷新用的出网代理类型别名（内置家的刷新签名共用它）。
+/// new use （ new use ）。
 pub type RefreshProxy = ResolvedProxy;

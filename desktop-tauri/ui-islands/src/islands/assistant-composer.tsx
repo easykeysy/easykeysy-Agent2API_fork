@@ -1,20 +1,20 @@
 /**
- * AI 助手的输入区：附件行 / 文本域 / 底部工具条。
+ * AI ： / / 。
  *
- * ── 为什么不再用两个并排的 Select ───────────────────────────
- * 模型与思考等级是**同一次请求的两个参数**，各占一个下拉时，用户既看不出
- * 它们是一组，也看不出当前组合。这里合成一个胶囊（`模型 · 等级`），点开是
- * 两行菜单，再点哪一行才展开对应的候选 —— 与用户截图里的形态一致。
+ * ── Why not use and Select ───────────────────────────
+ * and etc is ** 1 request parameter**， 1 down when ， use not 
+ * is 1 ， not current。 this 1 （` · etc `）， is 
+ * ， 1 for —— and use 1 。
  *
- * ── 图片的三个入口 ──────────────────────────────────────────
- *   · 左下角「+」：`<input type=file>`（多选）
- *   · 粘贴：输入框上的 `paste` 事件里取剪贴板文件
- *   · 拖入：composer 的 dragover / drop
- * 三条路都落到同一个 `onAddImages(files)`，由调用方转 data URL 并去重限额。
+ * ── ──────────────────────────────────────────
+ * · down 「+」：`<input type=file>`（）
+ * · ： up `paste` file
+ * · ：composer dragover / drop
+ * to 1 `onAddImages(files)`， by use data URL and 。
  *
- * ── 弹层为什么用 Popover ────────────────────────────────────
- * 位置翻转、点外部关闭、Esc、焦点归位都是组件库（Base UI）内建的；
- * 自绘绝对定位在「输入框贴底、弹层要往上翻」这个场景最容易做漏。
+ * ── Why use Popover ────────────────────────────────────
+ * 、、Esc、 is （Base UI） ；
+ * for in 「、 need up 」 this 。
  */
 
 import * as React from 'react'
@@ -40,21 +40,21 @@ import {
 import { Empty } from '@ui'
 import { formatFileSize, type AssistantTextFile } from '../../../ui-shared/assistant-files'
 
-/** 思考等级候选（与后端 `model_rules::REASONING_LEVELS` 逐字一致，弱 → 强）。
- *  **只在这一处写死**，加档位时与后端一起改（见 assistant-page 的旧注释）。 */
+/** etc （ and after `model_rules::REASONING_LEVELS` 1 ， → ）。
+ * ** in this 1 **， when and after 1 （ assistant-page old ）。 */
 export const REASONING_LEVELS = ['off', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 
-/** 附件上限：张数与单张字节。超了给明确提示，不做静默丢弃。 */
+/** limit： and 。 to ， not 。 */
 export const MAX_IMAGES = 6
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
-/** 模式的展示文案。**写成字面量**（不放进常量表再 t(常量)）：
- *  i18n 扫描器只认 t 的字面量首参，间接调用提不到键。 */
+/** 。****（ not t()）：
+ * i18n t ， use not to 。 */
 function modeLabel(mode: PermissionMode): string {
   return mode === 'full' ? t('完全访问') : t('变更前确认')
 }
 
-/** 等级展示：内部存的是小写，界面统一显示成首字母大写（Max / High…） */
+/** etc ： is ， 1 （Max / High…） */
 function levelLabel(level: string | null): string {
   if (!level) return t('跟随模型')
   return level === 'xhigh' ? 'xHigh' : level.charAt(0).toUpperCase() + level.slice(1)
@@ -68,7 +68,7 @@ type Props = {
   onAddFiles: (files: FileList | File[]) => void
   onRemoveImage: (index: number) => void
   onRemoveFile: (index: number) => void
-  /** 当前模型是否收图（未声明 = 不收）。附件不全时发送前给提示。 */
+  /** current is （ = not ）。 not when before to 。 */
   modelSupportsImages: boolean
   imageToolsEnabled: boolean
   modelAvailable: boolean
@@ -102,7 +102,7 @@ export function AssistantComposer(props: Props) {
   const fileRef = React.useRef<HTMLInputElement | null>(null)
   const [dragging, setDragging] = React.useState(false)
   const [pickerOpen, setPickerOpen] = React.useState(false)
-  /** 模型弹层当前停在哪一屏：两行菜单 → 子列表 */
+  /** current in 1 ： → */
   const [pane, setPane] = React.useState<'root' | 'model' | 'reason'>('root')
   const [keyword, setKeyword] = React.useState('')
 
@@ -111,12 +111,12 @@ export function AssistantComposer(props: Props) {
   const selected = selectedModel(models, model)
   const displayModel = model || t('选择模型…')
   const displayLevel = model && modelsReady && !modelAvailable ? t('不可用') : levelLabel(reasoning)
-  /** 有图但当前模型不收 —— 只提示，不拦（用户可能就是想试试，网关会回明确错误） */
+  /** has current not —— ， not （ use can can is ， will error） */
   const imageWarning = images.length > 0 && !modelSupportsImages
 
-  /* 自增高（上限 168px ≈ 8 行）。
-     +2px 是给亚像素差的余量：scrollHeight 取整后常比实际内容矮半像素，
-     不留这点余量浏览器会误判「还差一行」，于是一行字也挂一条滚动条。 */
+  /* （limit 168px ≈ 8 ）。
+     +2px is to ：scrollHeight after ，
+      not this will 「 1 」， is 1 1 。 */
   const autoGrow = React.useCallback(() => {
     const el = taRef.current
     if (!el) return
@@ -125,7 +125,7 @@ export function AssistantComposer(props: Props) {
   }, [])
   React.useEffect(autoGrow, [draft, autoGrow])
 
-  /* 弹层关闭时回到第一屏，下次打开看到的是两行菜单 */
+  /* when to 1 ， down to is */
   React.useEffect(() => {
     if (!pickerOpen) {
       setPane('root')
@@ -232,7 +232,7 @@ export function AssistantComposer(props: Props) {
         )}
 
         <div className='asst-bar'>
-          {/* 左：添加图片 / JSON 文件 + 权限模式 */}
+          {/* ： / JSON file + */}
           <Input
             ref={fileRef}
             type='file'
@@ -244,14 +244,14 @@ export function AssistantComposer(props: Props) {
               event.currentTarget.value = ''
             }}
           />
-          <Button size='icon-sm' variant='outline' type='button' className='asst-round rounded-full' title={t('添加图片或 JSON 文件（也可粘贴或拖入）')}
-            aria-label={t('添加图片或文件')} onClick={() => fileRef.current?.click()}>
+          <Button size='icon-sm' variant='outline' type='button' className='asst-round rounded-full' title={t(' or JSON file（ can or ）')}
+            aria-label={t(' or file')} onClick={() => fileRef.current?.click()}>
             <PlusIcon size={17} />
           </Button>
 
           <Popover>
-            {/* children 挂在 Trigger 上而不是塞进 render 元素里：Base UI 的 useRender
-                会用 Trigger 的 children 覆盖 render 元素的子节点，两边都写会只剩一份。 */}
+            {/* children in Trigger up not is render ：Base UI useRender
+                 will use Trigger children render ， will 1 。 */}
             <PopoverTrigger
               render={
                 <Button size='default' variant='ghost' type='button' className={cn('asst-pill asst-mode-pill', mode === 'full' && 'full')} />
@@ -286,7 +286,7 @@ export function AssistantComposer(props: Props) {
 
           <span className='spacer' />
 
-          {/* 右：模型 · 等级 + 发送 */}
+          {/* ： · etc + */}
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
             <PopoverTrigger
               render={<Button size='default' variant='ghost' type='button' className='asst-pill asst-model-pill' title={modelWarning || displayModel} />}

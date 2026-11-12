@@ -1,4 +1,4 @@
-//! 按模型独立的路由参与范围与顺序；不改写账号库的全局优先级。
+//! by by and and ； not 。
 
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
@@ -37,7 +37,7 @@ pub struct RoutingProfile {
 
 impl RoutingProfile {
     pub fn scope(&self) -> RoutingProviderScope {
-        // 旧名单无法区分主动移除和后来新增，缺少范围标记时保留原有限制。
+        // old none and after add， when has limit。
         self.provider_scope.unwrap_or(RoutingProviderScope::Selected)
     }
 

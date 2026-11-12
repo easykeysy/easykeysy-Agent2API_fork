@@ -29,25 +29,25 @@ import {
 } from './models-panel-state'
 import { t } from '../i18n'
 
-/* ─── 页面本体 ───────────────────────────────── */
+/* ─── ───────────────────────────────── */
 
 /**
- * 自定义家条目悬浮时把右侧计数让给删除 ×（两者占同一块位置，不藏就会叠字）。
- * 这条行为原来由 page-gateway.css 的 `.pv-row:hover .pv .n` 提供；换成 NavItem 之后计数是
- * 组件内部按 `data-slot` 渲染的 span，按 `.n` 类名命中的那条规则不再匹配，于是用工具类补回。
- * 只有带删除 × 的条目（自定义家）需要它，内置家不传。
+ * when to delete ×（ 1 ， not will ）。
+ * this as by page-gateway.css `.pv-row:hover .pv .n` ； NavItem after is 
+ * by `data-slot` span， by `.n` in that then not ， is use 。
+ * has delete × （） need need ， not 。
  */
 const RAIL_HIDE_COUNT_ON_HOVER = '[.pv-row:hover_&_[data-slot=nav-item-count]]:invisible'
 
 /**
- * 倍率的**数值**（排序用；解析不出返回 null）。
+ * ****（ use ； not return null）。
  *
- * 倍率是各家上游用同一套文本口径写进来的
- * （`x0.7 credits`，见各家的 `attach_rates`），所以「取不出数值」与「显示成 —」
- * 恰好是同一批行 —— 两处不会出现「显示的倍率和排序依据不是一个数」。
+ * is up use 1 
+ * （`x0.7 credits`， `attach_rates`），「 not 」 and 「 —」
+ * is 1 —— not will 「 and not is 1 」。
  *
- * `null` 不按 0 参与排序：0 是合法倍率（免费 / 限免档），而 null 是「上游没给」。
- * 混在一起会把未知的排到最便宜那一端（排序说明见 models-panel-state 的 MODEL_SORTS）。
+ * `null` not by 0 and ：0 is （ / ）， null is 「 up no to 」。
+ * in 1 will unknown to that 1 （ models-panel-state MODEL_SORTS）。
  */
 function rateOf(credits: unknown): number | null {
   const match = /x\s*([\d.]+)/i.exec(String(credits || ''))
@@ -56,27 +56,27 @@ function rateOf(credits: unknown): number | null {
   return Number.isFinite(value) ? value : null
 }
 
-/* ─── 提供商头像（左栏 + 面板头标题）───────────────────────
-   每家一枚色相 monogram：底 = 色相淡混、字 = 色相亮档（浅色主题压暗一档，
-   见 page-gateway.css 的 .pv-ico）。色相优先按内置家 id 给一个手工值（同产品线的
-   两个地区用相邻但可辨的色相），没登记的（自定义家 / 未来新增的内置家）按 id
-   哈希散到色环上 —— 只求稳定，不求语义。字形：拉丁名取首字母大写，中文名取
-   末字（小浣熊 → 浣）——取首字会撞出一排「小/A/自」，末字的区分度更高。 */
+/* ─── （ + ）───────────────────────
+    1 monogram： = 、 = （ 1 ，
+    page-gateway.css .pv-ico）。 by id to 1 （ 
+    use can ）， no （ / add ） by id
+    to up —— ， not 。：， in 
+   （ → ）—— will 1 「/A/」， 。 */
 
-/** 内置家的色相表（oklch 色相角度）。键与后端 ProviderMeta 的 id 一致。 */
+/** （oklch ）。 and after ProviderMeta id 1 。 */
 const PROVIDER_HUES: Record<string, number> = {
   workbuddy: 250, 'workbuddy-intl': 295,
   raccoon: 60, catpaw: 85,
   autoclaw: 250, 'autoclaw-intl': 295,
   qoder: 330, 'qoder-intl': 350, 'cline-free': 200, 'cline-pass': 200,
-  // 千问办公两版（与 Qoder 同一套协议栈的另一家产品）：手工给一对
-  // 相邻但可辨的色相，而不是让未登记 id 落到哈希上（那种颜色是随机的）。
+  // （ and Qoder 1 1 ）： to 1 for 
+  // can ， not is id to up （ that is ）。
   qwenwork: 300, 'qwenwork-intl': 315,
   codearts: 210, loomy: 155, kuku: 15,
   accio: 320, 'accio-intl': 335, trae: 170, zcode: 285,
 }
 
-/** id → 色相：先查手工表，未登记的按字符码哈希散开（模 360 保底可辨） */
+/** id → ：， by （ 360 can ） */
 function providerHue(id: string): number {
   const known = PROVIDER_HUES[id]
   if (known !== undefined) return known
@@ -85,7 +85,7 @@ function providerHue(id: string): number {
   return hash % 360
 }
 
-/** 展示名 → 单字字形：拉丁首字母大写 / CJK 末字；空名回落问号占位 */
+/** → ： / CJK ；empty */
 function providerGlyph(label: string): string {
   const text = String(label || '').trim()
   if (!text) return '?'
@@ -93,10 +93,10 @@ function providerGlyph(label: string): string {
   return (ascii ? ascii[0] : text[text.length - 1]).toUpperCase()
 }
 
-/** 头像那枚色相变量（内联 style；色值本身在 page-gateway.css 按 --av-h 现算） */
+/** that （ style； in page-gateway.css by --av-h ） */
 const avatarStyle = (id: string): React.CSSProperties => ({ '--av-h': String(providerHue(id)) } as React.CSSProperties)
 
-/** 「全部」视图的头像：网格符号（它不是一家，用字形而不是字母） */
+/** 「」 ：（ not is 1 ， use not is ） */
 const GRID_GLYPH = (
   <svg viewBox='0 0 24 24' aria-hidden='true'>
     <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
@@ -111,10 +111,10 @@ function providerIconOf(id: string): string {
   return PROVIDER_ICONS[id === 'workbuddy-intl' ? 'workbuddy' : id] || ''
 }
 
-/** 左栏 / 标题共用的头像节点（glyph 传 ReactNode 时直接渲染，如「全部」的网格）。
-    有真实图标（内置家 / 带模板标识的自定义家）用 <img>（.img 形态，中性底），
-    否则回落色相 monogram；两颗「全部」（内置 / 自定义组各自的聚合哨兵）都不是一家，
-    挂 .mute 走中性灰，不参与色环。 */
+/** / use （glyph ReactNode when ，「」 ）。
+     has （ / ） use <img>（.img ， in ），
+    otherwise monogram；「」（ / ） not is 1 ，
+     .mute in ， not and 。 */
 function providerAvatar(id: string, label: string, glyph?: React.ReactNode): React.ReactNode {
   const icon = glyph ? '' : providerIconOf(id)
   const sentinel = id === 'all' || id === ALL_CUSTOM
@@ -126,14 +126,14 @@ function providerAvatar(id: string, label: string, glyph?: React.ReactNode): Rea
   )
 }
 
-/** 搜索 / 状态 / 可见性 / 提供商四个条件（口径与旧实现逐条对齐） */
+/** / / can / （ and old for ） */
 function matches(model: ManageModel, keyword: string, provider: string, stateFilter: string, visibilityFilter: string): boolean {
   if (stateFilter === 'enabled' && !rowEnabled(model)) return false
   if (stateFilter === 'disabled' && rowEnabled(model)) return false
   if (stateFilter === 'mapped' && !(model.aliases || []).length) return false
-  // 可见性筛选：`visible` 档**含** `undeclared` —— 只有四家有判据，其余家的条目
-  // 根本没有这个字段。「没有判据」不等于「不可用」，混进 hidden 会让用户以为
-  // 那些家的模型都被关掉了（与各家「没依据就不藏」的纪律同源）。
+  // can ：`visible` **** `undeclared` —— has has ， its 
+  // no has this 。「 no has 」 not etc 「unavailable」， hidden will use as 
+  // that （ and 「 no not 」 ）。
   const visibility = visibilityOf(model)
   if (visibilityFilter === 'visible' && visibility === 'hidden') return false
   if (visibilityFilter === 'hidden' && visibility !== 'hidden') return false
@@ -147,54 +147,54 @@ function matches(model: ManageModel, keyword: string, provider: string, stateFil
 function ModelsPage() {
   const state = React.useSyncExternalStore(subscribe, getSnapshot)
   const provider = resolveProvider(state)
-  /** 当前视图是不是自定义侧（单家或「自定义 · 全部」聚合都算 —— 列隐藏 / 页脚说明同一口径） */
+  /** current is not is （ or 「 · 」 —— / 1 ） */
   const custom = customSource.isCustom(provider) || provider === ALL_CUSTOM
   /**
-   * 「测试」弹窗的目标行。这一份状态刻意**不放进模块级快照**（与三个弹窗的 context 不同）：
-   * 它只被本页用、也没有从 React 之外打开的调用点（入口就是表格里那颗按钮），
-   * 放在组件里就够了。值为 null = 弹窗关着。
+   * 「」 。 this 1 ** not **（ and context not ）：
+   * use 、 no has from React use （ is that by ），
+   * in 。 as null = 。
    */
   const [testTarget, setTestTarget] = React.useState<ModelTestTarget | null>(null)
-  /** 批量操作的弹窗开关（勾选若干行后由表头旁按钮打开） */
+  /** （ if after by by ） */
   const [batchOpen, setBatchOpen] = React.useState(false)
   const [compactOpen, setCompactOpen] = React.useState(false)
   /**
-   * 批量勾选的行集合（`rowKeyOf` 键 = provider:id，跨提供商天然不撞）。
-   * 刻意**不进模块快照**：只有本页读它，没有从 React 之外打开的调用点 ——
-   * 放组件里就够了（与「测试」弹窗的 target 同一取舍）。
-   * 数据重载后选中的键可能已不存在（模型被删 / 上游刷新带走了）：
-   * 一律按「当前数据里还解析得出来」算（`selectedModels`），残键自然失效。
+   * （`rowKeyOf` = provider:id， not ）。
+   * ** not **： has ， no has from React use ——
+   * （ and 「」 target 1 ）。
+   * after in can can already not in （ / up new ）：
+   * 1 by 「current」（`selectedModels`），。
    */
   const [selection, setSelection] = React.useState<ReadonlySet<string>>(new Set())
-  /** 窄屏筛选抽屉（见 css/mobile.css 的 .mm-filter-*） */
+  /** （ css/mobile.css .mm-filter-*） */
   const [filterOpen, setFilterOpen] = React.useState(false)
-  /** 选中了一个已被删除的自定义家（目录缓存里确实没有这条记录，而不是「还没加载完」）；
-      「自定义 · 全部」是聚合哨兵、目录里没有它的记录，不算「已删除」 */
+  /** in 1 already delete （directory no has this ， not is 「 no 」）；
+      「 · 」 is 、directory no has ， not 「 already delete」 */
   const customMissing = custom && !isAllCustomView() && directoryReady() && !customSource.record(provider)
 
   /**
-   * 首屏一次性副作用：登记列设置（并注入按钮）→ 同步静态表头 → 补读筛选记忆 → 按需自拉。
-   * app.js 末尾的 showPage() 跑在本岛之前：启动时若记住的就是本页，那次调用拿不到
-   * wbModelsPanel，这里补一次整页刷新。
+   * 1 use ：set（ and by ）→ → → by need 。
+   * app.js showPage() in before ： when if is ， that use not to 
+   * wbModelsPanel， this 1 new 。
    */
   React.useEffect(() => {
     registerColumnSettings()
     syncHead()
     restoreSavedFilters()
     if (shared().wbApp?.currentPage === 'gateway') {
-      // providers.js 排在岛之后加载：refreshAll 发起时它可能还没执行，那次目录刷新会被跳过。
-      // 清单落地后补刷一次目录并重绘 —— 目录请求本身并发合并，不会重复打接口
+      // providers.js in after ：refreshAll when can can no ， that directory new will 。
+      // after 1 directory and —— directoryrequest and and ， not will 
       void refreshAll()
         .then(() => shared().wbProviders?.refreshCustom?.())
         .then(() => { render() })
     }
-    // 只在挂载时跑一次（上面几个函数都读运行期单例，不需要跟着渲染重跑）
+    // in when 1 （ up ， not need need ）
   }, [])
 
   /**
-   * 表格结构的自愈（修复 #195）：每次提交后摘掉不属于 React 树的表格节点
-   *（外部插进 table 的 tbody / 游离 tr、以及混进 tbody#models 的异己行）。
-   * 判据与完整理由见 `pruneForeignTableNodes` 的说明。
+   * （ #195）： after not React 
+   *（ table tbody / tr、 and tbody#models ）。
+   * and by `pruneForeignTableNodes` 。
    */
   React.useEffect(() => {
     pruneForeignTableNodes()
@@ -205,14 +205,14 @@ function ModelsPage() {
   const providerModels = all.filter(model => provider === 'all' || provider === ALL_CUSTOM || (model.provider || '') === provider)
   const keyword = state.search.trim().toLowerCase()
   const shown = all.filter(model => matches(model, keyword, provider, state.stateFilter, state.visibilityFilter))
-  /** 排序档位（'default' / 'rate-asc' / 'rate-desc'）；组内排序读它，见 rows() 里那一段 */
+  /** （'default' / 'rate-asc' / 'rate-desc'）；， rows() that 1 */
   const sort = state.sort
   const columns = visibleColumns()
   const columnCount = columns.length
   /**
-   * 面板头标题与统计（2026-10 重设计）：标题 = 当前视图的家名（「全部」/ 内置家名 /
-   * 自定义家名），统计三个数与状态筛选同一口径 —— 已启用按 `rowEnabled`（还有生效绑定），
-   * 有映射按 `model.aliases`（与「有映射」筛选同一份判据）。
+   * and statistics（2026-10 ）： = current （「」/ /
+   * ），statistics and 1 —— already enabled by `rowEnabled`（ has ），
+   * has by `model.aliases`（ and 「 has 」 1 ）。
    */
   const titleLabel = provider === 'all'
     ? t('全部')
@@ -224,16 +224,16 @@ function ModelsPage() {
   const enabledCount = providerModels.filter(rowEnabled).length
   const mappedCount = providerModels.filter(model => (model.aliases || []).length > 0).length
   /**
-   * 客户端分页（通用表格外壳）：一家的模型可能上百条，全渲染既慢又难扫。
+   * client（ use ）： 1 can can up ，。
    *
-   * 默认 50 条/页。分页档位下**关掉组内折叠**（「展开其余 N 个」）：页数已经把
-   * 长度限住了，两套折叠并存时读数会互相打架（标题写「Qoder 120 个模型」，页面上
-   * 却只有 8 行）。选「全部」这一档时恢复原来的折叠行为，一个字都不变。
+   * default 50 /。 down ****（「 its N 」）： already 
+   * ， and when will （「Qoder 120 」， up 
+   * has 8 ）。「」 this 1 when as ， 1 not 。
    */
   const paging = useClientPaging(shown.length, 'models')
 
-  /* ─── 批量勾选（第一列 + 表头全选 + 「批量操作」按钮）────────── */
-  /** 当前视图里还解析得出来的选中行（残键随数据重载自然失效，见 selection 的说明） */
+  /* ─── （ 1 + + 「」 by ）────────── */
+  /** current in （， selection ） */
   const selectedModels = all.filter(model => selection.has(rowKeyOf(model)))
   const togglePick = (key: string, next: boolean): void => {
     const nextSet = new Set(selection)
@@ -241,11 +241,11 @@ function ModelsPage() {
     else nextSet.delete(key)
     setSelection(nextSet)
   }
-  /** 表头全选的判定范围 = 当前筛选结果（与账号页「全选当前筛选结果」同口径） */
+  /** = current（ and 「current」） */
   const visibleKeys = shown.map(rowKeyOf)
   const allVisiblePicked = visibleKeys.length > 0 && visibleKeys.every(key => selection.has(key))
   const someVisiblePicked = visibleKeys.some(key => selection.has(key))
-  /** 表头那格没有文案（照账号页勾选列：列设置里才需要名字），只有全选复选框 */
+  /** that no has （：set need need ）， has */
   const allPickNode = (
     <Checkbox checked={allVisiblePicked} indeterminate={!allVisiblePicked && someVisiblePicked}
       disabled={!visibleKeys.length} aria-label={t('全选当前筛选结果')}
@@ -260,28 +260,28 @@ function ModelsPage() {
       }} />
   )
 
-  /** 左栏：内置提供商（全部 + 各家）+ 自定义提供商（每家 + 新建）。
-      条目区（.rail-scroll）自己滚，「＋ 新建」沉在栏底（.rail-foot）不跟着滚 ——
-      它是动作不是选项，家多了也不该被推出视野。 */
+  /** ：（ + ）+ （ + new ）。
+      （.rail-scroll），「＋ new 」 in （.rail-foot） not ——
+       is not is ， not this 。 */
   function rail() {
     const counts = builtinRailCounts()
     const customs = customSource.list()
     const customCounts = customRailItems()
     const total = [...counts.values()].reduce((sum, item) => sum + item.n, 0)
     const allLabel = t('全部（{n} 家）', { n: counts.size })
-    // 自定义组「全部」的计数 = 各家模型数之和；「N 家」按实有模型的家算，
-    // 空家（登记了但还没拉到清单）不虚增数字
+    // 「」 = and ；「N 」 by has ，
+    // empty（ no to ） not 
     const customTotal = [...customCounts.values()].reduce((sum, item) => sum + item.n, 0)
     const customAllLabel = t('全部（{n} 家）', { n: [...customCounts.values()].filter(item => item.n > 0).length })
     return (
       <Sidebar className='prov-rail' id='prov-rail' aria-label={t('按提供商选择')}>
         <NavList className='rail-scroll'>
           <div className='rail-label'>{t('内置提供商')}</div>
-          {/* 条目是导航项而不是按钮，走 NavItem（选中态 / 悬浮态 / 字重 / 计数都在组件里，
-              与原来的 .pv 是同一套令牌取值）。头像（icon=）按家给一枚色相 monogram，
-              见 providerAvatar 的说明。shadow-none 是为了清掉 ui/css/components.css
-              里通用 `button { box-shadow: var(--shadow-1) }` —— 平铺的导航列表不该有投影，
-              .pv / .nav-item 原先也是显式清掉的 */}
+          {/* is not is by ， NavItem（ in / / / in ，
+               and .pv is 1 ）。（icon=） by to 1 monogram，
+               providerAvatar 。shadow-none is as ui/css/components.css
+               use `button { box-shadow: var(--shadow-1) }` —— not this has ，
+              .pv / .nav-item is */}
           <NavItem active={provider === 'all'} data-provider='all' title={allLabel} count={total}
             icon={providerAvatar('all', '', GRID_GLYPH)}
             className='shadow-none' onClick={() => selectProvider('all')}>{allLabel}</NavItem>
@@ -294,9 +294,9 @@ function ModelsPage() {
           ))}
           <div className='rail-label'>{t('自定义提供商')}</div>
           {customs.length ? [
-            // 自定义组自己的「全部」：选中时右栏聚合所有自定义家的模型（不含内置家 ——
-            // 与上面内置组那颗「全部」是并列的两份聚合）。计数非零才显示条目：
-            // 一家都没模型时点进去只有一句空态，挂着反而添噪
+            // 「」： in when all （ not ——
+            // and up that 「」 is and ）。：
+            // 1 no when has 1 empty，
             ...(customTotal > 0 ? [(
               <NavItem key={ALL_CUSTOM} active={isAllCustomView()} data-provider={ALL_CUSTOM}
                 title={customAllLabel} count={customTotal}
@@ -307,8 +307,8 @@ function ModelsPage() {
               const id = String(item.id || '')
               const label = String(item.name || id)
               return (
-                // 删除按钮不能嵌进 NavItem（button 套 button 是无效 HTML，解析器会把内层提到外面、
-                // 绝对定位跟着失去参照），所以外面套一层定位容器，× 与条目做兄弟节点
+                // delete by not can NavItem（button button is invalid HTML， will to 、
+                // for ）， 1 ，× and 
                 <div className='pv-row' key={id}>
                   <NavItem active={provider === id} data-provider={id} title={label}
                     count={customCounts.get(id)?.n ?? 0}
@@ -333,7 +333,7 @@ function ModelsPage() {
   }
 
   function modelRow(model: ManageModel) {
-    // 勾选的行挂 .sel：品牌淡底（比 hover 高一档），让「选中的是哪几行」在滚动后仍可辨
+    // .sel：（ hover 1 ），「 in is 」 in after can 
     const picked = selection.has(rowKeyOf(model))
     return (
       <TableRow key={`${model.provider || ''}\u0001${model.id}`} className={cn(picked && 'sel')}>
@@ -344,14 +344,14 @@ function ModelsPage() {
   }
 
   /**
-   * 表体：空态 / 无匹配 / 分组（「全部」视图里按提供商分组，顺序 = 后端数组顺序 = 路由优先级）。
-   * 有搜索词或非「全部」的状态筛选时不折叠：用户在找东西，藏起来只会让他以为没有。
+   * ：empty / none / （「」 by ， = after = by ）。
+   * has or 「」 when not ： use in ， will as no has 。
    */
   function body() {
     if (!providerModels.length) {
-      // 一条模型都没有：内置家区分账号未添加与目录待获取，自定义家是未登记，
-      // 自定义「全部」是「一家都还没有（或都没拉到模型）」。
-      // 说清下一步该做什么才有用；目录还没就位时既不能说「已删除」也不能说「还没有模型」
+      // 1 no has ： and directoryget， is ，
+      // 「」 is 「 1 no has （ or no to ）」。
+      // down 1 this has use ；directory no when not can 「 already delete」 not can 「 no has 」
       const empty = custom
         ? (!directoryReady()
           ? t('加载中…')
@@ -370,12 +370,12 @@ function ModelsPage() {
     if (!shown.length) {
       return <TableRow><TableCell colSpan={columnCount} className='empty'>{keyword ? t('没有匹配「{keyword}」的模型', { keyword }) : t('没有匹配当前筛选的模型')}</TableCell></TableRow>
     }
-    // 分组带只在「全部」视图里出现：选中单家时标题已经写了是哪一家，再叠一条是重复的
-    // 分组带在两个聚合视图（内置「全部」/ 自定义「全部」）里出现：选中单家时标题已经
-    // 写了是哪一家，再叠一条是重复的
+    // in 「」： in when already is 1 ， 1 is 
+    // in （「」/ 「」）： in when already 
+    // is 1 ， 1 is 
     const showGroups = provider === 'all' || isAllCustomView()
-    // 分页档位下**不做组内折叠**（见 paging 的说明）：页数本身就把长度限住了，
-    // 两套折叠叠在一起会让人算不清「到底还有多少个」。选「全部」时保持原行为。
+    // down ** not **（ paging ）： ，
+    // in 1 will not 「 to has 」。「」 when as 。
     const collapsible = showGroups && !keyword && state.stateFilter === 'all' && !paging.paged
     const groups = new Map<string, { label: string; items: ManageModel[] }>()
     for (const model of shown) {
@@ -384,15 +384,15 @@ function ModelsPage() {
       groups.get(key)?.items.push(model)
     }
     const rows: React.ReactNode[] = []
-    /** 全局「模型行」序号：分页区间按**模型行**算，组标题与「更多」行不占号 */
+    /** 「」： by ****， and 「」 not */
     let rowIndex = 0
     for (const [key, group] of groups) {
-      // 组内排序：禁用的行沉到该组末尾，启用的排前面；Array#sort 稳定，组内仍按后端原序
-      //（判定与「已启用 / 已禁用」筛选同一份，见 rowEnabled）
+      // ： use to this ，enabled before ；Array#sort ， by after 
+      //（ and 「 already enabled / already use 」 1 ， rowEnabled）
       //
-      // 「按倍率」档位只在这之后**同一个启用态内部**再排一道：禁用行仍然全部沉底，
-      // 倍率排序不会把一条禁用行顶到前面去（那会让「哪些能用」先于「哪个便宜」失效）。
-      // 解析不出倍率的行恒排在同档末尾，方向也换不动它 —— 见 rateOf 的说明。
+      // 「 by 」 in this after ** 1 enabled** 1 ： use ，
+      // not will 1 use to before （ that will 「 can use 」「 」）。
+      // not in ， to not —— rateOf 。
       group.items.sort((a, b) => {
         const byEnabled = Number(!rowEnabled(a)) - Number(!rowEnabled(b))
         if (byEnabled !== 0 || sort === 'default') return byEnabled
@@ -407,12 +407,12 @@ function ModelsPage() {
       const open = state.expanded.has(key) || !collapsible
       const items = open ? group.items : group.items.slice(0, GROUP_LIMIT)
       const rest = group.items.length - items.length
-      // 本组落在当前页里的那一段（分页关掉时就是全部）
+      // in current that 1 （ when is ）
       const from = paging.paged ? Math.max(0, paging.rangeStart - 1 - rowIndex) : 0
       const to = paging.paged ? Math.min(items.length, paging.rangeEnd - rowIndex) : items.length
       const onPage = from < to ? items.slice(from, to) : []
-      // 组标题：本组在这一页上有行才渲染。跨页续上的那一组缀「（续）」—— 否则读者会
-      // 以为这一组只有当前页这几个（标题上的总数仍是**整组**的，不是这一页的）
+      // ： in this 1 up has 。 up that 1 「（）」—— otherwise will 
+      // as this 1 has current this （ up total is **** ， not is this 1 ）
       if (showGroups && onPage.length) {
         rows.push(
           <TableRow className='tr-group' key={`group:${key}`}>
@@ -451,11 +451,11 @@ function ModelsPage() {
         <div className='mm'>
           {rail()}
           <div className='mm-main'>
-            {/* 面板头两行制（2026-10 重设计，原型见 prototype/model-redesign.html）：
-                第一行「这是谁家的表」—— 家名头像 + 统计 + 动作按钮；第二行「怎么看这张表」
-                —— 状态筛选 + 搜索 + 批量条。两行都是通栏块，窄窗口由 flex-wrap 整体下折。
-                「列设置」按钮仍由 wbColSettings.register 追加进 .head-actions 末尾
-                （mount 选择器 .panel-head .head-actions 在这个结构下照旧命中）。 */}
+            {/* （2026-10 ， prototype/model-redesign.html）：
+                 1 「 this is 」—— + statistics + by ；「 this 」
+                —— + + 。 is ， by flex-wrap down 。
+                「set」 by by wbColSettings.register .head-actions 
+                （mount .panel-head .head-actions in this down old in ）。 */}
             <CardHeader className='panel-head'>
               <div className='mm-titlebar'>
                 <div className='mm-title'>
@@ -468,9 +468,9 @@ function ModelsPage() {
                   </span>
                 </div>
                 <div className='head-actions'>
-                  {/* 「获取模型」是这一页的主操作（把清单拉回来），用实心主按钮建立主次；
-                      「添加模型」是补充，维持描边档。文案与 title 只有一处事实来源（这里），
-                      index.html 里不写死 */}
+                  {/* 「get」 is this 1 （ ）， use by ；
+                      「」 is ，。 and title has 1 （ this ），
+                      index.html not */}
                   <Button id='btn-refresh-models'
                     title={customSource.isCustom(provider)
                       ? t('从这一家的上游拉一份模型清单，勾选要哪些再导入（已添加的不会重复导入）')
@@ -478,7 +478,7 @@ function ModelsPage() {
                     onClick={() => refreshModels()}>{t('获取模型')}</Button>
                   <Button id='btn-add-custom-model' variant='outline' size='sm'
                     onClick={() => openCustomModel()}>{t('＋ 添加模型')}</Button>
-                  {/* 窄屏「筛选」入口：桌面隐藏（CSS 控制）。角标是生效的筛选条数 */}
+                  {/* 「」：（CSS ）。 is */}
                   <Button size='default' variant='ghost' type='button' className='mm-filter-open hidden max-[767px]:inline-flex' onClick={() => setFilterOpen(true)}
                     aria-label={t('打开筛选')}>
                     {t('筛选')}
@@ -500,27 +500,27 @@ function ModelsPage() {
                   setVisibilityFilter('all')
                   setSearch('')
                 }}>{t('清空')}</Button>}>
-                {/* 状态筛选：语义、键盘、滑块都在组件库里，取值仍以快照为准（完全受控） */}
+                {/* ：、、 in ， as （） */}
                 <SegmentedControl options={MODEL_STATE_OPTIONS} value={state.stateFilter}
                   onValueChange={setStateFilter} aria-label={t('按状态筛选')} className='shrink-0' />
-                {/* 可见性筛选：上游目录是超集，里面混着官方客户端不展示的模型
-                    （本仓已默认关闭它们的默认绑定）。默认停「可见」—— 一打开就
-                    让它们占满表格会把用户真能用的模型挤下去。切到「全部」即可
-                    看到清单全貌（落盘，下次打开记住）。 */}
+                {/* can ： up directory is ，client not 
+                    （ already default default）。default「 can 」—— 1 
+                     will use can use down 。 to 「」 can 
+                     to （， down ）。 */}
                 <SegmentedControl options={MODEL_VISIBILITY_OPTIONS} value={state.visibilityFilter}
                   onValueChange={setVisibilityFilter} aria-label={t('按可见性筛选')} className='shrink-0' />
-                {/* 搜索框：InputGroup + addon 图标（与 input-control.tsx 的用法一致）。
-                    刻意**不带** data-island-input：那是输入框岛（就地升级）的钩子，
-                    两个岛同时挂一个输入框会打架。宽度：桌面 240px；手机上整行
-                    （工具条已改纵向排列，固定 240px 会与上下两条线段右边缘不齐）。 */}
+                {/* ：InputGroup + addon （ and input-control.tsx use 1 ）。
+                    ** not ** data-island-input： that is （） ，
+                     when 1 will 。： 240px； up 
+                    （ already to ， 240px will and up down not ）。 */}
                 <InputGroup className='w-full min-[768px]:w-[240px] flex-none min-[768px]:flex-none' id='models-search'>
                   <InputGroupInput type='search' placeholder={t('搜索模型 ID / 名称 / 映射名…')}
                     aria-label={t('搜索模型')} autoComplete='off' value={state.search}
                     onChange={event => setSearch(event.currentTarget.value)} />
                   <InputGroupAddon aria-hidden='true'>⌕</InputGroupAddon>
                 </InputGroup>
-                {/* 批量条：勾选后出现在筛选行（带计数的小药丸，照账号页批量栏的出现时机 ——
-                    不勾就不占位置）。弹窗里可删除 / 启用 / 禁用 / 设置思考等级 */}
+                {/* ： after in （ ， when ——
+                     not not ）。 can delete / enabled / use / set etc */}
                 {selectedModels.length > 0 ? (
                   <Badge variant='brand' className='batch-chip'>
                     {t('已选 ')}<b>{selectedModels.length}</b>{t(' 个')}
@@ -532,9 +532,9 @@ function ModelsPage() {
               </ResponsiveSheet>
             </CardHeader>
             <div className='models-table-wrap'>
-              {/* 列设置会就地移动或摘下 th / col，因此表头骨架始终渲染全部列，
-                  不按可见列重建；动态内容只更新原节点，保留列宽和拖动把手。
-                  数据行按 visibleColumns() 的顺序渲染。 */}
+              {/* set will or down th / col，，
+                   not by can ；update， and 。
+                   by visibleColumns() 。 */}
               <Table container={false} className='models-table' ref={el => setTableEl(el)}>
                 <colgroup>
                   <col className='c-check' data-col='check' />
@@ -564,10 +564,10 @@ function ModelsPage() {
                     }}>{t('倍率')}</TableHead>
                   <TableHead data-col='visibility' title={t('这个模型在官方客户端里是否会被展列；不展示的那些默认已关闭（含默认绑定）')}>{t('可见性')}</TableHead>
                   <TableHead data-col='source'>{t('来源')}</TableHead>
-                  {/* 表头只留短标题，完整口径进问号提示（原括号长标题让表头喧宾夺主）。
-                      这是静态内容：重渲染时逐字不变，不会破坏「静态表头」的约定。
-                      这两枚问号讲的是**同一套视觉语言**（这个值到底是不是上游说的）：
-                      内侧描边 / 虚线底 = models.dev 补的，右上角小点 = 你改过 */}
+                  {/* ，（）。
+                       this is ： when not ， not will 「」 。
+                       this is ** 1 **（ this to is not is up ）：
+                       / = models.dev ， up = */}
                   <TableHead data-col='budget'>
                     {t('上下文 / 输出')}
                     <span className='th-help' aria-hidden='true'
@@ -590,8 +590,8 @@ function ModelsPage() {
                       </svg>
                     </span>
                   </TableHead>
-                  {/* 表头只留短标题，完整口径进问号提示（原括号长标题让表头喧宾夺主）。
-                      这是静态内容：重渲染时逐字不变，不会破坏「静态表头」的约定 */}
+                  {/* ，（）。
+                       this is ： when not ， not will 「」 */}
                   <TableHead data-col='alias'>
                     {t('模型映射')}
                     <span className='th-help' aria-hidden='true'
@@ -608,13 +608,13 @@ function ModelsPage() {
                 <TableBody id='models'>{body()}</TableBody>
               </Table>
             </div>
-            {/* 未挂载的映射：目标上游已不在任何模型行上（上游下线 / 那一家的行没出现），
-                chip 因此无处渲染。放在表格与表尾之间 —— 它是「这批数据有问题」的提醒，
-                不该混进按模型行的分页 / 分组里（见 models-dangling.tsx 的文件头）。 */}
+            {/* ： up already not in up （ up down / that 1 no ），
+                chip none。 in and —— is 「 this has 」 ，
+                 not this by / （ models-dangling.tsx file）。 */}
             <DanglingMappings />
-            {/* 表尾：读数 / 每页条数 / 跳页 / 翻页器由通用表格外壳（table-shell.tsx）统一渲染。
-                左侧说明只剩「自定义家」那一条（内置家原先那句按用户要求移除）；其余几张表
-                的页脚说明也都去掉了，页脚现在是清一色的控制条 */}
+            {/* ： / / / by use （table-shell.tsx） 1 。
+                「」 that 1 （ that by use need ）； its 
+                 ， in is 1 */}
             <TableFooter
               className='models-panel-foot'
               leading={isAllCustomView()
@@ -633,7 +633,7 @@ function ModelsPage() {
           </div>
         </div>
       </Card>
-      {/* 弹窗走 Dialog（Esc / 点遮罩关闭、焦点陷阱、滚动锁定都内建），按需挂载、关闭即卸 */}
+      {/* Dialog（Esc / 、、）， by need 、 */}
       {compactOpen ? <CompactRoutesDialog onClose={() => setCompactOpen(false)} /> : null}
       {state.mapping ? <MappingDialog context={state.mapping} onClose={closeMapping} /> : null}
       {state.customModel
@@ -653,19 +653,19 @@ function ModelsPage() {
   )
 }
 
-/* ─── 挂载：接管 index.html 里既有的页面区块 ─────── */
+/* ─── ： index.html has ─────── */
 
 const PAGE_SELECTOR = '.page[data-page="gateway"]'
 
 let root: ReturnType<typeof createRoot> | null = null
 
 /**
- * 把 React root 直接建在 `.page[data-page="gateway"]` 上（不套宿主 div：页面 CSS 用
- * `.page[data-page="gateway"] .panel` 这组直接子选择器分配高度，中间插一层会打断它）。
+ * React root in `.page[data-page="gateway"]` up （ not div： CSS use 
+ * `.page[data-page="gateway"] .panel` this ， in 1 will ）。
  *
- * 先清掉骨架里的静态子节点（那张 `.panel`）：下面的 JSX 会按同样的类名重新渲染它，留着会与
- * React 的接管打架。createRoot 不替我们清容器，所以手动 replaceChildren()；容器自身的
- * class / data-page 由页面管，别动。
+ * （ that `.panel`）： down JSX will by new ， will and 
+ * React 。createRoot not ， replaceChildren()； 
+ * class / data-page by ，。
  */
 function mount(): void {
   if (root) return
@@ -676,5 +676,5 @@ function mount(): void {
   root.render(<ModelsPage />)
 }
 
-// 首次切到本页时才挂载（见 island-lazy）：隐藏页不在首屏渲染，也不拉数据。
+// to when （ island-lazy）： not in ， not 。
 mountOnPage('gateway', PAGE_SELECTOR, mount)

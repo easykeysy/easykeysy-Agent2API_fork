@@ -11,7 +11,7 @@ import {
 const MAX_IMAGES = 6
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
-/** JSON / .info 都按文本读；Windows 上 .json 的 MIME 经常是空的，所以看扩展名 */
+/** JSON / .info by ；Windows up .json MIME is empty ， */
 function isTextCredentialFile(file: File): boolean {
   return /\.(json|info)$/i.test(file.name) || file.type === 'application/json'
 }
@@ -40,7 +40,7 @@ export function useAssistantAttachments(session: { current: string }) {
       toast(t('只支持图片和 JSON 凭证文件（.json / .info）；「{name}」已跳过。', { name: unsupported[0].name }), 'err')
     }
 
-    /* ── 图片（原有链路）────────────────────────────────── */
+    /* ── （ has ）────────────────────────────────── */
     if (imageFiles.length) {
       const oversized = imageFiles.find(file => file.size > MAX_IMAGE_BYTES)
       if (oversized) {
@@ -68,7 +68,7 @@ export function useAssistantAttachments(session: { current: string }) {
       }
     }
 
-    /* ── JSON / .info（文本附件）────────────────────────── */
+    /* ── JSON / .info（）────────────────────────── */
     if (textFiles.length) {
       const oversized = textFiles.find(file => file.size > MAX_TEXT_FILE_BYTES)
       if (oversized) {

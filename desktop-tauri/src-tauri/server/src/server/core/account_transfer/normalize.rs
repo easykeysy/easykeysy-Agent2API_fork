@@ -1,15 +1,15 @@
-//! 导入记录的字段归一（merge 的「更新」与「新增」共用）。
+//! 1 （merge 「update」 and 「add」 use ）。
 //!
-//! ── 三条口径 ─────────────────────────────────────────────────
-//!   1. **未知字段双向保留**：更新时以本机记录为底、导入文件里出现过的业务字段
-//!      覆盖其上；新增时保留导入文件里除内部字段外的全部业务字段。下划线开头的
-//!      内部字段与 `rateLimits`（本机运行时限额标记）一律不参与导入，也不被覆盖。
-//!   2. **本机运营字段不可被导入改写**：id / priority / addedAt / updatedAt /
-//!      desktop 由调用方决定，这里不接收导入值。
-//!   3. **腾讯端点字段只属于 WorkBuddy**：edition / prefixPath / endpoint /
-//!      platform 是 WorkBuddy 的已知字段，只在 WorkBuddy 分支按 edition 归一；
-//!      其余三家一律不写入（连导出文件里的残留值也丢掉）—— 三家适配器都不读
-//!      这些键，把腾讯端点塞进别家记录只会让排障时看到假的归属。
+//! ── ─────────────────────────────────────────────────
+//! 1. **unknown to **：update when as 、file 
+//! its up ；add when file 。 down 
+//! and `rateLimits`（ when ） 1 not and ， not 。
+//! 2. ** not can **：id / priority / addedAt / updatedAt /
+//! desktop by use ， this not 。
+//! 3. ** WorkBuddy**：edition / prefixPath / endpoint /
+//! platform is WorkBuddy already ， in WorkBuddy by edition 1 ；
+//! its 1 not （file ）—— not 
+//! this ， will when to 。
 
 use serde_json::{Map, Value};
 
@@ -18,7 +18,7 @@ use crate::server::core::account_store::store_util::{token_tail_of, truncate_tex
 use crate::server::core::account_store::MAX_TOKEN_LENGTH;
 use crate::server::core::endpoints::resolve_edition;
 
-/// 导入值不允许覆盖的键（本机运营字段；语义见模块头）。
+/// not （；module header）。
 const LOCAL_OWNED_KEYS: [&str; 6] = [
     "id",
     "priority",
@@ -28,10 +28,10 @@ const LOCAL_OWNED_KEYS: [&str; 6] = [
     "desktop",
 ];
 
-/// 备注名长度上限（与各家添加路径一致）
+/// limit（ and path 1 ）
 const MAX_NAME_LENGTH: usize = 100;
 
-/// 值 → 文本（JS `String(x)` 的宽松口径：数字/布尔按字面量，null/缺失给空串）
+/// → （JS `String(x)` ：/ by ，null/ to empty）
 fn text_of(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(text)) => text.trim().to_string(),
@@ -41,7 +41,7 @@ fn text_of(value: Option<&Value>) -> String {
     }
 }
 
-/// `Number(x) > 0` 的数字形态（已是 JSON 数字时原样保留整数形态，见 `state::json_number`）
+/// `Number(x) > 0` （ already is JSON when ， `state::json_number`）
 fn positive_number_of(value: Option<&Value>) -> Option<Value> {
     match value {
         Some(Value::Number(number)) => {
@@ -58,17 +58,17 @@ fn positive_number_of(value: Option<&Value>) -> Option<Value> {
     }
 }
 
-/// 该键是否参与导入（内部字段与运行时标记不参与）
+/// this is and （ and when not and ）
 fn importable_key(key: &str) -> bool {
     !key.starts_with('_') && key != "format" && key != "customProviders"
         && !LOCAL_OWNED_KEYS.iter().any(|owned| *owned == key)
 }
 
-/// 归一一条导入记录。
+/// 1 1 。
 ///
-/// `provider` 已由调用方按注册表校验过；`before` 为本机命中记录（新增传 None）。
-/// 返回的字段表**不含** id / priority / addedAt / updatedAt / rateLimits ——
-/// 那些由调用方按本机策略补齐。代理非法时返回 Err（该条失败，不清成直连）。
+/// `provider` already by use by ；`before` as in （add None）。
+/// return ** not ** id / priority / addedAt / updatedAt / rateLimits ——
+/// that by use by 。 when return Err（ this failure， not ）。
 pub(super) fn normalize_imported(
     item: &Map<String, Value>,
     provider: &str,
@@ -76,8 +76,8 @@ pub(super) fn normalize_imported(
 ) -> Result<Map<String, Value>, String> {
     let mut record = Map::new();
 
-    // 更新：以本机记录为底（内部字段、运行时限额与本机运营字段除外），
-    // 保住本机未知字段
+    // update： as （、 when and ），
+    // unknown
     if let Some(before) = before {
         for (key, value) in before.fields() {
             if key.starts_with('_') || key == "rateLimits" || !importable_key(key) {
@@ -86,7 +86,7 @@ pub(super) fn normalize_imported(
             record.insert(key.clone(), value.clone());
         }
     }
-    // 导入文件里出现过的业务字段覆盖其上（null / 空串视为未提供，不洗掉本机值）
+    // file its up （null / empty as ， not ）
     for (key, value) in item {
         if !importable_key(key) || value.is_null() {
             continue;
@@ -97,10 +97,10 @@ pub(super) fn normalize_imported(
         record.insert(key.clone(), value.clone());
     }
 
-    // provider 先落位（后续 WorkBuddy 分支要按它判定；也保证重建记录不丢归属）
+    // provider （ after WorkBuddy need by ； not ）
     record.insert("provider".to_string(), Value::String(provider.to_string()));
 
-    // ── 凭证：非空才覆盖（导入值为空时保留本机旧值，避免账号被洗成空壳）──
+    // ── ：empty（ as empty when old ， empty）──
     let access_token = {
         let incoming = text_of(item.get("accessToken"));
         if incoming.is_empty() {
@@ -137,7 +137,7 @@ pub(super) fn normalize_imported(
         record.insert("tokenTail".to_string(), Value::String(token_tail));
     }
 
-    // ── 备注名：非空才覆盖，长度与各家添加路径一致 ──
+    // ── ：empty， and path 1 ──
     let name = {
         let incoming = truncate_text(&text_of(item.get("name")), MAX_NAME_LENGTH);
         if incoming.is_empty() {
@@ -150,7 +150,7 @@ pub(super) fn normalize_imported(
         record.insert("name".to_string(), Value::String(name));
     }
 
-    // ── 启用状态：出现才覆盖（缺省视为启用，与各家添加路径同）──
+    // ── enabled：（ as enabled， and path）──
     if let Some(value) = item.get("enabled") {
         record.insert(
             "enabled".to_string(),
@@ -160,7 +160,7 @@ pub(super) fn normalize_imported(
         record.insert("enabled".to_string(), Value::Bool(true));
     }
 
-    // ── 出网代理：出现才覆盖；非法输入该条失败，不静默清成直连 ──
+    // ── ：； this failure， not ──
     if item.contains_key("proxy") {
         let normalized = crate::server::core::proxies::normalize_account_proxy(
             item.get("proxy").unwrap_or(&Value::Null),
@@ -172,38 +172,38 @@ pub(super) fn normalize_imported(
         record.insert("proxy".to_string(), Value::Null);
     }
 
-    // 判据是「workbuddy 系」而不是单个 id：国内版与国际版共用同一套账号 schema
-    // （uid 身份 + edition/endpoint/prefixPath/platform），写成单 id 会让国际版
-    // 掉进 else 分支把那些字段**清掉** —— 导入后账号只剩默认端点，转发必然 401。
+    // is 「workbuddy 」 not is id： and use 1 schema
+    // （uid + edition/endpoint/prefixPath/platform）， id will 
+    // else that **** —— after default， 401。
     if crate::server::core::providers::workbuddy::is_workbuddy_family(&provider) {
         normalize_workbuddy_known_fields(&mut record, item, before, provider);
     } else {
-        // 非 WorkBuddy：edition / prefixPath / endpoint / platform 是腾讯端点
-        // 身份，不属于其余各家的 schema，一律不写入。
+        // WorkBuddy：edition / prefixPath / endpoint / platform is 
+        // ， not its schema， 1 not 。
         //
-        // 判据只有「是不是 WorkBuddy 系」一条，**不枚举别家** —— 新增一家
-        // provider 时不需要回来加一行（旧实现的维护负担不在这里，而在
-        // `identity.rs` 的逐家身份分支，那边已经改成通用链）。
+        // has 「 is not is WorkBuddy 」 1 ，** not ** —— add 1 
+        // provider when not need need 1 （ old not in this ， in 
+        // `identity.rs` ， that already use ）。
         strip_foreign_endpoint_keys(&mut record, &provider);
     }
 
-    // 自定义提供商账号：apiKey / baseUrl / tokenTail 是本家 schema，
-    // 通用保留兜不住校验（超长、非法 URL），走专属归一
+    // ：apiKey / baseUrl / tokenTail is schema，
+    // use not （、 URL）， 1 
     if provider.starts_with(crate::server::core::custom_providers::ID_PREFIX) {
         normalize_custom_known_fields(&mut record, item, before)?;
     }
 
-    // provider 已在上面落位：这里不再重复写入
+    // provider already in up ： this not 
     Ok(record)
 }
 
-/// 把**别家的端点残留**从记录里剔掉（新增与更新两条路径都调用）。
+/// ** ** from （add and updatepath use ）。
 ///
-/// 一份被跨家污染过的旧文件（早年的导出把腾讯端点写进了别家记录）会把这些键
-/// 带进来；别家的适配器不读它们，留着只会让排障时看到假的归属。
+/// 1 old file（ ） will this 
+/// ； not ， will when to 。
 ///
-/// 判据只看 provider 是否属于 WorkBuddy 系，**不枚举别家**：新增一家 provider
-/// 时不需要回来加一行 —— 这正是旧实现最费维护的地方。
+/// provider is WorkBuddy ，** not **：add 1 provider
+/// when not need need 1 —— this is old 。
 fn strip_foreign_endpoint_keys(record: &mut Map<String, Value>, provider: &str) {
     if crate::server::core::providers::workbuddy::is_workbuddy_family(provider) {
         return;
@@ -213,28 +213,28 @@ fn strip_foreign_endpoint_keys(record: &mut Map<String, Value>, provider: &str) 
     }
 }
 
-/// 自定义提供商账号的专属字段：apiKey（凭证）、noAuth（无需鉴权标记）、
-/// baseUrl（账号级覆盖项）、tokenTail（界面尾号）。
+/// ：apiKey（）、noAuth（none need ）、
+/// baseUrl（）、tokenTail（）。
 ///
-/// 四者都是 `custom_accounts::add_custom_account` 落盘的形状，导入沿用同一套
-/// 规则：apiKey trim 后落盘（超长该条失败）、导入值为空时保留本机旧凭证
-/// （与 accessToken / refreshToken 的合并纪律一致）；baseUrl 带键才动 ——
-/// 空值清除覆盖项（回落提供商默认基址），非空值过 `normalize_base_url` 门禁；
-/// tokenTail 显式值优先，否则按最终 apiKey 重新派生（尾号必须与凭证同源，
-/// 用旧尾号配新 key 会让界面展示对不上号）。
+/// is `custom_accounts::add_custom_account` ， use 1 
+/// then ：apiKey trim after （ this failure）、 as empty when old 
+/// （ and accessToken / refreshToken and 1 ）；baseUrl ——
+/// empty（default），empty `normalize_base_url` ；
+/// tokenTail ，otherwise by apiKey new （must and ，
+/// use old new key will for not up ）。
 ///
-/// ── noAuth 与 apiKey 的互斥在这里也要守 ─────────────────────
-/// 与写入侧（`add_custom_account` / `update_custom_credentials`）同一条不变量：
-/// 勾着「无需鉴权」的记录不该同时挂着一把 key。判据**先算 noAuth 再算 apiKey** ——
-/// 顺序反了会让导入文件里的一把旧 key 把一个无鉴权账号复活成「有凭证」形态，
-/// 而导出侧写出的本来就只会是两者之一。
+/// ── noAuth and apiKey in this need ─────────────────────
+/// and （`add_custom_account` / `update_custom_credentials`） 1 not ：
+/// 「none need 」 not this when 1 key。** noAuth apiKey** ——
+/// will file 1 old key 1 none「 has 」，
+/// will is 1 。
 fn normalize_custom_known_fields(
     record: &mut Map<String, Value>,
     item: &Map<String, Value>,
     before: Option<&StoredAccount>,
 ) -> Result<(), String> {
-    // 文件显式给了就按文件（true / false 都是明确意图），没给则沿用本机标记
-    // （record 已从本机记录铺底，见 normalize_imported 的说明）
+    // file to by file（true / false is ）， no to then use 
+    // （record already from ， normalize_imported ）
     let no_auth = match item.get("noAuth") {
         Some(Value::Bool(flag)) => *flag,
         _ => matches!(record.get("noAuth"), Some(Value::Bool(true))),
@@ -264,7 +264,7 @@ fn normalize_custom_known_fields(
     record.insert("apiKey".to_string(), Value::String(api_key.clone()));
 
     let token_tail = if no_auth {
-        // 无需鉴权的账号没有尾号可展示（与 `add_custom_account` 同一形态）
+        // none need no has can （ and `add_custom_account` 1 ）
         String::new()
     } else {
         let incoming = text_of(item.get("tokenTail"));
@@ -290,8 +290,8 @@ fn normalize_custom_known_fields(
             .trim()
             .to_string();
         if raw.is_empty() {
-            // 带键但为空 = 清除覆盖项，回落提供商的 baseUrl（与添加路径同语义：
-            // 「没有覆盖项」与「覆盖成空串」必须可区分，空串不是合法 URL 落不了盘）
+            // as empty = ， baseUrl（ and path：
+            // 「 no has 」 and 「empty」must can ，empty not is URL not ）
             record.remove("baseUrl");
         } else {
             let base_url = crate::server::core::custom_providers::normalize_base_url(&raw)?;
@@ -301,28 +301,28 @@ fn normalize_custom_known_fields(
     Ok(())
 }
 
-/// WorkBuddy 的已知字段：端点/版本三件套按 edition 归一，运营字段沿用旧口径。
+/// WorkBuddy already ：/ by edition 1 ， use old 。
 ///
-/// 非 WorkBuddy 记录**不会**走到这里（见模块头第 3 条）。
+/// WorkBuddy ** not will ** to this （module header 3 ）。
 ///
-/// ── `apiBase` 是 `endpoint` 的别名（issue #381）──────────────────
-/// 手工导入时用户手上只有凭证文件里的 `auth.domain`（`www.workbuddy.ai`），
-/// 自然会传 `domain` / `apiHost` / `apiBase` 这类名字。其中只有 `apiBase`
-/// 被实际接受过（社区试出来的），而代码里从来没有认过它 —— 于是「导入成功、
-/// 无任何报错」但账号的 `endpoint` 是空串，插件回落到本地区端点：
-/// 国际版账号打到国内版站点，余额查询稳定 401 → 网关触发续期 → 续期打同一
-/// 个错地址 → 最后报出「登录态已过期或被拒绝」这种把人往凭证方向带的话。
+/// ── `apiBase` is `endpoint` （issue #381）──────────────────
+/// when use up has file `auth.domain`（`www.workbuddy.ai`），
+/// will `domain` / `apiHost` / `apiBase` this 。 its in has `apiBase`
+/// （ ）， from no has —— is 「success、
+/// none」 `endpoint` is empty， to ：
+/// to ， 401 → → 1 
+/// → after 「expired or 」 this to 。
 ///
-/// 这里把四个常见名字都收进 `endpoint`（顺序即优先级）：
-///   `apiBase`（实测可用、语义最明确）> `endpoint`（本机导出形态）
-///   > `apiHost` > `domain`（凭证文件里 `auth.domain` 的写法）。
+/// this `endpoint`（）：
+/// `apiBase`（available、）> `endpoint`（）
+/// > `apiHost` > `domain`（file `auth.domain` ）。
 ///
-/// `domain` 放在最后是**有意的**：它在插件侧只喂 `X-Domain` 头，不是端点。
-/// 但当用户只给了它时，按「他说的那个站点」处理远好于让它静默失效 ——
-/// issue #381 里 6 种写法中 5 种失败，最贵的一课就是「导入成功、查询才炸」。
+/// `domain` in after is ** has **： in `X-Domain` ， not is 。
+/// use to when ， by 「 that 」 ——
+/// issue #381 6 in 5 failure， 1 is 「success、」。
 ///
-/// 没写协议时补 `https://`：插件侧 `normalize_endpoint` 拿到没有 scheme 的
-/// 字符串会拼出 `www.workbuddy.ai/v2/...`，reqwest 判为相对地址直接失败。
+/// no when `https://`： `normalize_endpoint` to no has scheme 
+/// will `www.workbuddy.ai/v2/...`，reqwest as for failure。
 fn endpoint_alias_of(item: &Map<String, Value>) -> String {
     const ALIASES: [&str; 4] = ["apiBase", "endpoint", "apiHost", "domain"];
     let raw = ALIASES
@@ -360,18 +360,18 @@ fn normalize_workbuddy_known_fields(
                 .unwrap_or_default(),
         ),
     );
-    // 端点：显式 `endpoint` / `apiBase` / `apiHost` / `domain` > 本机旧值 > 空串。
+    // ： `endpoint` / `apiBase` / `apiHost` / `domain` > old > empty。
     //
-    // ── 空串为什么是安全的（issue #381）──────────────────────────
-    // 插件侧 `Context::make` 在 endpoint 为空时按 **edition** 回落到该地区的
-    // 官方端点（`workbuddy_shared::endpoints`）。所以真正决定「打哪个站点」
-    // 的是下面那行 `edition` —— 它由 provider id 定（`workbuddy-intl` → intl），
-    // 不依赖用户猜对字段名。改造前的问题不是「endpoint 空」，而是导入时
-    // `edition` 被写成 `cn`（`resolve_edition(None)` 的回落），于是国际版账号
-    // 打到了国内版站点。
+    // ── emptyWhy is （issue #381）──────────────────────────
+    // `Context::make` in endpoint as empty when by **edition** to this 
+    // （`workbuddy_shared::endpoints`）。「 」
+    // is down that `edition` —— by provider id （`workbuddy-intl` → intl），
+    // not use for 。 before not is 「endpoint empty」， is when 
+    // `edition` `cn`（`resolve_edition(None)` ）， is 
+    // to 。
     //
-    // 网关侧不重复写端点常量：那套知识在插件里（`EDITION_INTL.endpoint`），
-    // 网关只存用户显式给的值或空串。
+    // not ： that in （`EDITION_INTL.endpoint`），
+    // use to or empty。
     let endpoint = {
         let incoming = endpoint_alias_of(item);
         if !incoming.is_empty() {

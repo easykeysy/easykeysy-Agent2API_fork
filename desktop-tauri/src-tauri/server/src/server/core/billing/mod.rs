@@ -1,29 +1,29 @@
-//! 计费 / 签到 / 运营活动的**编排层**。
+//! / to / ****。
 //!
-//! ── 这里为什么变薄了（2026-10 插件化）───────────────────────
-//! 端点路径（`/v2/billing/meter/daily-checkin`）、计费专用的头集合、重复领取的
-//! 上游文案（「今天已签到，请明天再来」）、跨站落点（`www.codebuddy.cn`）与
-//! 商品码 —— 全是「这家上游长什么样」的知识，已整体搬到提供商插件
-//! （`workbuddy::billing`）。本模块只剩三件事：
+//! ── this Why（2026-10 ）───────────────────────
+//! path（`/v2/billing/meter/daily-checkin`）、 use 、 
+//! up （「 already to ，」）、（`www.codebuddy.cn`） and 
+//! —— is 「 this up 」 ， already to 
+//! （`workbuddy::billing`）。：
 //!
-//!   1. **取会话**：当前账号（或调用方指定的账号）→ 一条可用于路由的会话；
-//!   2. **转发**：把动作名与账号 id 交给插件的 `admin.action` / `usage.query`；
-//!   3. **组合**：`checkin_and_report` 这种「状态 + 领取 + 余额」的编排，
-//!      以及国际版每日活跃的读数拼装。
+//! 1. ** will **：current（ or use ）→ 1 available by will ；
+//! 2. ****： and id to `admin.action` / `usage.query`；
+//! 3. ****：`checkin_and_report` this 「 + + 」 ，
+//! and daily 。
 //!
-//! ── 账号 id 从哪来 ──────────────────────────────────────────
-//! `admin.action` 必须带账号 id 才能路由到插件里的那条记录，而本模块的若干
-//! 入口收的是**会话**（`store.get_session_by_id` 的产物，刻意不含 id）。
-//! 所以按 `(provider, uid)` 反查一次 —— 地区从会话的 `edition` 派生
-//! （账号存储写会话时就是从记录抄的）。
+//! ── id from ──────────────────────────────────────────
+//! `admin.action` must id can by to that ， if 
+//! is ** will **（`store.get_session_by_id` ， not id）。
+//! by `(provider, uid)` 1 —— from will `edition` 
+//! （ will when is from ）。
 //!
-//! ── 文件分工 ────────────────────────────────────────────────
-//!   mod.rs        服务句柄、错误类型、转发与组合（本文件）
-//!   checkin.rs    账号级签到（目标集合 + 串行执行，向定时签到暴露同一条路径）
-//!   keepalive.rs  国际版日活保活的**模型链配置**（用户配置，留在网关）
+//! ── file ────────────────────────────────────────────────
+//! mod.rs 、error、 and （file）
+//! checkin.rs to （ + ， to when to 1 path）
+//! keepalive.rs **config**（ use config， in ）
 //!
-//! ── 硬约束 ──────────────────────────────────────────────────
-//! release 是 `panic=abort`：本模块零 unwrap/expect/panic。
+//! ── ──────────────────────────────────────────────────
+//! release is `panic=abort`： unwrap/expect/panic。
 
 pub mod checkin;
 pub mod keepalive;
@@ -37,11 +37,11 @@ use crate::server::core::providers::adapter::adapter_by_id;
 use crate::server::core::providers::workbuddy::Region;
 use crate::server::logging;
 
-/// 计费/活动接口的错误（对应 Node 版 WorkBuddyBillingError）。
+/// / error（ for Node WorkBuddyBillingError）。
 ///
-/// `status_code` 会原样变成 HTTP 状态码（504 超时 / 401 登录态过期 /
-/// 上游 HTTP 状态码），所以它必须是 Option 之外的一个确定值 ——
-/// Node 版构造函数默认 502。
+/// `status_code` will HTTP （504 when / 401 /
+/// up HTTP ），must is Option 1 ——
+/// Node default 502。
 #[derive(Clone, Debug)]
 pub struct BillingError {
     pub message: String,
@@ -62,11 +62,11 @@ impl BillingError {
         Self { message: message.into(), status_code, upstream_code }
     }
 
-    /// 转成统一的网关错误。
+    /// 1 error。
     ///
-    /// 计费路由的失败 body 走 OpenAI 风格（`/api/usage` 那几条在 server.mjs
-    /// 的最外层大 try 里 → errorPayload）—— 由路由层决定用哪个信封，
-    /// 这里只提供转换。
+    /// by failure body OpenAI （`/api/usage` that in server.mjs
+    /// try → errorPayload）—— by by use ，
+    /// this 。
     pub fn to_gateway_error(&self) -> crate::server::errors::GatewayError {
         let mut error = crate::server::errors::GatewayError::with_status(
             self.status_code,
@@ -78,7 +78,7 @@ impl BillingError {
         error
     }
 
-    /// 插件侧错误 → 本模块的错误（状态码原样带过来）。
+    /// error → error（）。
     fn from_gateway(error: crate::server::errors::GatewayError) -> Self {
         Self::with_code(error.message, error.status_code, error.upstream_code)
     }
@@ -90,13 +90,13 @@ impl std::fmt::Display for BillingError {
     }
 }
 
-/// 国际版每日活跃任务的**执行粒度**（对应签到中心的三颗手动按钮；
-/// 定时与批量签到恒走 [`WorkbuddyActivity::Full`]，粒度细分只是手动入口的事）。
+/// daily ****（ for to in by ；
+/// when and to [`WorkbuddyActivity::Full`]， is ）。
 ///
-/// 三种粒度的边界就是「哪几步要打上游」：
-///   * `Full`：探测 + 条件领取 + 保活 —— 一次点击完整跑一遍；
-///   * `Claim`：探测 + 条件领取 —— 只想要奖励，不多打保活那发对话；
-///   * `Keepalive`：只保活 —— 活动没开时只维持账号活跃，不打探测与领取。
+/// is 「 need up 」：
+/// * `Full`： + + —— 1 1 ；
+/// * `Claim`： + —— need ， not that for ；
+/// * `Keepalive`： —— no when ， not and 。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorkbuddyActivity {
     Full,
@@ -105,8 +105,8 @@ pub enum WorkbuddyActivity {
 }
 
 impl WorkbuddyActivity {
-    /// API 层传来的 mode 字符串 → 粒度。未知值回落 Full —— 手动入口的
-    /// 缺省行为是「完整跑一遍」，比「悄悄少做一步」更接近点击者的本意。
+    /// API mode → 。unknown Full —— 
+    /// as is 「 1 」，「 1 」 。
     pub fn parse(value: Option<&str>) -> Self {
         match value {
             Some("claim") => Self::Claim,
@@ -115,7 +115,7 @@ impl WorkbuddyActivity {
         }
     }
 
-    /// 结果行里回带的 mode（前端排查「这轮实际跑了哪几步」用）
+    /// mode（ before 「 this 」 use ）
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Full => "full",
@@ -125,12 +125,12 @@ impl WorkbuddyActivity {
     }
 }
 
-/// 计费客户端句柄：持有鉴权服务（取会话用）。
+/// client： has （ will use ）。
 ///
-/// Node 版是 `createWorkBuddyBilling({ auth, ... })`，靠 `auth.getCurrentSession()`
-/// 拿默认会话。按账号查询（/api/accounts/usage、/api/accounts/checkin）需要
-/// **指定账号**的会话，那条路径由 `billing::checkin` 的入参显式传入 store，
-/// 因此这里不再持有账号存储句柄。
+/// Node is `createWorkBuddyBilling({ auth, ... })`， `auth.getCurrentSession()`
+/// default will 。 by （/api/accounts/usage、/api/accounts/checkin） need need 
+/// **** will ， that path by `billing::checkin` store，
+/// this not has 。
 #[derive(Clone)]
 pub struct BillingService {
     auth: AuthService,
@@ -141,15 +141,15 @@ impl BillingService {
         Self { auth }
     }
 
-    /// 当前配置里的 locale（/api/usage 与 claim-and-report 用）
+    /// currentconfig locale（/api/usage and claim-and-report use ）
     fn current_locale() -> String {
         config::current().locale().to_string()
     }
 
-    /// 取默认会话（当前账号）；没有可用登录态时报 401。
+    /// default will （current）； no has available when 401。
     ///
-    /// 文案照抄 Node 版，但去掉了「node server.mjs --login」那半句 ——
-    /// 壳内 Rust 版没有那个命令行入口，指向不存在的命令会误导用户。
+    /// Node ，「node server.mjs --login」 that ——
+    /// Rust no has that ， to not in will use 。
     async fn require_session(&self) -> Result<Value, BillingError> {
         let session = self.auth.get_current_session().await.map_err(|error| {
             let status = error.http_status();
@@ -161,17 +161,17 @@ impl BillingService {
         }
     }
 
-    /// 会话 → `(provider_id, account_id)`。
+    /// will → `(provider_id, account_id)`。
     ///
-    /// 地区从会话的 `edition` 派生（账号存储写会话时就是从记录抄的），
-    /// 再用 `(provider, uid)` 反查记录 id —— `admin.action` 要的是 id。
+    /// from will `edition` （ will when is from ），
+    /// use `(provider, uid)` id —— `admin.action` need is id。
     ///
-    /// ── uid 取不到时的退路（issue #380）────────────────────────────
-    /// 会话是 `session_from_record` 写的，那条路径现在会回落
-    /// `pluginPublic` / `pluginSecret`，所以正常情况下这里能拿到 uid。
-    /// 但如果会话来自更早的调用方（已构造好的 JSON），uid 仍可能为空 ——
-    /// 那时按 `user-<uid>` 的记录 id 形态再试一次：WorkBuddy 系的插件落库
-    /// 记录 id 就是那个形态（`accounts::identity_of`）。
+    /// ── uid not to when （issue #380）────────────────────────────
+    /// will is `session_from_record` ， that path in will 
+    /// `pluginPublic` / `pluginSecret`， down this can to uid。
+    /// if will use （ already JSON），uid can can as empty ——
+    /// that when by `user-<uid>` id 1 ：WorkBuddy 
+    /// id is that （`accounts::identity_of`）。
     fn account_of(&self, session: &Value) -> Option<(String, String)> {
         let uid = session
             .get("account")
@@ -187,7 +187,7 @@ impl BillingService {
             .map(|id| (provider.to_string(), id))
     }
 
-    /// 转发一次管理动作到插件（`admin.action`）。
+    /// 1 to （`admin.action`）。
     async fn admin(
         &self,
         session: &Value,
@@ -216,13 +216,13 @@ impl BillingService {
             .map_err(BillingError::from_gateway)
     }
 
-    // ─── 签到 ───────────────────────────────────────────────
+    // ─── to ───────────────────────────────────────────────
 
-    /// 签到活动状态（`AuthService.getCheckinStatus`）。
+    /// to （`AuthService.getCheckinStatus`）。
     ///
-    /// 成功但 data 为空时返回 null（与桌面端一致）。国际版走每日活跃探测，
-    /// 响应归一成同一套键（`active` / `todayCheckedIn`），调用方不用分版本
-    /// 读字段 —— 归一在插件里（`billing::ops::checkin_status`）。
+    /// success data as empty when return null（ and 1 ）。daily，
+    /// response 1 1 （`active` / `todayCheckedIn`）， use not use 
+    /// —— 1 in （`billing::ops::checkin_status`）。
     pub async fn get_checkin_status(&self, session: Option<&Value>) -> Result<Value, BillingError> {
         let active = match session {
             Some(session) => session.clone(),
@@ -231,16 +231,16 @@ impl BillingService {
         self.admin(&active, "billing.checkin-status", &Value::Null).await
     }
 
-    /// 领取每日签到积分（`AuthService.claimDailyCheckin`）。
+    /// daily to （`AuthService.claimDailyCheckin`）。
     ///
-    /// 幂等：已领取时上游返回非 0 code（或 HTTP 400），插件那边原样返回
-    /// `{success:false, code, msg}` ——「今天已签到」不是错误，前端面板会把它
-    /// 显示成一条 warn 提示。
+    /// etc ： already when up return 0 code（ or HTTP 400）， that return
+    /// `{success:false, code, msg}` ——「 already to 」 not is error， before will 
+    /// 1 warn 。
     ///
-    /// 国际版没有「领取签到」这个动作：它走每日活跃任务链
-    /// （[`Self::workbuddy_daily_activity`]），并把领取结果、活动状态与保活
-    /// 读数一并装进 claim 返回 —— 组合入口与签到链两条路都从这进，
-    /// 一次调用不重复打上游。
+    /// no has 「 to 」 this ：daily
+    /// （[`Self::workbuddy_daily_activity`]）， and 、 and 
+    /// 1 and claim return —— and to from this ，
+    /// 1 use not up 。
     pub async fn claim_daily_checkin(&self, session: Option<&Value>) -> Result<Value, BillingError> {
         let active = match session {
             Some(session) => session.clone(),
@@ -272,31 +272,31 @@ impl BillingService {
         self.admin(&active, "billing.checkin-claim", &Value::Null).await
     }
 
-    /// 领取一次性运营奖励（`claim-gift` / `claim-compensation`）。
+    /// 1 （`claim-gift` / `claim-compensation`）。
     ///
-    /// 国内版专属（插件侧对国际版明确报错）。每号一次 ——「已领取」与
-    /// 「没有可领取的」都是正常终态，插件原样返回而不是丢成 `Err`。
+    /// （ for ）。 1 ——「 already 」 and 
+    /// 「 no has can 」 is ，return not is `Err`。
     async fn claim_reward(&self, kind: &str, session: &Value) -> Result<Value, BillingError> {
         self.admin(session, "billing.reward", &json!({ "kind": kind }))
             .await
     }
 
-    /// 领取活动补偿（如 2026-10 的 DeepSeek 故障补偿 500 积分）
+    /// （ 2026-10 DeepSeek 500 ）
     pub async fn claim_compensation(&self, session: &Value) -> Result<Value, BillingError> {
         self.claim_reward("compensation", session).await
     }
 
-    /// 领取新手礼包（一次性新用户积分包，没领过的账号才有）
+    /// new （ 1 new use ， no has ）
     pub async fn claim_gift(&self, session: &Value) -> Result<Value, BillingError> {
         self.claim_reward("gift", session).await
     }
 
-    // ─── 余额 ───────────────────────────────────────────────
+    // ─── ───────────────────────────────────────────────
 
-    /// 积分简报（`{kind, unlimited, totalLeft, planLeft, bonusLeft}` + 明细 + 套餐）。
+    /// （`{kind, unlimited, totalLeft, planLeft, bonusLeft}` + + ）。
     ///
-    /// 翻译逻辑（上游嵌套结构 → 前端契约）在插件里；这里只负责
-    /// 「会话 → 账号 id → `usage.query`」。
+    /// （ up → before ） in ； this 
+    /// 「 will → id → `usage.query`」。
     pub async fn query_credits_summary(
         &self,
         session: Option<&Value>,
@@ -328,19 +328,19 @@ impl BillingService {
             .map_err(BillingError::from_gateway)
     }
 
-    /// 默认语言下的积分简报（路由层入口，对照 server.mjs
+    /// default down （ by ， for server.mjs
     /// `billing.queryCreditsSummary({ locale: opts.locale })`）
     pub async fn query_credits_summary_default(&self) -> Result<Value, BillingError> {
         let locale = Self::current_locale();
         self.query_credits_summary(None, Some(&locale)).await
     }
 
-    // ─── 运营活动 ───────────────────────────────────────────
+    // ─── ───────────────────────────────────────────
 
-    /// 运营 banner：需客户端白名单头，否则被拦截（返回 null，与桌面端一致）。
+    /// banner： need client，otherwise （return null， and 1 ）。
     ///
-    /// **吞掉所有错误并返回 null** —— banner 是页面上的一块装饰，拉不到就不
-    /// 显示，不该让首屏出现一条红色报错（与 Node 版一致）。
+    /// **allerror and return null** —— banner is up 1 ， not to not 
+    /// ， not this 1 （ and Node 1 ）。
     pub async fn get_activity_banner(&self, session: Option<&Value>) -> Value {
         let active = match session {
             Some(session) => session.clone(),
@@ -361,7 +361,7 @@ impl BillingService {
         }
     }
 
-    /// 大使（推广）状态。同样吞错返回 null（verbose 级别日志）。
+    /// （）。return null（verbose ）。
     pub async fn get_ambassador_status(&self, session: Option<&Value>) -> Value {
         let active = match session {
             Some(session) => session.clone(),
@@ -388,15 +388,15 @@ impl BillingService {
         }
     }
 
-    /// 签到 + 查余额的组合动作（"签到并回报最新积分"）。
+    /// to + （" to and new "）。
     ///
-    /// 已签到时不重复领取，直接返回当前额度。
+    /// already to when not ，returncurrent。
     ///
-    /// 并发语义：Node 用 `Promise.all` 并发跑「查状态 + 领取」。
-    /// 这里必须**顺序**执行 —— 两者共享同一个底层连接池没问题，
-    /// 但并发会在上游留下两条几乎同时到达的签到请求，而 Node 版
-    /// `checkinAndReport` 的注释明确说「额度可能因签到变化，稍等一下再查」，
-    /// 顺序执行才保证 `usage` 反映的是领取之后的额度。
+    /// and ：Node use `Promise.all` and 「 + 」。
+    /// this must**** —— 1 no ，
+    /// and will in up down when to to request， Node 
+    /// `checkinAndReport` 「 can can to ， etc 1 down 」，
+    /// `usage` is after 。
     pub async fn checkin_and_report(
         &self,
         session: Option<&Value>,
@@ -407,8 +407,8 @@ impl BillingService {
             None => self.require_session().await?,
         };
 
-        // 国际版没有国内版的普通签到接口；组合入口沿用同一条活跃任务链路，
-        // 并把探测/领取/保活结果一起返回，避免重复打上游。
+        // no has to ； use 1 ，
+        // and // 1 return， up 。
         if is_international(&active) {
             let activity = self
                 .workbuddy_daily_activity(&active, WorkbuddyActivity::Full)
@@ -425,15 +425,15 @@ impl BillingService {
             }));
         }
 
-        // 查状态与领取：Node 并发，这里顺序（理由见上）。
-        // 领取失败不抛出 —— 收敛成 `{success:false, code:-1, msg}`，与 Node 的
-        // `.catch(error => ({ success:false, code:-1, msg: error.message }))` 一致
+        // and ：Node and ， this （ by up ）。
+        // failure not —— `{success:false, code:-1, msg}`， and Node 
+        // `.catch(error => ({ success:false, code:-1, msg: error.message }))` 1 
         let status = self.get_checkin_status(Some(&active)).await?;
         let claim = match self.claim_daily_checkin(Some(&active)).await {
             Ok(value) => value,
             Err(error) => json!({ "success": false, "code": -1, "msg": error.message }),
         };
-        // 额度可能因签到变化，稍等一下再查（对照 Node 的 sleep(500)）
+        // can can to ， etc 1 down （ for Node sleep(500)）
         if claim.get("success").and_then(Value::as_bool).unwrap_or(false) {
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         }
@@ -448,27 +448,27 @@ impl BillingService {
         }))
     }
 
-    /// 默认语言下的签到组合动作（路由层入口）
+    /// default down to （ by ）
     pub async fn checkin_and_report_default(&self) -> Result<Value, BillingError> {
         let locale = Self::current_locale();
         self.checkin_and_report(None, Some(&locale)).await
     }
 
-    // ─── 国际版每日活跃 ─────────────────────────────────────
+    // ─── daily ─────────────────────────────────────
 
-    /// 国际版每日活跃任务：活动探测 → 条件领取 → 免费模型保活 → 网页会话。
+    /// daily： → → → will 。
     ///
-    /// ── 这里只做转发 ────────────────────────────────────────────
-    /// 执行体在**提供商插件**里（`workbuddy::keepalive`，动作 `activity.run`）。
-    /// 三段流程里全是「国际版上游长什么样」的知识：端点、`chat_request_send`
-    /// 事件的字段、网页会话的 `conversationOrigin` 与浏览器 UA。网关这边只剩
-    /// 「读配置、拿模型链、挑账号、透传结果」。
+    /// ── this ────────────────────────────────────────────
+    /// in ****（`workbuddy::keepalive`， `activity.run`）。
+    /// is 「 up 」 ：、`chat_request_send`
+    /// 、 will `conversationOrigin` and UA。 this 
+    /// 「config、、、」。
     ///
-    /// ── 模型链 ──────────────────────────────────────────────────
-    /// `keepalive::models()`（签到中心可自定义）作为 payload 传给插件：那是
-    /// **用户的**配置，留在网关的 config.json 里，插件不持有影子副本。
-    /// 用户没配时是空数组 —— 缺省链在插件里（「上游此刻有哪些免费模型」是
-    /// 上游知识，不该在网关留一份会过时的名单）。
+    /// ── ──────────────────────────────────────────────────
+    /// `keepalive::models()`（ to in can ） as payload to ： that is 
+    /// ** use **config， in config.json ， not has 。
+    /// use no when is empty —— in （「 up has 」 is 
+    /// up ， not this in 1 will when ）。
     pub async fn workbuddy_daily_activity(&self, session: &Value, mode: WorkbuddyActivity) -> Value {
         let mut blocked = None;
         let mode = if mode != WorkbuddyActivity::Claim {
@@ -500,14 +500,14 @@ impl BillingService {
     }
 }
 
-/// 一次国际版每日活跃任务**没跑起来**时的结果（形状与插件的成功返回一致）。
+/// 1 daily** no ** when （ and successreturn 1 ）。
 ///
-/// ── 为什么不是 `Err` ────────────────────────────────────────
-/// 调用方（签到链、`claim_daily_checkin`、手动三颗按钮）都按「`activity` 段
-/// 有读数」设计：这里返回 Err 会把「上游没答上」变成整个签到失败。与
-/// 「活动未开放属正常状态、失败收敛为结果字段」是同一口径 —— 差别只在
-/// 这次连请求都没发出去（没装插件 / 会话对不上账号），原因写进 `claim.msg`
-/// 与 `activity.report.msg`，用户看得见。
+/// ── Why not is `Err` ────────────────────────────────────────
+/// use （ to 、`claim_daily_checkin`、 by ） by 「`activity` 
+/// has 」： this return Err will 「 up no up 」 to failure。 and 
+/// 「、failure as 」 is 1 —— in 
+/// this request no （ no / will for not up ），Reason `claim.msg`
+/// and `activity.report.msg`， use 。
 fn activity_failure(reason: &str) -> Value {
     logging::verbose("[Checkin]", &format!("WorkBuddy 国际版每日活跃未执行: {reason}"));
     json!({
@@ -534,7 +534,7 @@ fn activity_failure(reason: &str) -> Value {
     })
 }
 
-/// 会话是否带 accessToken（Node: `session?.auth?.accessToken` 真值判定）
+/// will is accessToken（Node: `session?.auth?.accessToken` ）
 fn has_access_token(session: &Value) -> bool {
     session
         .get("auth")
@@ -544,9 +544,9 @@ fn has_access_token(session: &Value) -> bool {
         .unwrap_or(false)
 }
 
-/// 国际版会话判定（拆家后账号落盘仍带 `edition`，session 从账号派生时继承它）。
-/// 国内版与国际版的签到语义不同（前者有签到接口、后者只有活跃任务），
-/// 这条判定是两条链分流的唯一闸口。
+/// will （ after `edition`，session from when ）。
+/// and to not （ before has to 、 after has ），
+/// this is 1 。
 fn is_international(session: &Value) -> bool {
     Region::from_edition_id(session.get("edition").and_then(Value::as_str)) == Region::Intl
 }

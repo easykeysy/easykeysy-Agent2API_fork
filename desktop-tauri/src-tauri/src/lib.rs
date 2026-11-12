@@ -1,24 +1,24 @@
 /**
- * 应用入口 — 组装状态、注册插件与命令、创建主窗口。
+ * use — 、 and 、create。
  *
- * 前端源码在 desktop-tauri/ui/，通过 tauri.conf.json 的 frontendDist 引入。
- * 界面代码只依赖 window.workbuddyDesktop 这个接口，不感知具体壳，
- * 因此从 Electron 迁到 Tauri 时前端一行未改。职责拆成几块：
- *   server/      进程内 HTTP 服务器（网关本体；原为外部 node 后端进程）
- *                `server/config_migration.rs` 是 1.x 配置目录迁移的唯一实现，
- *                由本文件 setup 第一步调用（必须早于任何配置目录写盘）
- *   backend.rs   服务生命周期（启动/健康检查/退出停机信号）
- *   gateway.rs   管理 API 的 HTTP 客户端（含 API Key 读取与统一解包）
- *   login.rs     登录窗口与轮询
- *   commands.rs  暴露给前端的 invoke 命令（对齐原 preload 的 API 面）
- *   settings.rs  应用设置（关闭到托盘、开机自启）的持久化
- *   tray.rs      系统托盘图标、菜单与窗口唤起
+ * before in desktop-tauri/ui/， tauri.conf.json frontendDist 。
+ * window.workbuddyDesktop this ， not ，
+ * from Electron to Tauri when before 1 。：
+ * server/ HTTP （； as node after ）
+ * `server/config_migration.rs` is 1.x configdirectory 1 ，
+ * by file setup 1 use （mustconfigdirectory）
+ * backend.rs （/check/）
+ * gateway.rs API HTTP client（ API Key and 1 ）
+ * login.rs and 
+ * commands.rs to before invoke （ for preload API ）
+ * settings.rs use set（ to 、） 
+ * tray.rs 、 and 
  *
- * 窗口生命周期（关闭到托盘 / 托盘退出 / 单实例）集中在本文件：
- * 这些都是「应用级」行为，散落到各模块反而看不清谁拦了退出。
+ * （ to / / ） in in file：
+ * this is 「 use 」 as ， to not 。
  *
- * 前端桥接：主窗口在创建时注入 bridge.js，在页面脚本执行前把
- * window.workbuddyDesktop 装好，因此渲染层代码无需感知 Tauri。
+ * before ： in create when bridge.js， in before 
+ * window.workbuddyDesktop ，none need Tauri。
  */
 
 mod account_export;
@@ -40,9 +40,9 @@ mod state;
 mod tray;
 mod update;
 
-// 网关本体与端口冲突分类已拆到独立 crate（`server/`，桌面与 headless 二进制
-// 共用）。在这里以原名引入：crate 内所有 `crate::server::…` /
-// `crate::port_conflict::…` 路径与拆分前完全一致，两侧代码零改动。
+// and already to crate（`server/`， and headless 
+// use ）。 in this ：crate all `crate::server::…` /
+// `crate::port_conflict::…` path and before 1 ，。
 use agent2api_server::port_conflict;
 use agent2api_server::server;
 
@@ -54,23 +54,23 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use server::config_migration::MigrationOutcome;
 use state::AppState;
 
-/** 主窗口默认尺寸与最小尺寸（与原 Electron 端保持一致） */
+/** default and （ and Electron 1 ） */
 const WIN_WIDTH: f64 = 1060.0;
 const WIN_HEIGHT: f64 = 800.0;
 const WIN_MIN_WIDTH: f64 = 820.0;
 const WIN_MIN_HEIGHT: f64 = 600.0;
 
-/// 主窗口标签：托盘唤起、关闭拦截、单实例激活都按它查找
+/// ：、、 by 
 pub const MAIN_WINDOW_LABEL: &str = "main";
 
-/// 应用标题：窗口标题、托盘提示、界面自绘标题栏共用同一份文案。
+/// use ：、、 use 1 。
 ///
-/// debug 构建（`tauri dev`）带 `[Dev]` 前缀 —— 开发版与正式版能同时运行
-/// （端口与 identifier 各自独立，见 `gateway::DEV_PORT` 与 `tauri.dev.conf.json`），
-/// 而两个实例的窗口与托盘图标长得一模一样，标题不带标记就分不清谁是谁。
-/// 前缀放在最前面，任务栏那种宽度受限的地方也能一眼看到。
+/// debug （`tauri dev`） `[Dev]` before —— and can when 
+/// （ and identifier ， `gateway::DEV_PORT` and `tauri.dev.conf.json`），
+/// and 1 1 ， not not is 。
+/// before in before ， that can 1 to 。
 ///
-/// 判据取 `debug_assertions`，与下面「开发态不做安装迁移 / 自启刷新」同一个口径。
+/// `debug_assertions`， and down 「 not / new 」 1 。
 pub fn app_title() -> &'static str {
     if cfg!(debug_assertions) {
         "[Dev]Agent2API·多提供商本地网关"
@@ -79,24 +79,24 @@ pub fn app_title() -> &'static str {
     }
 }
 
-/// 开机自启时附加的命令行参数。启动时见到它就不显示窗口，
-/// 只把托盘留在后台，避免开机弹窗打扰用户。
+/// when parameter。 when to not ，
+/// in after ， use 。
 const AUTOSTART_FLAG: &str = "--autostart";
 
-/// 本次启动是否由开机自启触发
+/// is by 
 fn launched_by_autostart() -> bool {
     std::env::args().any(|arg| arg == AUTOSTART_FLAG)
 }
 
-/// WebView2 用户数据目录(EBWV)**托管默认**:程序自己的 EBWV 链接指向
-/// `W:\EBWebView\easykeysy-Agent2API_fork`,其父目录 `W:\EBWebView` 作为共享
-/// Chromium 配置区。这里传给 `data_directory` 的就是该子目录本身 —— wry 把
-/// 这个路径**原样**交给 `CreateCoreWebView2EnvironmentWithOptions` 的
-/// userDataFolder,不会在末尾再拼 `EBWebView`,所以默认值必须是子目录而非父目录。
+/// WebView2 use directory(EBWV)**default**: EBWV to 
+/// `W:\EBWebView\easykeysy-Agent2API_fork`, its directory `W:\EBWebView` as 
+/// Chromium config。 this to `data_directory` is this directory —— wry 
+/// this path**** to `CreateCoreWebView2EnvironmentWithOptions` 
+/// userDataFolder, not will in `EBWebView`,defaultmust is directorydirectory。
 ///
-/// 环境变量 `AGENT2API_EBWEBVIEW_DIR` 可整体覆盖(未设置 / 空白即用本默认),
-/// 与 `paths::config_dir` 的 `AGENT2API_PROXY_HOME` 同一套约定。目录不存在时
-/// 由 Tauri 建窗时 `create_dir_all` 自行创建,无需本函数保证存在。
+/// `AGENT2API_EBWEBVIEW_DIR` can (set / empty use default),
+/// and `paths::config_dir` `AGENT2API_PROXY_HOME` 1 。directory not in when 
+/// by Tauri when `create_dir_all` create,none need in 。
 #[cfg(target_os = "windows")]
 fn ebwv_data_dir() -> std::path::PathBuf {
     if let Ok(value) = std::env::var("AGENT2API_EBWEBVIEW_DIR") {
@@ -108,36 +108,36 @@ fn ebwv_data_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(r"W:\EBWebView\easykeysy-Agent2API_fork")
 }
 
-/// 启动期致命错误的用户提示与收尾：显示可读原因 → 结束进程。
+/// error use and ： can Reason → 。
 ///
-/// ── 为什么不是 `return Err(...)` ─────────────────────────────
-/// 当前 Tauri（2.11）在 `setup` 返回 `Err` 时是 `panic!("Failed to setup app")`，
-/// 而本项目 release 是 `panic = "abort"` —— 用户只会看到一个闪退，拿不到
-/// 「旧数据在哪、为什么失败、怎么恢复」这些关键信息。这里改为显式路径：
-/// 错误原样（含路径与系统错误，不含文件内容）走控制台 + 原生错误对话框，
-/// 用户确认后以非零码结束进程，全程不写任何配置文件。
+/// ── Why not is `return Err(...)` ─────────────────────────────
+/// current Tauri（2.11） in `setup` return `Err` when is `panic!("Failed to setup app")`，
+/// release is `panic = "abort"` —— use will to 1 ， not to 
+/// 「 old in 、Whyfailure、」 this 。 this as path：
+/// error（path and error， not file） + error for ，
+/// use after ， not configfile。
 ///
-/// ── 对话框为什么用非阻塞 `show` ─────────────────────────────
-/// setup 钩子跑在主线程上，`blocking_show` 的文档明确要求不能在主线程调用
-/// （会冻住事件循环）；插件文档给的 setup 用法就是 `show(callback)`。
-/// 回调在用户点掉对话框后触发，那里再请求退出 —— 期间事件循环照常运行，
-/// 但 setup 已提前返回、窗口与托盘都没建，不会有任何初始化或写盘动作。
+/// ── for Why use `show` ─────────────────────────────
+/// setup in up ，`blocking_show` need not can in use 
+/// （ will ）； to setup use is `show(callback)`。
+/// in use for after ， that request —— ，
+/// setup already before return、 and no ， not will has or 。
 ///
-/// ── 看门狗 ─────────────────────────────────────────────────
-/// 对话框万一没能显示（例如主线程任务投递失败），进程会变成「没有窗口、
-/// 没有托盘、却仍占着单实例锁」的僵尸：用户再点图标只会把消息发给这个
-/// 隐形进程，永远启动不起来。看门狗保证失败路径一定有终点；超时足够长
-/// （5 分钟），正常用户读提示的时间远小于它。
+/// ── ─────────────────────────────────────────────────
+/// for 1 no can （e.g.failure）， will 「 no has 、
+/// no has 、」 ： use will to this 
+/// ， not 。failurepath 1 has ； when 
+/// （5 minutes）， use when 。
 ///
-/// ── 退出路径不会写盘 ────────────────────────────────────────
-/// 迁移失败时 `settings::load()` 从未执行，`close_to_tray` 保持默认 false，
-/// 因此 `ExitRequested` 分支不会拦截退出，只会调 `backend::shutdown` ——
-/// 那里只做停机信号与日志，不发网络请求、不写配置文件（后端从未启动，
-/// 定时签到全局句柄也未初始化）。`app.exit` 只触发 ExitRequested/Exit，
-/// 不会再走一遍 setup 之后的初始化；看门狗走 `process::exit` 更直接：
-/// 此时没有窗口、托盘、后台任务或文件句柄需要收尾。
+/// ── path not will ────────────────────────────────────────
+/// failure when `settings::load()` from ，`close_to_tray` default false，
+/// `ExitRequested` not will ， will `backend::shutdown` ——
+/// that and ， not request、 not configfile（ after from ，
+/// when to ）。`app.exit` ExitRequested/Exit，
+/// not will 1 setup after ； `process::exit` ：
+/// when no has 、、 after or file need need 。
 fn report_startup_failure(app: &tauri::AppHandle, error: &str) {
-    /// 用户长时间不确认时强制结束的上限
+    /// use when not when limit
     const FORCE_EXIT_AFTER: std::time::Duration = std::time::Duration::from_secs(300);
 
     let message = format!(
@@ -160,66 +160,66 @@ fn report_startup_failure(app: &tauri::AppHandle, error: &str) {
     });
 }
 
-/// 创建主窗口 —— 启动建一次；轻量模式下窗口被销毁后，托盘按需重建也走这里。
+/// create —— 1 ； down after ， by need this 。
 ///
-/// 建窗参数（标题 / 装饰与标题栏策略 / 尺寸 / 默认最大化 / 桥注入 /
-/// WebView2 后台保活参数）**只在这一处声明**：重建的窗口是用户「重新打开」
-/// 的界面，任何参数漂移都会表现为「托盘叫回来的窗口和原来长得不一样」，
-/// 所以启动与重建必须共用同一份。
+/// parameter（ / and / / default / /
+/// WebView2 after parameter）** in this 1 **： is use 「 new 」
+/// ，parameter will as 「 and not 1 」，
+/// and must use 1 。
 ///
-/// `visible` 由调用方决定：启动时按「是否开机自启」静默（比先显示再隐藏
-/// 更干净，不会在任务栏闪一下），重建时恒为 true。
+/// `visible` by use ： when by 「 is 」（
+/// ， not will in 1 down ）， when as true。
 fn create_main_window(app: &AppHandle, visible: bool) -> tauri::Result<tauri::WebviewWindow> {
-    // ── 窗口装饰：两个平台各走一条，差别只在这一处 ────────────────
-    // 共同点是**都保留 32px 自绘标题条**（titlebar.js 动态创建，与界面同一套
-    // 配色），平台差异只在「这三键谁来画、标题栏归谁管」：
+    // ── ： 1 ， in this 1 ────────────────
+    // is ** 32px **（titlebar.js create， and 1 
+    // ）， in 「 this 、」：
     //
-    //   · Windows / Linux —— `decorations(false)` 去掉系统标题栏，三键由界面
-    //     自绘（右上角矩形键，Windows 11 惯例）。
-    //   · macOS —— 保留系统装饰，但标题栏设为透明叠加（`TitleBarStyle: Overlay`
-    //     + `hidden_title`）：红/黄/绿三颗圆点由 AppKit 画在左上角、盖在网页
-    //     内容之上（Overlay 会一并打开 fullSizeContentView），我们那条 32px
-    //     标题条就是它的背景板，界面只让出红绿灯占的那段左内边距
-    //     （见 ui/css/layout.css 的 .titlebar.is-macos）。
+    // · Windows / Linux —— `decorations(false)` ， by 
+    // （ up ，Windows 11 ）。
+    // · macOS —— ， as （`TitleBarStyle: Overlay`
+    // + `hidden_title`）：// by AppKit in up 、 in 
+    // up （Overlay will 1 and fullSizeContentView）， that 32px
+    // is ， that 
+    // （ ui/css/layout.css .titlebar.is-macos）。
     //
-    // 为什么 macOS 不用 decorations(false) 自己画三键：自绘的圆点只能是**样子**，
-    // 换不来系统那套行为 —— 长按绿灯进分屏、全屏 Space、窗口圆角与投影、
-    // 失焦自动变灰、按住 Option 的绿灯缩放、以及「双击标题栏」跟随系统偏好
-    // （系统偏好里那一项能设成最小化 / 缩放 / 什么都不做，自绘接不住）。
-    // 代价是 macOS 的建窗参数与 Windows 不再逐字相同（这一处分支的由来）。
+    // Why macOS not use decorations(false) ： can is ****，
+    // not that as —— by 、 Space、 and 、
+    // 、 by Option 、 and 「」
+    // （ that 1 can / / not ， not ）。
+    // is macOS parameter and Windows not （ this 1 by ）。
     //
-    // 两个平台共同的脚本侧依赖：
-    //   · 拖动 / 双击最大化：前端给标题栏元素声明 `data-tauri-drag-region`
-    //     属性 —— Tauri 的 core 脚本监听 mousedown，目标元素带该属性
-    //     才拖动（子元素不带不拖），双击（连击）切最大化。Overlay 下这条
-    //     是**必须**的：系统标题栏在透明叠加态不接管拖动。
-    //     已知限制：Overlay 下窗口未聚焦时拖不动标题栏（tauri#4316）——
-    //     第一次按下只把窗口激活，要再拖一次。Tauri 侧的行为，绕不开。
-    //   · 边缘拖拽缩放：`resizable(true)`（默认即开）。
-    //   · 关闭：Windows 侧界面的 ✕ 走 window_close 命令 → CloseRequested，
-    //     与系统关闭按钮同一条事件路径，托盘拦截逻辑不变；macOS 用系统红点，
-    //     走的就是系统那条路（同样是 CloseRequested）。
-    // ── WebView2 后台保活参数（Windows 专属）──────────────────────
-    // 窗口隐藏或最小化时，Chromium 默认会对后台窗口启用定时器节流
-    // （Timer Throttling）与挂起，导致后台验证码铸造循环（ui/zcode-captcha-pool.js）
-    // 的 setTimeout 被严重降频甚至冻结。解除这三项节流限制以维持后台令牌正常补充
-    // （轻量模式下窗口整个销毁，该循环随之停止 —— 取舍见 AppSettings::lightweight_mode）。
+    // ：
+    // · / ： before to `data-tauri-drag-region`
+    // —— Tauri core mousedown， this 
+    // （ not not ），（）。Overlay down this 
+    // is **must** ： in not 。
+    // already limit：Overlay down when not （tauri#4316）——
+    // 1 by down ， need 1 。Tauri as ， not 。
+    // · ：`resizable(true)`（default）。
+    // · ：Windows ✕ window_close → CloseRequested，
+    // and by 1 path， not ；macOS use ，
+    // is that （ is CloseRequested）。
+    // ── WebView2 after parameter（Windows ）──────────────────────
+    // or when ，Chromium default will for after enabled when 
+    // （Timer Throttling） and ， after （ui/zcode-captcha-pool.js）
+    // setTimeout 。 this limit after 
+    // （ down ， this —— AppSettings::lightweight_mode）。
     //
-    // 开头的 `--disable-features=…` **不能省**：wry 对 additional_browser_args 是
-    // **替换**语义（`unwrap_or_else`，见 wry 的 webview2/mod.rs），设了它就看不到
-    // wry 的默认值 —— 而默认值里正有关掉 WebView2「⋯」溢出菜单与 SmartScreen 检查
-    // 的那三项（Tauri 在 additional_browser_args 的文档警告里说明了这一点）。
-    // 后面三项才是本 PR 新增的保活开关，与前缀互不冲突，可以并在一串里。
+    // `--disable-features=…` ** not can **：wry for additional_browser_args is 
+    // ****（`unwrap_or_else`， wry webview2/mod.rs）， not to 
+    // wry default —— default has WebView2「⋯」 and SmartScreen check
+    // that （Tauri in additional_browser_args this 1 ）。
+    // after is PR add ， and before not ， can and in 1 。
     #[cfg(target_os = "windows")]
     let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
         .decorations(false)
-        // ── 托管默认:WebView2 用户数据目录（EBWV）─────────────────
-        // 上游默认落在 `%LOCALAPPDATA%\com\.workbuddy\.local-proxy`（Tauri 按
-        // identifier 兜底）。我们的托管形态是把 EBWV 目录做成指向共享 Chromium
-        // 配置区的目录联接，主窗口这一份固定指向 `easykeysy-Agent2API_fork`
-        // 子目录，使本程序的 profile 数据单独隔离，不再复用共享 profile。
-        // 显式 data_directory 提前覆盖 identifier 兜底；环境变量可另设（未设置
-        // 即用本默认）。
+        // ── default:WebView2 use directory（EBWV）─────────────────
+        // up default in `%LOCALAPPDATA%\com\.workbuddy\.local-proxy`（Tauri by 
+        // identifier ）。 is EBWV directory to Chromium
+        // config directory， this 1 to `easykeysy-Agent2API_fork`
+        // directory， profile ， not use profile。
+        // data_directory before identifier ； can （set
+        // use default）。
         .data_directory(ebwv_data_dir())
         .additional_browser_args(
             "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
@@ -228,24 +228,24 @@ fn create_main_window(app: &AppHandle, visible: bool) -> tauri::Result<tauri::We
              --disable-renderer-backgrounding",
         );
 
-    // macOS：`decorations(true)` 不能省 —— tao 建窗时若 decorations 为 false
-    // 会直接走 Borderless 分支并**忽略** title_bar_style（见 tao 的
-    // platform_impl/macos/window.rs），Overlay 就白设了，红绿灯也不会出现。
-    // `hidden_title` 只隐藏系统画的标题文字（不影响窗口标题本身，它仍供系统
-    // 的窗口菜单 / 任务切换使用），不隐藏三键。
+    // macOS：`decorations(true)` not can —— tao when if decorations as false
+    // will Borderless and **ignore** title_bar_style（ tao 
+    // platform_impl/macos/window.rs），Overlay ， not will 。
+    // `hidden_title` （ not ，
+    // / use ）， not 。
     #[cfg(target_os = "macos")]
     let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
         .decorations(true)
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true)
-        // 圆点位置：x 是首颗圆点到窗口左边缘的距离（系统标准就是 20），
-        // y 是 wry 的 inset 语义 —— 它按 `圆点高 + y` 收窄标题栏容器、让三颗
-        // 圆点在其中垂直居中，所以 20 落在我们那条 32px 标题条里正好上下各
-        // 留 10px。不给这个值就走系统默认（按系统标题栏高度摆，Big Sur+ 是
-        // 28pt），在 32px 的条里会偏高约 2px。
-        // 注意这里定的是**逻辑点**，不随界面缩放（设置里的 80%–130%）变化 ——
-        // 缩放会改变那条 32px 标题条的逻辑高度，此时圆点不再严格居中（最多
-        // 偏 5pt 上下），可接受；系统没给运行时改这个位置的接口。
+        // ：x is to （ is 20），
+        // y is wry inset —— by ` + y` 、
+        // in its in in ， 20 in that 32px up down 
+        // 10px。 not to this default（ by ，Big Sur+ is 
+        // 28pt）， in 32px will 2px。
+        // Note this is ****， not （set 80%–130%） ——
+        // will that 32px ， when not in （
+        // 5pt up down ）， can ； no to when this 。
         .traffic_light_position(tauri::LogicalPosition::new(20.0, 20.0));
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -263,11 +263,11 @@ fn create_main_window(app: &AppHandle, visible: bool) -> tauri::Result<tauri::We
         .build()
 }
 
-/// 确保主窗口存在并返回它：没有（轻量模式销毁后 / 尚未创建）就按建窗参数重建。
+/// in and return： no has （ after / create） by parameter。
 ///
-/// 托盘唤起与单实例激活共用这条路径 —— 两者都只负责「把界面叫回来」，
-/// 都不该假定窗口一定还在。重建失败（WebView 起不来等）返回 None，
-/// 调用方按「窗口不可用」安静处理，绝不 panic。
+/// and use this path —— 「 」，
+/// not this 1 in 。failure（WebView not etc ）return None，
+/// use by 「unavailable」， not panic。
 pub fn ensure_main_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         return Some(window);
@@ -278,12 +278,12 @@ pub fn ensure_main_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
-    // 单实例必须第一个注册：插件按注册顺序执行，晚于其它插件时，
-    // 第二个实例可能已经建好窗口/托盘才被判定为重复启动
+    // must 1 ： by ， its when ，
+    // can can already / as 
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // 第二个实例已被插件结束进程，这里只负责把已有窗口叫到前台
+            // already ， this already has to before 
             tray::show_main_window(app);
         }));
     }
@@ -291,8 +291,8 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(
-            // 自启动登记带 --autostart，启动时据此判断要不要静默（不显示窗口）。
-            // MacosLauncher 是占位参数，本目标只关心 Windows。
+            // --autostart， when need not need （ not ）。
+            // MacosLauncher is parameter， Windows。
             tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![AUTOSTART_FLAG])),
         )
         .manage(AppState::new())
@@ -312,7 +312,7 @@ pub fn run() {
             commands::panel_session_store,
             commands::panel_session_clear,
             commands::change_lan_access,
-            // 界面直连网关时的凭证头（AI 助手页不经桥发请求，见 commands.rs）
+            // when （AI not request， commands.rs）
             commands::direct_credentials,
             commands::local_ip,
             commands::start_login,
@@ -343,7 +343,7 @@ pub fn run() {
             commands::set_window_theme,
             commands::set_zoom,
             commands::open_release_page,
-            // 自定义标题栏的窗口三键（窗口已 decorations(false)，见建窗处）
+            // （ already decorations(false)，）
             commands::window_minimize,
             commands::window_toggle_maximize,
             commands::window_close,
@@ -352,13 +352,13 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
 
-            // ── 第一步：一次性配置目录迁移（`~/.workbuddy-proxy` → `~/.agent2api`）──
-            // 必须是**全进程最早**的一处配置目录访问：晚于任何写盘（桌面设置、
-            // config.json、日志库、账号库）时，一旦迁移失败，后续写盘就会把新目录
-            // 建出来，`target.exists()` 从此为真，迁移再也无法重试，用户看到的是
-            // 「账号/配置全没了」。放在这里，失败时下面所有会写盘的初始化都不执行。
+            // ── 1 ： 1 configdirectory（`~/.workbuddy-proxy` → `~/.agent2api`）──
+            // must is **** 1 configdirectory：（set、
+            // config.json、、） when ， 1 failure， after will new directory
+            // ，`target.exists()` from as ，none， use to is 
+            // 「/config no 」。 in this ，failure when down all will not 。
             //
-            // 这时日志库还没装，所以迁移日志只能走控制台（`eprintln!`，见 logging）。
+            // this when no ， can （`eprintln!`， logging）。
             match server::config_migration::migrate_config_dir() {
                 Ok(MigrationOutcome::Migrated { from, to }) => {
                     eprintln!(
@@ -368,24 +368,24 @@ pub fn run() {
                     );
                 }
                 Ok(MigrationOutcome::NothingToDo) => {}
-                // 用户用环境变量显式指定了配置目录：迁移不适用，也不该提示打扰
+                // use use configdirectory： not use ， not this 
                 Ok(MigrationOutcome::SkippedEnvOverride) => {}
                 Err(error) => {
-                    // 迁移失败不能继续：以空配置启动会让新目录被后续写盘建出来，
-                    // 迁移从此不会重试，且用户看到的是「数据消失」。
-                    // 这里显示可读错误（原生对话框）后结束本次启动 ——
-                    // 旧目录原样保留，新目录未被创建，下次启动自动重试。
+                    // failure not can ：emptyconfig will new directory after ，
+                    // from not will ， and use to is 「」。
+                    // this can error（ for ） after ——
+                    // old directory， new directory create， down 。
                     report_startup_failure(&handle, &error);
                     return Ok(());
                 }
             }
 
-            // 设置先读一次并缓存：窗口事件回调是同步的，需要立即拿到
-            // close_to_tray 才能决定关窗是隐藏还是退出；lightweight 同理 ——
-            // 它决定关窗是「销毁窗口」还是「隐藏」。#188：早先只缓存了前者，
-            // 轻量模式要等设置页读过/存过一次（get_app_settings / save_app_settings）
-            // 才写进缓存，于是「开机自启 → 直接关窗」这条路径上缓存恒为默认 false，
-            // 关窗走了隐藏、轻量模式形同没开。
+            // set 1 and ： is ， need need to 
+            // close_to_tray can is is ；lightweight ——
+            // is 「」 is 「」。#188： before ，
+            // need etc set/ 1 （get_app_settings / save_app_settings）
+            // ， is 「 → 」 this path up as default false，
+            // 、 no 。
             let app_settings = settings::load();
             {
                 let state = app.state::<AppState>();
@@ -393,34 +393,34 @@ pub fn run() {
                 state.window.set_lightweight(app_settings.lightweight_mode);
             }
 
-            // ── 旧「当前用户」级安装的清理 + 自启登记刷新（1.x → perMachine 迁移）──
-            // 安装器改成 perMachine 后以管理员身份运行，此时 `%LOCALAPPDATA%` 与
-            // HKCU 指向管理员账户，读不到也删不掉发起安装的用户的旧安装 ——
-            // 只有这里（普通用户上下文的启动期）能覆盖到它。
+            // ── old 「current use 」 + new （1.x → perMachine ）──
+            // perMachine after ， when `%LOCALAPPDATA%` and 
+            // HKCU to ， not to not use old ——
+            // has this （ use up down ） can to 。
             //
-            // 旧版还把自启登记写成 `%LOCALAPPDATA%\<旧产品名>`、值名用旧产品名；
-            // 新版装在 Program Files、值名换成 productName，两条互不覆盖，旧的那条
-            // 指向已被删除的路径，用户不开设置页就永远不会被修正，自启静默失效。
+            // old `%LOCALAPPDATA%\< old >`、 use old ；
+            // new in Program Files、 productName， not ， old that 
+            // to already delete path， use not set not will ，。
             //
-            // ── 为什么两件事放在同一个后台任务里顺序执行 ──────────────
-            // 两件事都要读/写 HKCU 的 Run 键（清理判「旧登记是否已失效」、刷新写
-            // 新登记），顺序执行让刷新看到的是清理之后的状态，也避免两个线程交错
-            // 操作同一处注册表。
+            // ── Why in 1 after ──────────────
+            // need / HKCU Run （「 old is already 」、 new 
+            // new ）， new to is after ， 
+            // 1 。
             //
-            // 放后台：旧目录可能含 88MB 的 node.exe，`remove_dir_all` 叠加杀软扫描
-            // 会明显拖慢启动，而这两件事与后续初始化没有任何依赖关系。
-            // 失败只记日志、下次启动重试，绝不阻断启动（见 legacy_install 模块头）。
+            // after ： old directory can can 88MB node.exe，`remove_dir_all` 
+            // will ， this and after no has 。
+            // failure、 down ， not （ legacy_install module header）。
             let autostart_wanted = app_settings.autostart;
             let cleanup_handle = handle.clone();
             tauri::async_runtime::spawn_blocking(move || {
-                // ── 开发态（debug 构建）不做安装迁移 ────────────────────────
-                // 这两个动作都会改真实系统状态：清理会删掉本机已安装的正式版
-                // （安装目录 + 快捷方式 + 卸载项），自启刷新会把开机自启登记指向
-                // `target\debug` 下的调试副本。而 `tauri dev` 是日常动作 ——
-                // 跑一次就把用户装的正式版删了，代价远大于收益（实际发生过：
-                // 开发态启动后，开始菜单/桌面快捷方式全部失效）。
-                // release 打包（唯一的发布形态）行为完全不变；要验证清理逻辑
-                // 本身，用 `tauri build` 出的安装包跑。
+                // ── （debug ） not ────────────────────────
+                // this will ： will already 
+                // （directory + + ）， new will to 
+                // `target\debug` down 。 `tauri dev` is ——
+                // 1 use ，（：
+                // after ，/）。
+                // release （ 1 ） as not ； need 
+                // ， use `tauri build` 。
                 if cfg!(debug_assertions) {
                     return;
                 }
@@ -429,8 +429,8 @@ pub fn run() {
                     return;
                 }
                 let name = cleanup_handle.package_info().name.clone();
-                // 幂等：登记已指向当前 exe 时不做任何写入；用户在任务管理器
-                // 「启动」页里停用过的也不重建（判定见 legacy_install）
+                // etc ： already to current exe when not ； use in 
+                // 「」disabled not （ legacy_install）
                 if !legacy_install::autostart_needs_refresh(&name) {
                     return;
                 }
@@ -444,45 +444,45 @@ pub fn run() {
                 }
             });
 
-            // 托盘先建好再建窗口：开机自启不显示窗口，托盘是唯一入口
+            // ： not ， is 1 
             if let Err(error) = tray::create(&handle) {
                 eprintln!("[tray] 创建托盘图标失败: {error}");
             }
 
-            // 主窗口先建好并加载界面，后端在后台异步拉起，
-            // 界面不会因为等待 node 启动而白屏。
-            // 开机自启时不显示窗口（visible(false) 比先显示再隐藏更干净，
-            // 不会在任务栏闪一下）。
+            // and ， after in after ，
+            // not will as etc node 。
+            // when not （visible(false) ，
+            // not will in 1 down ）。
             //
-            // ── 开机自启 + 轻量模式：窗口整个不建 ──────────────────────
-            // 只 hide 不 destroy 的话，WebView2 那 6 个进程照样常驻（约
-            // 200MB）—— 轻量模式的意义要等用户「打开窗口再关一次」才兑现，
-            // 而自启路径永远走不到那一步（它不经过关窗）。这里直接跳过建窗，
-            // 只留托盘与后端；用户点托盘（或双击图标触发单实例激活）时由
-            // `ensure_main_window` 按同一份参数重建 —— 与轻量模式下「销毁
-            // 再唤起」走的是同一条路径，因此窗口长得完全一样。
+            // ── + ： not ──────────────────────
+            // hide not destroy ，WebView2 that 6 （
+            // 200MB）—— need etc use 「 1 」，
+            // path not to that 1 （ not ）。 this ，
+            // and after ； use （ or ） when by 
+            // `ensure_main_window` by 1 parameter —— and down 「
+            // 」 is 1 path， 1 。
             //
-            // 代价与轻量模式本身一致：跑在 WebView 里的 ZCode 验证码令牌池
-            // 在用户打开窗口前不补货，该通道请求会以 503 落进请求日志（见
-            // `AppSettings::lightweight_mode` 的说明）。关掉轻量模式或非自启
-            // 启动都照旧建窗，不走这条。
+            // and 1 ： in WebView ZCode 
+            // in use before not ， this request will 503 request（
+            // `AppSettings::lightweight_mode` ）。 or 
+            // old ， not this 。
             //
-            // 建窗参数（无装饰标题栏、WebView2 保活、桥注入等）只在
-            // create_main_window 一处声明：轻量模式下托盘重建也走它，
-            // 两边必须长得一模一样。
+            // parameter（none、WebView2 、 etc ） in 
+            // create_main_window 1 ： down ，
+            // must 1 1 。
             let autostarted = launched_by_autostart();
             if !(autostarted && app_settings.lightweight_mode) {
                 create_main_window(&handle, !autostarted)?;
             }
 
-            // 后端负责维护任务的持久化排期，桌面壳不额外触发刷新。
+            // after ， not new 。
             tauri::async_runtime::spawn(async move {
                 let started = backend::ensure_ready(&handle).await;
                 if let Err(failure) = &started {
                     eprintln!("[backend] 启动失败: {}", failure.message);
-                    // 存一份到 AppState：事件是一次性的，界面可能在事件发出之后
-                    // 才订阅（窗口还在加载、WebView 被刷新），那时只能靠主动查
-                    // （backend_status）拿到失败原因，否则状态灯永远说不清为什么灰着
+                    // 1 to AppState： is 1 ， can can in after 
+                    // （ in 、WebView new ）， that when can 
+                    // （backend_status） to failureReason，otherwise not Why
                     if let Some(state) = handle.try_state::<AppState>() {
                         if let Ok(mut guard) = state.backend.lock() {
                             guard.failure = Some(failure.clone());
@@ -501,8 +501,8 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("Tauri 应用初始化失败")
         .run(|app, event| match event {
-            // 关窗时按设置决定「隐藏到托盘」还是「真退出」。
-            // 拦截关闭后窗口只是隐藏，后端进程继续存活，网关照常转发。
+            // when by set「 to 」 is 「」。
+            // after is ， after ，。
             tauri::RunEvent::WindowEvent {
                 label,
                 event: tauri::WindowEvent::CloseRequested { api, .. },
@@ -512,16 +512,16 @@ pub fn run() {
                     return;
                 }
                 let state = app.state::<AppState>();
-                // 用户主动退出（托盘菜单）时就别拦了，否则退出路径被自己挡死
+                // use （） when ，otherwisepath 
                 if state.window.close_to_tray() && !state.window.is_exiting() {
                     api.prevent_close();
                     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
                         if state.window.lightweight() {
-                            // 轻量模式：直接销毁窗口 —— WebView2 那 6 个进程
-                            // 随之退出（释放约 200MB 常驻内存），网关在进程内
-                            // 不受影响。销毁后 `ExitRequested` 由下面的分支拦下
-                            // （close_to_tray 开着 → prevent_exit，进程留在托盘），
-                            // 托盘点击时由 `ensure_main_window` 按同一份参数重建。
+                            // ： —— WebView2 that 6 
+                            // （ 200MB ）， in 
+                            // not 。 after `ExitRequested` by down down 
+                            // （close_to_tray → prevent_exit， in ），
+                            // when by `ensure_main_window` by 1 parameter。
                             let _ = window.destroy();
                         } else {
                             let _ = window.hide();
@@ -529,11 +529,11 @@ pub fn run() {
                     }
                 }
             }
-            // 最后一个窗口关闭后 Tauri 会请求退出，这里再兜一次：
-            // 只拦「用户关窗」这一种，托盘退出与主动 exit 都要放行。
-            // 放行时顺手回收后端 —— 例如用户关掉了「关闭到托盘」后直接关窗真退出，
-            // 这条路径不会走到下面的 Exit 分支，不在这里回收就会漏下 node 进程
-            // （shutdown 幂等，与其它调用点重复也不会有副作用）。
+            // after 1 after Tauri will request， this 1 ：
+            // 「 use 」 this 1 ， and exit need 。
+            // when after —— e.g. use 「 to 」 after ，
+            // this path not will to down Exit ， not in this will down node 
+            // （shutdown etc ， and its use not will has use ）。
             tauri::RunEvent::ExitRequested { api, .. } => {
                 let state = app.state::<AppState>();
                 if state.window.close_to_tray() && !state.window.is_exiting() {
@@ -542,10 +542,10 @@ pub fn run() {
                     backend::shutdown(&state);
                 }
             }
-            // 最后兜底回收后端进程（复用外部服务的不会被动）。
-            // 注意：程序化退出（托盘退出、安装前退出走的都是 `AppHandle::exit(0)`）
-            // 不保证触发本事件，这是 Tauri 的已知行为，所以那几条主动退出路径
-            // 已各自显式调用了 shutdown，这里只覆盖其余自然退出。
+            // after after （ use not will ）。
+            // Note: （、 before is `AppHandle::exit(0)`）
+            // not ， this is Tauri already as ， that path
+            // already use shutdown， this its 。
             tauri::RunEvent::Exit => {
                 let state = app.state::<AppState>();
                 backend::shutdown(&state);

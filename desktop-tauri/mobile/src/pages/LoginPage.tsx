@@ -9,27 +9,27 @@ import { t } from '../i18n'
 import { Alert, AppFrame, Button, Field as UiField, FieldLabel, Input } from '@ui'
 
 /**
- * 登录 / 首次注册（APK 独立整屏页）。
+ * / （APK ）。
  *
- * ── 为什么是整屏而不是盖在主界面上的小弹窗 ────────────────────
- * 登录是一件「没完成就什么都做不了」的事，弹窗形态会透出后面的界面，用户
- * 容易以为还能点、也不知道自己在哪一步。整屏页给出明确的三个区块：品牌头、
- * 表单、底部的服务器入口。键盘弹起时整页跟着滚，不会把按钮顶到看不见的地方。
+ * ── Why is not is in up ────────────────────
+ * is 1 「 no not 」 ， will after ， use 
+ * as can 、 not in 1 。 to ：、
+ * 、 。 when ， not will by to not 。
  *
- * ── 人机验证在后端，不在这一页 ────────────────────────────────
- * 网关开了机器人校验时，`POST /api/panel/login` 与 `/api/panel/setup` **在
- * 服务端**校验一次性 ALTCHA 载荷（见 `server::api::panel::check_captcha`），
- * 没带或算错一律 400。任何客户端 —— 桌面网页、手机 APK、curl —— 都绕不过去。
- * 这一页做的事只是**替用户把题算出来**：进页面领题、后台求解、提交时带上。
+ * ── in after ， not in this 1 ────────────────────────────────
+ * when ，`POST /api/panel/login` and `/api/panel/setup` ** in 
+ * server** 1 ALTCHA （ `server::api::panel::check_captcha`），
+ * no or 1 400。client —— 、 APK、curl —— not 。
+ * this 1 is ** use **：、 after 、 when up 。
  *
- * 因此验证码求解状态必须显示出来。老版本把它做成一行小字，用户看到「登录」
- * 按钮灰着却不知道在等什么；这里做成一条带状态点的行，并且失败时给出重试。
+ * must。 1 ， use to 「」
+ * by not in etc ； this 1 ，andfailure when to 。
  *
- * ── 令牌怎么落地 ──────────────────────────────────────────────
- * 登录请求带 `x-panel-auth-mode: body`，服务端据此把双令牌放进响应体
- * （见 `server::api::panel::tokens_in_body`）。拿到后按服务器 id 存进
- * localStorage，之后每条请求带 `x-panel-token` 头 —— 跨源请求没有别的
- * 办法带上凭证（`Allow-Origin: *` 下浏览器不带 cookie）。
+ * ── ──────────────────────────────────────────────
+ * request `x-panel-auth-mode: body`，server response
+ * （ `server::api::panel::tokens_in_body`）。 to after by id 
+ * localStorage， after request `x-panel-token` —— request no has 
+ * up （`Allow-Origin: *` down not cookie）。
  */
 export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: () => void }) {
   const { server, packaged } = useStore()
@@ -38,21 +38,21 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
   const [apiKey, setApiKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  /** 该网关有没有管理员 —— 没有就是首次注册 */
+  /** this has no has —— no has is */
   const [setup, setSetup] = useState(false)
   const [statusKnown, setStatusKnown] = useState(false)
   /**
-   * 人机验证状态。
-   *   idle    还没开始（首帧）
-   *   solving 正在领题 / 求解
-   *   ready   已拿到可提交的载荷
-   *   off     网关没开校验（领题回 400）
-   *   failed  求解失败（网络 / 组件问题），可点重试
+   * 。
+   * idle no （）
+   * solving in / 
+   * ready already to can 
+   * off no （ 400）
+   * failed failure（ / ）， can 
    */
   const [captchaState, setCaptchaState] = useState<'idle' | 'solving' | 'ready' | 'off' | 'failed'>('idle')
   const [captcha, setCaptcha] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
-  /** 代次：重试时作废上一轮，避免迟到的结果覆盖新状态 */
+  /** ： when up 1 ， to new */
   const generation = useRef(0)
 
   const runCaptcha = async () => {
@@ -69,8 +69,8 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
         setCaptcha(payload)
         setCaptchaState('ready')
       } else {
-        // 领题 400 = 网关没开校验；领题失败（网络）也按「不需要」继续 ——
-        // 真需要的话提交时服务端会回一句明确的原因
+        // 400 = no ；failure（） by 「 not need need 」 ——
+        // need need when server will 1 Reason
         setCaptchaState('off')
       }
     } catch {
@@ -78,7 +78,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
     }
   }
 
-  // 进页面就探测：有没有管理员、要不要人机验证
+  // ： has no has 、 need not need 
   useEffect(() => {
     let alive = true
     void (async () => {
@@ -98,7 +98,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
       alive = false
       generation.current += 1
     }
-    // 只在挂载时跑一次
+    // in when 1 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -118,7 +118,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
       setError(t('请填写账号与密码'))
       return
     }
-    // 验证还没算完就提交，服务端必然回 400 —— 先在这里拦一句，省一次往返
+    // no ，server 400 —— in this 1 ， 1 
     if (captchaState === 'solving') {
       setError(t('人机验证还在计算，请稍候'))
       return
@@ -135,7 +135,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
     setBusy(false)
     if ('error' in result) {
       setError(result.error)
-      // 载荷一次性：失败后重新解一道（密码错也一样，下次提交要用新的）
+      // 1 ：failure after new 1 （ 1 ， down need use new ）
       void runCaptcha()
       return
     }
@@ -162,7 +162,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
         overflowY: 'auto',
       }}
     >
-      {/* 品牌头：整屏页要有自己的顶，不然表单会悬在半空 */}
+      {/* ： need has ， not will in empty */}
       <div
         style={{
           flex: 'none',
@@ -200,7 +200,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
       </div>
 
       <div style={{ flex: 1, padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* 当前服务器：登录前最该确认的一件事，给成一条可点的行 */}
+        {/* current： before this 1 ， to 1 can */}
         <Button size='default' variant='ghost'
           type='button'
           className='m-row h-auto min-h-[52px] w-full justify-start rounded-none border-0 px-3.5 py-3 text-left'
@@ -294,8 +294,8 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
         </Button>
 
         {/*
-          登录页是整屏的，用户被登出后看不到「设置 → 服务器」——
-          这里给一个直达入口：压进服务器页，选/加完一台后它会自己退回原页。
+           is ， use after not to 「set → 」——
+           this to 1 ：，/ 1 after will 。
         */}
         {packaged ? (
           <Button size='default' variant='ghost'
@@ -333,7 +333,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
   )
 }
 
-/** 带标签的输入框（整屏表单里标签比 placeholder 更稳：输入后仍看得见） */
+/** （ placeholder ： after ） */
 function Field({
   label,
   value,

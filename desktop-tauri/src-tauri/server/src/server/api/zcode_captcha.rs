@@ -1,6 +1,6 @@
-//! 套餐池验证码库存端点。插件维护模型请求免验证状态与近期需求，
-//! 面板只读取状态；令牌由用户主动完成验证后提交，不自动打开验证码。
-//! 领取验证与模型请求验证使用独立的上游配置字段。
+//! 。request and need ，
+//! ； by use after ， not 。
+//! and request use up config。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -14,7 +14,7 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// 全局令牌入池不需要账号；读取配置时按当前启用的套餐池账号选地区。
+/// not need need ；config when by currentenabled 。
 async fn call_action(state: &ServerState, account_id: &str, action: &str, payload: &Value) -> Result<Value, (i32, String)> {
     let adapter = if account_id.is_empty() {
         zcode::region::Region::ALL.into_iter()
@@ -35,13 +35,13 @@ async fn call_action(state: &ServerState, account_id: &str, action: &str, payloa
         .map_err(|error| (error.status_code, error.message))
 }
 
-/// 库存概况补上网关的显示参数、账号计数和近期请求需求。
+/// up parameter、 and request need 。
 async fn stats_json(state: &ServerState) -> Value {
     let (start_plan_accounts, account_id) = start_plan_accounts(state);
     let mut body = match call_action(state, account_id.as_deref().unwrap_or(""), "captcha.stats", &Value::Null).await {
         Ok(body) => body,
-        // 插件不在时给一张**如实**的空表（而不是 500）：界面据此显示
-        // 「不可用」，铸造器也就不会白烧阿里云配额。
+        // not in when to 1 **** empty（ not is 500）：
+        // 「unavailable」， not will quota。
         Err((_status, message)) => json!({ "ready": 0, "required": false, "error": message }),
     };
     let ready = body.get("ready").and_then(Value::as_u64).unwrap_or(0);
@@ -59,13 +59,13 @@ async fn stats_json(state: &ServerState) -> Value {
             "needsTokens".to_string(),
             Value::Bool(required && demand_active && start_plan_accounts > 0 && ready == 0),
         );
-        // 旧客户端继续读取这三个键，但状态轮询不再触发验证。
+        // old client this ， not 。
         object.insert("pollMs".to_string(), Value::from(pool.poll_ms as u64));
         object.insert(
             "maxPerRound".to_string(),
             Value::from(pool.max_per_round as u64),
         );
-        // 仅返回公开账号标识，SDK 所需配置仍经账号管理接口读取。
+        // onlyreturn，SDK need config。
         object.insert(
             "captchaAccountId".to_string(),
             account_id.map(Value::String).unwrap_or(Value::Null),
@@ -74,7 +74,7 @@ async fn stats_json(state: &ServerState) -> Value {
     body
 }
 
-/// 启用的套餐池账号数及代表账号；缺失时退回任意启用的 ZCode 账号。
+/// enabled and ； when anyenabled ZCode 。
 fn start_plan_accounts(state: &ServerState) -> (usize, Option<String>) {
     let list = state.store().list_accounts();
     let Some(accounts) = list.get("accounts").and_then(Value::as_array) else {
@@ -105,12 +105,12 @@ fn start_plan_accounts(state: &ServerState) -> (usize, Option<String>) {
     (start_plan, start_plan_id.or(fallback_id))
 }
 
-/// GET /api/zcode/captcha —— 池子概况（库存 / 寿命 / 计数 / 是否该补货）
+/// GET /api/zcode/captcha —— （ / / / is this ）
 pub async fn get_captcha(State(state): State<ServerState>) -> Response {
     ok_json(stats_json(&state).await)
 }
 
-/// POST /api/zcode/captcha —— body `{tokens: [{param, region}]}`；也兼容单条形态。
+/// POST /api/zcode/captcha —— body `{tokens: [{param, region}]}`；。
 pub async fn push_captcha(State(state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -119,14 +119,14 @@ pub async fn push_captcha(State(state): State<ServerState>, body: Bytes) -> Resp
     let Some(object) = payload.as_object() else {
         return management_error(400, "请求体必须是 JSON 对象");
     };
-    // 两种形态归一成一个列表（见上面那条说明）
+    // 1 1 （ up that ）
     let items: Vec<Value> = match object.get("tokens") {
         Some(Value::Array(items)) => items.clone(),
         Some(_) => return management_error(400, "tokens 必须是数组"),
         None => vec![payload.clone()],
     };
-    // 入池的判据（param 非空）也在插件里：网关不解析令牌形态，它只知道
-    // 「有一批条目要推过去」。插件回 `accepted`，网关据此决定要不要报 400。
+    // （param empty） in ： not ，
+    // 「 has 1 need 」。 `accepted`， need not need 400。
     let accepted = match call_action(&state, "", "captcha.push", &json!({ "tokens": items })).await {
         Ok(outcome) => outcome
             .get("accepted")

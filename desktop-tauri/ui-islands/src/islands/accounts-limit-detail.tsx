@@ -1,33 +1,33 @@
 /**
- * 「限流」列上的明细弹层 —— 这个账号**当前限流中的模型**逐行列出：模型名、还要等多久、
- * 恢复时刻与上游给的原因，以及「清除标记」（单条）与「全部清除」。
+ * 「」 up —— this **current in **：、 need etc 、
+ * when and up to Reason， and 「」（） and 「」。
  *
- * ── 为什么是弹层，而不是行下插一块面板 ────────────────────────
- * 旧版是「点徽章 → 表格里插一整块横跨全表的面板」。三个毛病：
- *   ① 面板宽度由表格决定（真实表约 1330px），内容只占左边一段，右端那片空着的正是
- *      「清除标记」按钮的去处 —— 它离它要清的模型一千多像素远；
- *   ② 每行的原因要与模型名、恢复时刻、按钮挤在同一行，只能靠省略号收口，读全要悬停；
- *   ③ 展开会把整行顶开，扫表时行高忽高忽低，且同一时刻只能开一个账号。
- * 改成与余额列「积分明细」同款的弹层（见 accounts-credit-detail.tsx）之后：表格行高
- * 恒定、弹层悬浮在表格之上，多出来的宽度用来把「还要等多久」和完整的恢复时刻放下。
+ * ── Why is ， not is down 1 ────────────────────────
+ * old is 「 → 1 」。 ：
+ * ① by （ 1330px）， 1 ， that empty is 
+ * 「」 by —— need 1 ；
+ * ② Reason need and 、 when 、 by in 1 ， can ， need ；
+ * ③ will ， when ， and 1 when can 1 。
+ * and 「」 （ accounts-credit-detail.tsx） after ：
+ * 、 in up ， use 「 need etc 」 and when down 。
  *
- * ── 与「积分明细」共用同一套外壳与类名 ───────────────────────
- * 触发器是 `.usage-toggle`（整格可点、悬停有底色、caret 绝对定位、展开态走
- * aria-expanded），内容层是 `.usage-pop-*`（分组头 / 行 / 名称与读数两端对齐）。
- * 两列看起来、点起来是同一件事，用户不必再学第二套。
+ * ── and 「」 use 1 and ───────────────────────
+ * is `.usage-toggle`（ can 、 has 、caret for 、
+ * aria-expanded）， is `.usage-pop-*`（ / / and for ）。
+ * 、 is 1 ， use not 。
  *
- * ── 两种时间都给：相对用于急不急，绝对用于到点了没 ─────────────
- * 行右侧是相对倒计时（「还有 14 分钟」），第二行是绝对时刻（「今天 14:20 恢复」）。
- * 旧版列里只有绝对时刻（`最早 {soonest} 恢复`），「还要等多久」得用户自己减；
- * 而日期措辞（今天 / 明天 / M月d日）一旦跨天，光看绝对时刻也答不出急不急。
- * 两处并存才两个问题都答得上 —— 列只有 132px，放不下两行，弹层放得下。
+ * ── when to ： for used for not ， for used for to no ─────────────
+ * is for when （「 has 14 minutes」）， is for when （「 14:20 」）。
+ * old has for when （` {soonest} `），「 need etc 」 use ；
+ * （ / / Md） 1 ， for when not not 。
+ * and up —— has 132px， not down ， down 。
  *
- * ── 冷却进度线读的是**触发时刻**，不是剩余量 ──────────────────
- * 线画的是「这条冷却走了多少」（满格 = 马上恢复），靠落盘里已经有的 `at`
- * （`store_admin::mark_rate_limited` 每次都会写）。这条线**不复用**余额弹层的
- * `.usage-pop-track` —— 那条明确画「剩余」（越长越有余量），两者方向相反，
- * 共用一个元素迟早会读错。`at` 缺失（旧版本落盘的记录）或与 resetAt 不成区间时
- * 就不画（`progress: null`），与余额明细「画不出比例就不装作有」同一处置。
+ * ── is ** when **， not is remaining ──────────────────
+ * is 「 this 」（ = up ）， already has `at`
+ * （`store_admin::mark_rate_limited` will ）。 this ** not use ** 
+ * `.usage-pop-track` —— that 「remaining」（ has ）， to ，
+ * use 1 will 。`at` （ old ） or and resetAt not when 
+ * not （`progress: null`）， and 「 not not has 」 1 。
  */
 
 import * as React from 'react'
@@ -37,30 +37,30 @@ import { activeLimits, formatResetText, RESET_UNKNOWN } from './accounts-domain'
 import type { AccountRecord } from './accounts-shared'
 import type { AccountCooldown } from '../../../ui-shared/account-upstream-state'
 
-/** 明细里的一行（`limitRowsOf` 的产物） */
+/** 1 （`limitRowsOf` ） */
 export type LimitRow = {
-  /** 被限流的模型名（后端给的键，原样透出） */
+  /** （ after to ，） */
   model: string
-  /** 右侧读数：相对倒计时；恢复时刻读不到时是「恢复时间未知」 */
+  /** ： for when ； when not to when is 「 when unknown」 */
   wait: string
-  /** 读数语义档：正常有恢复时刻 = warn，读不到 = muted */
+  /** ： has when = warn， not to = muted */
   tone: 'warn' | 'muted'
-  /** 第二行左半：`今天 14:20 恢复`；读不到时为空串 */
+  /** ：` 14:20 `； not to when as empty */
   reset: string
-  /** 第二行右半：上游给的原因（可能为空） */
+  /** ： up to Reason（ can can as empty） */
   reason: string
-  /** 悬停全文（相对 + 绝对 + 原因 + 这条标记怎么解除） */
+  /** （ for + for + Reason + this ） */
   title: string
-  /** 冷却进度（0–100）；读不到触发时刻时 null = 不画线 */
+  /** （0–100）； not to when when null = not */
   progress: number | null
 }
 
 /**
- * 剩余毫秒 → 倒计时文案。
+ * remainingms → when 。
  *
- * 分档按「读的人要拿它做什么」定：一小时内给分钟（这段时间是要盯着它回来的），
- * 一天内给小时 + 分钟，超过一天只给天（那时分钟是噪音）。取整用 `Math.round`：
- * 「还有 1 分钟」比「还有 0 分钟」有意义，而后者会让已经等了 30 秒的人以为该好了。
+ * by 「 need 」： 1 when to minutes（ this when is need ），
+ * 1 to when + minutes， 1 to （ that when minutes is ）。 use `Math.round`：
+ * 「 has 1 minutes」「 has 0 minutes」 has ， after will already etc 30 seconds as this 。
  */
 function waitText(remainingMs: number): string {
   const minutes = Math.round(remainingMs / 60000)
@@ -75,10 +75,10 @@ function waitText(remainingMs: number): string {
 }
 
 /**
- * 账号**当前生效**的限流记录 → 明细行。
+ * **current** → 。
  *
- * 顺序照 `activeLimits` 给的（按恢复时间升序，最早恢复的排最前）：先回来的排最前，
- * 与列上那句「最早 … 恢复」说的是同一条记录，两处不会对不上。
+ * `activeLimits` to （ by when ， before ）： before ，
+ * and up that 「 … 」 is 1 ， not will for not up 。
  */
 export function limitRowsOf(account: AccountRecord | null | undefined): LimitRow[] {
   const now = Date.now()
@@ -113,12 +113,12 @@ export function limitRowsOf(account: AccountRecord | null | undefined): LimitRow
 }
 
 /**
- * 限流列的触发器 + 明细弹层。
+ * + 。
  *
- * 触发器整格可点（`.usage-toggle` 向两侧出血到格子边缘），格下那行小字「最早 … 恢复」
- * 留在触发器**外面** —— 它是常显的补充读数，不该跟着按钮一起被点。
+ * can （`.usage-toggle` to to ）， down that 「 … 」
+ * in **** —— is ， not this by 1 。
  *
- * `soonest` 在账号冷却时读账号恢复时刻，否则读最早解除的模型记录。
+ * `soonest` in when when ，otherwise 。
  */
 export function LimitDetailButton({ accountName, rows, count, cooldown, soonest, onClear }: {
   accountName: string
@@ -131,9 +131,9 @@ export function LimitDetailButton({ accountName, rows, count, cooldown, soonest,
   const [open, setOpen] = React.useState(false)
 
   /**
-   * 初始焦点落在滚动容器上而不是「第一个可聚焦的元素」，与积分明细同一处置
-   * （理由见 accounts-credit-detail.tsx：库的默认行为会把焦点给第一个可聚焦元素、
-   * 浏览器再把它滚进视野，列表一长就"一开就停在中间"）。容器带 `tabIndex={-1}`。
+   * in up not is 「 1 can 」， and 1 
+   * （ by accounts-credit-detail.tsx： default as will to 1 can 、
+   * ， 1 " 1 in in "）。 `tabIndex={-1}`。
    */
   const boxRef = React.useRef<HTMLDivElement | null>(null)
   const attachBox = React.useCallback((node: HTMLDivElement | null) => {
@@ -154,8 +154,8 @@ export function LimitDetailButton({ accountName, rows, count, cooldown, soonest,
           <span className='val'>{cooldown ? t('账号冷却') : t('{n} 个模型', { n: count })}</span>
           <span className='caret' aria-hidden>▾</span>
         </PopoverTrigger>
-        {/* `align='center'`：与「积分明细」同一处置（理由见 accounts-credit-detail
-            的同名参数）—— 这两列的按钮都靠右，'end' 会把弹层甩到表格右外侧。 */}
+        {/* `align='center'`： and 「」 1 （ by accounts-credit-detail
+             parameter）—— this by ，'end' will to 。 */}
         <PopoverContent align='center' sideOffset={6} className='w-[320px]' initialFocus={initialFocus}>
 
           <div className='usage-pop-limit' ref={attachBox} tabIndex={-1}>

@@ -22,17 +22,17 @@ import {
   type ProxyPoolItem,
 } from './proxies-state'
 import { t } from '../i18n'
-// 赞助位外链：与文档页/更新日志同一条路（data-external 委托 + 系统浏览器打开）。
-// 链接本体在 sponsor.ts（唯一定义点），这里只取用。
+// ： and /update 1 （data-external + ）。
+// in sponsor.ts（ 1 ）， this use 。
 import { handleExternalClick } from './update-shared'
 import { PROXYLANE_URL } from './sponsor'
 
-/* ─── 新增 / 编辑弹窗 ───────────────────────── */
+/* ─── add / ───────────────────────── */
 
 /**
- * 赞助位里的行内链接：一处样式、一条链接（同一行的品牌名与「去获取」都用它）。
- * 「链接只裹需要点的字」是全站赞助位的口径 —— 句子按片段拼，翻译时片段可以
- * 各自贴合目标语言的语序。
+ * ： 1 、 1 （ 1 and 「get」 use ）。
+ * 「 need need 」 is —— by ， when can 
+ * 。
  */
 function SponsorLink({ children }: { children: React.ReactNode }) {
   return (
@@ -65,7 +65,7 @@ export function ProxyModal({
   const [testing, setTesting] = React.useState(false)
   const [status, setStatus] = React.useState<React.ReactNode>(null)
 
-  /** 表单 → 归一化后的提交对象；形状非法时返回一句面向用户的错误 */
+  /** → 1 after for ； when return 1 to use error */
   function draftPayload(): { payload: Record<string, unknown> } | { error: string } {
     const trimmed = name.trim()
     if (!trimmed) return { error: t('请填写代理名称') }
@@ -89,7 +89,7 @@ export function ProxyModal({
     }
   }
 
-  /** 用当前表单内容测一次（**未保存也能测**：先确认能通，再决定保存） */
+  /** use current 1 （** can **： can ，） */
   async function testDraft(): Promise<void> {
     if (testing) return
     const draft = draftPayload()
@@ -165,7 +165,7 @@ export function ProxyModal({
           <div className='flex flex-row items-end gap-2.5'>
             <div className='flex flex-col gap-1.5'>
               <Label htmlFor='proxy-protocol'>{t('协议')}</Label>
-              {/* 协议名 HTTP / SOCKS5 是固定叫法，不进词典 */}
+              {/* HTTP / SOCKS5 is ， not */}
               <Select value={protocol} onValueChange={value => setProtocol(value as 'http' | 'socks5')}>
                 <SelectTrigger id='proxy-protocol' className='min-w-[110px]'>
                   <SelectValue>{protocol === 'socks5' ? 'SOCKS5' : 'HTTP'}</SelectValue>
@@ -212,9 +212,9 @@ export function ProxyModal({
             </span>
           </div>
 
-          {/* 赞助位：一行提示（另两处在 README 顶部与「文档」页的网络代理示例）。
-              品牌名与句尾的「去获取」都是行内链接（SponsorLink），翻译时片段
-              可以各自贴合目标语言的语序 */}
+          {/* ： 1 （ in README and 「」 ）。
+               and 「get」 is （SponsorLink）， when 
+               can */}
           <p className='text-xs leading-[1.65] text-subtle'>
             {t('需要干净的出口？')}
             <SponsorLink>ProxyLane</SponsorLink>
@@ -240,7 +240,7 @@ export function ProxyModal({
   )
 }
 
-/* ─── 连通性测试设置 ───────────────────────── */
+/* ─── set ───────────────────────── */
 
 export function ProxySettingsModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = React.useState(true)

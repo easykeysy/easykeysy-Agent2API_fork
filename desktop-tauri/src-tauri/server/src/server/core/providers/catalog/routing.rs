@@ -1,4 +1,4 @@
-//! 对外模型名到上游模型的解析。路由与发送侧共用本解析，避免选中一家后再换一套规则。
+//! for to up 。 by and use ， in 1 after 1 then 。
 
 use serde_json::Value;
 
@@ -19,7 +19,7 @@ pub(crate) fn entry_id_in_manifest(manifest: &[Value], requested: &str) -> Optio
     if requested.is_empty() {
         return None;
     }
-    // 保留展示名兼容，但必须先匹配原始 ID；返回清单里的实际大小写。
+    // ，must ID；return 。
     manifest.iter().find(|entry| model_id(entry).eq_ignore_ascii_case(requested))
         .or_else(|| manifest.iter().find(|entry| {
             entry.get("name")
@@ -62,8 +62,8 @@ pub(super) fn builtin_target(
     })
 }
 
-/// 原始能力查询不应用开关，供管理 API 展开旧版全局规则。
-/// 别名也算登记过的名字，但必须能解析到该家的真实上游记录。
+/// can not use ， API old then 。
+/// ，must can to this up 。
 pub fn providers_for_model(model: &str) -> Vec<String> {
     let model = model.trim();
     if model.is_empty() {
@@ -112,7 +112,7 @@ pub fn providers_for_model(model: &str) -> Vec<String> {
     result
 }
 
-/// 只返回有开启绑定的提供商，不把关闭的 ID 回落给默认提供商。
+/// return has ， not ID to default。
 pub fn forwarding_providers(model: &str) -> Vec<String> {
     let rules = model_rules::shared();
     let mut result: Vec<_> = all_provider_ids().into_iter().filter(|provider| {
@@ -122,20 +122,20 @@ pub fn forwarding_providers(model: &str) -> Vec<String> {
     result
 }
 
-/// 「这个名字是不是被关掉了」—— 只在广告里没有它时用来区分「承载家全被关闭」
-/// 与「根本没有这个名字」两种 404 文案（`pipeline::resolve_model` 与
-/// `provider_loop::forward_with_providers` 各判一次）。
+/// 「 this is not is 」—— in no has when use 「 」
+/// and 「 no has this 」 404 （`pipeline::resolve_model` and 
+/// `provider_loop::forward_with_providers` 1 ）。
 ///
-/// ── 判据为什么只剩 `providers_for_model`（两条别名兜底已删）──────
-/// 曾经这里还兜着两条「只要**存在**同名的映射条目就算被关闭」：内建家的
-/// `has_alias(model)` 与自定义家 mappings 的 alias 扫描。它们在「上游把某个
-/// 模型下线、映射的目标已经不在任何清单里」时会**误命中** —— 别名确实还在
-/// 配置里，但它指向的上游已经没了，既调不通，也不该报「已在网关中关闭」：
-/// 那句文案会把用户引去模型管理页找一个**已经不在列表里**的开关。
-/// 它本来想覆盖的「别名在、目标也仍在清单里、只是开关关了」已经被
-/// [`providers_for_model`] 覆盖 —— 那个函数**不过滤 `enabled`**（见它的注释），
-/// 只要有承载者就非空，所以这两条兜底整条删掉也不会漏判；剩下的悬空别名
-/// 据此归入「模型不存在」，与它实际的处境一致。
+/// ── Why `providers_for_model`（ already ）──────
+/// this 「 need ** in ** 」： 
+/// `has_alias(model)` and mappings alias 。 in 「 up 
+/// down 、 already not in 」 when will ** in ** —— in 
+/// config， to up already no ， not ， not this 「 already in in 」：
+/// that will use 1 ** already not in ** 。
+/// 「 in 、 in 、 is 」 already 
+/// [`providers_for_model`] —— that ** not `enabled`**（ ），
+/// need has empty， this not will ； down empty
+/// 「 not in 」， and 1 。
 pub fn model_blocked_everywhere(model: &str) -> bool {
     if !forwarding_providers(model).is_empty() {
         return false;
@@ -145,7 +145,7 @@ pub fn model_blocked_everywhere(model: &str) -> bool {
 
 pub fn wire_target_for_provider(model: &str, provider_id: &str, _account: Option<&Value>) -> WireTarget {
     let requested = model.trim();
-    // 自定义提供商在自己的转发模块解析一次，避免把别名提前改写后丢失其等级绑定。
+    // in 1 ， before after its etc 。
     let resolved = if custom_providers::is_custom_provider_id(provider_id) {
         None
     } else {

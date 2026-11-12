@@ -28,11 +28,11 @@ import { t } from './i18n'
 import { RequiredUpdateGate } from './components/RequiredUpdateGate'
 
 /**
- * 路由表。
+ * by 。
  *
- * 一级页（`primary: true`）显示底部标签栏；二级页显示返回栏。
- * 与桌面端不同：桌面端 13 个一级菜单在手机上收成 5 个标签，其余进
- * 「更多」的宫格 —— 层级只有两层，不再有第三层。
+ * 1 （`primary: true`）；return。
+ * and not ： 13 1 in up 5 ， its 
+ * 「」 —— has ， not has 。
  */
 type ScreenDef = {
   title: string
@@ -67,41 +67,41 @@ export function App() {
   const def = SCREENS[state.route.screen]
   const Page = def.component
   const isPrimary = Boolean(def.primary)
-  // 助手页自己滚动对话区，外层不再创建第二个滚动容器。
+  // for ， not create 。
   const fillHeight = state.route.screen === 'assistant'
   /**
-   * APK 首次启动、一台服务器都没配：**没有地址就什么都拉不到**，所以直接
-   * 顶掉整个界面（不显示标签栏 —— 切到别的标签也是空的）。配好一台之后
-   * 这里自然放行。
+   * APK 、 1 no ：** no has not to **，
+   * （ not —— to is empty ）。 1 after 
+   * this 。
    */
   const needsServer = state.packaged && !state.server
 
   useEffect(() => {
     bootstrapTheme()
     store.restoreFromHash()
-    // 没有可用服务器时不要发请求：那会以「无法连接网关」的形式刷一屏错误，
-    // 而真实原因是「还没填地址」。
+    // no has available when not need request： that will 「none」 1 error，
+    // Reason is 「 no 」。
     if (!state.packaged || state.server) {
       void store.refresh(true)
     }
-    // 浏览器前进 / 后退（PWA 与 APK 的 WebView 都会触发）。走 store 的
-    // handlePopState 而不是直接 restoreFromHash：前者会同步弹掉二级栈，
-    // 后者只看 hash，会把「返回」变成「重进当前页」。
+    // before / after （PWA and APK WebView will ）。 store 
+    // handlePopState not is restoreFromHash： before will ，
+    // after hash， will 「return」「current」。
     const onPop = () => store.handlePopState()
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-    // 只在挂载时跑一次：后续的 refresh 由各页面与写操作自己触发
+    // in when 1 ： after refresh by and 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /**
-   * 安卓物理返回键。
+   * return。
    *
-   * 不处理的话 Capacitor 的默认行为是直接 finish 掉 Activity —— 用户在
-   * 任何二级页按一下都会回到桌面，而不是退回上一页。
+   * not Capacitor default as is finish Activity —— use in 
+   * by 1 down will to ， not is up 1 。
    *
-   * 优先级：先让已打开的弹层自己关（Sheet / Dialog 走各自的关闭逻辑），
-   * 再交给 store 退栈。首页且无弹层时才退出应用 —— 这是安卓的通行预期。
+   * ： already （Sheet / Dialog ），
+   * to store 。 and none when use —— this is 。
    */
   useEffect(() => {
     if (!state.packaged) return
@@ -111,8 +111,8 @@ export function App() {
       .then(({ App: CapApp }) => {
         if (cancelled) return
         void CapApp.addListener('backButton', () => {
-          // 弹层开着时先关弹层。Base UI 的弹层挂 data-open，且关闭按钮带
-          // data-slot='sheet-close' / 'dialog-close'；点它等价于用户按关闭。
+          // when 。Base UI data-open， and by 
+          // data-slot='sheet-close' / 'dialog-close'； etc use by 。
           const popup = document.querySelector<HTMLElement>(
             '[data-slot="sheet-content"][data-open], [data-slot="dialog-content"][data-open]',
           )
@@ -128,18 +128,18 @@ export function App() {
         })
       })
       .catch(() => {
-        /* 插件缺失（例如浏览器形态）时什么都不做：浏览器自己有返回键 */
+        /* （e.g.） when not ： has return */
       })
     return () => {
       cancelled = true
       dispose?.()
     }
-    // packaged 在应用生命周期内不变
+    // packaged in use not 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
-    // 页面标题跟着当前页走（PWA 里影响任务切换器的显示）
+    // current（PWA ）
     document.title = needsServer ? `${t('服务器')} · Agent2API` : `${def.title} · Agent2API`
   }, [def.title, needsServer])
 

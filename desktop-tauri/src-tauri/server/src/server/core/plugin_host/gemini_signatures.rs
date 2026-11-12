@@ -1,4 +1,4 @@
-//! 出站信封已在插件中转换；在响应缓存所在进程按调用 id 回填真实签名。
+//! already in in ； in response in by use id 。
 
 use serde_json::Value;
 
@@ -20,7 +20,7 @@ pub(super) fn fill_cached(body: &mut Value) {
             { continue }
             let id = part.get("functionCall").and_then(|call| call.get("id"))
                 .and_then(Value::as_str).unwrap_or("");
-            // 函数名可在同一历史里重复，不能借用最近一次同名调用的签名。
+            // can in 1 ， not can use 1 use 。
             if let Some(signature) = antigravity_signature_cache::lookup_call(&session, id) {
                 part.insert("thoughtSignature".to_string(), Value::String(signature));
                 filled += 1;

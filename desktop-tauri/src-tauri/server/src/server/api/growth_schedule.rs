@@ -1,23 +1,23 @@
-//! 猫猫旅行定时排程的管理端点（签到页 / 设置页用）。
+//! when （ to / set use ）。
 //!
 //! ```text
-//!   GET  /api/travel-schedule        开关、时刻数组、今日已执行时刻、上一轮结果
-//!   POST /api/travel-schedule        改配置 { enabled?, times? }
-//!   POST /api/travel-schedule/run    立即巡检一轮（真打上游）
+//! GET /api/travel-schedule 、 when 、 already when 、 up 1 
+//! POST /api/travel-schedule config { enabled?, times? }
+//! POST /api/travel-schedule/run 1 （ up ）
 //! ```
 //!
-//! ── 为什么是独立一组接口 ─────────────────────────────────────
-//! 旅行与签到是**两个独立排程**（参考项目也是 `travel_hours` /
-//! `checkin_hours` 两套开关与时刻）：它们服务的是不同玩法，用户可能只想
-//! 自动签到、不想自动派猫。合成一组会让「关掉旅行」变成「关掉签到」的副作用。
+//! ── Why is 1 ─────────────────────────────────────
+//! and to is ** **（ is `travel_hours` /
+//! `checkin_hours` and when ）： is not ， use can can 
+//! to 、 not 。 1 will 「」「 to 」 use 。
 //!
-//! ── 错误信封 ────────────────────────────────────────────────
-//! 与 `/api/scheduled-tasks` 同一口径：参数校验失败走**管理信封** 400
-//! `{success:false,error:"…"}`，而不是 auto-checkin 那套 OpenAI 风格 body
-//! （那是 Node 版历史契约，本接口是纯新增的管理 API）。
+//! ── error ────────────────────────────────────────────────
+//! and `/api/scheduled-tasks` 1 ：parameterfailure**** 400
+//! `{success:false,error:"…"}`， not is auto-checkin that OpenAI body
+//! （ that is Node ， is add API）。
 //!
-//! ── 「正在执行中」────────────────────────────────────────────
-//! 手动 run 撞上正在执行的轮次返回 409；能力不可用返回中性跳过，真正失败保留原因。
+//! ── 「 in in 」────────────────────────────────────────────
+//! run up in return 409； can unavailablereturn in ，failureReason。
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -31,18 +31,18 @@ use crate::server::http::{ok_json, parse_body};
 use crate::server::logging;
 use crate::server::ServerState;
 
-/// `GET /api/travel-schedule` —— 当前配置与运行状态。
+/// `GET /api/travel-schedule` —— currentconfig and 。
 pub async fn get_state() -> Response {
     ok_json(growth_scheduler::state())
 }
 
-/// `POST /api/travel-schedule` —— 改开关与时刻（只改传进来的字段）。
+/// `POST /api/travel-schedule` —— and when （ ）。
 pub async fn configure(body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
         Err(error) => return bad_request(error.message),
     };
-    // 空对象视为「没有需要更新的字段」：与 /api/scheduled-tasks 同一取舍
+    // empty for as 「 no has need need update 」： and /api/scheduled-tasks 1 
     let has_field = payload
         .as_object()
         .map(|object| object.contains_key("enabled") || object.contains_key("times"))
@@ -80,10 +80,10 @@ pub async fn configure(body: Bytes) -> Response {
     }
 }
 
-/// `POST /api/travel-schedule/run` —— 立即巡检一轮。
+/// `POST /api/travel-schedule/run` —— 1 。
 ///
-/// 响应带本轮摘要与刷新后的状态：界面点完按钮就地重绘，不必再拉一次
-/// （与 `/api/scheduled-tasks/{id}/run` 同一取舍）。
+/// response need and new after ： by ， not 1 
+/// （ and `/api/scheduled-tasks/{id}/run` 1 ）。
 pub async fn run_now(State(state): State<ServerState>) -> Response {
     let store = state.store().clone();
     match growth_scheduler::run_now(&store).await {
@@ -125,7 +125,7 @@ pub async fn run_now(State(state): State<ServerState>) -> Response {
     }
 }
 
-/// 管理信封的 400（`{success:false,error}`），并打一行日志。
+/// 400（`{success:false,error}`）， and 1 。
 fn bad_request(message: impl Into<String>) -> Response {
     let message = message.into();
     logging::log("[Travel]", &format!("❌ {message}"));

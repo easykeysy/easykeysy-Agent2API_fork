@@ -1,11 +1,11 @@
-//! 「从其他工具导入」的扫描 API（当前来源：cc-switch）。
+//! 「 from its 」 API（current：cc-switch）。
 //!
-//! - `GET /api/import/cc-switch` → 扫描本机 cc-switch 数据库（`core::import_ccswitch`）
+//! - `GET /api/import/cc-switch` → cc-switch （`core::import_ccswitch`）
 //!
-//! 与 custom-providers 的管理接口同一档敏感：它读取**另一个本机应用**的配置
-//! 文件并在响应里携带 API Key 明文（导入动作需要），因此挂在 protected 之后。
-//! 响应里的 `available: false` 是正常业务形态（没装 cc-switch / 文件不可读），
-//! 不是错误 —— 前端按空态渲染，这里不返回 4xx/5xx。
+//! and custom-providers 1 ：** 1 use ** config
+//! file and in response API Key （ need need ）， in protected after 。
+//! response `available: false` is （ no cc-switch / file not can ），
+//! not is error —— before by empty， this not return 4xx/5xx。
 
 use axum::extract::State;
 use axum::response::Response;

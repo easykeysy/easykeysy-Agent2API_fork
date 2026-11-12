@@ -7,15 +7,15 @@ import { callJson } from './assistant-state'
 import { ModelApiKeyField } from '../../../ui-shared/model-api-key-field'
 import { useModelApiKeys } from '../../../ui-shared/use-model-api-keys'
 
-/* ─── 保活模型链（国际版）──────────────────── */
+/* ─── （）──────────────────── */
 
 /**
- * 拖动排序：模块级状态。
+ * ：。
  *
- * 拖动期间**只动 DOM**（`insertBefore`），松手才把最终顺序写进 state。
- * 每次移动都写 state 会让 React 重渲、行节点被替换，手里那个节点变成孤儿
- * （`getBoundingClientRect()` 全 0），后续落点判定全错 —— 这是旧 iframe 版
- * 真实踩过的坑。
+ * ** DOM**（`insertBefore`）， state。
+ * state will React 、 ， that 
+ * （`getBoundingClientRect()` 0）， after —— this is old iframe 
+ * 。
  */
 type DragState = {
   container: HTMLElement
@@ -54,7 +54,7 @@ function finishDrag(): void {
   document.body.classList.remove('ck-chain-dragging')
   if (!state) return
   state.row.classList.remove('dragging')
-  // 行上的 `data-chain-index` 记的是**原数组**下标：按 DOM 顺序读回来就是新顺序
+  // up `data-chain-index` is **** down ： by DOM is new 
   const order = [...state.container.querySelectorAll<HTMLElement>('.ck-chain-row')]
     .map(row => Number(row.dataset.chainIndex))
     .filter(index => Number.isInteger(index))
@@ -79,7 +79,7 @@ function startDrag(event: React.PointerEvent<HTMLSpanElement>, index: number, mo
   window.addEventListener('pointercancel', finishDrag)
 }
 
-/** 拖动把手（六点两列，与账号页顺序拖拽同一枚） */
+/** （， and 1 ） */
 function GripIcon(): React.ReactElement {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -212,7 +212,7 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
   )
 }
 
-/* ─── 猫猫旅行排程（国内版）────────────────── */
+/* ─── （）────────────────── */
 
 const TRAVEL_TIP = '每天按这里的时刻自动巡检一遍 WorkBuddy 国内版账号：没有猫就领养、'
   + '在家就派出、到站就领奖。一趟只推进一步，所以建议留两个时刻'
@@ -242,8 +242,8 @@ function TravelPanel({ center }: { center: CheckinCenter }): React.ReactElement 
     <Card render={<section />} className="panel">
       <CardHeader className="panel-head">
         <h2>猫猫旅行定时排程</h2>
-        {/* 问号提示：宿主有 desktop-tooltip.tsx，`data-tip` 是它的契约 —— 迁到宿主后
-            这条提示才真正长得和别的页一样（iframe 里拿不到那个脚本） */}
+        {/* ： has desktop-tooltip.tsx，`data-tip` is —— to after 
+             this and 1 （iframe not to that ） */}
         <span className="tip-q" data-tip={TRAVEL_TIP} />
         <span className="panel-sub">每天定点巡检 · 一趟推进一步 · 与签到排程互相独立</span>
         <Button

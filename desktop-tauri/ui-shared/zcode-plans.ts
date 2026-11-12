@@ -67,7 +67,7 @@ export type ClaimResult = {
   dailyCheckin?: DailyCheckinState | null
 }
 
-/** 日期汇总不能决定套餐是否已领；同一套餐跨日仍按领取单元确认。 */
+/** total not can is already ； 1 by 。 */
 export function planClaimState(plan: PreviewPlan, settled: readonly string[] = []): ClaimState {
   if (settled.includes(String(plan.planId || ''))) return 'claimed'
   if (plan.claimState) return plan.claimState

@@ -1,5 +1,5 @@
-//! 严格错误边界的有限代码集合；字符串形状/长度不足以证明它不是 token。
-//! 分类只由真实 SDK classify RPC 决定，这里仅决定哪些机器码可以公开。
+//! error has ；/ not not is token。
+//! by SDK classify RPC ， this only can 。
 
 pub(super) fn qwen_number(value: i64) -> bool {
     matches!(value, 105 | 406 | 110 | 112 | 113 | 114 | 115 | 116 | 117 | 118 | 119 | 122

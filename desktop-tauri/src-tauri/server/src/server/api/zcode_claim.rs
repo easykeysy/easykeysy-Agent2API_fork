@@ -1,54 +1,54 @@
-//! ZCode 限时套餐的领取接口（探测 + 领取）。
+//! ZCode when （ + ）。
 //!
-//! ── 为什么单独成文件（不在 `api::accounts` 里）────────────────
-//! `api::accounts` 已经是账号 CRUD + 十来个动作的入口（接近 550 行），
-//! 而领取这条链路自带一段**协议知识**（biz code 分类、404 是正常状态、
-//! 验证码由前端解），塞进去会让那个文件同时承担「账号簿记」与「套餐协议」
-//! 两件事。与 `api::accounts_usage`（余额查询单独拆出去）同一处置。
+//! ── Whyfile（ not in `api::accounts` ）────────────────
+//! `api::accounts` already is CRUD + （ 550 ），
+//! this 1 ****（biz code 、404 is 、
+//! by before ）， will that file when 「」 and 「」
+//! 。 and `api::accounts_usage`（） 1 。
 //!
-//! ── 三个接口 ────────────────────────────────────────────────
+//! ── ────────────────────────────────────────────────
 //! ```text
-//!   POST /api/accounts/{id}/zcode-claim/preview          探测可领套餐（**不要验证码**）
-//!   POST /api/accounts/{id}/zcode-claim/captcha-config   取风控配置（滑块要不要弹）
-//!   POST /api/accounts/{id}/zcode-claim                  领取（**要**验证码参数）
+//! POST /api/accounts/{id}/zcode-claim/preview can （** not need **）
+//! POST /api/accounts/{id}/zcode-claim/captcha-config config（ need not need ）
+//! POST /api/accounts/{id}/zcode-claim （** need **parameter）
 //! ```
-//! 拆成两个而不是「一个接口两段」的理由：探测是幂等的只读动作，可以放心反复跑、
-//! 也可以在界面上随便刷新；领取是有副作用的写动作，且必须等前端把验证码解出来
-//! 才能发。两者的调用时机与失败语义完全不同。
+//! not is 「 1 」 by ： is etc ， can 、
+//! can in up new ； is has use ， and must etc before 
+//! can 。 use when and failure not 。
 //!
-//! ── 这里只做转发 ────────────────────────────────────────────
-//! 执行体在**提供商插件**里（`zcode::claim` / `zcode::activation`，动作
-//! `claim.preview` / `claim.captcha-config` / `claim.claim`）：biz code 怎么
-//! 分类、激活事件长什么样、请求头怎么拼，都是「怎么打 ZCode 的活动接口」的
-//! 知识 —— 按项目的风险隔离要求，这类实现不留在本仓库。网关这边只剩账号归属
-//! 校验、`claimedAt` 落库（那动的是网关的账号库）与信封。
+//! ── this ────────────────────────────────────────────
+//! in ****（`zcode::claim` / `zcode::activation`，
+//! `claim.preview` / `claim.captcha-config` / `claim.claim`）：biz code 
+//! 、、request， is 「 ZCode 」 
+//! —— by need ， this not in 。 this 
+//! 、`claimedAt` （ that is ） and 。
 //!
-//! ── 「每天领一次」与「今天已领」的落点 ──────────────────────
-//! 2026-09-28 起的那期活动（ZCode Trust Build）是**每天一个新套餐**
-//! （`plan_id` 带日期段），所以领取这件事天然按自然日重复。本文件负责把结果
-//! 写进账号记录（`claimAt` / `claimPlanId`，见 `mark_zcode_claim`）：
-//!   - **成功**要写；
-//!   - **`already_claimed` 也要写** —— 上游说这一期的套餐已经领掉了
-//!     （可能是另一台设备领的），界面同样该显示「今日已领」，
-//!     否则用户会一直点那颗按钮、每次拿回同一句「该账号已领取过」。
-//! 响应里带上落库后的状态，前端不必为了刷新那颗按钮再拉一次账号列表。
+//! ── 「 1 」 and 「 already 」 ──────────────────────
+//! 2026-09-28 that （ZCode Trust Build） is ** 1 new **
+//! （`plan_id` ）， this by 。file 
+//! （`claimAt` / `claimPlanId`， `mark_zcode_claim`）：
+//! - **success** need ；
+//! - **`already_claimed` need ** —— up this 1 already 
+//! （ can can is 1 ）， this 「 already 」，
+//! otherwise use will 1 that by 、 1 「 this already 」。
+//! response up after ， before not as new that by 1 。
 //!
-//! ── 定时领取与手动领取 ──────────────────────────────────────
-//! 手动领取由本接口接收界面当次验证结果；定时领取由插件按需发布验证任务，
-//! 管理界面经 `zcode_claim_verification` 回传，继续同一轮领取和签到记账。
-//! 两条路径都不复用模型调用令牌池，没有界面或验证未完成时如实记录需要人工验证。
+//! ── when and ──────────────────────────────────────
+//! by ； when by by need ，
+//! `zcode_claim_verification` ， 1 and to 。
+//! path not use use ， no has or when need need 。
 //!
-//! ── 激活事件：领取链上的**前置动作** ─────────────────────────
-//! 资格由上游的激活事件（`app_launch` / `app_daily_active`）发放，而本家不跑
-//! 官方客户端、那一步不会自动发生。因此两个入口都会补报（插件的
-//! `claim.preview` / `claim.claim` 里）：
-//!   · `claim`：领取前必报（失败不阻断）；
-//!   · `preview`：**探测为空时**报一次再重探（列表非空时不报，读写分开的口径
-//!     因此只在这一处被打破）。
-//! 响应里的 `activated` / `activationError` 就是这两件事的读数。
+//! ── ： up ** before ** ─────────────────────────
+//! by up （`app_launch` / `app_daily_active`）， not 
+//! client、 that 1 not will 。 will （ 
+//! `claim.preview` / `claim.claim` ）：
+//! · `claim`： before （failure not ）；
+//! · `preview`：** as empty when ** 1 （empty when not ， 
+//! in this 1 ）。
+//! response `activated` / `activationError` is this 。
 //!
-//! ── 出口要不要挂账号代理：**要**（与「余额查询直连」相反）────────
-//! 领取打的是活动接口，风控按 IP 判；出口由插件从账号记录里取，网关不参与。
+//! ── need not need ：** need **（ and 「」）────────
+//! is ， by IP ； by from ， not and 。
 
 use axum::body::Bytes;
 use axum::response::Response;
@@ -58,7 +58,7 @@ use crate::server::errors::management_error;
 use crate::server::http::{ok_json, parse_body};
 use crate::server::ServerState;
 
-/// 取账号记录（不是 ZCode 系一律报错）。
+/// （ not is ZCode 1 ）。
 fn zcode_account_of(
     state: &ServerState,
     account_id: &str,
@@ -86,7 +86,7 @@ fn zcode_account_of(
     Ok(record)
 }
 
-/// 调一次管理动作。
+/// 1 。
 async fn call_action(
     state: &ServerState,
     account_id: &str,
@@ -112,21 +112,21 @@ async fn call_action(
         .map_err(|error| (error.status_code, error.message))
 }
 
-/// `POST /api/accounts/{id}/zcode-claim/preview`：探测当前可领的套餐。
+/// `POST /api/accounts/{id}/zcode-claim/preview`：current can 。
 ///
-/// 成功响应的形状（前端据此渲染列表与「领取」按钮）：
+/// successresponse （ before and 「」 by ）：
 /// ```json
 /// { "plans": [ { "planId", "name", "description", "priority",
 ///                "startsAt", "endsAt", "entitlements": [...] } ],
 ///   "deployed": true, "activated": true, "activationError": null }
 /// ```
-/// `deployed: false` 表示上游活动接口尚未部署（404）—— **这不是错误**，
-/// 是活动开抢前的正常状态。前端应当据此显示「当前没有可领套餐」而不是报错。
+/// `deployed: false` up （404）—— ** this not is error**，
+/// is before 。 before 「current no has can 」 not is 。
 ///
-/// ── `activated` / `activationError` 的取值 ────────────────────
-///   · `null` —— 没报（探测到了套餐：不必报；接口未部署：报也无从解锁；
-///     账号没有 `userId`：报不出去）。**也没出错**；
-///   · `true` / `false` —— 报了 / 报失败（原因在第二个字段里）。
+/// ── `activated` / `activationError` ────────────────────
+/// · `null` —— no （ to ： not ；：none from ；
+/// no has `userId`： not ）。** no **；
+/// · `true` / `false` —— / failure（Reason in ）。
 pub async fn preview(state: &ServerState, account_id: &str) -> Response {
     if let Err((status, message)) = zcode_account_of(state, account_id) {
         return management_error(status, message);
@@ -140,18 +140,18 @@ pub async fn preview(state: &ServerState, account_id: &str) -> Response {
     }
 }
 
-/// `POST /api/accounts/{id}/zcode-claim/captcha-config`：取阿里云风控配置。
+/// `POST /api/accounts/{id}/zcode-claim/captcha-config`：config。
 ///
-/// 前端拿它去初始化滑块 SDK（`prefix` / `region` / `sceneId` 三样缺一不可）。
-/// 与 AutoClaw OAuth 的 `/api/session/login/oauth/captcha-config` 是同一个位置
-/// 的同一件事，只是来源不同。
+/// before SDK（`prefix` / `region` / `sceneId` 1 not can ）。
+/// and AutoClaw OAuth `/api/session/login/oauth/captcha-config` is 1 
+/// 1 ， is not 。
 ///
-/// ── 不缓存 ──────────────────────────────────────────────────
-/// 领取是低频动作（一次领一次），不值得在这里维护带 TTL 的进程级缓存。
+/// ── not ──────────────────────────────────────────────────
+/// is （ 1 1 ）， not in this TTL 。
 ///
-/// ── 这一支**不要求账号有 jwt** ──────────────────────────────
-/// 风控配置是「上游此刻要不要验证码」的公共信息，与哪个账号无关。提前报
-/// 「缺 jwt」会让用户以为账号有问题，而真正的原因是他还没登录过。
+/// ── this 1 ** not need has jwt** ──────────────────────────────
+/// config is 「 up need not need 」 ， and none。 before 
+/// 「 jwt」 will use as has ， Reason is no 。
 pub async fn captcha_config(state: &ServerState, account_id: &str) -> Response {
     if let Err((status, message)) = zcode_account_of(state, account_id) {
         return management_error(status, message);
@@ -162,19 +162,19 @@ pub async fn captcha_config(state: &ServerState, account_id: &str) -> Response {
     }
 }
 
-/// `POST /api/accounts/{id}/zcode-claim`：领取一个套餐。
+/// `POST /api/accounts/{id}/zcode-claim`： 1 。
 ///
-/// 请求体：
+/// request：
 /// ```json
 /// { "planId": "...", "captchaVerifyParam": "...", "captchaRegion": "..." }
 /// ```
-/// `planId` 省略或为空时取**优先级最高**的那个可领套餐（插件侧实现）。
-/// 因此前端可以「先探测、用户直接点领取」，也可以「探测后让用户选一个再领」。
+/// `planId` or as empty when **** that can （）。
+/// before can 「、 use 」， can 「 after use 1 」。
 ///
-/// ── 失败也返回 HTTP 200（业务结果不是 HTTP 错误）─────────────
-/// 「已领过」「额度用尽」「验证码没过」都是**正常的业务结果**，前端要靠
-/// `failure` 字段给不同提示。只有「请求本身没打成」（账号不存在、缺 jwt、
-/// 网络故障）才用非 2xx。
+/// ── failurereturn HTTP 200（ not is HTTP error）─────────────
+/// 「 already 」「 use 」「 no 」 is ** **， before need 
+/// `failure` to not 。 has 「request no 」（ not in 、 jwt、
+/// ） use 2xx。
 pub async fn claim_plan(state: &ServerState, account_id: &str, body: &Bytes) -> Response {
     if let Err((status, message)) = zcode_account_of(state, account_id) {
         return management_error(status, message);
@@ -189,9 +189,9 @@ pub async fn claim_plan(state: &ServerState, account_id: &str, body: &Bytes) -> 
         let ok = object.get("ok").and_then(Value::as_bool).unwrap_or(false);
         let failure = object.get("failure").and_then(Value::as_str).unwrap_or("");
         let plan_id = object.get("planId").and_then(Value::as_str).unwrap_or("");
-        // ── 落一次领取状态 ────────────────────────────────────────
-        // 成功的、以及「上游说已领过」，都要写：后者同样是「这一期到手了」。
-        // 其余失败不落 —— 验证码没过、额度耗尽都不意味着套餐已经领到。
+        // ── 1 ────────────────────────────────────────
+        // success 、 and 「 up already 」， need ： after is 「 this 1 to 」。
+        // its failure not —— no 、 not already to 。
         let claimed_at = if ok || failure == "already_claimed" {
             record_claim(state, account_id, plan_id, object.get("claimedAt").and_then(Value::as_i64))
         } else {
@@ -213,10 +213,10 @@ fn record_daily_checkin(state: &ServerState, account_id: &str, body: &Value) {
     }
 }
 
-/// 落一次领取状态，返回落库的时刻（毫秒；0 = 没落成，界面按「未领取」处理）。
+/// 1 ，return when （ms；0 = no ， by 「」）。
 ///
-/// 写盘失败只记日志、不改领取结果：额度在上游已经到账，因为一次落盘失败把
-/// 成功的领取报成失败是本末倒置（与 `billing::checkin::run_checkin` 同一口径）。
+/// failure、 not ： in up already to ， as 1 failure 
+/// success failure is （ and `billing::checkin::run_checkin` 1 ）。
 fn record_claim(state: &ServerState, account_id: &str, plan_id: &str, claimed_at: Option<i64>) -> i64 {
     let now = crate::server::logging::now_ms();
     let at = claimed_at.filter(|at| *at > 0 && *at <= now).unwrap_or(now);

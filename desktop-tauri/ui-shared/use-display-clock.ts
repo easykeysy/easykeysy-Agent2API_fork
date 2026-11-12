@@ -38,7 +38,7 @@ function subscribe(listener: () => void): () => void {
 const snapshot = () => now
 const serverSnapshot = () => 0
 
-// 多个余额读数组件共用一分钟时钟，不逐账号创建计时器，也不触发余额查询。
+// use 1 minutes when ， not create when ， not 。
 export function useDisplayClock(): number {
   useSyncExternalStore(subscribe, snapshot, serverSnapshot)
   return Date.now()

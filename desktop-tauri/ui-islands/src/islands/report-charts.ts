@@ -1,10 +1,10 @@
-/* Agent2API · 报表数据契约、读数口径与热力图布局 */
+/* Agent2API · 、 and */
 
 import { t } from '../i18n'
 import { DATE_RANGES, readCustomRange as readDates, saveCustomRange as saveDates, type CustomDates } from '../../../ui-shared/date-range'
 export { dayKey, defaultCustomRange, DAY_KEY_RE } from '../../../ui-shared/date-range'
 
-/* ─── 数据形状（后端 /api/stats/summary，字段都可缺省） ─── */
+/* ─── （ after /api/stats/summary， can ） ─── */
 
 export type StatsSlice = { id?: string; model?: string; label?: string; tokens?: number; requests?: number }
 export type StatsDay = {
@@ -15,7 +15,7 @@ export type StatsHour = {
   hour?: string; rate?: number; totalTokens?: number; hitTokens?: number; inputTokens?: number
   models?: StatsSlice[]
 }
-/** 排行 / 环形图共用的一条：模型维度用 model 当身份，提供商与账号维度用 id */
+/** / use 1 ： use model ， and use id */
 export type StatsGroup = {
   id?: string; label?: string; model?: string
   requests?: number; success?: number; failures?: number; totalTokens?: number; tokens?: number
@@ -44,7 +44,7 @@ export type StatsSummary = {
   dailyTrend?: StatsDay[]
 }
 
-/* ─── 时间范围（档位与后端白名单逐字一致） ─── */
+/* ─── when （ and after 1 ） ─── */
 
 export const RANGES: readonly string[] = DATE_RANGES
 export const DEFAULT_RANGE = '7'
@@ -60,7 +60,7 @@ export const RANGE_OPTION_LABEL: Record<string, string> = {
   all: t('全部'), custom: t('自定义'),
 }
 
-/** 只有明确存过合法值才采纳；无值 / 读取抛错 / 值被改坏都回落默认的 7 天 */
+/** has ；none / / default 7 */
 export function readRange(): string {
   try {
     const saved = localStorage.getItem(RANGE_KEY)
@@ -82,7 +82,7 @@ export function saveCustomRange(range: CustomRange): void {
 
 export const WEEKDAY_ROWS: readonly (readonly [number, string])[] = [[0, t('一')], [2, t('三')], [4, t('五')]]
 
-/* ─── 读数口径 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
 type UnitsBridge = {
   formatInt?: (value: unknown) => string
@@ -99,7 +99,7 @@ export function formatInt(value: unknown): string {
   return api.formatInt ? api.formatInt(value) : (Number(value) || 0).toLocaleString('zh-CN')
 }
 
-/** 每次调用都读单位桥，设置页切换中文量级 / 英文缩写后整页口径保持一致。 */
+/** use ，set in / after 1 。 */
 export function formatTokens(value: unknown): string {
   const api = units()
   return api.formatTokens ? api.formatTokens(value) : String(Number(value) || 0)
@@ -110,7 +110,7 @@ export function axisText(value: number, max: number): string {
   return api.formatAxis ? api.formatAxis(value, max) : String(value)
 }
 
-/** 后端 rate 是比值而非百分数，且合法地可能超过 1。 */
+/** after rate is ， and can can 1。 */
 export function formatPercent(rate: unknown): string {
   return `${((Number(rate) || 0) * 100).toFixed(1)}%`
 }
@@ -123,7 +123,7 @@ export function textWidth(text: string): number {
   return [...text].reduce((sum, ch) => sum + (/[\u2e80-\u9fff]/.test(ch) ? 9.7 : 5.4), 0)
 }
 
-/** YYYY-MM-DD 按本地零点解析，避免 UTC 解析改变星期与日界线。 */
+/** YYYY-MM-DD by ， UTC and 。 */
 export function parseDay(key: unknown): Date {
   const [y, m, d] = String(key || '').split('-').map(Number)
   return new Date(y || 1970, (m || 1) - 1, d || 1)
@@ -143,7 +143,7 @@ export function hourText(key: unknown): string {
   return time ? `${time}:00` : '—'
 }
 
-/* ─── 纵轴刻度 ─────────────────────────────── */
+/* ─── ─────────────────────────────── */
 
 const STEP_LADDER = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
 
@@ -155,12 +155,12 @@ function niceStep(value: number): number {
   return step * pow
 }
 
-/** 先选好读的步长再乘四段，避免峰值四等分后产生难读的刻度。 */
+/** ， etc after 。 */
 export function axisMax(peak: number): number {
   return niceStep(peak / 4) * 4
 }
 
-/* ─── 板块一：统计概览 ────────────────────── */
+/* ─── 1 ：statistics ────────────────────── */
 
 export type OverviewCell = { key: string; label: string; value: string; sub: string; mono: boolean }
 
@@ -169,7 +169,7 @@ export function overviewCells(overview: StatsOverview | undefined, range: string
   const top = data.topModel
   const requests = Number(data.requests) || 0
   const successful = Number(data.successful) || 0
-  // 请求数为 0 时成功率没有意义（0/0），给破折号而不是 0%
+  // request as 0 when success no has （0/0）， to not is 0%
   const successRate = requests ? `${((successful / requests) * 100).toFixed(1)}%` : '—'
 
   const cells: OverviewCell[] = [
@@ -189,7 +189,7 @@ export function overviewCells(overview: StatsOverview | undefined, range: string
   return cells
 }
 
-/* ─── 板块二：Top 提供商 / Top 账号排行 ────── */
+/* ─── ：Top / Top ────── */
 
 export type RankRowView = {
   key: string; id: string; name: string
@@ -197,7 +197,7 @@ export type RankRowView = {
   tokensText: string; percentText: string; barWidth: string
 }
 
-/** null 表示契约没有这一维；空数组表示这个区间没有用量。 */
+/** null no has this 1 ；empty this no has usage。 */
 export function rankRows(list: StatsGroup[] | undefined): RankRowView[] | null {
   if (!Array.isArray(list)) return null
 
@@ -214,7 +214,7 @@ export function rankRows(list: StatsGroup[] | undefined): RankRowView[] | null {
   const total = rows.reduce((sum, item) => sum + item.tokens, 0)
   const share = (count: number) => (total ? (count / total) * 100 : 0)
 
-  // 排行只看 Token 用量；请求次数与成功率仍由概览提供。
+  // Token usage；request and success by 。
   return [...rows].sort((left, right) => right.tokens - left.tokens).map((item, index) => {
     const percent = share(item.tokens)
     const text = formatTokens(item.tokens)
@@ -238,7 +238,7 @@ export function rankTotalText(list: StatsGroup[]): string {
     (sum, item) => sum + (Number(item?.totalTokens ?? item?.tokens) || 0), 0))} tokens`
 }
 
-/* ─── 板块三：用量环形图（模型 / 提供商）──── */
+/* ─── ：usage（ / ）──── */
 
 export const SLICE_COLORS: readonly string[] = [
   '#f73b00', '#f7bb07', '#4aaa4d', '#1872cb', '#3444a3', '#13c2c2',
@@ -264,7 +264,7 @@ function usageGroups(list: StatsGroup[] | undefined) {
     .sort((left, right) => right.tokens - left.tokens)
 }
 
-/** 环形图、堆叠柱与悬停读数按同一份用量排名分色。 */
+/** 、 and by 1 usage。 */
 export function modelColorMap(list: StatsGroup[] | undefined): Map<string, string> {
   const map = new Map<string, string>()
   for (const item of usageGroups(list)) {
@@ -295,7 +295,7 @@ export function donutView(list: StatsGroup[] | undefined, unknownLabel: string):
   return { size: 220, data, totalText: formatTokens(total) }
 }
 
-/* ─── 板块四：热力图 ──────────────────────── */
+/* ─── ： ──────────────────────── */
 
 const HEAT_STEPS = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
 
@@ -308,7 +308,7 @@ function heatStepFloor(value: number): number {
   return best * pow
 }
 
-/** 档位由窗口峰值等分，步长向下取好读值，保留绝对用量含义。 */
+/** by etc ， to down ， for usage。 */
 export function heatLevelsFor(peak: unknown): number[] {
   const top = Number(peak) || 0
   if (top <= 0) return [0, 1, 2, 3, Infinity]
@@ -337,7 +337,7 @@ export type HeatmapView = {
   cells: { key: string; level: number; x: number; y: number; size: number; tip: string }[]
 }
 
-/** 固定一年，格子在 7–26px 内适配宽度；极窄时交给容器横向滚动。 */
+/** 1 ， in 7–26px ； when to to 。 */
 export function heatmapView(days: StatsDay[] | undefined, boxWidth: number): HeatmapView | null {
   const list = Array.isArray(days) ? days : []
   if (!list.length) return null
@@ -368,7 +368,7 @@ export function heatmapView(days: StatsDay[] | undefined, boxWidth: number): Hea
       if (!day) continue
       const requests = Number(day.requests) || 0
       const tokens = Number(day.tokens) || 0
-      // 失败请求也算活跃；Token 只决定颜色，不能据此说成「无请求」。
+      // failurerequest；Token ， not can 「nonerequest」。
       const tip = requests
         ? t('{date} · {tokens} tokens · {n} 次请求', {
           date: dayLabel(day.date), tokens: formatTokens(tokens), n: formatInt(requests),
@@ -416,7 +416,7 @@ export function heatLegendItems(thresholds: number[]): { level: number; text: st
   return [0, 1, 2, 3, 4].map(level => ({ level, text: heatLevelText(level, thresholds) }))
 }
 
-/* ─── 板块五：缓存命中率四窗口 ────────────── */
+/* ─── ： in ────────────── */
 
 export type CacheRateCell = { key: string; label: string; value: string; sub: string }
 

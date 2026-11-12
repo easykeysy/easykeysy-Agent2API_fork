@@ -1,7 +1,7 @@
-//! 桌面壳的本机管理会话，与网页管理员登录和模型 Key 相互独立。
+//! will ， and and Key 。
 //!
-//! 凭证只在本进程内保存；网关启动后通过 Rust 调用签发，不对 HTTP 暴露入口。
-//! 发送管理请求前校验服务端的会话状态，缺失、过期或被撤销时自动重建。
+//! in ； after Rust use ， not for HTTP 。
+//! request before server will ，、 or when 。
 
 use std::sync::Mutex;
 
@@ -31,7 +31,7 @@ fn ensure_session() -> Result<Session, String> {
             return Ok(session.clone());
         }
     }
-    // 并发请求共用这把锁，只有一个调用负责重新签发。
+    // and request use this ， has 1 use new 。
     let issued = access::local_session::issue()?;
     *current = Some(issued.clone());
     Ok(issued)
@@ -61,7 +61,7 @@ pub fn credential_headers() -> Result<serde_json::Map<String, Value>, String> {
     Ok(headers)
 }
 
-/// 只在明确的管理鉴权失败后调用；不轮换模型 Key 或网页用户的会话。
+/// in failure after use ； not Key or use will 。
 pub fn recover_rejected(headers: &reqwest::header::HeaderMap) -> Result<bool, String> {
     let rejected = headers.get("x-panel-token").and_then(|value| value.to_str().ok());
     let Some(rejected) = rejected else { return Ok(false) };

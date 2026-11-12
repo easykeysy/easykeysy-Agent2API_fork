@@ -1,26 +1,26 @@
-//! ZCode 账号：存量记录的公开形态投影 + 通道选择 + 领取台账。
+//! ZCode ： + + 。
 //!
-//! ── 地区为什么不落进记录 JSON ────────────────────────────────
-//! 本家的地区**已经编码在 provider id 里**（`zcode` / `zcode-intl`），
-//! 而记录自带 `provider` 字段 —— 因此地区可由 `Region::from_provider_id`
-//! 直接还原，不需要再存一份 region 字段（存了就有两处事实来源，漂移时
-//! 「provider 说是国内版、字段说是国际版」会静默打到错误的推理域名）。
+//! ── Why not JSON ────────────────────────────────
+//! ** already in provider id **（`zcode` / `zcode-intl`），
+//! `provider` —— can by `Region::from_provider_id`
+//! ， not need need 1 region （ has ， when 
+//! 「provider is 、 is 」 will to error ）。
 //!
-//! ── 实现搬走之后（2026-10 插件化）───────────────────────────
-//! CLI 轮询登录、编码套餐凭证换取、活动套餐通道、领取协议、激活事件、
-//! 余额与监控窗口、人机验证令牌池全随实现搬到提供商插件了。本文件只留
-//! **网关职责**那部分：
+//! ── after （2026-10 ）───────────────────────────
+//! CLI 、、、、、
+//! and 、 to 。file
+//! **** that ：
 //!
-//! 1. **存量记录的公开形态**（`to_zcode_public_account`）：升级上来的老账号
-//!    没有 `pluginSecret`，走不到插件投影；不在这里补形状就会被渲染成
-//!    WorkBuddy 的空壳（userId 空、tokenTail 空），账号明明能用界面却像坏了。
-//! 2. **通道选择**（`update_zcode_plan`）：`zcodePlan` 是网关的账号字段，
-//!    换通道后清额度标记动的也是网关的库 —— 这条与「怎么打上游」无关。
-//! 3. **领取台账**（`mark_zcode_claim`）：`claimAt` / `claimPlans` 落在网关
-//!    的账号记录上，签到中心与账号页读的都是它。
+//! 1. ** **（`to_zcode_public_account`）： up 
+//! no has `pluginSecret`， not to ； not in this will 
+//! WorkBuddy empty（userId empty、tokenTail empty）， can use 。
+//! 2. ****（`update_zcode_plan`）：`zcodePlan` is ，
+//! after is —— this and 「 up 」none。
+//! 3. ****（`mark_zcode_claim`）：`claimAt` / `claimPlans` in 
+//! up ， to in and is 。
 //!
-//! 新落的账号由插件写入（凭证在 `pluginSecret` 里），`store_view::public_account`
-//! 的第一条分支就会把它们带走，根本到不了这里。
+//! new by （ in `pluginSecret` ），`store_view::public_account`
+//! 1 will ， to not this 。
 
 use serde_json::{json, Map, Value};
 
@@ -33,10 +33,10 @@ use super::state::StoredAccount;
 use super::store::{AccountStore, AccountStoreError};
 
 impl AccountStore {
-    /// 显示用的一条 ZCode 账号（`account_id` 为空时取优先级最高的那条）。
+    /// use 1 ZCode （`account_id` as empty when that ）。
     ///
-    /// 非空 id 的用法：`patch_account` / `refresh` 判「这条记录是不是 ZCode 的」。
-    /// 空 id 不关心地区，两家一起找即可。
+    /// empty id use ：`patch_account` / `refresh` 「 this is not is ZCode 」。
+    /// empty id not ， 1 can 。
     pub fn zcode_account_record(&self, account_id: &str) -> Option<Value> {
         let guard = self.guard();
         if !account_id.is_empty() {
@@ -56,15 +56,15 @@ impl AccountStore {
             .map(|record| record.to_value())
     }
 
-    /// ZCode 账号的公开形态（界面读它）。
+    /// ZCode （）。
     ///
-    /// 与其余各家**同字段名、同语义**，前端不必按 provider 查表：
-    /// `edition` 放地区标识、`editionLabel` 放中文标签，于是界面上
-    /// 「ZCode 国内版 / 国际版」的显示复用既有那一列。
+    /// and its **、**， before not by provider ：
+    /// `edition` 、`editionLabel` in ， is up 
+    /// 「ZCode / 」 use has that 1 。
     ///
-    /// ── 这一支只服务存量内置记录 ──────────────────────────────
-    /// 插件新落的账号有 `pluginSecret`，`store_view::public_account` 的第一条
-    /// 分支先带走（`account_view` 由插件给）。走到这里的是升级上来的老账号。
+    /// ── this 1 ──────────────────────────────
+    /// new has `pluginSecret`，`store_view::public_account` 1 
+    /// （`account_view` by to ）。 to this is up 。
     pub fn to_zcode_public_account(&self, record: &StoredAccount) -> Value {
         let region = Region::from_provider_id(&record.provider());
         let available = record.has_token() && region.is_some();
@@ -88,24 +88,24 @@ impl AccountStore {
                 .map(|value| Value::String(value.label().to_string()))
                 .unwrap_or(Value::Null),
         );
-        // 本家没有续期协议，因此恒 false —— 前端据此不给这个账号显示「续期」
-        // 类按钮，而不是点了才报错
+        // no has ， false —— before not to this 「」
+        // by ， not is 
         public.insert("hasRefreshToken".to_string(), Value::Bool(false));
-        // 「能不能领取套餐」是**跨地区同语义**的能力位：没有 jwt 时界面上
-        // 的领取按钮应当不可点，而不是点了才报「缺少登录态」
+        // 「 can not can 」 is **** can ： no has jwt when up 
+        // by not can ， not is 「」
         public.insert("canClaim".to_string(), Value::Bool(jwt_present));
-        // 最近一次领取的时刻 + 领到的套餐 id（0 / 空串 = 从未领过）。
-        // 与 `checkinAt` 同一处置：给**原始时间戳**而不是「今天领过没」的布尔 ——
-        // 自然日边界要按用户本地时区算，那个判定在界面上已有同款实现。
+        // 1 when + to id（0 / empty = from ）。
+        // and `checkinAt` 1 ： to ** when ** not is 「 no 」 ——
+        // need by use when ， that in up already has 。
         public.insert("claimAt".to_string(), Value::from(record.claim_at()));
         public.insert(
             "claimPlanId".to_string(),
             Value::String(record.claim_plan_id()),
         );
-        // 领取台账（`{planId: 毫秒}`）：界面据此**逐份**标记「今日已领」——
-        // 同一账号可能同时挂着几份可领套餐，而「已领取过」是上游按套餐判的
-        // （见 `mark_zcode_claim` 的说明），所以状态必须逐份给，不能只给一个
-        // 「今天领过了」把整颗按钮按住。
+        // （`{planId: ms}`）：****「 already 」——
+        // 1 can can when can ，「 already 」 is up by 
+        // （ `mark_zcode_claim` ），must to ， not can to 1 
+        // 「」 by by 。
         public.insert(
             "claimPlans".to_string(),
             Value::Object(record.claim_plans()),
@@ -124,9 +124,9 @@ impl AccountStore {
         );
         public.insert("desktop".to_string(), Value::Bool(false));
         public.insert("available".to_string(), Value::Bool(available));
-        // 用哪条上游通道（`coding-plan` / `start-plan`）。
-        // 缺失/认不出时**照实给默认值**而不是 null：界面上的下拉要选中当前项，
-        // 让前端自己兜默认值等于把同一个口径抄两遍
+        // use up （`coding-plan` / `start-plan`）。
+        // / not when ** to default** not is null： up down need in current，
+        // before default etc 1 
         public.insert(
             zcode::PLAN_FIELD.to_string(),
             Value::String(
@@ -135,25 +135,25 @@ impl AccountStore {
                     .to_string(),
             ),
         );
-        // `chatSupported` / `maxConcurrent` 不在这里写：它们是跨家统一事实，
-        // 由 `store_view::public_account` 注入（与 Qoder 那份同样的处置）
+        // `chatSupported` / `maxConcurrent` not in this ： is 1 ，
+        // by `store_view::public_account` （ and Qoder that ）
         Value::Object(public)
     }
 
-    /// 设置该账号走哪条上游通道（`coding-plan` / `start-plan`），返回变化描述。
+    /// set this up （`coding-plan` / `start-plan`），return。
     ///
-    /// ── 为什么不塞进通用的 `apply_patch` ────────────────────────
-    /// 与 CatPaw 的 `balanceToken` 同一处境：`apply_patch` 是**各家共用**的字段
-    /// 白名单，把一个只有 ZCode 认识的键塞进去，等于让别家账号也能被写入一个
-    /// 「谁也不读」的字段。这里显式调用（`api::accounts::patch_account`），
-    /// 顺带做取值校验 —— 认不出的值直接 400，而不是落一个静默退回默认通道
-    /// 的值（那会让用户以为切换成功了）。
+    /// ── Why not use `apply_patch` ────────────────────────
+    /// and CatPaw `balanceToken` 1 ：`apply_patch` is ** use ** 
+    /// ， 1 has ZCode ， etc can 1 
+    /// 「 not 」 。 this use （`api::accounts::patch_account`），
+    /// —— not 400， not is 1 default
+    /// （ that will use as success）。
     ///
-    /// 空值 = 恢复默认（`coding-plan`）：界面上的下拉给的就是这两个取值，
-    /// 从旧的记录格式（没有这个键）升级上来时也是这个口径 —— `plan_of` 读缺失
-    /// 即默认，所以「写默认值」与「不写」等价，这里选择写下去，让记录自解释。
+    /// empty = default（`coding-plan`）： up down to is this ，
+    /// from old （ no has this ） up when is this —— `plan_of` 
+    /// default，「default」 and 「 not 」 etc ， this down ，。
     ///
-    /// 与 `mark_checkin` 不同：这是**用户改动**，`updatedAt` 照常刷新。
+    /// and `mark_checkin` not ： this is ** use **，`updatedAt` new 。
     pub fn update_zcode_plan(
         &self,
         account_id: &str,
@@ -173,9 +173,9 @@ impl AccountStore {
         let Some(mut record) = self.record_by_id(&guard, account_id) else {
             return Err(AccountStoreError::not_found("账号不存在"));
         };
-        // 已经是这条通道（且记录里写着）时不写盘：保存设置时前端只在「真的改了」
-        // 才带这个键，走到这里说明记录里本来就是目标值 —— 重写一次会让
-        // `updatedAt` 无谓地跳动
+        // already is this （ and ） when not ：set when before in 「 」
+        // this ， to this is —— 1 will 
+        // `updatedAt` none
         let current = zcode::normalize_plan(&record.zcode_plan()).unwrap_or(zcode::PLAN_CODING);
         let mirrored = ["pluginSecret", "pluginPublic"].iter().all(|field| {
             record.get(field).and_then(Value::as_object)
@@ -188,14 +188,14 @@ impl AccountStore {
         record.set_zcode_plan(plan);
         record.set_updated_at(logging::now_ms());
         self.with_conn(&guard, |conn| sql::update_in_place(conn, &record))?;
-        // 账号锁先放开再动作限额表（两把锁不嵌套，见 `remove_account` 的说明）
+        // （ not ， `remove_account` ）
         drop(guard);
-        // ── 换通道顺手清掉限额标记（不做这件事的后果）────────────────
-        // 限额标记是「这个账号对某个模型在上游吃到了限额」，而**额度是按通道
-        // 算的**：编码套餐那条路被限了，不代表活动套餐那条路也被限。留着旧标记
-        // 会让用户刚切完通道、下一次请求就被选路跳过（账号页上看是「限流中」），
-        // 看起来像「切了也没用」。清掉之后下一次请求会用新通道真打一次：
-        // 真限额会再被标上，那是如实的。
+        // ── （ not this after ）────────────────
+        // is 「 this for in up to 」，** is by 
+        // **： that ， not that 。 old 
+        // will use 、 down 1 request （ up is 「 in 」），
+        // 「 no use 」。 after down 1 request will use new 1 ：
+        // will up ， that is 。
         let cleared = self.clear_all_rate_limits(account_id);
         let mut changes = vec![format!("套餐通道 → {}", zcode::plan_label(plan))];
         if cleared > 0 {
@@ -206,26 +206,26 @@ impl AccountStore {
         Ok(changes)
     }
 
-    /// 落一次领取结果（套餐 id → 时刻），返回是否写盘成功。
+    /// 1 （ id → when ），return is success。
     ///
-    /// 成功与「上游说已领过」都该写：后者意味着这一份套餐已经被领掉了
-    /// （可能是另一台设备领的），界面同样该显示「今日已领」——
-    /// 否则用户会一直点那颗按钮，每次都拿同一句「该账号已领取过」。
+    /// success and 「 up already 」 this ： after this 1 already 
+    /// （ can can is 1 ）， this 「 already 」——
+    /// otherwise use will 1 that by ， 1 「 this already 」。
     ///
-    /// ── 为什么记成**一张表**而不是一个「最近领过的套餐」──────────
-    /// 一个账号同时可领的套餐**可能不止一份**（活动大额包与每日包同时在列，
-    /// 用户也可以指定领哪一份），而且上游的「已领取过」是**按套餐判的**
-    /// （同一份再领回 1003，换一份照样能领）。只记最后一个的话，「领了 A 之后
-    /// B 还能不能领」就无从判断，界面只能按「今天领过了」把整颗按钮置灰 ——
-    /// 那正是用户遇到的死路。表里存「哪几份已经领了」，界面才能逐份标状态、
-    /// 只让选还没领的那些。
+    /// ── Why** 1 ** not is 1 「 」──────────
+    /// 1 when can ** can can not 1 **（ and daily when in ，
+    /// use can 1 ）， and up 「 already 」 is ** by **
+    /// （ 1 1003， 1 can ）。 after 1 ，「 A after 
+    /// B can not can 」none from ， can by 「」 by ——
+    /// that is use to 。「 already 」， can 、
+    /// no that 。
     ///
-    /// 表按自然日判定（界面用本地日读它），所以老条目没有清理也读不出旧状态；
-    /// 但仍然做一次裁剪，免得记录无限长大：只留 `CLAIM_LEDGER_KEEP_DAYS` 天内的
-    /// 条目，且最多 `CLAIM_LEDGER_MAX` 条（保留最新的那些）。
+    /// by （ use ）， no has not old ；
+    /// 1 ，none： `CLAIM_LEDGER_KEEP_DAYS` 
+    /// ， and `CLAIM_LEDGER_MAX` （ new that ）。
     ///
-    /// 与 `mark_checkin` 同一口径：**不**动 `updatedAt`（那是「记录被改过」的
-    /// 时间，会显示在账号页的「更新于 …」上；落一次领取结果不是用户改动）。
+    /// and `mark_checkin` 1 ：** not ** `updatedAt`（ that is 「 」 
+    /// when ， will in 「update …」 up ； 1 not is use ）。
     pub fn mark_zcode_claim(&self, account_id: &str, plan_id: &str, at: i64) -> bool {
         if at <= 0 { return false; }
         let guard = self.guard();
@@ -249,23 +249,23 @@ impl AccountStore {
     }
 }
 
-/// 领取台账保留天数（界面只在「今天」这个粒度上用它）
+/// （ in 「」 this up use ）
 const CLAIM_LEDGER_KEEP_DAYS: i64 = 7;
 
-/// 领取台账的条数上限（一份套餐一天一条，7 天最多也就几十条；这是兜底）
+/// limit（ 1 1 1 ，7 ； this is ）
 const CLAIM_LEDGER_MAX: usize = 60;
 
-/// 裁剪领取台账：先扔掉超过保留期的条目，再按时刻保留最新的若干条。
+/// ： ， by when new if 。
 ///
-/// 之所以要裁：台账随活动期天天长（每天都可能有新 plan_id），而它跟着账号记录
-/// 落到 `accounts.data` 那一列里 —— 不加约束的话这条 JSON 会一直变大。
+/// need ：（ can can has new plan_id），
+/// to `accounts.data` that 1 —— not this JSON will 1 。
 fn prune_claim_ledger(ledger: &mut serde_json::Map<String, Value>, now: i64) {
     let cutoff = now - CLAIM_LEDGER_KEEP_DAYS * 24 * 3600 * 1000;
     ledger.retain(|_, value| value.as_i64().is_some_and(|at| at >= cutoff));
     if ledger.len() <= CLAIM_LEDGER_MAX {
         return;
     }
-    // 时刻降序，砍掉尾巴（`Value::as_i64` 认不出的按 0 处理 → 排最后被砍）
+    // when ，（`Value::as_i64` not by 0 → after ）
     let mut entries: Vec<(String, i64)> = ledger
         .iter()
         .map(|(key, value)| (key.clone(), value.as_i64().unwrap_or(0)))

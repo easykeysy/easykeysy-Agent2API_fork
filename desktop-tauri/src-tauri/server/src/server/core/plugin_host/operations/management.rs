@@ -12,7 +12,7 @@ pub enum PackChange {
 }
 
 pub async fn change(id: String, change: PackChange) -> Result<Value, GatewayError> {
-    // HTTP 连接取消不能把已经开始的宿主切换留在半途。
+    // HTTP not can already in 。
     crate::spawn_task(async move { apply(&id, change).await }).await
         .map_err(|error| GatewayError::with_status(500, format!("插件变更任务中断：{error}")))?
 }

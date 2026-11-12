@@ -107,7 +107,7 @@ fn write_new_file(directory: &Path, name: &str, content: &[u8]) -> Result<PathBu
             format!("{stem}-{suffix}.json")
         };
         let path = directory.join(name);
-        // 分组导出不覆盖用户已有文件，即使两个导出同时选择同一个目录。
+        // not use already has file， when 1 directory。
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(mut file) => {
                 write_content(&mut file, content)?;

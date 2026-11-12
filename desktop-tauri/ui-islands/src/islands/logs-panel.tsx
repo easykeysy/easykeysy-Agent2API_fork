@@ -72,7 +72,7 @@ function LogsPanel() {
         autoSyncedRef.current = true
         applyAutoRefresh(result.tasks.find(task => task.id === 'logsAutoRefresh') || null)
       }
-    } catch { /* 下次切回页面时再读取，当前会话沿用已知刷新间隔。 */ }
+    } catch { /* down when ，current will use already new 。 */ }
   }, [])
 
   const loadPanel = React.useCallback(async (options: LoadOptions = {}): Promise<void> => {

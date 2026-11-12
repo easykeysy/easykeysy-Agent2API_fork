@@ -11,7 +11,7 @@ const REFRESH_EXPIRY_KEYS: &[&str] = &[
 
 pub(super) fn credential_fields(record: &StoredAccount, public: &mut Map<String, Value>) {
     let secret = record.get("pluginSecret").and_then(Value::as_object);
-    // Copilot 的 auth.refresh 保存 GitHub Token，不是 OAuth Refresh Token。
+    // Copilot auth.refresh GitHub Token， not is OAuth Refresh Token。
     let refresh_keys: &[&str] = if record.provider() == "copilot-subscription" {
         &["refreshToken", "refresh_token"]
     } else {
@@ -40,7 +40,7 @@ pub(super) fn credential_fields(record: &StoredAccount, public: &mut Map<String,
             .is_some_and(|token| !token.trim().is_empty())));
     }
 
-    // 只派生白名单标量，凭据对象不进入公开视图；陈旧快照不能压住新的到期时刻。
+    // ， for not ； old not can new to when 。
     let expiry = EXPIRY_KEYS.iter().flat_map(|key| {
         [public.get(*key), secret.and_then(|fields| fields.get(*key)), record.get(key)]
     }).flatten().filter_map(expiry_millis).max();
@@ -68,7 +68,7 @@ fn token_present(record: &StoredAccount, public: &Map<String, Value>, keys: &[&s
     if values.peek().is_some() {
         return values.any(|value| value.as_str().is_some_and(|token| !token.trim().is_empty()));
     }
-    // 持有本机引用或不透明凭证时，公开视图仍可声明存在标记；直接凭证缺字段则不能沿用旧快照。
+    // has use or not when ， can in ； then not can use old 。
     let indirect = record.is_desktop() || secret.is_some_and(|fields| {
         fields.get("auth").is_none_or(|auth| !auth.is_object())
             && !fields.keys().any(|key| matches!(key.as_str(), "accessToken" | "access_token" | "refreshToken"

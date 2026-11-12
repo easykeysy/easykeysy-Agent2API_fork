@@ -1,4 +1,4 @@
-/** 动态登录入口；列表只从 session 实际运行时摘要派生，不登记第二份 provider。 */
+/** ； from session when need ， not provider。 */
 import { useEffect, useRef, useState } from 'react'
 import {
   Alert, AlertDescription, AlertTitle, Badge, Button, Card, Input, Label, Select,
@@ -309,7 +309,7 @@ function DynamicForm({ provider, label, source, onAdded }: {
         return
       }
       setCallbackNotice(t('回调已提交，仍需等待网关确认账号登录完成。'))
-      // 回调收到不等于完成；账号添加只认 wait 的 done+session。
+      // to not etc ； wait done+session。
     } catch {
       if (isCurrent()) setCallbackError(t('授权回调提交失败；请检查输入并重试，登录仍在等待。'))
     } finally {

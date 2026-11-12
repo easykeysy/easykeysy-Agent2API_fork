@@ -68,7 +68,7 @@ pub(super) fn prepare(archive: &Path) -> Result<Prepared, UpdateError> {
     Ok(Prepared { _stage: stage, binary, ui })
 }
 
-/// 只操作固定安装位置。先停服务再替换，文件阶段失败完整还原；成功后保留恢复副本。
+/// 。，filefailure；success after 。
 pub(super) fn apply(prepared: Prepared, task: &mut UpdateTask) -> Result<(), UpdateError> {
     check_installation()?;
     let user = systemctl(&["show", SERVICE, "--property=User", "--value"], Duration::from_secs(5))?;
@@ -125,7 +125,7 @@ pub(super) fn apply(prepared: Prepared, task: &mut UpdateTask) -> Result<(), Upd
         }));
     }
     task.set_phase("restarting", None);
-    // 程序已经替换，此时状态文件写失败也必须继续拉起服务。
+    // already ， when filefailuremust。
     let _ = publish(task);
     let _ = std::fs::OpenOptions::new().write(true).truncate(true).open(READY_PATH);
     let restarted = systemctl(&["start", SERVICE], Duration::from_secs(90))

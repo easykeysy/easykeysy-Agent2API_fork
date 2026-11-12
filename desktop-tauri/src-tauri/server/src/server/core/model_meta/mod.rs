@@ -1,45 +1,45 @@
-//! models.dev 模型元数据：把**能力位**与**逐模型思考档位**从社区库补进我们的清单。
+//! models.dev ： ** can ** and **** from 。
 //!
-//! ── 它解决什么问题 ──────────────────────────────────────────
-//! 网关对下游声明的六个能力键（上下文、最大输出、工具调用、图片、视频、思考）
-//! 与「这个模型认识哪些思考档位」，此前只有三条来源：各家的上游目录（有的家
-//! 给、有的家不给）、我们代码里的静态表（跟不上上游调整，有些值本就是猜的）、
-//! 以及用户手改的覆盖层（`modelRules.capabilities`）。缺口是「上游没给、我们
-//! 也没依据」的那一大片 —— 下游拿到的是「未声明」，只能保守处理。
+//! ── ──────────────────────────────────────────
+//! for down can （ up down 、、 use 、、、）
+//! and 「 this 」， before has ： up directory（ has 
+//! to 、 has not to ）、 （ not up up ， has is ）、
+//! and use （`modelRules.capabilities`）。 is 「 up no to 、
+//! no 」 that 1 —— down to is 「」， can 。
 //!
-//! 参考实现（magpie）的做法很直白：**模型清单来自厂商，名称与思考等级由
-//! models.dev 填**（它 README 的原话）。本模块就是这后半句。
+//! （magpie） ：**， and etc by 
+//! models.dev **（ README ）。 is this after 。
 //!
-//! ── 优先级（一条规则，全模块只有这一条）─────────────────────
-//! **用户覆盖 > 上游声明 > models.dev > 未声明**。
-//! models.dev 只补「上游没声明」的键；上游声明过的键一律不动，用户覆盖层仍然
-//! 排最后（它在调用方之后执行）。理由见 `fill` 的模块头。
+//! ── （ 1 then ， has this 1 ）─────────────────────
+//! ** use > up > models.dev > **。
+//! models.dev 「 up no 」 ； up 1 not ， use 
+//! after （ in use after ）。 by `fill` module header。
 //!
-//! ── 数据从哪来（三层，见 `snapshot`）────────────────────────
-//!   `builtin`  仓库里检入的精简快照（`modelsdev.json`，由
-//!              `scripts/sync-modelsdev.mjs` 生成，构建时进二进制）——
-//!              离线、Docker 首启、访问不通时的地板；
-//!   `cache`    统一库 `kv` 里上一次成功刷新的结果（重启不丢）；
-//!   `network`  本次刷新刚拉到的（`refresh`）。
-//! 装载优先级 cache > builtin；刷新成功覆盖，失败保留旧值。
+//! ── from （， `snapshot`）────────────────────────
+//! `builtin` （`modelsdev.json`， by 
+//! `scripts/sync-modelsdev.mjs` ， when ）——
+//! 、Docker 、 not when ；
+//! `cache` 1 `kv` up 1 success new （ not ）；
+//! `network` new to （`refresh`）。
+//! cache > builtin； new success，failure old 。
 //!
-//! ── 接入点只有两处（都是一家全部出口的唯一源头）─────────────
-//!   · `providers::catalog::manifest_for`          内置家
-//!   · `custom_providers::bindings::public_models` 自定义家
-//! 收在两处就不会出现「管理页有、下游没有」的分叉（与能力位覆盖层同一理由）。
+//! ── has （ is 1 1 ）─────────────
+//! · `providers::catalog::manifest_for` 
+//! · `custom_providers::bindings::public_models` 
+//! in not will 「 has 、 down no has 」 （ and can 1 by ）。
 //!
-//! ── 这道接进来之后**没有**做的事（有意，别顺手加）─────────────
-//!   · 不覆盖上游已声明的值（见上）；
-//!   · 不改展示名（上游名通常更贴合中文用户；magpie 用 models.dev 的 name 是
-//!     因为它自己不做本地化）；
-//!   · 不引入成本 / 发布日期 / 描述 / 是否开源等字段（本网关不用它们做任何事）；
-//!   · 不改动静态表里那些「猜出来」的值 —— 那是另一件事（把没有依据的声明撤成
-//!     「未声明」），会改变现有行为，需要单独决定。
+//! ── this after ** no has ** （ has ，）─────────────
+//! · not up already （ up ）；
+//! · not （ up in use ；magpie use models.dev name is 
+//! as not ）；
+//! · not / / / is etc （ not use ）；
+//! · not that 「」 —— that is 1 （ no has 
+//! 「」）， will has as ， need need 。
 //!
-//! ── 读路径的成本 ────────────────────────────────────────────
-//! `fill::apply` 在每次清单成型时对每个模型跑一次：一次哈希查找（索引常驻内存）
-//! 加一次小记录克隆。清单本身已经有排序、去重、覆盖层这些 O(n) 工作，这里不改变
-//! 量级；索引只在刷新落地时整体替换（一把写锁）。
+//! ── path ────────────────────────────────────────────
+//! `fill::apply` in when for 1 ： 1 （）
+//! 1 。 already has 、、 this O(n) ， this not 
+//! ； in new when （ 1 ）。
 
 mod fill;
 mod refresh;
@@ -49,5 +49,5 @@ pub use fill::{apply, mark_user};
 pub use refresh::refresh;
 pub use snapshot::{install, status};
 
-/// 排期键里的 scope（与各家 `modelRefresh:<provider>` 同一命名空间）。
+/// scope（ and `modelRefresh:<provider>` 1 empty）。
 pub(crate) use refresh::SCHEDULE_SCOPE;

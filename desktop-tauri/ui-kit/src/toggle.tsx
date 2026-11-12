@@ -4,20 +4,20 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from './lib/cn'
 
 /**
- * 开关按钮（标准形态，与 shadcn/ui 的 Toggle 一致）。
+ * by （， and shadcn/ui Toggle 1 ）。
  *
- * 与 Switch 的分工：Switch 是「设置项开着还是关着」（有独立标签、放在表单里），
- * Toggle 是「这一条筛选/这个视图现在生效吗」（按钮本身就是要筛的东西，
- * 按下去就是生效）。两者语义不同，不要互相顶替。
+ * and Switch ：Switch is 「set is 」（ has 、 in ），
+ * Toggle is 「 this 1 / this in 」（ by is need ，
+ * by down is ）。 not ， not need 。
  *
- * 与 SegmentedControl 的分工：那个是「多档里选一档」，不可取消；
- * Toggle 只有两态、且**可以按回未激活** —— 「仅看进行中」这类开关型筛选要的正是这个。
+ * and SegmentedControl ： that is 「 1 」， not can ；
+ * Toggle has 、 and ** can by ** —— 「only in 」 this need is this 。
  *
- * 形态与 shadcn 对齐：variant 取 default / outline，size 取 default / sm / xs / lg。
- * 激活态统一走品牌浅底（--ui-primary-soft + --ui-primary-fg + --ui-primary-bd），
- * 与分段控件、导航项的选中态是同一套观感。
+ * and shadcn for ：variant default / outline，size default / sm / xs / lg。
+ * 1 （--ui-primary-soft + --ui-primary-fg + --ui-primary-bd），
+ * and 、 in is 1 。
  *
- * 交互交给 Base UI 的 Toggle：`<button aria-pressed>`，键盘 Space/Enter 内建。
+ * to Base UI Toggle：`<button aria-pressed>`， Space/Enter 。
  */
 
 const toggleVariants = cva(
@@ -26,16 +26,16 @@ const toggleVariants = cva(
     'font-medium transition-[background-color,border-color,color] duration-150 ease-out',
     'outline-none select-none disabled:pointer-events-none disabled:opacity-45',
     '[&_svg]:pointer-events-none [&_svg]:shrink-0',
-    // 激活态：品牌浅底。三个属性一起给，未激活时的透明描边保证按下不跳位
+    // ：。 1 to ， when by down not 
     'data-pressed:border-primary-bd data-pressed:bg-primary-soft data-pressed:font-semibold data-pressed:text-primary-fg',
     'data-pressed:hover:bg-primary-tint',
   ],
   {
     variants: {
       variant: {
-        /** 平铺型：未激活时只是一行文字（列表工具条里的开关型筛选） */
+        /** ： when is 1 （ ） */
         default: 'border-transparent bg-transparent text-subtle hover:bg-nav-hover hover:text-foreground',
-        /** 控件型：未激活时与同行的按钮同脸 */
+        /** ： when and by */
         outline:
           'border-control-border bg-control text-foreground shadow-1 hover:border-control-border-hover hover:bg-control-hover',
       },

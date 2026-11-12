@@ -13,13 +13,13 @@ import { Switch as UiSwitch } from '@ui'
 import { confirmDialog } from '@ui'
 
 /**
- * 网关 Key。
+ * Key。
  *
- * Key 卡直接展示脱敏后的值与复制按钮 —— 这是这一页最高频的动作（复制给
- * 某个客户端）。明文只在展开后才取，默认只显示掩码，避免肩窥。
+ * Key after and by —— this is this 1 （ to 
+ * client）。 in after ，default，。
  *
- * 可用范围用一行摘要，完整编辑器在桌面端：白名单是多选，窄屏上做多选
- * 既费事又容易点错。
+ * available use 1 need ， in ： is ， up 
+ * 。
  */
 export function KeysPage() {
   const [data, setData] = useState<KeysPayload | null>(null)

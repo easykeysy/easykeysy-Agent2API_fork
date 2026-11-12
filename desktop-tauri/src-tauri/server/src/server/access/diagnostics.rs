@@ -1,4 +1,4 @@
-//! 面板鉴权拒绝的可读诊断，只描述本次请求，不把「没带续期凭证」当成整条会话失效。
+//! can ，request， not 「 no 」 will 。
 
 use axum::http::{HeaderMap, Method};
 use serde_json::json;
@@ -32,7 +32,7 @@ fn diagnose(headers: &HeaderMap, live_refresh: bool) -> Diagnosis {
             suggestion: "客户端可自动续期并重试；若随后恢复正常，无需操作。",
         };
     }
-    // 只有单独携带 Key、没有面板会话候选时，才能明确把原因归到 Key。
+    // has Key、 no has will when ， can Reason to Key。
     if headers.contains_key("x-api-key")
         && super::access_candidates(headers).is_empty()
         && super::refresh_candidates(headers).is_empty()
@@ -71,8 +71,8 @@ fn operation(method: &Method, path: &str) -> &'static str {
     }
 }
 
-/// 调用方已确认管理请求未通过鉴权；仍由原入口返回 401，不改变任何准入判定。
-/// `live_refresh` 与响应是否清除 cookie 共用同一次读数。
+/// use already request； by return 401， not 。
+/// `live_refresh` and response is cookie use 1 。
 pub(crate) fn log_rejection(headers: &HeaderMap, method: &Method, path: &str, live_refresh: bool) {
     let diagnosis = diagnose(headers, live_refresh);
     let action = operation(method, path);
@@ -87,7 +87,7 @@ pub(crate) fn log_rejection(headers: &HeaderMap, method: &Method, path: &str, li
         diagnosis.detail, diagnosis.suggestion,
     );
     let message = format!("[Security] {summary}（{method} {path}，HTTP 401）");
-    // 控制台与日志库各一份，不再用 log() 根据「失败」等字样猜级别。
+    // and 1 ， not use log() 「failure」 etc 。
     logging::console_line("[Security]", &format!("{summary}（{method} {path}，HTTP 401）\n{detail}"));
     let credential_headers: Vec<&str> = ["x-panel-token", "x-panel-refresh", "authorization", "x-api-key"]
         .into_iter()

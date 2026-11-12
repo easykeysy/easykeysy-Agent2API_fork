@@ -1,23 +1,23 @@
-//! GET/PUT /api/routing + GET /api/routing/queue —— 账号路由的设置与**队列可见化**。
+//! GET/PUT /api/routing + GET /api/routing/queue —— by set and ** can **。
 //!
-//! ── /api/routing（与 /api/timeouts 同一模式）─────────────────
-//! 独立端点、允许部分字段、返回生效后的全量值、无副作用（不重启进程）。
-//! 保存后对下一个请求立即生效（转发层逐请求读 `config::routing_settings()`
-//! 内存快照，不读盘）。
+//! ── /api/routing（ and /api/timeouts 1 ）─────────────────
+//! 、、return after 、none use （ not ）。
+//! after for down 1 request（request `config::routing_settings()`
+//! ， not ）。
 //!
-//! ── /api/routing/queue（队列可见化，账号页面板的数据源）────────
-//! 回答「按当前策略，这个模型的候选账号会怎么排、谁被跳过、为什么」。
-//! **排序实现与转发选路是同一个函数**（`routing::plan_route`）—— 转发那次
-//! 怎么排，这里就怎么画；两处若各写一份，界面标的顺序迟早和实际转发分叉
-//! （这正是「候选队列可见化」要消灭的那类问题）。
+//! ── /api/routing/queue（ can ， ）────────
+//! 「 by current， this will 、 、Why」。
+//! ** and is 1 **（`routing::plan_route`）—— that 
+//! ， this ； if 1 ， and 
+//! （ this is 「 can 」 need that ）。
 //!
-//! 与 `/api/session` 的 `routedAccountId` 的关系：那个字段只回答「队首是谁」
-//! （★ 的数据源，保持不变），本端点给的是**整张清单 + 原因句** —— 面板要
-//! 展示每一位，顺带把被跳过者也摆出来（禁用 / 冷却 / 并发满 / 限制器 /
-//! 无凭证各有各的原因，用户不用再猜）。
+//! and `/api/session` `routedAccountId` ： that 「 is 」
+//! （★ ， not ）， to is ** + Reason** —— need 
+//! 1 ， （ use / / and / limit /
+//! none has Reason， use not use ）。
 //!
-//! `model` 查询参数可省：省略（或空）时按「不限模型」的全局队列展开
-//! （不收窄到「提供该模型的家」）—— 面板在没有模型上下文时也有得画。
+//! `model` parameter can ：（ or empty） when by 「 not 」 
+//! （ not to 「 this 」）—— in no has up down when has 。
 
 use std::collections::{HashMap, HashSet};
 
@@ -38,7 +38,7 @@ pub async fn get_routing(State(_state): State<ServerState>) -> Response {
     ok_json(routing_json(config::routing_settings()))
 }
 
-/// PUT /api/routing —— body 各键全部可选（不给 = 不动）
+/// PUT /api/routing —— body optional（ not to = not ）
 pub async fn put_routing(State(_state): State<ServerState>, body: Bytes) -> Response {
     let payload = match parse_body(&body) {
         Ok(value) => value,
@@ -187,8 +187,8 @@ pub(crate) fn queue_for_accounts(state: &ServerState, model: Option<String>, acc
         return super::routing_groups::group_queue(state, group);
     }
     let snapshot = config::current();
-    // 候选收窄：点名了模型 → 只留「清单里有它的家」（与转发同一张家清单，
-    // `route_for_forward`）；没点名 → 全部账号。与 session.rs 的 ★ 推算同一取材。
+    // ： → 「 has 」（ and 1 ，
+    // `route_for_forward`）； no → 。 and session.rs ★ 1 。
     let providers: Vec<String> = match &model {
         Some(model) => router::route_for_forward(model),
         None => Vec::new(),
@@ -214,8 +214,8 @@ pub(crate) fn queue_for_accounts(state: &ServerState, model: Option<String>, acc
         .into_iter()
         .collect();
     let keys = routing::CooldownKeys::new(model.as_deref().unwrap_or(""));
-    // 限制器软跳过与转发的选路同一判据（被拦的账号在面板上也是「跳过」，
-    // 原因写明是限制器而不是限流 —— 两回事）
+    // limit and 1 （ in up is 「」，
+    // Reason is limit not is —— ）
     let facts = crate::server::core::limiter::sources::facts();
     let limiter_counts = crate::server::core::limiter::counter::facts();
     let limiter_blocked: HashSet<String> = scoped
@@ -226,9 +226,9 @@ pub(crate) fn queue_for_accounts(state: &ServerState, model: Option<String>, acc
         .filter_map(|account| routing::account_id(account).map(str::to_string))
         .collect();
     let settings = config::routing_settings_for_model(model.as_deref().unwrap_or(""));
-    // 面板只**看**当前状态，不做粘性查找、不前进轮转游标 —— 预演不该刷新
-    // 任何会话的计时，也不该消耗下一次轮转。家内轮询的各家游标同理，所以
-    // 两种轮转策略都传 `None`：面板看到的是「各家都从第 0 位起」的静态序。
+    // ****current， not 、 not before —— not this new 
+    // will when ， not this down 1 。 ，
+    // `None`： to is 「 from 0 」 。
     let (sunk, resting, open) = state.upstream().route_queue_facts(now);
     let meta = routing::PlanMeta {
         strategy: settings.strategy,

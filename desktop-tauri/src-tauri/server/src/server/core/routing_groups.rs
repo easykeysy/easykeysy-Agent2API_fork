@@ -1,4 +1,4 @@
-//! 跨模型成员投影。运行时字段只存在于候选副本，不写入账号库。
+//! 。 when in ， not 。
 
 use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
