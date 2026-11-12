@@ -570,6 +570,12 @@ impl RequestStats {
 
     /// 仅调试模式开启时保存完整下游正文，读写与明细查询分离。
     /// 按留存条数淘汰旧正文，保存失败不影响请求记账。
+    /// 存一条完整下游正文（`request_raw` 的同 id 单行语义）。
+    ///
+    /// fork：正文写配置目录下的 `request-raw.jsonl`（每条一行 JSON），不再进
+    /// SQLite 的 `request_raw` 表。`store_raw` 每次被调用时按「同 id 后到覆盖」
+    /// 重写文件（正文只在调试模式下产生，写频率极低）。
+    /// 失败静默（正文是排障辅助，不影响记账）。
     pub fn store_raw(&self, id: &str, ts: i64, request_body: Option<&str>, response_body: Option<&str>) {
         let id = id.trim();
         if id.is_empty() {
@@ -577,26 +583,116 @@ impl RequestStats {
         }
         let request = request_body.unwrap_or("");
         let response = response_body.unwrap_or("");
-        // 两侧全空不值得占一行：表的约定是「有行 ⇔ 有正文」
         if request.is_empty() && response.is_empty() {
             return;
         }
-        // 完整正文的落库字节数。
-        let size = (request.len() + response.len()) as i64;
         let guard = self.guard();
-        let _ = self.with_conn_mut(&guard, |conn| {
-            let tx = conn.transaction()?;
-            sql::upsert_raw(&tx, id, ts, request, response, size)?;
-            tx.commit()
+        let path = crate::server::config::config_dir().join("request-raw.jsonl");
+        let mut out = String::new();
+        // 读旧文件，保留其它 id 的行，替换 / 追加本 id 的行
+        if let Ok(old) = std::fs::read_to_string(&path) {
+            for line in old.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                let is_match = serde_json::from_str::<RawRow>(line)
+                    .map(|row| row.id == id)
+                    .unwrap_or(false);
+                if !is_match {
+                    out.push_str(line);
+                    out.push('\n');
+                }
+            }
+        }
+        let line = serde_json::json!({
+            "id": id,
+            "ts": ts,
+            "requestBody": request,
+            "responseBody": response,
+            "truncated": false,
         });
+        if let Ok(text) = serde_json::to_string(&line) {
+            out.push_str(&text);
+            out.push('\n');
+        }
+        if let Err(error) = std::fs::write(&path, out) {
+            eprintln!("[Stats] 原始正文写入文件失败: {error}");
+        }
+        // 裁剪：行数超过 `MAX_RAW_ROWS` 时只留最新那批（与 DB 侧同一上限）
+        let line_count = std::fs::read(&path)
+            .map(|bytes| bytes.iter().filter(|byte| **byte == b'\n').count())
+            .unwrap_or(0);
+        if line_count > MAX_RAW_ROWS {
+            let all = std::fs::read_to_string(&path)
+                .ok()
+                .map(|text| {
+                    text.lines()
+                        .filter_map(|line| {
+                            let line = line.trim();
+                            if line.is_empty() {
+                                return None;
+                            }
+                            serde_json::from_str::<RawRow>(line).ok()
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let keep = line_count - MAX_RAW_ROWS;
+            let trimmed: Vec<RawRow> = all.into_iter().rev().take(MAX_RAW_ROWS).collect();
+            let mut rewritten = String::new();
+            for item in trimmed.iter().rev() {
+                if let Ok(line) = serde_json::to_string(item) {
+                    rewritten.push_str(&line);
+                    rewritten.push('\n');
+                }
+            }
+            if std::fs::write(&path, rewritten).is_err() {
+                eprintln!("[Stats] 原始正文裁剪失败");
+            }
+        }
     }
 
-    /// 按 id 读取完整下游正文；历史截断标记由数据库列保留。
+    /// fork：文件侧用的最小 JSON 行格式（与 DB 表同字段）
+    #[derive(serde::Deserialize, serde::Serialize)]
+    struct RawRow {
+        id: String,
+        ts: i64,
+        #[serde(rename = "requestBody", default)]
+        request_body: String,
+        #[serde(rename = "responseBody", default)]
+        response_body: String,
+        #[serde(default)]
+        truncated: bool,
+    }
+
+    /// 按 id 读取完整下游正文；fork：先查 `request-raw.jsonl`，没有再回落查 DB。
     pub fn raw_body(&self, id: &str) -> Option<Value> {
         let id = id.trim();
         if id.is_empty() {
             return None;
         }
+        // fork：先查文件
+        let path = crate::server::config::config_dir().join("request-raw.jsonl");
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            for line in text.lines().rev() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                if let Ok(row) = serde_json::from_str::<RawRow>(line) {
+                    if row.id == id {
+                        return Some(json!({
+                            "id": row.id,
+                            "requestBody": row.request_body,
+                            "responseBody": row.response_body,
+                            "truncated": row.truncated,
+                        }));
+                    }
+                }
+            }
+        }
+        // 回落：查 DB 里的遗留行
         let loaded = {
             let guard = self.guard();
             self.with_conn(&guard, |conn| sql::select_raw(conn, id))

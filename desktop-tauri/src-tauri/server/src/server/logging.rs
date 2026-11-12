@@ -31,6 +31,80 @@ static STORE: OnceLock<LogStore> = OnceLock::new();
 /// 是否需要把 debug 级别也上报入库（对应 Node 版 `opts.verbose`）
 static VERBOSE: OnceLock<bool> = OnceLock::new();
 
+/// fork：事件日志写文件开关（Linux + ramdisk 时默认 true）。
+///
+/// true 时 `log` / `log_with_level` / `verbose` / `log_event` 的入库动作改成
+/// 追加一行 JSONL 到 `{config_dir}/logs/events.jsonl`，SQLite 的 `logs` 表
+/// 不再有新行（旧行仍可读，`store_ref()` 的查询 / 统计 / 清空照旧工作）。
+/// 写文件失败静默丢弃（与「写库失败不影响请求」同一取向）。
+#[cfg(target_os = "linux")]
+static EVENTS_TO_FILE: OnceLock<bool> = OnceLock::new();
+
+#[cfg(target_os = "linux")]
+fn events_to_file() -> bool {
+    *EVENTS_TO_FILE.get().unwrap_or(&false)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn events_to_file() -> bool {
+    false
+}
+
+/// fork：把一条事件日志追加进 `{config_dir}/logs/events.jsonl`。
+/// 行格式与 `LogEntry` 的 serde 契约一致（id 用 0 占位，ts 取当前时刻）。
+/// 写入失败静默丢弃；**不**调 `console_line`（这里本来就是日志路径，
+/// 再打一行等于递归自己）。
+#[cfg(target_os = "linux")]
+fn append_event_file(
+    level: &str,
+    category: &str,
+    message: &str,
+    data: Option<&Value>,
+) {
+    use serde_json::json;
+    let dir = crate::server::config::config_dir().join("logs");
+    let path = dir.join("events.jsonl");
+    if let Err(error) = std::fs::create_dir_all(&dir) {
+        eprintln!("[Logs] 创建日志目录失败: {error}");
+        return;
+    }
+    let line = json!({
+        "id": 0,
+        "ts": now_ms(),
+        "level": level,
+        "category": category,
+        "message": message,
+        "data": data,
+    });
+    let Ok(text) = serde_json::to_string(&line) else {
+        return;
+    };
+    use std::io::Write;
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        Ok(mut file) => {
+            let _ = writeln!(file, "{text}");
+        }
+        Err(error) => eprintln!("[Logs] 事件日志文件打不开（{}）: {error}", path.display()),
+    }
+}
+
+/// fork：事件日志写文件分支的公共入口。
+///
+/// 返回 true = 已写进文件（调用方**跳过**入库）；false = 保持原行为（入库）。
+#[allow(dead_code)]
+fn fork_event_file(level: &str, category: &str, message: &str, data: Option<&Value>) -> bool {
+    if events_to_file() {
+        append_event_file(level, category, message, data);
+        true
+    } else {
+        false
+    }
+}
+
 /// 日志文件通道：`Some(...)` = 已启用（服务形态），`None` = 不启用（前台形态）。
 ///
 /// ── 为什么需要它 ────────────────────────────────────────────
@@ -87,6 +161,18 @@ pub fn init_file_sink() {
 /// 读的是配置的**内存快照**而不是每次读盘 —— 写日志是相对频繁的路径。
 pub fn init_store(db: Option<Db>, verbose: bool) -> bool {
     let _ = VERBOSE.set(verbose);
+    // fork：Linux 下默认把事件日志追加进 `{config_dir}/logs/events.jsonl`
+    // 而不进 SQLite 的 `logs` 表 —— 把日志这份「垃圾」挪出库。
+    // 库里那份保留作只读遗留（旧行还在），新行都进文件。
+    #[cfg(target_os = "linux")]
+    {
+        let ramdisk = crate::server::paths::ramdisk_root();
+        if ramdisk.is_some() {
+            let _ = EVENTS_TO_FILE.set(true);
+            // 控制台那份同样抄进文件（服务形态没有控制台）
+            init_file_sink();
+        }
+    }
     if STORE.get().is_some() {
         return false;
     }
@@ -235,11 +321,17 @@ pub fn log(tag: &str, text: &str) {
     let Some(store) = store() else {
         return;
     };
-    // 与 Node 版一致：message 为「标签 + 文案」，前端列表里能直接看到来源
+    // fork：事件日志走文件时跳过入库
     let message = format!("{tag} {trimmed}");
+    let level = infer_level(tag, trimmed);
+    let category = category_of(tag);
+    if fork_event_file(level, category, &message, None) {
+        return;
+    }
+    // 与 Node 版一致：message 为「标签 + 文案」，前端列表里能直接看到来源
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
-        level: infer_level(tag, trimmed),
-        category: category_of(tag),
+        level,
+        category,
         message: &message,
         data: None,
         ts: None,
@@ -265,6 +357,10 @@ pub fn log_with_level(tag: &str, text: &str, level: &str) {
         return;
     };
     let message = format!("{tag} {trimmed}");
+    // fork：事件日志走文件时跳过入库
+    if fork_event_file(level, category_of(tag), &message, None) {
+        return;
+    }
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
         level,
         category: category_of(tag),
@@ -289,6 +385,10 @@ pub fn verbose(tag: &str, text: &str) {
         return;
     };
     let message = format!("{tag} {trimmed}");
+    // fork：事件日志走文件时跳过入库
+    if fork_event_file("debug", category_of(tag), &message, None) {
+        return;
+    }
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
         level: "debug",
         category: category_of(tag),
@@ -315,6 +415,17 @@ pub fn log_event(
         return None;
     }
     let store = store()?;
+    // fork：事件日志走文件时跳过入库（仍返回一条占位 LogEntry，调用方不受影响）
+    if fork_event_file(level, category, message, data.as_ref()) {
+        return Some(LogEntry {
+            id: 0,
+            ts: now_ms(),
+            level: level.to_string(),
+            category: category.to_string(),
+            message: message.to_string(),
+            data: data,
+        });
+    }
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
         level,
         category,

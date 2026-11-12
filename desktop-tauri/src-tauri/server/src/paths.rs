@@ -30,12 +30,41 @@ fn env_path(name: &str) -> Option<PathBuf> {
     }
 }
 
-/// 默认配置目录：`{用户主目录}/.agent2api`
+/// 默认配置目录：有 ramdisk 时用 `{RAMDISK_ROOT}/Agent2API`（fork 默认，
+/// 启动时自动补建子目录 —— ramdisk 每次重启被清空）；否则回落
+/// `{用户主目录}/.agent2api`。
 fn default_config_dir() -> PathBuf {
+    if let Some(ramdisk) = ramdisk_root() {
+        return ensure_layout(ramdisk.join("Agent2API"));
+    }
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
         .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".agent2api")
+    ensure_layout(PathBuf::from(home).join(".agent2api"))
+}
+
+/// 本机 ramdisk 根目录：只认 `/mnt/ramdisk`（存在且可写才用）。
+/// 环境变量 `AGENT2API_RAMDISK` 可覆盖（指到别的内存盘/高速盘）。
+fn ramdisk_root() -> Option<PathBuf> {
+    let candidates: [PathBuf; 2] = [
+        env_path("AGENT2API_RAMDISK").unwrap_or_else(|| "/mnt/ramdisk".into()),
+        "/mnt/ramdisk".into(),
+    ];
+    for candidate in candidates {
+        if candidate.is_dir() && std::fs::write(candidate.join(".a2a-probe"), b"ok").is_ok() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// 补建子目录布局（ramdisk 每次重启清空；已有目录原样保留）。
+fn ensure_layout(root: PathBuf) -> PathBuf {
+    let _ = std::fs::create_dir_all(&root);
+    for sub in ["Cache_Data", "cache", "db", "logs", "script-plugins", "debug"] {
+        let _ = std::fs::create_dir_all(root.join(sub));
+    }
+    root
 }
 
 /// 旧桌面设置文件的路径（`{config_dir}/desktop-settings.json`）。

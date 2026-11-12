@@ -4,8 +4,10 @@
 //! 就等于共用登录态：添加第二个账号时官方登录页会直接把上一个账号放行过去，
 //! 用户根本没有机会换账号。因此每次登录都新建一个随机目录，窗口销毁后再删掉。
 //!
-//! 目录建在系统临时目录下（不是配置目录）：它是一次性的，删不掉时也该由系统
-//! 回收，不该混进 `~/.agent2api` 的持久化数据里。
+//! 目录建在系统临时目录的**叉形子目录** `easykeysy-Agent2API_fork` 下
+//! （Windows 下即 `C:\Users\<user>\easykeysy-Agent2API_fork\agent2api-login-*`，
+//! 与系统临时目录同层的兄弟目录；不是配置目录）：它是一次性的，删不掉时
+//! 也应由系统回收，不该混进 `~/.agent2api` 的持久化数据里。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -24,7 +26,13 @@ impl LoginProfile {
         getrandom::getrandom(&mut random)
             .map_err(|_| "生成独立登录环境标识失败".to_string())?;
         let suffix: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
-        let path = std::env::temp_dir().join(format!("agent2api-login-{suffix}"));
+        // 叉形目录：`std::env::temp_dir()` 的父目录（Windows: C:\Users\<user>）下
+        // 名为 `easykeysy-Agent2API_fork` 的子目录，作为本次登录临时目录的根。
+        let base = std::env::temp_dir()
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir);
+        let path = base.join("easykeysy-Agent2API_fork").join(format!("agent2api-login-{suffix}"));
         std::fs::create_dir_all(&path)
             .map_err(|error| format!("创建独立登录环境失败: {error}"))?;
         Ok(Self { path })

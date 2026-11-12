@@ -53,8 +53,8 @@
 //! 所以本模块的错误路径**一律用 `eprintln!`**（改造前 `write_all` / `append_line`
 //! 里用的就是它，这条纪律现在更要紧：库是共享的，而死锁会带走整个进程）。
 
-use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -63,6 +63,14 @@ use crate::server::db::Db;
 use crate::server::logging;
 
 mod sql;
+
+/// 报文文件（fork：把调试报文挪出 SQLite，写配置目录下的 `debug-traffic.jsonl`，
+/// 即历史上「文件时代」的同一份契约 —— `parse_legacy_jsonl` 就是按它解析的）。
+const TRAFFIC_FILE: &str = "debug-traffic.jsonl";
+
+/// 文件句柄 + 写锁（追加 / 容量裁剪串行化）。路径在 `init` 时定死
+/// （`config_dir()` 的派生物，与 `Db` 的「不搬家」同纪律）。
+static TRAFFIC: OnceLock<(PathBuf, Mutex<()>)> = OnceLock::new();
 
 /// 表里保留的最大条数。超过后**精确删到上限**（每次只删超出那几条）。
 ///
@@ -142,32 +150,33 @@ fn db() -> Option<&'static Db> {
 /// **逐请求**判定的（改完设置下一个请求就生效），存储没就绪会让开启后的第一批
 /// 请求无处可落。
 pub fn init(db: Option<Db>) {
-    // 重复调用只让第一次生效（`set` 失败即已初始化）。与改造前一致：
-    // 那时是覆盖目录 + 重新载入，现在库自己就是真相，覆盖没有意义。
+    // 重复调用只让第一次生效（`set` 失败即已初始化）。
     let _ = DB.set(db);
+    // fork：装文件通道（追加写 `debug-traffic.jsonl`，报文不再进 SQLite）。
+    // 路径取「当下的 config_dir()」：它由 `paths` 派生（默认已含 ramdisk 取向），
+    // 与 `Db` 一样定死一次、之后不变。
+    let _ = TRAFFIC.set((
+        crate::server::config::config_dir().join(TRAFFIC_FILE),
+        Mutex::new(()),
+    ));
 }
 
-/// 报文数据所在的文件（**就是库文件**；设置页概况用）。
-///
-/// 语义从「报文文件路径」变成「装着报文数据的库文件」—— 与 `AccountStore::file()`
-/// / `LogStore::file()` / `RequestStats::file()` 的处理一致。
-///
-/// ── 库不可用时为什么给 `None`（而不是约定路径）────────────────
-/// 调用方 `api::storage_api` 现在读的是 `Db::file()`（库不可用时用约定路径兜底，
-/// 由那边决定），本函数因此**没有调用方**了。保留它是为了与另外三个 store 的
-/// 「file()」形态一致（它们都保留了这个访问器），且它是排障时「报文落在哪」
-/// 这个问题的直接答案 —— 按本项目「有意保留的设施逐个标注并写明理由」的做法
-/// 标注，而不是删掉（删了以后排障要用 `sqlite3` 才知道库在哪）。
-///
-/// 给 `None` 而不是约定路径的取舍仍然成立：调用方（若有）能表达「没有」，
-/// 比给一个「大小 0 字节、可能根本不存在」的路径更诚实。
+/// 报文数据所在的文件（fork：配置目录下的 `debug-traffic.jsonl`；
+/// 设置页概况 / 排障用）。文件通道未装（`init` 没被调）时给 `None`。
 #[allow(dead_code)]
 pub fn file() -> Option<PathBuf> {
-    db().map(|db| db.file().to_path_buf())
+    TRAFFIC.get().map(|(path, _)| path.clone())
 }
 
-/// 条数（设置页概况用；库不可用时 0）
+/// 条数（设置页概况用；库不可用时 0）。
+///
+/// fork：文件里有几条算几条（`record` 每次写入后已裁到 `MAX_ENTRIES`）；
+/// 读文件失败 / 还没写过时回落查库里的遗留行（旧版写的那批）。
 pub fn count() -> usize {
+    let file_entries = file_entries();
+    if !file_entries.is_empty() {
+        return file_entries.len();
+    }
     match db() {
         Some(db) => db
             .with(sql::count_and_bytes)
@@ -184,34 +193,77 @@ pub fn record(entry: TrafficEntry) {
 }
 
 fn record_sync(entry: TrafficEntry) {
-    let Some(db) = db() else {
-        // 库不可用：静默丢弃（与改造前「STORE 未初始化」同一处理）。
-        // 这里连日志都不打 —— 每个请求都会走到这一步，刷屏反而掩盖真问题。
+    // fork：报文写文件（配置目录下 `debug-traffic.jsonl`，与 `Db` 无关），
+    // 不再 upsert 进 `debug_traffic` 表。写文件失败不刷库、不打日志
+    // （每请求都会走到这一步，刷屏反而掩盖真问题）。
+    let Some((path, lock)) = TRAFFIC.get() else {
         return;
     };
-    // 失败只打控制台：**不能**用 logging::log / verbose —— 它们要写同一个库，
-    // 而此刻我们正握着那把锁（见模块头的死锁约束）。
-    match db.with_mut(|conn| sql::upsert_entry(conn, &entry)) {
-        Some(Ok(())) => {}
-        Some(Err(error)) => {
-            eprintln!("[Debug] 调试报文写入数据库失败: {error}");
+    let _guard = lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut file = match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        Ok(file) => file,
+        Err(error) => {
+            eprintln!("[Debug] 调试报文写入文件失败: {error}");
             return;
         }
-        // 连接中毒（`Db` 的取向：不拿半截数据当真相）
-        None => return,
+    };
+    if let Ok(line) = serde_json::to_string(&entry) {
+        use std::io::Write;
+        if file.write_all(line.as_bytes()).is_err() || file.write_all(b"\n").is_err() {
+            eprintln!("[Debug] 调试报文追加失败");
+        }
     }
-    // 写入后只清理超过留存条数的旧记录。
-    match db.with(|conn| sql::enforce_limits(conn)) {
-        Some(Ok(())) | None => {}
-        Some(Err(error)) => eprintln!("[Debug] 调试报文裁剪失败: {error}"),
+    // 超过 `MAX_ENTRIES` 才重写一次（只留最新那批）—— 平时是零开销的
+    // 「数行数」判断，与库里「先判后删」同一取向。
+    let line_count = std::fs::read(path)
+        .map(|bytes| bytes.iter().filter(|byte| **byte == b'\n').count())
+        .unwrap_or(0);
+    if line_count <= MAX_ENTRIES {
+        return;
+    }
+    let keep = line_count - MAX_ENTRIES;
+    let trimmed: Vec<TrafficEntry> =
+        file_entries().into_iter().rev().take(MAX_ENTRIES).collect();
+    let mut out = String::new();
+    for item in trimmed.iter().rev() {
+        if let Ok(line) = serde_json::to_string(item) {
+            out.push_str(&line);
+            out.push('\n');
+        }
+    }
+    if std::fs::write(path, out).is_err() {
+        eprintln!("[Debug] 调试报文裁剪失败");
+    }
+    let _ = keep;
+}
+
+/// 读 `debug-traffic.jsonl` 里的全部条目（`parse_legacy_jsonl` 同一口径：
+/// 空行 / 坏行跳过）。文件通道未装 / 文件不存在 / 读失败一律按「空集」处理
+/// —— 报文的读路径不允许让任何调用方炸掉（与模块头「失败不影响请求」同取向）。
+fn file_entries() -> Vec<TrafficEntry> {
+    let Some((path, _)) = TRAFFIC.get() else {
+        return Vec::new();
+    };
+    match std::fs::read_to_string(path) {
+        Ok(text) => parse_legacy_jsonl(&text),
+        Err(_) => Vec::new(),
     }
 }
 
-/// 按 id 取一条（请求日志页的「详情」列用；库不可用时 `None`）
+/// 按 id 取一条（请求日志页的「详情」列用；没有时 `None`）。
 ///
-/// 同 id 多行时取**最后写入的那一份**（`ORDER BY ts DESC, rowid DESC LIMIT 1`），
-/// 与改造前「内存里从尾部往前找第一个匹配」逐字一致。
+/// fork：先查文件里「最后写入的那一份」（与库里 `ORDER BY ts DESC, rowid DESC`
+/// 同口径：同 id 多份时取尾部那份）；没有再回落查库里的遗留行。
 pub fn get(id: &str) -> Option<TrafficEntry> {
+    for entry in file_entries().into_iter().rev() {
+        if entry.id == id {
+            return Some(entry);
+        }
+    }
     db()?.with(|conn| sql::select_one(conn, id)).and_then(Result::ok).flatten()
 }
 
