@@ -99,6 +99,18 @@ pub struct ApiKeyEntry {
     pub allowed_providers: Vec<String>,
     /// 可用模型白名单（**对外模型名**，含映射 alias）；**空 = 不限制**
     pub allowed_models: Vec<String>,
+    /// 过期时间（毫秒时间戳，UTC）；`None` = 永不过期
+    pub expires_at: Option<i64>,
+    /// 每日请求上限（UTC 日窗口）；`None` = 不限制
+    pub daily_request_limit: Option<u64>,
+    /// 总请求上限；`None` = 不限制
+    pub total_request_limit: Option<u64>,
+    /// 每日 Token 上限（尽力统计，UTC 日窗口）；`None` = 不限制
+    pub daily_token_limit: Option<u64>,
+    /// 总 Token 上限（尽力统计）；`None` = 不限制
+    pub total_token_limit: Option<u64>,
+    /// 每分钟请求数上限（RPM，滑动窗口）；`None` = 不限制
+    pub rpm_limit: Option<u64>,
     /// 这条记录的 `key` **解不开**（密钥文件被删/被换），处于降级态。
     ///
     /// 为 true 时 `key` 里放的是**原样的密文信封**（不是明文）：
@@ -235,6 +247,20 @@ impl ApiKeyEntry {
             .filter(|id| !id.is_empty())
             .map(str::to_string)?;
         let (key, key_unreadable) = decode_key(raw, &id);
+        let parse_u64 = |v: Option<&Value>| -> Option<u64> {
+            match v {
+                Some(Value::Number(n)) => n.as_u64().filter(|x| *x > 0),
+                Some(Value::String(t)) => t.trim().parse::<u64>().ok().filter(|x| *x > 0),
+                _ => None,
+            }
+        };
+        let parse_i64 = |v: Option<&Value>| -> Option<i64> {
+            match v {
+                Some(Value::Number(n)) => n.as_i64().filter(|x| *x > 0),
+                Some(Value::String(t)) => t.trim().parse::<i64>().ok().filter(|x| *x > 0),
+                _ => None,
+            }
+        };
         Some(Self {
             id,
             name: value
@@ -247,6 +273,12 @@ impl ApiKeyEntry {
             created_at: value.get("createdAt").and_then(Value::as_i64).unwrap_or(0),
             allowed_providers: string_list(value.get("allowedProviders")),
             allowed_models: string_list(value.get("allowedModels")),
+            expires_at: parse_i64(value.get("expiresAt")),
+            daily_request_limit: parse_u64(value.get("dailyRequestLimit")),
+            total_request_limit: parse_u64(value.get("totalRequestLimit")),
+            daily_token_limit: parse_u64(value.get("dailyTokenLimit")),
+            total_token_limit: parse_u64(value.get("totalTokenLimit")),
+            rpm_limit: parse_u64(value.get("rpmLimit")),
             key_unreadable,
         })
     }
@@ -279,6 +311,12 @@ impl ApiKeyEntry {
             "createdAt": self.created_at,
             "allowedProviders": list_value(&self.allowed_providers),
             "allowedModels": list_value(&self.allowed_models),
+            "expiresAt": self.expires_at,
+            "dailyRequestLimit": self.daily_request_limit,
+            "totalRequestLimit": self.total_request_limit,
+            "dailyTokenLimit": self.daily_token_limit,
+            "totalTokenLimit": self.total_token_limit,
+            "rpmLimit": self.rpm_limit,
         }))
     }
 
@@ -288,7 +326,7 @@ impl ApiKeyEntry {
     /// 这里照样原样输出 —— 磁盘上是什么、界面上看到什么，用户在密钥丢失时
     /// 看到的就不是一把「看起来正常却复制出去也没用」的假 Key。
     pub fn public_json(&self) -> Value {
-        json!({
+        let mut out = json!({
             "id": self.id,
             "name": self.name,
             "key": self.key,
@@ -297,7 +335,20 @@ impl ApiKeyEntry {
             "createdAt": self.created_at,
             "allowedProviders": list_value(&self.allowed_providers),
             "allowedModels": list_value(&self.allowed_models),
-        })
+            "expiresAt": self.expires_at,
+            "dailyRequestLimit": self.daily_request_limit,
+            "totalRequestLimit": self.total_request_limit,
+            "dailyTokenLimit": self.daily_token_limit,
+            "totalTokenLimit": self.total_token_limit,
+            "rpmLimit": self.rpm_limit,
+        });
+        if let Some(map) = out.as_object_mut() {
+            map.insert(
+                "governance".to_string(),
+                crate::server::core::key_governance::status_json(self),
+            );
+        }
+        out
     }
 }
 
@@ -357,6 +408,12 @@ fn legacy_entry(raw: &Map<String, Value>) -> Option<ApiKeyEntry> {
         // 与它升级前的行为（放行一切）逐字一致
         allowed_providers: Vec::new(),
         allowed_models: Vec::new(),
+        expires_at: None,
+        daily_request_limit: None,
+        total_request_limit: None,
+        daily_token_limit: None,
+        total_token_limit: None,
+        rpm_limit: None,
         key_unreadable,
     })
 }
@@ -557,6 +614,12 @@ pub fn add(
     key: Option<&str>,
     allowed_providers: Vec<String>,
     allowed_models: Vec<String>,
+    expires_at: Option<i64>,
+    daily_request_limit: Option<u64>,
+    total_request_limit: Option<u64>,
+    daily_token_limit: Option<u64>,
+    total_token_limit: Option<u64>,
+    rpm_limit: Option<u64>,
 ) -> Result<ApiKeyEntry, String> {
     let mut entries = list();
     let key = match key.map(str::trim).filter(|k| !k.is_empty()) {
@@ -580,6 +643,12 @@ pub fn add(
         created_at,
         allowed_providers,
         allowed_models,
+        expires_at,
+        daily_request_limit,
+        total_request_limit,
+        daily_token_limit,
+        total_token_limit,
+        rpm_limit,
         // 刚生成的 Key 当然是明文可读的，与降级态无关
         key_unreadable: false,
     };
@@ -603,6 +672,12 @@ pub fn update(
     enabled: Option<bool>,
     allowed_providers: Option<Vec<String>>,
     allowed_models: Option<Vec<String>>,
+    expires_at: Option<Option<i64>>,
+    daily_request_limit: Option<Option<u64>>,
+    total_request_limit: Option<Option<u64>>,
+    daily_token_limit: Option<Option<u64>>,
+    total_token_limit: Option<Option<u64>>,
+    rpm_limit: Option<Option<u64>>,
 ) -> Result<ApiKeyEntry, String> {
     let mut entries = list();
     let Some(entry) = entries.iter_mut().find(|entry| entry.id == id) else {
@@ -620,6 +695,12 @@ pub fn update(
     if let Some(list) = allowed_models {
         entry.allowed_models = list;
     }
+    if let Some(v) = expires_at { entry.expires_at = v; }
+    if let Some(v) = daily_request_limit { entry.daily_request_limit = v; }
+    if let Some(v) = total_request_limit { entry.total_request_limit = v; }
+    if let Some(v) = daily_token_limit { entry.daily_token_limit = v; }
+    if let Some(v) = total_token_limit { entry.total_token_limit = v; }
+    if let Some(v) = rpm_limit { entry.rpm_limit = v; }
     let updated = entry.clone();
     save(&entries)?;
     Ok(updated)

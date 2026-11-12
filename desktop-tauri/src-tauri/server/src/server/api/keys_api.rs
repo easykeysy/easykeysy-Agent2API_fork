@@ -217,7 +217,24 @@ pub async fn create_key(State(state): State<ServerState>, body: Bytes) -> Respon
         Ok(value) => value.unwrap_or_default(),
         Err(response) => return response,
     };
-    match api_keys::add(name, key, allowed_providers, allowed_models) {
+    let expires_at = crate::server::core::key_governance::parse_expires_at(object.get("expiresAt"));
+    let daily_request_limit = crate::server::core::key_governance::parse_limit(object.get("dailyRequestLimit"));
+    let total_request_limit = crate::server::core::key_governance::parse_limit(object.get("totalRequestLimit"));
+    let daily_token_limit = crate::server::core::key_governance::parse_limit(object.get("dailyTokenLimit"));
+    let total_token_limit = crate::server::core::key_governance::parse_limit(object.get("totalTokenLimit"));
+    let rpm_limit = crate::server::core::key_governance::parse_limit(object.get("rpmLimit"));
+    match api_keys::add(
+        name,
+        key,
+        allowed_providers,
+        allowed_models,
+        expires_at,
+        daily_request_limit,
+        total_request_limit,
+        daily_token_limit,
+        total_token_limit,
+        rpm_limit,
+    ) {
         Ok(entry) => {
             logging::log("[Config]", &format!("✅ 新增 API Key「{}」，客户端需带 Authorization: Bearer <key>", entry.name));
             let mut payload = list_json(&state);
@@ -254,7 +271,33 @@ pub async fn update_key(State(state): State<ServerState>, Path(id): Path<String>
             return response;
         }
     }
-    match api_keys::update(&id, name, enabled, allowed_providers, allowed_models) {
+    let tri_i64 = |obj: &serde_json::Map<String, Value>, key: &str| -> Option<Option<i64>> {
+        if !obj.contains_key(key) { return None; }
+        Some(crate::server::core::key_governance::parse_expires_at(obj.get(key)))
+    };
+    let tri_u64 = |obj: &serde_json::Map<String, Value>, key: &str| -> Option<Option<u64>> {
+        if !obj.contains_key(key) { return None; }
+        Some(crate::server::core::key_governance::parse_limit(obj.get(key)))
+    };
+    let expires_at = tri_i64(&object, "expiresAt");
+    let daily_request_limit = tri_u64(&object, "dailyRequestLimit");
+    let total_request_limit = tri_u64(&object, "totalRequestLimit");
+    let daily_token_limit = tri_u64(&object, "dailyTokenLimit");
+    let total_token_limit = tri_u64(&object, "totalTokenLimit");
+    let rpm_limit = tri_u64(&object, "rpmLimit");
+    match api_keys::update(
+        &id,
+        name,
+        enabled,
+        allowed_providers,
+        allowed_models,
+        expires_at,
+        daily_request_limit,
+        total_request_limit,
+        daily_token_limit,
+        total_token_limit,
+        rpm_limit,
+    ) {
         Ok(entry) => {
             logging::log(
                 "[Config]",

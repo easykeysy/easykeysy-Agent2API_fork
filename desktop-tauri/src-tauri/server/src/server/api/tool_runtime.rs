@@ -55,7 +55,7 @@ fn with_port(host: &str, port: u16) -> String {
 }
 
 fn authorized(headers: &HeaderMap) -> bool {
-    model_access::authenticate(headers, "tool").is_ok()
+    model_access::authenticate(headers, "tool", true).is_ok()
 }
 
 fn json_response(status: StatusCode, body: Value) -> Response {
@@ -144,7 +144,7 @@ async fn skill_operation(state: &ServerState, scope: Option<&KeyScope>, body: By
 
 /// POST /skill/web-search/search
 pub async fn skill_search(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let Ok(access) = model_access::authenticate(&headers, "tool") else {
+    let Ok(access) = model_access::authenticate(&headers, "tool", true) else {
         return json_response(
             StatusCode::UNAUTHORIZED,
             json!({ "error": { "code": "unauthorized", "message": "Missing or invalid API key. Pass it as \"Authorization: Bearer <Agent2API API Key>\"." } }),
@@ -224,7 +224,7 @@ async fn api_operation(state: &ServerState, scope: Option<&KeyScope>, body: Byte
 
 /// POST /api/web-search/search
 pub async fn api_search(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let Ok(access) = model_access::authenticate(&headers, "tool") else {
+    let Ok(access) = model_access::authenticate(&headers, "tool", true) else {
         return json_response(
             StatusCode::UNAUTHORIZED,
             json!({ "error": { "code": "unauthorized", "message": "Missing or invalid API key. Pass it as \"Authorization: Bearer <Agent2API API Key>\"." } }),
@@ -247,7 +247,7 @@ pub async fn api_fetch(State(state): State<ServerState>, headers: HeaderMap, bod
 /* ─── MCP 端点 ─────────────────────────────────────────────── */
 
 async fn mcp_post(state: &ServerState, headers: HeaderMap, body: Bytes, kind: McpServerKind) -> Response {
-    let Ok(access) = model_access::authenticate(&headers, "tool") else {
+    let Ok(access) = model_access::authenticate(&headers, "tool", true) else {
         return json_response(
             StatusCode::UNAUTHORIZED,
             json!({ "jsonrpc": "2.0", "id": Value::Null, "error": { "code": -32600, "message": "Unauthorized" } }),

@@ -357,7 +357,7 @@ pub async fn chat_completions(
 /// 携带 Key 时必须有效，列表按同一份鉴权结果的白名单过滤。
 pub async fn list_models(State(state): State<ServerState>, headers: HeaderMap) -> Response {
     let scope = if headers.contains_key("x-api-key") || headers.contains_key(axum::http::header::AUTHORIZATION) {
-        match super::model_access::authenticate(&headers, "") {
+        match super::model_access::authenticate(&headers, "", true) {
             Ok(access) => access.scope,
             Err(error) => return error.payload_response(),
         }

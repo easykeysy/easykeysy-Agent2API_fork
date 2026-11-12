@@ -470,7 +470,7 @@ struct TestOutcome {
 
 /// POST /api/models/test
 pub async fn run_model_test(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let access = match super::model_access::authenticate(&headers, super::model_access::MODEL_TEST) {
+    let access = match super::model_access::authenticate(&headers, super::model_access::MODEL_TEST, true) {
         Ok(access) => access,
         Err(error) => return error.payload_response(),
     };

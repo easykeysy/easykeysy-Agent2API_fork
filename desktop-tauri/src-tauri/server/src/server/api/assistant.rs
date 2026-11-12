@@ -202,7 +202,7 @@ fn parse_config(block: &Map<String, Value>) -> Result<AssistantConfig, String> {
 
 /// POST /api/assistant/chat
 pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let access = match super::model_access::authenticate(&headers, super::model_access::ASSISTANT) {
+    let access = match super::model_access::authenticate(&headers, super::model_access::ASSISTANT, true) {
         Ok(access) => access,
         Err(error) => return chat_error(error),
     };
