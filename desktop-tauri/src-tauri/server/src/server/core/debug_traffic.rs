@@ -62,6 +62,7 @@ use serde_json::{json, Value};
 use crate::server::db::Db;
 use crate::server::logging;
 
+mod payload;
 mod sql;
 
 /// 表里保留的最大条数。超过后**精确删到上限**（每次只删超出那几条）。
@@ -145,9 +146,49 @@ pub fn init(db: Option<Db>) {
     // 重复调用只让第一次生效（`set` 失败即已初始化）。与改造前一致：
     // 那时是覆盖目录 + 重新载入，现在库自己就是真相，覆盖没有意义。
     let _ = DB.set(db);
+    // fork：载荷改走文件后，启动要做两件事（都只跟文件侧有关）：
+    //   1. 把库里遗留的载荷搬进文件、再把那四列清空 —— 否则旧安装的 `.db`
+    //      永远瘦不下来；
+    //   2. 清孤儿载荷（ramdisk 被清空 / 台账被裁剪后留下的文件）。
+    super::blocking::in_place(move_legacy_payloads);
 }
 
-/// 报文数据所在的文件（**就是库文件**；设置页概况用）。
+/// 把仍留在库里的载荷搬到文件侧，然后清空那四列。
+///
+/// 顺序是「先落盘、后清列」：文件写失败的行原样留在库里（宁可多占一点 `.db`
+/// 也不丢报文）；全部写成功之后才进一次清列，避免留下「两处都没有」的行。
+fn move_legacy_payloads() {
+    let Some(db) = db() else {
+        return;
+    };
+    let rows = db
+        .with(sql::payload_rows)
+        .and_then(Result::ok)
+        .unwrap_or_default();
+    let mut moved = Vec::new();
+    for entry in rows {
+        if payload::write(&entry).is_ok() {
+            moved.push(entry.id);
+        }
+    }
+    if !moved.is_empty() {
+        if let Some(Err(error)) = db.with(|conn| sql::blank_payloads(conn, &moved)) {
+            eprintln!("[Debug] 旧报文载荷清理失败: {error}");
+        }
+    }
+    // 孤儿清扫只在台账可读时做（读不出来就别动文件，见 `payload::sweep`）。
+    if let Some(Ok(ids)) = db.with(sql::ids) {
+        payload::sweep(&ids.into_iter().collect());
+    }
+}
+
+/// fork：报文**载荷**所在的目录（`{cache_dir}/debug-traffic/`；排障用）。
+///
+/// 改造后库里的 `debug_traffic` 只是台账，正文全在目录里；调用方
+/// `api::storage_api` 读的是 `Db::file()`，本函数没有调用方 —— 保留它是为了
+/// 回答「报文落在哪」这个问题。
+///
+/// 旧语义（**就是库文件**；设置页概况用）见 git 历史。
 ///
 /// 语义从「报文文件路径」变成「装着报文数据的库文件」—— 与 `AccountStore::file()`
 /// / `LogStore::file()` / `RequestStats::file()` 的处理一致。
@@ -163,7 +204,8 @@ pub fn init(db: Option<Db>) {
 /// 比给一个「大小 0 字节、可能根本不存在」的路径更诚实。
 #[allow(dead_code)]
 pub fn file() -> Option<PathBuf> {
-    db().map(|db| db.file().to_path_buf())
+    db()?;
+    Some(payload::dir())
 }
 
 /// 条数（设置页概况用；库不可用时 0）
@@ -189,9 +231,25 @@ fn record_sync(entry: TrafficEntry) {
         // 这里连日志都不打 —— 每个请求都会走到这一步，刷屏反而掩盖真问题。
         return;
     };
+    // fork：载荷先落文件，台账再进库。文件写失败就回落到「载荷照旧进库」——
+    // 调试报文宁可多占一点 `.db`，也不该因为内存盘临时不可写而整条丢掉。
     // 失败只打控制台：**不能**用 logging::log / verbose —— 它们要写同一个库，
     // 而此刻我们正握着那把锁（见模块头的死锁约束）。
-    match db.with_mut(|conn| sql::upsert_entry(conn, &entry)) {
+    let written = match payload::write(&entry) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("[Debug] 调试报文写入文件失败（回落入库）: {error}");
+            false
+        }
+    };
+    let stored = db.with_mut(|conn| {
+        if written {
+            sql::upsert_ledger(conn, &entry)
+        } else {
+            sql::upsert_entry(conn, &entry)
+        }
+    });
+    match stored {
         Some(Ok(())) => {}
         Some(Err(error)) => {
             eprintln!("[Debug] 调试报文写入数据库失败: {error}");
@@ -200,9 +258,14 @@ fn record_sync(entry: TrafficEntry) {
         // 连接中毒（`Db` 的取向：不拿半截数据当真相）
         None => return,
     }
-    // 写入后只清理超过留存条数的旧记录。
+    // 写入后只清理超过留存条数的旧记录；真的删了行才扫一次载荷孤儿。
     match db.with(|conn| sql::enforce_limits(conn)) {
-        Some(Ok(())) | None => {}
+        Some(Ok(removed)) if removed > 0 => {
+            if let Some(Ok(ids)) = db.with(sql::ids) {
+                payload::sweep(&ids.into_iter().collect());
+            }
+        }
+        Some(Ok(_)) | None => {}
         Some(Err(error)) => eprintln!("[Debug] 调试报文裁剪失败: {error}"),
     }
 }
@@ -212,7 +275,14 @@ fn record_sync(entry: TrafficEntry) {
 /// 同 id 多行时取**最后写入的那一份**（`ORDER BY ts DESC, rowid DESC LIMIT 1`），
 /// 与改造前「内存里从尾部往前找第一个匹配」逐字一致。
 pub fn get(id: &str) -> Option<TrafficEntry> {
-    db()?.with(|conn| sql::select_one(conn, id)).and_then(Result::ok).flatten()
+    let mut entry = db()?
+        .with(|conn| sql::select_one(conn, id))
+        .and_then(Result::ok)
+        .flatten()?;
+    // fork：台账里的载荷四列是空的，正文在文件里；遗留行（还没被搬运的）
+    // 在库里本来就有内容，`hydrate` 找不到文件时原样返回。
+    payload::hydrate(&mut entry);
+    Some(entry)
 }
 
 /// 一条原始报文记录。

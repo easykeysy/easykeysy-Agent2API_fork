@@ -211,6 +211,22 @@ pub(super) fn insert(conn: &Connection, entry: &LogEntry) -> rusqlite::Result<()
     Ok(())
 }
 
+/// 只读高水位（不推进）。文件后端用它给内存计数器播种。
+pub(super) fn peek_next_id(conn: &Connection) -> rusqlite::Result<u64> {
+    let stored: Option<String> = conn
+        .query_row(
+            "SELECT value FROM kv WHERE key = ?1",
+            params![NEXT_ID_KEY],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(stored
+        .as_deref()
+        .map(str::trim)
+        .and_then(|text| text.parse::<u64>().ok())
+        .unwrap_or(1))
+}
+
 pub(super) fn allocate_next_id(conn: &Connection) -> rusqlite::Result<u64> {
     let stored: Option<String> = conn
         .query_row(

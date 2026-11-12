@@ -47,6 +47,10 @@ impl RequestStats {
                 sql::delete_matching(&tx, &plan)?
             };
             tx.commit()?;
+            // fork：正文文件不在事务里，按台账扫一遍把刚删掉的那批清走。
+            if let Ok(ids) = sql::raw_ids(conn) {
+                super::raw_file::sweep(&std::collections::HashSet::from_iter(ids));
+            }
             Ok(ClearResult {
                 deleted,
                 raw: raw.requests,

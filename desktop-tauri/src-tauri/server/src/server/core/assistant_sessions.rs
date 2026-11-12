@@ -109,20 +109,43 @@ pub fn fork(id: &str, new_id: &str, message_id: &str) -> Result<Value, String> {
         }
         let mut replacements = HashMap::new();
         collect_image_ids(&messages, &mut replacements);
-        let used: i64 = tx.query_row("SELECT COALESCE(SUM(length(bytes)), 0) FROM assistant_images", [], |row| row.get(0)).map_err(|_| "无法读取图片用量")?;
+        let used: i64 = tx.query_row("SELECT COALESCE(SUM(COALESCE(length(bytes), 0)), 0) FROM assistant_images", [], |row| row.get(0)).map_err(|_| "无法读取图片用量")?;
         let mut bytes_added = 0i64;
         let now = logging::now_ms();
         tx.execute("INSERT INTO assistant_sessions (id, title, messages, model, reasoning, created_at, updated_at, title_generated) VALUES (?1, ?2, '[]', ?3, ?4, ?5, ?5, 1)",
             params![new_id, truncate(&format!("{title} · 分叉"), MAX_TITLE_CHARS), model, reasoning, now]).map_err(|_| "新会话 id 已存在或无法创建")?;
+        // fork：blob 走文件（`assistant-images` 目录，与 Db 无关）——读旧文件
+        // （缺失时回落查库里的遗留行）、写新文件、台账 bytes 置 NULL。
         for (old, new) in &mut replacements {
-            let (mime, bytes): (String, Vec<u8>) = tx.query_row("SELECT mime, bytes FROM assistant_images WHERE id = ?1 AND session_id = ?2", params![old, id],
-                |row| Ok((row.get(0)?, row.get(1)?))).map_err(|_| "原会话的图片已不存在，无法完整复制")?;
+            let (bytes, mime): (Vec<u8>, String) = {
+                let mut candidate: Option<(Vec<u8>, String)> =
+                    std::fs::read(crate::server::core::assistant_images::blob_path(old))
+                        .ok()
+                        .filter(|bytes| !bytes.is_empty())
+                        .map(|bytes| (bytes, crate::server::core::assistant_images::mime_of_public(old)));
+                if candidate.is_none() {
+                    candidate = tx.query_row(
+                        "SELECT bytes, mime FROM assistant_images WHERE id = ?1 AND session_id = ?2",
+                        params![old, id],
+                        |row| Ok((row.get::<_, Option<Vec<u8>>>(0)?, row.get::<_, Option<String>>(1)?)),
+                    ).ok().and_then(|(bytes, mime)| match (bytes, mime) {
+                        (Some(bytes), Some(mime)) if !bytes.is_empty() => Some((bytes, mime)),
+                        _ => None,
+                    });
+                }
+                candidate.ok_or_else(|| "原会话的图片已不存在，无法完整复制".to_string())?
+            };
             bytes_added = bytes_added.saturating_add(bytes.len() as i64);
             if used.saturating_add(bytes_added) > 512 * 1024 * 1024 { return Err("助手图片存储已满，无法复制会话".into()); }
             let mut random = [0u8; 32];
             getrandom::getrandom(&mut random).map_err(|_| "无法生成图片 id")?;
-            *new = random.iter().map(|byte| format!("{byte:02x}")).collect();
-            tx.execute("INSERT INTO assistant_images (id, session_id, mime, bytes, created_at) VALUES (?1, ?2, ?3, ?4, ?5)", params![new.as_str(), new_id, mime, bytes, now]).map_err(|_| "图片复制失败")?;
+            let copied_id: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+            *new = copied_id.clone();
+            let file = crate::server::core::assistant_images::blob_path(&copied_id);
+            std::fs::create_dir_all(file.parent().unwrap_or(std::path::Path::new(".")))
+                .map_err(|_| "图片复制失败（目录不可写）".to_string())?;
+            std::fs::write(&file, &bytes).map_err(|_| "图片复制失败（文件写入失败）".to_string())?;
+            tx.execute("INSERT INTO assistant_images (id, session_id, mime, bytes, created_at) VALUES (?1, ?2, ?3, NULL, ?4)", params![copied_id, new_id, mime, now]).map_err(|_| "图片复制失败")?;
         }
         replace_image_ids(&mut messages, &replacements);
         tx.execute("UPDATE assistant_sessions SET messages = ?2 WHERE id = ?1", params![new_id, messages.to_string()]).map_err(|_| "保存复制消息失败")?;
@@ -154,10 +177,15 @@ fn replace_image_ids(value: &mut Value, ids: &HashMap<String, String>) {
 }
 
 pub fn remove(id: &str) -> bool {
+    // fork：会话的图片 blob 在文件侧（`assistant-images/`），台账行由库外键
+    // 连带删，文件要在这里一并清掉（库级 `ON DELETE CASCADE` 够不着文件）。
+    crate::server::core::assistant_images::remove_for_session(id.trim());
     database().and_then(|db| db.with(|conn| conn.execute("DELETE FROM assistant_sessions WHERE id = ?1", params![id.trim()]).map(|count| count > 0).unwrap_or(false))).unwrap_or(false)
 }
 
 pub fn clear() -> usize {
+    // fork：清空全部会话连带清空全部图片文件（台账行由库 `DELETE` 连带清）。
+    crate::server::core::assistant_images::clear_all();
     database().and_then(|db| db.with(|conn| conn.execute("DELETE FROM assistant_sessions", []).unwrap_or(0))).unwrap_or(0)
 }
 

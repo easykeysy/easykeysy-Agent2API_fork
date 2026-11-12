@@ -47,7 +47,7 @@ static FILE_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 /// 入库那份日志由保留天数管，但文件是另一条通道，需要自己的上限。
 const LOG_FILE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 
-/// 打开日志文件通道。默认落 `{config_dir}/logs/server.log`，可用
+/// 打开日志文件通道。默认落 `{logs_dir}/server.log`，可用
 /// `AGENT2API_LOG_FILE` 覆盖（相对路径按进程 CWD 解析）。
 ///
 /// 重复调用只生效一次（OnceLock 语义）。打开失败不 panic：降级成
@@ -90,9 +90,20 @@ pub fn init_store(db: Option<Db>, verbose: bool) -> bool {
     if STORE.get().is_some() {
         return false;
     }
-    let store = LogStore::with_db(db, || {
-        crate::server::config::retention_settings().log_days
-    });
+    // fork：Linux + 内存盘时事件行写 `{logs_dir}/events.jsonl`（日志离开
+    // `agent2api.db`）；其余环境（Windows / 容器 / 测试）沿用库后端，行为与
+    // 改造前逐字一致。判断依据是侧目录是否真的被 `/mnt/ramdisk` 接管，
+    // 见 `paths::side_dirs_external`。
+    let store = if crate::paths::side_dirs_external() {
+        crate::paths::ensure_side_dirs();
+        LogStore::with_events_file(db, crate::paths::logs_dir().join("events.jsonl"), || {
+            crate::server::config::retention_settings().log_days
+        })
+    } else {
+        LogStore::with_db(db, || {
+            crate::server::config::retention_settings().log_days
+        })
+    };
     store.prune();
     let _ = STORE.set(store);
     true
@@ -156,7 +167,7 @@ fn infer_level(tag: &str, text: &str) -> &'static str {
     "info"
 }
 
-/// 日志文件路径：`AGENT2API_LOG_FILE` 优先，默认 `{config_dir}/logs/server.log`
+/// 日志文件路径：`AGENT2API_LOG_FILE` 优先，默认 `{logs_dir}/server.log`
 fn log_file_path() -> PathBuf {
     if let Ok(value) = std::env::var("AGENT2API_LOG_FILE") {
         let trimmed = value.trim();
@@ -164,7 +175,7 @@ fn log_file_path() -> PathBuf {
             return PathBuf::from(trimmed);
         }
     }
-    crate::paths::config_dir().join("logs").join("server.log")
+    crate::paths::logs_dir().join("server.log")
 }
 
 /// 日志文件路径的对外只读形态（设置页「版本信息」展示用）。

@@ -456,6 +456,9 @@ impl ServerState {
         // AccountStore 的说明）。`db` 是 `Option<Db>`：打不开时日志库照常装起来，
         // 但写入静默丢弃、读取返回空（日志丢一条不影响任何业务，降级值见
         // `LogStore` 各方法的说明）。
+        // fork：ramdisk 侧目录在机器重启后会随 tmpfs 消失，尽早补一次；
+        // Windows / 没有内存盘时是空操作，`logging::init_store` 选中文件后端时也会再补。
+        crate::paths::ensure_side_dirs();
         logging::init_store(db.clone(), verbose);
         // 调试模式的原始报文存储：无论开关是否打开都初始化 —— 开关是**逐请求**
         // 判定的（改完设置下一个请求就生效），存储没就绪会让开启后的第一批

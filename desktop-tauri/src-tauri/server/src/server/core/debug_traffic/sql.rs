@@ -202,15 +202,100 @@ pub(super) fn select_one(conn: &Connection, id: &str) -> rusqlite::Result<Option
     }
 }
 
-/// 只按留存条数淘汰旧记录，不因单条报文过大删除它。
-pub(super) fn enforce_limits(conn: &Connection) -> rusqlite::Result<()> {
+/// 写入用的列绑定（fork：载荷已落文件，这里只放台账列）。
+///
+/// `request_headers` / `request_body` 是 `NOT NULL` 列，用 DDL 默认值同形
+/// （`'{}'` / `''`）；`response_headers` / `response_body` 保持 NULL —— 它们
+/// 本来就用 NULL 表达「这一侧没采到」，载荷在文件里时这个区分仍然成立。
+fn encode_ledger(entry: &TrafficEntry) -> [SqlValue; 11] {
+    [
+        SqlValue::Text(entry.id.clone()),
+        SqlValue::Integer(entry.ts),
+        SqlValue::Text(entry.url.clone()),
+        SqlValue::Text(entry.provider.clone()),
+        SqlValue::Text("{}".to_string()),
+        SqlValue::Text(String::new()),
+        match entry.status {
+            Some(value) => SqlValue::Integer(i64::from(value)),
+            None => SqlValue::Null,
+        },
+        SqlValue::Null,
+        SqlValue::Null,
+        SqlValue::Integer(i64::from(entry.truncated)),
+        SqlValue::Integer(payload_bytes(entry)),
+    ]
+}
+
+/// fork：落台账（同 id 覆盖），载荷四列留空 —— 正文在
+/// `{cache_dir}/debug-traffic/{id}`（见 `payload` 子模块）。
+pub(super) fn upsert_ledger(conn: &Connection, entry: &TrafficEntry) -> rusqlite::Result<()> {
+    let binds = encode_ledger(entry);
+    conn.execute(
+        "INSERT INTO debug_traffic (id, ts, url, provider, request_headers, request_body, \
+         status, response_headers, response_body, truncated, size) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+         ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, url = excluded.url, \
+         provider = excluded.provider, request_headers = excluded.request_headers, \
+         request_body = excluded.request_body, status = excluded.status, \
+         response_headers = excluded.response_headers, response_body = excluded.response_body, \
+         truncated = excluded.truncated, size = excluded.size",
+        rusqlite::params_from_iter(binds.iter()),
+    )?;
+    Ok(())
+}
+
+/// 台账里的全部 id（清理载荷文件时用来算「谁还活着」）。
+pub(super) fn ids(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT id FROM debug_traffic")?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    Ok(rows.filter_map(|row| row.ok()).collect())
+}
+
+/// 仍把载荷放在库里的行（改造前写入的遗留数据）。
+///
+/// `request_headers` 的 DDL 默认值是 `'{}'`（长度 2），因此「比 2 长」才是
+/// 真的有内容；其余三列用 NULL / 非空判断。
+pub(super) fn payload_rows(conn: &Connection) -> rusqlite::Result<Vec<TrafficEntry>> {
+    let sql = format!(
+        "SELECT {COLUMNS} FROM debug_traffic WHERE length(request_headers) > 2 \
+         OR length(request_body) > 0 OR response_headers IS NOT NULL \
+         OR response_body IS NOT NULL"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query([])?;
+    let mut entries = Vec::new();
+    while let Some(row) = rows.next()? {
+        entries.push(decode_row(row)?);
+    }
+    Ok(entries)
+}
+
+/// 把已落盘的行的载荷列清空（正文在文件里，库只留台账）。
+pub(super) fn blank_payloads(conn: &Connection, ids: &[String]) -> rusqlite::Result<usize> {
+    let mut changed = 0;
+    for batch in ids.chunks(200) {
+        let placeholders = vec!["?"; batch.len()].join(", ");
+        changed += conn.execute(
+            &format!(
+                "UPDATE debug_traffic SET request_headers = '{{}}', request_body = '', \
+                 response_headers = NULL, response_body = NULL WHERE id IN ({placeholders})"
+            ),
+            rusqlite::params_from_iter(batch.iter()),
+        )?;
+    }
+    Ok(changed)
+}
+
+/// 只按留存条数淘汰旧记录，不因单条报文过大删除它；返回本次删掉的行数
+/// （fork：调用方据此决定要不要顺手清载荷文件）。
+pub(super) fn enforce_limits(conn: &Connection) -> rusqlite::Result<usize> {
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM debug_traffic", [], |row| row.get(0))?;
     if count > MAX_ENTRIES as i64 {
-        conn.execute(
+        return conn.execute(
             "DELETE FROM debug_traffic WHERE id NOT IN \
              (SELECT id FROM debug_traffic ORDER BY ts DESC, rowid DESC LIMIT ?1)",
             params![MAX_ENTRIES as i64],
-        )?;
+        );
     }
-    Ok(())
+    Ok(0)
 }
