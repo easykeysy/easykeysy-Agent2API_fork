@@ -223,8 +223,7 @@ jobs:
         run: |
           set +e
           mkdir -p ../out/release-linux
-          find ../out/linux -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name
- '*.sig' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
+          find ../out/linux -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
           if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
             find ../out/linux -maxdepth 1 -type f -perm -111 \( -name 'agent2api*' -o -name 'workbuddy*' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
           fi
