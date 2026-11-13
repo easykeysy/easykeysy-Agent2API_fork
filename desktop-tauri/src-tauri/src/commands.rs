@@ -352,8 +352,19 @@ pub async fn change_lan_access(app: AppHandle, enabled: bool, panel: bool) -> Re
 
     let mut created_key = None;
     if enabled && crate::server::config::current().active_api_keys().is_empty() {
-        let entry = crate::server::core::api_keys::add("default", None, Vec::new(), Vec::new())
-            .map_err(|message| format!("create Key failure: {message}"))?;
+        let entry = crate::server::core::api_keys::add(
+            "default",
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .map_err(|message| format!("create Key failure: {message}"))?;
         crate::server::logging::log(
             "[Config]",
             &format!("✅ already create Key「{}」（）", entry.name),

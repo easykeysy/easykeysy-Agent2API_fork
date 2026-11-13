@@ -80,24 +80,24 @@ jobs:
         if: always()
         shell: bash
         run: |
-          mkdir -p out/windows
+          mkdir -p ../out/windows
           # bundles (if any)
-          if [ -d desktop-tauri/src-tauri/target/release/bundle ]; then
-            cp -a desktop-tauri/src-tauri/target/release/bundle out/windows/bundle || true
+          if [ -d src-tauri/target/release/bundle ]; then
+            cp -a src-tauri/target/release/bundle ../out/windows/bundle || true
           fi
           # raw binaries (useful even if installer bundling fails but compile succeeded)
-          find desktop-tauri/src-tauri/target/release -maxdepth 1 -type f \( -name '*.exe' -o -name '*.pdb' -o -name '*.dll' \) -exec cp -f {} out/windows/ \; || true
-          cp -f build-windows.log out/windows/ || true
+          find src-tauri/target/release -maxdepth 1 -type f \( -name '*.exe' -o -name '*.pdb' -o -name '*.dll' \) -exec cp -f {} ../out/windows/ \; || true
+          cp -f ../build-windows.log ../out/windows/ || true
 
       - name: Prepare release assets
         if: always()
         shell: bash
         run: |
-          mkdir -p out/release-windows
+          mkdir -p ../out/release-windows
           # prefer installer/bundle artifacts; fall back to raw exe
-          find out/windows/bundle -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp -f {} out/release-windows/ \; 2>/dev/null || true
-          if [ -z "$(ls -A out/release-windows 2>/dev/null)" ]; then
-            find out/windows -maxdepth 1 -type f -name '*.exe' -exec cp -f {} out/release-windows/ \; 2>/dev/null || true
+          find ../out/windows/bundle -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp -f {} ../out/release-windows/ \; 2>/dev/null || true
+          if [ -z "$(ls -A ../out/release-windows 2>/dev/null)" ]; then
+            find ../out/windows -maxdepth 1 -type f -name '*.exe' -exec cp -f {} ../out/release-windows/ \; 2>/dev/null || true
           fi
 
       - name: Upload workflow artifacts
@@ -188,21 +188,21 @@ jobs:
         if: always()
         shell: bash
         run: |
-          mkdir -p out/linux
-          if [ -d desktop-tauri/src-tauri/target/release/bundle ]; then
-            cp -a desktop-tauri/src-tauri/target/release/bundle out/linux/bundle || true
+          mkdir -p ../out/linux
+          if [ -d src-tauri/target/release/bundle ]; then
+            cp -a src-tauri/target/release/bundle ../out/linux/bundle || true
           fi
-          find desktop-tauri/src-tauri/target/release -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} out/linux/ \; || true
-          cp -f build-linux.log out/linux/ || true
+          find src-tauri/target/release -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} ../out/linux/ \; || true
+          cp -f ../build-linux.log ../out/linux/ || true
 
       - name: Prepare release assets
         if: always()
         shell: bash
         run: |
-          mkdir -p out/release-linux
-          find out/linux/bundle -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -exec cp -f {} out/release-linux/ \; 2>/dev/null || true
-          if [ -z "$(ls -A out/release-linux 2>/dev/null)" ]; then
-            find out/linux -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} out/release-linux/ \; 2>/dev/null || true
+          mkdir -p ../out/release-linux
+          find ../out/linux/bundle -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
+          if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
+            find ../out/linux -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
           fi
 
       - name: Upload workflow artifacts
