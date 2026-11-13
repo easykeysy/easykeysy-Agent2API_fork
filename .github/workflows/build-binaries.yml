@@ -1,8 +1,8 @@
 name: Build desktop binaries (Windows + Linux AppImage)
 
 # Builds Tauri desktop bundles on GitHub-hosted runners, uploads them as
-# workflow artifacts, and (when a release tag is available and the build
-# succeeds) publishes the produced binaries to the GitHub Release for that tag.
+# workflow artifacts, and (when a release tag is available and release assets
+# are produced) publishes the produced binaries to the GitHub Release for that tag.
 #
 # No local session needed after triggering: runs to completion in GitHub Actions.
 # Artifacts remain downloadable from the run; release assets are attached to the
@@ -12,10 +12,10 @@ name: Build desktop binaries (Windows + Linux AppImage)
 # committed; this workflow does not rebuild them.
 #
 # Publishing behavior:
-# - push of a tag matching v*  -> builds and uploads successful outputs to that
+# - push of a tag matching v*  -> builds and uploads produced outputs to that
 #   tag's GitHub Release (created if missing).
 # - workflow_dispatch          -> always uploads workflow artifacts; if
-#   `release_tag` is provided, also uploads successful outputs to that tag's
+#   `release_tag` is provided, also uploads produced outputs to that tag's
 #   GitHub Release.
 
 on:
@@ -26,7 +26,7 @@ on:
         required: false
         default: "main"
       release_tag:
-        description: "Optional tag to publish successful binaries to (e.g. v3.5.0). Leave empty to skip release upload."
+        description: "Optional tag to publish successful binaries to (e.g. v3.5.2). Leave empty to skip release upload."
         required: false
         default: ""
   push:
@@ -80,25 +80,37 @@ jobs:
         if: always()
         shell: bash
         run: |
+          set +e
           mkdir -p ../out/windows
-          # bundles (if any)
-          if [ -d src-tauri/target/release/bundle ]; then
-            cp -a src-tauri/target/release/bundle ../out/windows/bundle || true
-          fi
-          # raw binaries (useful even if installer bundling fails but compile succeeded)
-          find src-tauri/target/release -maxdepth 1 -type f \( -name '*.exe' -o -name '*.pdb' -o -name '*.dll' \) -exec cp -f {} ../out/windows/ \; || true
-          cp -f ../build-windows.log ../out/windows/ || true
+          # search common Cargo/Tauri target locations
+          roots=( "src-tauri/target/release" "../target/release" "../../target/release" "target/release" )
+          for r in "${roots[@]}"; do
+            if [ -d "$r/bundle" ]; then
+              mkdir -p ../out/windows/bundle
+              cp -a "$r/bundle/." ../out/windows/bundle/ 2>/dev/null || true
+            fi
+            find "$r" -maxdepth 1 -type f \( -name '*.exe' -o -name '*.pdb' -o -name '*.dll' \) -exec cp -f {} ../out/windows/ \; 2>/dev/null || true
+          done
+          # also pick up any produced bundles/exes anywhere under plausible roots
+          for base in src-tauri/target ../target ../../target target; do
+            [ -d "$base" ] || continue
+            find "$base" -type f \( -name '*.exe' -o -name '*.msi' \) -path '*bundle*' -exec cp -f {} ../out/windows/bundle/ \; 2>/dev/null || true
+          done
+          cp -f ../build-windows.log ../out/windows/ 2>/dev/null || true
+          echo "Collected windows outputs:"; find ../out/windows -type f -maxdepth 4 2>/dev/null | sed 's#^\.\./out/windows/##' || true
 
       - name: Prepare release assets
         if: always()
         shell: bash
         run: |
+          set +e
           mkdir -p ../out/release-windows
           # prefer installer/bundle artifacts; fall back to raw exe
-          find ../out/windows/bundle -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp -f {} ../out/release-windows/ \; 2>/dev/null || true
+          find ../out/windows -type f \( -name '*.exe' -o -name '*.msi' \) -path '*bundle*' -exec cp -f {} ../out/release-windows/ \; 2>/dev/null || true
           if [ -z "$(ls -A ../out/release-windows 2>/dev/null)" ]; then
             find ../out/windows -maxdepth 1 -type f -name '*.exe' -exec cp -f {} ../out/release-windows/ \; 2>/dev/null || true
           fi
+          echo "Release assets (windows):"; ls -la ../out/release-windows 2>/dev/null || true
 
       - name: Upload workflow artifacts
         if: always()
@@ -123,7 +135,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Publish to GitHub Release
-        if: steps.release.outputs.tag != '' && steps.build.outcome == 'success' && hashFiles('out/release-windows/*') != ''
+        if: always() && steps.release.outputs.tag != '' && hashFiles('out/release-windows/*') != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
@@ -188,22 +200,35 @@ jobs:
         if: always()
         shell: bash
         run: |
+          set +e
           mkdir -p ../out/linux
-          if [ -d src-tauri/target/release/bundle ]; then
-            cp -a src-tauri/target/release/bundle ../out/linux/bundle || true
-          fi
-          find src-tauri/target/release -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} ../out/linux/ \; || true
-          cp -f ../build-linux.log ../out/linux/ || true
+          roots=( "src-tauri/target/release" "../target/release" "../../target/release" "target/release" )
+          for r in "${roots[@]}"; do
+            if [ -d "$r/bundle" ]; then
+              mkdir -p ../out/linux/bundle
+              cp -a "$r/bundle/." ../out/linux/bundle/ 2>/dev/null || true
+            fi
+            find "$r" -maxdepth 1 -type f -perm -111 \( -name 'agent2api*' -o -name 'workbuddy*' \) -exec cp -f {} ../out/linux/ \; 2>/dev/null || true
+          done
+          for base in src-tauri/target ../target ../../target target; do
+            [ -d "$base" ] || continue
+            find "$base" -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -path '*bundle*' -exec cp -f {} ../out/linux/bundle/ \; 2>/dev/null || true
+          done
+          cp -f ../build-linux.log ../out/linux/ 2>/dev/null || true
+          echo "Collected linux outputs:"; find ../out/linux -type f -maxdepth 4 2>/dev/null | sed 's#^\.\./out/linux/##' || true
 
       - name: Prepare release assets
         if: always()
         shell: bash
         run: |
+          set +e
           mkdir -p ../out/release-linux
-          find ../out/linux/bundle -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
+          find ../out/linux -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name
+ '*.sig' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
           if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
-            find ../out/linux -maxdepth 1 -type f -perm -111 -name 'agent2api*' -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
+            find ../out/linux -maxdepth 1 -type f -perm -111 \( -name 'agent2api*' -o -name 'workbuddy*' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
           fi
+          echo "Release assets (linux):"; ls -la ../out/release-linux 2>/dev/null || true
 
       - name: Upload workflow artifacts
         if: always()
@@ -228,7 +253,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Publish to GitHub Release
-        if: steps.release.outputs.tag != '' && steps.build.outcome == 'success' && hashFiles('out/release-linux/*') != ''
+        if: always() && steps.release.outputs.tag != '' && hashFiles('out/release-linux/*') != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
