@@ -63,8 +63,8 @@ use super::report::{normalize_status_filter, SummaryRow};
 
 mod raw;
 pub(super) use raw::{
-    count_raw, count_raw_matching, count_upstream_raw, delete_raw_matching, select_raw, trim_raw_rows,
-    upsert_raw,
+    count_raw, count_raw_matching, count_upstream_raw, delete_raw_matching, raw_ids, select_raw,
+    trim_raw_rows, upsert_raw,
 };
 
 /// `requests` 的列顺序（所有 SELECT 都按这个顺序取，`decode_request` 依赖它；

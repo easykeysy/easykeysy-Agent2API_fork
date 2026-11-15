@@ -1,5 +1,6 @@
 //! 请求统计存储：`requests` 表（明细）+ `request_daily` 表（按天聚合）+
-//! `request_raw` 表（完整下游正文，预览对话的地基）。
+//! `request_raw` 台账（预览对话的地基；fork 后正文在 `{cache_dir}/request-raw/`，
+//! 台账只留 id / ts / size / truncated，见 `raw_file` 模块头）。
 //!
 //! ── 内部分层（拆开是为了每片都保持单一职责、单文件不过长）─────
 //! ```text
@@ -35,8 +36,8 @@
 //!     都超出报表侧读明细的窗口（`SUMMARY_WINDOW_MS`，改造后只剩 24 小时 ——
 //!     命中率四档已在 SQL 侧聚合，不再要求把窗口内的明细读回来），所以这份
 //!     **寿命独立于明细**：明细被手动清理后当天的聚合行仍在，历史曲线不会出现空洞。
-//! `request_raw` 保存完整下游正文，独立成表的理由（大字段不进列表查询）见
-//! `db/schema.rs` 的 V3_SCHEMA。
+//! `request_raw` 台账独立成表（大字段不进列表查询，见 `db/schema.rs` 的 V3_SCHEMA）；
+//! fork 后正文本身写 `{cache_dir}/request-raw/`，台账行只负责条数 / 清理 / 关联。
 //! 两个文件变两张表还顺带解决了原来的两个麻烦：**明细与聚合的一致性**（原来是
 //! 两次独立写盘，中间崩溃会留下「明细删了、聚合还在」的错位）现在由**一个事务**
 //! 保证；正文随明细的**同步清理**（淘汰 / 清空时先删正文再删明细）见
@@ -83,6 +84,7 @@ mod routing;
 mod trace;
 mod flow;
 pub use flow::FlowQuery;
+mod raw_file;
 mod retention;
 mod source;
 mod source_report;
@@ -91,6 +93,7 @@ mod lifecycle;
 mod sql;
 
 pub use source::{ApiKeyIdentity, RequestSource};
+
 pub fn request_date_bounds(start: NaiveDate, end: NaiveDate) -> Option<(i64, i64)> {
     let next = end.succ_opt()?;
     Some((clock::local_midnight_ms(start), clock::local_midnight_ms(next)))
@@ -448,7 +451,14 @@ impl RequestStats {
                     }
                 }
             }
-            tx.commit()
+            tx.commit()?;
+            // fork：正文在文件侧，台账删掉之后顺手清孤儿（同一节拍，一次读目录）。
+            if maintain {
+                if let Ok(ids) = sql::raw_ids(conn) {
+                    raw_file::sweep(&std::collections::HashSet::from_iter(ids));
+                }
+            }
+            Ok(())
         });
     }
 
@@ -581,12 +591,29 @@ impl RequestStats {
         if request.is_empty() && response.is_empty() {
             return;
         }
-        // 完整正文的落库字节数。
+        // 台账的 size 仍按正文长度记账（存储概况 / 排障用；正文本身不再入库）。
         let size = (request.len() + response.len()) as i64;
         let guard = self.guard();
         let _ = self.with_conn_mut(&guard, |conn| {
+            // fork：正文先落 `{cache_dir}/request-raw/{id}`，再写库里的台账行
+            // （台账的 bytes 两列置 NULL）。写在 guard 内：否则并发的 `sweep`
+            // （record / prune 那条节拍）会把还没进台账的新文件当孤儿删掉。
+            let row = raw_file::RawRow {
+                id: id.to_string(),
+                ts,
+                request_body: request.to_string(),
+                response_body: response.to_string(),
+                truncated: false,
+            };
+            if raw_file::write(&row).is_err() {
+                return Ok(());
+            }
             let tx = conn.transaction()?;
-            sql::upsert_raw(&tx, id, ts, request, response, size)?;
+            let written = sql::upsert_raw(&tx, id, ts, size)?;
+            // 明细行已不存在（清理后迟到的回写）：撤掉刚写的正文，避免孤儿。
+            if written == 0 {
+                raw_file::remove(id);
+            }
             tx.commit()
         });
     }
@@ -597,6 +624,15 @@ impl RequestStats {
         if id.is_empty() {
             return None;
         }
+        // fork：正文优先读文件；文件不在（ramdisk 被清）回落旧版留在库里的行。
+        if let Some(row) = raw_file::read(id) {
+            return Some(json!({
+                "id": row.id,
+                "requestBody": row.request_body,
+                "responseBody": row.response_body,
+                "truncated": row.truncated,
+            }));
+        }
         let loaded = {
             let guard = self.guard();
             self.with_conn(&guard, |conn| sql::select_raw(conn, id))
@@ -604,6 +640,12 @@ impl RequestStats {
         let Some((raw_id, request_body, response_body, truncated)) = loaded else {
             return None;
         };
+        let request_body = request_body.unwrap_or_default();
+        let response_body = response_body.unwrap_or_default();
+        // 台账行在、正文两列都是 NULL（文件已丢的 fork 行）：按「未保留」处理。
+        if request_body.is_empty() && response_body.is_empty() {
+            return None;
+        }
         Some(json!({
             "id": raw_id,
             "requestBody": request_body,
@@ -782,7 +824,12 @@ impl RequestStats {
             sql::delete_expired_requests(&tx, bounds.requests_ms)?;
             retention::trim_requests(&tx, bounds.request_count)?;
             daily::delete_daily_before(&tx, &bounds.daily_key)?;
-            tx.commit()
+            tx.commit()?;
+            // fork：正文文件按台账清一遍（过期 / 超量删掉的台账行对应文件）。
+            if let Ok(ids) = sql::raw_ids(conn) {
+                raw_file::sweep(&std::collections::HashSet::from_iter(ids));
+            }
+            Ok(())
         });
         // 显式裁剪（启动 / 改保留期）之后重置节拍：下一次记账从新的一批开始。
         self.maintenance_writes.store(0, Ordering::Relaxed);

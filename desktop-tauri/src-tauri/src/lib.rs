@@ -88,6 +88,26 @@ fn launched_by_autostart() -> bool {
     std::env::args().any(|arg| arg == AUTOSTART_FLAG)
 }
 
+/// WebView2 用户数据目录(EBWV)**托管默认**:程序自己的 EBWV 链接指向
+/// `W:\EBWebView\easykeysy-Agent2API_fork`,其父目录 `W:\EBWebView` 作为共享
+/// Chromium 配置区。这里传给 `data_directory` 的就是该子目录本身 —— wry 把
+/// 这个路径**原样**交给 `CreateCoreWebView2EnvironmentWithOptions` 的
+/// userDataFolder,不会在末尾再拼 `EBWebView`,所以默认值必须是子目录而非父目录。
+///
+/// 环境变量 `AGENT2API_EBWEBVIEW_DIR` 可整体覆盖(未设置 / 空白即用本默认),
+/// 与 `paths::config_dir` 的 `AGENT2API_PROXY_HOME` 同一套约定。目录不存在时
+/// 由 Tauri 建窗时 `create_dir_all` 自行创建,无需本函数保证存在。
+#[cfg(target_os = "windows")]
+fn ebwv_data_dir() -> std::path::PathBuf {
+    if let Ok(value) = std::env::var("AGENT2API_EBWEBVIEW_DIR") {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            return std::path::PathBuf::from(trimmed);
+        }
+    }
+    std::path::PathBuf::from(r"W:\EBWebView\easykeysy-Agent2API_fork")
+}
+
 /// 启动期致命错误的用户提示与收尾：显示可读原因 → 结束进程。
 ///
 /// ── 为什么不是 `return Err(...)` ─────────────────────────────
@@ -193,6 +213,14 @@ fn create_main_window(app: &AppHandle, visible: bool) -> tauri::Result<tauri::We
     #[cfg(target_os = "windows")]
     let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
         .decorations(false)
+        // ── 托管默认:WebView2 用户数据目录（EBWV）─────────────────
+        // 上游默认落在 `%LOCALAPPDATA%\com\.workbuddy\.local-proxy`（Tauri 按
+        // identifier 兜底）。我们的托管形态是把 EBWV 目录做成指向共享 Chromium
+        // 配置区的目录联接，主窗口这一份固定指向 `easykeysy-Agent2API_fork`
+        // 子目录，使本程序的 profile 数据单独隔离，不再复用共享 profile。
+        // 显式 data_directory 提前覆盖 identifier 兜底；环境变量可另设（未设置
+        // 即用本默认）。
+        .data_directory(ebwv_data_dir())
         .additional_browser_args(
             "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
              --disable-background-timer-throttling \

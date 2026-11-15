@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Pre-commit hook: LAW-1 (no agentic footer) + LAW-10 (binding-docs sub-repo clean)
+# + LAW-4 (stale genesis-SHA advisory). Canonical copy lives in .git-hooks/
+# (tracked by git); see LAW-12 for the clone-resurrection rule.
+set -euo pipefail
+
+fail() { echo "pre-commit: $*" >&2; exit 1; }
+
+# ---------- Gate 1: LAW-1 — no agentic footers in this commit ----------
+# 1a) Commit message
+MSG_FILE="$(git rev-parse --git-path COMMIT_EDITMSG 2>/dev/null || echo .git/COMMIT_EDITMSG)"
+if [ -f "$MSG_FILE" ]; then
+  if grep -qE 'Generated with|Co-Authored-By:' "$MSG_FILE"; then
+    fail "LAW-1: commit message contains an agentic footer. Remove it and re-stage."
+  fi
+fi
+
+# 1b) Staged diff body — anchored patterns catch a footer only at line start
+# after the '+' diff marker, optionally wrapped in bold markup. This hook's
+# own prose mentions of the footer phrases appear mid-sentence and never
+# match, so the canonical hook may live in the tracked tree.
+if git diff --cached -U0 | grep -qE '^\+[[:space:]]*(\*\*)?Generated with' || \
+   git diff --cached -U0 | grep -qE '^\+[[:space:]]*(\*\*)?Co-Authored-By:'; then
+  fail "LAW-1: staged diff adds an agentic footer line. Remove it and re-stage."
+fi
+
+# ---------- Gate 2: LAW-10 — binding-docs sub-repo must be clean ----------
+BINDING_DIR="binding-docs"
+if [ -d "$BINDING_DIR" ]; then
+  if [ -n "$(git -C "$BINDING_DIR" status --porcelain)" ]; then
+    fail "LAW-10: $BINDING_DIR has uncommitted changes. Commit in the sub-repo first, then retry the parent commit."
+  fi
+  if ! git -C "$BINDING_DIR" log -1 --format=%H >/dev/null 2>&1; then
+    fail "LAW-10: $BINDING_DIR sub-repo has no commits yet. Make the genesis binding commit first."
+  fi
+fi
+
+# ---------- Gate 3: LAW-4 — genesis SHA assertion drift (advisory only) ----------
+if [ -f "$BINDING_DIR/AGENTS.md" ]; then
+  if grep -nE '^[[:space:]]*- 提交 SHA' "$BINDING_DIR/AGENTS.md" | grep -q '652879a'; then
+    echo "pre-commit: NOTE: $BINDING_DIR/AGENTS.md commit-SHA bullet asserts 652879a (stale draft); per LAW-4.R the measured SHA wins. Update the bullet." >&2
+  fi
+fi
+
+# ---------- Gate 5: LAW-14 — no credentials in the staged tree ----------
+# Catch credential-shaped content being *added*: sk- prefixed keys,
+# user:pass@ DSNs, PEM private-key headers, client_secret/password
+# assignments. .example templates with $PLACEHOLDERS are allowed.
+if git diff --cached -U0 | grep -qE '^\+(.)*(sk-[A-Za-z0-9]{20,}|(postgres|mysql|mongodb|redis)://[^/ ]+:[^/ ]+@|BEGIN [A-Z ]*PRIVATE KEY|client_secret\s*[:=]\s*\S+)' &&    ! [ -f ".git-hooks/.gate5-allow" ]; then
+  fail "LAW-14: staged diff adds credential-shaped content. Move the real value to a local env var / machine-private store and keep only placeholders in-tree."
+fi
+
+# ---------- Gate 4: LAW-13 — no build/test/runtime intermediates in tree ----------
+# Reject any staged *new* file whose path matches intermediate-artifact
+# patterns. The pattern list is a one-line literal in this hook; it never
+# appears as an added file path, so Gate 4 cannot trip on its own text.
+if git diff --cached -U0 --name-status | awk '$1=="A" {print $2}' |    grep -qE '\.(pyc|pyo|log|tmp|bak|orig|db)$|__pycache__|^target/|^dist/|^build/|^node_modules/|^\.gradle/|^\.idea/|^kv\.json$|^data/|^\.agenttest2/|^\.zcode/|^\.verify/|^prototype/'; then
+  fail "LAW-13: staged diff adds build/test/runtime intermediate artifacts. Add the pattern to .gitignore and unstage the file."
+fi
+
+# ---------- Gate 0: LAW-12 — resurrect this hook on every clone ----------
+# .git/hooks/ does not propagate through clone. The canonical hook is in
+# .git-hooks/ (tracked); when a fresh machine has no core.hooksPath yet,
+# this self-installs it so the gates survive every clone unattended.
+if [ "$(git config --get core.hooksPath)" != ".git-hooks" ]; then
+  git config core.hooksPath .git-hooks
+  echo "pre-commit: LAW-12 installed: core.hooksPath -> .git-hooks (auto-resurrect on clone)" >&2
+fi
+
+exit 0

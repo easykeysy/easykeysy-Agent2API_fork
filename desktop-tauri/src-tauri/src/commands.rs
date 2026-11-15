@@ -352,8 +352,19 @@ pub async fn change_lan_access(app: AppHandle, enabled: bool, panel: bool) -> Re
 
     let mut created_key = None;
     if enabled && crate::server::config::current().active_api_keys().is_empty() {
-        let entry = crate::server::core::api_keys::add("默认", None, Vec::new(), Vec::new())
-            .map_err(|message| format!("自动创建网关 Key 失败: {message}"))?;
+        let entry = crate::server::core::api_keys::add(
+            "默认",
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .map_err(|message| format!("自动创建网关 Key 失败: {message}"))?;
         crate::server::logging::log(
             "[Config]",
             &format!("✅ 已自动创建网关 Key「{}」（局域网访问开启流程）", entry.name),

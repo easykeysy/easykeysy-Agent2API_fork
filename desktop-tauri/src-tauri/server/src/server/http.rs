@@ -983,6 +983,9 @@ pub fn gateway_router(state: ServerState) -> Router {
         .route("/v1/messages/count_tokens", post(api::chat::count_tokens))
         .route("/v1/images/generations", post(api::images::generations))
         .route("/v1/images/edits", post(api::images::edits))
+        // 消费者自助查询：返回当前 Key 的身份、scope、治理限制与用量/剩余。
+        // 只读，不计入请求配额（中间件对该路径走 count=false）。
+        .route("/v1/key/info", get(api::model_access::key_info))
         // 工具服务的既有协议入口：/skill 与 /mcp 不在 /v1 也不在 /api 下，
         // `require_api_key` 对它们不做任何判定（见该中间件的分支），所以鉴权
         // 必须由 handler 自己做 —— 这正是 `api::tool_runtime` 的做法。
@@ -1174,7 +1177,9 @@ fn attach_cors(headers: &mut axum::http::HeaderMap) {
 async fn require_api_key(mut request: Request, next: Next) -> Response {
     let path = request.uri().path().to_string();
     if path.starts_with("/v1/") {
-        let access = match api::model_access::authenticate(request.headers(), "") {
+        // /v1/key/info 是自助只读查询，不计入请求配额/RPM（handler 也以 count=false 认证）。
+        let count = path != "/v1/key/info";
+        let access = match api::model_access::authenticate(request.headers(), "", count) {
             Ok(access) => access,
             Err(error) => return error.payload_response(),
         };
@@ -1184,7 +1189,7 @@ async fn require_api_key(mut request: Request, next: Next) -> Response {
         }
         return next.run(request).await;
     }
-    let model_access = api::model_access::authenticate(request.headers(), "").ok();
+    let model_access = api::model_access::authenticate(request.headers(), "", true).ok();
     let panel_session = crate::server::access::session_valid(request.headers());
     if !panel_session {
         if let Some(access) = &model_access {
