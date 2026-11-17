@@ -137,6 +137,48 @@ jobs:
           cp -f ../build-windows.log ../out/windows/ 2>/dev/null || true
           echo "Collected windows outputs:"; find ../out/windows -type f -maxdepth 4 2>/dev/null | sed 's#^\.\./out/windows/##' || true
 
+      - name: Resolve release tag
+        id: release
+        if: always()
+        shell: bash
+        run: |
+          publish="${{ github.event.inputs.publish || 'true' }}"
+          tag=""
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+          elif [[ "$publish" == "true" ]]; then
+            tag="${{ github.event.inputs.release_tag || '' }}"
+            if [[ -z "$tag" ]]; then
+              # No explicit tag: auto-derive v{version}-fork.{N+1} from the
+              # highest existing fork tag so every dispatch lands its binaries
+              # on the Releases page.
+              version=$(node -p "require('./package.json').version")
+              prefix="v${version}-fork."
+              tags=$(git ls-remote --tags origin "v${version}-fork.*") || { echo "::error::git ls-remote failed while deriving the release tag"; exit 1; }
+              max=0
+              while read -r t; do
+                n="${t#"$prefix"}"
+                if [[ "$n" =~ ^[0-9]+$ ]] && (( 10#$n > max )); then
+                  max=$n
+                fi
+              done < <(printf '%s\n' "$tags" | sed 's#.*refs/tags/##' | grep -vF '^{}')
+              tag="${prefix}$((max + 1))"
+              echo "Auto-derived release tag: $tag"
+            fi
+          fi
+          if [[ -n "$tag" && ! "$tag" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
+            echo "::error::Invalid release tag: $tag"
+            exit 1
+          fi
+          if [[ -z "$tag" ]]; then
+            if [[ "$publish" == "true" ]]; then
+              echo "::error::No proper release tag resolved (ref: ${GITHUB_REF}); failing before release-asset preparation."
+              exit 1
+            fi
+            echo "Publishing disabled (publish=false): skipping release upload, artifacts only."
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       - name: Prepare release assets
         if: always()
         shell: bash
@@ -177,41 +219,6 @@ jobs:
           path: out/windows
           if-no-files-found: warn
           retention-days: 30
-
-      - name: Resolve release tag
-        id: release
-        if: always()
-        shell: bash
-        run: |
-          publish="${{ github.event.inputs.publish || 'true' }}"
-          tag=""
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            tag="${GITHUB_REF_NAME}"
-          elif [[ "$publish" == "true" ]]; then
-            tag="${{ github.event.inputs.release_tag || '' }}"
-            if [[ -z "$tag" ]]; then
-              # No explicit tag: auto-derive v{version}-fork.{N+1} from the
-              # highest existing fork tag so every dispatch lands its binaries
-              # on the Releases page.
-              version=$(node -p "require('./package.json').version")
-              prefix="v${version}-fork."
-              tags=$(git ls-remote --tags origin "v${version}-fork.*") || { echo "::error::git ls-remote failed while deriving the release tag"; exit 1; }
-              max=0
-              while read -r t; do
-                n="${t#"$prefix"}"
-                if [[ "$n" =~ ^[0-9]+$ ]] && (( 10#$n > max )); then
-                  max=$n
-                fi
-              done < <(printf '%s\n' "$tags" | sed 's#.*refs/tags/##' | grep -vF '^{}')
-              tag="${prefix}$((max + 1))"
-              echo "Auto-derived release tag: $tag"
-            fi
-          fi
-          if [[ -n "$tag" && ! "$tag" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
-            echo "::error::Invalid release tag: $tag"
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Publish to GitHub Release
         if: always() && steps.release.outputs.tag != '' && hashFiles('out/release-windows/*') != ''
@@ -319,31 +326,6 @@ jobs:
           cp -f ../build-linux.log ../out/linux/ 2>/dev/null || true
           echo "Collected linux outputs:"; find ../out/linux -type f -maxdepth 4 2>/dev/null | sed 's#^\.\./out/linux/##' || true
 
-      - name: Prepare release assets
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          mkdir -p ../out/release-linux
-          find ../out/linux -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
-          if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
-            find ../out/linux -maxdepth 1 -type f -perm -111 \( -name 'agent2api*' -o -name 'workbuddy*' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
-          fi
-          echo "Release assets (linux):"; ls -la ../out/release-linux 2>/dev/null || true
-          if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
-            echo "::error::Build produced no release assets (expected Agent2API_${{ steps.expected.outputs.version }}_amd64.AppImage). See build-linux.log inside the linux-binaries artifact."
-            exit 1
-          fi
-
-      - name: Upload workflow artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-binaries
-          path: out/linux
-          if-no-files-found: warn
-          retention-days: 30
-
       - name: Resolve release tag
         id: release
         if: always()
@@ -377,7 +359,39 @@ jobs:
             echo "::error::Invalid release tag: $tag"
             exit 1
           fi
+          if [[ -z "$tag" ]]; then
+            if [[ "$publish" == "true" ]]; then
+              echo "::error::No proper release tag resolved (ref: ${GITHUB_REF}); failing before release-asset preparation."
+              exit 1
+            fi
+            echo "Publishing disabled (publish=false): skipping release upload, artifacts only."
+          fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release assets
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mkdir -p ../out/release-linux
+          find ../out/linux -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage.tar.gz*' -o -name '*.sig' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
+          if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
+            find ../out/linux -maxdepth 1 -type f -perm -111 \( -name 'agent2api*' -o -name 'workbuddy*' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
+          fi
+          echo "Release assets (linux):"; ls -la ../out/release-linux 2>/dev/null || true
+          if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
+            echo "::error::Build produced no release assets (expected Agent2API_${{ steps.expected.outputs.version }}_amd64.AppImage). See build-linux.log inside the linux-binaries artifact."
+            exit 1
+          fi
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: out/linux
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Publish to GitHub Release
         if: always() && steps.release.outputs.tag != '' && hashFiles('out/release-linux/*') != ''
