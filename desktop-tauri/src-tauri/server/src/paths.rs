@@ -34,14 +34,12 @@ fn env_path(name: &str) -> Option<PathBuf> {
     }
 }
 
-/// Default config dir: with a ramdisk, `{RAMDISK_ROOT}/Agent2API` (fork default;
-/// subdirs are auto-created at startup — the ramdisk is wiped on every reboot); otherwise falls back to
-/// `{user home}/.agent2api`.
+/// Default config dir: `{user home}/.agent2api` (upstream behavior; subdirs are
+/// auto-created at startup). Primary configuration (the db, `account.key`) must
+/// survive reboots, so it never goes on the ramdisk (LAW-9.R4) — only the
+/// disposable side dirs do (see `side_dir`).
 #[cfg(not(test))]
 fn default_config_dir() -> PathBuf {
-    if let Some(ramdisk) = ramdisk_root() {
-        return ensure_layout(ramdisk.join("Agent2API"));
-    }
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
         .unwrap_or_else(|_| ".".to_string());

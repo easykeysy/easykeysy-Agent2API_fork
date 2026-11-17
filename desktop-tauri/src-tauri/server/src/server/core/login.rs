@@ -996,7 +996,11 @@ pub(crate) fn set_plugin_login_hint(handle: &LoginTaskHandle, hint: Option<&str>
     });
 }
 
-/// 标记任务完成并写入会话摘要
+/// Marks the login task as finished and writes the session summary.
+// rustc 1.95.0 ICE: the annotate-snippets renderer panics (StyledBuffer::replace
+// slice index) while rendering the dead_code warning snippet for this unused
+// function, so the lint is allowed to keep compilation working on that toolchain.
+#[allow(dead_code)]
 fn finish_task(handle: &LoginTaskHandle, session: &Value) {
     let summary = json!({
         "accountUid": session
