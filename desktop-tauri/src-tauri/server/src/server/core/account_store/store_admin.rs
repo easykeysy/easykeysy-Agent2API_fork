@@ -755,7 +755,7 @@ impl AccountStore {
         if provider_added > 0 {
             logging::log(
                 "[Accounts]",
-                &format!("🏷️  已为 {provider_added} 个历史账号补全 provider 字段（{DEFAULT_PROVIDER_ID}）"),
+                &format!("🏷️  已为 {provider_added} 个历史账号补全 provider 字段（{DEFAULT_PROVIDER_ID})"),
             );
         }
 
@@ -831,7 +831,7 @@ impl AccountStore {
             });
         }
         if codearts_limiters > 0 {
-            logging::log("[Accounts]", &format!("已移除 {codearts_limiters} 个 CodeArts 账号的过期活动 Token 限制；无其他规则时改用总积分保护"));
+            logging::log("[Accounts]", &format!("已移除 {codearts_limiters} total CodeArts 账号的过期活动 Token 限制；无其他规则时改用总积分保护"));
         }
         if cline_renamed > 0 {
             logging::log(
@@ -854,7 +854,7 @@ impl AccountStore {
             logging::log(
                 "[Accounts]",
                 &format!(
-                    "🔀 Qoder 已按地区归位 {qoder_moved} 个账号\
+                    "🔀 Qoder 已按地区归位 {qoder_moved} accounts\
                      （凭证、优先级、限流记录与账号 id 均未改动）"
                 ),
             );

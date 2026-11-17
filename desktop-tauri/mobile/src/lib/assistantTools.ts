@@ -78,7 +78,7 @@ function rows(value: unknown): Array<Record<string, unknown>> {
 /** 账号点名：id 精确 > 名字精确 > 名字子串（唯一命中才算） */
 function findAccount(accounts: Account[], ref: string): Account {
   const needle = ref.trim()
-  if (!needle) throw new Error(t('没给账号名'))
+  if (!needle) throw new Error(t('No account name given'))
   const byId = accounts.find(row => row.id === needle)
   if (byId) return byId
   const exact = accounts.filter(row => accountName(row) === needle)
@@ -86,11 +86,11 @@ function findAccount(accounts: Account[], ref: string): Account {
   const fuzzy = accounts.filter(row => accountName(row).includes(needle))
   if (fuzzy.length === 1) return fuzzy[0]
   const candidates = (exact.length ? exact : fuzzy).map(accountName).slice(0, 6)
-  if (!candidates.length) throw new Error(t('没有找到账号「{name}」', { name: needle }))
+  if (!candidates.length) throw new Error(t('No account found named "{name}"', { name: needle }))
   throw new Error(
-    t('「{name}」匹配到多个账号：{list}，请用完整账号名重试', {
+    t('"{name}" matches multiple accounts: {list}. Retry with the full account name.', {
       name: needle,
-      list: candidates.join('、'),
+      list: candidates.join(', '),
     }),
   )
 }
@@ -105,7 +105,7 @@ async function readAccounts(): Promise<Account[]> {
 
 async function readModels(): Promise<AssistantModelView> {
   const [view, custom] = await Promise.all([fetchManage(), readCustomModelView()])
-  if (!Array.isArray(view.models) || !Array.isArray(view.mappings)) throw new Error(t('读取模型清单失败'))
+  if (!Array.isArray(view.models) || !Array.isArray(view.mappings)) throw new Error(t('Failed to load the model list'))
   return {
     models: [...view.models, ...custom.models],
     mappings: [...view.mappings, ...custom.mappings],
@@ -126,21 +126,21 @@ const listAccountBalance: AssistantTool = createBalanceTool({
 /** 3 · 启用 / 禁用模型（改动） */
 const setModelEnabledTool: AssistantTool = {
   id: 'set_model_enabled',
-  label: t('启用 / 禁用模型'),
+  label: t('Enable / disable models'),
   kind: 'write',
-  desc: '开启或关闭某几个模型在网关上的可用性（粒度是「提供商 × 模型」）。禁用后下游请求不再路由到它。一次可以改多个。',
+  desc: 'Turn on or off the availability of one or more models on the gateway (at the granularity of "provider× model"). Once disabled, downstream requests are no longer routed to it. Several can be changed at once.',
   params: {
     type: 'object',
     properties: {
       items: {
         type: 'array',
-        description: '要改的模型列表',
+        description: 'The model list to change',
         items: {
           type: 'object',
           properties: {
-            provider: { type: 'string', description: '提供商 id' },
-            id: { type: 'string', description: '模型 ID' },
-            enabled: { type: 'boolean', description: 'true = 启用，false = 禁用' },
+            provider: { type: 'string', description: 'Provider id' },
+            id: { type: 'string', description: 'Model ID' },
+            enabled: { type: 'boolean', description: 'true = Enable, false= Disable' },
           },
           required: ['provider', 'id', 'enabled'],
         },
@@ -152,32 +152,32 @@ const setModelEnabledTool: AssistantTool = {
     const provider = str(item.provider)
     const id = str(item.id)
     const enabled = bool(item.enabled)
-    if (!provider || !id || enabled === undefined) throw new Error(t('参数不完整（需要 provider / id / enabled）'))
+    if (!provider || !id || enabled === undefined) throw new Error(t('Incomplete parameters (provider / id / enabled required)'))
     if (isCustomModelProvider(provider)) await setCustomBinding(provider, id, id, enabled, context)
     else await setModelEnabled({ provider, id, enabled })
-    return `${enabled ? '启用' : '禁用'} ${provider}/${id}`
+    return `${enabled ? 'enabled' : 'Disable'} ${provider}/${id}`
   }, t),
 }
 
 /** 4 · 设置模型映射 ID（改动） */
 const setModelMapping: AssistantTool = {
   id: 'set_model_mapping',
-  label: t('设置模型映射 ID'),
+  label: t('Set model mapping ID'),
   kind: 'write',
-  desc: '给模型新增或删除映射名（对外名）。同一对外名可以在多个提供商各挂一条：下游用同一个名字请求，网关按账号优先级主备切换；也可以给不同家的同名模型各加前缀来精确指定某一家。一次可以改多条。删掉的映射名只是不再对外可用，不删任何模型。',
+  desc: 'Add or remove mapping names (external names) for a model. The same external name may be registered on multiple providers: downstream clients request with the same name, and the gateway failovers between providers by account priority; you can also prefix same-named models from different providers to target one specific provider. Multiple mappings can be changed in one call. Removing a mapping name only makes it unavailable to external clients; no model is deleted.",',
   params: {
     type: 'object',
     properties: {
       items: {
         type: 'array',
-        description: '要改的映射列表',
+        description: 'The mapping list to change',
         items: {
           type: 'object',
           properties: {
-            provider: { type: 'string', description: '提供商 id' },
-            id: { type: 'string', description: '上游模型 ID' },
-            alias: { type: 'string', description: '要新增 / 删除的映射名（对外名）' },
-            action: { type: 'string', enum: ['add', 'remove'], description: 'add = 新增，remove = 删除' },
+            provider: { type: 'string', description: 'Provider id' },
+            id: { type: 'string', description: 'Upstream model ID' },
+            alias: { type: 'string', description: 'The mapping names (outward-facing names) to add / remove' },
+            action: { type: 'string', enum: ['add', 'remove'], description: 'add = add, remove= Delete' },
           },
           required: ['provider', 'id', 'alias', 'action'],
         },
@@ -190,47 +190,47 @@ const setModelMapping: AssistantTool = {
     const target = str(item.id)
     const alias = str(item.alias, 128)
     const action = str(item.action)
-    if (!provider || !target || !alias || !['add', 'remove'].includes(action)) throw new Error(t('参数不完整（需要 provider / id / alias / action）'))
+    if (!provider || !target || !alias || !['add', 'remove'].includes(action)) throw new Error(t('Incomplete parameters (provider / id / alias / action required)'))
     if (isCustomModelProvider(provider)) {
       if (action === 'remove') await removeCustomMapping(provider, alias, target, context)
       else await setCustomBinding(provider, alias, target, true, context)
     } else {
       await apiCall(`/api/models/mappings${action === 'remove' ? '/remove' : ''}`, { method: 'POST', body: { provider, target, alias } })
     }
-    return `${action === 'remove' ? '删除' : '新增'} ${alias} → ${provider}/${target}`
+    return `${action === 'remove' ? 'Delete' : 'Added'} ${alias} → ${provider}/${target}`
   }, t),
 }
 
 /** 5 · 修改模型能力（改动） */
 const CAPABILITY_LABELS: Record<string, string> = {
-  maxInputTokens: t('上下文窗口'),
-  maxOutputTokens: t('最大输出 Token'),
-  supportsToolCall: t('工具调用'),
-  supportsImages: t('图片识别'),
-  supportsVideo: t('视频识别'),
-  supportsReasoning: t('深度推理'),
+  maxInputTokens: t('Context window'),
+  maxOutputTokens: t('Max output tokens'),
+  supportsToolCall: t('Tool calling'),
+  supportsImages: t('Image recognition'),
+  supportsVideo: t('Video recognition'),
+  supportsReasoning: t('Deep reasoning'),
 }
 
 const setModelCapability: AssistantTool = {
   id: 'set_model_capability',
-  label: t('修改模型能力'),
+  label: t('Edit model capabilities'),
   kind: 'write',
-  desc: '修改某个模型对下游声明的能力位：上下文窗口、最大输出 Token、工具调用 / 图片 / 视频 / 深度推理四个布尔位。只传要改的键；布尔位给 null 表示恢复上游原值。',
+  desc: 'Change the capability flags a model declares downstream: context window, max output tokens, and four booleans — tool calling / Images / Videos / deep reasoning. Only pass the keys you want to change; null restores the upstream original value for a boolean.",',
   params: {
     type: 'object',
     properties: {
-      provider: { type: 'string', description: '提供商 id' },
-      id: { type: 'string', description: '模型 ID' },
+      provider: { type: 'string', description: 'Provider id' },
+      id: { type: 'string', description: 'Model ID' },
       capabilities: {
         type: 'object',
-        description: '要改的能力位（只写要改的键）',
+        description: 'The capability bits to change (write only the keys to change)',
         properties: {
-          maxInputTokens: { type: ['number', 'null'], description: '上下文窗口（token 数）' },
-          maxOutputTokens: { type: ['number', 'null'], description: '最大输出 token 数' },
-          supportsToolCall: { type: ['boolean', 'null'], description: '是否支持工具调用' },
-          supportsImages: { type: ['boolean', 'null'], description: '是否支持图片识别' },
-          supportsVideo: { type: ['boolean', 'null'], description: '是否支持视频识别' },
-          supportsReasoning: { type: ['boolean', 'null'], description: '是否支持深度推理' },
+          maxInputTokens: { type: ['number', 'null'], description: 'Context window (token count)' },
+          maxOutputTokens: { type: ['number', 'null'], description: 'Maximum output token count' },
+          supportsToolCall: { type: ['boolean', 'null'], description: 'Whether tool calling is supported' },
+          supportsImages: { type: ['boolean', 'null'], description: 'Whether image recognition is supported' },
+          supportsVideo: { type: ['boolean', 'null'], description: 'Whether video recognition is supported' },
+          supportsReasoning: { type: ['boolean', 'null'], description: 'Whether deep reasoning is supported' },
         },
       },
     },
@@ -253,24 +253,24 @@ const setModelCapability: AssistantTool = {
       }
       if (key === 'maxInputTokens' || key === 'maxOutputTokens') {
         const value2 = num(value)
-        if (value2 === undefined) throw new Error(t('{key} 需要数字', { key: CAPABILITY_LABELS[key] }))
+        if (value2 === undefined) throw new Error(t('{key} must be a number', { key: CAPABILITY_LABELS[key] }))
         caps[key] = Math.round(value2)
       } else {
         const value2 = bool(value)
         if (value2 === undefined) {
-          throw new Error(t('{key} 需要 true / false / null', { key: CAPABILITY_LABELS[key] }))
+          throw new Error(t('{key} must be true / false / null', { key: CAPABILITY_LABELS[key] }))
         }
         caps[key] = value2
       }
     }
     if (!provider || !id || !Object.keys(caps).length) {
-      throw new Error(t('参数不完整（需要 provider / id / capabilities）'))
+      throw new Error(t('Incomplete parameters (provider / id / capabilities required)'))
     }
     if (isCustomModelProvider(provider)) await setCustomCapabilities(provider, id, caps, context)
     else await apiCall('/api/models/capabilities', { method: 'POST', body: { provider, id, capabilities: caps } })
     return {
       text: JSON.stringify({ ok: true, provider, id, capabilities: caps }),
-      summary: t('已修改 {n} 项能力', { n: Object.keys(caps).length }),
+      summary: t('Changed {n} capabilities', { n: Object.keys(caps).length }),
     }
   },
 }
@@ -278,21 +278,21 @@ const setModelCapability: AssistantTool = {
 /** 6 · 发起模型测试（消耗额度） */
 const testModel: AssistantTool = {
   id: 'test_model',
-  label: t('发起模型测试'),
+  label: t('Run a model test'),
   kind: 'run',
-  desc: '对某个模型发一次真实的对话请求，回报连通性、耗时与首字延迟。会消耗该账号的额度。回答「这个模型通不通 / 快不快」时用它。',
+  desc: 'Send one real chat request to a given model and report connectivity, duration, and time to first token. This consumes the account\'s quota. Use it to answer "does this model work / is it fast".",',
   params: {
     type: 'object',
     properties: {
-      provider: { type: 'string', description: '提供商 id' },
-      id: { type: 'string', description: '模型 ID' },
-      prompt: { type: 'string', description: '测试用的用户提示词；不填 = 默认一句问候' },
+      provider: { type: 'string', description: 'Provider id' },
+      id: { type: 'string', description: 'Model ID' },
+      prompt: { type: 'string', description: 'The user prompt used for testing; leave blank= One greeting by default' },
     },
     required: ['provider', 'id'],
   },
   run: async (args, context) => {
     checkToolSignal(context)
-    if (!context?.apiKey) throw new Error(t('请先选择一把 API Key'))
+    if (!context?.apiKey) throw new Error(t('Select an API Key first'))
     const testId = crypto.randomUUID()
     const payload: Record<string, unknown> = { provider: str(args.provider), model: str(args.id), test_id: testId }
     const prompt = str(args.prompt, 4000)
@@ -319,8 +319,8 @@ const testModel: AssistantTool = {
     return {
       text: JSON.stringify(slim),
       summary: ok
-        ? t('连通 · {ms}ms', { ms: String(slim.duration_ms ?? '') })
-        : t('失败 · {status}', { status: status || '—' }),
+        ? t('Reachable · {ms}ms', { ms: String(slim.duration_ms ?? '') })
+        : t('Failed · {status}', { status: status || '—' }),
     }
   },
 }
@@ -328,14 +328,14 @@ const testModel: AssistantTool = {
 /** 7 · 调整提供商顺位（改动）—— 整组移动 */
 const setProviderOrder: AssistantTool = {
   id: 'set_provider_order',
-  label: t('调整提供商顺位'),
+  label: t('Reorder providers'),
   kind: 'write',
-  desc: '调整某个提供商在账号全局队列里的**整组顺位**（第几组），决定路由时先试哪一家。这一家的所有账号会作为一整块移动。位置从 1 开始数。',
+  desc: 'Adjusts the **whole-group position** (which group number) of a given provider in the account global queue, deciding which provider is tried first at routing time. All of that provider\'s accounts move as one block. Positions are counted from 1.",',
   params: {
     type: 'object',
     properties: {
-      provider: { type: 'string', description: '提供商 id' },
-      position: { type: 'number', description: '目标组顺位（1 = 最前）' },
+      provider: { type: 'string', description: 'Provider id' },
+      position: { type: 'number', description: 'The target group position (1= at the very front)' },
     },
     required: ['provider', 'position'],
   },
@@ -344,12 +344,12 @@ const setProviderOrder: AssistantTool = {
     const provider = str(args.provider).toLowerCase()
     const position = num(args.position)
     if (!provider || position === undefined) {
-      throw new Error(t('参数不完整（需要 provider / position）'))
+      throw new Error(t('Incomplete parameters (provider / position required)'))
     }
     const accounts = await readAccounts()
     const groups = providerGroups(accounts)
     const from = groups.findIndex(group => group.provider === provider)
-    if (from < 0) throw new Error(t('没有找到提供商「{provider}」的账号', { provider }))
+    if (from < 0) throw new Error(t('No accounts found for provider "{provider}"', { provider }))
     const to = Math.max(0, Math.min(groups.length - 1, Math.round(position) - 1))
     const [moved] = groups.splice(from, 1)
     groups.splice(to, 0, moved)
@@ -360,7 +360,7 @@ const setProviderOrder: AssistantTool = {
     })
     return {
       text: JSON.stringify({ ok: true, provider, from: from + 1, to: to + 1, moved: moved.ids.length }),
-      summary: t('已移到第 {n} 顺位', { n: to + 1 }),
+      summary: t('Moved to position {n}', { n: to + 1 }),
     }
   },
 }
@@ -368,14 +368,14 @@ const setProviderOrder: AssistantTool = {
 /** 8 · 调整账号优先级（改动） */
 const setAccountOrder: AssistantTool = {
   id: 'set_account_order',
-  label: t('调整账号优先级'),
+  label: t('Adjust account priority'),
   kind: 'write',
-  desc: '把某个账号移动到账号全局队列的第 N 顺位（1 = 最前）。位置决定主备与切换顺序：越靠前越先被使用。',
+  desc: 'Move a given account to position N in the account global queue (1= at the very front). Position decides the primary/backup and failover order: the earlier, the sooner it is used.',
   params: {
     type: 'object',
     properties: {
-      account: { type: 'string', description: '账号名或账号 id' },
-      position: { type: 'number', description: '目标顺位（1 = 最前）' },
+      account: { type: 'string', description: 'The account name or account id' },
+      position: { type: 'number', description: 'The target position (1= at the very front)' },
     },
     required: ['account', 'position'],
   },
@@ -384,13 +384,13 @@ const setAccountOrder: AssistantTool = {
     const ref = str(args.account, 128)
     const position = num(args.position)
     if (!ref || position === undefined) {
-      throw new Error(t('参数不完整（需要 account / position）'))
+      throw new Error(t('Incomplete parameters (account / position required)'))
     }
     const accounts = await readAccounts()
     const target = findAccount(accounts, ref)
     const ids = accounts.map(row => row.id).filter(Boolean)
     const from = ids.indexOf(target.id)
-    if (from < 0) throw new Error(t('账号不在当前队列里'))
+    if (from < 0) throw new Error(t('The account is not in the current queue'))
     ids.splice(from, 1)
     const to = Math.max(0, Math.min(ids.length, Math.round(position) - 1))
     ids.splice(to, 0, target.id)
@@ -398,7 +398,7 @@ const setAccountOrder: AssistantTool = {
     await apiCall('/api/accounts/reorder', { method: 'POST', body: { queue: ids } })
     return {
       text: JSON.stringify({ ok: true, account: accountName(target), from: from + 1, to: to + 1 }),
-      summary: t('已移到第 {n} 顺位', { n: to + 1 }),
+      summary: t('Moved to position {n}', { n: to + 1 }),
     }
   },
 }
@@ -406,20 +406,20 @@ const setAccountOrder: AssistantTool = {
 /** 9 · 启用 / 禁用账号（高危） */
 const setAccountEnabledTool: AssistantTool = {
   id: 'set_account_enabled',
-  label: t('启用 / 禁用账号'),
+  label: t('Enable / disable accounts'),
   kind: 'write',
-  desc: '开启或关闭某几个账号的转发资格。禁用只是把它移出队列（余额仍可查），但如果某条线路只剩它，禁用会直接断供。一次可以改多个。',
+  desc: 'Turns the forwarding eligibility of one or more accounts on or off. Disabling only removes them from the queue (balance can still be queried), but if a line is left with only that account, disabling cuts it off outright. Several can be changed at once.",',
   params: {
     type: 'object',
     properties: {
       items: {
         type: 'array',
-        description: '要改的账号列表',
+        description: 'The account list to change',
         items: {
           type: 'object',
           properties: {
-            account: { type: 'string', description: '账号名或账号 id' },
-            enabled: { type: 'boolean', description: 'true = 启用，false = 禁用' },
+            account: { type: 'string', description: 'The account name or account id' },
+            enabled: { type: 'boolean', description: 'true = Enable, false= Disable' },
           },
           required: ['account', 'enabled'],
         },
@@ -432,10 +432,10 @@ const setAccountEnabledTool: AssistantTool = {
     const accounts = await readAccounts()
     return runToolBatch(rows(args.items), context, async item => {
       const enabled = bool(item.enabled)
-      if (enabled === undefined) throw new Error(t('参数不完整（需要 account / enabled）'))
+      if (enabled === undefined) throw new Error(t('Incomplete parameters (account / enabled required)'))
       const target = findAccount(accounts, str(item.account, 128))
       await setAccountEnabled(target.id, enabled)
-      return `${enabled ? '启用' : '禁用'} ${accountName(target)}`
+      return `${enabled ? 'enabled' : 'Disable'} ${accountName(target)}`
     }, t)
   },
 }

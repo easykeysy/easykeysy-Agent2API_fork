@@ -37,28 +37,28 @@ export function useAssistantAttachments(session: { current: string }) {
     const textFiles = list.filter(file => !file.type.startsWith('image/') && isTextCredentialFile(file))
     const unsupported = list.filter(file => !file.type.startsWith('image/') && !isTextCredentialFile(file))
     if (unsupported.length) {
-      toast(t('只支持图片和 JSON 凭证文件（.json / .info）；「{name}」已跳过。', { name: unsupported[0].name }), 'err')
+      toast(t('Only images and JSON credential files (.json / .info) are supported; "{name}" was skipped.', { name: unsupported[0].name }), 'err')
     }
 
     /* ── 图片（原有链路）────────────────────────────────── */
     if (imageFiles.length) {
       const oversized = imageFiles.find(file => file.size > MAX_IMAGE_BYTES)
       if (oversized) {
-        toast(t('「{name}」超过 {n} MB，换一张小一点的。', { name: oversized.name, n: MAX_IMAGE_BYTES / 1024 / 1024 }), 'err')
+        toast(t('"{name}" exceeds {n} MB; use a smaller one.', { name: oversized.name, n: MAX_IMAGE_BYTES / 1024 / 1024 }), 'err')
       } else {
         const room = MAX_IMAGES - imagesRef.current.length - pendingImagesRef.current
         if (room <= 0) {
-          toast(t('一次最多 {n} 张图片。', { n: MAX_IMAGES }), 'err')
+          toast(t('Up to {n} images at a time.', { n: MAX_IMAGES }), 'err')
         } else {
           const take = imageFiles.slice(0, room)
-          if (take.length < imageFiles.length) toast(t('一次最多 {n} 张图片，多出的没有添加。', { n: MAX_IMAGES }), 'warn')
+          if (take.length < imageFiles.length) toast(t('Up to {n} images at a time; additional images were not added.', { n: MAX_IMAGES }), 'warn')
           const owner = session.current
           pendingImagesRef.current += take.length
           syncReading()
           for (const file of take) {
             void prepareImage(file).then(url => {
               if (url && session.current === owner) setImages(current => current.length >= MAX_IMAGES ? current : [...current, url])
-            }).catch(error => toast(t('读取图片失败：{message}', { message: error instanceof Error ? error.message : String(error) }), 'err'))
+            }).catch(error => toast(t('Failed to read image: {message}', { message: error instanceof Error ? error.message : String(error) }), 'err'))
               .finally(() => {
                 pendingImagesRef.current = Math.max(0, pendingImagesRef.current - 1)
                 syncReading()
@@ -72,17 +72,17 @@ export function useAssistantAttachments(session: { current: string }) {
     if (textFiles.length) {
       const oversized = textFiles.find(file => file.size > MAX_TEXT_FILE_BYTES)
       if (oversized) {
-        toast(t('「{name}」超过 {n} MB，请换一个小一点的 JSON 文件，或去添加账号页导入。', {
+        toast(t('"{name}" is larger than {n} MB. Choose a smaller JSON file or import it from the Add Account page.', {
           name: oversized.name,
           n: MAX_TEXT_FILE_BYTES / 1024 / 1024,
         }), 'err')
       } else {
         const room = MAX_TEXT_FILES - filesRef.current.length - pendingFilesRef.current
         if (room <= 0) {
-          toast(t('一次最多 {n} 个文件。', { n: MAX_TEXT_FILES }), 'err')
+          toast(t('At most {n} files at a time.', { n: MAX_TEXT_FILES }), 'err')
         } else {
           const take = textFiles.slice(0, room)
-          if (take.length < textFiles.length) toast(t('一次最多 {n} 个文件，多出的没有添加。', { n: MAX_TEXT_FILES }), 'warn')
+          if (take.length < textFiles.length) toast(t('At most {n} files at a time; extra files were not added.', { n: MAX_TEXT_FILES }), 'warn')
           const owner = session.current
           pendingFilesRef.current += take.length
           syncReading()
@@ -91,11 +91,11 @@ export function useAssistantAttachments(session: { current: string }) {
               const text = raw.replace(/^\uFEFF/, '')
               if (session.current !== owner) return
               if (!text.trim()) {
-                toast(t('「{name}」是空文件。', { name: file.name }), 'err')
+                toast(t('"{name}" is empty.', { name: file.name }), 'err')
                 return
               }
               if (text.includes('\u0000')) {
-                toast(t('「{name}」看起来是二进制文件，助手只接收 JSON 文本。', { name: file.name }), 'err')
+                toast(t('"{name}" looks like a binary file; the assistant only accepts JSON text.', { name: file.name }), 'err')
                 return
               }
               setFiles(current => current.length >= MAX_TEXT_FILES ? current : [...current, {
@@ -104,7 +104,7 @@ export function useAssistantAttachments(session: { current: string }) {
                 text,
               }])
             }).catch(error => {
-              toast(t('读取文件失败：{message}', { message: error instanceof Error ? error.message : String(error) }), 'err')
+              toast(t('Failed to read file: {message}', { message: error instanceof Error ? error.message : String(error) }), 'err')
             }).finally(() => {
               pendingFilesRef.current = Math.max(0, pendingFilesRef.current - 1)
               syncReading()

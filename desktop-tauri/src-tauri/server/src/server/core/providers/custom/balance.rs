@@ -126,7 +126,7 @@ impl Scheme {
             Scheme::Sub2api | Scheme::DeepSeek | Scheme::Opencode | Scheme::ZhipuZai => {
                 "账号自己的 API Key"
             }
-            Scheme::NewApi => "查询设置里的访问令牌（Access Token）",
+            Scheme::NewApi => "查询设置里的访问令牌（Access Token)",
             Scheme::Sensenova => "查询设置里的账号与密码",
             Scheme::Zhipu => "查询设置里的控制台令牌",
         }
@@ -206,19 +206,19 @@ pub async fn query_usage(store: &AccountStore, account_id: &str) -> Result<Value
             Scheme::Sub2api => {
                 let key = require_api_key(&credential, scheme, label)?;
                 let url = build_url(&base_url, Api::Usage)?;
-                let payload = get_json(&url, &bearer(&key), proxy, &what("余额")).await?;
+                let payload = get_json(&url, &bearer(&key), proxy, &what("Balance")).await?;
                 parse::parse_sub2api(&payload).ok_or_else(|| invalid_response(label))
             }
             Scheme::DeepSeek => {
                 let key = require_api_key(&credential, scheme, label)?;
                 let url = build_url(&base_url, Api::DeepSeekBalance)?;
-                let payload = get_json(&url, &bearer(&key), proxy, &what("余额")).await?;
+                let payload = get_json(&url, &bearer(&key), proxy, &what("Balance")).await?;
                 parse::parse_deepseek(&payload).ok_or_else(|| invalid_response(label))
             }
             Scheme::Opencode => {
                 let key = require_api_key(&credential, scheme, label)?;
                 let url = build_url(&base_url, Api::Usage)?;
-                let payload = get_json(&url, &bearer(&key), proxy, &what("用量")).await?;
+                let payload = get_json(&url, &bearer(&key), proxy, &what("Usage")).await?;
                 parse::parse_opencode(&payload).ok_or_else(|| invalid_response(label))
             }
             Scheme::NewApi => query_new_api(&base_url, &query, proxy, label).await,
@@ -312,7 +312,7 @@ async fn query_zhipu_zai(
         GatewayError::with_status(
             400,
             format!(
-                "{label} 的 API Key 不是智谱的「id.secret」形态，无法用它查询余额：\
+                "{label} — see the API Key 不是智谱的「id.secret」形态，无法用它查询余额：\
                  请到 z.ai 控制台重新生成 API Key"
             ),
         )
@@ -421,7 +421,7 @@ async fn query_sensenova(
             format!("{}/console", sensenova_auth::PLATFORM_BASE),
         ),
     ];
-    let payload = get_json(&url, &headers, proxy, &format!("{label} 用量")).await?;
+    let payload = get_json(&url, &headers, proxy, &format!("{label} Usage")).await?;
     parse::parse_sensenova(&payload).ok_or_else(|| invalid_response(label))
 }
 
@@ -545,7 +545,7 @@ async fn get_json(
         let detail = describe_payload_error(&response.payload);
         return Err(GatewayError::with_status(
             status,
-            format!("{what}被上游拒绝（HTTP {}）{detail}", response.status),
+            format!("{what}被上游拒绝（HTTP {}){detail}", response.status),
         ));
     }
     response.payload.ok_or_else(|| {
@@ -569,7 +569,7 @@ fn describe_payload_error(payload: &Option<Value>) -> String {
         .map(str::trim)
         .filter(|text| !text.is_empty());
     match message {
-        Some(text) => format!("：{}", parse::shorten(text, 160)),
+        Some(text) => format!(": {}", parse::shorten(text, 160)),
         None => String::new(),
     }
 }

@@ -34,10 +34,10 @@ type WindowGroup = { id: string; name: string; rows: UsageWindowReading[] }
 
 function windowLabel(code: string): string {
   switch (code.trim().toLowerCase()) {
-    case '5h': return t('{n} 小时', { n: 5 })
-    case 'weekly': return t('每周')
-    case 'monthly': return t('每月')
-    case 'daily': return t('每日')
+    case '5h': return t('{n} h', { n: 5 })
+    case 'weekly': return t('Weekly')
+    case 'monthly': return t('Monthly')
+    case 'daily': return t('Daily')
     default: return code.trim()
   }
 }
@@ -111,7 +111,7 @@ function supplementaryReadings(entry: Record<string, unknown>, rows: UsageWindow
 
 function WindowReading({ row }: { row: UsageWindowReading }) {
   const value = row.percentText || row.view
-  const remaining = row.percent === null ? row.view : t('剩余 {percent}%', { percent: numberText(row.percent) })
+  const remaining = row.percent === null ? row.view : t('{percent}% left', { percent: numberText(row.percent) })
   return (
     <span className={`usage-window-item ${row.tone}`} title={`${row.label} · ${remaining}`}>
       <span className='usage-window-line'>
@@ -151,11 +151,11 @@ export function UsageWindowsCell({ entry, rows, updatedAt, creditDetail, childre
   const low = measured.some(row => row.percent !== null ? row.percent < 20 : row.remaining !== null && row.remaining <= 0)
   const unknown = measured.some(row => row.percent === null && row.remaining === null) || warnings.length > 0
   const informational = measured.length === 0 && rows.every(row => !row.unlimited)
-  const status = informational ? t('额度详情') : low ? t('部分窗口偏低') : unknown ? t('部分读数未知') : t('额度充足')
+  const status = informational ? t('Quota details') : low ? t('Some windows are low') : unknown ? t('Some readings are unknown') : t('Quota available')
   const tone = low ? 'warn' : unknown || informational ? 'muted' : 'ok'
   const age = updatedAt ? usageAgeText(updatedAt, t, Date.now()) : ''
-  const updateTitle = updatedAt ? t('上次成功查询：{time}', { time: formatTime(updatedAt) }) : ''
-  const caption = rows.every(row => row.percentText || row.view === '—') ? t('剩余比例') : t('分窗口额度')
+  const updateTitle = updatedAt ? t('Last successful query: {time}', { time: formatTime(updatedAt) }) : ''
+  const caption = rows.every(row => row.percentText || row.view === '—') ? t('Remaining percentage') : t('Quota by window')
   return (
     <span className='usage-cell usage-window-cell'>
       <span className='usage-window-quota'>
@@ -181,10 +181,10 @@ export function UsageWindowsCell({ entry, rows, updatedAt, creditDetail, childre
           </span>
           <Popover>
             <PopoverTrigger render={<Button type='button' size='xs' variant='ghost' className='usage-window-detail' />}>
-              {t('额度详情')}<span aria-hidden='true' className='usage-window-caret'>⌄</span>
+              {t('Quota details')}<span aria-hidden='true' className='usage-window-caret'>⌄</span>
             </PopoverTrigger>
             <PopoverContent align='end' sideOffset={6} className='usage-window-pop'>
-              <PopoverHeader><PopoverTitle>{t('窗口额度与时间')}</PopoverTitle></PopoverHeader>
+              <PopoverHeader><PopoverTitle>{t('Quota windows and timing')}</PopoverTitle></PopoverHeader>
               <div className='usage-window-pop-body'>
                 {rows.map(row => (
                   <div className='usage-window-reset' key={row.id}>
@@ -193,10 +193,10 @@ export function UsageWindowsCell({ entry, rows, updatedAt, creditDetail, childre
                       <span className={`usage-window-reset-value ${row.tone}`}>{row.percentText || row.view}</span>
                     </div>
                     {row.resetsAt !== null
-                      ? <time dateTime={new Date(row.resetsAt).toISOString()}>{t('重置 {date}', { date: formatTime(row.resetsAt) })}</time>
-                      : row.expiresAt === null ? <span className='usage-window-reset-unknown'>{t('未返回重置时间')}</span> : null}
+                      ? <time dateTime={new Date(row.resetsAt).toISOString()}>{t('Resets {date}', { date: formatTime(row.resetsAt) })}</time>
+                      : row.expiresAt === null ? <span className='usage-window-reset-unknown'>{t('Reset time unavailable')}</span> : null}
                     {row.expiresAt !== null ? <time dateTime={new Date(row.expiresAt).toISOString()}>
-                      {t('到期 {date}', { date: formatTime(row.expiresAt) })}
+                      {t('Expires {date}', { date: formatTime(row.expiresAt) })}
                     </time> : null}
                   </div>
                 ))}
@@ -205,7 +205,7 @@ export function UsageWindowsCell({ entry, rows, updatedAt, creditDetail, childre
                 </div> : null}
                 {warnings.map(line => <p className='usage-window-warning' key={line}>{t(line)}</p>)}
                 <PopoverDescription className='usage-window-explanation'>
-                  {t('各窗口独立限制请求，不相加为总余额。')}
+                  {t('Each window limits requests independently; they do not add up to a total balance.')}
                 </PopoverDescription>
               </div>
             </PopoverContent>

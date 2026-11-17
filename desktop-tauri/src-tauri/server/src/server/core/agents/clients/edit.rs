@@ -91,7 +91,7 @@ pub fn remove_models(def: &ClientDef, plan: &mut Plan, old: &Profile, wanted: &H
                     .map(|(key, _)| key.clone()).collect::<Vec<_>>()).unwrap_or_default();
                 for key in &keys { remove(&mut value, &["models", key]); }
                 if keys.iter().any(|key| value.pointer("/secondary_model/default_model").and_then(Value::as_str) == Some(key)) {
-                    return Err("移除的 Kimi 模型仍被子 Agent 默认配置使用，请先在客户端更换子 Agent 模型".into());
+                    return Err("移除的 Kimi 模型仍被子 Agent 默认配置使用，请先在客户端更换子 Agent Model".into());
                 }
                 if let Some(pool) = value.pointer_mut("/secondary_model/models").and_then(Value::as_object_mut) { for key in keys { pool.remove(&key); } }
             }

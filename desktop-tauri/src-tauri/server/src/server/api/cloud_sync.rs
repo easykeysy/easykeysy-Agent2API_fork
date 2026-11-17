@@ -155,7 +155,7 @@ fn is_config_error(message: &str) -> bool {
         return false;
     }
     message.contains("不能为空")
-        || message.contains("未启用")
+        || message.contains("Disabled")
         || message.contains("请先设置同步密码")
         || message.contains("未设置同步密码")
         || message.contains("至少需要")

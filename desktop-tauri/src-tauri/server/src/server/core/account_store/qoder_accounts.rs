@@ -115,7 +115,7 @@ impl AccountStore {
             Sha256::digest(user_id.as_deref().unwrap_or(identity).as_bytes()));
         if self.with_conn(guard, |conn| sql::load_by_id(conn, &id))
             .map_err(|error| error.message)?.is_some() {
-            return Err("Qoder 账号 ID 已被其它账号占用，请先核对账号记录".to_string());
+            return Err("Qoder Account ID 已被其它账号占用，请先核对账号记录".to_string());
         }
         Ok((id, None))
     }

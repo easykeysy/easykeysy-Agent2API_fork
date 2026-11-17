@@ -15,7 +15,7 @@ export function usePageAutoRefresh(id: PageRefreshTaskId) {
     const settings = createPageRefreshStore({
       list: () => fetchScheduledTasks(),
       save: (taskId, patch) => {
-        if (store.get().serverRevision !== serverRevision) return Promise.reject(new Error(t('服务器已切换，请重新加载页面')))
+        if (store.get().serverRevision !== serverRevision) return Promise.reject(new Error(t('The server has changed. Reload the page')))
         return patchScheduledTask(taskId, patch)
       },
     }, t)

@@ -124,7 +124,7 @@ impl PortConflict {
         match self.kind {
             ConflictKind::Occupied => "端口被占用",
             ConflictKind::Reserved => "端口被系统保留",
-            ConflictKind::Other => "网关启动失败",
+            ConflictKind::Other => "Gateway failed to start",
         }
     }
 }
@@ -134,24 +134,24 @@ fn describe(kind: ConflictKind, port: u16, occupant: Option<&Occupant>, detail: 
     match kind {
         ConflictKind::Occupied => match occupant {
             Some(who) if who.is_self => format!(
-                "端口 {port} 正被本程序占用（PID {}）。网关已在运行，无需重复启动。",
+                "Port {port} 正被本程序占用（PID {}）。网关已在运行，无需重复启动。",
                 who.pid
             ),
             Some(who) => format!(
-                "端口 {port} 被 {} 占用（PID {}）。结束该进程即可拿回端口。",
+                "Port {port} 被 {} 占用（PID {}）。结束该进程即可拿回端口。",
                 who.name, who.pid
             ),
             None => {
-                format!("端口 {port} 已被占用，但查不到是哪个进程在监听（可能是权限不足）。")
+                format!("Port {port} 已被占用，但查不到是哪个进程在监听（可能是权限不足）。")
             }
         },
         ConflictKind::Reserved => format!(
-            "端口 {port} 被系统保留，本机没有任何进程在监听它，因此结束进程无法解决。\
-             这类保留段通常由 Hyper-V / WSL2 / Docker 的虚拟网卡服务（winnat、hns）在\
+            "Port {port} 被系统保留，本机没有任何进程在监听它，因此结束进程无法解决。\
+             这类保留段通常由 Hyper-V / WSL2 / Docker 的虚拟网卡服务（winnat, hns）在\
              开机时划分，重启电脑只是碰运气（可能换一段保留，也可能照样撞上）。\
              请改用其它端口。"
         ),
-        ConflictKind::Other => format!("端口 {port} 无法监听：{detail}"),
+        ConflictKind::Other => format!("Port {port} 无法监听：{detail}"),
     }
 }
 
@@ -187,7 +187,7 @@ impl StartupFailure {
     pub fn other(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
-            label: "网关启动失败".to_string(),
+            label: "Gateway failed to start".to_string(),
             conflict: None,
             can_end_occupant: false,
         }

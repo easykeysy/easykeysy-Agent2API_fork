@@ -132,7 +132,7 @@
     const describeError = error => {
       if (error instanceof Error && error.message) return error.message;
       const text = String(error ?? '').trim();
-      return text || wbI18n.t('未知错误');
+      return text || wbI18n.t('Unknown error');
     };
 
     /**
@@ -186,12 +186,12 @@
       const bridge = window.workbuddyDesktop;
       if (!bridge?.startAutoclawOauth || !bridge?.getAutoclawOauthCaptchaConfig
         || !bridge?.startAutoclawOauthLogin) {
-        window.wbApp.toast(wbI18n.t('当前壳版本不支持 AutoClaw 网页登录，请更新应用'), 'err');
+        window.wbApp.toast(wbI18n.t('This app version does not support AutoClaw web login; update the app'), 'err');
         return;
       }
       busy = true;
       const flow = ++flowGeneration;
-      paintBusy(true, wbI18n.t('准备验证…'));
+      paintBusy(true, wbI18n.t('Preparing verification…'));
       setHint('');
       // 取消按钮从发起那一刻就挂着（理由见 paintCancel 的说明）
       paintCancel(true);
@@ -201,18 +201,18 @@
         // ① 风控配置。`enabled: false` = 这一家没有这条登录方式（国内版就是这个值）
         const captchaConfig = await bridge.getAutoclawOauthCaptchaConfig(prefix, proxy);
         if (!captchaConfig?.enabled) {
-          throw new CaptchaError(wbI18n.t('这一家当前不支持网页登录，请改用填写凭证'));
+          throw new CaptchaError(wbI18n.t('This provider does not support web login right now; use Enter credentials instead'));
         }
         if (!captchaConfig.prefix || !captchaConfig.sceneId) {
-          throw new CaptchaError(wbI18n.t('风控验证配置不完整，请稍后重试'));
+          throw new CaptchaError(wbI18n.t('Risk-control verification config is incomplete; try again later'));
         }
         // ②③ 跑验证码 → 拿验证串 → 换授权地址。**到此为止，不再多走一步**：
         // `request` 一返回 SDK 就收起滑块（bizResult=true），120 秒的验证码超时
         // 也只包着「拖滑块 + 换地址」。等登录动辄几分钟，塞在这里面会被验证码
         // 超时误杀 —— 前端报「验证码校验超时」复位，壳与网关却还在等回调，
         // 用户随后真完成登录时账号加了、界面却毫无反应（三方状态错乱）。
-        paintBusy(true, wbI18n.t('请完成验证…'));
-        setHint(wbI18n.t('请在弹出的滑块中完成验证（官方要求的风控步骤）'));
+        paintBusy(true, wbI18n.t('Complete the verification…'));
+        setHint(wbI18n.t('Complete the verification in the slider popup (a risk-control step required by the vendor)'));
         const started = await solveCaptcha(
           {
             region: captchaConfig.region || 'ga',
@@ -223,7 +223,7 @@
             const answer = await bridge.startAutoclawOauth(prefix, vendor, captchaVerifyParam, proxy);
             const authUrl = String(answer?.authUrl || '').trim();
             if (!authUrl) {
-              throw new CaptchaError(wbI18n.t('未能获取授权地址，请重试'));
+              throw new CaptchaError(wbI18n.t('Could not get the authorization URL; try again'));
             }
             // 这一轮有降级时后端会给一句话（如「回调端口被官方客户端占着」）：
             // 在这里提示，别等到用户按「系统浏览器」走完一遍才发现收不到回调
@@ -242,10 +242,10 @@
         // 并且文案随它分叉：系统浏览器下没有「窗口」可关，说「窗口中」
         // 会让用户去找一个不存在的窗口
         const mode = modeOf();
-        paintBusy(true, wbI18n.t('等待登录完成…'));
+        paintBusy(true, wbI18n.t('Waiting for sign-in…'));
         setHint(mode === 'external'
-          ? wbI18n.t('已用系统默认浏览器打开登录页，请在浏览器中完成登录…')
-          : wbI18n.t('已打开官方登录页，请在窗口中完成登录…'));
+          ? wbI18n.t('Sign-in page opened in your system default browser; complete sign-in in the browser…')
+          : wbI18n.t('Official sign-in page opened; complete sign-in in the window…'));
         // ④ 交给壳开窗口 / 打开浏览器（阻塞到登录完成/取消/超时）。壳侧自带
         // 5 分钟兜底，不受上面 120 秒验证码超时的约束。
         const outcome = await bridge.startAutoclawOauthLogin(activeState, authUrl, mode);
@@ -253,7 +253,7 @@
         activeState = '';
         if (!outcome?.ok) {
           // 用户取消（关窗 / 点取消 / 关弹窗）：不报错，只提示
-          window.wbApp.toast(wbI18n.t('已取消登录等待'));
+          window.wbApp.toast(wbI18n.t('Pending sign-in canceled'));
           return;
         }
         await config.onSuccess?.(outcome);
@@ -261,15 +261,15 @@
         // 已被作废的轮次：UI 由 cancel() 复位过，这里什么都不做（含不报错）
         if (flow !== flowGeneration) return;
         if (error instanceof CaptchaCancelledError) {
-          window.wbApp.toast(wbI18n.t('已取消验证码'));
+          window.wbApp.toast(wbI18n.t('Verification canceled'));
           return;
         }
         // 换地址失败（风控没过 / 上游拒绝）：滑块面板还停在「验证中」，作废实例
         // 让它收起 —— 否则面板与报错同时在场，用户不知道该信哪一个
         cancelCaptcha();
         const reason = describeError(error);
-        setHint(wbI18n.t('登录失败：{message}', { message: reason }));
-        window.wbApp.toast(wbI18n.t('登录失败：{message}', { message: reason }), 'err');
+        setHint(wbI18n.t('Sign-in failed: {message}', { message: reason }));
+        window.wbApp.toast(wbI18n.t('Sign-in failed: {message}', { message: reason }), 'err');
       } finally {
         // 只复位「仍是当前这一轮」的流程；被 cancel 作废的轮次由 cancel 自己
         // 复位，迟到的落定不得覆盖新一轮刚画上去的状态

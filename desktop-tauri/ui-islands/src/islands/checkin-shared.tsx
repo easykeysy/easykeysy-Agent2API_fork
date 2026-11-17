@@ -42,7 +42,7 @@ export function DetailName({ name, streakDays }: { name: string; streakDays: num
   return (
     <span className='min-w-0 flex-1 truncate'>
       {name}
-      {streakDays > 0 ? <span className='text-muted-foreground'> · {t('连登 {days} 天', { days: streakDays })}</span> : null}
+      {streakDays > 0 ? <span className='text-muted-foreground'> · {t('{days} days in a row', { days: streakDays })}</span> : null}
     </span>
   )
 }

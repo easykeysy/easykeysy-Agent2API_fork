@@ -5,9 +5,9 @@ import { scriptPublisher, type ScriptPublisherInfo } from './plugins-filters'
 
 export function scriptSourceLabel(item: ScriptPublisherInfo, t: PluginTranslate): string {
   switch (scriptPublisher(item)) {
-    case 'official': return t('Magpie 官方')
-    case 'recommended': return t('Magpie 推荐')
-    default: return t('第三方')
+    case 'official': return t('Magpie official')
+    case 'recommended': return t('Magpie recommended')
+    default: return t('Third-party')
   }
 }
 
@@ -28,7 +28,7 @@ export function scriptUpdate(state: ScriptPluginsState | undefined, id: string):
  * 读起来像版本号，会让人以为它真有版本。
  */
 export function updateLabel(update: ScriptUpdate, t: PluginTranslate): string {
-  return /^\d/.test(update.latest) ? t('可更新 v{version}', { version: update.latest }) : t('可更新')
+  return /^\d/.test(update.latest) ? t('v{version} available', { version: update.latest }) : t('Updates available')
 }
 
 /**
@@ -75,24 +75,24 @@ export function recommendedDescription(item: ScriptRecommendation, t: PluginTran
   const summary = catalogSummary(item.summary)
   if (summary) return summary
   switch (item.providers[0]) {
-    case 'agy-cli': return t('使用你在网关电脑上安装并登录的 agy CLI，通过 ACP 协议接入模型、工具调用和额度查询；与依赖 Antigravity IDE 的 Antigravity ACP 插件不同。')
-    case 'minimax-code': return t('MiniMax Code 的设备码登录、对话、模型目录、余额与每日签到；国内版与国际版可分别启停。')
-    case 'deepaicode': return t('接入 DeepAI Code：网页登录、本机凭据、模型目录、额度查询与签到。')
-    case 'cloudflare-workers-ai': return t('使用 Cloudflare 账号 ID 与 API Token，接入 Workers AI 对话和在线模型目录。')
-    case 'codar': return t('接入 Codar（科搭）：本机凭据、模型目录、积分与滚动窗口签到。')
-    case 'joycode': return t('接入 JoyCode（京东）：网页登录、企业租户、模型目录与额度明细。')
-    case 'agnes-code': return t('接入 Agnes Code：本机登录态或 accessToken、模型目录、积分与登录奖励观测。')
-    case 'river': return t('通过 API Key 接入 River 对话与在线模型目录；插件不提供余额数值。')
-    case 'agnes': return t('接入 Agnes AI 国际版：浏览器登录、在线模型目录、套餐用量与美元余额；与 Agnes Code 桌面版独立。')
-    case 'warp': return t('使用 Warp 终端的登录态，接入账号可用模型并查询 AI 请求额度。')
-    case 'intern-inkstone': return t('接入书生·端砚墨点计划：浏览器登录、API Key、模型目录与墨点额度窗口。')
-    case 'gcp-ai': return t('使用网关本机 gcloud / ADC 登录，接入 Vertex AI 模型并查询 Google Cloud 促销赠金。')
-    case 'sap-aicore': return t('连接已有 SAP AI Core 部署：从网关本机导入凭据文件，按资源组获取模型；不创建部署或查询额度。')
-    case 'mclaw': return t('接入中国移动云 MClaw：浏览器登录、在线模型目录、aitokens 额度与凭证续期。')
-    case 'wps-lingxi': return t('接入 WPS 灵犀：网页登录、客户端导入、Cookie、模型目录与智点；签到及附带任务默认允许。')
+    case 'agy-cli': return t('Uses the agy CLI installed and signed in on your gateway computer for models, tool calls and quota queries over ACP. This is different from the Antigravity ACP plugin that relies on the Antigravity IDE.')
+    case 'minimax-code': return t('Device-code sign-in, chat, model catalog, balance and daily check-in for MiniMax Code. Enable the China and Global providers separately.')
+    case 'deepaicode': return t('Connect DeepAI Code with web sign-in, local credentials, model catalogs, quota queries and check-in.')
+    case 'cloudflare-workers-ai': return t('Connect Workers AI chat and its online model catalog using a Cloudflare Account ID and API Token.')
+    case 'codar': return t('Connect Codar with local credentials, model catalogs, points and rolling-window check-in.')
+    case 'joycode': return t('Connect JoyCode (JD) with web sign-in, enterprise tenants, model catalogs and quota details.')
+    case 'agnes-code': return t('Connect Agnes Code using a local session or accessToken, with model catalogs, points and observed sign-in rewards.')
+    case 'river': return t('Connect River chat and its online model catalog via an API Key. The plugin does not report a balance amount.')
+    case 'agnes': return t('Connect Agnes AI international with browser sign-in, an online model catalog, plan usage and a USD balance. Separate from the Agnes Code desktop product.')
+    case 'warp': return t('Use your Warp terminal sign-in to access the account\'s available models and view its AI request allowance.')
+    case 'intern-inkstone': return t('Connect the Intern InkStone Token Plan with browser sign-in, an API key, a model catalog and ink-credit quota windows.')
+    case 'gcp-ai': return t('Use gcloud / ADC credentials on the gateway machine to access Vertex AI models and view Google Cloud promotional credits.')
+    case 'sap-aicore': return t('Connect existing SAP AI Core deployments by importing a credential file from the gateway machine and listing models per resource group. Does not create deployments or report quotas.')
+    case 'mclaw': return t('Connect China Mobile Cloud MClaw with browser sign-in, an online model catalog, aitokens allowance and credential renewal.')
+    case 'wps-lingxi': return t('Connect WPS Lingxi with web sign-in, client import, cookies, model catalogs and credits. Check-in and bundled tasks are allowed by default.')
     default: return item.providers.length
-      ? t('通过社区插件接入 {providers}，可在设置中管理提供商，签到计划在签到中心管理。', { providers: t(item.label) })
-      : t('作者尚未提供插件介绍。')
+      ? t('Connects {providers} through a community plugin. Manage providers in settings and check-in schedules in Check-in Center.', { providers: t(item.label) })
+      : t('The author has not provided a plugin description.')
   }
 }
 
@@ -106,11 +106,11 @@ export function scriptPluginDescription(pack: ScriptPackage, recommended: Script
   const item = recommended.find(item => isRecommendationInstalled(item, [pack]))
   if (item) return recommendedDescription(item, t)
   if (pack.providers.length) {
-    return t('通过社区插件接入 {providers}，可在设置中管理提供商，签到计划在签到中心管理。', {
+    return t('Connects {providers} through a community plugin. Manage providers in settings and check-in schedules in Check-in Center.', {
       providers: pack.providers.map(provider => t(provider.label)).join(' / '),
     })
   }
-  return t('作者尚未提供插件介绍。')
+  return t('The author has not provided a plugin description.')
 }
 
 export function matchesScriptPlugin(pack: ScriptPackage, recommended: ScriptRecommendation[], query: string, t: PluginTranslate): boolean {

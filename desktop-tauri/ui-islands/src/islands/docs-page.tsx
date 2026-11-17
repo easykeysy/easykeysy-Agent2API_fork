@@ -18,7 +18,7 @@ function EndpointRow({ id, name, note }: { id: string; name: string; note: strin
     <div className='ep-line'>
       <code className='ep-value' id={id}>—</code>
       <Button variant='ghost' size='icon-xs' className='copy-btn size-[21px] rounded-[var(--r-xs)]'
-        data-copy-from={id} title={t('复制地址')} aria-label={t('复制地址')}>⧉</Button>
+        data-copy-from={id} title={t('Copy address')} aria-label={t('Copy address')}>⧉</Button>
     </div>
   </div>
 }
@@ -32,9 +32,9 @@ async function copyExample(text: string, label: string) {
     if (shared.copyToClipboard) {
       if (!(await shared.copyToClipboard(text))) throw new Error()
     } else await navigator.clipboard.writeText(text)
-    shared.wbApp?.toast?.(t('已复制：{text}', { text: label }), 'ok')
+    shared.wbApp?.toast?.(t('Copied: {text}', { text: label }), 'ok')
   } catch {
-    shared.wbApp?.toast?.(t('复制失败，请手动选择复制'), 'err')
+    shared.wbApp?.toast?.(t('Copy failed, please select and copy manually'), 'err')
   }
 }
 
@@ -46,7 +46,7 @@ function ApiAddresses({ origin }: { origin: string }) {
   }, [origin])
 
   return <Card render={<section />} className='panel ep-panel docs-addresses'>
-    <CardHeader className='panel-head'><h3>{t('接口地址')}</h3></CardHeader>
+    <CardHeader className='panel-head'><h3>{t('API address')}</h3></CardHeader>
     <div className='ep-list'>
       {endpoints.map((endpoint, index) => <React.Fragment key={endpoint.id}>
         {endpoint.group && endpoint.group !== endpoints[index - 1]?.group
@@ -55,8 +55,8 @@ function ApiAddresses({ origin }: { origin: string }) {
       </React.Fragment>)}
     </div>
     <CardFooter className='panel-foot flex-col items-start gap-1.5'>
-      <span>{t('生成、编辑与对话接口共用网关 Key；鉴权规则、模型能力和请求示例可从文档目录查阅。')}</span>
-      <span>{t('Anthropic 官方 SDK / Claude Code 使用的根地址：')}<code>{origin}</code></span>
+      <span>{t('Generation, editing and chat endpoints share gateway Keys. Find authentication rules, model capabilities and request examples in the documentation contents.')}</span>
+      <span>{t('Root address for the official Anthropic SDK / Claude Code: ')}<code>{origin}</code></span>
     </CardFooter>
   </Card>
 }
@@ -67,8 +67,8 @@ function DocsPage() {
 
   return <DocumentationBrowser origin={origin} packs={packs} addresses={<ApiAddresses origin={origin} />}
     onCopy={copyExample} notice={error ? <div role='status' className='mb-3 flex flex-wrap items-center gap-2 text-[12px] text-subtle'>
-      <span>{t('读取提供商能力表失败：{error}', { error })}</span>
-      <Button variant='outline' size='xs' disabled={loading} onClick={() => void load()}>{t('重试')}</Button>
+      <span>{t('Failed to load provider capabilities: {error}', { error })}</span>
+      <Button variant='outline' size='xs' disabled={loading} onClick={() => void load()}>{t('Retry')}</Button>
     </div> : null} />
 }
 

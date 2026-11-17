@@ -139,9 +139,9 @@ export function SidebarPane() {
   if (!api) {
     return (
       <Card render={<section />} className='panel'>
-        <CardHeader className='panel-head'><h2>{t('侧边栏菜单')}</h2></CardHeader>
+        <CardHeader className='panel-head'><h2>{t('Sidebar menus')}</h2></CardHeader>
         <CardContent className='panel-body'>
-          <div className='settings-state'>{t('侧边栏布局模块未加载（ui/sidebar-layout.js 应在 app.js 之前引入）。')}</div>
+          <div className='settings-state'>{t('The sidebar layout module did not load (ui/sidebar-layout.js must be included before app.js).')}</div>
         </CardContent>
       </Card>
     )
@@ -233,7 +233,7 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     if (!group.hidden && api.groupHasFixed(group)) {
       // 不置灰按钮：置灰的按钮点下去毫无反应，用户只会以为界面坏了。
       // 允许点，但把「为什么不行、该怎么办」说清楚。
-      toast(t('「设置」是固定项，含它的分组不能整组隐藏；可以单独隐藏组内其它菜单'))
+      toast(t('"Settings" is pinned, so its group cannot be hidden as a whole; you can still hide its other menus individually'))
       return
     }
     apply(api.setGroupHidden(layout, gid, !group.hidden))
@@ -247,11 +247,11 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
 
   const commitAdd = () => {
     const next = api.addGroup(layout, addDraft)
-    if (!next) { toast(t('请填一个分组名'), 'err'); return }
+    if (!next) { toast(t('Please enter a group name'), 'err'); return }
     setAdding(false)
     setAddDraft('')
     apply(next)
-    toast(t('已新建分组「{name}」，点组头的 ＋ 把菜单移进来', { name: addDraft.trim() }))
+    toast(t('Created group "{name}" — use  + on its header to move menus in', { name: addDraft.trim() }))
   }
 
   const removeGroup = (gid: string) => {
@@ -262,16 +262,16 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
       wbConfirm?: { ask?: (options: Record<string, unknown>) => Promise<boolean> }
     }).wbConfirm?.ask
     const message = group.items.length
-      ? t('删除分组「{name}」？组内 {n} 个菜单会移到「{target}」，不会丢。', {
+      ? t('Delete group "{name}"? Its {n} menus will move to "{target}" — nothing is lost.', {
           name: group.label, n: group.items.length, target: target?.label ?? '',
         })
-      : t('删除空分组「{name}」？', { name: group.label })
+      : t('Delete the empty group "{name}"?', { name: group.label })
     const finish = (ok: boolean) => {
       if (!ok) return
-      if (apply(api.removeGroup(layout, gid))) toast(t('已删除分组「{name}」', { name: group.label }))
+      if (apply(api.removeGroup(layout, gid))) toast(t('Deleted group "{name}"', { name: group.label }))
     }
     // 没有确认框（极端时序）时直接删：删分组不销毁任何菜单，是可撤销的低危操作
-    if (ask) void ask({ title: t('删除分组'), text: message, okText: t('删除'), bodyClass: '' }).then(finish)
+    if (ask) void ask({ title: t('Delete group'), text: message, okText: t('Delete'), bodyClass: '' }).then(finish)
     else finish(true)
   }
 
@@ -282,13 +282,13 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     const finish = (ok: boolean) => {
       if (!ok) return
       apply(api.defaultLayout())
-      toast(t('已恢复默认分组：概览 / 转发链路 / 诊断 / 系统'))
+      toast(t('Restored the default groups: Overview / Forwarding / Diagnostics / System'))
     }
     if (ask) {
       void ask({
-        title: t('恢复默认侧边栏'),
-        text: t('会恢复默认的分组、顺序与显隐设置。你自建的分组会被删除（组内菜单不会丢）。'),
-        okText: t('恢复默认'),
+        title: t('Restore default sidebar'),
+        text: t('This restores the default groups, order and visibility. Groups you created are removed (their menus are kept).'),
+        okText: t('Restore Defaults'),
         bodyClass: '',
       }).then(finish)
     } else finish(true)
@@ -420,19 +420,19 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
     <>
       <Card render={<section />} className='panel'>
         <CardHeader className='panel-head'>
-          <h2>{t('侧边栏菜单')}</h2>
+          <h2>{t('Sidebar menus')}</h2>
           <span
             className='tip-q'
-            data-tip={t('控制主侧边栏显示哪些菜单、按什么顺序、怎么分组。隐藏只影响导航显示，不会撤销页面访问权限；被隐藏的页面仍可通过地址直接打开。')}
+            data-tip={t('Choose which menus the sidebar shows, in what order, and how they are grouped. Hiding only affects navigation — it does not revoke access, and hidden pages can still be opened by URL.')}
           />
           <div className='head-actions'>
-            <Button variant='outline' size='sm' onClick={resetAll}>{t('恢复默认')}</Button>
+            <Button variant='outline' size='sm' onClick={resetAll}>{t('Restore Defaults')}</Button>
           </div>
         </CardHeader>
 
         <CardContent className='panel-body'>
           <div className='settings-state'>
-            {t('拖动左侧 ⠿ 调整顺序（菜单可以跨组拖）；拨开关控制显隐；点分组名可重命名；组头的 ＋ 把别的菜单移进来；眼睛按钮隐藏整组。改动即时生效并记住，左侧侧边栏就是结果。键盘也能排序：把手聚焦后按 Alt+↑ / ↓。')}
+            {t('Drag the ⠿ handle to reorder (menus can move across groups); use the switches to show or hide; click a group name to rename it; the  + on a group header moves another menu into it; the eye button hides a whole group. Changes apply instantly and are remembered — the sidebar on the left is the result. Keyboard: focus a handle and press Alt+↑ / ↓.')}
           </div>
 
           <div className='sc-groups'>
@@ -451,8 +451,8 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                       className='sc-grip'
                       role='button'
                       tabIndex={0}
-                      title={t('拖动调整分组顺序（Alt+↑ / ↓ 也可）')}
-                      aria-label={t('拖动分组 {name}', { name: group.label })}
+                      title={t('Drag to reorder groups (Alt+↑ / ↓ also works)')}
+                      aria-label={t('Drag group {name}', { name: group.label })}
                       onPointerDown={event => startDrag('group', group.id, event)}
                       onKeyDown={event => {
                         if (!event.altKey) return
@@ -468,7 +468,7 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                         value={renameDraft}
                         maxLength={12}
                         autoFocus
-                        aria-label={t('分组名')}
+                        aria-label={t('Group name')}
                         onChange={event => setRenameDraft(event.target.value)}
                         onBlur={() => commitRename(group.id)}
                         onKeyDown={event => {
@@ -480,14 +480,14 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                       <Button size='default' variant='ghost'
                         type='button'
                         className='sc-group-title'
-                        title={t('点击重命名')}
+                        title={t('Click to rename')}
                         onClick={() => { setRenaming(group.id); setRenameDraft(group.label) }}
                       >
                         {api.groupLabel(group.label)}
                       </Button>
                     )}
 
-                    <span className='sc-group-meta'>{t('{n} 项 · {shown} 显示', { n: group.items.length, shown })}</span>
+                    <span className='sc-group-meta'>{t('{n} items · {shown} shown', { n: group.items.length, shown })}</span>
 
                     <div className='sc-group-actions'>
                       <GroupPicker
@@ -500,9 +500,9 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                         type='button'
                         className='sc-icon-btn'
                         title={locked
-                          ? t('含固定项「设置」，不可整组隐藏（可以单独隐藏组内其它菜单）')
-                          : (group.hidden ? t('显示这一组') : t('隐藏这一组'))}
-                        aria-label={group.hidden ? t('显示分组 {name}', { name: group.label }) : t('隐藏分组 {name}', { name: group.label })}
+                          ? t('Contains the pinned "Settings" menu, so the group cannot be hidden as a whole (you can still hide its other menus individually)')
+                          : (group.hidden ? t('Show this group') : t('Hide this group'))}
+                        aria-label={group.hidden ? t('Show group {name}', { name: group.label }) : t('Hide group {name}', { name: group.label })}
                         aria-pressed={!group.hidden}
                         onClick={() => toggleGroup(group.id)}
                         dangerouslySetInnerHTML={{ __html: iconHtml(group.hidden ? 'eyeOff' : 'eye', 15) }}
@@ -511,17 +511,17 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                         type='button'
                         className='sc-text-btn'
                         disabled={layout.groups.length <= 1}
-                        title={layout.groups.length <= 1 ? t('至少要保留一个分组') : t('删除这个分组（组内菜单移到第一组）')}
+                        title={layout.groups.length <= 1 ? t('At least one group must remain') : t('Delete this group (its menus move to the first group)')}
                         onClick={() => removeGroup(group.id)}
                       >
-                        {t('删除')}
+                        {t('Delete')}
                       </Button>
                     </div>
                   </div>
 
                   <div className='sc-items'>
                     {group.items.length === 0 ? (
-                      <Empty className='sc-empty'>{t('空分组 · 点组头的 ＋ 把菜单移进来')}</Empty>
+                      <Empty className='sc-empty'>{t('Empty group · use  + on the header to move menus in')}</Empty>
                     ) : group.items.map(key => {
                       const menu = api.menuOf(key)
                       if (!menu) return null
@@ -537,8 +537,8 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                             className='sc-grip'
                             role='button'
                             tabIndex={0}
-                            title={t('拖动调整顺序，可跨组（Alt+↑ / ↓ 也可）')}
-                            aria-label={t('拖动菜单 {name}', { name: menu.label })}
+                            title={t('Drag to reorder, across groups too (Alt+↑ / ↓ also works)')}
+                            aria-label={t('Drag menu {name}', { name: menu.label })}
                             onPointerDown={event => startDrag('item', key, event)}
                             onKeyDown={event => {
                               if (!event.altKey) return
@@ -550,15 +550,15 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                           <span className='sc-item-ico' dangerouslySetInnerHTML={{ __html: iconHtml(menu.icon, 15) }} />
                           <span className='sc-item-label' title={menu.label}>{menu.label}</span>
                           {menu.fixed ? (
-                            <Badge variant='outline' shape='tag' title={t('设置不可隐藏（隐藏了只能清缓存找回来）')}>
-                              {t('固定')}
+                            <Badge variant='outline' shape='tag' title={t('"Settings" cannot be hidden (you would have to clear storage to get it back)')}>
+                              {t('Pinned')}
                             </Badge>
                           ) : (
                             <Switch
                               checked={!isHidden}
                               onCheckedChange={next => toggleItem(key, next)}
-                              aria-label={isHidden ? t('显示 {name}', { name: menu.label }) : t('隐藏 {name}', { name: menu.label })}
-                              title={isHidden ? t('这一项已隐藏') : t('这一项正在显示')}
+                              aria-label={isHidden ? t('Show {name}', { name: menu.label }) : t('Hide {name}', { name: menu.label })}
+                              title={isHidden ? t('This item is hidden') : t('This item is visible')}
                             />
                           )}
                         </div>
@@ -577,33 +577,33 @@ function SidebarPaneBody({ api }: { api: LayoutApi }) {
                   value={addDraft}
                   maxLength={12}
                   autoFocus
-                  placeholder={t('分组名，例如「常用」')}
-                  aria-label={t('新分组名')}
+                  placeholder={t('Group name, e.g. "Favorites"')}
+                  aria-label={t('New group name')}
                   onChange={event => setAddDraft(event.target.value)}
                   onKeyDown={event => {
                     if (event.key === 'Enter') { event.preventDefault(); commitAdd() }
                     if (event.key === 'Escape') { event.preventDefault(); setAdding(false); setAddDraft('') }
                   }}
                 />
-                <Button size='sm' onClick={commitAdd}>{t('添加')}</Button>
-                <Button variant='ghost' size='sm' onClick={() => { setAdding(false); setAddDraft('') }}>{t('取消')}</Button>
+                <Button size='sm' onClick={commitAdd}>{t('Add')}</Button>
+                <Button variant='ghost' size='sm' onClick={() => { setAdding(false); setAddDraft('') }}>{t('Cancel')}</Button>
               </div>
             ) : (
               <Button variant='dashed' className='w-full' onClick={() => setAdding(true)}>
                 <span dangerouslySetInnerHTML={{ __html: FOLDER_PLUS_ICON }} />
-                {t('新建分组')}
+                {t('New group')}
               </Button>
             )}
           </div>
 
           <div className='settings-state'>
-            {t('{total} 个菜单 · 显示 {shown} · 隐藏 {hidden} · {groups} 个分组', {
+            {t('{total} menus · {shown} shown · {hidden} hidden · {groups} groups', {
               total: menus.length,
               shown: visibleMenus,
               hidden: menus.length - visibleMenus,
               groups: layout.groups.length,
             })}
-            {hiddenGroups ? t('（{n} 个整组隐藏）', { n: hiddenGroups }) : ''}
+            {hiddenGroups ? t(' ({n} groups hidden)', { n: hiddenGroups }) : ''}
           </div>
         </CardContent>
       </Card>
@@ -636,8 +636,8 @@ function GroupPicker({ layout, api, group, onPick }: {
           <Button size='default' variant='ghost'
             type='button'
             className='sc-icon-btn'
-            title={t('把菜单移入「{name}」', { name: group.label })}
-            aria-label={t('把菜单移入 {name}', { name: group.label })}
+            title={t('Move a menu into "{name}"', { name: group.label })}
+            aria-label={t('Move a menu into {name}', { name: group.label })}
           />
         }
       >
@@ -645,11 +645,11 @@ function GroupPicker({ layout, api, group, onPick }: {
       </PopoverTrigger>
       <PopoverContent align='end' side='bottom' className='w-[228px] p-1'>
         <div className='px-2 pt-1.5 pb-1.5 text-[10.5px] font-semibold tracking-[.04em] text-muted-foreground'>
-          {t('移入「{name}」', { name: api.groupLabel(group.label) })}
+          {t('Move into "{name}"', { name: api.groupLabel(group.label) })}
         </div>
         {candidates.length === 0 ? (
           <div className='px-2 py-2 text-center text-[11px] text-muted-foreground'>
-            {t('所有菜单都已在这一组')}
+            {t('Every menu is already in this group')}
           </div>
         ) : (
           <div className='max-h-[280px] overflow-y-auto'>

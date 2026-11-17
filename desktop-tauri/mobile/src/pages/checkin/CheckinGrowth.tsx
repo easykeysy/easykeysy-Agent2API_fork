@@ -50,7 +50,7 @@ export function CheckinGrowth({ row, busy, action }: { row: GrowthEntry; busy: s
     })
     if (result) {
       const failed = result.filter(item => item.outcome === 'failed' || item.error).length
-      store.toast(t('执行完成：{n} 项，{failed} 项失败', { n: result.length, failed }), failed ? 'err' : 'ok')
+      store.toast(t('Execution complete: {n} items, {failed} failed', { n: result.length, failed }), failed ? 'err' : 'ok')
     }
   }
 
@@ -63,7 +63,7 @@ export function CheckinGrowth({ row, busy, action }: { row: GrowthEntry; busy: s
       setData(next)
       return result
     })
-    if (result) store.toast(result.message || result.error || t('执行完成'), result.outcome === 'failed' || result.error ? 'err' : 'ok')
+    if (result) store.toast(result.message || result.error || t('Execution complete'), result.outcome === 'failed' || result.error ? 'err' : 'ok')
   }
 
   return (
@@ -72,19 +72,19 @@ export function CheckinGrowth({ row, busy, action }: { row: GrowthEntry; busy: s
         <ProviderLogo id={row.provider} />
         <div className='m-ck-grow'>
           <div className='m-ck-title'>{row.name || row.id}</div>
-          {data ? <div className='m-ck-note'>{t('能量 {energy} · 连登 {streak} 天', { energy: data.energy ?? '—', streak: data.streak ?? '—' })}</div> : null}
+          {data ? <div className='m-ck-note'>{t('energy {energy}· {streak} days in a row', { energy: data.energy ?? '—', streak: data.streak ?? '—' })}</div> : null}
         </div>
         <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void query()}>
-          {busy === `growth-query:${row.id}` ? t('查询中…') : t('查询任务')}
+          {busy === `growth-query:${row.id}` ? t('Checking…') : t('Query tasks')}
         </Button>
       </div>
       {data?.tasks?.error ? <p className='m-ck-error'>{data.tasks.error}</p> : null}
       {data ? <div className='m-ck-actions'>
         <Button size='sm' disabled={Boolean(busy) || !tasks.some(task => canRun(task, 'full'))} onClick={() => void runTasks('full')}>
-          {busy === `growth-run:${row.id}` ? t('执行中…') : t('一键完成')}
+          {busy === `growth-run:${row.id}` ? t('Running…') : t('Complete all')}
         </Button>
         <Button size='sm' variant='outline' disabled={Boolean(busy) || !tasks.some(task => canRun(task, 'claim'))}
-          onClick={() => void runTasks('claim')}>{t('领取奖励')}</Button>
+          onClick={() => void runTasks('claim')}>{t('Claim reward')}</Button>
       </div> : null}
       {tasks.map(task => <div className='m-ck-task' key={task.code}>
         <div className='m-ck-grow'>
@@ -93,15 +93,15 @@ export function CheckinGrowth({ row, busy, action }: { row: GrowthEntry; busy: s
           {results.find(result => result.code === task.code)?.message ? <div className='m-ck-note'>{results.find(result => result.code === task.code)?.message}</div> : null}
         </div>
         <Badge tone={task.status === 'claimed' ? 'ok' : !task.supported || task.unforgeable || task.locked ? 'mute' : 'warn'}>
-          {task.status === 'claimed' ? t('已领取') : canRun(task, 'claim') ? t('可领取')
-            : task.unforgeable ? t('需真实操作') : !task.supported ? t('不支持') : task.locked ? t('未解锁') : t('待完成')}
+          {task.status === 'claimed' ? t('Claimed') : canRun(task, 'claim') ? t('Claimable')
+            : task.unforgeable ? t('Requires real action') : !task.supported ? t('Not supported') : task.locked ? t('Locked') : t('To complete')}
         </Badge>
       </div>)}
       {data ? <div className='m-ck-actions'>
-        <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void extra('travel')}>{t('猫猫旅行一趟')}</Button>
-        <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void extra('school')}>{t('开学季任务')}</Button>
-        <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void extra('lottery')}>{t('开学季 + 抽奖')}</Button>
-      </div> : <p className='m-ck-note'>{t('查询后查看任务清单，仅执行插件标记为支持的任务')}</p>}
+        <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void extra('travel')}>{t('One cat travel trip')}</Button>
+        <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void extra('school')}>{t('The back-to-school task')}</Button>
+        <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void extra('lottery')}>{t('Back-to-school + lottery')}</Button>
+      </div> : <p className='m-ck-note'>{t('After querying, view the task list; only execute tasks the plugin marks as supported')}</p>}
     </div>
   )
 }

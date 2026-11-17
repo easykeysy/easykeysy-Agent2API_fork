@@ -33,20 +33,20 @@ export function AgentPage() {
   const missing = list.filter(client=>!client.detected)
   return <Card render={<section/>} className='panel agent-panel'>
     <div className='toolbar agent-toolbar'>
-      <InputGroup className='agent-search'><InputGroupInput type='search' placeholder={t('搜索客户端 / 配置文件…')} aria-label={t('搜索客户端')} value={store.query} autoComplete='off' onChange={event=>setQuery(event.currentTarget.value)}/><InputGroupAddon aria-hidden='true'><AgentIcon name='search' /></InputGroupAddon></InputGroup>
-      <SegmentedControl value={store.filter} onValueChange={setFilter} aria-label={t('按状态筛选')} options={[
-        {value:'all',label:`${t('全部')} ${stats.all}`},{value:'via',label:`${t('接入本网关')} ${stats.via}`},{value:'direct',label:`${t('未接入本网关')} ${stats.direct}`},{value:'missing',label:`${t('未检测到')} ${stats.missing}`},
+      <InputGroup className='agent-search'><InputGroupInput type='search' placeholder={t('Search clients or config files…')} aria-label={t('Search clients')} value={store.query} autoComplete='off' onChange={event=>setQuery(event.currentTarget.value)}/><InputGroupAddon aria-hidden='true'><AgentIcon name='search' /></InputGroupAddon></InputGroup>
+      <SegmentedControl value={store.filter} onValueChange={setFilter} aria-label={t('Filter by status')} options={[
+        {value:'all',label:`${t('All')} ${stats.all}`},{value:'via',label:`${t('Connected to this gateway')} ${stats.via}`},{value:'direct',label:`${t('Not connected to this gateway')} ${stats.direct}`},{value:'missing',label:`${t('Not detected')} ${stats.missing}`},
       ]}/>
     </div>
     {store.error&&<Alert variant='destructive' className='mx-4 mt-3'>{store.error}</Alert>}
     <div className='agent-body'>
-      <Sidebar className='agent-rail p-0 gap-0' aria-label={t('客户端清单')}><NavList className='agent-rail-scroll'>
-        {detected.length>0&&<><div className='agent-rail-label'>{t('已检测到')}（{detected.length}）</div>{detected.map(client=><ClientRow key={client.id} client={client} active={client.id===store.selected}/>)}</>}
-        {missing.length>0&&<><div className='agent-rail-label'>{t('未检测到')}（{missing.length}）</div>{missing.map(client=><ClientRow key={client.id} client={client} active={client.id===store.selected}/>)}</>}
-        {!list.length&&<Empty>{store.loading?t('正在检测客户端…'):t('没有匹配的客户端')}</Empty>}
+      <Sidebar className='agent-rail p-0 gap-0' aria-label={t('Clients')}><NavList className='agent-rail-scroll'>
+        {detected.length>0&&<><div className='agent-rail-label'>{t('Detected')}（{detected.length}）</div>{detected.map(client=><ClientRow key={client.id} client={client} active={client.id===store.selected}/>)}</>}
+        {missing.length>0&&<><div className='agent-rail-label'>{t('Not detected')}（{missing.length}）</div>{missing.map(client=><ClientRow key={client.id} client={client} active={client.id===store.selected}/>)}</>}
+        {!list.length&&<Empty>{store.loading?t('Detecting clients…'):t('No matching clients')}</Empty>}
       </NavList></Sidebar>
-      <div className='agent-detail'>{client?<ClientDetail key={client.id} client={client}/>:<Empty>{t('选一个客户端开始')}
-        <Button variant='outline' size='sm' disabled={store.loading||Boolean(store.busy)} onClick={()=>void loadPanel()}>{store.loading?t('检测中…'):t('重新检测')}</Button></Empty>}</div>
+      <div className='agent-detail'>{client?<ClientDetail key={client.id} client={client}/>:<Empty>{t('Pick a client to start')}
+        <Button variant='outline' size='sm' disabled={store.loading||Boolean(store.busy)} onClick={()=>void loadPanel()}>{store.loading?t('Checking…'):t('Recheck')}</Button></Empty>}</div>
     </div>
   </Card>
 }
@@ -76,39 +76,39 @@ function ClientDetail({client}:{client:AgentClient}) {
   }
   return <>
     <div className='agent-dhead'><ClientAvatar client={client} size='lg'/><div className='agent-dtitle'><h3>{client.name}</h3>
-      <div className='agent-meta'><span>{client.vendor}</span>{client.version ? <span>{client.version}</span> : client.id === 'dsh' ? <span>{t('版本未识别')}</span> : null}
+      <div className='agent-meta'><span>{client.vendor}</span>{client.version ? <span>{client.version}</span> : client.id === 'dsh' ? <span>{t('Version not identified')}</span> : null}
         {!client.writable && <span>{detectionLabel(client)}</span>}
         {client.id === 'dsh' && dshTarget && <span>{dshTargetLabel(dshTarget.profile, dshTarget.label)}</span>}</div></div>
-      <div className='agent-dhead-actions'><Button size='sm' disabled={busy || Boolean(addReason)} title={addReason || undefined} onClick={add}><AgentIcon name='plus' />{t('新增配置')}</Button>
-        <AgentActions label={t('客户端选项')} disabled={busy} actions={[
-          { label: t('重新检测'), onClick: () => void loadPanel() },
-          { label: client.id === 'dsh' ? t('选择配置目标') : t('指定配置路径'), onClick: () => setPathOpen(true) },
-          ...(client.applied.canUndo ? [{ label: t('撤销上次应用'), onClick: () => setRestore('restore') }] : []),
-          ...(client.applied.canDisconnect ? [{ label: t('解除接入本网关'), onClick: () => setRestore('disconnect') }] : []),
+      <div className='agent-dhead-actions'><Button size='sm' disabled={busy || Boolean(addReason)} title={addReason || undefined} onClick={add}><AgentIcon name='plus' />{t('Add configuration')}</Button>
+        <AgentActions label={t('Client options')} disabled={busy} actions={[
+          { label: t('Recheck'), onClick: () => void loadPanel() },
+          { label: client.id === 'dsh' ? t('Select configuration target') : t('Specify configuration path'), onClick: () => setPathOpen(true) },
+          ...(client.applied.canUndo ? [{ label: t('Undo last application'), onClick: () => setRestore('restore') }] : []),
+          ...(client.applied.canDisconnect ? [{ label: t('Disconnect from this gateway'), onClick: () => setRestore('disconnect') }] : []),
         ]} /></div></div>
-    <SegmentedControl className='mt-3' value={tab} onValueChange={setTab} aria-label={t('客户端管理分类')} options={[
-      { value: 'config', label: t('模型配置') }, { value: 'prompt', label: t('提示词') }, { value: 'skills', label: 'Skill' }, { value: 'mcp', label: 'MCP' },
+    <SegmentedControl className='mt-3' value={tab} onValueChange={setTab} aria-label={t('Client management category')} options={[
+      { value: 'config', label: t('Model settings') }, { value: 'prompt', label: t('Prompt') }, { value: 'skills', label: 'Skill' }, { value: 'mcp', label: 'MCP' },
     ]} />
     {tab !== 'config' ? <>
-      <p className='agent-machine-note'>{t('操作目标：网关所在机器')}{store.hostName?` · ${store.hostName}`:''}</p>
+      <p className='agent-machine-note'>{t('Target: gateway host')}{store.hostName?` · ${store.hostName}`:''}</p>
       <AgentResourcesPanel key={`${tab}:${client.pathOverride}:${client.configPath}`} clientId={client.id} kind={tab as ResourceKind} capabilities={client.resources}
         request={callJson} t={t} notify={(text, bad) => toast(text, bad ? 'err' : 'ok')} />
     </> : <>
-      {!client.detected && <p className='agent-detection-hint'>{t('未找到客户端程序或配置文件')}{client.writable ? ` · ${t('可先新增配置，安装后再使用')}` : ''}</p>}
+      {!client.detected && <p className='agent-detection-hint'>{t('No client program or configuration file found')}{client.writable ? ` · ${t('You can add configurations now and use them after installation')}` : ''}</p>}
       {!client.writable && !client.readError && <Alert variant='warning' className='mt-4'>{client.supportNote}</Alert>}
       <ProfileEditor client={client}/>
       {client.applied.error && <Alert variant='warning' className='mt-4'>{client.applied.error}</Alert>}
-      {client.applied.pendingRecovery && <Alert variant='warning' className='mt-4'>{t('上次应用未完整结束，请先查看恢复预览。')}
-        <Button variant='outline' size='sm' disabled={busy} onClick={() => setRestore('restore')}>{t('撤销上次应用')}</Button></Alert>}
+      {client.applied.pendingRecovery && <Alert variant='warning' className='mt-4'>{t('The last apply operation did not finish. Review the restore preview first.')}
+        <Button variant='outline' size='sm' disabled={busy} onClick={() => setRestore('restore')}>{t('Undo last application')}</Button></Alert>}
       <Collapsible className='agent-client-details' open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <CollapsibleTrigger render={<Button variant='ghost' size='sm' />}><span className={detailsOpen ? 'rotate-180' : undefined}><AgentIcon name='chevron' /></span>{t('配置位置与说明')}</CollapsibleTrigger>
+        <CollapsibleTrigger render={<Button variant='ghost' size='sm' />}><span className={detailsOpen ? 'rotate-180' : undefined}><AgentIcon name='chevron' /></span>{t('Configuration location and details')}</CollapsibleTrigger>
         <CollapsibleContent>
-          <p className='agent-machine-note'>{t('操作目标：网关所在机器')}{store.hostName?` · ${store.hostName}`:''}</p>
+          <p className='agent-machine-note'>{t('Target: gateway host')}{store.hostName?` · ${store.hostName}`:''}</p>
           <code className='agent-resolved-path'>{client.resolvedPath}</code>
           {client.evidence.length > 0 && <ul className='agent-evidence'>{client.evidence.map((evidence, index) => <li key={index}>{evidence}</li>)}</ul>}
           <p className='agent-details-note'>{client.supportNote}</p>
-          <p className='agent-details-note'>{t('状态来自配置文件，已打开的会话可能需要重新加载')}</p>
-          {client.applied.modifiedExternally && <p className='agent-details-note text-warning'>{t('客户端文件已有外部修改，自动恢复会拒绝覆盖。')}</p>}
+          <p className='agent-details-note'>{t('Status comes from configuration files; existing sessions may need to reload')}</p>
+          {client.applied.modifiedExternally && <p className='agent-details-note text-warning'>{t('The client file has external changes. Automatic restore will refuse to overwrite them.')}</p>}
         </CollapsibleContent>
       </Collapsible>
     </>}

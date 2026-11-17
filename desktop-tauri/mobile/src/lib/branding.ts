@@ -5,7 +5,7 @@ import { serverIdentity } from './servers'
 export const mobileBranding = createBrandingStore(serverIdentity, async () => {
   const endpoint = new URL(url('/api/panel/branding'), window.location.href)
   const response = await fetch(endpoint, { cache: 'no-store' })
-  if (!response.ok) throw new Error('无法读取品牌设置')
+  if (!response.ok) throw new Error('Could not read brand settings')
   const payload = await response.json() as { data?: unknown }
   return normalizeBranding(payload.data, endpoint.origin)
 })

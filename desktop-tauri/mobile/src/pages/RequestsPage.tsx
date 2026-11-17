@@ -153,24 +153,24 @@ export function RequestsPage() {
         <PageAutoRefresh settings={auto} onRefresh={load} disabled={loadingMore} />
 
       <div className='m-section' style={{ marginTop: 0 }}>
-        <SegmentedControl value={filter} className='w-full' aria-label={t('请求筛选')}
+        <SegmentedControl value={filter} className='w-full' aria-label={t('Request filters')}
           options={[
-            { value: 'all', label: t('全部') },
-            { value: 'error', label: t('失败') },
-            { value: 'retry', label: t('有重试') },
-            { value: 'running', label: running ? t('在途 {n}', { n: running }) : t('在途') },
+            { value: 'all', label: t('All') },
+            { value: 'error', label: t('Failed') },
+            { value: 'retry', label: t('Retries available') },
+            { value: 'running', label: running ? t('Traveling {n}', { n: running }) : t('Traveling') },
           ]} onValueChange={value => setFilter(value as Filter)} />
       </div>
-      <DateRangeFilter range={range} dates={dates} onRangeChange={setRange} label={t('请求日志时间范围')}
+      <DateRangeFilter range={range} dates={dates} onRangeChange={setRange} label={t('Request Logs time range')}
         onDatesChange={next => { setDates(next); saveCustomRange(CUSTOM_RANGE_KEY, next) }} />
       </div>
 
       <div className='m-body' ref={bodyRef}>
       {Object.keys(sourceQuery).length ? <div className='m-section text-xs text-muted-foreground'>
-        {requestQuery.startDate && requestQuery.endDate ? `${requestQuery.startDate} ～ ${requestQuery.endDate}` : t('全部')}
+        {requestQuery.startDate && requestQuery.endDate ? `${requestQuery.startDate} ～ ${requestQuery.endDate}` : t('All')}
         {sourceQuery.client !== undefined ? ` · ${requestClientLabel({ client: sourceQuery.client, clientLabel: sourceQuery.clientLabel || rows.find(row => row.client === sourceQuery.client)?.clientLabel }, t)}` : ''}
         {sourceQuery.apiKey ? ` · ${t('API Key')} ${sourceQuery.apiKey}` : ''}
-        <Button variant='ghost' size='sm' onClick={() => store.push('requests')}>{t('清除筛选')}</Button>
+        <Button variant='ghost' size='sm' onClick={() => store.push('requests')}>{t('Clear filters')}</Button>
       </div> : null}
       {error ? <ErrorNote text={error} /> : null}
       {!page ? <SkeletonList rows={4} height={104} /> : null}
@@ -178,7 +178,7 @@ export function RequestsPage() {
       {page && !filtered.length ? (
         <div className='m-section'>
           <Card className='m-card'>
-            <Empty text={filter === 'all' ? t('暂无请求日志') : t('当前筛选下没有记录')} />
+            <Empty text={filter === 'all' ? t('No request logs yet') : t('No records under the current filter')} />
           </Card>
         </div>
       ) : null}
@@ -192,7 +192,7 @@ export function RequestsPage() {
       {page && rows.length < matched ? (
         <div className='m-section'>
           <Button size='touch' variant='outline' type='button' className='m-btn m-ghost w-full' disabled={loadingMore} onClick={() => void loadMore()}>
-            {loadingMore ? t('加载中…') : t('加载更早的请求')}
+            {loadingMore ? t('Loading…') : t('Load earlier requests')}
           </Button>
         </div>
       ) : null}
@@ -242,7 +242,7 @@ function RequestCard({ row, onClick }: { row: RequestRow; onClick: () => void })
             color: tone === 'ok' ? 'var(--m-ok)' : tone === 'warn' ? 'var(--m-warn)' : 'var(--m-danger)',
           }}
         >
-          {status || t('在途')}
+          {status || t('Traveling')}
         </span>
         <span
           className='m-mono'
@@ -275,7 +275,7 @@ function RequestCard({ row, onClick }: { row: RequestRow; onClick: () => void })
         {(row.attempts || 1) > 1 ? (
           <>
             <span style={{ opacity: 0.45 }}>·</span>
-            <span>{t('重试 {n}', { n: (row.attempts || 1) - 1 })}</span>
+            <span>{t('Retry {n}', { n: (row.attempts || 1) - 1 })}</span>
           </>
         ) : null}
       </div>
@@ -320,16 +320,16 @@ function buildNote(row: RequestRow): { text: string; tone: 'mute' | 'warn' | 'ba
       .map(item => `${providerLabel(item.provider)} ${item.status || ''}`.trim())
       .join(' → ')
     return {
-      text: chain ? t('换号链：{chain}', { chain }) : t('重试 {n} 次', { n: attempts - 1 }),
+      text: chain ? t('Account rotation chain: {chain}', { chain }) : t('Retry {n} times', { n: attempts - 1 }),
       tone: failed.length ? 'warn' : 'mute',
     }
   }
   const hits = Array.isArray(row.sensitiveHits) ? row.sensitiveHits : []
   if (hits.length) {
-    return { text: t('脱敏命中：{words}', { words: hits.map(item => item.word).join('、') }), tone: 'mute' }
+    return { text: t('Masking hits: {words}', { words: hits.map(item => item.word).join(', ') }), tone: 'mute' }
   }
   if (row.clientModel && row.upstreamModel && row.clientModel !== row.upstreamModel) {
-    return { text: t('模型映射：{from} → {to}', { from: row.clientModel, to: row.upstreamModel }), tone: 'mute' }
+    return { text: t('Model mapping: {from}→ {to}', { from: row.clientModel, to: row.upstreamModel }), tone: 'mute' }
   }
   return null
 }
@@ -340,14 +340,14 @@ function RequestSheet({ row, onClose }: { row: RequestRow | null; onClose: () =>
     <Sheet open={Boolean(row)} onOpenChange={next => { if (!next) onClose() }}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>{t('请求详情')}</SheetTitle>
+          <SheetTitle>{t('Request details')}</SheetTitle>
         </SheetHeader>
         <SheetBody>
           {row ? (
             <>
               <MetricGrid className='m-kv'>
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('状态')}</div>
+                  <div className='k'>{t('Status')}</div>
                   <div
                     className='v'
                     style={{
@@ -359,19 +359,19 @@ function RequestSheet({ row, onClose }: { row: RequestRow | null; onClose: () =>
                             : 'var(--m-danger)',
                     }}
                   >
-                    {row.status || t('在途')}
+                    {row.status || t('Traveling')}
                   </div>
                 </MetricCard>
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('用时')}</div>
+                  <div className='k'>{t('Duration')}</div>
                   <div className='v'>{formatDuration(row.durationMs)}</div>
                 </MetricCard>
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('输入 Token')}</div>
+                  <div className='k'>{t('Input tokens')}</div>
                   <div className='v'>{formatInt(Number(row.promptTokens) || 0)}</div>
                 </MetricCard>
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('输出 Token')}</div>
+                  <div className='k'>{t('Output tokens')}</div>
                   <div className='v'>{formatInt(Number(row.completionTokens) || 0)}</div>
                 </MetricCard>
               </MetricGrid>
@@ -381,17 +381,17 @@ function RequestSheet({ row, onClose }: { row: RequestRow | null; onClose: () =>
                 <ClientIdentificationDetail key={row.id || row.ts} entry={row} api={clientIdentificationApi} t={t} />
               </div>
               <div className='m-rows'>
-                <div className='m-row'><span className='m-k'>{t('客户端')}</span><span className='m-v'>{requestClientLabel(row, t)}</span></div>
+                <div className='m-row'><span className='m-k'>{t('Client')}</span><span className='m-v'>{requestClientLabel(row, t)}</span></div>
                 <div className='m-row'><span className='m-k'>{t('API Key')}</span><span className='m-v'>{requestKeyName(row)}</span></div>
                 <div className='m-row'>
-                  <span className='m-k'>{t('模型')}</span>
+                  <span className='m-k'>{t('Model')}</span>
                   <span className='m-v m-mono' style={{ fontSize: 11 }}>
                     {row.model || '—'}
                   </span>
                 </div>
                 {row.clientModel ? (
                   <div className='m-row'>
-                    <span className='m-k'>{t('客户端请求的模型')}</span>
+                    <span className='m-k'>{t('The model requested by the client')}</span>
                     <span className='m-v m-mono' style={{ fontSize: 11 }}>
                       {row.clientModel}
                     </span>
@@ -399,30 +399,30 @@ function RequestSheet({ row, onClose }: { row: RequestRow | null; onClose: () =>
                 ) : null}
                 {row.upstreamModel ? (
                   <div className='m-row'>
-                    <span className='m-k'>{t('发给上游的模型')}</span>
+                    <span className='m-k'>{t('The model sent to the upstream')}</span>
                     <span className='m-v m-mono' style={{ fontSize: 11 }}>
                       {row.upstreamModel}
                     </span>
                   </div>
                 ) : null}
                 <div className='m-row'>
-                  <span className='m-k'>{t('提供商')}</span>
+                  <span className='m-k'>{t('Provider')}</span>
                   <span className='m-v'>{providerLabel(row.provider, row.providerLabel)}</span>
                 </div>
                 <div className='m-row'>
-                  <span className='m-k'>{t('账号')}</span>
+                  <span className='m-k'>{t('Accounts')}</span>
                   <span className='m-v'>{row.accountName || '—'}</span>
                 </div>
                 <div className='m-row'>
-                  <span className='m-k'>{t('尝试次数')}</span>
+                  <span className='m-k'>{t('Attempts')}</span>
                   <span className='m-v'>{row.attempts || 1}</span>
                 </div>
                 <div className='m-row'>
-                  <span className='m-k'>{t('首响')}</span>
+                  <span className='m-k'>{t('First response')}</span>
                   <span className='m-v'>{formatDuration(row.firstResponseMs ?? null)}</span>
                 </div>
                 <div className='m-row'>
-                  <span className='m-k'>{t('时间')}</span>
+                  <span className='m-k'>{t('Time')}</span>
                   <span className='m-v m-mono' style={{ fontSize: 11 }}>
                     {row.ts ? new Date(row.ts).toLocaleString('zh-CN', { hour12: false }) : '—'}
                   </span>
@@ -431,7 +431,7 @@ function RequestSheet({ row, onClose }: { row: RequestRow | null; onClose: () =>
 
               {details.length ? (
                 <>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--m-text-2)' }}>{t('尝试链')}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--m-text-2)' }}>{t('The try chain')}</div>
                   <div className='m-rows'>
                     {details.map((item, index) => (
                       <div key={index} className='m-row'>
@@ -456,7 +456,7 @@ function RequestSheet({ row, onClose }: { row: RequestRow | null; onClose: () =>
         </SheetBody>
         <SheetFooter>
           <Button size='touch' variant='outline' type='button' className='m-btn m-ghost w-full' onClick={onClose}>
-            {t('关闭')}
+            {t('Close')}
           </Button>
         </SheetFooter>
       </SheetContent>

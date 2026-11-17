@@ -51,7 +51,7 @@ pub async fn put_cors(State(_state): State<ServerState>, body: Bytes) -> Respons
         return errors::management_error(400, format!("缺少 {key}"));
     };
     let Some(enabled) = value.as_bool() else {
-        return errors::management_error(400, format!("{key} 必须是 true 或 false"));
+        return errors::management_error(400, format!("{key} 必须是 true or false"));
     };
     if !config::set_cors_enabled(enabled) {
         logging::log("[Config]", "⚠️  网关跨域访问设置写入失败，本次运行内仍生效");
@@ -59,7 +59,7 @@ pub async fn put_cors(State(_state): State<ServerState>, body: Bytes) -> Respons
     logging::log(
         "[Config]",
         if enabled {
-            "网关跨域访问已开启：/v1/* 允许浏览器跨来源调用（Access-Control-Allow-Origin: *）"
+            "网关跨域访问已开启：/v1/* 允许浏览器跨来源调用（Access-Control-Allow-Origin: *)"
         } else {
             "网关跨域访问已关闭：/v1/* 不再应答跨源请求，浏览器客户端会被预检拦下"
         },

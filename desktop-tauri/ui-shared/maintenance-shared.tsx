@@ -36,7 +36,7 @@ export function runTone(status: MaintenanceRunStatus): StatusTone {
 
 /** 一次执行的状态（执行中 / 已完成 / 部分失败 / 失败 / 全部跳过 / 执行中断） */
 export function RunStatus({ status, pulse = false }: { status: MaintenanceRunStatus | undefined; pulse?: boolean }) {
-  if (!status) return <span className='maintenance-status'><StatusDot variant='muted' />{t('暂无记录')}</span>
+  if (!status) return <span className='maintenance-status'><StatusDot variant='muted' />{t('No records yet')}</span>
   return <span className='maintenance-status'>
     <StatusDot variant={runTone(status)} pulse={pulse || status === 'running'} />
     {statusLabel(status)}
@@ -55,13 +55,13 @@ export function ItemStatus({ status }: { status: MaintenanceResultStatus }) {
  */
 export function RunCounts({ run }: { run: MaintenanceRun }) {
   if (run.status === 'running' || run.status === 'interrupted') {
-    return <span className='maintenance-counts' title={run.status === 'running' ? t('维护正在执行，完成后会显示逐项结果') : t('该次执行未完成，没有完整明细')}>—</span>
+    return <span className='maintenance-counts' title={run.status === 'running' ? t('Maintenance is running. Item results will appear when it finishes.') : t('This run did not finish; complete details are unavailable')}>—</span>
   }
   return <div className='maintenance-counts'>
-    <span>{t('成功')} <b>{run.refreshed}</b></span>
+    <span>{t('Success')} <b>{run.refreshed}</b></span>
     <span className='maintenance-counts-sep'>·</span>
-    <span>{t('跳过')} <b>{run.skipped}</b></span>
+    <span>{t('Skipped')} <b>{run.skipped}</b></span>
     <span className='maintenance-counts-sep'>·</span>
-    <span className={run.failed ? 'maintenance-counts-bad' : undefined}>{t('失败')} <b>{run.failed}</b></span>
+    <span className={run.failed ? 'maintenance-counts-bad' : undefined}>{t('Failed')} <b>{run.failed}</b></span>
   </div>
 }

@@ -168,7 +168,7 @@ impl AccountStore {
             let existing_provider = existing.provider();
             if existing_provider != requested_provider {
                 return Err(AccountStoreError::bad_request(format!(
-                    "账号 id「{id}」已被{}账号占用，无法用同一 uid 添加{}账号（请先处理那个账号）",
+                    "Account id「{id}」已被{}账号占用，无法用同一 uid Add{}账号（请先处理那个账号）",
                     crate::server::core::providers::label_of(&existing_provider),
                     crate::server::core::providers::label_of(requested_provider)
                 )));
@@ -246,7 +246,7 @@ impl AccountStore {
         })? {
             return Err(AccountStoreError::new(
                 format!(
-                    "优先级 {priority} 已被账号「{holder_name}」占用，请换一个\
+                    "Priority {priority} 已被账号「{holder_name}」占用，请换一个\
                      （优先级全局唯一）"
                 ),
                 409,
@@ -269,7 +269,7 @@ impl AccountStore {
             .or_else(|| optional_text(account.get("nickname")))
             .or_else(|| optional_text(payload_object.get("nickname")))
             .or_else(|| existing.as_ref().and_then(|item| optional_text(item.get("name"))))
-            .unwrap_or_else(|| format!("账号 {}", truncate_chars(&uid, 8)));
+            .unwrap_or_else(|| format!("Account {}", truncate_chars(&uid, 8)));
         record.insert("name".to_string(), Value::String(record_name.clone()));
         mark_name_custom(&mut record, explicit, existing.as_ref());
         record.insert(
@@ -405,7 +405,7 @@ impl AccountStore {
         logging::log(
             "[Accounts]",
             &format!(
-                "✅ 账号已保存: {}（{}…，{}，优先级 {}）",
+                "✅ 账号已保存: {}（{}…, {}，优先级 {})",
                 record_name,
                 truncate_chars(&uid, 8),
                 edition.label,
@@ -490,7 +490,7 @@ impl AccountStore {
         // 落库之后立刻记一笔（与批量删除同一格式）
         logging::log(
             "[Accounts]",
-            &format!("🗑️  账号已删除: {name}（{id}，{provider}）"),
+            &format!("🗑️  Account deleted: {name}（{id}, {provider})"),
         );
         // 落库已完成，账号锁在这里放开：注册表作废是另一把锁的操作，
         // 两者不必（也不该）嵌套（见 `invalidate_catpaw_sessions` 的说明）
@@ -588,7 +588,7 @@ impl AccountStore {
                 }
             }
             changes.push(format!(
-                "优先级 → {}（本组置顶 + 本组排到最前）",
+                "Priority → {}（本组置顶 + 本组排到最前）",
                 ordered.first().map(StoredAccount::priority).unwrap_or(DEFAULT_PRIORITY)
             ));
             if let Some(record) = ordered.iter_mut().find(|item| item.id() == id) {
@@ -622,7 +622,7 @@ impl AccountStore {
         let current_id = Self::pick_current(&state.accounts).map(|record| record.id().to_string());
         logging::log(
             "[Accounts]",
-            &format!("⬆️  账号已置顶: {display_name}（{}）", changes.join("，")),
+            &format!("⬆️  账号已置顶: {display_name}（{})", changes.join(", ")),
         );
         let mut result = json!({
             "id": id,
@@ -688,7 +688,7 @@ impl AccountStore {
         }
         logging::log(
             "[Accounts]",
-            &format!("✏️  账号已更新: {name}（{}）", changes.join("，")),
+            &format!("✏️  账号已更新: {name}（{})", changes.join(", ")),
         );
         let limiter_changed = patch.contains_key("limiterGroups") || patch.contains_key("limiters");
         if was_enabled && now_disabled || limiter_changed {
@@ -731,7 +731,7 @@ impl AccountStore {
             let current = record.name();
             if next != current {
                 if next.is_empty() {
-                    return Err(AccountStoreError::bad_request("备注名不能为空"));
+                    return Err(AccountStoreError::bad_request("Label cannot be empty"));
                 }
                 record.set("name", Value::String(next.clone()));
                 // 用户**真正改到**备注名时打标（设置表单每次都会把 name 原样发回来，
@@ -739,7 +739,7 @@ impl AccountStore {
                 // 设过）。种子名与用户改的名在记录里无法区分，界面全靠这个标记区分
                 // 「备注名赢过默认口径」还是「维持原行为」（见 displayNameOf）
                 record.set("nameCustom", Value::Bool(true));
-                changes.push(format!("备注名 → {next}"));
+                changes.push(format!("Label → {next}"));
             }
         }
 
@@ -752,14 +752,14 @@ impl AccountStore {
                 if let Some(holder_name) = find_holder(next)? {
                     return Err(AccountStoreError::new(
                         format!(
-                            "优先级 {next} 已被账号「{holder_name}」占用，请换一个\
+                            "Priority {next} 已被账号「{holder_name}」占用，请换一个\
                              （优先级全局唯一）"
                         ),
                         409,
                     ));
                 }
                 record.set_priority(next);
-                changes.push(format!("优先级 → {next}"));
+                changes.push(format!("Priority → {next}"));
             }
         }
 
@@ -772,7 +772,7 @@ impl AccountStore {
                     .is_some_and(|until| until > logging::now_ms()) {
                     record.remove("upstreamBlockedReason");
                 }
-                changes.push(if next { "已启用".to_string() } else { "已禁用".to_string() });
+                changes.push(if next { "Enabled".to_string() } else { "Disabled".to_string() });
             }
         }
 
@@ -822,19 +822,19 @@ impl AccountStore {
                 {
                     return Err(AccountStoreError::bad_request(
                         "轮询出网只对 OpenCode Zen 账号开放：该上游按 IP 限流，\
-                         轮换出口可以绕开单个 IP 的 429；别的提供商请用「已保存的代理」",
+                         轮换出口可以绕开单个 IP — see the 429；别的提供商请用「已保存的代理」",
                     ));
                 }
                 record.set_proxy(next.clone());
                 let label = if next.is_null() {
-                    "代理 → 无代理（直连）".to_string()
+                    "Proxy → No proxy (direct)".to_string()
                 } else {
                     let described = describe_account_proxy(Some(&next));
                     let label = described
                         .get("label")
                         .and_then(Value::as_str)
-                        .unwrap_or("已设置");
-                    format!("代理 → {label}")
+                        .unwrap_or("Configured");
+                    format!("Proxy → {label}")
                 };
                 changes.push(label);
             }
@@ -850,9 +850,9 @@ impl AccountStore {
             if next != current {
                 record.set("maxConcurrent", Value::from(next));
                 changes.push(if next == 0 {
-                    "并发上限 → 不限".to_string()
+                    "Concurrency limit → Unlimited".to_string()
                 } else {
-                    format!("并发上限 → {next}")
+                    format!("Concurrency limit → {next}")
                 });
             }
         }
@@ -871,7 +871,7 @@ impl AccountStore {
             if next != current {
                 if next.is_empty() {
                     record.remove("userAgent");
-                    changes.push("User-Agent → 默认".to_string());
+                    changes.push("User-Agent → Default".to_string());
                 } else {
                     record.set("userAgent", Value::String(next.clone()));
                     changes.push(format!("User-Agent → {next}"));
@@ -980,7 +980,7 @@ impl AccountStore {
         let mode = fields.get("mode").and_then(Value::as_str).unwrap_or("");
         if !matches!(mode, "off" | "skip" | "disable") {
             return Err(AccountStoreError::bad_request(
-                "余额不足的处理方式必须是「不处理 / 跳过 / 禁用」之一",
+                "余额不足的处理方式必须是「不处理 / Skipped / 禁用」之一",
             ));
         }
         if mode == "off" {
@@ -1135,7 +1135,7 @@ mod tests {
         let mut record = base();
         let patch = json!({ "name": "新备注" }).as_object().unwrap().clone();
         let changes = AccountStore::apply_patch(&mut record, &patch, no_holder).unwrap();
-        assert_eq!(changes, vec!["备注名 → 新备注"]);
+        assert_eq!(changes, vec!["Label → 新备注"]);
         assert_eq!(record.get("nameCustom"), Some(&Value::Bool(true)));
 
         // 同值提交（表单原样回传）：不打标

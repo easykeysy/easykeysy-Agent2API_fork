@@ -111,7 +111,7 @@ pub async fn refresh_checked(
             return Err(GatewayError::with_status(
                 502,
                 format!(
-                    "账号 {id} 的凭证刷新未产生变化（适配器报成功但凭据未更新），请重新登录该账号"
+                    "Account {id} 的凭证刷新未产生变化（适配器报成功但凭据未更新），请重新登录该账号"
                 ),
             ));
         }
@@ -164,7 +164,7 @@ pub async fn refresh_accounts(store: &AccountStore, selected: Option<&[String]>,
             .and_then(Value::as_str)
             .unwrap_or("");
         if store.needs_relogin(&id) {
-            slots[index] = Some(skipped(&id, provider, "登录授权已失效，需要重新登录该账号"));
+            slots[index] = Some(skipped(&id, provider, "Sign-in authorization has expired. Sign in to this account again."));
             continue;
         }
         // 判据只有两条：该家支持刷新 + 这个账号的凭证确实临期。
@@ -177,20 +177,20 @@ pub async fn refresh_accounts(store: &AccountStore, selected: Option<&[String]>,
         // 由握手带回）。只认枚举会让插件家的凭证永远不自动续期 —— 症状是
         // 用户看到账号「已过期」而网关什么都不做。
         let Some(adapter) = crate::server::core::providers::adapter::adapter_by_id(provider) else {
-            slots[index] = Some(skipped(&id, provider, "未注册的提供商"));
+            slots[index] = Some(skipped(&id, provider, "Unregistered provider"));
             continue;
         };
         if !adapter.supports_refresh() {
             slots[index] = Some(skipped(
                 &id,
                 provider,
-                "该提供商不支持主动刷新凭证（没有续期手段）",
+                "This provider does not support credential renewal",
             ));
             continue;
         }
         // 判不出来（没有过期信息 / 账号不存在 / 没有 refreshToken）一律 false
         if !forced.iter().any(|account_id| account_id == &id) && !adapter.credentials_expiring_async(store, &id).await {
-            slots[index] = Some(skipped(&id, provider, "凭证未过期或临期"));
+            slots[index] = Some(skipped(&id, provider, "Credentials are not expired or close to expiry"));
             continue;
         }
         pending.push((index, id, provider.to_string(), adapter));
@@ -212,7 +212,7 @@ pub async fn refresh_accounts(store: &AccountStore, selected: Option<&[String]>,
     );
     for (index, id, provider, adapter) in pending {
         if store.needs_relogin(&id) {
-            slots[index] = Some(skipped(&id, &provider, "登录授权已失效，需要重新登录该账号"));
+            slots[index] = Some(skipped(&id, &provider, "Sign-in authorization has expired. Sign in to this account again."));
             continue;
         }
         // 走适配器而不是别处：这条已经是四家统一的刷新入口
@@ -237,7 +237,7 @@ pub async fn refresh_accounts(store: &AccountStore, selected: Option<&[String]>,
             Err(error) => {
                 logging::log(
                     "[Accounts]",
-                    &format!("❌ 账号 {id} 凭证自动刷新失败: {}", error.message),
+                    &format!("❌ Account {id} 凭证自动刷新失败: {}", error.message),
                 );
                 json!({
                     "id": id,

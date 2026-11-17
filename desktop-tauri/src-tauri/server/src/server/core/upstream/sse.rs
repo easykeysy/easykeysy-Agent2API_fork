@@ -520,13 +520,13 @@ impl ReasoningCoalescer {
     }
 }
 
-/// 一帧 SSE：`data: <JSON>\n\n`（Node 的 sseFrame）
+/// 一帧 SSE: `data: <JSON>\n\n`（Node — see the sseFrame)
 pub fn sse_frame(value: &Value) -> Frame {
     let text = serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string());
     Bytes::from(format!("data: {text}\n\n"))
 }
 
-/// 非 `data:` 行的透传形态：原样 + `\n\n`（Node: `line + '\n\n'`）
+/// 非 `data:` 行的透传形态：原样 + `\n\n`（Node: `line + '\n\n'`)
 fn plain_frame(line: &str) -> Frame {
     Bytes::from(format!("{line}\n\n"))
 }
@@ -551,7 +551,7 @@ mod tests {
         format!("data: {}\n\n", serde_json::to_string(&value).expect("测试里的帧必须是合法 JSON"))
     }
 
-    /// 上游（WorkBuddy）形态的一帧：带 usage:null 与 finish_reason 两个尾巴字段，
+    /// 上游（WorkBuddy）形态的一帧：带 usage:null and finish_reason 两个尾巴字段，
     /// 与真实流里的样子对齐 —— 判据依赖这两处，测试不能给一个过于干净的形状。
     fn frame(delta: Value) -> String {
         raw(json!({
@@ -665,7 +665,7 @@ mod tests {
     }
 
     /// 生产抓包（NAS `request_raw` 的下发字节，WorkBuddy 的
-    /// `deepseek-v4.1-flash`，请求 id `185d8dbf…`）里连续七帧的**原样字节**：
+    /// `deepseek-v4.1-flash`，请求 id `185d8dbf…`）里连续七帧的**原样字节**: 
     /// 上游把保活换行夹在正文分片之间。最后一帧 `":\n"` 是「真文本 + 换行」，
     /// 一起丢掉就会把冒号也吞了 —— 这条测试锁住判据的边界。
     const CAPTURED: [&str; 7] = [
@@ -731,7 +731,7 @@ mod tests {
         assert!(!is_newline_keepalive(&json!("")));
     }
 
-    /// 装配规则本身：**能力位 × 开关**，两位都真才丢。
+    /// 装配规则本身：**能力位 × Toggles**，两位都真才丢。
     ///
     /// 三条断言各自对应一个会被搞反的方向 ——
     ///   - `declared=false, switch=true` ⇒ 不丢：开关只能收窄不能扩张，
@@ -779,8 +779,8 @@ mod tests {
         assert_eq!(out, stream, "开关关着时七帧要一字不动地出去");
     }
 
-    /// OfficeAce 工具调用流的**收尾帧原样字节**（NAS dev `debug_traffic`，
-    /// 请求 `74eeb698…`，上游第 17 帧）：`delta` 里同时有 `content:""` 与
+    /// OfficeAce 工具调用流的**收尾帧原样字节**（NAS dev `debug_traffic`, 
+    /// Requests `74eeb698…`，上游第 17 帧）：`delta` 里同时有 `content:""`  and 
     /// `reasoning_content:""`，终止信息与统计只挂在**这一帧**上。
     fn officeace_terminal_frame() -> String {
         raw(json!({
@@ -838,7 +838,7 @@ mod tests {
     /// `carries_terminal_signal` 的三支判据各自单独成立。
     ///
     /// 它是那三样豁免的**唯一**实现（保活与累积两条路径都只调它），所以三支都得能
-    /// 被单独钉住：上面那条端到端用例喂的帧**同时**带 `usage` 与 `finish_reason`，
+    /// 被单独钉住：上面那条端到端用例喂的帧**同时**带 `usage` and `finish_reason`, 
     /// 只覆盖了 usage 那一支 —— `finish_reason` 单独一支与 `error` 一支此前无人钉。
     #[test]
     fn the_terminal_signal_predicate_answers_each_clause_on_its_own() {
@@ -866,8 +866,8 @@ mod tests {
 
     /// 流内错误帧**带着一个空思考增量**时，不许被 reasoning 累积分支整帧吞掉。
     ///
-    /// 这是把两份同源判据合并成一处之后收紧的那一格：保活路径一直护着 `error`，
-    /// 而累积分支此前没有 —— 一个既带 `error`、`choices[0].delta` 里又有个空
+    /// 这是把两份同源判据合并成一处之后收紧的那一格：保活路径一直护着 `error`, 
+    /// 而累积分支此前没有 —— 一个既带 `error`, `choices[0].delta` 里又有个空
     /// `reasoning_content` 的帧会被当成"纯思考增量"吞掉，故障从此静默。
     #[test]
     fn an_error_frame_with_an_empty_reasoning_delta_is_not_absorbed() {
@@ -885,7 +885,7 @@ mod tests {
     }
 
     /// 攒了一半的思考在前、终止帧在后：顺序不能颠倒（客户端会先把思考当正文），
-    /// 且终止帧之后 `acc` 必须已清空、不再补一帧空的 reasoning。
+    /// 且终止帧之后 `acc` 必须已清空、不再补一帧空的 reasoning.
     #[test]
     fn the_accumulated_reasoning_is_flushed_before_the_terminal_frame() {
         let terminal = officeace_terminal_frame();

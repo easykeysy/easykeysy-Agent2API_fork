@@ -42,7 +42,7 @@ for arg in "$@"; do
       exit 0
       ;;
     *)
-      echo "未知参数: $arg（可用：--upgrade / --uninstall / --purge）" >&2
+      echo "Unknown parameter: $arg (available: --upgrade / --uninstall / --purge)" >&2
       exit 1
       ;;
   esac
@@ -50,7 +50,7 @@ done
 
 # ── 前置检查 ────────────────────────────────────────────────
 if [ "$(id -u)" -ne 0 ]; then
-  echo "错误: 需要 root 权限（请用 sudo 运行）" >&2
+  echo "Error: root privileges required (please run with sudo)" >&2
   exit 1
 fi
 
@@ -59,13 +59,13 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ "$MODE" != "uninstall" ]; then
   for required in agent2api-server ui agent2api.service; do
     if [ ! -e "$HERE/$required" ]; then
-      echo "错误: 找不到 $HERE/$required —— 请在解包后的发行目录里运行本脚本" >&2
+      echo "Error: Could not find$HERE/$required —— Run this script inside the unpacked release directory" >&2
       exit 1
     fi
   done
   if ! command -v systemctl >/dev/null 2>&1; then
-    echo "错误: 没找到 systemctl —— 本脚本面向 systemd 发行版" >&2
-    echo "      其它 init 系统请直接前台运行 agent2api-server（见 README）" >&2
+    echo "Error: systemctl was not found—— This script targets systemd distributions" >&2
+    echo "      Other init The system should run agent2api-server in the foreground directly (see the README)" >&2
     exit 1
   fi
 fi
@@ -80,15 +80,15 @@ configure_updater() {
   if [ "$unit_user" != "$SERVICE_USER" ] || [ "$unit_group" != "$SERVICE_GROUP" ] \
     || [[ "$unit_exec" != *"path=$INSTALL_DIR/agent2api-server ;"* ]] \
     || [ "$unit_work" != "$INSTALL_DIR" ]; then
-    echo "⚠️ 检测到自定义服务配置，保持原样，未启用一键更新。"
-    echo "   请按原部署方式升级；一键更新需要官方安装路径和服务账号。"
+    echo "⚠️ Custom service configuration detected; left as is; one-click updates not enabled."
+    echo "   Please upgrade using the original deployment method; one-click updates require the official install path and service account."
     return
   fi
   local state_dir="/var/lib/agent2api-updater"
   local dropin="${UNIT_PATH}.d"
   install -d -m 0755 -o root -g root "$state_dir" "$dropin" || return 1
   if [ -L "$state_dir/ready.json" ]; then
-    echo "错误: 升级就绪文件不能是符号链接" >&2
+    echo "Error: The upgrade-ready file must not be a symbolic link" >&2
     return 1
   fi
   if [ ! -e "$state_dir/ready.json" ]; then
@@ -97,7 +97,7 @@ configure_updater() {
   chown root:"$SERVICE_GROUP" "$state_dir/ready.json" || return 1
   chmod 0660 "$state_dir/ready.json" || return 1
   if [ ! -e "$CONF_DIR/updater.env" ]; then
-    printf '# 管理员可在此指定受信任的发布仓库及 HTTPS_PROXY；默认使用官方索引。\n' > "$CONF_DIR/updater.env" || return 1
+    printf '# An administrator can designate trusted publishing repositories and HTTPS_PROXY here; the official index is used by default.",\n' > "$CONF_DIR/updater.env" || return 1
     chmod 0600 "$CONF_DIR/updater.env" || return 1
   fi
   cat > /etc/systemd/system/agent2api-updater.socket <<'EOF' || return 1
@@ -147,12 +147,12 @@ ReadWritePaths=$state_dir/ready.json
 EOF
   systemctl daemon-reload || return 1
   systemctl enable --now agent2api-updater.socket || return 1
-  echo "→ 一键更新组件已配置（网关权限保持不变）"
+  echo "→ One-click update component configured (gateway permissions unchanged)"
 }
 
 # ── 卸载 ────────────────────────────────────────────────────
 if [ "$MODE" = "uninstall" ]; then
-  echo "→ 停止并禁用服务"
+  echo "→ Stop and disable the service"
   systemctl stop "$SERVICE_NAME" 2>/dev/null || true
   systemctl disable "$SERVICE_NAME" 2>/dev/null || true
   systemctl disable --now agent2api-updater.socket 2>/dev/null || true
@@ -162,35 +162,35 @@ if [ "$MODE" = "uninstall" ]; then
   rmdir "${UNIT_PATH}.d" 2>/dev/null || true
   rm -f "$UNIT_PATH"
   systemctl daemon-reload
-  echo "→ 删除程序目录 $INSTALL_DIR"
+  echo "→ Delete the program directory$INSTALL_DIR"
   rm -rf "$INSTALL_DIR"
   if [ "$PURGE" -eq 1 ]; then
-    echo "→ 删除数据（$DATA_DIR）与配置（$CONF_DIR）"
+    echo "→ Delete the data ($DATA_DIR) and the configuration ($CONF_DIR)"
     rm -rf "$DATA_DIR" "$CONF_DIR"
     if id -u "$SERVICE_USER" >/dev/null 2>&1; then
       userdel "$SERVICE_USER" 2>/dev/null || true
     fi
   else
-    echo "→ 数据与配置已保留：$DATA_DIR / $CONF_DIR"
-    echo "   （连它们一起删用 --purge）"
+    echo "→ Data and configuration have been kept:$DATA_DIR / $CONF_DIR"
+    echo "   (delete them too with --purge)"
   fi
-  echo "✅ 卸载完成"
+  echo "✅ Uninstall complete"
   exit 0
 fi
 
 # ── 升级：只换程序，不碰数据与配置 ──────────────────────────
 if [ "$MODE" = "upgrade" ]; then
   if [ ! -d "$INSTALL_DIR" ]; then
-    echo "错误: $INSTALL_DIR 不存在 —— 这台机器还没装过，请用 install.sh（不带参数）" >&2
+    echo "Error: $INSTALL_DIR Does not exist—— This machine has never been installed; use install.sh (with no arguments)" >&2
     exit 1
   fi
-  echo "→ 停止服务"
+  echo "→ Stop the service"
   systemctl stop "$SERVICE_NAME"
   # 先备份旧二进制：新版本起不来时能立刻换回去
   if [ -f "$INSTALL_DIR/agent2api-server" ]; then
     cp -f "$INSTALL_DIR/agent2api-server" "$INSTALL_DIR/agent2api-server.bak"
   fi
-  echo "→ 替换程序与界面"
+  echo "→ Replace the program and the UI"
   install -m 0755 "$HERE/agent2api-server" "$INSTALL_DIR/agent2api-server"
   rm -rf "$INSTALL_DIR/ui"
   cp -r "$HERE/ui" "$INSTALL_DIR/ui"
@@ -198,18 +198,18 @@ if [ "$MODE" = "upgrade" ]; then
   # 组件写入失败也要把已经升级的主服务拉起来，不让迁移故障变成停机。
   if ! configure_updater; then
     systemctl start "$SERVICE_NAME" || true
-    echo "错误: 程序已替换，但一键更新组件配置失败，请检查上面的错误后重跑升级。" >&2
+    echo "Error: The program has been replaced, but the one-click update component configuration failed. Check the errors above and rerun the upgrade." >&2
     exit 1
   fi
-  echo "→ 启动服务"
+  echo "→ Start the service"
   systemctl start "$SERVICE_NAME"
-  echo "✅ 升级完成（旧版本备份在 $INSTALL_DIR/agent2api-server.bak）"
+  echo "✅ Upgrade complete (the old version is backed up at$INSTALL_DIR/agent2api-server.bak)"
   systemctl status "$SERVICE_NAME" --no-pager --lines=5 || true
   exit 0
 fi
 
 # ── 全新安装 ────────────────────────────────────────────────
-echo "→ 创建服务账号 $SERVICE_USER"
+echo "→ Create the service account$SERVICE_USER"
 if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
   # --system：系统账号，不占普通用户 UID 段；
   # --no-create-home + /usr/sbin/nologin：不允许登录，数据目录单独给。
@@ -218,19 +218,19 @@ if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
     || useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
 fi
 
-echo "→ 安装程序到 $INSTALL_DIR"
+echo "→ Install the program to$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 install -m 0755 "$HERE/agent2api-server" "$INSTALL_DIR/agent2api-server"
 rm -rf "$INSTALL_DIR/ui"
 cp -r "$HERE/ui" "$INSTALL_DIR/ui"
 chown -R root:root "$INSTALL_DIR"
 
-echo "→ 准备数据目录 $DATA_DIR"
+echo "→ Prepare the data directory$DATA_DIR"
 mkdir -p "$DATA_DIR"
 chown -R "$SERVICE_USER:$SERVICE_GROUP" "$DATA_DIR"
 chmod 0750 "$DATA_DIR"
 
-echo "→ 准备配置 $CONF_DIR/agent2api.env"
+echo "→ Preparing the configuration$CONF_DIR/agent2api.env"
 mkdir -p "$CONF_DIR"
 if [ ! -f "$CONF_DIR/agent2api.env" ]; then
   if [ -f "$HERE/agent2api.env.example" ]; then
@@ -242,12 +242,12 @@ if [ ! -f "$CONF_DIR/agent2api.env" ]; then
   fi
   chmod 0640 "$CONF_DIR/agent2api.env"
   chown root:"$SERVICE_GROUP" "$CONF_DIR/agent2api.env"
-  echo "   已生成（首次安装）"
+  echo "   Generated (first install)"
 else
-  echo "   已存在，保持不动（重装不会覆盖你的配置）"
+  echo "   already exists; left untouched (reinstalling will not overwrite your configuration)"
 fi
 
-echo "→ 安装 systemd 单元"
+echo "→ Install systemd Unit"
 install -m 0644 "$HERE/agent2api.service" "$UNIT_PATH"
 systemctl daemon-reload
 configure_updater
@@ -279,7 +279,7 @@ if systemctl is-active --quiet "$SERVICE_NAME"; then
 ⚠️  未创建 API Key 之前 /v1/* 会拒绝服务（fail-closed），这是预期行为。
 EOF
 else
-  echo "❌ 服务没能启动。排查："
+  echo "❌ The service could not be started. Troubleshooting:"
   echo "   systemctl status $SERVICE_NAME"
   echo "   journalctl -u $SERVICE_NAME -n 50 --no-pager"
   exit 1

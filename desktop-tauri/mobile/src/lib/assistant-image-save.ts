@@ -10,10 +10,10 @@ const ImageSaver = registerPlugin<ImageSaverPlugin>('ImageSaver')
 
 export const saveMobileAssistantImage: ImageFileSaver = async (image, blob) => {
   if (!Capacitor.isNativePlatform()) { await saveAssistantImageFile(image, blob); return }
-  if (!Capacitor.isPluginAvailable('ImageSaver')) throw new Error(t('当前安装包未包含原生图片保存能力，请更新应用。'))
+  if (!Capacitor.isPluginAvailable('ImageSaver')) throw new Error(t('This app package does not include native image saving. Update the app.'))
   const data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error(t('无法读取图片')))
+    reader.onerror = () => reject(new Error(t('Unable to read image')))
     reader.onload = () => resolve(String(reader.result).split(',')[1] || '')
     reader.readAsDataURL(blob)
   })

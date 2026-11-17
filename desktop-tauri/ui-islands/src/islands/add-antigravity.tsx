@@ -22,13 +22,13 @@ export function AntigravityAccountBlock({ active, version, footerHost, initialAc
   const hasAcp = Boolean(acp && acp.loginAvailable !== false && startup.value?.providers[ANTIGRAVITY_ACP_PROVIDER]?.available !== false)
   const config = configOf(ANTIGRAVITY_PROVIDER)
   const options = [
-    ...(traditional ? [{ value: 'web', label: t('网页登录') }, { value: 'manual', label: t('填写凭证') }] : []),
+    ...(traditional ? [{ value: 'web', label: t('Web login') }, { value: 'manual', label: t('Enter credentials') }] : []),
     ...(hasAcp ? [{ value: 'acp', label: acpName }] : []),
   ]
   const method = options.some(option => option.value === selected) ? selected : options[0]?.value
   return <div className='add-provider-block' hidden={!active}>
-    {options.length > 1 ? <AddGroup label={t('添加方式')}>
-      <SegmentedControl aria-label={t('Antigravity 账号的添加方式')} value={method}
+    {options.length > 1 ? <AddGroup label={t('Add method')}>
+      <SegmentedControl aria-label={t('Antigravity account setup method')} value={method}
         options={options} onValueChange={setSelected} />
     </AddGroup> : null}
     {method === 'acp' ? <DynamicProviderBlock key={ANTIGRAVITY_ACP_PROVIDER}
@@ -39,7 +39,7 @@ export function AntigravityAccountBlock({ active, version, footerHost, initialAc
         selectedMethod={method === 'web' ? 'web' : 'manual'} hideMethodPicker />
       <AddAccountProxySection idPrefix='antigravity-add-proxy' />
     </> : <Alert variant='warning'><AlertDescription>
-      {t('请安装并启用对应的提供商插件；列表为空时请刷新后重试。')}
+      {t('Install and enable the corresponding provider plugin. If the list is empty, refresh and try again.')}
     </AlertDescription></Alert>}
   </div>
 }

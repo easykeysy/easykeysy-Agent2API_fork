@@ -52,7 +52,7 @@
   const describeError = error => {
     if (error instanceof Error && error.message) return error.message;
     const text = String(error ?? '').trim();
-    return text || wbI18n.t('未知错误');
+    return text || wbI18n.t('Unknown error');
   };
 
   /** unix 秒 → 本地可读时间（后端给的一律是秒，不是毫秒） */
@@ -76,8 +76,8 @@
   async function preview(accountId) {
     const api = bridge();
     const id = String(accountId || '');
-    if (!id) throw new Error(wbI18n.t('账号信息不完整，请刷新后重试'));
-    if (!api?.zcodeClaimPreview) throw new Error(wbI18n.t('当前环境不支持领取（桥接方法缺失）'));
+    if (!id) throw new Error(wbI18n.t('Account info is incomplete; refresh and try again'));
+    if (!api?.zcodeClaimPreview) throw new Error(wbI18n.t('Claiming is not supported in this environment (bridge method missing)'));
     return api.zcodeClaimPreview(id);
   }
 
@@ -97,16 +97,16 @@
     const api = bridge();
     const id = String(accountId || '');
     if (!id) {
-      window.wbApp.toast(wbI18n.t('账号信息不完整，请刷新后重试'), 'warn');
+      window.wbApp.toast(wbI18n.t('Account info is incomplete; refresh and try again'), 'warn');
       return null;
     }
     if (!api?.zcodeClaimCaptchaConfig || !api?.zcodeClaim) {
-      window.wbApp.toast(wbI18n.t('当前环境不支持领取（桥接方法缺失）'), 'warn');
+      window.wbApp.toast(wbI18n.t('Claiming is not supported in this environment (bridge method missing)'), 'warn');
       return null;
     }
     const target = String(planId || '');
     const requireActive = () => {
-      if (signal?.aborted) throw new DOMException('请求已取消', 'AbortError');
+      if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     };
     requireActive();
     onPhase?.('preparing');
@@ -117,12 +117,12 @@
       requireActive();
     } catch (error) {
       if (signal?.aborted) return null;
-      window.wbApp.toast(wbI18n.t('获取风控配置失败：{message}', { message: describeError(error) }), 'warn');
+      window.wbApp.toast(wbI18n.t('Could not load verification settings: {message}', { message: describeError(error) }), 'warn');
       return null;
     }
 
     if (!captchaConfig || typeof captchaConfig.enabled !== 'boolean') {
-      window.wbApp.toast(wbI18n.t('风控验证配置不完整，请稍后重试'), 'warn');
+      window.wbApp.toast(wbI18n.t('Risk-control verification config is incomplete; try again later'), 'warn');
       return null;
     }
 
@@ -137,7 +137,7 @@
       try {
         return reportOutcome(await callClaim(''));
       } catch (error) {
-        window.wbApp.toast(wbI18n.t('领取失败：{message}', { message: describeError(error) }), 'warn');
+        window.wbApp.toast(wbI18n.t('Claim failed: {message}', { message: describeError(error) }), 'warn');
         return null;
       }
     }
@@ -149,7 +149,7 @@
     // 的问题（见 aliyun-captcha.js 里 solve 的说明）。
     const captcha = window.wbAliyunCaptcha;
     if (!captcha) {
-      window.wbApp.toast(wbI18n.t('验证码组件未加载，请重启应用后重试'), 'warn');
+      window.wbApp.toast(wbI18n.t('Verification component not loaded; restart the app and try again'), 'warn');
       return null;
     }
 
@@ -171,10 +171,10 @@
     } catch (error) {
       // 用户主动取消验证码不算失败（与 AutoClaw 登录那边同一处置）
       if (error instanceof captcha.CaptchaCancelledError || error?.name === 'AbortError') {
-        window.wbApp.toast(wbI18n.t('已取消领取'));
+        window.wbApp.toast(wbI18n.t('Claim canceled'));
         return null;
       }
-      window.wbApp.toast(wbI18n.t('领取失败：{message}', { message: describeError(error) }), 'warn');
+      window.wbApp.toast(wbI18n.t('Claim failed: {message}', { message: describeError(error) }), 'warn');
       return null;
     }
     return reportOutcome(outcome?.result);
@@ -194,25 +194,25 @@
         .filter(Boolean)
         .join(' → ');
       window.wbApp.toast(
-        wbI18n.t('✅ 领取成功：{planId}{period}', {
+        wbI18n.t('✅ Claim successful: {planId}{period}', {
           planId: result.planId || '',
           // 括起来的是**上游给的这段有效期**，别省掉「有效期」三个字：这个时刻来自
           // 领取接口的 starts_at，与「什么时候开始生效」不是一回事（活动套餐常常
           // 先领、当晚 23:00 才生效，那个时间在账号页的「套餐明细」里，按权益的
           // effective_at 显示）。少了这三个字会被读成「现在生效了」。
-          period: window_ ? wbI18n.t('（有效期 {window}）', { window: window_ }) : '',
+          period: window_ ? wbI18n.t('(valid {window})', { window: window_ }) : '',
         }),
       );
       // 领到的额度**不在**默认那条转发通道上（编码套餐走开放平台、活动套餐走
       // 官方活动端点），所以顺手说一句去哪儿切 —— 否则用户领完直接发请求，会
       // 拿到「套餐已到期」而完全不知道这回事（见 providers::zcode::plan）
       window.wbApp.toast(
-        wbI18n.t('这份额度走「活动套餐」通道：若转发时提示编码套餐已到期，'
-          + '在账号设置里把「使用套餐」切到活动套餐即可'),
+        wbI18n.t('This quota goes through the Start Plan channel: if forwarding reports that the Coding Plan has expired, '
+          + 'In the account settings, switch "Use plan" to the active plan'),
       );
       return result;
     }
-    const label = result?.failureLabel || wbI18n.t('未领取成功');
+    const label = result?.failureLabel || wbI18n.t('Claim unsuccessful');
     window.wbApp.toast(`${label}${result?.message ? `：${result.message}` : ''}`, 'warn');
     return result;
   }

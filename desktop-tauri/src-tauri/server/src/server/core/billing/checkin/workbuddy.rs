@@ -42,14 +42,14 @@ pub(super) async fn checkin(
                         && reward.get("credit").and_then(Value::as_i64).unwrap_or(0) > 0;
                     if credited {
                         let message = reward.get("msg").and_then(Value::as_str).unwrap_or("");
-                        logging::log("[Accounts]", &format!("账号 {display}: {message}"));
+                        logging::log("[Accounts]", &format!("Account {display}: {message}"));
                     }
                     rewards.push(reward);
                 }
                 Err(error) => {
                     logging::verbose(
                         "[Accounts]",
-                        &format!("账号 {display} 运营奖励未领取: {}", error.message),
+                        &format!("Account {display} 运营奖励未领取: {}", error.message),
                     );
                 }
             }
@@ -108,7 +108,7 @@ pub(super) async fn attach_growth(
     {
         logging::verbose(
             "[Accounts]",
-            &format!("账号 {display} 每日活跃上报失败: {error}"),
+            &format!("Account {display} 每日活跃上报失败: {error}"),
         );
     } else {
         // 刚上报后的 0 可能是尚未结算的旧读数，不能覆盖已有连登。
@@ -118,14 +118,14 @@ pub(super) async fn attach_growth(
             .filter(|days| *days > 0);
         if let Some(days) = days {
             if !store.mark_streak_days(id, days) {
-                logging::verbose("[Accounts]", &format!("账号 {id} 的连登天数未能落盘"));
+                logging::verbose("[Accounts]", &format!("Account {id} 的连登天数未能落盘"));
             }
         }
         if growth.get("reported").and_then(Value::as_bool) == Some(true) {
             logging::verbose(
                 "[Accounts]",
                 &format!(
-                    "账号 {display}: 每日活跃已上报{}",
+                    "Account {display}: 每日活跃已上报{}",
                     days.map(|days| format!("（连登 {days} 天）"))
                         .unwrap_or_default()
                 ),

@@ -26,7 +26,7 @@ use futures::stream::BoxStream;
 use futures::{Future, Stream};
 
 /// 空闲超时错误文案的前缀（见模块头的「触发后的形状」）
-pub const IDLE_TIMEOUT_PREFIX: &str = "流式响应空闲超时";
+pub const IDLE_TIMEOUT_PREFIX: &str = "Stream Idle Timeout";
 
 /// 给一条上游字节流装上空闲守卫（`idle` 取设置页「流式响应空闲超时」）。
 ///
@@ -78,7 +78,7 @@ impl Stream for IdleGuard {
                 Poll::Ready(()) => {
                     self.done = true;
                     Poll::Ready(Some(Err(std::io::Error::other(format!(
-                        "{IDLE_TIMEOUT_PREFIX}({}秒)",
+                        "{IDLE_TIMEOUT_PREFIX}({}seconds)",
                         self.idle.as_secs()
                     )))))
                 }

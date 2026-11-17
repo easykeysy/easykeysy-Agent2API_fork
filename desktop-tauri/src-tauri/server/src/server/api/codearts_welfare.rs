@@ -47,7 +47,7 @@ fn codearts_account_of(state: &ServerState, account_id: &str) -> Result<Value, R
             })
         })
         .cloned()
-        .ok_or_else(|| management_error(404, "未找到 CodeArts 账号"))
+        .ok_or_else(|| management_error(404, "未找到 CodeArts Accounts"))
 }
 
 /// 调一次福利动作。

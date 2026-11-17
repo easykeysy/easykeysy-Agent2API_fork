@@ -1,0 +1,28 @@
+# LAW-11.R3 non-bypassable backstop: local hooks (pre-commit Gate 6,
+# pre-push/post-tag) can be skipped with --no-verify, so the same facts are
+# re-checked here on the server for every branch push. See
+# .git-hooks/ci-tree-compare.sh and LAW.md LAW-11.R3.
+name: law-backstop
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tree-compare:
+    runs-on: ubuntu-latest
+    steps:
+      # full history: the pin-lineage check needs the commit graph
+      - name: Check out the pushed commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: LAW-11 tree compare against the pinned upstream base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .git-hooks/ci-tree-compare.sh

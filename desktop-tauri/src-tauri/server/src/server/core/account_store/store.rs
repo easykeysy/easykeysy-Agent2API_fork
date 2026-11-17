@@ -336,7 +336,7 @@ impl AccountStore {
             Some(Ok(Some(raw))) => match super::read_rows::decode(raw) {
                 Ok((_, record)) => Some(record),
                 Err(error) => {
-                    sql::warn_load_failure("按 id 读取账号", &format!("账号 {id} 读不出来：{}", error.describe()));
+                    sql::warn_load_failure("按 id 读取账号", &format!("Account {id} 读不出来：{}", error.describe()));
                     None
                 }
             },

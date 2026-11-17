@@ -20,7 +20,7 @@ pub fn read(value: &Value) -> Result<Vec<Profile>, String> {
     }
     let mut profile = Profile::new(
         "claude-current",
-        "Claude Code 当前配置",
+        "Claude Code Current configuration",
         "anthropic",
         &string(&env, "ANTHROPIC_BASE_URL"),
     );
@@ -163,6 +163,6 @@ pub fn write(
     if !profile.models.is_empty() && value.get("availableModels").is_some() {
         warnings.push("Claude Code 已有模型允许名单，可能隐藏本次选择的模型；本次保留原有名单，不会放宽客户端限制。".into());
     }
-    warnings.push("保留权限、Hooks、MCP 等设置；模型别名映射只修改填写的原生模型字段。".into());
+    warnings.push("保留权限、Hooks, MCP 等设置；模型别名映射只修改填写的原生模型字段。".into());
     Ok(())
 }

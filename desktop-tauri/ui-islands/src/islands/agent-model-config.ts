@@ -22,8 +22,8 @@ export function modelLevels(client: AgentClient, levels: string[], protocol?: st
 }
 
 export function modelFieldNote(client: AgentClient): string {
-  if (client.id === 'claude-code') return t('Claude Code 支持多模型菜单和逐模型思考等级；上下文及输入能力由客户端识别，不把自动压缩阈值冒充上下文窗口。')
-  if (client.id === 'codex') return t('Codex 的模型目录支持逐模型上下文、图片和思考档位，不提供可写的逐模型输出上限。')
-  if (client.id === 'kimi-code') return t('Kimi Code 只能追加能力声明，不能关闭内置识别的能力。输出上限仅新版 Anthropic 协议生效；旧版不写入思考档位。')
+  if (client.id === 'claude-code') return t('Claude Code supports a multi-model menu and per-model reasoning effort. Context and input capabilities are recognized by the client; the auto-compaction threshold is not treated as the context window.')
+  if (client.id === 'codex') return t('The Codex model catalog supports per-model context windows, image input, and reasoning levels, but has no writable per-model output limit.')
+  if (client.id === 'kimi-code') return t('Kimi Code can add capability declarations but cannot disable built-in capabilities. Output limits apply only to the Anthropic protocol in newer versions; reasoning levels are not written for legacy versions.')
   return ''
 }

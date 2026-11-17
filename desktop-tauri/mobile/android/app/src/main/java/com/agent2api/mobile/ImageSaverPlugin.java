@@ -27,7 +27,7 @@ public class ImageSaverPlugin extends Plugin {
         if (data.isEmpty() || !name.matches("image-[a-f0-9]{8}\\.(png|jpg|webp)")
                 || !(mime.equals("image/png") || mime.equals("image/jpeg") || mime.equals("image/webp"))
                 || data.length() > 40 * 1024 * 1024) {
-            call.reject("图片参数无效");
+            call.reject("Invalid image parameters");
             return;
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -36,7 +36,7 @@ public class ImageSaverPlugin extends Plugin {
             intent.setType(mime);
             intent.putExtra(Intent.EXTRA_TITLE, name);
             try { startActivityForResult(call, intent, "saveDocument"); }
-            catch (Exception error) { call.reject("无法打开保存文件窗口：" + error.getMessage()); }
+            catch (Exception error) { call.reject("Could not open the save-file window:" + error.getMessage()); }
             return;
         }
         Uri uri = null;
@@ -48,9 +48,9 @@ public class ImageSaverPlugin extends Plugin {
             values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Agent2API");
             values.put(MediaStore.Images.Media.IS_PENDING, 1);
             uri = getContext().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-            if (uri == null) throw new Exception("无法创建图片文件");
+            if (uri == null) throw new Exception("Could not create the image file");
             try (OutputStream output = getContext().getContentResolver().openOutputStream(uri)) {
-                if (output == null) throw new Exception("无法打开图片文件");
+                if (output == null) throw new Exception("Could not open the image file");
                 output.write(bytes);
             }
             ContentValues complete = new ContentValues();
@@ -62,7 +62,7 @@ public class ImageSaverPlugin extends Plugin {
             call.resolve(result);
         } catch (Exception error) {
             if (uri != null) getContext().getContentResolver().delete(uri, null, null);
-            call.reject("保存图片失败：" + error.getMessage());
+            call.reject("Failed to save the image:" + error.getMessage());
         }
     }
 
@@ -78,12 +78,12 @@ public class ImageSaverPlugin extends Plugin {
             return;
         }
         try (OutputStream output = getContext().getContentResolver().openOutputStream(uri)) {
-            if (output == null) throw new Exception("无法打开图片文件");
+            if (output == null) throw new Exception("Could not open the image file");
             output.write(Base64.decode(call.getString("data", ""), Base64.DEFAULT));
             JSObject saved = new JSObject();
             saved.put("saved", true);
             saved.put("uri", uri.toString());
             call.resolve(saved);
-        } catch (Exception error) { call.reject("保存图片失败：" + error.getMessage()); }
+        } catch (Exception error) { call.reject("Failed to save the image:" + error.getMessage()); }
     }
 }

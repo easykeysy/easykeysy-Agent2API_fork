@@ -61,9 +61,9 @@ pub async fn preview(State(state): State<ServerState>, body: Bytes) -> Response 
     };
     if let Some(group) = &payload.group { if let Err(error) = config::routing_groups::validate(group) { return errors::management_error(400, error); } }
     if let Some(profile) = &payload.profile { if let Err(error) = config::validate_routing_profile(profile) { return errors::management_error(400, error); } }
-    if config::normalize_routing_model(&payload.model).is_err() { return errors::management_error(400, "模型 ID 格式不正确"); }
+    if config::normalize_routing_model(&payload.model).is_err() { return errors::management_error(400, "Model ID 格式不正确"); }
     if payload.group.as_ref().is_some_and(|group| !group.model.eq_ignore_ascii_case(&payload.model)) {
-        return errors::management_error(400, "预演入口与路由组模型 ID 不一致");
+        return errors::management_error(400, "预演入口与路由组模型 ID Mismatch");
     }
     match tokio::task::spawn_blocking(move || preview_json(&state, payload)).await {
         Ok(value) => ok_json(value), Err(error) => errors::management_error(500, error.to_string()),

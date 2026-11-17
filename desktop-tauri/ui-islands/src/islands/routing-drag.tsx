@@ -109,7 +109,7 @@ export function useRoutingDrag(enabled: boolean, scope: string, onDrop: (drop: R
 
 export function RoutingDragOverlay({ state }: { state: Position | null }) {
   return state ? createPortal(<div className='routing-drag-preview' style={{ left: state.x + 18, top: state.y + 16 }}>
-    <b>{state.label}</b><span>{t('放到第 {n} 位', { n: state.index + 1 })}</span>
+    <b>{state.label}</b><span>{t('Drop at position {n}', { n: state.index + 1 })}</span>
   </div>, document.body) : null
 }
 

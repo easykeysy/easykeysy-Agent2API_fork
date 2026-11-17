@@ -116,22 +116,22 @@ export const PROTOCOL_LABELS: Record<ToolProtocol, string> = { skill: 'Skill', m
  * 调用同时是 i18n 扫描器的登记点，写成运行期变量查表会让五份词典永远缺这几条。
  */
 export const SERVICE_NAME: Record<string, string> = {
-  'web-search': t('网络搜索'),
-  vision: t('视觉分析'),
-  'image-generation': t('图片生成'),
+  'web-search': t('Web Search'),
+  vision: t('Vision Analysis'),
+  'image-generation': t('Image generation'),
 }
 
 export const SERVICE_DESC: Record<string, string> = {
-  'web-search': t('聚合标准搜索服务及已有 WorkBuddy、Kiro 账号的搜索能力；网页抓取仍使用标准服务。'),
-  vision: t('把图片与提示词交给后台配置的视觉模型分析，并把模型回复返回给调用方的大模型。'),
-  'image-generation': t('使用已有账号生成或编辑图片，支持任务查询与本机文件保存。'),
+  'web-search': t('Combines standard search services with search from existing WorkBuddy and Kiro accounts. Page fetching still uses standard services.'),
+  vision: t('Sends images and a prompt to the vision model configured on the server and returns the model reply to the calling model.'),
+  'image-generation': t('Generate or edit images with existing accounts, track jobs and save files locally.'),
 }
 
 /** 接入协议说明（列表页与详情页共用同一份文案） */
 export const PROTOCOL_DESC: Record<ToolProtocol, string> = {
-  skill: t('打包为 Agent Skill，由 Agent2API 面板安装到本机客户端目录。'),
-  mcp: t('作为远程 MCP 服务，在支持 MCP 的客户端配置里填写地址即可接入。'),
-  api: t('提供 REST API，任何能发 HTTP 请求的程序都可以携带网关 Key 直接调用。'),
+  skill: t('Packaged as an Agent Skill and installed into local client directories from the Agent2API panel.'),
+  mcp: t('Exposed as a remote MCP service; add the URL to any MCP-capable client.'),
+  api: t('Provides a REST API; any program that can send HTTP requests can call it with a gateway Key.'),
 }
 
 /** 各提供商官方 API Key 页面（新标签页打开） */

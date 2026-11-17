@@ -13,7 +13,7 @@ import { t } from '../i18n'
 
 /** 官方客户端凭证目录（点「凭证文件在哪」时显示；国内版 / 国际版共用同一目录） */
 const WORKBUDDY_AUTH_PATH = t(
-  '官方客户端凭证目录：Windows 是 C:\\Users\\<你的用户名>\\AppData\\Local\\CodeBuddyExtension\\Data\\Public\\auth，macOS 是 ~/Library/Application Support/CodeBuddyExtension/Data/Public/auth',
+  'Official client credential directory: Windows C:\\Users\\<user>\\AppData\\Roaming\\zhipu-qingyan\\\\Users\\<Your username>\\AppData\\Local\\CodeBuddyExtension\\Data\\Public\\auth, macOS Yes ~/Library/Application Support/CodeBuddyExtension/Data/Public/auth',
 )
 
 /** 备注名输入框的 id（草稿按 id 存，见 add-account-bridge 的 draft 机制） */
@@ -84,26 +84,26 @@ function WorkBuddyFileImportSection({
         try {
           parsed = JSON.parse(await file.text())
         } catch {
-          toast(t('选择的文件不是合法 JSON'), 'err')
+          toast(t('The selected file is not valid JSON'), 'err')
           return
         }
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          toast(t('不是有效的凭证文件：内容要是一个 JSON 对象'), 'err')
+          toast(t('Not a valid credential file: the content must be a JSON object'), 'err')
           return
         }
         const record = parsed as Record<string, unknown>
         const accessToken = credentialFieldOf(record, ['accessToken', 'token', 'access_token'], 'auth')
         const uid = credentialFieldOf(record, ['uid'], 'account')
         if (!accessToken || !uid) {
-          toast(t('不是有效的凭证文件：需要包含 accessToken 与 uid'), 'err')
+          toast(t('Not a valid credential file: accessToken and uid are required'), 'err')
           return
         }
         const fromFile = accountExportEdition(record) ?? editionFromFile(record)
         const landed = fromFile ?? edition
         if (fromFile && fromFile !== edition) {
           toast(
-            t('文件是{edition}凭证，已按该版本导入', {
-              edition: fromFile === 'intl' ? t('国际版') : t('国内版'),
+            t('The file contains {edition} credentials and has been imported as that edition', {
+              edition: fromFile === 'intl' ? t('International edition') : t('China edition'),
             }),
             'warn',
           )
@@ -118,15 +118,15 @@ function WorkBuddyFileImportSection({
         setHint('')
         await afterAdd(addedLabelOf(data?.account), landed === 'intl' ? 'WorkBuddy AI' : 'WorkBuddy')
       } catch (error) {
-        toast(t('导入失败：{reason}', { reason: describeError(error) }), 'err')
+        toast(t('Import failed: {reason}', { reason: describeError(error) }), 'err')
       }
     })
   }
 
   return (
-    <AddGroup label={t('导入凭证文件')} hidden={!visible}>
-      <Note text={t('选择官方客户端的登录态凭证文件（workbuddy-desktop.info / workbuddy-desktop-ai.info）或 wb2api 导出的账号 JSON（嵌套 / 扁平形均可）。')} />
-      <p className='detail'>{t('也支持本软件导出的单账号 JSON 文件，保留账号凭证与附加信息。')}</p>
+    <AddGroup label={t('Import credential file')} hidden={!visible}>
+      <Note text={t('Select the official client\'s session credential file (workbuddy-desktop.info / workbuddy-desktop-ai.info) or an account JSON exported by wb2api (nested or flat).')} />
+      <p className='detail'>{t('Individual account JSON files exported by this application are also supported, preserving credentials and additional account data.')}</p>
       <p className='detail'>
         <a
           href='#'
@@ -135,16 +135,16 @@ function WorkBuddyFileImportSection({
             setHint(WORKBUDDY_AUTH_PATH)
           }}
         >
-          {t('凭证文件在哪？')}
+          {t('Where is the credential file?')}
         </a>
       </p>
       <Field orientation='horizontal' className='field-row'>
-        <FieldLabel className='lb-inline' htmlFor={WORKBUDDY_FILE_NAME_ID}>{t('备注名')}</FieldLabel>
+        <FieldLabel className='lb-inline' htmlFor={WORKBUDDY_FILE_NAME_ID}>{t('Label')}</FieldLabel>
         <Input
           id={WORKBUDDY_FILE_NAME_ID}
           type='text'
           maxLength={100}
-          placeholder={t('可选，留空则用文件里的昵称')}
+          placeholder={t('Optional; leave empty to use the nickname from the file')}
           {...draftProps(WORKBUDDY_FILE_NAME_ID)}
         />
       </Field>
@@ -162,7 +162,7 @@ function WorkBuddyFileImportSection({
       />
       <AddFoot host={footerHost} active={visible} note={<span className='detail'>{hint}</span>}>
         <Button onClick={() => fileInput.current?.click()} disabled={busy}>
-          {busy ? t('导入中…') : t('选择凭证文件导入')}
+          {busy ? t('Importing…') : t('Import from credential file')}
         </Button>
       </AddFoot>
     </AddGroup>
@@ -198,17 +198,17 @@ function WorkBuddyDesktopImportSection({
         await afterAdd(addedLabelOf(data?.account), edition === 'intl' ? 'WorkBuddy AI' : 'WorkBuddy')
       } catch (error) {
         // 读不到官方客户端登录态时后端给 400 + 明确原因，原样透出即可
-        toast(t('导入失败：{reason}', { reason: describeError(error) }), 'err')
+        toast(t('Import failed: {reason}', { reason: describeError(error) }), 'err')
       }
     })
   }
 
   return (
-    <AddGroup label={t('从本机导入桌面端登录态')} hidden={!visible}>
-      <Note text={t('读本机官方客户端（Tencent WorkBuddy / WorkBuddy AI）当前登录的账号：自动定位其凭证目录里最新的登录态文件（需已在本机官方客户端登录）。导入后由网关自动续期，无需跟随 2 小时时效手动换令牌。')} />
+    <AddGroup label={t('Import desktop login state from this machine')} hidden={!visible}>
+      <Note text={t('Reads the account currently logged in to the official client (Tencent WorkBuddy / WorkBuddy AI) on this machine: the newest session file in its credential directory is located automatically (the official client must be logged in on this machine). The gateway renews the token after import — no need to swap tokens manually with the 2-hour expiry.')} />
       <AddFoot host={footerHost} active={visible}>
         <Button onClick={() => void importFromDesktop()} disabled={busy}>
-          {busy ? t('导入中…') : t('从本机导入桌面端登录态')}
+          {busy ? t('Importing…') : t('Import desktop login state from this machine')}
         </Button>
       </AddFoot>
     </AddGroup>
@@ -253,8 +253,8 @@ export function WorkBuddyBlock({ active, footerHost, initialEdition }: {
   // 开关都收起 —— 后者只在「内嵌窗口」下生效，留着必然是个灰按不动的假选项。
   const webPanel = platform() === 'web'
   const [loginView, setLoginView] = React.useState<WebLoginView>(() => ({
-    label: t('打开网页登录'),
-    hint: webPanel ? WEB_LOGIN_HINT : t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待'),
+    label: t('Open web login'),
+    hint: webPanel ? WEB_LOGIN_HINT : t('Opens in the embedded window; added to the list when done; closing it cancels the wait'),
     disabled: false,
     waiting: false,
   }))
@@ -283,18 +283,18 @@ export function WorkBuddyBlock({ active, footerHost, initialEdition }: {
       buttonId: 'web-login-button',
       cancelId: 'web-login-cancel',
       hintId: 'web-login-hint',
-      busyText: t('等待网页登录…'),
+      busyText: t('Waiting for web login…'),
       onStateChange: view => { setLoginView(view); proxy.setBusy(view.disabled) },
       texts: () => {
         // 网页端只有一条路：新标签页。模式相关的文案（「内嵌窗口」「关窗即
         // 取消」）在这里都不成立 —— 桥接层的 startLogin 收下 mode 却不使用它
-        if (webPanel) return { button: t('打开网页登录'), hint: WEB_LOGIN_HINT }
+        if (webPanel) return { button: t('Open web login'), hint: WEB_LOGIN_HINT }
         const external = modeRef.current === 'external'
         return {
-          button: external ? t('在浏览器中打开登录页') : t('打开网页登录'),
+          button: external ? t('Open the sign-in page in your browser') : t('Open web login'),
           hint: external
-            ? t('系统浏览器打开（复用已登录账号）；完成后自动加入列表')
-            : t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待'),
+            ? t('Opens in the system browser (reuses a signed-in account); added to the list when done')
+            : t('Opens in the embedded window; added to the list when done; closing it cancels the wait'),
         }
       },
       start: () => startLogin(
@@ -305,12 +305,12 @@ export function WorkBuddyBlock({ active, footerHost, initialEdition }: {
         { proxy: proxy.read() },
       ),
       onSuccess: async result => {
-        const editionLabel = editionRef.current === 'intl' ? t('国际版') : t('国内版')
+        const editionLabel = editionRef.current === 'intl' ? t('International edition') : t('China edition')
         closeAddModals()
         await shared().wbApp?.refresh?.()
-        toast(t('✅ 登录成功，{edition}账号已加入列表', { edition: editionLabel }))
+        toast(t('✅ Signed in; {edition} account added to the list', { edition: editionLabel }))
         const warning = (result as { warning?: string } | null)?.warning
-        if (warning) toast(t('账号已添加，但请留意：{warning}', { warning }), 'warn')
+        if (warning) toast(t('Account added, but note: {warning}', { warning }), 'warn')
       },
     }) ?? null
     return () => { controllerRef.current?.dispose(); controllerRef.current = null }
@@ -347,31 +347,31 @@ export function WorkBuddyBlock({ active, footerHost, initialEdition }: {
 
   return (
     <div className='add-provider-block' hidden={!active}>
-      <AddGroup label={t('账号版本')}>
+      <AddGroup label={t('Account edition')}>
         <p>
-          {t('两版账号可同时保存，各自一份模型清单（国内版与国际版是两家提供商，可分别启用与映射）。')}
+          {t('Both editions\' accounts can be saved at once, each with its own model catalog (the China and International editions are two providers that can be enabled and mapped separately).')}
         </p>
         <SegmentedControl
-          aria-label={t('账号版本')}
+          aria-label={t('Account edition')}
           className={DIALOG_SEG_CLASS}
           options={[
-            { value: 'cn', label: t('国内版（WorkBuddy）') },
-            { value: 'intl', label: t('国际版（WorkBuddy AI）') },
+            { value: 'cn', label: t('China edition (WorkBuddy)') },
+            { value: 'intl', label: t('International edition (WorkBuddy AI)') },
           ]}
           value={edition}
           onValueChange={value => pickEdition(value as Edition)}
         />
       </AddGroup>
 
-      <AddGroup label={t('添加方式')}>
+      <AddGroup label={t('Add method')}>
         <SegmentedControl
-          aria-label={t('{label} 账号的添加方式', { label: 'WorkBuddy' })}
+          aria-label={t('How to add a {label} account', { label: 'WorkBuddy' })}
           className={DIALOG_SEG_CLASS}
           options={[
-            { value: 'web', label: t('网页登录') },
-            { value: 'file', label: t('导入凭证文件') },
+            { value: 'web', label: t('Web login') },
+            { value: 'file', label: t('Import credential file') },
             ...(platform() !== 'web'
-              ? [{ value: 'desktop', label: t('导入桌面端登录态') }]
+              ? [{ value: 'desktop', label: t('Import desktop login state') }]
               : []),
           ]}
           value={effectiveMethod}
@@ -379,28 +379,28 @@ export function WorkBuddyBlock({ active, footerHost, initialEdition }: {
         />
       </AddGroup>
 
-      <AddGroup label={t('网页登录')} hidden={effectiveMethod !== 'web'}>
-        <p>{t('完成登录后自动加入账号列表，昵称取自上游。')}</p>
+      <AddGroup label={t('Web login')} hidden={effectiveMethod !== 'web'}>
+        <p>{t('Added to the account list automatically after sign-in; the nickname comes from upstream.')}</p>
         {/* 网页端没有「内嵌窗口 / 系统浏览器」之分（桥接层一律开新标签页），
             整行收起 —— 连带那个只在「内嵌窗口」下生效的 Google / GitHub 开关 */}
         {webPanel ? null : (
           <>
             <FieldGroup orientation='horizontal' className='add-login-setting-row'>
-              <span className='text-[12.5px] whitespace-nowrap text-subtle'>{t('打开方式')}</span>
+              <span className='text-[12.5px] whitespace-nowrap text-subtle'>{t('Open with')}</span>
               <SegmentedControl
-                aria-label={t('网页登录的打开方式')}
+                aria-label={t('How to open web login')}
                 className={DIALOG_SEG_CLASS}
                 options={[
-                  { value: 'embedded', label: t('内嵌窗口') },
-                  { value: 'external', label: t('系统默认浏览器') },
+                  { value: 'embedded', label: t('Embedded window') },
+                  { value: 'external', label: t('System default browser') },
                 ]}
                 value={loginMode}
                 onValueChange={pickLoginMode}
               />
             </FieldGroup>
             {socialUsable ? (
-              <Label className='add-login-setting-row' title={t('国际版登录页默认只显示邮箱登录，勾选后恢复 Google / GitHub / X 入口')}>
-                <span className='text-[12.5px] text-subtle'>{t('恢复 Google / GitHub 入口')}</span>
+              <Label className='add-login-setting-row' title={t('The International edition\'s sign-in page shows only email sign-in by default; checking this restores the Google / GitHub / X options')}>
+                <span className='text-[12.5px] text-subtle'>{t('Restore Google / GitHub options')}</span>
                 <Switch
                   checked={socialRestore}
                   onCheckedChange={next => {
@@ -410,7 +410,7 @@ export function WorkBuddyBlock({ active, footerHost, initialEdition }: {
                 />
               </Label>
             ) : null}
-            <p>{t('系统浏览器可复用已有登录态（国际版推荐）；内嵌窗口更干净。')}</p>
+            <p>{t('The system browser can reuse an existing login state (recommended for the International edition); the embedded window is cleaner.')}</p>
           </>
         )}
         <AddFoot host={footerHost} active={active && effectiveMethod === 'web'}
@@ -424,7 +424,7 @@ export function WorkBuddyBlock({ active, footerHost, initialEdition }: {
             hidden={!loginView.waiting}
             onClick={() => controllerRef.current?.cancel()}
           >
-            {t('取消等待')}
+            {t('Cancel sign-in')}
           </Button>
         </AddFoot>
       </AddGroup>

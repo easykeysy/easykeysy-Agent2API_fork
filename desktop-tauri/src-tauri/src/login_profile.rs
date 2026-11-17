@@ -4,8 +4,11 @@
 //! 就等于共用登录态：添加第二个账号时官方登录页会直接把上一个账号放行过去，
 //! 用户根本没有机会换账号。因此每次登录都新建一个随机目录，窗口销毁后再删掉。
 //!
-//! 目录建在系统临时目录下（不是配置目录）：它是一次性的，删不掉时也该由系统
-//! 回收，不该混进 `~/.agent2api` 的持久化数据里。
+//! Root of the login temp directory: the `AGENT2API_LOGIN_DIR` env var takes priority; when unset, falls back to
+//! the fork-shaped subdirectory `easykeysy-Agent2API_fork` under the system temp dir (on Windows,
+//! that means a same-named subdirectory under the user directory, with session dirs shaped `agent2api-login-*`):
+//! one-shot data that the OS should reclaim even when deletion fails — it must never mix into the persistent data in `~/.agent2api`.
+//! For local deployments (all data kept off the system drive), simply point `AGENT2API_LOGIN_DIR` at a non-system-drive location.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -24,7 +27,20 @@ impl LoginProfile {
         getrandom::getrandom(&mut random)
             .map_err(|_| "生成独立登录环境标识失败".to_string())?;
         let suffix: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
-        let path = std::env::temp_dir().join(format!("agent2api-login-{suffix}"));
+        // fork: root of the login temp directory.
+        // 1. The `AGENT2API_LOGIN_DIR` env var takes priority (local deployments point it at a non-system drive, e.g. Y:,
+        //    keeping WebView2 data out of the C: user directory);
+        // 2. When unset, fall back to the default: under the parent of the system temp directory (Windows: the C: user directory),
+        //    a subdirectory named `easykeysy-Agent2API_fork`.
+        let base = match std::env::var("AGENT2API_LOGIN_DIR") {
+            Ok(value) if !value.trim().is_empty() => PathBuf::from(value.trim()),
+            _ => std::env::temp_dir()
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(std::env::temp_dir)
+                .join("easykeysy-Agent2API_fork"),
+        };
+        let path = base.join(format!("agent2api-login-{suffix}"));
         std::fs::create_dir_all(&path)
             .map_err(|error| format!("创建独立登录环境失败: {error}"))?;
         Ok(Self { path })

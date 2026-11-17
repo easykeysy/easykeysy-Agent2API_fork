@@ -479,7 +479,7 @@ impl LoginService {
             task.auth_url = Some(auth_url);
         });
         self.tasks.register(&state, handle.clone());
-        logging::log("[Login]", &format!("发起{label}网页登录（等待浏览器回调…）"));
+        logging::log("[Login]", &format!("发起{label}网页登录（等待浏览器回调…)"));
         Ok(handle)
     }
 
@@ -689,8 +689,8 @@ impl LoginService {
                         let message = match result.poll {
                             agent2api_provider_protocol::LoginPoll::Pending { hint } => hint
                                 .map(|hint| login_text(&hint)).filter(|hint| !hint.is_empty())
-                                .unwrap_or_else(|| "回调未被接受，请重新复制本次登录的完整回调地址".into()),
-                            _ => "回调未被接受，请重新复制本次登录的完整回调地址".into(),
+                                .unwrap_or_else(|| "Callback not accepted. Copy the complete callback URL for this sign-in again.".into()),
+                            _ => "Callback not accepted. Copy the complete callback URL for this sign-in again.".into(),
                         };
                         return Ok(LoginCallbackSubmission::Retry(message));
                     }
@@ -905,7 +905,7 @@ impl LoginService {
         Err(GatewayError::with_status(
             400,
             format!(
-                "该登录任务不接收授权码回调（{}）",
+                "该登录任务不接收授权码回调（{})",
                 crate::server::core::providers::label_of(&task.provider)
             ),
         ))

@@ -12,20 +12,20 @@ export function RoutingExecDuration({ row, now }: { row: ReplayRow; now: number 
   const recorded = timings.filter(timing => !timing.attempt.inferred).length
   const multi = Math.max(attempts, timings.length) > 1
   const metrics = [
-    `${isTraceRunning(row) ? t('已用时') : t('总耗时')} ${formatDuration(total)}`,
-    `${t('首帧')} ${formatDuration(firstFrame)}`,
-    `${t('输出')} ${row.completionTokens == null ? '—' : `${formatTraceTokens(row.completionTokens)} tokens`}`,
+    `${isTraceRunning(row) ? t('Elapsed') : t('Total duration')} ${formatDuration(total)}`,
+    `${t('First response')} ${formatDuration(firstFrame)}`,
+    `${t('Output')} ${row.completionTokens == null ? '—' : `${formatTraceTokens(row.completionTokens)} tokens`}`,
   ]
-  if (row.completionTokens == null && row.totalTokens != null) metrics.push(t('总计 {n} tokens', { n: formatTraceTokens(row.totalTokens) }))
+  if (row.completionTokens == null && row.totalTokens != null) metrics.push(t('{n} total tokens', { n: formatTraceTokens(row.totalTokens) }))
   return <section className='routing-exec-section'>
-    <div className='routing-exec-section-head'><h3>{t('执行耗时')}</h3><span className='routing-exec-section-note'>{metrics.join(' · ')}</span></div>
+    <div className='routing-exec-section-head'><h3>{t('Execution time')}</h3><span className='routing-exec-section-note'>{metrics.join(' · ')}</span></div>
     <div className='routing-exec-bars'>
       {timings.map(timing => {
         const { attempt, segments } = timing
         const info = [
-          multi ? `${t('本次用时')} ${formatDuration(timing.duration)}` : '',
-          `${t('响应到达')} ${timing.response == null ? '—' : `+${formatDuration(timing.response)}`}`,
-          attempt.retries?.length ? `${t('同账号内部重试')} ${attempt.retries.length}` : '',
+          multi ? `${t('Attempt time')} ${formatDuration(timing.duration)}` : '',
+          `${t('Response received')} ${timing.response == null ? '—' : `+${formatDuration(timing.response)}`}`,
+          attempt.retries?.length ? `${t('Internal retries on the same account')} ${attempt.retries.length}` : '',
         ].filter(Boolean).join(' · ')
         return <div className='routing-exec-bar-row' data-multi={multi ? '' : undefined} key={attempt.index}>
           {multi ? <span className='routing-exec-bar-owner' title={[traceProvider(attempt.provider, attempt.providerLabel), execAttemptName(attempt), attempt.model].filter(Boolean).join(' · ')}>{execAttemptName(attempt)}</span> : null}
@@ -40,8 +40,8 @@ export function RoutingExecDuration({ row, now }: { row: ReplayRow; now: number 
           {multi ? <span className='routing-exec-bar-result' data-tone={timing.tone}>{timing.label}</span> : null}
         </div>
       })}
-      {!timings.length ? <p className='routing-exec-note'>{t('响应到达')} {formatDuration(response)} · {t('没有保存调用明细')}</p> : null}
-      {attempts > recorded ? <p className='routing-exec-note'>{t('共尝试 {total} 次，保存了 {saved} 条明细', { total: attempts, saved: recorded })}</p> : null}
+      {!timings.length ? <p className='routing-exec-note'>{t('Response received')} {formatDuration(response)} · {t('No call details saved')}</p> : null}
+      {attempts > recorded ? <p className='routing-exec-note'>{t('{total} attempts; {saved} details saved', { total: attempts, saved: recorded })}</p> : null}
     </div>
   </section>
 }
@@ -70,21 +70,21 @@ export function RoutingExecCandidates({ row }: { row: ReplayRow }) {
   const saved = (route?.ordered?.length || 0) + (route?.blocked?.length || 0)
   const recordedTotal = (route?.orderedTotal ?? route?.ordered?.length ?? 0) + (route?.blockedTotal ?? route?.blocked?.length ?? 0)
   const partial = saved < recordedTotal
-  const empty = !entries.length ? t('没有保存其他候选信息') : entries.some(item => item.current) ? t('没有其他候选账号') : t('没有保存调用明细')
+  const empty = !entries.length ? t('No other candidate information was saved') : entries.some(item => item.current) ? t('No other candidate accounts') : t('No call details saved')
   return <section className='routing-exec-section'>
-    <div className='routing-exec-section-head'><h3>{t('选路情况')}</h3>
-      <span className='routing-exec-section-note'>{t('已保存 {n} 个候选', { n: traceCandidates(row).length })}</span>
+    <div className='routing-exec-section-head'><h3>{t('Routing decisions')}</h3>
+      <span className='routing-exec-section-note'>{t('{n} candidates saved', { n: traceCandidates(row).length })}</span>
     </div>
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      {other.length ? <div className='routing-exec-candidates' role='table' aria-label={t('选路情况')}>
-        <div className='routing-exec-candidate is-heading' role='row'><span role='columnheader'>{t('账号')}</span><span role='columnheader'>{t('本次状态')}</span><span role='columnheader'>{t('原因')}</span></div>
+      {other.length ? <div className='routing-exec-candidates' role='table' aria-label={t('Routing decisions')}>
+        <div className='routing-exec-candidate is-heading' role='row'><span role='columnheader'>{t('Accounts')}</span><span role='columnheader'>{t('Request status')}</span><span role='columnheader'>{t('Reason')}</span></div>
         <div role='rowgroup'>{shown.map(item => <CandidateRow key={item.key} item={item} model={requestModel(row)} />)}</div>
         <CollapsibleContent role='rowgroup'>{rest.map(item => <CandidateRow key={item.key} item={item} model={requestModel(row)} />)}</CollapsibleContent>
       </div> : <p className='routing-exec-note'>{empty}</p>}
       {rest.length ? <CollapsibleTrigger render={<Button variant='link' size='xs' />} className='routing-exec-more'>
-        <RouteIcon name={expanded ? 'chevronUp' : 'chevronDown'} />{expanded ? t('收起其他候选') : t('查看其他 {n} 个候选', { n: rest.length })}
+        <RouteIcon name={expanded ? 'chevronUp' : 'chevronDown'} />{expanded ? t('Hide other candidates') : t('Show {n} other candidates', { n: rest.length })}
       </CollapsibleTrigger> : null}
     </Collapsible>
-    {partial ? <p className='routing-exec-note'>{t('候选快照仅保存部分记录，未保存的账号无法回放')}</p> : null}
+    {partial ? <p className='routing-exec-note'>{t('Only part of the candidate snapshot was saved; accounts without records cannot be replayed')}</p> : null}
   </section>
 }

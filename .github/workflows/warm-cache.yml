@@ -36,7 +36,8 @@ name: warm-cache
 # 主 crate 的 custom-protocol 在 default features 里，feature 指纹
 # 与 tauri build 一致，预热后连主 crate 都能命中。macOS 按 universal
 # 的两个 target 各编一遍，与 build.yml 的产物位置一致：编译产物由
-# src-tauri/.cargo/config.toml 统一指向仓库根 target/，正是
+# the workflow env CARGO_TARGET_DIR, pinned at the repo-root target/ (locally
+# src-tauri/.cargo/config.toml points out-of-tree; CI overrides via env) — exactly
 # rust-cache 缓存的目录。workspace 全成员（主 crate + server）都会
 # 编到，覆盖面比 tauri build 只编主 crate 更全。
 #
@@ -61,6 +62,9 @@ concurrency:
 
 env:
   RUST_BACKTRACE: 1
+  # LAW-15.3: CI pins build output back into the ephemeral workspace (env takes precedence over .cargo/config.toml's
+  # out-of-tree target-dir); paired verbatim with rust-cache's ../../target.
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
 jobs:
   # ── macOS（job 名与 build.yml 一致：macos）──────────────────

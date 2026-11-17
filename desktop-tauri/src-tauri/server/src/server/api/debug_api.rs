@@ -51,7 +51,7 @@ pub async fn put_debug(State(_state): State<ServerState>, body: Bytes) -> Respon
     let Some(enabled) = value.as_bool() else {
         return errors::management_error(
             400,
-            format!("{} 必须是 true 或 false", config::KEY_DEBUG_MODE),
+            format!("{} 必须是 true or false", config::KEY_DEBUG_MODE),
         );
     };
     if !config::set_debug_mode(enabled) {

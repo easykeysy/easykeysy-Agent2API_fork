@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# post-tag: LAW-11.R2 - validate a newly created tag at creation time.
+# Same rules as pre-push; on failure the tag already exists, so remove it:
+#   git tag -d <tag>
+set -uo pipefail
+name="$1"
+
+MANIFEST=".git-hooks/upstream-tags.manifest"
+RULES=".git-hooks/tag-rules.env"
+[ -f "$MANIFEST" ] || exit 0
+MODE="leave"
+[ -f "$RULES" ] && . "$RULES"
+
+up_sha() { awk -F '\t' -v n="$1" '$1 ~ /^#/ {next} $2 == n {print $1; exit}' "$MANIFEST"; }
+
+case "$name" in
+  *-fork.*)
+    base="${name%-fork.*}"
+    n="${name##*-fork.}"
+    case "$n" in ''|*[!0-9]*) echo "post-tag: LAW-11.R2: '$name' suffix must be numeric; delete with: git tag -d '$name'" >&2; exit 1 ;; esac
+    bsha=$(up_sha "$base")
+    if [ -z "$bsha" ]; then
+      echo "post-tag: LAW-11.R2: '$name' base '$base' is not a known upstream tag; delete with: git tag -d '$name'" >&2
+      exit 1
+    fi
+    tgt=$(git rev-parse "refs/tags/$name^{commit}" 2>/dev/null)
+    if ! git merge-base --is-ancestor "$bsha" "$tgt" 2>/dev/null; then
+      echo "post-tag: LAW-11.R2: '$name' does not pin base '$base' ($bsha is not an ancestor of $tgt); delete with: git tag -d '$name'" >&2
+      exit 1
+    fi
+    max=0
+    for t in $(git tag --list "${base}-fork.*"); do
+      k="${t##*-fork.}"
+      case "$k" in ''|*[!0-9]*) continue ;; esac
+      [ "$k" -gt "$max" ] && max="$k"
+    done
+    if [ "$n" -ne "$max" ]; then
+      echo "post-tag: LAW-11.R2: '$name' must be '-fork.$max' (next increment); delete with: git tag -d '$name'" >&2
+      exit 1
+    fi
+    i=1
+    while [ "$i" -lt "$n" ]; do
+      git rev-parse -q --verify "refs/tags/${base}-fork.$i" >/dev/null || {
+        echo "post-tag: LAW-11.R2: gap - '${base}-fork.$i' missing; delete with: git tag -d '$name'" >&2
+        exit 1
+      }
+      i=$((i + 1))
+    done
+    ;;
+esac
+
+exit 0

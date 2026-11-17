@@ -27,7 +27,7 @@ export function usageReport(value) {
   })
   const hasReadings = !!windows.length || value.balance != null || value.plan != null
   if (value.signIn === "expired" || value.error && !hasReadings) {
-    throw Object.assign(new Error(text(value.error) || "登录已过期，请重新登录"), { signIn: value.signIn })
+    throw Object.assign(new Error(text(value.error) || "Login expired; please Sign in again"), { signIn: value.signIn })
   }
   const balanceView = value.balance == null ? null : text(String(value.balance))
   const empty = value.empty === true && !hasReadings && !value.error
@@ -40,7 +40,7 @@ export function usageReport(value) {
 
 export function checkinReport(value) {
   if (!value || typeof value !== "object") throw new Error("Plugin returned no check-in result")
-  if (!["claimed", "done", "inactive", "ineligible", "captcha", "failed"].includes(value.outcome)) throw new Error("插件返回的签到状态无效")
+  if (!["claimed", "done", "inactive", "ineligible", "captcha", "failed"].includes(value.outcome)) throw new Error("The sign-in state returned by the plugin is invalid")
   const at = Date.now()
   const until = timestamp(value.until)
   const hold = until && until > at && until <= at + 7 * 86400_000 ? until : null

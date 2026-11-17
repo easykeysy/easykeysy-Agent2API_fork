@@ -81,22 +81,22 @@ export function AccountSheet({
     if (!account) return
     const name = accountName(account)
     // 删除不可恢复：手机上用两次确认（第一次进二次确认态）
-    if (!await confirmDialog(t('确定删除账号「{name}」？这个操作不可恢复。', { name }))) return
-    if (await run('delete', () => deleteAccount(account.id), t('已删除账号'))) onClose()
+    if (!await confirmDialog(t('Delete account "{name}"? This action cannot be undone.', { name }))) return
+    if (await run('delete', () => deleteAccount(account.id), t('The account has been deleted'))) onClose()
   }
 
   const saveName = async () => {
     if (!account || serverIdentity() !== identity) return
     const next = nameDraft.trim()
     if (!next) {
-      store.toast(t('备注名不能为空'), 'err')
+      store.toast(t('Label cannot be empty'), 'err')
       return
     }
     setBusy('name')
     try {
       await renameAccount(account.id, next)
       if (serverIdentity() !== identity) return
-      store.toast(t('备注名已更新'))
+      store.toast(t('Label updated'))
       setEditingName(false)
       onChanged()
     } catch (error) {
@@ -110,15 +110,15 @@ export function AccountSheet({
   const clearLimit = async (model?: string) => {
     if (!account) return
     const question = model
-      ? t('确定清除模型「{model}」的限流标记？', { model })
-      : t('确定清除该账号的冷却与全部模型限流标记？')
+      ? t('Clear the rate-limit flag for model "{model}"?', { model })
+      : t('Clear this account\'s cooldown and all model rate-limit flags?')
     if (!await confirmDialog(question)) return
-    await run('clear', () => clearAccountRateLimits(account.id, model), t('限流已清除'))
+    await run('clear', () => clearAccountRateLimits(account.id, model), t('Rate limit cleared'))
   }
 
   const promote = async () => {
     if (!account) return
-    await run('promote', () => promoteAccount(account.id), t('已设为首选'))
+    await run('promote', () => promoteAccount(account.id), t('Set as first'))
   }
 
   const limits = account ? activeLimits(account) : []
@@ -142,7 +142,7 @@ export function AccountSheet({
     <Sheet open={open} onOpenChange={next => { if (!next) onClose() }}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>{t('账号详情')}</SheetTitle>
+          <SheetTitle>{t('Account details')}</SheetTitle>
         </SheetHeader>
         <SheetBody>
           {account ? (
@@ -182,7 +182,7 @@ export function AccountSheet({
                       value={nameDraft}
                       autoFocus
                       onChange={event => setNameDraft(event.target.value)}
-                      placeholder={t('备注名')}
+                      placeholder={t('Label')}
                       style={{
                         flex: 1,
                         minWidth: 0,
@@ -200,7 +200,7 @@ export function AccountSheet({
                       disabled={busy === 'name'}
                       onClick={() => void saveName()}
                     >
-                      {t('保存')}
+                      {t('Save')}
                     </Button>
                     <Button size='touch-sm' variant='outline'
                       type='button'
@@ -211,7 +211,7 @@ export function AccountSheet({
                         setNameDraft('')
                       }}
                     >
-                      {t('取消')}
+                      {t('Cancel')}
                     </Button>
                   </>
                 ) : (
@@ -236,7 +236,7 @@ export function AccountSheet({
                     }}
                   >
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {account.name || t('未设备注名')}
+                      {account.name || t('No label')}
                     </span>
                     <Icon name='edit' style={{ width: 15, height: 15, flex: 'none', color: 'var(--m-text-3)' }} />
                   </Button>
@@ -246,7 +246,7 @@ export function AccountSheet({
               <MetricGrid className='m-kv'>
                 {credentialRows.length || hasExpiry(account.provider) ? (
                   <MetricCard className='m-kv-cell'>
-                    <div className='k'>{t('有效期')}</div>
+                    <div className='k'>{t('Expiry')}</div>
                     {credentialRows.length ? <div className='flex flex-col gap-1.5'>
                       {credentialRows.map(row => <div key={row.label} className='flex items-center justify-between gap-2 text-xs'
                         title={row.expiresAt === null ? undefined : formatStamp(row.expiresAt)}>
@@ -256,15 +256,15 @@ export function AccountSheet({
                         </span>
                       </div>)}
                     </div> : <div className='v'>
-                      {isLongLivedCredential(account.provider) ? t('长期有效') : formatExpiry(expiresAt)}
+                      {isLongLivedCredential(account.provider) ? t('Long-lived') : formatExpiry(expiresAt)}
                     </div>}
                   </MetricCard>
                 ) : null}
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('余额')}</div>
+                  <div className='k'>{t('Balance')}</div>
                   <div className='v' title={canQueryUsage ? usageView.detail : undefined}
                     style={{ color: usageView.failureStatus ? 'var(--m-text)' : usageColor }}>
-                    {canQueryUsage ? usageView.text : t('未接入查询')}
+                    {canQueryUsage ? usageView.text : t('Query not integrated')}
                   </div>
                   {canQueryUsage && usageView.expiry ? (
                     <div className='text-xs text-warning mt-1 whitespace-normal leading-snug'>
@@ -279,15 +279,15 @@ export function AccountSheet({
                   ) : null}
                 </MetricCard>
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('凭证')}</div>
-                  <div className='v'>{account.hasCredentials === false ? t('缺失') : t('完整')}</div>
+                  <div className='k'>{t('Credentials')}</div>
+                  <div className='v'>{account.hasCredentials === false ? t('Missing') : t('Complete')}</div>
                 </MetricCard>
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('限流模型')}</div>
+                  <div className='k'>{t('Rate-limited models')}</div>
                   <div className='v'>{limits.length}</div>
                 </MetricCard>
                 <MetricCard className='m-kv-cell'>
-                  <div className='k'>{t('最近更新')}</div>
+                  <div className='k'>{t('The most recent update')}</div>
                   <div className='v m-mono' style={{ fontSize: 12 }}>
                     {formatStamp(account.updatedAt as number)}
                   </div>
@@ -299,37 +299,37 @@ export function AccountSheet({
                 type='button'
                 className='m-btn m-ghost w-full'
                 disabled={isPrimary || Boolean(busy) || sortActive}
-                title={sortActive ? t('自动消耗排序已启用，请先关闭规则再手动调整') : undefined}
+                title={sortActive ? t('Automatic consumption sorting is enabled. Turn off the rules before reordering manually') : undefined}
                 onClick={() => void promote()}
                 style={{ flexDirection: 'column', gap: 2, height: 'auto', padding: '10px 16px' }}
               >
-                <span>{isPrimary ? t('已是首选') : t('设为首选')}</span>
+                <span>{isPrimary ? t('Already first') : t('Set as first')}</span>
                 <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--m-text-3)' }}>
-                  {t('调整到全局队列第一位')}
+                  {t('Move to the front of the global queue')}
                 </span>
               </Button>
 
               <div className='m-rows'>
                 <div className='m-row'>
-                  <span className='m-k'>{t('账号 ID')}</span>
+                  <span className='m-k'>{t('Account ID')}</span>
                   <span className='m-v m-mono' style={{ fontSize: 11 }}>
                     {account.id}
                   </span>
                 </div>
                 {account.email ? (
                   <div className='m-row'>
-                    <span className='m-k'>{t('邮箱')}</span>
+                    <span className='m-k'>{t('Email')}</span>
                     <span className='m-v'>{account.email}</span>
                   </div>
                 ) : null}
                 <div className='m-row'>
-                  <span className='m-k'>{t('启用')}</span>
-                  <span className='m-v'>{account.enabled ? t('是') : t('否')}</span>
+                  <span className='m-k'>{t('enabled')}</span>
+                  <span className='m-v'>{account.enabled ? t('Yes') : t('No')}</span>
                 </div>
                 {/* 读数之外还有话要说时才占一行（部分失败、钱包明细） */}
                 {canQueryUsage && usageView.detail && usageView.detail !== usageView.text ? (
                   <div className='m-row' style={{ alignItems: 'flex-start' }}>
-                    <span className='m-k' style={{ flex: 'none' }}>{t('余额详情')}</span>
+                    <span className='m-k' style={{ flex: 'none' }}>{t('Balance details')}</span>
                     <span
                       className='m-v'
                       style={{ flex: 1, minWidth: 0, textAlign: 'right', lineHeight: 1.5, wordBreak: 'break-word' }}
@@ -340,7 +340,7 @@ export function AccountSheet({
                 ) : null}
                 {suspendedReason ? (
                   <div className='m-row' style={{ alignItems: 'flex-start' }}>
-                    <span className='m-k'>{t('上游限制 · 已禁用')}</span>
+                    <span className='m-k'>{t('Upstream restriction · Disabled')}</span>
                     <span className='m-v' style={{ color: 'var(--m-danger)', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>
                       {suspendedReason}
                     </span>
@@ -348,9 +348,9 @@ export function AccountSheet({
                 ) : null}
                 {account.needsRelogin ? (
                   <div className='m-row' style={{ alignItems: 'flex-start' }}>
-                    <span className='m-k'>{t('需要重新登录')}</span>
+                    <span className='m-k'>{t('Sign-in required')}</span>
                     <span className='m-v' style={{ color: 'var(--m-danger)', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>
-                      {account.needsReloginReason || t('登录授权已失效，请重新登录；自动续期无法恢复已过期或已撤销的刷新令牌。')}
+                      {account.needsReloginReason || t('Sign-in authorization is no longer valid. Sign in again; automatic renewal cannot restore an expired or revoked refresh token.')}
                     </span>
                   </div>
                 ) : null}
@@ -359,23 +359,23 @@ export function AccountSheet({
               {limits.length || cooldown ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 2px' }}>
-                    <span style={{ flex: 1, fontSize: 12, color: 'var(--m-text-3)' }}>{t('限流明细')}</span>
+                    <span style={{ flex: 1, fontSize: 12, color: 'var(--m-text-3)' }}>{t('Rate-limit details')}</span>
                     <Button size='touch-sm' variant='outline'
                       type='button'
                       className='m-btn m-ghost m-sm'
                       disabled={busy === 'clear'}
                       onClick={() => void clearLimit()}
                     >
-                      {t('全部清除')}
+                      {t('Clear all')}
                     </Button>
                   </div>
                   <div className='m-rows'>
                     {cooldown ? (
                       <div className='m-row' style={{ alignItems: 'flex-start' }}>
-                        <span className='m-k'>{t('账号冷却')}</span>
+                        <span className='m-k'>{t('Account cooldown')}</span>
                         <div className='m-v' style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>
-                          <div title={formatStamp(cooldown.resetAt)}>{t('{time} 恢复', { time: formatRelative(cooldown.resetAt) })}</div>
-                          <div>{t('账号全部模型暂时停止转发 · 到恢复时间自动解除')}</div>
+                          <div title={formatStamp(cooldown.resetAt)}>{t('Resets {time}', { time: formatRelative(cooldown.resetAt) })}</div>
+                          <div>{t('All models on this account are paused · Resumes automatically at the recovery time')}</div>
                           {cooldown.message ? <div>{cooldown.message}</div> : null}
                         </div>
                       </div>
@@ -386,7 +386,7 @@ export function AccountSheet({
                           {model}
                         </span>
                         <span className='m-v'>
-                          {t('{time} 恢复', { time: formatRelative(resetAt) })}
+                          {t('Resets {time}', { time: formatRelative(resetAt) })}
                         </span>
                         <Button size='touch-sm' variant='outline'
                           type='button'
@@ -395,7 +395,7 @@ export function AccountSheet({
                           disabled={busy === 'clear'}
                           onClick={() => void clearLimit(model)}
                         >
-                          {t('清除')}
+                          {t('Clear')}
                         </Button>
                       </div>
                     ))}
@@ -413,21 +413,21 @@ export function AccountSheet({
             onClick={() => void usage.query()}
           >
             <Icon name='wallet' />
-            {usage.starting ? t('启动中…') : usage.task?.status === 'running' ? t('重新查询') : t('查询余额')}
+            {usage.starting ? t('Starting…') : usage.task?.status === 'running' ? t('Check again') : t('Query balance')}
           </Button> : null}
           {usage.status ? <p className='text-xs text-subtle' role='status'>{usage.status}</p> : null}
-          {usageRow?.stale ? <p className='text-xs text-subtle'>{t('历史余额，尚未按新配置验证')}</p> : null}
-          {usage.task?.status === 'running' ? <Button variant='outline' onClick={() => void usage.cancel()}>{t('取消查询')}</Button> : null}
+          {usageRow?.stale ? <p className='text-xs text-subtle'>{t('Previous balance, not yet verified with the new settings')}</p> : null}
+          {usage.task?.status === 'running' ? <Button variant='outline' onClick={() => void usage.cancel()}>{t('Cancel query')}</Button> : null}
           {canRefresh ? <Button size='touch' variant='default'
             type='button'
             className='m-btn w-full'
             disabled={Boolean(busy) || !account || account.needsRelogin === true}
             title={account?.needsRelogin ? account.needsReloginReason : undefined}
-            onClick={() => account && void run('refresh', () => refreshAccount(account.id), t('凭证已刷新'))}
+            onClick={() => account && void run('refresh', () => refreshAccount(account.id), t('Credentials refreshed'))}
           >
             <Icon name='refresh' />
-            {busy === 'refresh' ? t('刷新中…') : t('刷新凭证')}
-          </Button> : account ? <p className='text-xs text-subtle'>{t('未声明可手动续期；本机引用请在原客户端处理登录态。')}</p> : null}
+            {busy === 'refresh' ? t('Refreshing…') : t('Refresh the credentials')}
+          </Button> : account ? <p className='text-xs text-subtle'>{t('Manual renewal is not declared. For local references, manage sign-in in the original client.')}</p> : null}
           <div className='m-btn-row'>
             <Button size='touch' variant='outline'
               type='button'
@@ -439,12 +439,12 @@ export function AccountSheet({
                 void run(
                   'toggle',
                   () => setAccountEnabled(account.id, !account.enabled),
-                  account.enabled ? t('已禁用') : t('已启用'),
+                  account.enabled ? t('Disabled') : t('Enabled'),
                 )
               }
             >
               <Icon name={account?.enabled ? 'pause' : 'play'} />
-              {account?.enabled ? t('禁用') : t('启用')}
+              {account?.enabled ? t('Disable') : t('enabled')}
             </Button>
             <Button size='touch' variant='destructive'
               type='button'
@@ -454,7 +454,7 @@ export function AccountSheet({
               onClick={() => void remove()}
             >
               <Icon name='trash' />
-              {busy === 'delete' ? t('删除中…') : t('删除')}
+              {busy === 'delete' ? t('Deleting…') : t('Delete')}
             </Button>
           </div>
         </SheetFooter>
@@ -473,12 +473,12 @@ function statusTone(account: Account): 'ok' | 'warn' | 'bad' | 'mute' {
 }
 
 function statusText(account: Account): string {
-  if (account.needsRelogin) return t('需重登')
-  if (upstreamSuspendedReasonOf(account)) return t('上游限制 · 已禁用')
-  if (!account.enabled) return t('已禁用')
-  if (upstreamCooldownOf(account)) return t('账号冷却')
-  if (isRateLimited(account)) return t('限流中')
+  if (account.needsRelogin) return t('Relogin')
+  if (upstreamSuspendedReasonOf(account)) return t('Upstream restriction · Disabled')
+  if (!account.enabled) return t('Disabled')
+  if (upstreamCooldownOf(account)) return t('Account cooldown')
+  if (isRateLimited(account)) return t('Rate-limited')
   const expiresAt = expiryOf(account)
-  if (expiresAt > 0 && expiresAt <= Date.now()) return t('已过期')
-  return t('正常')
+  if (expiresAt > 0 && expiresAt <= Date.now()) return t('Expired')
+  return t('Normal')
 }

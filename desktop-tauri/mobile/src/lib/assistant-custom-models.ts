@@ -26,7 +26,7 @@ function draftOf(provider: Provider): Draft {
 
 async function providers(): Promise<Provider[]> {
   const data = await apiCall<{ providers?: Provider[] }>('/api/custom-providers')
-  if (!Array.isArray(data.providers)) throw new Error(t('读取模型清单失败'))
+  if (!Array.isArray(data.providers)) throw new Error(t('Failed to load the model list'))
   return data.providers
 }
 
@@ -54,7 +54,7 @@ export async function readCustomModelView(): Promise<Required<AssistantModelView
 async function update(id: string, mutate: (draft: Draft) => void, context?: ImageToolContext): Promise<void> {
   checkToolSignal(context)
   const provider = (await providers()).find(provider => provider.id === id)
-  if (!provider) throw new Error(t('该自定义提供商已不存在（可能已被删除），请刷新后重试'))
+  if (!provider) throw new Error(t('This custom provider no longer exists (it may have been deleted); refresh and try again'))
   const draft = draftOf(provider)
   mutate(draft)
   checkToolSignal(context)
@@ -65,7 +65,7 @@ export function setCustomBinding(provider: string, alias: string, target: string
   return update(provider, draft => {
     if (same(alias, target)) {
       const model = draft.models.find(model => same(model.id, target))
-      if (!model) throw new Error(t('该提供商的清单里没有模型「{name}」', { name: target }))
+      if (!model) throw new Error(t('This provider\'s catalog has no model “{name}”', { name: target }))
       model.enabled = enabled
       return
     }
@@ -77,9 +77,9 @@ export function setCustomBinding(provider: string, alias: string, target: string
 
 export function removeCustomMapping(provider: string, alias: string, target: string, context?: ImageToolContext): Promise<void> {
   return update(provider, draft => {
-    if (same(alias, target)) throw new Error(t('原始 ID 的默认绑定不能删除，请关闭它的开关'))
+    if (same(alias, target)) throw new Error(t('The default binding for the original ID cannot be deleted; turn it off instead'))
     const index = draft.mappings.findIndex(mapping => same(mapping.alias, alias) && same(mapping.target, target))
-    if (index < 0) throw new Error(t('映射「{alias} → {target}」不存在', { alias, target }))
+    if (index < 0) throw new Error(t('Mapping “{alias} → {target}” doesn\'t exist', { alias, target }))
     draft.mappings.splice(index, 1)
   }, context)
 }
@@ -87,7 +87,7 @@ export function removeCustomMapping(provider: string, alias: string, target: str
 export function setCustomCapabilities(provider: string, id: string, patch: Record<string, unknown>, context?: ImageToolContext): Promise<void> {
   return update(provider, draft => {
     const model = draft.models.find(model => same(model.id, id))
-    if (!model) throw new Error(t('该提供商的清单里没有模型「{name}」', { name: id }))
+    if (!model) throw new Error(t('This provider\'s catalog has no model “{name}”', { name: id }))
     const capabilities = { ...model.capabilities }
     for (const [key, value] of Object.entries(patch)) {
       if (value === null) delete capabilities[key]

@@ -29,8 +29,8 @@ export function RoutingProviderCard({ id, profile, workspace, scope, now, index,
   const sorted = rules.length > 0
   const unavailable = workspace.providers.find(provider => provider.id === id)?.available === false
   const orderLocked = locked || Boolean(query)
-  const summary = globalAccounts ? t('{selected} / {total} 个账号启用', { selected: participants.length, total: accounts.length })
-    : t('{selected} / {total} 个账号参与', { selected: participants.length, total: accounts.length })
+  const summary = globalAccounts ? t('{selected} / {total} accounts enabled', { selected: participants.length, total: accounts.length })
+    : t('{selected} / {total} accounts included', { selected: participants.length, total: accounts.length })
   const bodyId = React.useId()
   const running = accounts.some(account => (activity.accounts[account.id] || 0) > 0)
   return <Collapsible render={<section />} open={open} onOpenChange={onOpen} data-route-sort={included ? id : undefined}
@@ -39,34 +39,34 @@ export function RoutingProviderCard({ id, profile, workspace, scope, now, index,
       drag.state?.id === id && 'is-dragging', drag.state?.target === id && (drag.state.after ? 'drop-after' : 'drop-before'))}>
     <header>
       <Button variant='ghost' size='icon-sm' className='routing-grip' disabled={orderLocked || !included}
-        title={t('拖动或按 Alt + 方向键调整顺序')} aria-label={t('拖动调整提供商顺序')}
+        title={t('Drag or press Alt + arrow keys to reorder')} aria-label={t('Drag to reorder providers')}
         onPointerDown={event => drag.start(event, 'provider', id, id)} onKeyDown={event => routingOrderKey(event, onMove)}>
         <RouteIcon name='gripVertical' size={15} />
       </Button>
       <span className='routing-config-rank'>{included ? String(index + 1).padStart(2, '0') : '—'}</span>
       <RoutingProviderMark id={id} label={label} />
       <CollapsibleTrigger className='routing-provider-toggle' aria-controls={bodyId}>
-        <span className='routing-provider-name'><b title={label}>{label}</b><small>{summary}{unavailable ? ` · ${t('模型绑定不可用')}` : ''}</small></span>
+        <span className='routing-provider-name'><b title={label}>{label}</b><small>{summary}{unavailable ? ` · ${t('Model binding unavailable')}` : ''}</small></span>
         <RouteIcon name='chevronDown' size={13} />
       </CollapsibleTrigger>
       <Switch checked={globalAccounts ? participants.length > 0 : included} disabled={locked} onCheckedChange={onJoin}
-        aria-label={globalAccounts ? t('启用 {provider} 的账号', { provider: label }) : t('{provider} 参与本路由', { provider: label })}
-        title={globalAccounts ? participants.length ? t('禁用全部账号') : t('启用全部账号') : included ? t('移出本路由') : t('加入路由')} />
+        aria-label={globalAccounts ? t('Enable accounts for {provider}', { provider: label }) : t('Include {provider} in this route', { provider: label })}
+        title={globalAccounts ? participants.length ? t('Disable all accounts') : t('Enable all accounts') : included ? t('Remove from this route') : t('Add to route')} />
       <Button variant='ghost' size='icon-sm' className='routing-settings-button' disabled={busy}
-        title={t('分组设置')} aria-label={t('{name} · 分组设置', { name: label })} onClick={onSort}><RouteIcon name='settings' size={14} /></Button>
-      <RoutingActions label={globalAccounts ? t('账号组操作') : t('提供商路由设置')} actions={[
+        title={t('Group settings')} aria-label={t('{name} · Group settings', { name: label })} onClick={onSort}><RouteIcon name='settings' size={14} /></Button>
+      <RoutingActions label={globalAccounts ? t('Account group actions') : t('Provider routing settings')} actions={[
         ...(globalAccounts && onEnableGroup ? [
-          { label: t('启用全部账号'), disabled: locked || participants.length === accounts.length, onClick: () => onEnableGroup(true) },
-          { label: t('禁用全部账号'), disabled: locked || !participants.length, onClick: () => onEnableGroup(false) },
+          { label: t('Enable all accounts'), disabled: locked || participants.length === accounts.length, onClick: () => onEnableGroup(true) },
+          { label: t('Disable all accounts'), disabled: locked || !participants.length, onClick: () => onEnableGroup(false) },
         ] : []),
-        { label: t('提高优先级'), icon: 'arrowUp', disabled: orderLocked || !included || first, onClick: () => onMove(-1) },
-        { label: t('降低优先级'), icon: 'arrowDown', disabled: orderLocked || !included || last, onClick: () => onMove(1) },
+        { label: t('Raise priority'), icon: 'arrowUp', disabled: orderLocked || !included || first, onClick: () => onMove(-1) },
+        { label: t('Lower priority'), icon: 'arrowDown', disabled: orderLocked || !included || last, onClick: () => onMove(1) },
       ]} />
     </header>
     <RoutingConsumptionOrder provider={id} sorting={workspace.sorting} independent={Boolean(scope) && workspace.customized} disabled={busy} onSettings={onSort} />
     <CollapsibleContent className='routing-config-accounts' id={bodyId}>
       {[true, false].map(active => <div key={String(active)} data-route-list>
-        {!active && order.some(key => !joined(key)) ? <p className='routing-account-section'>{globalAccounts ? t('已禁用账号') : t('未参与本路由')}</p> : null}
+        {!active && order.some(key => !joined(key)) ? <p className='routing-account-section'>{globalAccounts ? t('Disabled accounts') : t('Not in this route')}</p> : null}
         {order.filter(key => joined(key) === active).filter(key => !query || label.toLowerCase().includes(query)
           || displayNameOf(accounts.find(account => account.id === key)).toLowerCase().includes(query)).map(key => {
           const account = accounts.find(item => item.id === key)!
@@ -74,8 +74,8 @@ export function RoutingProviderCard({ id, profile, workspace, scope, now, index,
           const accountIndex = participants.indexOf(key)
           const connections = workspace.metrics.accountConnections ? workspace.metrics.accountConnections[key] || 0 : undefined
           const note = [
-            connections == null ? '' : t('在途 {n} / {limit}', { n: connections, limit: Number(account.maxConcurrent) || '∞' }),
-            status.resetAt > now ? t('{time} 后恢复', { time: formatDuration(status.resetAt - now) }) : status.reason,
+            connections == null ? '' : t('In flight {n} / {limit}', { n: connections, limit: Number(account.maxConcurrent) || '∞' }),
+            status.resetAt > now ? t('Recovers in {time}', { time: formatDuration(status.resetAt - now) }) : status.reason,
           ].filter(Boolean).join(' · ')
           return <RoutingAccountRow key={key} id={key} account={account} rank={accountIndex + 1} joined={active} globalAccounts={globalAccounts}
             sorting={workspace.sorting} now={now} settingsDisabled={busy} running={(activity.accounts[key] || 0) > 0}
@@ -88,7 +88,7 @@ export function RoutingProviderCard({ id, profile, workspace, scope, now, index,
             onToggle={() => onToggleAccount(key)} onAccount={() => onAccount(key)} />
         })}
       </div>)}
-      {!accounts.length ? <p className='routing-config-note'>{t('该提供商没有账号，请先到账号页添加。')}</p> : null}
+      {!accounts.length ? <p className='routing-config-note'>{t('This provider has no accounts. Add one on the Accounts page first.')}</p> : null}
     </CollapsibleContent>
   </Collapsible>
 }

@@ -283,7 +283,7 @@ pub fn updates() -> Value {
             } else if entry.is_none() && catalog["checked"] == true {
                 Some("插件不在当前索引中，请从原来源手动更新".to_string())
             } else if available { None }
-            else if catalog["checked"] != true { Some("尚未检查更新".to_string()) }
+            else if catalog["checked"] != true { Some("Not checked yet".to_string()) }
             else if version.is_none() || platform.is_none() { Some("当前通道暂无可安装的版本".to_string()) }
             else { Some("已经是最新版本".to_string()) },
         })
@@ -349,7 +349,7 @@ async fn apply_automatic() {
         if let Err(error) =
             super::operations::start_cached(id, "update", &target, version, asset, true)
         {
-            logging::verbose("[Plugin]", &format!("自动处理 {id}：{error}"));
+            logging::verbose("[Plugin]", &format!("自动处理 {id}: {error}"));
             continue;
         }
     }

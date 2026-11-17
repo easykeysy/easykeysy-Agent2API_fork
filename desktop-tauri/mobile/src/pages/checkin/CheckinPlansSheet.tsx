@@ -18,14 +18,14 @@ function stamp(seconds?: number | null): string {
 }
 
 function entitlementText(item: Entitlement): string {
-  const period = item.period === 'daily' ? t('每日') : item.period === 'weekly' ? t('每周') : item.period === 'monthly' ? t('每月') : ''
+  const period = item.period === 'daily' ? t('Daily') : item.period === 'weekly' ? t('Weekly') : item.period === 'monthly' ? t('Monthly') : ''
   return [item.showName, item.grantUnits ? `${formatCompact(item.grantUnits)} ${item.unitType || ''}` : '', period].filter(Boolean).join(' · ')
 }
 
 function stateView(state?: string): { label: string; tone: 'ok' | 'warn' | 'mute' } {
-  if (state === 'active') return { label: t('生效中'), tone: 'ok' }
-  if (state === 'pending') return { label: t('待生效'), tone: 'warn' }
-  return { label: state === 'expired' ? t('已过期') : t('状态未知'), tone: 'mute' }
+  if (state === 'active') return { label: t('Active'), tone: 'ok' }
+  if (state === 'pending') return { label: t('Pending'), tone: 'warn' }
+  return { label: state === 'expired' ? t('Expired') : t('Unknown'), tone: 'mute' }
 }
 
 export function CheckinPlansSheet({ entry, onClose, onChange }: {
@@ -92,7 +92,7 @@ export function CheckinPlansSheet({ entry, onClose, onChange }: {
       if (!mounted.current || serverIdentity() !== identity) return
       const row = next.results?.find(item => item.id === entry.id)
       setUsage(row || null)
-      setUsageError(row?.error || (row ? '' : t('未返回余额数据')))
+      setUsageError(row?.error || (row ? '' : t('No balance data returned')))
     } catch (cause) {
       if (mounted.current && serverIdentity() === identity) setUsageError(cause instanceof Error ? cause.message : String(cause))
     } finally { if (mounted.current && serverIdentity() === identity) setQuerying(false) }
@@ -136,13 +136,13 @@ export function CheckinPlansSheet({ entry, onClose, onChange }: {
           ...result, claimedAt: result.claimedAt || Date.now(),
         } }))
         setClaimedNow(list => [...new Set([...list, settled])])
-        store.toast(result.ok ? t('领取成功：{planId}', { planId: settled }) : result.failureLabel || t('今日已领'))
+        store.toast(result.ok ? t('Claim succeeded: {planId}', { planId: settled }) : result.failureLabel || t('claimed today'))
         void store.refresh(true)
         onChange()
         void queryUsage()
         void loadPreview()
       } else {
-        store.toast([result.failureLabel || t('未领取成功'), result.message].filter(Boolean).join('：'), 'err')
+        store.toast([result.failureLabel || t('Claim unsuccessful'), result.message].filter(Boolean).join(': '), 'err')
       }
     } catch (cause) {
       if (!controller.signal.aborted && mounted.current && serverIdentity() === identity && (cause as Error)?.name !== 'CaptchaCancelledError') {
@@ -174,19 +174,19 @@ export function CheckinPlansSheet({ entry, onClose, onChange }: {
       close()
     }}>
       <SheetContent showCloseButton={claimPhase !== 'submitting'}>
-        <SheetHeader><SheetTitle>{t('套餐明细 — {name}', { name: entry.name || entry.id })}</SheetTitle></SheetHeader>
+        <SheetHeader><SheetTitle>{t('Plan details — {name}', { name: entry.name || entry.id })}</SheetTitle></SheetHeader>
         <SheetBody>
           <ZcodeCaptchaPanel accountId={entry.id} disabled={Boolean(claiming)} onBusy={setVerifyingChannel} />
           <div className='m-ck-toolbar'>
-            <div className='m-ck-title m-ck-grow'>{t('本期活动')}</div>
-            <Button variant='outline' size='sm' disabled={loading || Boolean(claiming) || verifyingChannel} onClick={() => void loadPreview()}>{t('刷新')}</Button>
+            <div className='m-ck-title m-ck-grow'>{t('Current events')}</div>
+            <Button variant='outline' size='sm' disabled={loading || Boolean(claiming) || verifyingChannel} onClick={() => void loadPreview()}>{t('Refresh')}</Button>
           </div>
           {previewError ? <p className='m-ck-error'>{previewError}</p> : null}
-          {loading ? <p className='m-ck-note'>{t('正在查询本期活动…')}</p>
+          {loading ? <p className='m-ck-note'>{t('Checking current events…')}</p>
             : !previewError && !activityPlans.length ? <p className='m-ck-note'>
               {queryErrors.length
-                ? t('部分来源查询失败，暂不能确认本期活动或领取状态')
-                : t('当前未发现本期活动，不代表账号不符合资格')}
+                ? t('Some sources could not be queried, so current events or claim status cannot be confirmed yet.')
+                : t('No current events were found. This does not mean the account is ineligible.')}
             </p> : null}
           {activityPlans.map(plan => {
             const id = plan.planId || ''
@@ -196,8 +196,8 @@ export function CheckinPlansSheet({ entry, onClose, onChange }: {
             const state = planClaimState(plan, locallySettled ? [id] : plan.claimState ? [] : claimed)
             const taken = state === 'claimed'
             const rejected = !taken && (result?.failure === 'ineligible' || state === 'ineligible')
-            const statusLabel = taken ? t('已领取') : rejected ? t('当前不符合资格')
-              : state === 'unknown' ? t('状态待确认') : t('可领取')
+            const statusLabel = taken ? t('Claimed') : rejected ? t('Currently ineligible')
+              : state === 'unknown' ? t('Status unconfirmed') : t('Claimable')
             const accountPlan = plan.ownedPlan
             const period = [stamp(plan.startsAt), stamp(plan.endsAt)].filter(Boolean).join(' → ')
             const expiresAt = accountPlan?.endsAt || plan.claimEndsAt || result?.endsAt
@@ -209,30 +209,30 @@ export function CheckinPlansSheet({ entry, onClose, onChange }: {
                 <Badge tone={taken ? 'ok' : rejected ? 'warn' : 'mute'}>{statusLabel}</Badge>
                 {accountPlan?.state ? <Badge tone={stateView(accountPlan.state).tone}>{stateView(accountPlan.state).label}</Badge> : null}
               </div>
-              {accountPlan?.pendingUntil ? <p className='m-ck-note'>{t('待生效 {time}', { time: stamp(accountPlan.pendingUntil) })}</p> : null}
-              {period ? <p className='m-ck-note'>{t('活动时间：{time}', { time: period })}</p> : null}
-              {expiresAt ? <p className='m-ck-note'>{t('账号套餐到期：{time}', { time: stamp(expiresAt) })}</p> : null}
+              {accountPlan?.pendingUntil ? <p className='m-ck-note'>{t('Effective from {time}', { time: stamp(accountPlan.pendingUntil) })}</p> : null}
+              {period ? <p className='m-ck-note'>{t('Event period: {time}', { time: period })}</p> : null}
+              {expiresAt ? <p className='m-ck-note'>{t('Account plan expires: {time}', { time: stamp(expiresAt) })}</p> : null}
               {message ? <p className='m-ck-note'>{message}</p> : null}
               {plan.entitlements?.map((item, index) => <p key={index} className='m-ck-note'>{entitlementText(item)}</p>)}
               {plan.description ? <p className='m-ck-note'>{plan.description}</p> : null}
               <div className='m-ck-actions'><Button size='sm' disabled={Boolean(claiming) || verifyingChannel || taken || !id} onClick={() => void claim(id)}>
-                {claiming === id ? t('领取中…') : taken ? t('已领取')
-                  : state === 'unknown' || rejected ? t('尝试领取') : t('领取')}
+                {claiming === id ? t('Claiming…') : taken ? t('Claimed')
+                  : state === 'unknown' || rejected ? t('Try claiming') : t('Claim')}
               </Button></div>
             </div>
           })}
           {queryErrors.length > 0 ? <p className='m-ck-note'>
-            {t('部分来源查询失败，已保留其他结果：{message}', { message: queryErrors.join('；') })}
+            {t('Some sources could not be queried; other results were retained: {message}', { message: queryErrors.join('; ') })}
           </p> : null}
           {receiptError ? <p className='m-ck-note'>
-            {t('套餐已领取，但营销回执未完成，不会重复领取：{message}', { message: receiptError })}
+            {t('The plan has been claimed, but the marketing receipt is incomplete; it will not be claimed again: {message}', { message: receiptError })}
           </p> : null}
           {preview?.activationError ? <p className='m-ck-note'>{preview.activationError}</p> : null}
-          <p className='m-ck-note'>{t('活动目录合并账号预览、营销活动与匿名探测。已领取仅依据领取记录或账号名下套餐；状态待确认时可尝试领取，资格以上游返回为准。')}</p>
+          <p className='m-ck-note'>{t('The event catalog combines account previews, marketing events, and anonymous discovery. Claimed status requires a claim record or an account-owned plan. If the status is unconfirmed, you can try claiming; eligibility is determined by the upstream response.')}</p>
           <div className='m-ck-toolbar'>
-            <div className='m-ck-title m-ck-grow'>{t('我的套餐')}</div>
+            <div className='m-ck-title m-ck-grow'>{t('My plans')}</div>
             <Button variant='outline' size='sm' disabled={querying || Boolean(claiming)} onClick={() => void queryUsage()}>
-              {querying ? t('查询中…') : t('查询余额')}
+              {querying ? t('Checking…') : t('Query balance')}
             </Button>
           </div>
           {usageError ? <p className='m-ck-error'>{usageError}</p> : null}
@@ -240,17 +240,17 @@ export function CheckinPlansSheet({ entry, onClose, onChange }: {
             const state = stateView(plan.state)
             return <div className='m-ck-account' key={plan.userPlanId || plan.planId || plan.name}>
               <div className='m-ck-toolbar'><span className='m-ck-title m-ck-grow'>{plan.name || plan.planId}</span><Badge tone={state.tone}>{state.label}</Badge></div>
-              {plan.pendingUntil ? <p className='m-ck-note'>{t('待生效 {time}', { time: stamp(plan.pendingUntil) })}</p> : null}
-              {plan.endsAt ? <p className='m-ck-note'>{t('到期 {time}', { time: stamp(plan.endsAt) })}</p> : null}
+              {plan.pendingUntil ? <p className='m-ck-note'>{t('Effective from {time}', { time: stamp(plan.pendingUntil) })}</p> : null}
+              {plan.endsAt ? <p className='m-ck-note'>{t('Expires {time}', { time: stamp(plan.endsAt) })}</p> : null}
               {plan.entitlements?.map((item, index) => <p className='m-ck-note' key={index}>{entitlementText(item)}</p>)}
             </div>
           })}
-          {!owned.length ? <p className='m-ck-note'>{querying ? t('查询中…') : t('当前余额读数里没有套餐清单')}</p> : null}
-          {unconfirmed.length ? <p className='m-ck-note'>{t('今天已领取但读数尚未同步：{plans}', { plans: unconfirmed.join('、') })}</p> : null}
+          {!owned.length ? <p className='m-ck-note'>{querying ? t('Checking…') : t('The current balance reading has no plan list')}</p> : null}
+          {unconfirmed.length ? <p className='m-ck-note'>{t('Claimed today but the reading has not synced yet: {plans}', { plans: unconfirmed.join(', ') })}</p> : null}
         </SheetBody>
         <SheetFooter>
-          {claiming ? <Button variant='outline' disabled={claimPhase === 'submitting'} onClick={cancelClaim}>{t('取消验证')}</Button> : null}
-          <Button variant='outline' disabled={claimPhase === 'submitting'} onClick={close}>{t('关闭')}</Button>
+          {claiming ? <Button variant='outline' disabled={claimPhase === 'submitting'} onClick={cancelClaim}>{t('Cancel verification')}</Button> : null}
+          <Button variant='outline' disabled={claimPhase === 'submitting'} onClick={close}>{t('Close')}</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

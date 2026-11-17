@@ -96,7 +96,7 @@ fn apply(lines: &mut Vec<String>, path: &[String], value: Option<&Value>) -> Res
                 insert(lines, &region, parent, &empty)?;
                 region.end += 1;
                 let entry = find(lines, &region, parent)
-                    .ok_or_else(|| format!("无法写入 {parent} 字段"))?;
+                    .ok_or_else(|| format!("无法写入 {parent} field"))?;
                 descend(lines, &entry, &region)?
             }
         };
@@ -117,7 +117,7 @@ fn apply(lines: &mut Vec<String>, path: &[String], value: Option<&Value>) -> Res
 fn locate(lines: &mut Vec<String>, path: &[String]) -> Result<Region, String> {
     let mut region = root(lines)?;
     for key in path {
-        let entry = find(lines, &region, key).ok_or_else(|| format!("配置缺少 {key} 字段"))?;
+        let entry = find(lines, &region, key).ok_or_else(|| format!("配置缺少 {key} field"))?;
         region = descend(lines, &entry, &region)?;
     }
     Ok(region)

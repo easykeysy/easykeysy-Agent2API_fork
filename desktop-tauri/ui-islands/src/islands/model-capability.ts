@@ -31,20 +31,20 @@ export {
 
 /** 弹窗字段与表格 tooltip 用的完整文案 */
 export const CAPABILITY_LABELS: Record<CapabilityKey, string> = {
-  maxInputTokens: t('上下文窗口'),
-  maxOutputTokens: t('最大输出 Token'),
-  supportsToolCall: t('工具调用'),
-  supportsImages: t('图片识别'),
-  supportsVideo: t('视频识别'),
-  supportsReasoning: t('支持思考'),
+  maxInputTokens: t('Context window'),
+  maxOutputTokens: t('Max output tokens'),
+  supportsToolCall: t('Tool calling'),
+  supportsImages: t('Image recognition'),
+  supportsVideo: t('Video recognition'),
+  supportsReasoning: t('Reasoning support'),
 }
 
 /** 能力徽章上的短标签（布尔键才有） */
 export const CAPABILITY_SHORT: Partial<Record<CapabilityKey, string>> = {
-  supportsToolCall: t('工具'),
-  supportsImages: t('图片'),
-  supportsVideo: t('视频'),
-  supportsReasoning: t('思考'),
+  supportsToolCall: t('Tools'),
+  supportsImages: t('Images'),
+  supportsVideo: t('Videos'),
+  supportsReasoning: t('Reasoning'),
 }
 
 /**
@@ -75,7 +75,7 @@ export function formatTokens(value: unknown): string {
 /** 精确值的展示形态（tooltip 里给千分位，`196608` → `196,608`） */
 export function exactTokens(value: unknown): string {
   const number = Number(value)
-  if (!Number.isFinite(number) || number <= 0) return t('未声明')
+  if (!Number.isFinite(number) || number <= 0) return t('Not declared')
   return Math.round(number).toLocaleString('en-US')
 }
 
@@ -131,22 +131,22 @@ export function capabilityTip(
   source: CapabilitySource | '' = '',
 ): string {
   const label = CAPABILITY_LABELS[key]
-  const suffix = overridden ? t('（已被手动覆盖，弹窗里可恢复继承）') : ''
+  const suffix = overridden ? t(' (manually overridden; restore inheritance in the dialog)') : ''
   const origin = capabilitySourceText(source)
   if (isTokenKey(key)) {
-    if (value === null || value === undefined) return t('{label}：上游未声明{suffix}', { label, suffix })
-    return t('{label}：{value}（对下游声明的精确值）{origin}{suffix}', { label, value: exactTokens(value), origin, suffix })
+    if (value === null || value === undefined) return t('{label}: Not declared upstream{suffix}', { label, suffix })
+    return t('{label}: {value} (exact value declared to downstream){origin}{suffix}', { label, value: exactTokens(value), origin, suffix })
   }
   const state = capabilityState(value)
-  if (state === 'on') return t('{label}：支持{origin}{suffix}', { label, origin, suffix })
-  if (state === 'off') return t('{label}：不支持{origin}{suffix}', { label, origin, suffix })
-  return t('{label}：上游未声明（下游会按不支持处理）{suffix}', { label, suffix })
+  if (state === 'on') return t('{label}: Supported{origin}{suffix}', { label, origin, suffix })
+  if (state === 'off') return t('{label}: Not supported{origin}{suffix}', { label, origin, suffix })
+  return t('{label}: Not declared upstream (downstream treats it as unsupported){suffix}', { label, suffix })
 }
 
 /** 来源短语（放在值后面；`upstream` 不给短语 —— 「继承上游」由调用方按场景措辞） */
 export function capabilitySourceText(source: CapabilitySource | ''): string {
-  if (source === 'modelsdev') return t('（由 models.dev 补齐）')
-  if (source === 'user') return t('（手动设定）')
+  if (source === 'modelsdev') return t(' (filled in by models.dev)')
+  if (source === 'user') return t(' (set manually)')
   return ''
 }
 

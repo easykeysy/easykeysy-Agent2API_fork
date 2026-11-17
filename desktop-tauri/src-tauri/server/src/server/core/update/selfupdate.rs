@@ -106,7 +106,7 @@ pub async fn fetch_checksum(url: &str) -> Result<String, UpdateError> {
     let response = client::fetch_official(url, &headers, Some(CHECKSUM_TIMEOUT_MS)).await?;
     if !response.status().is_success() {
         return Err(UpdateError::new(format!(
-            "下载校验文件失败：GitHub 返回 HTTP {}",
+            "下载校验文件失败：GitHub Back HTTP {}",
             response.status().as_u16()
         )));
     }

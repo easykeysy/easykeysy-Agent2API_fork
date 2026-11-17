@@ -235,7 +235,7 @@ export function AccountsPage() {
     setBusy(true)
     try {
       await setAccountEnabled(account.id, next)
-      store.toast(next ? t('已启用 {name}', { name: accountName(account) }) : t('已禁用 {name}', { name: accountName(account) }))
+      store.toast(next ? t('Enabled {name}', { name: accountName(account) }) : t('Disabled {name}', { name: accountName(account) }))
       await store.refresh(true)
     } catch (failure) {
       store.toast(failure instanceof Error ? failure.message : String(failure), 'err')
@@ -251,16 +251,16 @@ export function AccountsPage() {
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
       <div className='m-sticky'>
       <PageHead
-        title={t('账号')}
-        subtitle={t('{n} 个账号 · {e} 启用 · {l} 限流', { n: accounts.length, e: enabledCount, l: limitedCount })}
+        title={t('Accounts')}
+        subtitle={t('{n} accounts · {e} enabled · {l} rate limited', { n: accounts.length, e: enabledCount, l: limitedCount })}
         actions={
           <>
-            <Button variant='outline' size='sm' onClick={() => setAdding(true)}>{t('添加账号')}</Button>
+            <Button variant='outline' size='sm' onClick={() => setAdding(true)}>{t('Add account')}</Button>
             <Button size='icon-touch' variant='outline'
               type='button'
               className='m-icon-btn'
-              aria-label={t('筛选')}
-              title={t('筛选')}
+              aria-label={t('Filter')}
+              title={t('Filter')}
               onClick={() => setFilterOpen(true)}
               style={{ position: 'relative' }}
             >
@@ -289,7 +289,7 @@ export function AccountsPage() {
             </Button>
             <IconButton
               name='refresh'
-              label={t('刷新')}
+              label={t('Refresh')}
               onClick={() => void load()}
             />
           </>
@@ -298,9 +298,9 @@ export function AccountsPage() {
 
       <div className='m-section' style={{ marginTop: 0 }}>
         <InputGroup>
-          <InputGroupInput value={query} onChange={event => setQuery(event.target.value)} placeholder={t('搜索账号 / 邮箱 / 备注')} />
+          <InputGroupInput value={query} onChange={event => setQuery(event.target.value)} placeholder={t('Search account / email / note')} />
           <InputGroupAddon><Icon name='search' style={{ width: 16, height: 16 }} /></InputGroupAddon>
-          {query ? <InputGroupAddon align='inline-end'><InputGroupButton size='icon-xs' onClick={() => setQuery('')} aria-label={t('清除')}><Icon name='close' /></InputGroupButton></InputGroupAddon> : null}
+          {query ? <InputGroupAddon align='inline-end'><InputGroupButton size='icon-xs' onClick={() => setQuery('')} aria-label={t('Clear')}><Icon name='close' /></InputGroupButton></InputGroupAddon> : null}
         </InputGroup>
       </div>
 
@@ -313,13 +313,13 @@ export function AccountsPage() {
           pressed={activeFilterCount(filters) === 0}
           onClick={() => setFilters(DEFAULT_FILTERS)}
         >
-          {t('全部')}
+          {t('All')}
           <span className='m-n'>{accounts.length}</span>
         </UiToggle>
         {activeFilterCount(filters) > 0 ? (
           <UiToggle size='default' variant='outline' type='button' className='m-chip rounded-pill' pressed onClick={() => setFilterOpen(true)}>
             <Icon name='filter' style={{ width: 13, height: 13 }} />
-            {t('已筛选 {n} 项', { n: filtered.length })}
+            {t('{n} shown', { n: filtered.length })}
           </UiToggle>
         ) : null}
       </div>
@@ -337,10 +337,10 @@ export function AccountsPage() {
             <Empty
               text={
                 query
-                  ? t('没有匹配「{kw}」的账号', { kw: query })
+                  ? t('No accounts match "{kw}"', { kw: query })
                   : activeFilterCount(filters) > 0
-                    ? t('当前筛选下没有账号')
-                    : t('还没有账号，请点击「添加账号」')
+                    ? t('No accounts match the current filters')
+                    : t('No accounts yet. Click “Add account”.')
               }
             />
           </Card>
@@ -357,8 +357,8 @@ export function AccountsPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{providerLabel(group.provider, state.session?.accounts?.providers?.find(provider => provider.id === group.provider)?.label)}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--m-text-3)', marginTop: 2 }}>
-                  {t('{n} 个账号 · 启用 {e}', { n: group.list.length, e: enabled })}
-                  {limited ? t(' · 限流 {n}', { n: limited }) : ''}
+                  {t('{n} accounts · {e} enabled', { n: group.list.length, e: enabled })}
+                  {limited ? t(' · {n} rate-limited', { n: limited }) : ''}
                 </div>
               </div>
             </div>
@@ -435,23 +435,23 @@ function AccountRow({
           ? 'bad'
           : 'ok'
   const badgeText = account.needsRelogin
-    ? t('需重登')
+    ? t('Relogin')
     : suspendedReason
-      ? t('上游限制 · 已禁用')
+      ? t('Upstream restriction · Disabled')
       : !account.enabled
-        ? t('已禁用')
+        ? t('Disabled')
         : cooldown
-          ? t('账号冷却')
+          ? t('Account cooldown')
           : limited
-            ? t('限流')
+            ? t('Rate limit')
             : expired
-              ? t('已过期')
-              : t('正常')
+              ? t('Expired')
+              : t('Normal')
   // 有效期：这家没有这个概念时不显示，而不是显示「—」（少一行噪音）；
   // 长期有效的家写「长期有效」—— 与「—」（读不到到期时间）是两件事
   const credentialRows = credentialExpiryRowsOf(account, expiresAt)
   const expiryText = credentialRows.length ? '' : isLongLivedCredential(account.provider)
-    ? t('长期有效')
+    ? t('Long-lived')
     : hasExpiry(account.provider) ? formatExpiry(expiresAt) : ''
   // 余额：只有这家有查询能力时才占一行；快照里没有这一行 = 还没查过
   const usageView = usageText(usageRow, now)
@@ -537,12 +537,12 @@ function AccountRow({
           </div> : null}
           {suspendedReason || cooldown ? (
             <div className={`text-xs ${suspendedReason ? 'text-destructive' : 'text-warning'} whitespace-normal break-words mt-1`}>
-              {suspendedReason || [t('{time} 恢复', { time: formatRelative(cooldown?.resetAt) }), cooldown?.message].filter(Boolean).join(' · ')}
+              {suspendedReason || [t('Resets {time}', { time: formatRelative(cooldown?.resetAt) }), cooldown?.message].filter(Boolean).join(' · ')}
             </div>
           ) : null}
           {account.needsRelogin ? (
             <div className='text-xs text-destructive whitespace-normal break-words mt-1'>
-              {account.needsReloginReason || t('登录授权已失效，请重新登录；自动续期无法恢复已过期或已撤销的刷新令牌。')}
+              {account.needsReloginReason || t('Sign-in authorization is no longer valid. Sign in again; automatic renewal cannot restore an expired or revoked refresh token.')}
             </div>
           ) : null}
         </div>

@@ -170,14 +170,14 @@ export function UserAgentInput({
         spellCheck={false}
         autoComplete='off'
         disabled={disabled}
-        placeholder={t('留空使用该提供商默认值')}
+        placeholder={t('Leave empty to use the provider\'s default')}
         value={value}
         onChange={event => onChange(event.currentTarget.value)}
       />
       <SearchableSelect value={matched?.id ?? ''} disabled={disabled || !presets.length}
-        className='w-[172px] shrink-0' aria-label={t('选择预置客户端')}
-        displayValue={matched?.name || t('选择预置客户端')}
-        options={[{ value: '', label: t('不使用预置') }, ...presets.map(preset => ({
+        className='w-[172px] shrink-0' aria-label={t('Choose a preset client')}
+        displayValue={matched?.name || t('Choose a preset client')}
+        options={[{ value: '', label: t('No preset') }, ...presets.map(preset => ({
           value: preset.id, label: preset.name, searchText: preset.ua,
         }))]}
         onValueChange={next => {

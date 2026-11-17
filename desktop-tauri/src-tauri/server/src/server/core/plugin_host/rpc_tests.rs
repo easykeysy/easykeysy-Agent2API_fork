@@ -1,7 +1,7 @@
 use super::*;
 
 fn adapter() -> RpcAdapter {
-    let info = serde_json::from_value(serde_json::json!({ "id": "demo", "label": "测试" }))
+    let info = serde_json::from_value(serde_json::json!({ "id": "demo", "label": "Test" }))
         .expect("最小 provider 描述有效");
     let host = Arc::new(Host::new(
         HostOptions::new("unused-test-plugin"),

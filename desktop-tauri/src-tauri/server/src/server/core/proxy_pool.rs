@@ -126,19 +126,19 @@ fn normalize_item(input: &Value, existing: Option<&Value>) -> Result<Value, Stri
     }
     let name = clean_string(object.get("name"), MAX_NAME_LENGTH);
     if name.is_empty() {
-        return Err("请填写代理名称".to_string());
+        return Err("Enter a proxy name".to_string());
     }
     let protocol = clean_string(object.get("protocol"), 10).to_lowercase();
     let protocol = if protocol.is_empty() { "http".to_string() } else { protocol };
     if protocol != "http" && protocol != "socks5" {
-        return Err("代理协议只支持 http 或 socks5".to_string());
+        return Err("代理协议只支持 http or socks5".to_string());
     }
     let host = crate::server::core::proxies::normalize_host(object.get("host").and_then(Value::as_str).unwrap_or(""))?;
     let non_direct = crate::server::core::proxies::normalize_non_direct(
         object.get("nonDirect").or_else(|| existing.and_then(|item| item.get("nonDirect"))),
     )?;
     let Some(port) = valid_port(object.get("port")) else {
-        return Err("代理端口必须是 1-65535 的整数".to_string());
+        return Err("Proxy port must be an integer from 1 to 65535".to_string());
     };
     let now = logging::now_ms();
     let id = existing.map(|item| text_of(item, "id")).unwrap_or_default();
@@ -364,7 +364,7 @@ pub fn set_enabled(id: &str, enabled: bool) -> Result<(Vec<Value>, EnabledChange
     }
     object.insert("updatedAt".to_string(), Value::from(logging::now_ms()));
     write_items(&items)?;
-    logging::log("[Proxies]", &format!("{}代理「{name}」", if enabled { "✅ 启用" } else { "⏸️ 禁用" }));
+    logging::log("[Proxies]", &format!("{}代理「{name}」", if enabled { "✅ enabled" } else { "⏸️ Disable" }));
     Ok((list(), EnabledChange { name, enabled }))
 }
 

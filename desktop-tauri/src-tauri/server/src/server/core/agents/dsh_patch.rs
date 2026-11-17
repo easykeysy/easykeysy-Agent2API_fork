@@ -46,7 +46,7 @@ impl Composition {
             let bytes = result.input(&manifest)?;
             let package: Value =
                 serde_json::from_slice(bytes.as_deref().ok_or("请先启动一次所选 DSH 运行方式")?)
-                    .map_err(|_| "DSH profile 的 package.json 无法读取")?;
+                    .map_err(|_| "DSH profile — see the package.json 无法读取")?;
             let bundles = package
                 .pointer("/dsh/profile/bundles")
                 .and_then(Value::as_array)
@@ -244,7 +244,7 @@ impl Composition {
                 .get("disabled")
                 .is_some_and(|value| value != &Value::Bool(false) && !value.is_null())
         {
-            return Err(format!("DSH 的 {id} 位于独立作用域或已禁用，不能安全接管"));
+            return Err(format!("DSH — see the {id} 位于独立作用域或已禁用，不能安全接管"));
         }
         if let Some(id) = entry.value.get("id").and_then(Value::as_str) {
             let expected = match id {
@@ -256,7 +256,7 @@ impl Composition {
             if expected
                 .is_some_and(|name| entry.value.get("name").and_then(Value::as_str) != Some(name))
             {
-                return Err(format!("DSH 的 {id} 已替换为其他插件，不能安全接管"));
+                return Err(format!("DSH — see the {id} 已替换为其他插件，不能安全接管"));
             }
         }
         let value = entry
@@ -265,7 +265,7 @@ impl Composition {
             .cloned()
             .unwrap_or_else(|| json!({}));
         if !value.is_object() || document::dynamic(&value) {
-            return Err(format!("DSH 的 {id} 使用动态配置，不能按普通设置改写"));
+            return Err(format!("DSH — see the {id} 使用动态配置，不能按普通设置改写"));
         }
         Ok(value)
     }
@@ -280,12 +280,12 @@ impl Composition {
         let entry = self
             .entries
             .get(id)
-            .ok_or_else(|| format!("所选 DSH 配置没有启用 {id} 插件"))?;
+            .ok_or_else(|| format!("所选 DSH 配置没有启用 {id} Plugins"))?;
         if entry.source == dsh_paths::home_for(target).join(dsh_paths::PATCH_FILE)
             && entry.source != target
         {
             return Err(format!(
-                "DSH 的 {id} 被全局 cordis.patch.yml 覆盖，请在 DSH 中编辑全局配置"
+                "DSH — see the {id} 被全局 cordis.patch.yml 覆盖，请在 DSH 中编辑全局配置"
             ));
         }
         self.config(id)?;

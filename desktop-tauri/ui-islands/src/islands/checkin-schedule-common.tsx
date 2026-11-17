@@ -15,24 +15,24 @@ export function CheckinScheduleMaster({ auto }: { auto: AutoState }): React.Reac
       <CardContent className='ck-schedule-master-content flex items-center'>
         <div className='ck-schedule-master-copy'>
           <div className='ck-schedule-title'>
-            <h2>{t('自动执行总开关')}</h2>
+            <h2>{t('Automatic run master switch')}</h2>
             <Badge variant={auto.enabled ? 'success' : 'outline'} shape='tag'>
-              {auto.enabled ? t('已开启') : t('已暂停')}
+              {auto.enabled ? t('Enabled') : t('Paused')}
             </Badge>
           </div>
-          <p>{t('同时控制定时签到、定时补签和活动窗口重试；猫猫旅行独立运行。')}</p>
+          <p>{t('Controls scheduled check-ins, catch-up and campaign retries together. Cat travel runs independently.')}</p>
         </div>
         <div className='ck-schedule-next'>
-          <span>{auto.enabled ? t('下次自动执行') : t('自动执行已暂停')}</span>
+          <span>{auto.enabled ? t('Next automatic run') : t('Automatic runs paused')}</span>
           <strong>{auto.enabled && next ? beijingScheduleTime(next) : '—'}</strong>
-          <small>{t('北京时间 · 已启用 {n} 个签到计划', { n: enabledCount })}</small>
+          <small>{t('Beijing time · {n} enabled check-in schedules', { n: enabledCount })}</small>
         </div>
         <Switch checked={auto.enabled} disabled={store.saving}
-          aria-label={t('自动执行总开关')}
+          aria-label={t('Automatic run master switch')}
           onCheckedChange={enabled => void toggleMaster(enabled === true)} />
       </CardContent>
       {!auto.enabled ? <div className='ck-schedule-paused'>
-        {t('签到与补签计划已暂停，配置仍保留；手动执行不受总开关影响。')}
+        {t('Check-in and catch-up schedules are paused, with settings retained. Manual runs are not affected by the master switch.')}
       </div> : null}
     </Card>
   )
@@ -50,11 +50,11 @@ export function CheckinScheduleHeading({ title, description, action }: {
 
 export function CheckinScheduleRules(): React.ReactElement {
   return <Card render={<section />} className='ck-schedule-rules'>
-    <CardHeader><h3>{t('执行规则')}</h3></CardHeader>
+    <CardHeader><h3>{t('Execution rules')}</h3></CardHeader>
     <CardContent>
-      <p>{t('所有时间按北京时间计算。每个账号每天随机安排一次，重启保留当天安排；错过区间时会补跑未执行账号。')}</p>
-      <p>{t('主签到已执行不等于每个账号都已领取成功；账号结果请查看签到记录。')}</p>
-      <Button size='sm' variant='link' onClick={() => goCheckinTab('records')}>{t('查看签到记录')}</Button>
+      <p>{t('All times use Beijing time. Each account gets one random time per day, retained across restarts. If a window is missed, unrun accounts are caught up.')}</p>
+      <p>{t('A completed main run does not mean every account claimed successfully. See the check-in records for account results.')}</p>
+      <Button size='sm' variant='link' onClick={() => goCheckinTab('records')}>{t('View check-in records')}</Button>
     </CardContent>
   </Card>
 }

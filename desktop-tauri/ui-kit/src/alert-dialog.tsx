@@ -97,7 +97,7 @@ function AlertDialogContent({
                 fill='none'
               />
             </svg>
-            <span className='sr-only'>{t('关闭')}</span>
+            <span className='sr-only'>{t('Close')}</span>
           </AlertDialogPrimitive.Close>
         )}
       </AlertDialogPrimitive.Popup>

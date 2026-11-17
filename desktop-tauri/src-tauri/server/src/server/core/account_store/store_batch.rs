@@ -82,11 +82,11 @@ impl BatchLimiterMode {
 
     fn summary(self) -> &'static str {
         match self {
-            Self::Append => "限制器 → 追加规则",
-            Self::Replace => "限制器 → 替换规则",
-            Self::Enable => "限制器 → 全部启用",
-            Self::Disable => "限制器 → 全部停用",
-            Self::Clear => "限制器 → 清空规则",
+            Self::Append => "Limiter → 追加规则",
+            Self::Replace => "Limiter → 替换规则",
+            Self::Enable => "Limiter → 全部启用",
+            Self::Disable => "Limiter → 全部停用",
+            Self::Clear => "Limiter → 清空规则",
         }
     }
 }
@@ -164,7 +164,7 @@ impl AccountStore {
             let rules = limiter::normalize_rules(value, &Map::new())
                 .map_err(AccountStoreError::bad_request)?;
             if rules.is_empty() {
-                return Err(AccountStoreError::bad_request("请至少添加一条限制规则；清空请使用清空操作"));
+                return Err(AccountStoreError::bad_request("Add at least one limiter rule; use the clear operation to remove all rules"));
             }
             rules
         } else {
@@ -250,7 +250,7 @@ impl AccountStore {
             }
             if account_patch.is_empty() {
                 skipped.push(json!({
-                    "id": id, "name": name, "reason": "该提供商没有余额查询",
+                    "id": id, "name": name, "reason": "This provider has no balance query",
                 }));
                 continue;
             }
@@ -312,28 +312,28 @@ impl AccountStore {
         let mut summary: Vec<String> = Vec::new();
         if patch_object.contains_key("enabled") {
             summary.push(format!(
-                "启用状态 → {}",
-                if enabled_value { "启用" } else { "禁用" }
+                "Enabled status → {}",
+                if enabled_value { "enabled" } else { "Disable" }
             ));
         }
         if let Some(proxy) = allowed.get("proxy") {
             // 无代理时说「无代理（直连）」，否则用 describe 出来的 label
             let label = if proxy.is_null() {
-                "无代理（直连）".to_string()
+                "No proxy (direct)".to_string()
             } else {
                 describe_account_proxy(Some(proxy))
                     .get("label")
                     .and_then(Value::as_str)
-                    .unwrap_or("已设置")
+                    .unwrap_or("Configured")
                     .to_string()
             };
-            summary.push(format!("代理 → {label}"));
+            summary.push(format!("Proxy → {label}"));
         }
         if let Some(value) = allowed.get("maxConcurrent").and_then(Value::as_u64) {
             summary.push(if value == 0 {
-                "并发上限 → 不限".to_string()
+                "Concurrency limit → Unlimited".to_string()
             } else {
-                format!("并发上限 → {value}")
+                format!("Concurrency limit → {value}")
             });
         }
         if let Some(value) = allowed.get("usageQuery") {
@@ -354,18 +354,18 @@ impl AccountStore {
         logging::log(
             "[Accounts]",
             &format!(
-                "🔀 批量修改 {} 个账号（{}）: 成功 {changed_count} 个{}{}",
+                "🔀 批量修改 {} 个账号（{}): Success {changed_count} total{}{}",
                 ids.len(),
-                summary.join("，"),
+                summary.join(", "),
                 if failed.is_empty() {
                     String::new()
                 } else {
-                    format!("，失败 {} 个", failed.len())
+                    format!("，失败 {} total", failed.len())
                 },
                 if skipped.is_empty() {
                     String::new()
                 } else {
-                    format!("，跳过 {} 个", skipped.len())
+                    format!("，跳过 {} total", skipped.len())
                 }
             ),
         );
@@ -437,11 +437,11 @@ impl AccountStore {
             .iter()
             .filter_map(|item| item.get("name").and_then(Value::as_str))
             .collect::<Vec<_>>()
-            .join("、");
+            .join(", ");
         logging::log(
             "[Accounts]",
             &format!(
-                "🗑️  批量删除 {} 个账号: {}{}",
+                "🗑️  Delete selected {} accounts: {}{}",
                 removed.len(),
                 truncate_chars(&names, 200),
                 if failed.is_empty() {

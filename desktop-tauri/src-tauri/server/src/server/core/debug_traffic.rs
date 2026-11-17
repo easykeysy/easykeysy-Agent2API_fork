@@ -62,6 +62,7 @@ use serde_json::{json, Value};
 use crate::server::db::Db;
 use crate::server::logging;
 
+mod payload;
 mod sql;
 
 /// 表里保留的最大条数。超过后**精确删到上限**（每次只删超出那几条）。
@@ -145,9 +146,49 @@ pub fn init(db: Option<Db>) {
     // 重复调用只让第一次生效（`set` 失败即已初始化）。与改造前一致：
     // 那时是覆盖目录 + 重新载入，现在库自己就是真相，覆盖没有意义。
     let _ = DB.set(db);
+    // fork: after payloads moved to files, startup has two jobs (both concern the file side only):
+    //   1. migrate legacy payloads still in the DB into files, then blank those four columns — otherwise an old install's `.db`
+    //      never shrinks;
+    //   2. sweep orphan payloads (files left behind after a ramdisk wipe / ledger pruning).
+    super::blocking::in_place(move_legacy_payloads);
 }
 
-/// 报文数据所在的文件（**就是库文件**；设置页概况用）。
+/// Moves payloads still sitting in the DB over to the file side, then blanks those four columns.
+///
+/// The order is "disk-offload first, blank columns after": rows whose file write failed stay in the DB as-is (better to waste a little `.db`
+/// than lose traffic); the column-blanking pass runs only after every write succeeds, so no row ends up "in neither place".
+fn move_legacy_payloads() {
+    let Some(db) = db() else {
+        return;
+    };
+    let rows = db
+        .with(sql::payload_rows)
+        .and_then(Result::ok)
+        .unwrap_or_default();
+    let mut moved = Vec::new();
+    for entry in rows {
+        if payload::write(&entry).is_ok() {
+            moved.push(entry.id);
+        }
+    }
+    if !moved.is_empty() {
+        if let Some(Err(error)) = db.with(|conn| sql::blank_payloads(conn, &moved)) {
+            eprintln!("[Debug] legacy payload cleanup failed: {error}");
+        }
+    }
+    // The orphan sweep runs only when the ledger is readable (if it can't be read, leave the files alone — see `payload::sweep`).
+    if let Some(Ok(ids)) = db.with(sql::ids) {
+        payload::sweep(&ids.into_iter().collect());
+    }
+}
+
+/// fork: directory holding traffic **payloads** (`{cache_dir}/debug-traffic/`; for troubleshooting).
+///
+/// After the rework the DB's `debug_traffic` is just a ledger, with all bodies in the directory; the caller
+/// `api::storage_api` reads `Db::file()`, so this function has no callers — it is kept to
+/// answer the question "where do the payloads live".
+///
+/// The old semantics (**the DB file itself**; used by the settings-page overview) live in git history.
 ///
 /// 语义从「报文文件路径」变成「装着报文数据的库文件」—— 与 `AccountStore::file()`
 /// / `LogStore::file()` / `RequestStats::file()` 的处理一致。
@@ -163,7 +204,8 @@ pub fn init(db: Option<Db>) {
 /// 比给一个「大小 0 字节、可能根本不存在」的路径更诚实。
 #[allow(dead_code)]
 pub fn file() -> Option<PathBuf> {
-    db().map(|db| db.file().to_path_buf())
+    db()?;
+    Some(payload::dir())
 }
 
 /// 条数（设置页概况用；库不可用时 0）
@@ -189,9 +231,25 @@ fn record_sync(entry: TrafficEntry) {
         // 这里连日志都不打 —— 每个请求都会走到这一步，刷屏反而掩盖真问题。
         return;
     };
+    // fork: the payload lands in a file first, the ledger row goes into the DB after. If the file write fails, fall back to "payload into the DB as before" —
+    // a debug entry is better off wasting a little `.db` than being dropped whole because the ramdisk is temporarily unwritable.
     // 失败只打控制台：**不能**用 logging::log / verbose —— 它们要写同一个库，
     // 而此刻我们正握着那把锁（见模块头的死锁约束）。
-    match db.with_mut(|conn| sql::upsert_entry(conn, &entry)) {
+    let written = match payload::write(&entry) {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("[Debug] failed to write debug entry to file (falling back to DB): {error}");
+            false
+        }
+    };
+    let stored = db.with_mut(|conn| {
+        if written {
+            sql::upsert_ledger(conn, &entry)
+        } else {
+            sql::upsert_entry(conn, &entry)
+        }
+    });
+    match stored {
         Some(Ok(())) => {}
         Some(Err(error)) => {
             eprintln!("[Debug] 调试报文写入数据库失败: {error}");
@@ -200,9 +258,14 @@ fn record_sync(entry: TrafficEntry) {
         // 连接中毒（`Db` 的取向：不拿半截数据当真相）
         None => return,
     }
-    // 写入后只清理超过留存条数的旧记录。
+    // After writing, prune only old records beyond the retention count; the payload-orphan sweep runs only when rows were actually deleted.
     match db.with(|conn| sql::enforce_limits(conn)) {
-        Some(Ok(())) | None => {}
+        Some(Ok(removed)) if removed > 0 => {
+            if let Some(Ok(ids)) = db.with(sql::ids) {
+                payload::sweep(&ids.into_iter().collect());
+            }
+        }
+        Some(Ok(_)) | None => {}
         Some(Err(error)) => eprintln!("[Debug] 调试报文裁剪失败: {error}"),
     }
 }
@@ -212,7 +275,14 @@ fn record_sync(entry: TrafficEntry) {
 /// 同 id 多行时取**最后写入的那一份**（`ORDER BY ts DESC, rowid DESC LIMIT 1`），
 /// 与改造前「内存里从尾部往前找第一个匹配」逐字一致。
 pub fn get(id: &str) -> Option<TrafficEntry> {
-    db()?.with(|conn| sql::select_one(conn, id)).and_then(Result::ok).flatten()
+    let mut entry = db()?
+        .with(|conn| sql::select_one(conn, id))
+        .and_then(Result::ok)
+        .flatten()?;
+    // fork: the ledger's four payload columns are empty, the body lives in the file; legacy rows (not yet migrated)
+    // still carry their content in the DB; `hydrate` returns them as-is when the file is missing.
+    payload::hydrate(&mut entry);
+    Some(entry)
 }
 
 /// 一条原始报文记录。

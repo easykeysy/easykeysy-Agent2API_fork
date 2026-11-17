@@ -55,7 +55,7 @@ fn with_port(host: &str, port: u16) -> String {
 }
 
 fn authorized(headers: &HeaderMap) -> bool {
-    model_access::authenticate(headers, "tool").is_ok()
+    model_access::authenticate(headers, "tool", true).is_ok()
 }
 
 fn json_response(status: StatusCode, body: Value) -> Response {
@@ -144,7 +144,7 @@ async fn skill_operation(state: &ServerState, scope: Option<&KeyScope>, body: By
 
 /// POST /skill/web-search/search
 pub async fn skill_search(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let Ok(access) = model_access::authenticate(&headers, "tool") else {
+    let Ok(access) = model_access::authenticate(&headers, "tool", true) else {
         return json_response(
             StatusCode::UNAUTHORIZED,
             json!({ "error": { "code": "unauthorized", "message": "Missing or invalid API key. Pass it as \"Authorization: Bearer <Agent2API API Key>\"." } }),
@@ -224,7 +224,7 @@ async fn api_operation(state: &ServerState, scope: Option<&KeyScope>, body: Byte
 
 /// POST /api/web-search/search
 pub async fn api_search(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let Ok(access) = model_access::authenticate(&headers, "tool") else {
+    let Ok(access) = model_access::authenticate(&headers, "tool", true) else {
         return json_response(
             StatusCode::UNAUTHORIZED,
             json!({ "error": { "code": "unauthorized", "message": "Missing or invalid API key. Pass it as \"Authorization: Bearer <Agent2API API Key>\"." } }),
@@ -247,7 +247,7 @@ pub async fn api_fetch(State(state): State<ServerState>, headers: HeaderMap, bod
 /* ─── MCP 端点 ─────────────────────────────────────────────── */
 
 async fn mcp_post(state: &ServerState, headers: HeaderMap, body: Bytes, kind: McpServerKind) -> Response {
-    let Ok(access) = model_access::authenticate(&headers, "tool") else {
+    let Ok(access) = model_access::authenticate(&headers, "tool", true) else {
         return json_response(
             StatusCode::UNAUTHORIZED,
             json!({ "jsonrpc": "2.0", "id": Value::Null, "error": { "code": -32600, "message": "Unauthorized" } }),
@@ -309,15 +309,15 @@ pub async fn mcp_image_generation(
     if let Err(error) = super::tool_images::validate_origin(&headers) {
         return error.payload_response();
     }
-    if model_access::authenticate(&headers, "image-generation").is_err() {
+    if model_access::authenticate(&headers, "image-generation", true).is_err() {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let body = match axum::body::to_bytes(request.into_body(), super::image_input::MAX_REQUEST_BYTES).await {
         Ok(body) => body,
-        Err(_) => return crate::server::errors::GatewayError::with_status(413, "图片 MCP 请求不得超过 16 MiB").payload_response(),
+        Err(_) => return crate::server::errors::GatewayError::with_status(413, "Images MCP 请求不得超过 16 MiB").payload_response(),
     };
     if serde_json::from_slice::<Value>(&body).is_ok_and(|value| value.is_array()) {
-        return crate::server::errors::GatewayError::bad_request("图片 MCP 不接受批量提交，请逐个提交任务").payload_response();
+        return crate::server::errors::GatewayError::bad_request("Images MCP 不接受批量提交，请逐个提交任务").payload_response();
     }
     mcp_post(&state, headers, body, McpServerKind::ImageGeneration).await
 }

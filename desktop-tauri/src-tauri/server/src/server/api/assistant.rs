@@ -174,7 +174,7 @@ fn parse_config(block: &Map<String, Value>) -> Result<AssistantConfig, String> {
             let id = id.trim();
             (!id.is_empty()).then(|| id.to_string())
         }
-        Some(_) => return Err("apiKeyId 必须是有效的 Key ID 或 null".to_string()),
+        Some(_) => return Err("apiKeyId 必须是有效的 Key ID or null".to_string()),
     };
     Ok(AssistantConfig {
         model,
@@ -202,7 +202,7 @@ fn parse_config(block: &Map<String, Value>) -> Result<AssistantConfig, String> {
 
 /// POST /api/assistant/chat
 pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let access = match super::model_access::authenticate(&headers, super::model_access::ASSISTANT) {
+    let access = match super::model_access::authenticate(&headers, super::model_access::ASSISTANT, true) {
         Ok(access) => access,
         Err(error) => return chat_error(error),
     };
@@ -217,7 +217,7 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
         return errors::management_error(400, "messages 不能为空");
     }
     if messages.len() > MAX_MESSAGES {
-        return errors::management_error(400, format!("messages 最多 {MAX_MESSAGES} 条"));
+        return errors::management_error(400, format!("messages 最多 {MAX_MESSAGES} rows"));
     }
     // 本次请求点名的模型优先；没点名用设置里的。两者都没有时说清下一步 ——
     // 「去助手页选一个」比「模型未指定」这种网关腔有用得多。
@@ -241,7 +241,7 @@ pub async fn chat(State(state): State<ServerState>, headers: HeaderMap, body: By
         None | Some(Value::Null) => Vec::new(),
         Some(Value::Array(tools)) => {
             if tools.len() > MAX_TOOLS {
-                return errors::management_error(400, format!("tools 最多 {MAX_TOOLS} 个"));
+                return errors::management_error(400, format!("tools 最多 {MAX_TOOLS} total"));
             }
             for tool in tools {
                 let Some(id) = tool.get("function").and_then(|function| function.get("name")).and_then(Value::as_str) else {

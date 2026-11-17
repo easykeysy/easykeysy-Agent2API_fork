@@ -11,10 +11,10 @@ import { RecordsTab } from '../src/islands/checkin-records-tab'
 type Tab = 'center' | 'schedule' | 'makeup' | 'records'
 
 const APP_NAV = [
-  { group: '概览', items: ['对话', '报表', '账号'] },
-  { group: '转发链路', items: ['路由', '模型管理', 'Agent 配置', 'MCP & Skills', '网络代理', '网关 Key'] },
-  { group: '诊断', items: ['请求日志', '日志', '自动维护'] },
-  { group: '系统', items: ['插件', '设置'] },
+  { group: 'Overview', items: ['Chats', 'Reports', 'Accounts'] },
+  { group: 'Forwarding', items: ['Routing', 'Model management', 'Agent Configuration', 'MCP & Skills', 'Network proxy', 'Gateway key'] },
+  { group: 'Diagnostics', items: ['Request logs', 'Logs', 'Automatic maintenance'] },
+  { group: 'System', items: ['Plugins', 'Settings'] },
 ]
 
 function useStore(): void {
@@ -46,7 +46,7 @@ export default function Shell() {
             {group.items.map(label => <div key={label} className='proto-app-item'>
               <span className='proto-app-dot' /><span>{label}</span>
             </div>)}
-            {group.group === '概览' ? <div className='proto-app-item active'>
+            {group.group === 'Overview' ? <div className='proto-app-item active'>
               <span className='proto-app-dot' /><span>签到中心</span>
             </div> : null}
           </div>)}
@@ -70,14 +70,14 @@ export default function Shell() {
             <div className='ck-tabs'>
               <SegmentedControl
                 options={[
-                  { value: 'center', label: '签到中心' },
-                  { value: 'schedule', label: '定时签到' },
-                  { value: 'makeup', label: '定时补签' },
-                  { value: 'records', label: '签到记录' },
+                  { value: 'center', label: 'Check-in center' },
+                  { value: 'schedule', label: 'Scheduled check-in' },
+                  { value: 'makeup', label: 'Scheduled catch-up' },
+                  { value: 'records', label: 'Check-in records' },
                 ]}
                 value={tab}
                 onValueChange={value => setTab(value as Tab)}
-                aria-label='签到中心标签页'
+                aria-label='The sign-in center tab'
               />
               <span className='ck-tabs-spacer' />
               <Badge variant='success' shape='tag'><BadgeDot />自动执行已开启</Badge>

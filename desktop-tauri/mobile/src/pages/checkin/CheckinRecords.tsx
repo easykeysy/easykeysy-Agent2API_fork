@@ -16,23 +16,23 @@ const PAGE_SIZE = 30
 
 function outcomeView(outcome?: string): { label: string; tone: 'ok' | 'warn' | 'bad' | 'mute' | 'brand' } {
   switch (outcome) {
-    case 'success': return { label: t('成功领取'), tone: 'ok' }
-    case 'already': return { label: t('今日已领'), tone: 'brand' }
-    case 'pending': return { label: t('未领取'), tone: 'warn' }
-    case 'captcha': return { label: t('需要人工验证'), tone: 'warn' }
-    case 'failed': return { label: t('失败'), tone: 'bad' }
+    case 'success': return { label: t('Claimed'), tone: 'ok' }
+    case 'already': return { label: t('claimed today'), tone: 'brand' }
+    case 'pending': return { label: t('Not claimed'), tone: 'warn' }
+    case 'captcha': return { label: t('Human verification required'), tone: 'warn' }
+    case 'failed': return { label: t('Failed'), tone: 'bad' }
     default: return { label: outcome || '—', tone: 'mute' }
   }
 }
 
 function sourceLabel(source?: string): string {
   switch (source) {
-    case 'schedule': return t('定时')
-    case 'makeup': return t('补签')
-    case 'startup': return t('补签')
-    case 'manual': return t('手动')
-    case 'single': return t('单签')
-    case 'activity': return t('活动')
+    case 'schedule': return t('Scheduled')
+    case 'makeup': return t('Catch-up')
+    case 'startup': return t('Catch-up')
+    case 'manual': return t('Manual')
+    case 'single': return t('Single')
+    case 'activity': return t('Campaign')
     default: return source || '—'
   }
 }
@@ -53,19 +53,19 @@ export function CheckinRecords({ providers }: { providers: { id: string; label: 
   const controller = useRef<AbortController | null>(null)
   const identity = serverIdentity()
   const ranges = [
-    { value: 'all', label: t('全部时间') }, { value: 'today', label: t('今天') },
-    { value: '7', label: t('7 天') }, { value: '30', label: t('30 天') }, { value: 'month', label: t('本月') },
+    { value: 'all', label: t('All time') }, { value: 'today', label: t('Today') },
+    { value: '7', label: t('7 days') }, { value: '30', label: t('30 days') }, { value: 'month', label: t('This month') },
   ]
   const outcomes = [
-    { value: 'all', label: t('全部结果') }, { value: 'success', label: t('成功领取') },
-    { value: 'already', label: t('今日已领') }, { value: 'pending', label: t('未领取') },
-    { value: 'captcha', label: t('需要人工验证') }, { value: 'failed', label: t('失败') },
+    { value: 'all', label: t('All outcomes') }, { value: 'success', label: t('Claimed') },
+    { value: 'already', label: t('claimed today') }, { value: 'pending', label: t('Not claimed') },
+    { value: 'captcha', label: t('Human verification required') }, { value: 'failed', label: t('Failed') },
   ]
   const kinds = [
-    { value: 'all', label: t('全部类型') }, { value: 'manual', label: t('手动签到') },
-    { value: 'schedule', label: t('定时签到') }, { value: 'makeup', label: t('定时补签') },
+    { value: 'all', label: t('All types') }, { value: 'manual', label: t('Manual check-in') },
+    { value: 'schedule', label: t('Scheduled check-in') }, { value: 'makeup', label: t('Scheduled catch-up') },
   ]
-  const providerOptions = [{ value: 'all', label: t('全部提供商') }, ...providers.map(item => ({ value: item.id, label: t(item.label) }))]
+  const providerOptions = [{ value: 'all', label: t('All providers') }, ...providers.map(item => ({ value: item.id, label: t(item.label) }))]
   const filters = useCallback(() => ({
     start: recordRangeStart(range), outcome: outcome === 'all' ? undefined : outcome,
     kind: kind === 'all' ? undefined : kind,
@@ -104,7 +104,7 @@ export function CheckinRecords({ providers }: { providers: { id: string; label: 
       const result = await clearCheckinRecords(filters(), confirm === 'all')
       if (serverIdentity() !== identity) return
       setConfirm(null)
-      store.toast(t('已删除 {n} 条签到记录', { n: result.removed }))
+      store.toast(t('Deleted {n} sign-in records', { n: result.removed }))
       if (offset > 0) setOffset(0)
       else await load()
     } catch (cause) {
@@ -115,22 +115,22 @@ export function CheckinRecords({ providers }: { providers: { id: string; label: 
   const total = page?.total || 0
   const filtered = range !== 'all' || outcome !== 'all' || kind !== 'all' || provider !== 'all' || Boolean(search)
   const controls = [
-    { value: range, options: ranges, label: t('时间范围'), setter: setRange },
-    { value: outcome, options: outcomes, label: t('结果'), setter: setOutcome },
-    { value: provider, options: providerOptions, label: t('提供商'), setter: setProvider, searchable: true },
-    { value: kind, options: kinds, label: t('签到类型'), setter: setKind },
+    { value: range, options: ranges, label: t('Time range'), setter: setRange },
+    { value: outcome, options: outcomes, label: t('Result'), setter: setOutcome },
+    { value: provider, options: providerOptions, label: t('Provider'), setter: setProvider, searchable: true },
+    { value: kind, options: kinds, label: t('Check-in type'), setter: setKind },
   ]
 
   return (
     <>
       <div className='m-section' style={{ marginTop: 0 }}>
-        <SectionHead title={t('签到记录')} />
+        <SectionHead title={t('Check-in records')} />
         <Card className='m-card m-card-pad'>
           <div className='m-ck-filters'>
             {controls.map(control => control.searchable
               ? <SearchableSelect key={control.label} value={control.value} options={control.options} disabled={clearing}
                 onValueChange={value => change(control.setter, value)} className='h-10 text-sm'
-                aria-label={control.label} searchPlaceholder={t('搜索提供商')} />
+                aria-label={control.label} searchPlaceholder={t('Search providers')} />
               : <Select key={control.label} value={control.value} disabled={clearing}
                 onValueChange={value => change(control.setter, value)}>
                 <SelectTrigger className='h-10 text-sm' aria-label={control.label}>
@@ -140,22 +140,22 @@ export function CheckinRecords({ providers }: { providers: { id: string; label: 
               </Select>)}
           </div>
           <form className='m-ck-toolbar' onSubmit={event => { event.preventDefault(); setSearch(keyword.trim()); setOffset(0) }}>
-            <Input type='search' className='text-base' value={keyword} placeholder={t('搜索账号 / 说明')} disabled={clearing}
-              aria-label={t('搜索账号 / 说明')} onChange={event => setKeyword(event.currentTarget.value)} />
-            <Button type='submit' size='sm' variant='outline' disabled={clearing}>{t('搜索')}</Button>
+            <Input type='search' className='text-base' value={keyword} placeholder={t('Search accounts / Note')} disabled={clearing}
+              aria-label={t('Search accounts / Note')} onChange={event => setKeyword(event.currentTarget.value)} />
+            <Button type='submit' size='sm' variant='outline' disabled={clearing}>{t('Search')}</Button>
           </form>
           <div className='m-ck-actions'>
-            <Button size='sm' variant='outline' disabled={loading || clearing} onClick={() => void load()}>{t('刷新')}</Button>
+            <Button size='sm' variant='outline' disabled={loading || clearing} onClick={() => void load()}>{t('Refresh')}</Button>
             {filtered ? <Button size='sm' variant='ghost' className='text-destructive' disabled={clearing || !total}
-              onClick={() => setConfirm('filtered')}>{t('清空筛选结果')}</Button> : null}
+              onClick={() => setConfirm('filtered')}>{t('Clear the filter results')}</Button> : null}
             <Button size='sm' variant='ghost' className='text-destructive' disabled={clearing}
-              onClick={() => setConfirm('all')}>{t('清空全部')}</Button>
+              onClick={() => setConfirm('all')}>{t('Clear all')}</Button>
           </div>
-          <p className='m-ck-note'>{t('共 {n} 条', { n: total })}</p>
+          <p className='m-ck-note'>{t('Total {n} entries', { n: total })}</p>
         </Card>
       </div>
       {error ? <ErrorNote text={error} /> : null}
-      {!page && loading ? <Empty text={t('正在读取签到记录…')} /> : !page?.records?.length ? <Empty text={t('这段时间里还没有签到记录')} /> : null}
+      {!page && loading ? <Empty text={t('Reading the sign-in records…')} /> : !page?.records?.length ? <Empty text={t('这段时间里还没有签到记录')} /> : null}
       {page?.records?.map((row, index) => {
         const view = outcomeView(row.outcome)
         return <div className='m-section' key={`${row.ts}:${row.accountId}:${index}`}>
@@ -165,15 +165,15 @@ export function CheckinRecords({ providers }: { providers: { id: string; label: 
               <Badge tone={view.tone}>{view.label}</Badge>
             </div>
             <p className='m-ck-note'>{formatStamp(row.ts)} · {providers.find(item => item.id === row.provider)?.label || row.provider || '—'} · {sourceLabel(row.source)}</p>
-            <p className={row.error ? 'm-ck-error' : 'm-ck-note'}>{row.message || row.error || (row.keptActive ? t('保活成功') : '—')}</p>
+            <p className={row.error ? 'm-ck-error' : 'm-ck-note'}>{row.message || row.error || (row.keptActive ? t('Keep-alive succeeded') : '—')}</p>
             {row.reason ? <p className='m-ck-note'>{row.reason}</p> : null}
           </Card>
         </div>
       })}
       {total > PAGE_SIZE ? <div className='m-section m-ck-toolbar'>
-        <Button variant='outline' size='sm' disabled={loading || offset === 0} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>{t('上一页')}</Button>
+        <Button variant='outline' size='sm' disabled={loading || offset === 0} onClick={() => setOffset(value => Math.max(0, value - PAGE_SIZE))}>{t('Previous')}</Button>
         <span className='m-ck-note'>{Math.floor(offset / PAGE_SIZE) + 1} / {Math.ceil(total / PAGE_SIZE)}</span>
-        <Button variant='outline' size='sm' disabled={loading || offset + PAGE_SIZE >= total} onClick={() => setOffset(value => value + PAGE_SIZE)}>{t('下一页')}</Button>
+        <Button variant='outline' size='sm' disabled={loading || offset + PAGE_SIZE >= total} onClick={() => setOffset(value => value + PAGE_SIZE)}>{t('Next')}</Button>
       </div> : null}
       <Sheet open={Boolean(confirm)} onOpenChange={(open, details) => {
         if (open) return
@@ -181,12 +181,12 @@ export function CheckinRecords({ providers }: { providers: { id: string; label: 
         setConfirm(null)
       }}>
         <SheetContent showCloseButton={!clearing}>
-          <SheetHeader><SheetTitle>{confirm === 'all' ? t('清空全部签到记录') : t('清空筛选结果')}</SheetTitle></SheetHeader>
-          <SheetBody><p className='m-ck-note'>{confirm === 'all' ? t('确定清空全部签到记录？清空后无法恢复。')
-            : t('确定删除当前筛选命中的 {n} 条签到记录？清空后无法恢复。', { n: total })}</p></SheetBody>
+          <SheetHeader><SheetTitle>{confirm === 'all' ? t('Clear all sign-in records') : t('Clear the filter results')}</SheetTitle></SheetHeader>
+          <SheetBody><p className='m-ck-note'>{confirm === 'all' ? t('Clear all sign-in records? Once cleared, they cannot be recovered.')
+            : t('Delete the {n} sign-in records matched by the current filter? Once cleared, they cannot be recovered.', { n: total })}</p></SheetBody>
           <SheetFooter>
-            <Button variant='outline' disabled={clearing} onClick={() => setConfirm(null)}>{t('取消')}</Button>
-            <Button variant='destructive' disabled={clearing} onClick={() => void remove()}>{clearing ? t('删除中…') : t('删除')}</Button>
+            <Button variant='outline' disabled={clearing} onClick={() => setConfirm(null)}>{t('Cancel')}</Button>
+            <Button variant='destructive' disabled={clearing} onClick={() => void remove()}>{clearing ? t('Deleting…') : t('Delete')}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

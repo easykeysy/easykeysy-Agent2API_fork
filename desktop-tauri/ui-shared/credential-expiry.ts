@@ -59,11 +59,11 @@ export function credentialExpiryRowsOf(account: CredentialAccount, accessExpiry:
 }
 
 export function credentialExpiryText(row: CredentialExpiryRow, t: Translate, now = Date.now()): string {
-  if (row.longLived) return t('长期有效')
+  if (row.longLived) return t('Long-lived')
   if (row.expiresAt === null) return '—'
   const left = row.expiresAt - now
-  if (left <= 0) return t('已过期')
-  if (left < 3_600_000) return t('{n} 分钟后', { n: Math.max(1, Math.round(left / 60_000)) })
-  if (left < 48 * 3_600_000) return t('{n} 小时后', { n: Number((left / 3_600_000).toFixed(1)) })
-  return t('{n} 天后', { n: Math.floor(left / 86_400_000) })
+  if (left <= 0) return t('Expired')
+  if (left < 3_600_000) return t('in {n} min', { n: Math.max(1, Math.round(left / 60_000)) })
+  if (left < 48 * 3_600_000) return t('in {n} h', { n: Number((left / 3_600_000).toFixed(1)) })
+  return t('in {n} days', { n: Math.floor(left / 86_400_000) })
 }

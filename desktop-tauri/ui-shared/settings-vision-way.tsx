@@ -49,9 +49,9 @@ function ModelListRow({ way, label, tip, value, options, disabled, onChange, t }
       : null
   }
   return <Row first label={label} tip={tip} className='items-center max-[767px]:flex-col max-[767px]:items-stretch max-[767px]:gap-2' control={
-    <MultiSelect className='w-[min(320px,100%)]' aria-label={t('{way}的适用模型', { way })}
+    <MultiSelect className='w-[min(320px,100%)]' aria-label={t('Models for {way}', { way })}
       value={value.map(visionTargetKey)} options={options} disabled={disabled}
-      placeholder={t('选择一个或多个模型')} searchPlaceholder={t('搜索提供商或模型')}
+      placeholder={t('Select one or more models')} searchPlaceholder={t('Search providers or models')}
       onValueChange={keys => onChange(keys.map(resolve).filter((item): item is VisionModelRef => item !== null))} />
   } />
 }
@@ -65,16 +65,16 @@ export function VisionAssistCard({ value, models, reasoning, disabled, onChange,
   onChange(next: Partial<VisionAssist>): void
   t: Translate
 }) {
-  return <section className='flex min-w-0 flex-col' aria-label={t('辅助识图')}>
-    <WayHead title={t('辅助识图')} tip={t('先把图片交给视觉模型读一遍，再让原模型结合读到的内容回答。')} />
+  return <section className='flex min-w-0 flex-col' aria-label={t('Assisted image reading')}>
+    <WayHead title={t('Assisted image reading')} tip={t('The vision model reads the image first, then the original model answers using what was read.')} />
     <Group>
-      <ModelListRow way={t('辅助识图')} label={t('哪些模型用这种方式')}
-        tip={t('可跨提供商多选；只处理这些模型看不了的图片。')}
+      <ModelListRow way={t('Assisted image reading')} label={t('Which models use this way')}
+        tip={t('Multi-select across providers; only images these models cannot read are handled.')}
         value={value.models} options={listChoices(models, t)} disabled={disabled} t={t}
         onChange={next => onChange({ models: next })} />
-      <Row label={t('用哪只模型识图')} className='items-center max-[767px]:flex-col max-[767px]:items-stretch max-[767px]:gap-2' control={
+      <Row label={t('Which model reads the image')} className='items-center max-[767px]:flex-col max-[767px]:items-stretch max-[767px]:gap-2' control={
         <VisionModelSelect models={models} t={t} includeShared disabled={disabled}
-          className='w-[min(320px,100%)]' ariaLabel={t('用哪只模型识图')}
+          className='w-[min(320px,100%)]' ariaLabel={t('Which model reads the image')}
           value={value.source === 'shared' ? 'shared' : (value.target ? visionTargetKey(value.target) : '')}
           onValueChange={next => {
             if (next === 'shared') { onChange({ source: 'shared' }); return }
@@ -82,8 +82,8 @@ export function VisionAssistCard({ value, models, reasoning, disabled, onChange,
             if (item) onChange({ source: 'custom', target: { provider: item.provider, model: item.model, reasoning } })
           }} />
       } />
-      <SwitchRow label={t('复用相同图片的识读结果')} disabled={disabled}
-        tip={t('同一会话、同一问题、相同权限范围内复用；追问新细节会重新识读。')}
+      <SwitchRow label={t('Reuse readings of identical images')} disabled={disabled}
+        tip={t('Reused within the same session, question and permission scope; asking about new details triggers a fresh read.')}
         checked={value.reuseResults} onCheckedChange={reuseResults => onChange({ reuseResults })} />
     </Group>
   </section>
@@ -114,42 +114,42 @@ export function VisionRerouteCard({ value, models, reasoning, maxTargets, disabl
   const candidateUsed = Boolean(candidateModel && value.targets.some(item => visionTargetKey(item) === visionTargetKey(candidateModel!)))
   const canAdd = Boolean(candidateModel) && !candidateUsed && value.targets.length < maxTargets
 
-  return <section className='flex min-w-0 flex-col' aria-label={t('切换视觉模型')}>
-    <WayHead title={t('切换视觉模型')} tip={t('把整次请求交给视觉模型，由它直接回答，不再回到原模型。')} />
+  return <section className='flex min-w-0 flex-col' aria-label={t('Switch to a vision model')}>
+    <WayHead title={t('Switch to a vision model')} tip={t('The whole request goes to the vision model, which answers directly instead of the original model.')} />
     <Group>
-      <ModelListRow way={t('切换视觉模型')} label={t('哪些模型用这种方式')}
-        tip={t('可跨提供商多选；这些模型的请求会整体改交视觉模型。')}
+      <ModelListRow way={t('Switch to a vision model')} label={t('Which models use this way')}
+        tip={t('Multi-select across providers; requests from these models are handed over to the vision model as a whole.')}
         value={value.models} options={listChoices(models, t)} disabled={disabled} t={t}
         onChange={next => onChange({ models: next })} />
-      <Row label={t('接管回答的模型')} className='items-center max-[767px]:flex-col max-[767px]:items-stretch max-[767px]:gap-2' control={
+      <Row label={t('Model that takes over the answer')} className='items-center max-[767px]:flex-col max-[767px]:items-stretch max-[767px]:gap-2' control={
         <div className='flex w-[min(320px,100%)] items-center gap-1'>
           <VisionModelSelect models={models} t={t} disabled={disabled} className='min-w-0 flex-1'
-            ariaLabel={t('接管回答的模型')} value={primary ? visionTargetKey(primary) : ''}
+            ariaLabel={t('Model that takes over the answer')} value={primary ? visionTargetKey(primary) : ''}
             onValueChange={next => {
               const item = models.find(model => visionTargetKey(model) === next)
               setTargets(item ? [{ provider: item.provider, model: item.model, reasoning }, ...backups] : backups)
             }} />
           {primary ? <Button variant='ghost' size='xs' disabled={disabled}
-            onClick={() => setTargets(backups)}>{t('清除')}</Button> : null}
+            onClick={() => setTargets(backups)}>{t('Clear')}</Button> : null}
         </div>
       } />
-      <SwitchRow label={t('优先使用当前路由内的视觉模型')} disabled={disabled}
-        tip={t('先尝试当前路由内的视觉模型，不可用时再按顺序尝试指定模型；指定模型可跨路由池。')}
+      <SwitchRow label={t('Prefer vision models in the current route')} disabled={disabled}
+        tip={t('Try vision models in the current route first, then try the selected models in order if unavailable. Selected models can use a different routing pool.')}
         checked={value.preferCurrentRoute} onCheckedChange={preferCurrentRoute => onChange({ preferCurrentRoute })} />
       {backups.map((target, index) => <ListRow key={visionTargetKey(target)} index={index} title={visionModelLabel(models, target, t)}
         actions={<>
-          <Button variant='ghost' size='xs' disabled={disabled || index === 0} onClick={() => move(index + 1, -1)}>{t('上移')}</Button>
-          <Button variant='ghost' size='xs' disabled={disabled || index === backups.length - 1} onClick={() => move(index + 1, 1)}>{t('下移')}</Button>
+          <Button variant='ghost' size='xs' disabled={disabled || index === 0} onClick={() => move(index + 1, -1)}>{t('Move up')}</Button>
+          <Button variant='ghost' size='xs' disabled={disabled || index === backups.length - 1} onClick={() => move(index + 1, 1)}>{t('Move down')}</Button>
           <Button variant='ghost' size='xs' disabled={disabled}
-            onClick={() => setTargets(value.targets.filter((_, i) => i !== index + 1))}>{t('移除')}</Button>
+            onClick={() => setTargets(value.targets.filter((_, i) => i !== index + 1))}>{t('Remove')}</Button>
         </>} />)}
-      <Row label={t('备选模型')} tip={t('首选不可用时再依次尝试；留空则停止并说明原因。')} className='items-center max-[767px]:flex-col max-[767px]:items-stretch max-[767px]:gap-2' control={
+      <Row label={t('Backup model')} tip={t('Tried in order when the first choice is unavailable; leave empty to stop and explain why.')} className='items-center max-[767px]:flex-col max-[767px]:items-stretch max-[767px]:gap-2' control={
         <div className='flex w-[min(320px,100%)] items-center gap-1'>
           <VisionModelSelect models={models} t={t} disabled={disabled || value.targets.length >= maxTargets}
-            className='min-w-0 flex-1' ariaLabel={t('备选模型')} value={candidate} onValueChange={setCandidate} />
+            className='min-w-0 flex-1' ariaLabel={t('Backup model')} value={candidate} onValueChange={setCandidate} />
           <Button variant='outline' size='xs' disabled={disabled || !canAdd} onClick={() => {
             if (candidateModel) { setTargets([...value.targets, { provider: candidateModel.provider, model: candidateModel.model, reasoning }]); setCandidate('') }
-          }}>{t('加入备选')}</Button>
+          }}>{t('Add as backup')}</Button>
         </div>
       } />
     </Group>

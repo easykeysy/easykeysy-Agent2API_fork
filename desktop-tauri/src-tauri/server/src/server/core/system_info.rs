@@ -277,8 +277,8 @@ fn windows_version() -> String {
     let mut product = read("ProductName").unwrap_or_default();
     let display = read("DisplayVersion").unwrap_or_default();
 
-    // 注册表里 Windows 11 的 ProductName 仍写着 "Windows 10 ..."（微软已知的
-    // 兼容遗留）。用 build 号纠正：22000 起是 Windows 11。
+    // 注册表里 Windows 11 — see the ProductName 仍写着 "Windows 10 ..."（微软已知的
+    // 兼容遗留）。用 build 号纠正：22000 起是 Windows 11.
     if let Ok(number) = build.parse::<u32>() {
         if number >= 22000 && product.starts_with("Windows 10") {
             product = product.replacen("Windows 10", "Windows 11", 1);
@@ -323,7 +323,7 @@ fn linux_version() -> String {
 #[cfg(target_os = "macos")]
 fn macos_version() -> String {
     // `/System/Library/CoreServices/SystemVersion.plist` 是纯文本 XML，取
-    // ProductVersion 的 <string> 即可。不 spawn `sw_vers`：桌面壳里 spawn
+    // ProductVersion — see the <string> 即可。不 spawn `sw_vers`：桌面壳里 spawn
     // 外部命令在部分终端环境会被拦（也与 Windows 那边避开命令行工具的取向一致）。
     let Ok(text) = std::fs::read_to_string("/System/Library/CoreServices/SystemVersion.plist")
     else {

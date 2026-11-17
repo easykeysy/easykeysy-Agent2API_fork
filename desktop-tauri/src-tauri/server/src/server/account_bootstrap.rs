@@ -151,7 +151,7 @@ pub(crate) fn run(store: &AccountStore) {
                         .iter()
                         .map(|entry| entry.name.as_str())
                         .collect::<Vec<_>>()
-                        .join("、"),
+                        .join(", "),
                 ),
             );
         }
@@ -197,7 +197,7 @@ pub(crate) fn run(store: &AccountStore) {
             &format!(
                 "🧹 已清理 {} 条错位的限流记录（旧版把映射别名当成冷却键，实际额度按上游真名记）：{}",
                 stale_keys.len(),
-                stale_keys.join("；"),
+                stale_keys.join("; "),
             ),
         );
     }

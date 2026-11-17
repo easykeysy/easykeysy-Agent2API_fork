@@ -94,7 +94,7 @@ pub fn install_skill(
     if service != super::WEB_SEARCH_SERVICE_ID {
         return client_ids
             .iter()
-            .map(|id| InstallOutcome::failed(id, id, "该服务没有 Skill 安装包"))
+            .map(|id| InstallOutcome::failed(id, id, "该服务没有 Skill installer"))
             .collect();
     }
     let files = super::build_skill_files(base_url, variant);
@@ -109,7 +109,7 @@ pub fn install_skill(
 
     for client_id in client_ids {
         let Some(def) = agents::find(client_id) else {
-            outcomes.push(InstallOutcome::failed(client_id, client_id, "未知客户端"));
+            outcomes.push(InstallOutcome::failed(client_id, client_id, "Unknown client"));
             continue;
         };
         let roots = resources::skill_roots(def);
@@ -136,11 +136,11 @@ fn write_skill_pack(target: &Path, files: &[(String, String)]) -> Result<(), Str
     if target.exists() && !target.is_dir() {
         return Err(format!("{} 已存在且不是目录", target.display()));
     }
-    std::fs::create_dir_all(target).map_err(|error| format!("创建 Skill 目录失败：{error}"))?;
+    std::fs::create_dir_all(target).map_err(|error| format!("Create Skill 目录失败：{error}"))?;
     for (relative, content) in files {
         let path = target.join(relative);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|error| format!("创建 Skill 子目录失败：{error}"))?;
+            std::fs::create_dir_all(parent).map_err(|error| format!("Create Skill 子目录失败：{error}"))?;
         }
         agents::files::write_atomic(&path, content.as_bytes())?;
     }
@@ -151,7 +151,7 @@ pub fn uninstall_skill(service: &str, client_ids: &[String]) -> Vec<InstallOutco
     let mut outcomes = Vec::new();
     for client_id in client_ids {
         let Some(def) = agents::find(client_id) else {
-            outcomes.push(InstallOutcome::failed(client_id, client_id, "未知客户端"));
+            outcomes.push(InstallOutcome::failed(client_id, client_id, "Unknown client"));
             continue;
         };
         let mut removed = Vec::new();
@@ -166,13 +166,13 @@ pub fn uninstall_skill(service: &str, client_ids: &[String]) -> Vec<InstallOutco
             }
             match std::fs::remove_dir_all(&target) {
                 Ok(()) => removed.push(target.display().to_string()),
-                Err(error) => outcomes.push(InstallOutcome::failed(client_id, def.name, format!("删除失败：{error}"))),
+                Err(error) => outcomes.push(InstallOutcome::failed(client_id, def.name, format!("Delete failed: {error}"))),
             }
         }
         if !removed.is_empty() {
             outcomes.push(InstallOutcome::ok(client_id, def.name, removed.join(", ")));
         } else if !outcomes.iter().any(|outcome| outcome.client_id == *client_id) {
-            outcomes.push(InstallOutcome::failed(client_id, def.name, "未安装"));
+            outcomes.push(InstallOutcome::failed(client_id, def.name, "Not installed"));
         }
     }
     outcomes
@@ -364,7 +364,7 @@ pub fn install_mcp(
     );
     let timeout = if service == super::IMAGE_GENERATION_SERVICE_ID { 120 } else { super::timeout_seconds(service) };
     let image_bridge = if service == super::IMAGE_GENERATION_SERVICE_ID && mode == "bridge" {
-        let options = image_options.ok_or_else(|| "请选择图片输出目录".to_string());
+        let options = image_options.ok_or_else(|| "Select an image output directory".to_string());
         match options.and_then(super::image_bridge::prepare) {
             Ok(prepared) => Some(prepared),
             Err(error) => return client_ids.iter().map(|id| InstallOutcome::failed(id,
@@ -391,7 +391,7 @@ pub fn install_mcp(
     let mut outcomes = Vec::new();
     for client_id in client_ids {
         let Some(def) = agents::find(client_id) else {
-            outcomes.push(InstallOutcome::failed(client_id, client_id, "未知客户端"));
+            outcomes.push(InstallOutcome::failed(client_id, client_id, "Unknown client"));
             continue;
         };
         if resources::mcp_config_path(def).is_none() {
@@ -420,7 +420,7 @@ pub fn uninstall_mcp(service: &str, client_ids: &[String]) -> Vec<InstallOutcome
     let mut outcomes = Vec::new();
     for client_id in client_ids {
         let Some(def) = agents::find(client_id) else {
-            outcomes.push(InstallOutcome::failed(client_id, client_id, "未知客户端"));
+            outcomes.push(InstallOutcome::failed(client_id, client_id, "Unknown client"));
             continue;
         };
         match remove_mcp_entry(def, name) {
@@ -429,7 +429,7 @@ pub fn uninstall_mcp(service: &str, client_ids: &[String]) -> Vec<InstallOutcome
                 def.name,
                 resources::mcp_config_path(def).map(|path| path.display().to_string()).unwrap_or_default(),
             )),
-            Ok(false) => outcomes.push(InstallOutcome::failed(client_id, def.name, "未配置")),
+            Ok(false) => outcomes.push(InstallOutcome::failed(client_id, def.name, "Not configured")),
             Err(error) => outcomes.push(InstallOutcome::failed(client_id, def.name, error)),
         }
     }

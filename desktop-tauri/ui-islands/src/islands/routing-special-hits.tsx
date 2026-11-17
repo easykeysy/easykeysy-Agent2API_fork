@@ -48,7 +48,7 @@ export function RoutingSpecialHits({ kind, refreshToken, onOpenReplay }: {
       try {
         const result = await bridge().getRoutingReplays({ offset: 0, limit: WINDOW })
         if (!alive) return
-        if (result.available === false) throw new Error(t('请求记录数据库不可用'))
+        if (result.available === false) throw new Error(t('Request database unavailable'))
         setRows(result.entries.filter((entry): entry is ReplayRow => !('latest' in entry)))
         setError('')
       } catch (failure) {
@@ -65,11 +65,11 @@ export function RoutingSpecialHits({ kind, refreshToken, onOpenReplay }: {
     .filter((item): item is { row: ReplayRow; rewrite: NonNullable<ReturnType<typeof requestRewrite>> } =>
       item.rewrite?.kind === kind)
     .slice(0, SHOWN)
-  return <section className='routing-hits' aria-label={t('最近命中')}>
+  return <section className='routing-hits' aria-label={t('The most recent hit')}>
     <header className='routing-hits-head'>
-      <h3>{t('最近命中')}</h3>
-      <span>{t('最近 {n} 条', { n: hits.length })}</span>
-      <Button variant='link' size='sm' onClick={onOpenReplay}>{t('查看全部')}</Button>
+      <h3>{t('The most recent hit')}</h3>
+      <span>{t('Latest {n}', { n: hits.length })}</span>
+      <Button variant='link' size='sm' onClick={onOpenReplay}>{t('View all')}</Button>
     </header>
     <div className='routing-hits-list'>
       {hits.map(({ row, rewrite }) => <div key={row.id} className='routing-hits-row'>
@@ -87,7 +87,7 @@ export function RoutingSpecialHits({ kind, refreshToken, onOpenReplay }: {
         </span>
       </div>)}
       {!hits.length ? <p className='routing-hits-empty'>
-        {loading ? t('读取中…') : t('最近没有命中记录')}
+        {loading ? t('Loading…') : t('No recent hits')}
       </p> : null}
     </div>
     {error ? <p className='routing-config-error' role='alert'>{error}</p> : null}

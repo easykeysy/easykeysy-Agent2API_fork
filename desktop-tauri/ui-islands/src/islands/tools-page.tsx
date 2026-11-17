@@ -67,7 +67,7 @@ export function ToolsPage() {
     setToggling(service.key); setError('')
     try {
       await patchServer(service.id, { protocol: service.protocol, enabled })
-      toast(t('服务状态已更新'), 'ok')
+      toast(t('Service status updated'), 'ok')
       await load()
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
@@ -85,31 +85,31 @@ export function ToolsPage() {
     <Card>
       <CardHeader>
         <CardTitle>{t('MCP & Skills')}</CardTitle>
-        <p className='ml-3 text-xs text-subtle'>{t('将搜索、视觉等能力通过 MCP 或 Skills 接入客户端。')}</p>
-        {desktop ? <Button size='sm' variant='outline' className='ml-auto' onClick={() => (window as unknown as { wbApp?: { showPage?: (page: string) => void } }).wbApp?.showPage?.('agent')}>{t('客户端环境')}</Button> : null}
+        <p className='ml-3 text-xs text-subtle'>{t('Connect clients to search, vision and other capabilities through MCP or Skills.')}</p>
+        {desktop ? <Button size='sm' variant='outline' className='ml-auto' onClick={() => (window as unknown as { wbApp?: { showPage?: (page: string) => void } }).wbApp?.showPage?.('agent')}>{t('Client environment')}</Button> : null}
       </CardHeader>
       <CardContent className='flex flex-col gap-3'>
         <div className='flex flex-wrap items-center gap-2'>
           <SegmentedControl value={tab} onValueChange={value => setTab(value as Tab)} options={[
-            { value: 'all', label: t('全部') },
+            { value: 'all', label: t('All') },
             { value: 'skill', label: 'Skill' },
             { value: 'mcp', label: 'MCP' },
-          ]} aria-label={t('接入协议')} />
-          <Button size='sm' variant='ghost' className='ml-auto' disabled={loading} onClick={() => void load()}>{loading ? <Spinner /> : null}{t('刷新')}</Button>
+          ]} aria-label={t('Access protocol')} />
+          <Button size='sm' variant='ghost' className='ml-auto' disabled={loading} onClick={() => void load()}>{loading ? <Spinner /> : null}{t('Refresh')}</Button>
         </div>
         {error && <Alert variant='destructive' className='whitespace-pre-wrap'>{error}</Alert>}
-        {loading && !services.length ? <div className='flex items-center gap-2 py-8 text-sm text-subtle'><Spinner />{t('正在加载工具服务…')}</div>
+        {loading && !services.length ? <div className='flex items-center gap-2 py-8 text-sm text-subtle'><Spinner />{t('Loading tool services…')}</div>
           : visible.length ? <div className='overflow-x-auto'>
             <Table>
               <TableHeader><TableRow>
-                <TableHead>{t('服务名称')}</TableHead>
-                <TableHead>{t('接入协议')}</TableHead>
-                <TableHead>{t('状态')}</TableHead>
-                <TableHead>{t('能力数量')}</TableHead>
-                <TableHead>{t('版本')}</TableHead>
-                <TableHead>{t('服务入口')}</TableHead>
-                <TableHead>{t('操作')}</TableHead>
-                {desktop ? <TableHead>{t('本机接入')}</TableHead> : null}
+                <TableHead>{t('Service')}</TableHead>
+                <TableHead>{t('Access protocol')}</TableHead>
+                <TableHead>{t('Status')}</TableHead>
+                <TableHead>{t('Capabilities')}</TableHead>
+                <TableHead>{t('Version')}</TableHead>
+                <TableHead>{t('Service endpoint')}</TableHead>
+                <TableHead>{t('Actions')}</TableHead>
+                {desktop ? <TableHead>{t('Local install')}</TableHead> : null}
               </TableRow></TableHeader>
               <TableBody>
                 {visible.map(service => {
@@ -127,29 +127,29 @@ export function ToolsPage() {
                     </TableCell>
                     <TableCell>
                       <div className='flex items-center gap-2'>
-                        <Badge variant={service.enabled ? 'success' : 'outline'}>{service.enabled ? t('已启用') : t('已停用')}</Badge>
-                        <Switch checked={service.enabled} disabled={toggling === service.key} onCheckedChange={checked => void toggle(service, checked === true)} aria-label={t('启用 / 停用此服务')} />
+                        <Badge variant={service.enabled ? 'success' : 'outline'}>{service.enabled ? t('Enabled') : t('Disabled')}</Badge>
+                        <Switch checked={service.enabled} disabled={toggling === service.key} onCheckedChange={checked => void toggle(service, checked === true)} aria-label={t('Enable / disable this service')} />
                       </div>
                     </TableCell>
                     <TableCell>{service.capability_count}</TableCell>
                     <TableCell><Badge variant='outline'>v{service.version}</Badge></TableCell>
                     <TableCell><code className='whitespace-nowrap text-[11.5px]'>{service.endpoint}</code></TableCell>
-                    <TableCell><Button size='sm' variant='ghost' onClick={() => setDetail(service)}>{t('详情')}</Button></TableCell>
+                    <TableCell><Button size='sm' variant='ghost' onClick={() => setDetail(service)}>{t('Details')}</Button></TableCell>
                     {desktop ? <TableCell>
                       <div className='flex flex-wrap gap-1.5'>
                         <Button size='sm' variant='outline' disabled={!service.enabled || toggling === service.key}
                           onClick={() => setInstall({ service, mode: service.protocol === 'mcp' ? 'mcp' : 'skill' })}>
-                          {installed > 0 ? t('更新') : t('安装')}
+                          {installed > 0 ? t('Update') : t('Install')}
                         </Button>
-                        <Button size='sm' variant='ghost' disabled={!installed} onClick={() => setUninstall({ service, mode: service.protocol === 'mcp' ? 'mcp' : 'skill' })}>{t('卸载')}</Button>
-                        {installed > 0 ? <span className='self-center text-[11px] text-subtle' title={t('已接入 {count} 个目标', { count: installed })}>{installed}</span> : null}
+                        <Button size='sm' variant='ghost' disabled={!installed} onClick={() => setUninstall({ service, mode: service.protocol === 'mcp' ? 'mcp' : 'skill' })}>{t('Uninstall')}</Button>
+                        {installed > 0 ? <span className='self-center text-[11px] text-subtle' title={t('Connected to {count} targets', { count: installed })}>{installed}</span> : null}
                       </div>
                     </TableCell> : null}
                   </TableRow>
                 })}
               </TableBody>
             </Table>
-          </div> : <Empty>{t('没有匹配的工具服务')}</Empty>}
+          </div> : <Empty>{t('No matching tool services')}</Empty>}
       </CardContent>
     </Card>
 

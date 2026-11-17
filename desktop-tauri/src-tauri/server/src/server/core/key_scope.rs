@@ -154,16 +154,16 @@ impl KeyScope {
     /// 白名单的可读摘要（日志与错误文案用；空 = `不限制`）
     pub fn describe(&self) -> String {
         let providers = if self.restricts_providers() {
-            sorted(&self.allowed_providers).join("、")
+            sorted(&self.allowed_providers).join(", ")
         } else {
-            "不限制".to_string()
+            "No restrictions".to_string()
         };
         let models = if self.restricts_models() {
             format!("{} 个模型", self.allowed_models.len())
         } else {
-            "不限制".to_string()
+            "No restrictions".to_string()
         };
-        format!("提供商 {providers}；模型 {models}")
+        format!("Provider {providers}；模型 {models}")
     }
 }
 

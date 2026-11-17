@@ -36,11 +36,11 @@ export function BrandingSettingsPanel({ disabled = false }: { disabled?: boolean
     if (!selected || pending.current || disabled) return
     setError('')
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(selected.type)) {
-      setError(t('Logo 仅支持 PNG、JPG、WebP 图片'))
+      setError(t('Only PNG, JPG and WebP images are supported for logos'))
       return
     }
     if (!selected.size || selected.size > MAX_LOGO_BYTES) {
-      setError(t('Logo 不能超过 2 MiB'))
+      setError(t('The logo must not exceed 2 MiB'))
       return
     }
     pending.current = true
@@ -48,8 +48,8 @@ export function BrandingSettingsPanel({ disabled = false }: { disabled?: boolean
     try {
       const data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
-        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error(t('无法读取图片，请重新选择')))
-        reader.onerror = () => reject(new Error(t('无法读取图片，请重新选择')))
+        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error(t('Could not read the image. Select it again.')))
+        reader.onerror = () => reject(new Error(t('Could not read the image. Select it again.')))
         reader.readAsDataURL(selected)
       })
       setLogo(data)
@@ -60,7 +60,7 @@ export function BrandingSettingsPanel({ disabled = false }: { disabled?: boolean
 
   async function save() {
     if (pending.current || disabled || !ready) return
-    if (Array.from(name.trim()).length > 64) { setError(t('显示名称最多 64 个字符')); return }
+    if (Array.from(name.trim()).length > 64) { setError(t('The display name can contain up to 64 characters')); return }
     pending.current = true
     setBusy(true)
     setError('')
@@ -70,7 +70,7 @@ export function BrandingSettingsPanel({ disabled = false }: { disabled?: boolean
       setLogo(undefined)
       setDirty(false)
       setReady(true)
-      toast(t('品牌设置已保存'))
+      toast(t('Brand settings saved'))
     } catch (failure) { setError(errorMessage(failure)) }
     finally { pending.current = false; setBusy(false) }
   }
@@ -78,36 +78,36 @@ export function BrandingSettingsPanel({ disabled = false }: { disabled?: boolean
   const preview = { displayName: name.trim() || DEFAULT_BRANDING.displayName, logoUrl: logo === undefined ? branding.logoUrl : logo }
   const locked = disabled || busy || !ready
   return <Card render={<section />} className='panel'>
-    <CardHeader><CardTitle>{t('品牌设置')}</CardTitle></CardHeader>
+    <CardHeader><CardTitle>{t('Brand settings')}</CardTitle></CardHeader>
     <CardContent className='panel-body flex flex-col gap-4'>
-      <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('自定义网站和应用界面中显示的名称与 Logo。')}</p>
+      <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('Customize the name and logo displayed on the website and in the application.')}</p>
       <div className='flex min-w-0 items-center gap-4 rounded-lg border border-hairline bg-surface-inset p-4'>
         <BrandLogo branding={preview} size={48} />
         <div className='min-w-0'><div className='truncate text-base font-semibold'>{preview.displayName}</div>
-          <div className='text-xs text-muted-foreground'>{t('品牌预览')}</div></div>
+          <div className='text-xs text-muted-foreground'>{t('Brand preview')}</div></div>
       </div>
       <div className='space-y-2'>
-        <Label htmlFor={`${id}-name`}>{t('显示名称')}</Label>
+        <Label htmlFor={`${id}-name`}>{t('Display name')}</Label>
         <Input id={`${id}-name`} value={name} disabled={locked} autoComplete='off' placeholder='Agent2API'
           onChange={event => { setName(event.target.value); setDirty(true) }} />
-        <p className='m-0 text-xs text-muted-foreground'>{t('最多 64 个字符，留空恢复为 Agent2API。')}</p>
+        <p className='m-0 text-xs text-muted-foreground'>{t('Up to 64 characters. Leave blank to restore Agent2API.')}</p>
       </div>
       <div className='space-y-2'>
-        <Label htmlFor={`${id}-logo`}>{t('品牌 Logo')}</Label>
+        <Label htmlFor={`${id}-logo`}>{t('Brand logo')}</Label>
         <input id={`${id}-logo`} ref={file} type='file' className='sr-only' accept='image/png,image/jpeg,image/webp' disabled={locked}
           onChange={event => { const selected = event.target.files?.[0]; event.target.value = ''; void pick(selected) }} />
         <div className='flex flex-wrap gap-2'>
-          <Button variant='outline' disabled={locked} onClick={() => file.current?.click()}>{t('上传 Logo')}</Button>
-          <Button variant='ghost' disabled={locked || !preview.logoUrl} onClick={() => { setLogo(null); setDirty(true) }}>{t('恢复默认 Logo')}</Button>
+          <Button variant='outline' disabled={locked} onClick={() => file.current?.click()}>{t('Upload logo')}</Button>
+          <Button variant='ghost' disabled={locked || !preview.logoUrl} onClick={() => { setLogo(null); setDirty(true) }}>{t('Restore default logo')}</Button>
         </div>
-        <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('支持 PNG、JPG、WebP，最大 2 MiB、4096 × 4096 像素；自动缩小至 512 像素以内，建议使用正方形图片。')}</p>
+        <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('Supports PNG, JPG and WebP up to 2 MiB and 4096 × 4096 pixels. Images are resized to fit within 512 pixels. Square images are recommended.')}</p>
       </div>
-      <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('保存在当前网关，登录页也会公开显示。不会更改安装包、快捷方式、系统托盘图标或软件版本信息。')}</p>
+      <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('Saved on the current gateway and displayed publicly on the sign-in page. Does not change the installer, shortcuts, system tray icon or software version information.')}</p>
       {error ? <Alert variant='destructive' className='break-words'>{error}</Alert> : null}
-      {!ready && error ? <Button variant='outline' disabled={disabled} onClick={() => setReload(value => value + 1)}>{t('重试')}</Button> : null}
+      {!ready && error ? <Button variant='outline' disabled={disabled} onClick={() => setReload(value => value + 1)}>{t('Retry')}</Button> : null}
       <div className='flex items-center justify-end gap-2'>
-        <Button variant='ghost' disabled={locked} onClick={() => { setName(DEFAULT_BRANDING.displayName); setLogo(null); setDirty(true); setError('') }}>{t('恢复默认品牌')}</Button>
-        <Button disabled={locked} onClick={() => void save()}>{busy ? t('保存中…') : t('保存')}</Button>
+        <Button variant='ghost' disabled={locked} onClick={() => { setName(DEFAULT_BRANDING.displayName); setLogo(null); setDirty(true); setError('') }}>{t('Restore default brand')}</Button>
+        <Button disabled={locked} onClick={() => void save()}>{busy ? t('Saving…') : t('Save')}</Button>
       </div>
     </CardContent>
   </Card>

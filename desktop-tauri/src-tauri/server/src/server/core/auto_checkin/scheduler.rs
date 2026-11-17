@@ -80,9 +80,9 @@ impl AutoCheckin {
                 continue;
             };
             let reason = if planned.at > current.account_plan.windows.get(&provider).map(|window| window.1).unwrap_or(i64::MAX) {
-                format!("滚动窗口签到（{}）", checkin_schedules::display_label(&current))
+                format!("滚动窗口签到（{})", checkin_schedules::display_label(&current))
             } else {
-                format!("区间随机签到（{} · {}–{}）", checkin_schedules::display_label(&current),
+                format!("区间随机签到（{} · {}–{})", checkin_schedules::display_label(&current),
                     times::effective_time(&current, &provider), times::effective_end(&current, &provider))
             };
             let selected = vec![account.clone()];
@@ -148,7 +148,7 @@ impl AutoCheckin {
             .is_some()
             {
                 let reason = format!(
-                    "窗口重试（{}）",
+                    "窗口重试（{})",
                     checkin_schedules::display_label(&schedule)
                 );
                 self.fire_for(&reason, Some(&schedule.id), "schedule").await;
@@ -156,7 +156,7 @@ impl AutoCheckin {
             }
             let due = times::retry_due_providers(&schedule, now, &today);
             if !due.is_empty() {
-                let reason = format!("补签（{}）", checkin_schedules::display_label(&schedule));
+                let reason = format!("补签（{})", checkin_schedules::display_label(&schedule));
                 // 来源用 makeup 而不是 schedule：记录页的「定时补签」筛选靠它
                 // 与主轮区分（reason 前缀只用于兼容旧行，见 core::checkin_records）
                 self.fire_scoped(

@@ -31,6 +31,91 @@ static STORE: OnceLock<LogStore> = OnceLock::new();
 /// 是否需要把 debug 级别也上报入库（对应 Node 版 `opts.verbose`）
 static VERBOSE: OnceLock<bool> = OnceLock::new();
 
+/// fork: event-log-to-file switch (defaults to true on Linux + ramdisk).
+///
+/// When true, the DB-write step of `log` / `log_with_level` / `verbose` / `log_event` becomes
+/// appending one JSONL line to `{config_dir}/logs/events.jsonl`; the SQLite `logs` table
+/// gets no new rows (old rows remain readable; `store_ref()` queries / stats / clear keep working).
+/// File-write failures are silently dropped (same stance as "a failed DB write must not affect the request").
+#[cfg(target_os = "linux")]
+static EVENTS_TO_FILE: OnceLock<bool> = OnceLock::new();
+
+#[cfg(target_os = "linux")]
+fn events_to_file() -> bool {
+    *EVENTS_TO_FILE.get().unwrap_or(&false)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn events_to_file() -> bool {
+    false
+}
+
+/// fork: append one event-log entry to `{config_dir}/logs/events.jsonl`.
+/// The line format matches `LogEntry`'s serde contract (id uses 0 as a placeholder, ts is the current time).
+/// Write failures are silently dropped; do **not** call `console_line` (this already is the log path —
+/// printing another line would recurse into itself).
+/// fork: no-op stub on non-Linux (`events_to_file` is always false, so this function is never reached).
+#[cfg(not(target_os = "linux"))]
+fn append_event_file(
+    level: &str,
+    category: &str,
+    message: &str,
+    data: Option<&Value>,
+) {
+    let _ = (level, category, message, data);
+}
+
+#[cfg(target_os = "linux")]
+fn append_event_file(
+    level: &str,
+    category: &str,
+    message: &str,
+    data: Option<&Value>,
+) {
+    use serde_json::json;
+    let dir = crate::server::config::config_dir().join("logs");
+    let path = dir.join("events.jsonl");
+    if let Err(error) = std::fs::create_dir_all(&dir) {
+        eprintln!("[Logs] failed to create log directory: {error}");
+        return;
+    }
+    let line = json!({
+        "id": 0,
+        "ts": now_ms(),
+        "level": level,
+        "category": category,
+        "message": message,
+        "data": data,
+    });
+    let Ok(text) = serde_json::to_string(&line) else {
+        return;
+    };
+    use std::io::Write;
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        Ok(mut file) => {
+            let _ = writeln!(file, "{text}");
+        }
+        Err(error) => eprintln!("[Logs] event-log file could not be opened ({}): {error}", path.display()),
+    }
+}
+
+/// fork: shared entry point for the event-log-to-file branch.
+///
+/// Returns true = written to the file (the caller **skips** the DB write); false = keep the original behavior (write to the DB).
+#[allow(dead_code)]
+fn fork_event_file(level: &str, category: &str, message: &str, data: Option<&Value>) -> bool {
+    if events_to_file() {
+        append_event_file(level, category, message, data);
+        true
+    } else {
+        false
+    }
+}
+
 /// 日志文件通道：`Some(...)` = 已启用（服务形态），`None` = 不启用（前台形态）。
 ///
 /// ── 为什么需要它 ────────────────────────────────────────────
@@ -47,7 +132,7 @@ static FILE_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 /// 入库那份日志由保留天数管，但文件是另一条通道，需要自己的上限。
 const LOG_FILE_MAX_BYTES: u64 = 8 * 1024 * 1024;
 
-/// 打开日志文件通道。默认落 `{config_dir}/logs/server.log`，可用
+/// Opens the log file channel. Defaults to `{logs_dir}/server.log`; can be overridden via
 /// `AGENT2API_LOG_FILE` 覆盖（相对路径按进程 CWD 解析）。
 ///
 /// 重复调用只生效一次（OnceLock 语义）。打开失败不 panic：降级成
@@ -87,12 +172,35 @@ pub fn init_file_sink() {
 /// 读的是配置的**内存快照**而不是每次读盘 —— 写日志是相对频繁的路径。
 pub fn init_store(db: Option<Db>, verbose: bool) -> bool {
     let _ = VERBOSE.set(verbose);
+        // fork: on Linux, event logs are appended to `{config_dir}/logs/events.jsonl` by default
+        // instead of going into the SQLite `logs` table — moving this "garbage" out of the DB.
+        // The DB copy stays as read-only legacy (old rows remain); all new rows go to the file.
+    #[cfg(target_os = "linux")]
+    {
+        let ramdisk = crate::server::paths::ramdisk_root();
+        if ramdisk.is_some() {
+            let _ = EVENTS_TO_FILE.set(true);
+                        // The console copy is mirrored into the file as well (a service has no console)
+            init_file_sink();
+        }
+    }
     if STORE.get().is_some() {
         return false;
     }
-    let store = LogStore::with_db(db, || {
-        crate::server::config::retention_settings().log_days
-    });
+        // fork: on Linux + ramdisk, event lines go to `{logs_dir}/events.jsonl` (logs leave
+        // `agent2api.db`); other environments (Windows / containers / tests) keep the DB backend, behavior
+        // identical to before the rework. The decision input is whether the side dirs are truly taken over by `/mnt/ramdisk`,
+        // see `paths::side_dirs_external`.
+    let store = if crate::paths::side_dirs_external() {
+        crate::paths::ensure_side_dirs();
+        LogStore::with_events_file(db, crate::paths::logs_dir().join("events.jsonl"), || {
+            crate::server::config::retention_settings().log_days
+        })
+    } else {
+        LogStore::with_db(db, || {
+            crate::server::config::retention_settings().log_days
+        })
+    };
     store.prune();
     let _ = STORE.set(store);
     true
@@ -147,7 +255,7 @@ fn category_of(tag: &str) -> &'static str {
 ///   - 其余 info
 fn infer_level(tag: &str, text: &str) -> &'static str {
     // Node 的 /\b失败\b/ 在中文里等价于「含失败二字」（中文两侧都是非单词字符）
-    if text.starts_with('❌') || text.contains("失败") || tag.starts_with('❌') {
+    if text.starts_with('❌') || text.contains("Failed") || tag.starts_with('❌') {
         return "error";
     }
     if text.starts_with('⚠') || tag.starts_with('⚠') {
@@ -156,7 +264,7 @@ fn infer_level(tag: &str, text: &str) -> &'static str {
     "info"
 }
 
-/// 日志文件路径：`AGENT2API_LOG_FILE` 优先，默认 `{config_dir}/logs/server.log`
+/// Log file path: `AGENT2API_LOG_FILE` takes priority, default `{logs_dir}/server.log`
 fn log_file_path() -> PathBuf {
     if let Ok(value) = std::env::var("AGENT2API_LOG_FILE") {
         let trimmed = value.trim();
@@ -164,7 +272,7 @@ fn log_file_path() -> PathBuf {
             return PathBuf::from(trimmed);
         }
     }
-    crate::paths::config_dir().join("logs").join("server.log")
+    crate::paths::logs_dir().join("server.log")
 }
 
 /// 日志文件路径的对外只读形态（设置页「版本信息」展示用）。
@@ -235,11 +343,17 @@ pub fn log(tag: &str, text: &str) {
     let Some(store) = store() else {
         return;
     };
-    // 与 Node 版一致：message 为「标签 + 文案」，前端列表里能直接看到来源
+        // fork: skip the DB write when event logs go to the file
     let message = format!("{tag} {trimmed}");
+    let level = infer_level(tag, trimmed);
+    let category = category_of(tag);
+    if fork_event_file(level, category, &message, None) {
+        return;
+    }
+    // 与 Node 版一致：message 为「标签 + 文案」，前端列表里能直接看到来源
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
-        level: infer_level(tag, trimmed),
-        category: category_of(tag),
+        level,
+        category,
         message: &message,
         data: None,
         ts: None,
@@ -265,6 +379,10 @@ pub fn log_with_level(tag: &str, text: &str, level: &str) {
         return;
     };
     let message = format!("{tag} {trimmed}");
+        // fork: skip the DB write when event logs go to the file
+    if fork_event_file(level, category_of(tag), &message, None) {
+        return;
+    }
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
         level,
         category: category_of(tag),
@@ -289,6 +407,10 @@ pub fn verbose(tag: &str, text: &str) {
         return;
     };
     let message = format!("{tag} {trimmed}");
+        // fork: skip the DB write when event logs go to the file
+    if fork_event_file("debug", category_of(tag), &message, None) {
+        return;
+    }
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
         level: "debug",
         category: category_of(tag),
@@ -315,6 +437,17 @@ pub fn log_event(
         return None;
     }
     let store = store()?;
+        // fork: skip the DB write when event logs go to the file (still returns a placeholder LogEntry, so callers are unaffected)
+    if fork_event_file(level, category, message, data.as_ref()) {
+        return Some(LogEntry {
+            id: 0,
+            ts: now_ms(),
+            level: level.to_string(),
+            category: category.to_string(),
+            message: message.to_string(),
+            data: data,
+        });
+    }
     crate::server::core::blocking::in_place(|| store.append(NewEntry {
         level,
         category,
@@ -337,7 +470,7 @@ mod tests {
     /// 一条**完全成功**的账号导入汇总（`failed == 0`），取自生产库里的真实文案。
     /// 它照样含「失败」二字 —— 因为「失败 {failed} 条」是无条件拼接的。
     const IMPORT_SUMMARY_ALL_OK: &str =
-        "📥 账号导入完成: 共 2 条，新增 2 个，更新 0 个，跳过 0 条，失败 0 条\
+        "📥 账号导入完成: Total 2 条，新增 2 个，更新 0 个，跳过 0 条，失败 0 rows\
          （自定义提供商定义：新增 0 家、更新 0 家）";
 
     /// 这条测试断言的是「文案推断**会**出错」这个事实本身，用来把这个坑钉住。
@@ -359,7 +492,7 @@ mod tests {
     fn infer_level_keeps_real_failures_as_error() {
         assert_eq!(infer_level("[Accounts]", "❌ 账号导入失败"), "error");
         assert_eq!(
-            infer_level("[Checkin]", "定时签到完成: 0/2 个账号成功领取，失败 1 个"),
+            infer_level("[Checkin]", "定时签到完成: 0/2 个账号成功领取，失败 1 total"),
             "error"
         );
     }

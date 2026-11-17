@@ -64,15 +64,15 @@ impl HistoryReport {
     pub fn describe(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         if self.renamed_tools > 0 {
-            parts.push(format!("空名工具调用补占位名 {} 个", self.renamed_tools));
+            parts.push(format!("空名工具调用补占位名 {} total", self.renamed_tools));
         }
         if self.repacked {
             parts.push("tool 结果重排（配对断裂修复）".to_string());
         }
         if self.orphans_removed > 0 {
-            parts.push(format!("剔除无法配对的 tool 条目 {} 个", self.orphans_removed));
+            parts.push(format!("剔除无法配对的 tool 条目 {} total", self.orphans_removed));
         }
-        parts.join("；")
+        parts.join("; ")
     }
 }
 

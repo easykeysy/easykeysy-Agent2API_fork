@@ -220,7 +220,7 @@ pub async fn run_search(store: &AccountStore, scope: Option<&KeyScope>, queries:
         if !entry.enabled { continue; }
         if super::is_account_provider(provider) && !key_scope::allows_provider(scope, provider) {
             denied = true;
-            skipped.push(format!("{}: 当前网关 Key 未获准使用该提供商", super::provider_display_name(provider)));
+            skipped.push(format!("{}: The current gateway Key 未获准使用该提供商", super::provider_display_name(provider)));
             continue;
         }
         match account_search::prepare(store, provider, &entry).await {
@@ -231,7 +231,7 @@ pub async fn run_search(store: &AccountStore, scope: Option<&KeyScope>, queries:
     if sources.is_empty() {
         return Err(SearchError::new(
             if denied { SearchErrorCode::PermissionDenied } else { SearchErrorCode::Configuration },
-            if skipped.is_empty() { "没有已启用并配置好的搜索来源".into() } else { skipped.join("；") },
+            if skipped.is_empty() { "没有已启用并配置好的搜索来源".into() } else { skipped.join("; ") },
         ));
     }
     let active: Vec<String> = sources.iter().map(|source| source.provider().to_string()).collect();

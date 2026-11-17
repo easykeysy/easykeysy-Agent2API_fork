@@ -81,7 +81,7 @@ pub fn remember(
         if !store.mark_onboarding_settled(account_id, Value::Null) {
             logging::verbose(
                 "[Onboarding]",
-                &format!("{label} 账号 {account_id}：结算记忆清除失败（不影响本次结果）"),
+                &format!("{label} Account {account_id}：结算记忆清除失败（不影响本次结果）"),
             );
         }
         return None;
@@ -105,7 +105,7 @@ pub fn remember(
         logging::log(
             "[Onboarding]",
             &format!(
-                "⚠️ {label} 账号 {account_id}：新手任务结算记忆落库失败（本次结果不受影响，下次查询会重试）"
+                "⚠️ {label} Account {account_id}：新手任务结算记忆落库失败（本次结果不受影响，下次查询会重试）"
             ),
         );
     }

@@ -54,17 +54,17 @@ export function AgentPage() {
       const preview = await previewAgentRestore(client.id)
       const confirmed = await confirmDialog(
         <div className='flex flex-col gap-3'>
-          <p>{t('恢复作用在网关所在机器；密钥已隐藏，不会覆盖应用后的外部修改。')}</p>
+          <p>{t('Restore acts on the gateway host. Keys are hidden and external changes made after applying will not be overwritten.')}</p>
           {preview.warnings.map((warning, index) => <p key={index}>{warning}</p>)}
           {preview.files.map(file => <div key={file.path}><code className='break-all'>{file.path}</code>
             <pre className='max-h-60 overflow-auto whitespace-pre text-[11px]'>{file.diff.filter(line => line.kind !== 'same').map(line => `${line.kind === 'added' ? '+' : '−'} ${line.text}`).join('\n')}</pre>
           </div>)}
         </div>,
-        { title: t('撤销上次应用'), confirmText: t('确认恢复') },
+        { title: t('Undo last application'), confirmText: t('Confirm restore') },
       )
       if (!confirmed) return
       await restoreAgentClient(client.id, preview.token)
-      store.toast(t('配置已恢复并校验'))
+      store.toast(t('Configuration restored and verified'))
       await load()
     } catch (failure) {
       store.toast(failure instanceof Error ? failure.message : String(failure), 'err')
@@ -76,8 +76,8 @@ export function AgentPage() {
   return (
     <div className='m-page' ref={pull.bindRef}>
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
-      <PageIntro subtitle={t('改写网关所在机器上的客户端配置')}
-        actions={<IconButton name='refresh' label={t('刷新')} onClick={() => void load()} />}
+      <PageIntro subtitle={t('Manage client configuration on the gateway host')}
+        actions={<IconButton name='refresh' label={t('Refresh')} onClick={() => void load()} />}
       />
 
       <div className='m-section' style={{ marginTop: 0 }}>
@@ -86,8 +86,8 @@ export function AgentPage() {
           style={{ background: 'var(--m-warn-soft)', borderColor: 'color-mix(in srgb, var(--m-warn) 24%, transparent)' }}
         >
           <div style={{ fontSize: 12.3, lineHeight: 1.6, color: 'var(--m-text-2)' }}>
-            {t('手机端可查看模型配置、撤销上次应用，并管理提示词、Skill 与 MCP。')}
-            <b style={{ color: 'var(--m-text)' }}>{t('所有操作作用在网关所在机器。')}</b>
+            {t('On mobile, view model settings, undo the last application, and manage prompts, Skills and MCP.')}
+            <b style={{ color: 'var(--m-text)' }}>{t('All operations act on the gateway host.')}</b>
           </div>
         </Card>
       </div>
@@ -98,7 +98,7 @@ export function AgentPage() {
       {clients && !clients.length ? (
         <div className='m-section'>
           <Card className='m-card'>
-            <Empty text={t('没有检测到可接管的客户端')} />
+            <Empty text={t('No manageable clients detected')} />
           </Card>
         </div>
       ) : null}
@@ -124,10 +124,10 @@ export function AgentPage() {
                   {client.resolvedPath || client.configPath || '—'}
                 </div>
               </div>
-              <Badge tone={client.viaGateway ? 'ok' : 'mute'}>{client.viaGateway ? t('接入本网关') : t('未接入本网关')}</Badge>
+              <Badge tone={client.viaGateway ? 'ok' : 'mute'}>{client.viaGateway ? t('Connected to this gateway') : t('Not connected to this gateway')}</Badge>
             </div>
             <SegmentedControl className='mt-3' value={tabs[client.id || ''] || 'config'} onValueChange={value => setTabs(previous => ({ ...previous, [client.id || '']: value }))}
-              aria-label={t('客户端管理分类')} options={[{ value: 'config', label: t('模型配置') }, { value: 'prompt', label: t('提示词') }, { value: 'skills', label: 'Skill' }, { value: 'mcp', label: 'MCP' }]} />
+              aria-label={t('Client management category')} options={[{ value: 'config', label: t('Model settings') }, { value: 'prompt', label: t('Prompt') }, { value: 'skills', label: 'Skill' }, { value: 'mcp', label: 'MCP' }]} />
             {tabs[client.id || ''] && tabs[client.id || ''] !== 'config' ? <AgentResourcesPanel clientId={client.id || ''} kind={tabs[client.id || ''] as ResourceKind}
               capabilities={client.resources} request={resourceRequest} t={t} notify={(text, bad) => store.toast(text, bad ? 'err' : 'ok')} /> : null}
             <div
@@ -142,7 +142,7 @@ export function AgentPage() {
                 color: 'var(--m-text-3)',
               }}
             >
-              <span>{client.detectionState === 'missing' ? t('未检测到') : client.detectionState === 'uninitialized' ? t('尚未初始化') : client.detectionState === 'read_error' ? t('读取失败') : client.detectionState === 'unsupported' ? t('仅可读取') : t('客户端原生配置')}</span>
+              <span>{client.detectionState === 'missing' ? t('Not detected') : client.detectionState === 'uninitialized' ? t('Not initialized') : client.detectionState === 'read_error' ? t('Read failed') : client.detectionState === 'unsupported' ? t('Read-only') : t('Native client configuration')}</span>
               {client.readError ? <span style={{ color: 'var(--m-danger)' }}>{client.readError}</span> : null}
               {client.applied?.canUndo ? (
                 <Button size='touch-sm' variant='outline'
@@ -153,7 +153,7 @@ export function AgentPage() {
                   onClick={() => void restore(client)}
                 >
                   <Icon name='refresh' style={{ width: 12, height: 12 }} />
-                  {busy === client.id ? t('还原中…') : t('撤销上次应用')}
+                  {busy === client.id ? t('Restoring…') : t('Undo last application')}
                 </Button>
               ) : null}
             </div>
@@ -163,7 +163,7 @@ export function AgentPage() {
 
       <div className='m-section' style={{ paddingBottom: 8 }}>
         <Card className='m-card m-card-pad' style={{ fontSize: 11.5, color: 'var(--m-text-3)', lineHeight: 1.7 }}>
-          {t('接入状态来自客户端配置文件。恢复前显示差异；文件被其他程序修改时拒绝覆盖。')}
+          {t('Connection status comes from the client configuration file. Restore shows changes first and refuses to overwrite files modified by other programs.')}
         </Card>
       </div>
     </div>

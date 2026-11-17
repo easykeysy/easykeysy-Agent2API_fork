@@ -86,13 +86,13 @@ pub async fn download(name: &str, requested_version: &str) -> Result<Package, St
         || !parsed.username().is_empty()
         || parsed.password().is_some()
     {
-        return Err("脚本插件下载地址不属于 npm 官方源".into());
+        return Err("脚本插件下载地址不属于 npm Official source".into());
     }
     let integrity = metadata["dist"]["integrity"]
         .as_str()
         .ok_or("npm 插件缺少完整性校验值")?
         .to_string();
-    super::operations::stage("package", "正在下载脚本插件");
+    super::operations::stage("package", "Downloading script plugin");
     let archive = super::download::bytes(tarball, MAX_PACKAGE_BYTES, None).await?;
     verify_integrity(&archive, &integrity)?;
     store_archive(archive, Some((name.to_string(), version)), None).await

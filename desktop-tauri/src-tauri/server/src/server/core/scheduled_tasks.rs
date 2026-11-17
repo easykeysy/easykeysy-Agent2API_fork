@@ -84,8 +84,8 @@ pub const TASK_REPORT_AUTO_REFRESH: &str = config::KEY_REPORT_AUTO_REFRESH;
 pub const TASKS: [TaskDef; 6] = [
     TaskDef {
         id: TASK_CREDENTIAL_MAINTENANCE,
-        label: "凭证维护",
-        description: "定期遍历账号，只刷新已过期或临期的凭证。重启后沿用上次排期，失败账号在冷却后重试；转发需要的按需续期不受此开关影响。",
+        label: "Credential maintenance",
+        description: "Periodically iterates over accounts and refreshes only expired or soon-to-expire credentials. The previous schedule carries over after a restart, and failed accounts are retried after a cooldown; on-demand renewals needed for forwarding are not affected by this toggle.",
         unit: "minutes",
         runner: Runner::Backend,
         min: config::INTERVAL_MIN_MINUTES,
@@ -94,8 +94,8 @@ pub const TASKS: [TaskDef; 6] = [
     },
     TaskDef {
         id: TASK_MODEL_REFRESH,
-        label: "模型目录更新",
-        description: "定期拉取最新模型清单，重启沿用排期与缓存。客户端读取模型列表的后台刷新也遵守本任务开关、间隔和失败冷却；手动获取模型可提前刷新。同一轮顺带刷新 models.dev 模型元数据（能力位与思考档位，可在设置页单独关闭）。",
+        label: "Model catalog update",
+        description: "Periodically fetches the latest model list; the schedule and cache carry over across restarts. The background refresh when clients read the model list also respects this task's toggle, interval, and failure cooldown; a manual model fetch can refresh ahead of schedule. The same round also refreshes the models.dev model metadata (capability flags and reasoning tiers, which can be turned off separately on the Settings page).",
         unit: "minutes",
         runner: Runner::Backend,
         min: config::INTERVAL_MIN_MINUTES,
@@ -104,8 +104,8 @@ pub const TASKS: [TaskDef; 6] = [
     },
     TaskDef {
         id: TASK_UPDATE_CHECK,
-        label: "软件版本检查",
-        description: "定期向 GitHub 查询最新发布版本，默认每 20 分钟一次。检查结果、排期和限流冷却跨重启保留；手动检查也会合并重复请求并遵守冷却。开关与间隔在「软件更新」面板的「更新设置」弹窗里配置（定时任务页不再渲染这一条）。",
+        label: "Software update check",
+        description: "Periodically queries GitHub for the latest release version, once every 20 minutes by default. Check results, scheduling, and the rate-limit cooldown persist across restarts; manual checks also merge duplicate requests and respect the cooldown. The toggle and interval are configured in the \"Update settings\" dialog of the \"Software update\" panel (this row is no longer rendered on the Scheduled tasks page).",
         unit: "minutes",
         runner: Runner::Backend,
         min: config::INTERVAL_MIN_MINUTES,
@@ -114,8 +114,8 @@ pub const TASKS: [TaskDef; 6] = [
     },
     TaskDef {
         id: TASK_LOGS_AUTO_REFRESH,
-        label: "日志页自动刷新",
-        description: "停留在「日志」页时按此间隔重新拉取系统事件；页面不可见时不请求。",
+        label: "Logs auto-refresh",
+        description: "While the Logs page is open, system events are fetched again at this interval; no requests are made while the page is not visible.",
         unit: "seconds",
         runner: Runner::Frontend,
         min: config::INTERVAL_MIN_SECONDS,
@@ -124,8 +124,8 @@ pub const TASKS: [TaskDef; 6] = [
     },
     TaskDef {
         id: TASK_REQUESTS_AUTO_REFRESH,
-        label: "请求日志页自动刷新",
-        description: "停留在「请求日志」页时按此间隔重新拉取请求日志；页面不可见时不请求。",
+        label: "Request logs auto-refresh",
+        description: "While the Request logs page is open, request logs are fetched again at this interval; no requests are made while the page is not visible.",
         unit: "seconds",
         runner: Runner::Frontend,
         min: config::INTERVAL_MIN_SECONDS,
@@ -134,8 +134,8 @@ pub const TASKS: [TaskDef; 6] = [
     },
     TaskDef {
         id: TASK_REPORT_AUTO_REFRESH,
-        label: "报表自动刷新",
-        description: "停留在「报表」页时按此间隔重新拉取统计数据；页面不可见时不请求。",
+        label: "Reports auto-refresh",
+        description: "While the Reports page is open, statistics are fetched again at this interval; no requests are made while the page is not visible.",
         unit: "seconds",
         runner: Runner::Frontend,
         min: config::INTERVAL_MIN_SECONDS,
@@ -243,7 +243,7 @@ pub fn configure(id: &str, patch: IntervalTaskPatch) -> Result<Value, String> {
     }
     if let Some(interval) = patch.interval {
         if !(task.min..=task.max).contains(&interval) {
-            let unit = if task.unit == "seconds" { "秒" } else { "分钟" };
+            let unit = if task.unit == "seconds" { "seconds" } else { "minutes" };
             return Err(format!("「{}」的间隔必须是 {}–{} {}", task.label, task.min, task.max, unit));
         }
     }
@@ -271,8 +271,8 @@ pub fn configure(id: &str, patch: IntervalTaskPatch) -> Result<Value, String> {
     }
     if before != after {
         logging::log("[Tasks]", &format!("定时任务「{}」已{}，间隔 {} {}", task.label,
-            if after.enabled { "开启" } else { "关闭" }, after.interval,
-            if task.unit == "seconds" { "秒" } else { "分钟" }));
+            if after.enabled { "开启" } else { "Close" }, after.interval,
+            if task.unit == "seconds" { "seconds" } else { "minutes" }));
     }
     let mut result = task_by_id(id);
     result["saved"] = json!(saved);
@@ -299,7 +299,7 @@ async fn run_backend(
         let info = if manual { update.check(current).await } else { update.check_scheduled(current).await }
             .map_err(|error| error.message)?;
         return Ok(if info.get("hasUpdate").and_then(Value::as_bool) == Some(true) {
-            let summary = format!("发现新版本 {}（当前 {current}）", info["latestVersion"].as_str().unwrap_or(""));
+            let summary = format!("发现新版本 {}（当前 {current})", info["latestVersion"].as_str().unwrap_or(""));
             logging::log("[Update]", &summary);
             summary
         } else { "已完成版本检查".to_string() });
@@ -353,7 +353,7 @@ pub fn spawn(store: AccountStore, update: UpdateManager) {
                 // 到点：跑一次（`run_backend` 内部按当前间隔重新排期）。
                 // 被跳过（另一进程抢到、或在最短间隔内）不算错误，只留 verbose。
                 if let Err(error) = run_backend(&store, &update, task, false).await {
-                    logging::verbose("[Tasks]", &format!("{}：{error}", task.label));
+                    logging::verbose("[Tasks]", &format!("{}: {error}", task.label));
                 }
             }
             tokio::time::sleep(Duration::from_millis(TICK_MS)).await;

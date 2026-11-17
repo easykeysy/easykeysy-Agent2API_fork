@@ -79,7 +79,7 @@ fn patch_from(object: &Map<String, Value>) -> Result<ImageCompressPatch, String>
     let mut patch = ImageCompressPatch::default();
     if let Some(value) = object.get(KEY_IMAGE_COMPRESS_ENABLED) {
         let Some(enabled) = value.as_bool() else {
-            return Err(format!("{KEY_IMAGE_COMPRESS_ENABLED} 必须是 true 或 false"));
+            return Err(format!("{KEY_IMAGE_COMPRESS_ENABLED} 必须是 true or false"));
         };
         patch.enabled = Some(enabled);
     }

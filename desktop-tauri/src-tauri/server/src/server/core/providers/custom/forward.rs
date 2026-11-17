@@ -225,8 +225,8 @@ pub(crate) async fn forward(
     logging::verbose(
         "[CustomProvider]",
         &format!(
-            "POST {url} model={} stream={stream} account={account_id} 出口={}{}",
-            if requested.is_empty() { "(默认)" } else { &requested },
+            "POST {url} model={} stream={stream} account={account_id} Exit={}{}",
+            if requested.is_empty() { "(Default)" } else { &requested },
             describe_proxy(proxy.as_ref()),
             if quirks.emulate_opencode { " 伪装=opencode" } else { "" },
         ),
@@ -576,9 +576,9 @@ async fn forward_translated(
     logging::verbose(
         "[CustomProvider]",
         &format!(
-            "POST {url} protocol={} model={} stream={stream} account={account_id} 出口={}",
+            "POST {url} protocol={} model={} stream={stream} account={account_id} Exit={}",
             kind.label(),
-            if wire_model.is_empty() { "(默认)" } else { &wire_model },
+            if wire_model.is_empty() { "(Default)" } else { &wire_model },
             describe_proxy(proxy.as_ref()),
         ),
     );
@@ -729,10 +729,10 @@ fn classify_custom_error(status: u16, raw: &str, retry_after: Option<&str>) -> G
     match status {
         401 | 403 => GatewayError::with_status(
             i32::from(status),
-            format!("上游凭证被拒绝（HTTP {status}）: {raw}"),
+            format!("上游凭证被拒绝（HTTP {status}): {raw}"),
         ),
         429 => {
-            let mut message = format!("上游返回 {status}: {raw}");
+            let mut message = format!("Upstream returned {status}: {raw}");
             // 恢复时间的解析链：Retry-After 头（秒数 / HTTP 日期）→
             // 错误文案里的日期形态（parse_quota_reset_at 的既有口径）。
             // 文案以「（<UTC+8 时间> 恢复）」附录形态并回 message ——
@@ -747,7 +747,7 @@ fn classify_custom_error(status: u16, raw: &str, retry_after: Option<&str>) -> G
         }
         _ => GatewayError::with_status(
             i32::from(status),
-            format!("上游返回 {status}: {raw}"),
+            format!("Upstream returned {status}: {raw}"),
         ),
     }
 }
@@ -801,7 +801,7 @@ fn describe_proxy(proxy: Option<&ResolvedProxy>) -> String {
     match proxy {
         Some(proxy) if !proxy.label.is_empty() => proxy.label.clone(),
         Some(proxy) => proxy.host.clone(),
-        None => "直连".to_string(),
+        None => "Direct".to_string(),
     }
 }
 

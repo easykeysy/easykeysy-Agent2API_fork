@@ -107,7 +107,7 @@ pub(super) fn resolve_provider(item: &Map<String, Value>) -> Result<String, Stri
                 && !is_known_provider_id(trimmed)
             {
                 return Err(format!(
-                    "未知的提供商 id「{trimmed}」：注册表不认识，不能当作 WorkBuddy 导入"
+                    "未知的提供商 id「{trimmed}」：注册表不认识，不能当作 WorkBuddy Import"
                 ));
             }
             if trimmed == DEFAULT_PROVIDER_ID && !item.get("pluginSecret").is_some_and(|value| !value.is_null()) {

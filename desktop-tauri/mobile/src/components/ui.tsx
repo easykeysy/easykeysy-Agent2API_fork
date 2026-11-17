@@ -164,7 +164,7 @@ export async function copyText(text: string): Promise<void> {
 /** 复制 + 提示的常用组合 */
 export async function copyWithToast(text: string, label?: string): Promise<void> {
   await copyText(text)
-  store.toast(t('已复制{label}', { label: label ? `：${label}` : '' }))
+  store.toast(t('Copied{label}', { label: label ? `：${label}` : '' }))
 }
 
 /** 数值卡片（报表 / 首页共用） */

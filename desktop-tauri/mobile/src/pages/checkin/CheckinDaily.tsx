@@ -53,31 +53,31 @@ export function CheckinDaily({ center, busy, action, onRecords, onChange }: {
         <Card className='m-card m-card-pad'>
           <div className='m-ck-toolbar'>
             <div>
-              <div className='m-ck-title'>{t('今日签到 {done} / {total}', { done: daily?.todayDone || 0, total: daily?.todayEligible || 0 })}</div>
-              <div className='m-ck-note'>{center.auto?.running ? t('自动签到执行中…')
-                : center.auto?.enabled ? t('自动签到已开启') : t('自动签到已关闭')}</div>
+              <div className='m-ck-title'>{t('Today {done} / {total}', { done: daily?.todayDone || 0, total: daily?.todayEligible || 0 })}</div>
+              <div className='m-ck-note'>{center.auto?.running ? t('Automatic sign-in is running…')
+                : center.auto?.enabled ? t('Automatic sign-in is on') : t('Automatic sign-in is off')}</div>
             </div>
             <Button size='sm' disabled={Boolean(busy) || center.auto?.running || !hasAccounts} onClick={() => void sign()}>
-              {busy === 'all' ? t('签到中…') : t('全部签到')}
+              {busy === 'all' ? t('Checking in…') : t('Check in all')}
             </Button>
           </div>
-          <Button size='sm' variant='ghost' onClick={onRecords}>{t('查看签到记录')}</Button>
+          <Button size='sm' variant='ghost' onClick={onRecords}>{t('View check-in records')}</Button>
         </Card>
       </div>
 
       <div className='m-section'>
         <SegmentedControl options={sections} value={section} onValueChange={setSection}
-          aria-label={t('签到功能分类')} className='m-checkin-tabs flex-wrap' />
+          aria-label={t('Check-in categories')} className='m-checkin-tabs flex-wrap' />
       </div>
 
       {section === 'daily' && (!hasCapability || !hasAccounts) ? (
         <div className='m-section'>
           <Card className='m-card m-card-pad'>
             <p className='m-ck-note'>{!hasCapability
-              ? t('还没有可签到的提供商。请安装或启用所连接网关的提供商插件。')
-              : t('还没有可签到的账号。账号与插件均保存在所连接的网关上。')}</p>
+              ? t('No sign-in-capable providers yet. Please install or enable the provider plugin for the connected gateway.')
+              : t('No sign-in-capable accounts yet. Accounts and plugins are both stored on the connected gateway.')}</p>
             <Button size='sm' variant='outline' onClick={() => store.push(!hasCapability ? 'plugins' : 'accounts')}>
-              {!hasCapability ? t('查看插件状态') : t('查看账号')}
+              {!hasCapability ? t('View plugin status') : t('View the account')}
             </Button>
           </Card>
         </div>
@@ -95,18 +95,18 @@ export function CheckinDaily({ center, busy, action, onRecords, onChange }: {
                   <ProviderLogo id={group.id} label={group.label} />
                   <div className='m-ck-grow'>
                     <div className='m-ck-title'>{account.name || account.id}</div>
-                    <div className='m-ck-note'>{account.checkinAt ? formatStamp(account.checkinAt) : t('还没签到过')}
-                      {account.streakDays > 0 ? t(' · 连登 {n} 天', { n: account.streakDays }) : ''}</div>
+                    <div className='m-ck-note'>{account.checkinAt ? formatStamp(account.checkinAt) : t('Has never signed in')}
+                      {account.streakDays > 0 ? t(' · {n}-day streak', { n: account.streakDays }) : ''}</div>
                   </div>
                   <Badge tone={!account.available ? 'bad' : checkinStatusTone(accountCheckinStatus(account))}>
-                    {!account.available ? t('凭证不可用') : t(checkinStatusLabel(accountCheckinStatus(account)))}
+                    {!account.available ? t('Credentials unavailable') : t(checkinStatusLabel(accountCheckinStatus(account)))}
                   </Badge>
                   {checkinPlanProgress(account.dailyCheckin) && account.dailyCheckin ? <span className='m-ck-note'>
-                    {t('已领 {done} / {total} 份套餐', { done: account.dailyCheckin.completedCount, total: account.dailyCheckin.totalCount })}
+                    {t('Claimed {done} / {total} plans', { done: account.dailyCheckin.completedCount, total: account.dailyCheckin.totalCount })}
                   </span> : null}
                 </div>
                 {account.dailyCheckin?.kind === 'rolling' && account.dailyCheckin.until ? <p className='m-ck-note'>
-                  {t('下次检查：{time}', { time: formatStamp(account.dailyCheckin.until) })}
+                  {t('Next check: {time}', { time: formatStamp(account.dailyCheckin.until) })}
                 </p> : null}
                 {account.dailyCheckin?.message && !account.checkedInToday
                   ? <p className='m-ck-note'>{t(account.dailyCheckin.message)}</p> : null}
@@ -118,8 +118,8 @@ export function CheckinDaily({ center, busy, action, onRecords, onChange }: {
                         if (group.manualPlans && mode === 'checkin') setPlanId(account.id)
                         else void sign(account.id, mode)
                       }}>
-                      {group.manualPlans && mode === 'checkin' ? t('套餐明细')
-                        : busy === account.id ? t(account.dailyCheckin?.queryOnly ? '查询中…' : '执行中…')
+                      {group.manualPlans && mode === 'checkin' ? t('Plan details')
+                        : busy === account.id ? t(account.dailyCheckin?.queryOnly ? 'Checking…' : 'Running…')
                           : mode === 'checkin' ? t(checkinActionLabel(account)) : checkinModeLabel(mode)}
                     </Button>
                   ))}
@@ -132,7 +132,7 @@ export function CheckinDaily({ center, busy, action, onRecords, onChange }: {
 
       {section === 'daily' && daily?.outOfScope?.length ? (
         <div className='m-section'>
-          <SectionHead title={t('不参与每日签到')} />
+          <SectionHead title={t('Does not participate in the daily sign-in')} />
           <Card className='m-card'>
             {daily.outOfScope.map(row => <div className='m-card-pad m-ck-account' key={`${row.label}:${row.reason}`}>
               <div className='m-ck-title'>{t(row.label)} ×{row.count}</div>
@@ -145,7 +145,7 @@ export function CheckinDaily({ center, busy, action, onRecords, onChange }: {
       <CheckinBenefits center={center} section={section} busy={busy} action={action} onChange={onChange} />
       {plan ? <CheckinPlansSheet key={plan.id} entry={plan} onClose={() => setPlanId('')} onChange={onChange} /> : null}
       {section === 'daily' && !groups.length && !center.extras?.onboarding?.length && !center.extras?.plans?.length && !center.extras?.growth?.length && !center.extras?.campaigns?.length
-        ? <Empty text={t('安装插件并添加账号后，支持的签到与福利会自动显示')} /> : null}
+        ? <Empty text={t('After installing the plugin and adding an account, supported sign-ins and perks appear automatically')} /> : null}
     </>
   )
 }

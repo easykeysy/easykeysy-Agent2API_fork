@@ -106,9 +106,9 @@ const INITIAL_SNAPSHOT: Snapshot = {
   checkError: '',
   sourceRepository: '',
   // 初值与 index.html 静态骨架逐字一致：首屏在 load() 跑起来之前就长这样
-  badgeText: t('未检查'),
+  badgeText: t('Not checked'),
   badgeTone: '',
-  stateText: t('点击「检查更新」查询最新发布版本。'),
+  stateText: t('Click "Check for updates" to query the latest release.'),
   stateError: false,
   percent: 0,
   phase: 'idle',
@@ -189,34 +189,34 @@ function installerKindOf(info: UpdateInfo | null): InstallerKind {
 /** 「开始下载」时的提示：说明下载完会发生什么 */
 function downloadHint(info: UpdateInfo | null): string {
   if (isSelfUpdate(info)) {
-    return t('正在下载服务端更新包…（下载完成后由面板完成替换，重启容器内的服务后生效）')
+    return t('Downloading the server update package… (the panel replaces the files once the download finishes; the update takes effect after the service inside the container restarts)')
   }
   switch (installerKindOf(info)) {
     case 'dmg':
-      return t('正在下载安装包…（下载完成后会挂载磁盘映像，把应用拖进「应用程序」即可完成安装）')
+      return t('Downloading installer… (when it finishes, the disk image will be mounted; drag the app into Applications to complete the installation)')
     case 'deb':
-      return t('正在下载安装包…（下载完成后会交给系统安装器，按提示输入密码即可完成安装）')
+      return t('Downloading the installer… (once done it is handed to the system installer; enter your password when prompted).')
     case 'appimage':
-      return t('正在下载安装包…（下载完成后会启动新的 AppImage；把它替换掉旧文件即完成升级）')
+      return t('Downloading the installer… (once done the new AppImage launches; move it over the old file to finish the upgrade).')
     default:
-      return t('正在下载安装包…（下载完成后启动安装程序需要管理员权限，会弹出 UAC 确认框）')
+      return t('Downloading installer… (when it finishes, starting the installer requires admin rights and will show a UAC prompt)')
   }
 }
 
 /** 「安装包已就绪」的提示：说明下一步该做什么 */
 function readyHint(info: UpdateInfo | null, name: string): string {
   if (isSelfUpdate(info)) {
-    return t('更新包已就绪：{name}。点「安装并重启」后，面板会校验并替换容器内的程序与界面文件，然后重启服务（页面会自动刷新）。', { name })
+    return t('Update package ready: {name}. After you click "Install and restart", the panel verifies and replaces the program and UI files inside the container, then restarts the service (the page refreshes automatically).', { name })
   }
   switch (installerKindOf(info)) {
     case 'dmg':
-      return t('安装包已就绪：{name}。点击「打开安装包」后会挂载磁盘映像，把应用拖进「应用程序」即可完成安装。', { name })
+      return t('Installer ready: {name}. Clicking "Open installer" mounts the disk image; drag the app into Applications to finish installing.', { name })
     case 'deb':
-      return t('安装包已就绪：{name}。点击「打开安装包」后会交给系统安装器，按提示输入密码即可完成安装（本程序无需退出）。', { name })
+      return t('Installer ready: {name}. "Open installer" hands it to the system installer — enter your password when prompted (this app does not need to quit).', { name })
     case 'appimage':
-      return t('安装包已就绪：{name}。点击「安装并重启」后会启动新的 AppImage；把它移动到你的应用目录并替换旧文件即完成升级（本程序会先退出以释放文件占用）。', { name })
+      return t('Installer ready: {name}. "Install and restart" launches the new AppImage; move it to your applications folder and replace the old file to finish the upgrade (this app quits first to release the file).', { name })
     default:
-      return t('安装包已就绪：{name}。点击「安装并重启」后需要管理员权限，会弹出 UAC 确认框。', { name })
+      return t('Installer ready: {name}. Clicking "Install and restart" requires admin rights and will show a UAC prompt.', { name })
   }
 }
 
@@ -226,9 +226,9 @@ function readyHint(info: UpdateInfo | null, name: string): string {
  * 且安装时机由用户决定 —— 照着 Windows 那样退出反而会无故中断正在服务的网关。
  */
 function installButtonText(info: UpdateInfo | null): string {
-  if (isSelfUpdate(info)) return t('安装并重启')
+  if (isSelfUpdate(info)) return t('Install and restart')
   const kind = installerKindOf(info)
-  return kind === 'dmg' || kind === 'deb' ? t('打开安装包') : t('安装并重启')
+  return kind === 'dmg' || kind === 'deb' ? t('Open installer') : t('Install and restart')
 }
 
 /* ─── 共享快照（外部 store）──────────────────── */
@@ -247,7 +247,7 @@ function subscribe(listener: () => void): () => void {
   return () => { subscribers.delete(listener) }
 }
 
-/** 打补丁并通知界面：useSyncExternalStore 靠引用比较判变化，必须换新对象 */
+/** 打补Ding (surname)并通知界面：useSyncExternalStore 靠引用比较判变化，必须换新对象 */
 function publish(patch: Partial<Snapshot>): void {
   snapshot = { ...snapshot, ...patch }
   for (const listener of subscribers) listener()
@@ -276,7 +276,7 @@ async function refreshTokenHint(): Promise<void> {
     const status = await shared().workbuddyDesktop?.getUpdateToken()
     publish({ tokenFilled: status?.filled === true })
   } catch {
-    /* 读不到保持原值（仍未读到就是不显示） */
+    /* 读不到保Hold原值（仍未读到就是不显示） */
   }
 }
 
@@ -286,7 +286,7 @@ async function refreshTokenHint(): Promise<void> {
  * 「一次只干一件事」的互斥锁（旧实现的 busy）。
  *
  * 刻意放在模块级而不是快照里：openAndDownload 的重试循环与事件回调都要**同步**读到它
- * （同一刻的第二下、轮询与保存撞车都靠它早退）。界面上的禁用另用 checking / actionBusy
+ * （同一刻的第二下、轮询与保存撞车都靠它Early退）。界面上的禁用另用 checking / actionBusy
  * 两个字段表达，两者不混。
  */
 let busy = false
@@ -357,8 +357,8 @@ function renderCheckResult(): void {
   if (!info) {
     // 没有可保留的旧读数：只剩「这次为什么没查成」
     if (checkError) {
-      setBadge(t('检查失败'), 'bad')
-      setState(t('检查更新失败：{error}', { error: checkError }), true)
+      setBadge(t('Check failed'), 'bad')
+      setState(t('Update check failed: {error}', { error: checkError }), true)
     }
     return
   }
@@ -370,34 +370,34 @@ function renderCheckResult(): void {
     watchServiceUpdate(info, acceptServiceProgress)
     return
   }
-  const at = checkedAt ? t('（检查于 {time}）', { time: formatClock(checkedAt) }) : ''
+  const at = checkedAt ? t(' (checked at {time})', { time: formatClock(checkedAt) }) : ''
   // 已应用、只差重启：这一条优先于「有新版本」——此刻磁盘上已经是新版，
   // 再提示「可下载」只会把人往死路上带（后端会以 400 拒绝第二次安装）。
   // 它也优先于「检查失败」：这一格要说的是「按一下重启就完事」，那是可执行的动作；
   // 这次检查失败只作补充说明附在后面
   if (info.pendingRestart === true) {
-    setBadge(t('待重启'), 'warn')
+    setBadge(t('Restart pending'), 'warn')
     setState(checkError
-      ? t('更新已应用到容器内，重启服务后生效。{at}（本次检查失败：{error}）', { at, error: checkError })
-      : t('更新已应用到容器内，重启服务后生效。{at}', { at }))
+      ? t('The update has been applied inside the container and takes effect after the service restarts.{at} (this check failed: {error})', { at, error: checkError })
+      : t('The update has been applied inside the container and takes effect after the service restarts.{at}', { at }))
     return
   }
   // 本次检查失败：状态行按错误着色说清原因，**不**清掉 info ——
   // 版本号与更新日志来自上一次成功检查，仍然是有效信息，只是不新鲜。
   // 补一句「来自上次成功检查」，免得把旧读数当成这次查到的
   if (checkError) {
-    setBadge(t('检查失败'), 'bad')
-    setState(t('检查更新失败：{error}（以下版本与更新日志来自上次成功检查，检查于 {time}）', {
+    setBadge(t('Check failed'), 'bad')
+    setState(t('Update check failed: {error} (the versions and release notes below are from the last successful check at {time})', {
       error: checkError,
-      time: formatClock(checkedAt) || t('未知'),
+      time: formatClock(checkedAt) || t('Unknown'),
     }), true)
     return
   }
   if (info.hasUpdate === true) {
-    setBadge(t('有新版本'), 'warn')
+    setBadge(t('New version'), 'warn')
     if (isManualUpdate(info)) {
       const reason = manualUpdateReason(info)
-      setState(t('发现新版本 {latest}（当前 {current}）。{reason}{at}', {
+      setState(t('Version {latest} is available (current: {current}). {reason}{at}', {
         latest: String(info.latestVersion || ''), current: String(info.currentVersion || ''), reason, at,
       }))
       return
@@ -405,7 +405,7 @@ function renderCheckResult(): void {
     // 容器内更新：该版本没挂服务端更新包时（老 Release / 只发了桌面安装包），
     // 按钮不会出现 —— 把原因与手动命令说清楚，别让人对着没有按钮的面板猜
     if (isSelfUpdate(info) && !info.serverAsset) {
-      setState(t('发现新版本 {latest}（当前 {current}），但该版本没有提供容器内更新包（{reason}）；请在宿主机执行 docker compose pull && docker compose up -d 升级。{at}', {
+      setState(t('New version {latest} found (current: {current}), but this release provides no in-container update package ({reason}). Upgrade on the host with docker compose pull && docker compose up -d.{at}', {
         latest: String(info.latestVersion || ''),
         current: String(info.currentVersion || ''),
         reason: missingAssetReasonFor(info),
@@ -417,7 +417,7 @@ function renderCheckResult(): void {
     // 时按钮同样不出现，必须在这里把原因与「怎么办」交代掉 —— 否则用户对着
     // 「发现新版本」四个字无从下手，而发布页上其实有得下
     if (!downloadAsset(info)?.url) {
-      setState(t('发现新版本 {latest}（当前 {current}），但这一版没有提供本机安装包（{reason}）；可到 GitHub 发布页手动下载。{at}', {
+      setState(t('New version {latest} is available (current: {current}), but this release provides no installer for this machine ({reason}). You can download it manually from the GitHub release page.{at}', {
         latest: String(info.latestVersion || ''),
         current: String(info.currentVersion || ''),
         reason: missingAssetReasonFor(info),
@@ -425,24 +425,24 @@ function renderCheckResult(): void {
       }))
       return
     }
-    setState(t('发现新版本 {latest}（当前 {current}）。{at}', {
+    setState(t('New version {latest} is available (current: {current}).{at}', {
       latest: String(info.latestVersion || ''),
       current: String(info.currentVersion || ''),
       at,
     }))
   } else if (info.hasUpdate === false) {
-    setBadge(t('已是最新'), 'ok')
-    setState(t('当前已是最新版本（{current}）。{at}', { current: String(info.currentVersion || ''), at }))
+    setBadge(t('Up to date'), 'ok')
+    setState(t('You already have the latest version ({current}).{at}', { current: String(info.currentVersion || ''), at }))
   } else {
     // hasUpdate 为 null：版本号无法比较（本地是开发版或 tag 非语义化）
-    setBadge(t('无法比较'), 'warn')
+    setBadge(t('Cannot compare'), 'warn')
     setState(info.latestVersion
-      ? t('最新发布版本为 {latest}，但当前版本号「{current}」无法解析，未做新旧判断。{at}', {
+      ? t('The latest release is {latest}, but the current version "{current}" cannot be parsed, so no comparison was made.{at}', {
         latest: info.latestVersion,
-        current: info.currentVersion || t('未知'),
+        current: info.currentVersion || t('Unknown'),
         at,
       })
-      : t('仓库暂无发布版本。{at}', { at }))
+      : t('This repository has no releases yet.{at}', { at }))
   }
 }
 
@@ -466,8 +466,8 @@ function applyStatus(info?: UpdateInfo | null): void {
     publish({ info: null, checkedAt: 0, checkError: '' })
     fillCurrentVersion(info)
     if (snapshot.phase === 'idle') {
-      setBadge(t('未检查'))
-      setState(t('更新通道已改变，请重新检查更新。'))
+      setBadge(t('Not checked'))
+      setState(t('Update channels changed. Check for updates again.'))
     }
     return
   }
@@ -570,14 +570,14 @@ function renderTask(task: DownloadTask | null | undefined): boolean {
     const mb = (Number(task.received) || 0) / 1024 / 1024
     const totalMb = (Number(task.total) || 0) / 1024 / 1024
     publish({ phase: 'downloading', percent })
-    setBadge(t('下载中'), 'warn')
-    const text = task.selecting ? t('正在选择下载通道…') : t('正在下载 {name}：{percent}%（{received} / {total} MB）', {
-      name: task.filename || t('安装包'),
+    setBadge(t('Downloading'), 'warn')
+    const text = task.selecting ? t('Selecting a download source…') : t('Downloading {name}: {percent}% ({received} / {total} MB)', {
+      name: task.filename || t('installer'),
       percent,
       received: mb.toFixed(1),
       total: totalMb.toFixed(1),
     })
-    setState(task.source ? `${text} · ${t('当前下载通道：{source}', { source: task.source === '官方源' ? t('官方源') : task.source })}` : text)
+    setState(task.source ? `${text} · ${t('Download source: {source}', { source: task.source === 'Official source' ? t('Official source') : task.source })}` : text)
     return true
   }
 
@@ -585,16 +585,16 @@ function renderTask(task: DownloadTask | null | undefined): boolean {
   publish({ percent: 0 })
 
   if (task.error) {
-    setBadge(t('下载失败'), 'bad')
-    setState(t('下载失败：{error}', { error: errorMessage(task.error) }), true)
+    setBadge(t('Download failed'), 'bad')
+    setState(t('Download failed: {error}', { error: errorMessage(task.error) }), true)
     publish({ phase: 'failed' })
     return true
   }
   if (task.canceled) {
-    setBadge(t('已取消'), 'warn')
+    setBadge(t('Canceled'), 'warn')
     setState(isSelfUpdate(snapshot.info)
-      ? t('下载已取消，可重新点击「下载并更新」。')
-      : t('下载已取消，可重新点击「下载并安装」。'))
+      ? t('Download cancelled; click "Download and update" to try again.')
+      : t('Download canceled. Click "Download and install" to try again.'))
     // 回到 idle：按钮文案变回「下载并安装 / 下载并更新」（旧实现同样只改文案，不动显隐）
     publish({ phase: 'idle' })
     return true
@@ -602,7 +602,7 @@ function renderTask(task: DownloadTask | null | undefined): boolean {
   if (task.done && task.path) {
     const path = task.path
     const name = task.filename || path
-    setBadge(t('可安装'), 'ok')
+    setBadge(t('Ready to install'), 'ok')
     publish({ phase: 'ready', readyPath: path })
     // 容器内更新：**不自动安装**。桌面端下完即装是因为「点下载的意图就是要更新」，
     // 代价是弹一次 UAC；容器这边安装会替换文件并重启服务（面板当场断连、页面要
@@ -620,12 +620,12 @@ function renderTask(task: DownloadTask | null | undefined): boolean {
       // AppImage / NSIS 直接启动）
       const kind = installerKindOf(snapshot.info)
       setState(kind === 'dmg'
-        ? t('安装包已下载完成，正在挂载磁盘映像…')
+        ? t('Installer downloaded. Mounting the disk image…')
         : kind === 'deb'
-          ? t('安装包已下载完成，正在打开系统安装器…')
+          ? t('Installer downloaded; opening the system installer…')
           : kind === 'appimage'
-            ? t('安装包已下载完成，正在启动新的 AppImage…')
-            : t('安装包已下载完成，正在启动安装程序（需要管理员权限，会弹出 UAC 确认框）…'))
+            ? t('Installer downloaded; launching the new AppImage…')
+            : t('Installer downloaded. Launching the installer (admin rights required; a UAC prompt will appear)…'))
       void install(path)
     } else {
       setState(readyHint(snapshot.info, name))
@@ -652,7 +652,7 @@ async function pollProgress(): Promise<void> {
     renderTask(task)
   } catch (error) {
     stopPolling()
-    setState(t('读取下载进度失败：{error}', { error: errorMessage(error) }), true)
+    setState(t('Failed to read download progress: {error}', { error: errorMessage(error) }), true)
   }
 }
 
@@ -676,16 +676,16 @@ async function install(path: string): Promise<void> {
     const willRestart = result?.restart !== false
     // 不重启时的说法按包型分：dmg 是拖进「应用程序」，deb 是系统安装器里装完即可
     const noRestartHint = installerKindOf(snapshot.info) === 'deb'
-      ? t('已打开系统安装器，请在它弹出的窗口里完成安装。安装完成后重新打开本程序即可。')
-      : t('安装包已挂载，请在弹出的窗口里把应用拖进「应用程序」完成安装。安装完成后重新打开本程序即可。')
+      ? t('The system installer is open — finish the installation in its window, then reopen this app.')
+      : t('The disk image is mounted. Drag the app into Applications in the window that appeared to finish installing, then reopen this app.')
     setState(willRestart
-      ? t('安装程序已启动，本程序将退出以便完成覆盖安装。安装程序需要管理员权限，会弹出 UAC 确认框，请选择「是」。')
+      ? t('The installer has started. This app will exit so the update can replace it. The installer needs admin rights; when the UAC prompt appears, choose "Yes".')
       : noRestartHint)
   } catch (error) {
-    setBadge(t('启动失败'), 'bad')
+    setBadge(t('Launch failed'), 'bad')
     // UAC 被拒时壳侧返回的提示已经说明「可重新点击安装并重启」，这里原样透出，不额外
     // 包装 —— 用户照着做就能重试成功（按钮仍在，见 phase === 'ready'）
-    setState(t('启动安装程序失败：{error}', { error: errorMessage(error) }), true)
+    setState(t('Failed to launch the installer: {error}', { error: errorMessage(error) }), true)
   }
 }
 
@@ -703,20 +703,20 @@ async function installSelfUpdate(): Promise<void> {
   const api = shared().workbuddyDesktop
   if (!api?.installUpdate) return
   try {
-    setBadge(t('安装中'), 'warn')
-    setState(t('正在校验并替换容器内的程序与界面文件…'))
+    setBadge(t('Installing'), 'warn')
+    setState(t('Verifying and replacing the program and UI files inside the container…'))
     const result = await api.installUpdate()
     const version = String(result?.version || '').trim()
     setState(version
-      ? t('已替换为 {version}，正在重启服务…', { version })
-      : t('替换完成，正在重启服务…'))
+      ? t('Replaced with {version}; restarting the service…', { version })
+      : t('Replacement complete; restarting the service…'))
     // 重启请求的响应可能因为进程退出而读不到（连接被切断）——那不是失败，
     // 照常进入倒计时探活即可，所以这里吞掉异常
     await api.restartService?.().catch(() => undefined)
     beginRestartCountdown(version)
   } catch (error) {
-    setBadge(t('安装失败'), 'bad')
-    setState(t('安装失败：{error}', { error: errorMessage(error) }), true)
+    setBadge(t('Installation failed'), 'bad')
+    setState(t('Installation failed: {error}', { error: errorMessage(error) }), true)
   }
 }
 
@@ -724,15 +724,15 @@ async function installSelfUpdate(): Promise<void> {
 function beginRestartCountdown(version: string): void {
   stopPolling()
   publish({ phase: 'restarting', restartSeconds: RESTART_SECONDS, readyPath: '' })
-  setBadge(t('重启中'), 'warn')
+  setBadge(t('Restarting'), 'warn')
   let seconds = RESTART_SECONDS
   const tick = (): void => {
     setState(version
-      ? t('{version} 已就位，服务正在重启，页面会在恢复后自动刷新…（{seconds}s）', {
+      ? t('{version} is in place. The service is restarting; this page will refresh automatically once it is back… ({seconds}s)', {
         version,
         seconds: Math.max(0, seconds),
       })
-      : t('服务正在重启，页面会在恢复后自动刷新…（{seconds}s）', { seconds: Math.max(0, seconds) }))
+      : t('The service is restarting; this page will refresh automatically once it is back… ({seconds}s)', { seconds: Math.max(0, seconds) }))
     if (seconds <= 0) {
       window.clearInterval(timer)
       void waitForServiceThenReload()
@@ -776,12 +776,12 @@ async function check(): Promise<UpdateInfo | null> {
   if (busy || snapshot.phase === 'restarting') return null
   busy = true
   publish({ checking: true })
-  setBadge(t('检查中'), 'warn')
-  setState(t('正在查询 GitHub 上的最新发布版本…'))
+  setBadge(t('Checking'), 'warn')
+  setState(t('Checking GitHub for the latest release…'))
   let result: UpdateInfo | null = null
   try {
     const api = shared().workbuddyDesktop
-    if (!api) throw new Error(t('后端桥不可用'))
+    if (!api) throw new Error(t('Backend bridge unavailable'))
     const info = await api.checkUpdate()
     result = info ?? null
     // 时刻以后端返回的为准：这一下可能落在定时任务刚查完的缓存上，用本地时钟会把
@@ -855,8 +855,8 @@ async function syncFromCache(): Promise<void> {
   fillCurrentVersion(cached)
   // 面板上已有读数（旧的版本号 / 日志，或一条失败原因）就留着，别越读越空
   if (snapshot.info || snapshot.checkError) return
-  setBadge(t('未检查'))
-  setState(t('点击「检查更新」查询 GitHub 上的最新发布版本。'))
+  setBadge(t('Not checked'))
+  setState(t('Click "Check for updates" to query GitHub for the latest release.'))
 }
 
 /**
@@ -879,7 +879,7 @@ async function downloadOrCancel(): Promise<void> {
     busy = true
     publish({ actionBusy: true })
     try { await startServiceUpdate(current.info, acceptServiceProgress) }
-    catch (error) { setState(t('无法开始更新：{error}', { error: errorMessage(error) }), true) }
+    catch (error) { setState(t('Unable to start the update: {error}', { error: errorMessage(error) }), true) }
     finally { busy = false; publish({ actionBusy: false }) }
     return
   }
@@ -918,9 +918,9 @@ async function downloadOrCancel(): Promise<void> {
   if (current.phase === 'downloading') {
     try {
       await shared().workbuddyDesktop?.cancelUpdate()
-      setState(t('正在取消下载…'))
+      setState(t('Canceling the download…'))
     } catch (error) {
-      toast(t('取消失败：{error}', { error: errorMessage(error) }), 'err')
+      toast(t('Failed to cancel: {error}', { error: errorMessage(error) }), 'err')
     }
     return
   }
@@ -931,8 +931,8 @@ async function downloadOrCancel(): Promise<void> {
     // 只丢一句「没有可下载的安装包」等于让人自己去猜是构建没传、还是被源挡了
     const reason = missingAssetReasonFor(current.info)
     toast(isSelfUpdate(current.info)
-      ? t('这一版没有提供容器内更新包：{reason}', { reason })
-      : t('没有可下载的安装包：{reason}', { reason }), 'err')
+      ? t('This release provides no in-container update package: {reason}', { reason })
+      : t('No installer available for download: {reason}', { reason }), 'err')
     return
   }
   // 按钮不可见就不该从这里发起下载（openAndDownload 的自动触发也走这条路）
@@ -946,12 +946,12 @@ async function downloadOrCancel(): Promise<void> {
     // 下载完成时自动安装
     autoInstalledPath = null
     publish({ phase: 'downloading', readyPath: '', percent: 0 })
-    setBadge(t('下载中'), 'warn')
+    setBadge(t('Downloading'), 'warn')
     setState(downloadHint(current.info))
     startPolling()
   } catch (error) {
-    setBadge(t('下载失败'), 'bad')
-    setState(t('下载失败：{error}', { error: errorMessage(error) }), true)
+    setBadge(t('Download failed'), 'bad')
+    setState(t('Download failed: {error}', { error: errorMessage(error) }), true)
   } finally {
     busy = false
     publish({ actionBusy: false })
@@ -1048,30 +1048,30 @@ async function openAndDownload(checkedInfo?: UpdateInfo | null): Promise<void> {
 
 /** 面板上那颗按钮的形态；null = 不渲染（显隐一律条件渲染，理由见文件头） */
 function downloadButton(snap: Snapshot): { label: string; disabled: boolean } | null {
-  if (serviceTaskActive(serviceUpdateTask(snap.info))) return { label: t('更新进行中'), disabled: true }
+  if (serviceTaskActive(serviceUpdateTask(snap.info))) return { label: t('Update in progress'), disabled: true }
   if (snap.info?.hasUpdate && isManualUpdate(snap.info)) {
-    return { label: downloadAsset(snap.info)?.url ? t('下载服务端包') : t('查看发布页'), disabled: snap.actionBusy }
+    return { label: downloadAsset(snap.info)?.url ? t('Download server package') : t('View release page'), disabled: snap.actionBusy }
   }
   if (snap.info?.hasUpdate && isServiceUpdate(snap.info) && downloadAsset(snap.info)?.url) {
-    return { label: t('一键更新'), disabled: snap.actionBusy }
+    return { label: t('One-click update'), disabled: snap.actionBusy }
   }
   // 重启倒计时期间不给按钮：此刻点了也没有意义（页面马上就要刷新）
   if (snap.phase === 'restarting') return null
   // 已应用、只差重启：按钮换语义（点击 = 重启，见 downloadOrCancel 的首个分支）
   if (snap.info?.pendingRestart === true && snap.phase === 'idle') {
-    return { label: t('立即重启'), disabled: snap.actionBusy }
+    return { label: t('Restart now'), disabled: snap.actionBusy }
   }
   // 有更新且真的有可下载资产时才给出按钮：桌面看 asset（安装器），
   // 容器看 serverAsset（服务端包）—— 该版本没挂对应资产时退回纯提示
   const actionable = snap.info?.hasUpdate === true && !!downloadAsset(snap.info)?.url
   if (!actionable && snap.phase !== 'downloading' && snap.phase !== 'ready') return null
   const label = snap.phase === 'downloading'
-    ? t('取消下载')
+    ? t('Cancel download')
     : snap.phase === 'failed'
-      ? t('重试下载')
+      ? t('Retry download')
       : snap.phase === 'ready'
         ? installButtonText(snap.info)
-        : isSelfUpdate(snap.info) ? t('下载并更新') : t('下载并安装')
+        : isSelfUpdate(snap.info) ? t('Download and update') : t('Download and install')
   return { label, disabled: snap.actionBusy }
 }
 
@@ -1082,7 +1082,7 @@ function changelogCard(snap: Snapshot): React.ReactNode {
   if (!notes) {
     return (
       <div className='update-log-hint'>
-        {info ? t('这个版本没有填写发布说明。') : t('点击「检查更新」后，这里会显示最新版本的更新说明。')}
+        {info ? t('No release notes were provided for this version.') : t('After you click "Check for updates", the release notes for the latest version will appear here.')}
       </div>
     )
   }
@@ -1096,9 +1096,9 @@ function changelogCard(snap: Snapshot): React.ReactNode {
           日志一长，页脚那个入口就要滚到底才看得见，等于没有。卡头不参与滚动，
           永远在第一屏。 */}
       <div className='rel-note-head'>
-        <span className='rel-tag'>{String(info?.latestVersion || t('最新版本'))}</span>
+        <span className='rel-tag'>{String(info?.latestVersion || t('Latest version'))}</span>
         {/* 旧的 .badge.tag.warn → Badge 的 tag 形态 + warning 语义色 */}
-        {info?.prerelease === true ? <Badge shape='tag' variant='warning'>{t('预发布')}</Badge> : null}
+        {info?.prerelease === true ? <Badge shape='tag' variant='warning'>{t('Pre-release')}</Badge> : null}
         {pageUrl ? (
           <a
             className='rel-head-link'
@@ -1106,9 +1106,9 @@ function changelogCard(snap: Snapshot): React.ReactNode {
             data-external={pageUrl}
             target='_blank'
             rel='noopener'
-            title={t('在浏览器中打开 GitHub 发布页')}
+            title={t('Open the GitHub release page in your browser')}
           >
-            {t('在 GitHub 查看完整说明')}
+            {t('View full release notes on GitHub')}
           </a>
         ) : null}
         {published ? <span className='rel-date'>{published}</span> : null}
@@ -1119,7 +1119,7 @@ function changelogCard(snap: Snapshot): React.ReactNode {
             文本节点，于是旧实现那几处 esc() 在这里天然不需要。 */}
         {html ? <HtmlContent className='md-body' html={html} /> : (
           <div className='md-body'>
-            <Empty className='md-body-empty'>{t('这个版本没有填写发布说明。')}</Empty>
+            <Empty className='md-body-empty'>{t('No release notes were provided for this version.')}</Empty>
           </div>
         )}
       </div>
@@ -1160,27 +1160,27 @@ function UpdatePanel() {
   const selfUpdate = isSelfUpdate(snap.info)
   const latestLabel = snap.info?.latestVersion
     ? (snap.info.prerelease
-      ? t('{version}（预发布）', { version: snap.info.latestVersion })
+      ? t('{version} (Pre-release)', { version: snap.info.latestVersion })
       : snap.info.latestVersion)
     : '—'
   const tag = String(snap.info?.latestVersion || '').trim()
   const logMeta = tag
-    ? `${tag}${snap.checkedAt ? t(' · 检查于 {time}', { time: formatClock(snap.checkedAt) }) : ''}`
+    ? `${tag}${snap.checkedAt ? t(' · checked at {time}', { time: formatClock(snap.checkedAt) }) : ''}`
     : ''
 
   return (
     <Card render={<section />} className='panel' onClick={handleExternalClick}>
       <CardHeader className='panel-head'>
-        <h2>{t('软件更新')}</h2>
+        <h2>{t('Software update')}</h2>
         <span
           className='tip-q'
           data-tip={snap.info?.updateCapability?.deployment === 'windows-service'
-            ? t('Windows 服务一键更新会核验官方更新包，再由独立升级进程停止服务、备份替换并重新启动。账号与配置保留，确认新版运行后页面自动刷新。')
+            ? t('Windows service updates verify the official package, then a separate updater stops the service, backs up and replaces files, and starts it again. Accounts and settings are preserved. The page refreshes after the new version is confirmed running.')
             : snap.info?.updateCapability?.deployment === 'systemd'
-            ? t('systemd 一键更新由受限升级程序完成：下载、核验官方校验值、备份替换、重启并确认版本。网关保持普通账号运行，账号与配置不变。')
+            ? t('A restricted helper handles systemd updates: download, official checksum verification, backup, replacement, restart and version confirmation. The gateway keeps running as an unprivileged user. Accounts and settings are preserved.')
             : isManualUpdate(snap.info) ? manualUpdateReason(snap.info) : selfUpdate
-            ? t('容器内更新：更新包从 GitHub 发布页下载，校验 sha256 后由面板替换容器内的程序与界面文件，再重启服务（容器由 restart 策略拉起，页面会自动刷新）。更新的是容器里的文件，compose 里的镜像标签不变 —— 之后执行 docker compose pull && up -d 会使用镜像里的版本。检查更新与下载的出网线路、GitHub 令牌都在「更新设置」里。')
-            : t('更新包从 GitHub Release 获取。自动模式按实际请求选择可用通道，失败后换源；镜像安装包必须匹配官方校验值，取不到时仅使用原始源。加速源、代理和令牌在「更新设置」中配置，指定代理失效不会静默直连。')}
+            ? t('In-container update: the package is downloaded from the GitHub releases page, verified by sha256, and the panel then replaces the program and UI files inside the container before restarting the service (the container is brought back by its restart policy, and this page refreshes automatically). Only the files inside the container are updated — the image tag in your compose file stays the same, so a later docker compose pull && up -d uses the image version. The egress route and GitHub token used for checking and downloading live in "Update settings".')
+            : t('Update packages come from GitHub Releases. Automatic mode selects sources using real requests and switches on failure. Mirrored installers must match an official checksum; without one, only the original source is used. Configure accelerators, proxies and tokens in Update settings. An unavailable selected proxy never silently falls back to a direct connection.')}
         ></span>
         {/* id 保留：app.js 的 renderTopbarStatus 按 id 镜像徽章文案与语义色（配色经
             data-tone 传；设置页顶栏那枚镜像目前还不读它，保持一致没坏处） */}
@@ -1196,9 +1196,9 @@ function UpdatePanel() {
           {snap.tokenFilled === false ? (
             <span
               className='text-[12px] font-semibold text-warning'
-              title={t('填写后检查限额 60 → 5000 次/小时（创建令牌无需勾选任何权限）')}
+              title={t('Fill it in to raise the check rate limit from 60 to 5000 requests/hour (no scopes needed to create the Token)')}
             >
-              {t('GitHub Token 未填写')}
+              {t('GitHub Token not set')}
             </span>
           ) : null}
           {/* 「更新设置」：出网线路 + GitHub 令牌都在弹窗里（update-settings.tsx），
@@ -1206,14 +1206,14 @@ function UpdatePanel() {
           <Button
             id='btn-update-settings'
             variant='outline'
-            title={t('更新设置')}
+            title={t('Update settings')}
             onClick={() => setSettingsOpen(true)}
           >
-            {t('更新设置')}
+            {t('Update settings')}
           </Button>
           {/* 旧 class="primary" → variant="default"；无 class → variant="outline" */}
           <Button id='btn-update-check' variant='outline' disabled={snap.checking || snap.phase === 'restarting'} onClick={() => void check()}>
-            {snap.checking ? t('检查中…') : t('检查更新')}
+            {snap.checking ? t('Checking…') : t('Check for updates')}
           </Button>
           {button ? (
             <Button
@@ -1231,12 +1231,12 @@ function UpdatePanel() {
         {/* 当前版本 → 最新版本两个读数同一行，窗口放不下时靠 .update-version 的 wrap 换行 */}
         <div className='update-version'>
           <span className='version-pill'>
-            <span className='k'>{t('当前版本')}</span>
+            <span className='k'>{t('Current version')}</span>
             <span className='v' id='update-current'>{snap.currentVersion || '—'}</span>
           </span>
           <span className='version-arrow'>→</span>
           <span className='version-pill new'>
-            <span className='k'>{t('最新版本')}</span>
+            <span className='k'>{t('Latest version')}</span>
             <span className='v' id='update-latest'>{latestLabel}</span>
           </span>
         </div>
@@ -1256,17 +1256,17 @@ function UpdatePanel() {
 
         <div className='update-author' id='update-author'>
           <div className='update-author-text'>
-            <strong>{t('关于作者')}</strong>
+            <strong>{t('About the author')}</strong>
             {owner && repo ? (
               <span>
-                {t('本工具由')}{' '}
+                {t('This tool is built by')}{' '}
                 <a id='update-author-link' href={owner} data-external={owner} target='_blank' rel='noopener'>
                   {snap.sourceRepository.split('/')[0]}
                 </a>{' '}
-                {t('个人开发并开源维护，免费使用，也不会收集你的账号数据。如果它帮到了你，欢迎到项目仓库点个 Star 支持一下。')}
+                {t('Independently developed and open-source maintained. It is free to use, and never collects your account data. If it helps you, a Star on the project repository would be much appreciated.')}
               </span>
             ) : (
-              <span>{t('Agent2API 一直在更新，是因为有人在背后持续投入。如果它帮到了你，欢迎请作者喝杯咖啡。')}</span>
+              <span>{t('Agent2API keeps improving because someone keeps investing time in it. If it has helped you, consider buying the author a coffee.')}</span>
             )}
           </div>
           <div className='update-author-actions'>
@@ -1274,10 +1274,10 @@ function UpdatePanel() {
               type='button'
               size='sm'
               variant='outline'
-              title={t('QQ 群 / Telegram 都在这里')}
+              title={t('QQQ groups and Telegram are all here')}
               onClick={() => setQqGroupOpen(true)}
             >
-              {t('加入交流群')}
+              {t('Join the community')}
             </Button>
             {owner && repo ? (
               <Button
@@ -1286,9 +1286,9 @@ function UpdatePanel() {
                 size='sm'
                 variant='outline'
                 data-external={repo}
-                title={t('在浏览器中打开项目仓库，点 Star 支持作者')}
+                title={t('Open the project repository in your browser and Star it to support the author')}
               >
-                {t('收藏项目')}
+                {t('Star project')}
               </Button>
             ) : null}
             <Button
@@ -1301,7 +1301,7 @@ function UpdatePanel() {
               <svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
                 <path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' />
               </svg>
-              {t('支持作者')}
+              {t('Support the author')}
             </Button>
           </div>
         </div>
@@ -1310,7 +1310,7 @@ function UpdatePanel() {
             （与上方「最新版本」同源） */}
         <div className='update-log' id='update-notes'>
           <div className='update-log-head'>
-            <span className='update-log-title'>{t('更新日志')}</span>
+            <span className='update-log-title'>{t('Release notes')}</span>
             <span className='update-log-meta' id='update-log-meta'>{logMeta}</span>
           </div>
           <div className='update-log-body' id='update-log-body'>

@@ -90,10 +90,10 @@ pub fn validate_target(store: &AccountStore, target: &ImageTarget, operation: Im
 pub fn restrict_scope(scope: Option<&KeyScope>, target: &ImageTarget) -> Result<KeyScope, GatewayError> {
     let scope = scope.cloned().unwrap_or_default();
     if !scope.allows_model(&target.model) {
-        return Err(GatewayError::with_status(403, "当前网关 Key 无权使用所选图片模型").with_code("permission_denied"));
+        return Err(GatewayError::with_status(403, "The current gateway Key 无权使用所选图片模型").with_code("permission_denied"));
     }
     scope.restrict_image_target(&target.provider, &target.account_id).ok_or_else(|| {
-        GatewayError::with_status(403, "当前网关 Key 无权使用所选生图提供商").with_code("permission_denied")
+        GatewayError::with_status(403, "The current gateway Key 无权使用所选生图提供商").with_code("permission_denied")
     })
 }
 

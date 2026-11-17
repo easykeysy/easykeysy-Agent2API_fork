@@ -29,18 +29,18 @@ function loadCaptcha(): Promise<CaptchaApi> {
   if (captchaLoading) return captchaLoading
   captchaLoading = new Promise<CaptchaApi>((resolve, reject) => {
     const script = document.createElement('script')
-    const timer = window.setTimeout(() => finish(new Error(t('验证码组件加载超时，请重试'))), 15_000)
+    const timer = window.setTimeout(() => finish(new Error(t('The verification-code component timed out while loading; please retry'))), 15_000)
     const finish = (error?: Error) => {
       window.clearTimeout(timer)
       script.onload = null
       script.onerror = null
       const loaded = captchaApi()
-      if (error || !loaded) { script.remove(); reject(error || new Error(t('验证码组件未加载，请重试'))) }
+      if (error || !loaded) { script.remove(); reject(error || new Error(t('The verification-code component has not loaded; please retry'))) }
       else resolve(loaded)
     }
     script.src = new URL('aliyun-captcha.js', document.baseURI).href
     script.onload = () => finish()
-    script.onerror = () => finish(new Error(t('验证码组件加载失败，请重试')))
+    script.onerror = () => finish(new Error(t('The verification-code component failed to load; please retry')))
     document.head.appendChild(script)
   }).catch(error => { captchaLoading = null; throw error })
   return captchaLoading
@@ -55,13 +55,13 @@ export function previewPlans(id: string): Promise<PreviewResult> {
 export async function claimPlan(id: string, planId: string, signal?: AbortSignal, onPhase?: (phase: CaptchaPhase) => void): Promise<ClaimResult> {
   const identity = serverIdentity()
   const requireCurrent = () => {
-    if (signal?.aborted || serverIdentity() !== identity) throw new DOMException('请求已取消', 'AbortError')
+    if (signal?.aborted || serverIdentity() !== identity) throw new DOMException('Request cancelled', 'AbortError')
   }
   requireCurrent()
   onPhase?.('preparing')
   const config = await apiCall<CaptchaConfig>(`${accountPath(id)}/zcode-claim/captcha-config`, { method: 'POST', signal })
   requireCurrent()
-  if (!config || typeof config.enabled !== 'boolean') throw new Error(t('风控验证配置不完整，请稍后重试'))
+  if (!config || typeof config.enabled !== 'boolean') throw new Error(t('Risk-control verification config is incomplete; try again later'))
   const claim = (captchaVerifyParam: string) => {
     requireCurrent()
     onPhase?.('submitting')
@@ -87,7 +87,7 @@ export function captchaPoolStats(signal?: AbortSignal): Promise<CaptchaPoolStats
 export async function verifyPlanChannel(id: string, signal?: AbortSignal, onPhase?: (phase: CaptchaPhase) => void): Promise<boolean> {
   const identity = serverIdentity()
   const requireCurrent = () => {
-    if (signal?.aborted || serverIdentity() !== identity) throw new DOMException('请求已取消', 'AbortError')
+    if (signal?.aborted || serverIdentity() !== identity) throw new DOMException('Request cancelled', 'AbortError')
   }
   requireCurrent()
   onPhase?.('preparing')
@@ -104,7 +104,7 @@ export async function verifyPlanChannel(id: string, signal?: AbortSignal, onPhas
   const result = await apiCall<{ accepted?: number }>('/api/zcode/captcha', {
     method: 'POST', body: { tokens: [{ param: token.param, region: config.region || '' }] },
   })
-  if (result.accepted !== 1) throw new Error(t('验证码令牌未全部入池'))
+  if (result.accepted !== 1) throw new Error(t('The verification token was not accepted by the pool.'))
   return true
 }
 

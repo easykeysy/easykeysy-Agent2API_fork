@@ -38,7 +38,7 @@
 
 set -euo pipefail
 
-TAG="${1:?用法: scripts/release.sh vX.Y.Z [build-run-id]}"
+TAG="${1:?Usage: scripts/release.sh vX.Y.Z[build-run-id]}"
 RUN_ID="${2:-}"
 
 # 构建 run 与 Release 所在的仓库（见文件头）。默认值与 `version.rs` 的
@@ -62,7 +62,7 @@ SOURCE_TOKEN="${SOURCE_TOKEN:-${GH_TOKEN:-}}"
 
 case "$TAG" in
   v*) ;;
-  *) echo "错误: '$TAG' 不是 v* 形式的 tag" >&2; exit 1 ;;
+  *) echo "Error: '$TAG' Not a tag in v* form" >&2; exit 1 ;;
 esac
 
 # ── beta 版：tag 带预发布后缀（v3.1.0-beta.1）时，Release 必须标 pre-release ──
@@ -75,12 +75,12 @@ case "${TAG#v}" in
   *)   PRERELEASE=false ;;
 esac
 if [ "$PRERELEASE" = true ]; then
-  echo "→ 检测到预发布后缀（${TAG#v}），Release 标记为 pre-release（只发给「加入 beta 版」的用户）"
+  echo "→ A pre-release suffix was detected (${TAG#v}), the Release is marked pre-release (sent only to users with \"join the beta channel\" on)"
 fi
 
-command -v gh   >/dev/null || { echo "错误: 未安装 gh CLI" >&2; exit 1; }
+command -v gh   >/dev/null || { echo "Error: Not installed gh CLI" >&2; exit 1; }
 # gh 的 JSON 输出用 node 解析（不引入 jq 依赖，两端都有 node）
-command -v node >/dev/null || { echo "错误: 未安装 node" >&2; exit 1; }
+command -v node >/dev/null || { echo "Error: Not installed node" >&2; exit 1; }
 
 # gh 是 Go 程序：既不读 git 的 http.proxy，也不读 Windows 系统代理，只认代理
 # 环境变量。本机 git 配了代理而 gh 没配，下面的下载安装包与上传附件都是大文件
@@ -96,13 +96,13 @@ if [ -z "${HTTPS_PROXY:-}" ]; then
   [ -n "$GH_PROXY" ] || GH_PROXY=$(git config --get https.proxy || true)
   if [ -n "$GH_PROXY" ]; then
     export HTTPS_PROXY="$GH_PROXY"
-    echo "→ 已启用代理: $GH_PROXY"
+    echo "→ Proxy enabled:$GH_PROXY"
   fi
 fi
 
 # ── 1. 定位 build run 并下载安装包 ────────────────────────────
 if [ -z "$RUN_ID" ]; then
-  echo "→ 查找 $TAG 触发的 build 工作流…"
+  echo "→ Search$TAG the triggered build workflow…"
   # 不按 run 整体 conclusion 过滤：只验「两个安装包 artifact 是否齐全」，
   # 构建成功但别处失败的 run 里安装包照旧可用
   for id in $(GH_TOKEN="$BUILD_TOKEN" gh run list --workflow=release --repo "$BUILD_REPO" --limit 30 --json databaseId,headBranch \
@@ -114,7 +114,7 @@ if [ -z "$RUN_ID" ]; then
     fi
   done
   [ -n "$RUN_ID" ] || {
-    echo "错误: 没找到 $TAG 的可用 build run（需 macos-universal 与 windows-nsis 两个 artifact 齐全）—— 先确认 CI 跑完（gh run list），或手动传 run-id" >&2
+    echo "Error: could not find $TAG among the available build runs (needs both the macos-universal and windows-nsis artifacts); first confirm CI has finished (gh run list), or pass a run-id manually." >&2
     exit 1
   }
 fi
@@ -124,7 +124,7 @@ rm -rf dist
 GH_TOKEN="$BUILD_TOKEN" gh run download "$RUN_ID" --repo "$BUILD_REPO" -D dist
 EXE=$(ls dist/windows-nsis/*.exe)
 DMG=$(ls dist/macos-universal/*.dmg)
-echo "→ 已下载 $(basename "$EXE") / $(basename "$DMG")"
+echo "→ Downloaded $(basename "$EXE") / $(basename "$DMG")"
 
 ASSETS=("$EXE" "$DMG")
 
@@ -148,13 +148,13 @@ if [ -d dist/linux-desktop ]; then
     # 用 ${arr[*]##*/} 而不是 $(basename "${arr[@]}")：本机 Git Bash 的
     # /usr/bin/basename 只认第一个操作数（POSIX 形态），传数组会把后几个
     # 静默吞掉 —— 回显只剩 AppImage 时看着像「deb 没下载到」（2026-10-17 实测）
-    echo "→ 已下载 Linux 桌面端包: ${LINUX_PKGS[*]##*/}"
+    echo "→ Downloaded Linux Desktop package:${LINUX_PKGS[*]##*/}"
   else
-    echo "⚠️  linux-desktop artifact 里没有 .deb / .AppImage —— Linux 用户将看不到可下载的安装包"
+    echo "⚠️  linux-desktop artifact no .deb / .AppImage in it—— Linux Users will not see the downloadable installer"
   fi
 else
-  echo "⚠️  这个 run 里没有 linux-desktop 产物（Linux 桌面端上线前的 tag？）——"
-  echo "    Release 将不含 Linux 桌面安装包，Linux 面板的「下载并安装」会被藏起"
+  echo "⚠️  This run has no linux-desktop artifact (the tag predates the Linux desktop build?)"
+  echo "    Release It will not contain the Linux desktop installer; the Linux panel's \"Download and install\" will be hidden"
 fi
 
 # 容器内更新包 / 裸机安装包：两个架构的 tar.gz + 同名 .sha256（面板按名找
@@ -167,10 +167,10 @@ if [ -d dist/linux-server-amd64 ] && [ -d dist/linux-server-arm64 ]; then
   for file in dist/linux-server-amd64/* dist/linux-server-arm64/*; do
     ASSETS+=("$file")
   done
-  echo "→ 已下载 $(basename "$(ls dist/linux-server-amd64/*.tar.gz)") / $(basename "$(ls dist/linux-server-arm64/*.tar.gz)")（含 .sha256）"
+  echo "→ Downloaded $(basename "$(ls dist/linux-server-amd64/*.tar.gz)") / $(basename "$(ls dist/linux-server-arm64/*.tar.gz)")(including .sha256)"
 else
-  echo "⚠️  这个 run 里没有 linux-server-* 产物（本功能上线前的 tag？）——"
-  echo "    Release 将不含容器内更新包，面板更新入口会退回「手动升级命令」提示"
+  echo "⚠️  This run has no linux-server-* artifact (the tag predates this feature?)"
+  echo "    Release It will not contain the in-container update package; the panel update entry will fall back to the \"manual upgrade command\" hint"
 fi
 
 # Windows 服务端包（无 GUI，命令行安装 + 注册成 Windows 服务）。
@@ -179,10 +179,10 @@ if [ -d dist/windows-server-amd64 ]; then
   for file in dist/windows-server-amd64/*; do
     ASSETS+=("$file")
   done
-  echo "→ 已下载 $(basename "$(ls dist/windows-server-amd64/*.zip)")（含 .sha256）"
+  echo "→ Downloaded $(basename "$(ls dist/windows-server-amd64/*.zip)")(including .sha256)"
 else
-  echo "⚠️  这个 run 里没有 windows-server-amd64 产物（本功能上线前的 tag？）——"
-  echo "    Release 将不含 Windows 服务端包，Windows Server 用户只能自己编译"
+  echo "⚠️  This run has no windows-server-amd64 artifact (the tag predates this feature?)"
+  echo "    The Release will therefore not contain the Windows server package; Windows Server users have to build it themselves."
 fi
 
 # ── 手机端安装包：默认**不挂** Release ────────────────────────
@@ -206,10 +206,10 @@ if [ "$INCLUDE_MOBILE" = "1" ]; then
     for file in dist/android-apk/*; do
       ASSETS+=("$file")
     done
-    echo "→ 已下载 $(basename "$(ls dist/android-apk/*.apk)")（含 .sha256）"
+    echo "→ Downloaded $(basename "$(ls dist/android-apk/*.apk)")(including .sha256)"
   else
-    echo "⚠️  这个 run 里没有 android-apk 产物（APK 接入 CI 之前的 tag？）——"
-    echo "    Release 将不含手机端安装包，Android 用户只能从旧版本或自行编译获取"
+    echo "⚠️  This run has no android-apk artifact (the tag predates the APK CI?)"
+    echo "    Release It will not contain the phone installer; Android users can only get it from an older version or by compiling it themselves"
   fi
 
   # iOS IPA（build 工作流的 ios job 上传，含 .sha256）。
@@ -219,13 +219,13 @@ if [ "$INCLUDE_MOBILE" = "1" ]; then
     for file in dist/ios-ipa/*; do
       ASSETS+=("$file")
     done
-    echo "→ 已下载 $(basename "$(ls dist/ios-ipa/*.ipa)")（含 .sha256）"
+    echo "→ Downloaded $(basename "$(ls dist/ios-ipa/*.ipa)")(including .sha256)"
   else
-    echo "⚠️  这个 run 里没有 ios-ipa 产物（iOS 接入 CI 之前的 tag？）——"
-    echo "    Release 将不含 iOS 安装包，iPhone 用户只能走 PWA 或自行编译"
+    echo "⚠️  This run has no ios-ipa artifact (the tag predates the iOS CI?)"
+    echo "    Release It will not contain the iOS installer; iPhone users can only use PWA or compile it themselves"
   fi
 else
-  echo "→ 手机端安装包按设置不挂 Release（INCLUDE_MOBILE=0）；构建产物仍在 Actions 的 artifact 里"
+  echo "→ The phone installer is not attached to the Release by configuration (INCLUDE_MOBILE=0); the build artifacts are still in Actions— see the artifact 里"
 fi
 
 # ── 2. 更新日志 = tag 所指提交的提交信息 ──────────────────────
@@ -237,11 +237,11 @@ echo "→ GitHub Release"
 if GH_TOKEN="$BUILD_TOKEN" gh release view "$TAG" --repo "$BUILD_REPO" >/dev/null 2>&1; then
   # 已存在时也把预发布标记纠正一遍（重跑收尾 / 当初漏标的情形都靠这一行自愈）
   GH_TOKEN="$BUILD_TOKEN" gh release edit "$TAG" --repo "$BUILD_REPO" --prerelease="$PRERELEASE"
-  echo "  ↳ 已存在，附件逐个覆盖上传（pre-release=$PRERELEASE）"
+  echo "  ↳ already exists; attachments are uploaded one by one, overwriting (pre-release=$PRERELEASE)"
 else
   GH_TOKEN="$BUILD_TOKEN" gh release create "$TAG" --repo "$BUILD_REPO" --prerelease="$PRERELEASE" --title "$TAG" \
     --notes-file "$NOTES_FILE"
-  echo "  ↳ 已创建（pre-release=$PRERELEASE）"
+  echo "  ↳ Created (pre-release=$PRERELEASE)"
 fi
 
 # 附件**逐个**上传，不一次传一批。实测（2026-10-17，v3.0.9-beta.1）：一批 10 个
@@ -264,9 +264,9 @@ MIRROR_TO_SOURCE="${MIRROR_TO_SOURCE:-1}"
 if [ "$MIRROR_TO_SOURCE" = "1" ]; then
   SOURCE_REPO="$(git remote get-url origin | sed -E 's#.*github\.com[:/]([^/]+/[^/.]+)(\.git)?$#\1#')"
   if [ -z "$SOURCE_REPO" ] || [ "$SOURCE_REPO" = "$BUILD_REPO" ]; then
-    echo "⚠️  取不到源码仓库名（origin 不是 GitHub？），跳过镜像"
+    echo "⚠️  Could not get the source repo name (is origin not GitHub?), skipping the mirror"
   else
-    echo "→ 镜像到源码仓库 $SOURCE_REPO"
+    echo "→ Mirror to the source repository$SOURCE_REPO"
     # 正文与构建仓库那份**逐字相同**（同一份更新日志），不追加任何说明行 ——
     # 两个 Release 的内容应当一致，差异只该来自平台本身。
     if GH_TOKEN="$SOURCE_TOKEN" gh release view "$TAG" --repo "$SOURCE_REPO" >/dev/null 2>&1; then
@@ -279,32 +279,32 @@ if [ "$MIRROR_TO_SOURCE" = "1" ]; then
     for asset in "${ASSETS[@]}"; do
       GH_TOKEN="$SOURCE_TOKEN" gh release upload "$TAG" "$asset" --repo "$SOURCE_REPO" --clobber
     done
-    echo "  ↳ 已镜像 ${#ASSETS[@]} 个附件"
+    echo "  ↳ Mirrored${#ASSETS[@]} attachments"
   fi
 fi
 
 # ── 3. 验收提示 ───────────────────────────────────────────────
 echo
-echo "发版收尾完成。核对："
+echo "Release wrap-up complete. Cross-check:"
 echo "  [1] GitHub Release:  gh release view $TAG --repo $BUILD_REPO"
 if [ "$PRERELEASE" = true ]; then
-  echo "      ↑ beta 版：Release 应显示 Prerelease —— 正式版用户收不到它，"
-  echo "        只有开了「加入 beta 版」的用户收得到（见 .agents/skills/release-flow/SKILL.md 第 6 节）"
+  echo "      ↑ beta build: the Release should show Prerelease — stable-channel users do not receive it;"
+  echo "        only users with \"join the beta channel\" turned on receive it (see section 6 of .agents/skills/release-flow/SKILL.md)."
 else
-  echo "  [2] Docker Hub:      https://hub.docker.com/r/aimodcc/agent2api/tags （$TAG 版本号 + latest）"
+  echo "  [2] Docker Hub:      https://hub.docker.com/r/aimodcc/agent2api/tags （$TAG version number + latest)"
 fi
-echo "  [3] 安装包「关于」页版本号与 $TAG 一致（Windows exe / macOS dmg / Linux deb+AppImage）"
-echo "  [4] Linux 桌面端：Release 里 .deb 与 .AppImage 都在；在 Linux 上装 deb（或"
-echo "      直接运行 AppImage）后，面板「设置 → 软件更新」能检查到下一版并给出安装入口"
-echo "  [5] 容器内更新：面板「设置 → 软件更新」出现「下载并更新」，且 Release 里"
-echo "      agent2api-server-linux-{amd64,arm64}.tar.gz 与各自的 .sha256 都在"
-echo "  [6] 服务端包（无 GUI）：Release 里还有 windows-server-amd64.zip（含 .sha256）。"
-echo "      两个平台的包解包后都应看到安装脚本 —— Linux: install.sh / agent2api.service"
-echo "      / agent2api.env.example；Windows: install-service.ps1"
-echo "  [7] 手机端：Release 里有 Agent2API-${TAG#v}.apk 与 .sha256；装到 Android 上"
-echo "      能启动、能添加网关并登录（版本号看系统「应用信息」页，手机端界面不显示）"
-echo "  [8] iOS：Release 里有 Agent2API-${TAG#v}.ipa 与 .sha256；未签名包需用"
-echo "      AltStore / SideStore 重签后安装，已签名包可直接走 TestFlight / 描述文件"
+echo "  [3] The installer's \"About\" page version number matches $TAG (Windows exe / macOS dmg / Linux deb+AppImage)"
+echo "  [4] Linux Desktop: the Release contains both .deb and .AppImage; install the deb on Linux (or"
+echo "      run the AppImage directly), the panel's \"Settings→ Software update\" can detect the next version and offer the install entry"
+echo "  [5] In-container update: the panel's \"Settings→ Software update\" shows \"Download and update\", and the Release contains"
+echo "      agent2api-server-linux-{amd64,arm64}.tar.gz and their respective .sha256 files are all"
+echo "  [6] Server packages (no GUI): the Release also contains windows-server-amd64.zip (with .sha256)."
+echo "      Both platforms' packages should show the install script after unpacking — Linux: install.sh / agent2api.service"
+echo "      / agent2api.env.example; Windows: install-service.ps1"
+echo "  [7] Phone edition: the Release contains Agent2API-${TAG#v}.apk and .sha256; installed on Android"
+echo "      It can start, add a gateway and log in (the version number is on the system's \"App info\" page; the phone UI does not display it)"
+echo "  [8] iOS: Release contains Agent2API-${TAG#v}.ipa and .sha256; unsigned packages need"
+echo "      AltStore / SideStore Re-sign then install; already-signed packages can go straight through TestFlight / the profile"
 if [ "$PRERELEASE" = true ]; then
-  echo "  [9] Docker 镜像：只出 $TAG 那个版本 tag（beta tag 不移动 :latest）"
+  echo "  [9] Docker Mirror: only produce$TAG That version's tag (the beta tag does not move :latest)"
 fi

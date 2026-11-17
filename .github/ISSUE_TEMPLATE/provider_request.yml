@@ -1,6 +1,6 @@
 name: ➕ 新增提供商 / 模型支持
 description: 希望接入某家新的客户端，或某个模型现在拿不到
-title: "[提供商] "
+title: "[Provider] "
 labels: ["enhancement"]
 body:
   - type: markdown

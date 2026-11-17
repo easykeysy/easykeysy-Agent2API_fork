@@ -39,8 +39,8 @@ export function ScriptPluginOptions({ pack, disabled, request, refresh, t }: {
   async function save() {
     if (!values || busy || disabled) return
     let options: unknown
-    try { options = JSON.parse(draft) } catch { setError(t('JSON 格式不正确')); return }
-    if (!options || typeof options !== 'object' || Array.isArray(options)) { setError(t('插件参数必须是 JSON 对象')); return }
+    try { options = JSON.parse(draft) } catch { setError(t('Invalid JSON format')); return }
+    if (!options || typeof options !== 'object' || Array.isArray(options)) { setError(t('Plugin options must be a JSON object')); return }
     setBusy(true); setError('')
     try {
       await request('/api/plugins/scripts/settings', { id: pack.id, options, providerOptions: values.providerOptions || {} })
@@ -50,7 +50,7 @@ export function ScriptPluginOptions({ pack, disabled, request, refresh, t }: {
   }
   return <>
     <DialogSection>
-      <h3 className='m-0'>{t('插件选项')}</h3>
+      <h3 className='m-0'>{t('Plugin options')}</h3>
       {Object.entries(pack.settingsSchema?.providerOptions || {}).map(([provider, options]) => <div key={provider} className='space-y-3'>
         <p className='m-0 font-medium'>{pack.providers.find(item => item.id === provider)?.label || provider}</p>
         {options.map(option => <div key={option.key} className='space-y-1'>
@@ -66,18 +66,18 @@ export function ScriptPluginOptions({ pack, disabled, request, refresh, t }: {
           {option.description ? <p className='m-0 whitespace-pre-wrap text-xs text-muted-foreground'>{words(option, 'description')}</p> : null}
         </div>)}
       </div>)}
-      <Label htmlFor={`${prefix}-json`}>{t('高级参数（JSON）')}</Label>
+      <Label htmlFor={`${prefix}-json`}>{t('Advanced options (JSON)')}</Label>
       <Textarea id={`${prefix}-json`} value={draft} disabled={disabled || busy || !values} rows={6}
         spellCheck={false} autoComplete='off' onChange={event => setDraft(event.currentTarget.value)} />
-      <p className='m-0 text-xs'>{t('修改高级参数会等待在途任务结束后重新加载插件；专属开关实时生效。')}</p>
+      <p className='m-0 text-xs'>{t('Changing advanced options reloads the plugin after active tasks finish. Provider switches take effect immediately.')}</p>
       {error ? <Alert variant='destructive'>{error}</Alert> : null}
-      <Button size='sm' disabled={disabled || busy || !values} onClick={() => void save()}>{busy ? t('保存中…') : t('保存')}</Button>
+      <Button size='sm' disabled={disabled || busy || !values} onClick={() => void save()}>{busy ? t('Saving…') : t('Save')}</Button>
     </DialogSection>
     <Dialog open={confirmation !== null} onOpenChange={open => { if (!open) setConfirmation(null) }}>
       <DialogContent><DialogHeader><DialogTitle>{confirmation ? words(confirmation.option, 'label') : ''}</DialogTitle></DialogHeader>
         <DialogBody><p className='whitespace-pre-wrap'>{confirmation ? words(confirmation.option, 'confirm') : ''}</p></DialogBody>
-        <DialogFooter><Button variant='outline' onClick={() => setConfirmation(null)}>{t('取消')}</Button>
-          <Button onClick={() => { if (confirmation) setOption(confirmation.provider, confirmation.option.key, true); setConfirmation(null) }}>{t('确认')}</Button></DialogFooter>
+        <DialogFooter><Button variant='outline' onClick={() => setConfirmation(null)}>{t('Cancel')}</Button>
+          <Button onClick={() => { if (confirmation) setOption(confirmation.provider, confirmation.option.key, true); setConfirmation(null) }}>{t('Confirm')}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </>

@@ -25,12 +25,12 @@ export function RequiredUpdateGate() {
   if (!policy?.required || (updating && state.route.screen === 'settings')) return null
   return <Dialog open onOpenChange={() => {}}>
     <DialogContent showCloseButton={false}>
-      <DialogHeader><DialogTitle>{t('需要强制更新')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Required update')}</DialogTitle></DialogHeader>
       <DialogBody><Alert variant='warning'>{policy.message}</Alert>
-        <p>{t('当前版本 {current}，最低可用版本 {minimum}。', { current, minimum: policy.minimumVersion })}</p>
-        <p className='text-xs text-muted-foreground'>{t('更新前无法继续调用模型；账号、配置和历史记录不会被删除。')}</p>
+        <p>{t('Current version: {current}. Minimum supported version: {minimum}.', { current, minimum: policy.minimumVersion })}</p>
+        <p className='text-xs text-muted-foreground'>{t('Model requests are unavailable until you update. Accounts, settings and history will be preserved.')}</p>
       </DialogBody>
-      <DialogFooter><Button onClick={() => { store.go('settings'); setUpdating(true) }}>{t('立即更新')}</Button></DialogFooter>
+      <DialogFooter><Button onClick={() => { store.go('settings'); setUpdating(true) }}>{t('Update now')}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }

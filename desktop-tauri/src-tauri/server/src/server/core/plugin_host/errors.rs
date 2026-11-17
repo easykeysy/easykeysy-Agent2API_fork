@@ -36,13 +36,13 @@ pub(super) fn operation_failure(method: &str, detail: &str) -> String {
     use proto::methods::gateway as methods;
 
     let operation = match method {
-        methods::USAGE_QUERY => "余额查询",
+        methods::USAGE_QUERY => "Balance query",
         methods::TOKEN_ENSURE => "获取可用凭证",
         methods::TOKEN_REFRESH => "凭证续期",
         methods::TOKEN_EXPIRING => "检查凭证有效期",
-        methods::MODELS_LIST => "获取模型列表",
+        methods::MODELS_LIST => "List models",
         methods::MODELS_REFRESH => "刷新模型列表",
-        methods::CHECKIN_CLAIM => "签到",
+        methods::CHECKIN_CLAIM => "Check in",
         methods::CLAIM => "福利领取",
         methods::CLAIM_STATUS => "查询福利状态",
         methods::ACCOUNT_NORMALIZE => "账号导入",
@@ -53,8 +53,8 @@ pub(super) fn operation_failure(method: &str, detail: &str) -> String {
         methods::LOGIN_CALLBACK => "登录授权",
         methods::LOGIN_CANCEL => "取消登录",
         methods::CHAT => "构造对话请求",
-        crate::server::core::providers::images::GENERATE_METHOD => "图片生成",
-        crate::server::core::providers::images::EDIT_METHOD => "图片编辑",
+        crate::server::core::providers::images::GENERATE_METHOD => "Image generation",
+        crate::server::core::providers::images::EDIT_METHOD => "Image editing",
         _ => "提供商操作",
     };
     format!("{operation}失败：{detail}")

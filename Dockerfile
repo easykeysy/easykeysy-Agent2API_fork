@@ -36,7 +36,7 @@ ARG BUILDARCH
 # 保留现有 amd64 → arm64 主链；arm64 构建机可原生出 arm64，不伪装成 amd64。
 RUN case "$BUILDARCH/$TARGETARCH" in \
         amd64/amd64|amd64/arm64|arm64/arm64) ;; \
-        *) printf '%s\n' "Rust 构建只支持 amd64 → amd64/arm64 或 arm64 → arm64，实际 $BUILDARCH → $TARGETARCH" >&2; exit 1 ;; \
+        *) printf '%s\n' "Rust The build only supports amd64→ amd64/arm64 or arm64 → arm64, actually$BUILDARCH → $TARGETARCH" >&2; exit 1 ;; \
     esac
 # arm64 需要 aarch64 的 C 工具链与 glibc 开发头文件（rusqlite bundled 的
 # SQLite、ring 的 C/汇编源码用）。注意 libc6-dev-arm64-cross 只是

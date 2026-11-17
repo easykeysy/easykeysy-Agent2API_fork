@@ -18,7 +18,7 @@ fn text<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or("").trim()
 }
 fn definition(value: &Value) -> Result<&'static agents::ClientDef, String> {
-    agents::find(text(value, "clientId")).ok_or_else(|| "未知客户端".into())
+    agents::find(text(value, "clientId")).ok_or_else(|| "Unknown client".into())
 }
 
 fn response(result: Result<Value, String>) -> Response {

@@ -32,23 +32,23 @@ export function ScriptPluginInstallNotice({ open, source, version, disabled, bus
     if (!next) { if (busy) details.cancel(); else onCancel() }
   }}>
     <DialogContent overlayForceRender className='w-[min(480px,calc(100vw-48px))] text-foreground' initialFocus={cancelRef}>
-      <DialogHeader><DialogTitle>{t('Magpie 插件安装须知')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Magpie plugin installation notice')}</DialogTitle></DialogHeader>
       <DialogBody className='gap-3 text-xs leading-relaxed text-subtle'>
         <div className='rounded-md border border-hairline bg-surface-inset px-3 py-2'>
           <p className='m-0 break-all font-medium text-foreground'>{source}</p>
           {version ? <p className='m-0 mt-1 break-all text-muted-foreground'>{version}</p> : null}
         </div>
         <DialogDescription className='m-0 text-sm font-medium leading-relaxed text-foreground'>
-          {t('Magpie 官方和社区插件均通过兼容方式接入 Agent2API，不保证 100% 可用。')}
+          {t('Official and community Magpie plugins are integrated with Agent2API for compatibility only; 100% availability is not guaranteed.')}
         </DialogDescription>
-        <p className='m-0'>{t('登录、模型调用、模型列表、余额查询和签到等功能，可能因插件实现或上游变化而不可用。')}</p>
-        <p className='m-0'>{t('签到及附带任务默认允许，实际执行遵循签到中心的开关和计划。')}</p>
-        <p className='m-0 text-muted-foreground'>{t('部分插件的附带任务可能消耗额度、发送对话或创建及解散群聊。')}</p>
+        <p className='m-0'>{t('Login, model calls, model lists, balance queries and check-ins may become unavailable depending on how the plugin is implemented or on upstream changes.')}</p>
+        <p className='m-0'>{t('Check-ins and the side tasks that come with them are allowed by default; actual execution follows the switches and schedules in the check-in center.')}</p>
+        <p className='m-0 text-muted-foreground'>{t('Side tasks of some plugins may consume quota, send messages, or create and dismiss group chats.')}</p>
         {error ? <p role='alert' className='m-0 break-words text-destructive'>{error}</p> : null}
       </DialogBody>
       <DialogFooter>
-        <Button ref={cancelRef} variant='outline' disabled={busy} onClick={onCancel}>{t('取消')}</Button>
-        <Button disabled={disabled} onClick={onConfirm}>{busy ? t('正在安装…') : t('了解并安装')}</Button>
+        <Button ref={cancelRef} variant='outline' disabled={busy} onClick={onCancel}>{t('Cancel')}</Button>
+        <Button disabled={disabled} onClick={onConfirm}>{busy ? t('Installing…') : t('I understand, install')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

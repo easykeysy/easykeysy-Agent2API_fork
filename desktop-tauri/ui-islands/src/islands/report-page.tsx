@@ -88,14 +88,14 @@ const RANGE_OPTIONS: readonly SegmentedControlOption<string>[] = RANGES.map(valu
  * 不能改：每一条都是踩过的边界）。仍是 `.tip-q` + data-tip 的既有形态 —— 与定时任务页
  * 同一处理，由 desktop-tooltip.tsx 的 MutationObserver 增强 React 插入的节点。
  */
-const TIP_ACCOUNTS = t('所选范围内每个账号各消耗了多少 Token，按 Token 用量从多到少排。账号是比提供商更细的一维：同一家可以挂多个账号，转发时按优先级在候选链上依次尝试，所以这里反映的是「具体哪个登录态在出力」。百分比按本区间的总 Token 数算（这一块只看用量，请求次数与成功率在概览卡片里）。「未知账号」是指那批请求没有账号身份：走默认登录态转发（未配置账号列表）时会这样；这一维上线前写出的旧聚合行也没有账号明细，但它们会在升级导入旧数据时按明细自动补算回来 —— 只有明细已被手动清理掉的那几天补不回来，仍留在「未知账号」里，那是确实无从恢复的部分。')
-const TIP_PROVIDERS = t('所选范围内每个提供商各消耗了多少 Token，按 Token 用量从多到少排。同一个模型名可能有多家都能提供，网关按设置页「转发路由」的优先级依次尝试，所以占比也反映了实际落到谁身上。百分比按本区间的总 Token 数算（这一块只看用量，请求次数与成功率在概览卡片里）。「未知」是指那批请求没记下承载它的提供商 —— 主要是记录提供商这个功能上线之前的旧明细，其次是请求在选定上游之前就失败了（请求体非法、模型不存在、没有可用账号）。这一维与账号那一维不同：旧明细里根本没有「哪家承载」的信息（早期版本只有单一上游，但那是配置事实而非逐条记录），所以无法回算，旧数据会一直留在「未知」里；此后新产生的请求都会记上具体的提供商。')
+const TIP_ACCOUNTS = t('How many tokens each account used in the selected range, sorted by token usage from high to low. Accounts are a finer dimension than providers: one provider can have several accounts, and requests try each account along the candidate chain by priority, so this reflects which specific login session is doing the work. Percentages are based on the total tokens for the range (this block only looks at usage; request counts and success rates are in the overview cards). "Unknown account" means those requests had no account identity: this happens when forwarding through the default login session (no account list configured); old aggregate rows written before this dimension existed also lack account details, but they are recomputed automatically from detail records when old data is imported during upgrade — only days whose details have already been cleared manually cannot be recovered and remain in "Unknown account"; those are genuinely unrecoverable.')
+const TIP_PROVIDERS = t('How many tokens each provider used in the selected range, sorted by token usage from high to low. The same model name may be offered by several providers; the Gateway tries them in priority order as configured in the Forwarding route setting, so the share also reflects where requests actually landed. Percentages are based on the total tokens for the range (this block only looks at usage; request counts and success rates are in the overview cards). "Unknown" means those requests did not record the provider that served them—mainly detail rows from before provider recording existed, and requests that failed before an upstream was chosen (invalid request body, model not found, no available account). This dimension differs from accounts: old detail rows have no "which provider served it" information at all (early versions had a single upstream, but that was a configuration fact, not a per-request record), so they cannot be recomputed and old data stays in "Unknown" forever; requests created from now on all record their specific provider.')
 /**
  * 时间范围控件旁的小问号。两个容易误读的口径都在这里说清：
  * 「近 N 天」是含今天在内往前数 N 天（所以是 N-1 天前到今天），不是「前 N 天」；
  * 「昨天」是本地自然日的昨天一整天，与「今天」共用同一套日界线。
  */
-const TIP_RANGE = t('时间范围。「今天」是本地自然日今天 0 点到现在；「昨天」是昨天一整天（0 点到 24 点）；「近 7 天 / 近 30 天」含今天在内往前数，即今天与之前的 6 / 29 天，不是「不含今天的 7 / 30 天」。')
+const TIP_RANGE = t('Time range. "Today" is the local calendar day from 00:00 until now; "Yesterday" is the whole of yesterday (00:00–24:00); "Last 7 days" / "Last 30 days" count backwards from today inclusive, i.e. today plus the previous 6 / 29 days — not 7 / 30 days excluding today.')
 
 /* ─── 模块级状态（跨渲染的守卫、缓存与入口登记）────── */
 
@@ -152,7 +152,7 @@ function ProviderBadge({ accountId }: { accountId: string }) {
   const label = shared().wbProviders?.labelOf?.(provider) || provider
   const suffix = (account && shared().wbAccountsModel?.editionSuffix?.(account)) || ''
   const text = suffix ? `${label} ${suffix}` : label
-  return <Badge variant='outline' shape='tag' className={`pbadge p-${provider}`} title={t('提供商：{text}', { text })}>{text}</Badge>
+  return <Badge variant='outline' shape='tag' className={`pbadge p-${provider}`} title={t('Provider: {text}', { text })}>{text}</Badge>
 }
 
 function applyAutoRefresh(task: IntervalTask | null): void {
@@ -222,10 +222,10 @@ function ReportPage() {
     const dates = requested === CUSTOM_RANGE ? customRef.current : undefined
     try {
       const api = shared().workbuddyDesktop
-      if (!api) throw new Error('后端桥不可用')
+      if (!api) throw new Error('Backend bridge unavailable')
       const payload = await api.getStatsSummary(requested, dates)
       if (token !== seq) return summaryValue
-      if (!payload || typeof payload !== 'object') throw new Error('后端未返回报表数据')
+      if (!payload || typeof payload !== 'object') throw new Error('The backend did not return report data')
       summaryValue = payload
       // 内容与上一轮完全一致就不落 state（见 signatureRef 的说明）：轮询到「没有变化」
       // 是常态，那一轮不该付整页重渲染的代价
@@ -239,8 +239,8 @@ function ReportPage() {
       const message = errorMessage(error)
       summaryValue = null
       // silent：只压掉控制台噪音（首屏自持加载 / 轮询用），错误态照常显示在页面上
-      if (!options.silent) console.warn('读取报表数据失败:', message)
-      applyData({ summary: null, error: message || t('未知错误') }, '')
+      if (!options.silent) console.warn('Failed to read the report data:', message)
+      applyData({ summary: null, error: message || t('Unknown error') }, '')
       return null
     } finally {
       loadingRef.current -= 1
@@ -343,8 +343,8 @@ function ReportPage() {
   const modelList: StatsGroup[] | null = summary && Array.isArray(summary.models) ? summary.models : null
 
   /** 各板块的公共三态：错误态 / 正在加载 / 内容 */
-  const errorBlock = error ? placeholder(t('读取报表失败：{error}', { error }), 'empty report-error') : null
-  const loadingBlock = placeholder(t('正在加载…'))
+  const errorBlock = error ? placeholder(t('Failed to load report: {error}', { error }), 'empty report-error') : null
+  const loadingBlock = placeholder(t('Loading…'))
   const loading = errorBlock ?? loadingBlock
 
   const modelColors = React.useMemo(() => modelColorMap(modelList || (summary?.cacheTrend24h || []).flatMap(hour =>
@@ -355,10 +355,10 @@ function ReportPage() {
       <PageAutoRefresh id='reportAutoRefresh' settings={auto} onRefresh={() => loadPanel()} />
       <div className='report-page'>
         <PageHeader className='report-page-heading'>
-          <div><PageTitle>{t('统计报表')}</PageTitle><PageDescription>{t('查看用量、调用来源与缓存表现')}</PageDescription></div>
+          <div><PageTitle>{t('Usage report')}</PageTitle><PageDescription>{t('View usage, request sources, and cache performance')}</PageDescription></div>
           <div className='report-period-control'>
             <div className='report-date-caption' id='report-range-label'>{summary ? `${summary.startDate || '—'} — ${summary.endDate || '—'}` : RANGE_LABEL[rangeKey]} <TipQ text={TIP_RANGE} /></div>
-            <SegmentedControl options={RANGE_OPTIONS} value={range} onValueChange={changeRange} aria-label={t('报表时间范围')} />
+            <SegmentedControl options={RANGE_OPTIONS} value={range} onValueChange={changeRange} aria-label={t('Report time range')} />
             {range === CUSTOM_RANGE ? <DateRangeFields dates={custom} onChange={changeCustomDate} /> : null}
           </div>
         </PageHeader>
@@ -368,13 +368,13 @@ function ReportPage() {
       <div className='report-rank-grid'>
         {accountList ? (
           <RankPanel panelId='report-accounts-panel' listId='report-accounts' labelId='report-accounts-label'
-            title={t('Top 账号')} tip={TIP_ACCOUNTS} rows={accountList}
+            title={t('Top accounts')} tip={TIP_ACCOUNTS} rows={accountList}
             badge={id => <ProviderBadge accountId={id} />} emptyText={t('所选范围内还没有账号用量')} />
         ) : null}
         {providerList ? (
           <RankPanel panelId='report-providers-panel' listId='report-providers' labelId='report-providers-label'
-            title={t('Top 提供商')} tip={TIP_PROVIDERS} rows={providerList}
-            emptyText={t('所选范围内还没有请求记录')} />
+            title={t('Top providers')} tip={TIP_PROVIDERS} rows={providerList}
+            emptyText={t('No request records in the selected range')} />
         ) : null}
       </div>
 

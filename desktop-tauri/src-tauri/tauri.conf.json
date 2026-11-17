@@ -44,7 +44,7 @@
         ]
       }
     },
-    "shortDescription": "Agent2API · 多提供商本地网关",
-    "longDescription": "把多家 AI 客户端登录态（WorkBuddy、小浣熊等）包装成本地 OpenAI 兼容接口，并集中管理多账号、出网代理与内容脱敏。网关已整体由 Rust 实现并运行在应用进程内，不再随包分发任何外部运行时，安装体积小、启动即用。"
+    "shortDescription": "Agent2API · Multi-provider local gateway",
+    "longDescription": "Packages multiple AI client login states (WorkBuddy, Little Raccoon, etc.) as a local OpenAI-compatible API, and centrally manages multi-account, outbound proxy, and content redaction. The gateway is now fully implemented in Rust and runs inside the app process; no external runtime is shipped with the package, so installs are small and ready to use out of the box."
   }
 }

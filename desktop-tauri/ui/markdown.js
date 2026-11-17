@@ -314,14 +314,14 @@
       && RE_TABLE_SPLIT.test(lines[index + 1]);
   }
 
-  /** 一行 → 单元格数组：去掉首尾的包裹竖线后按 | 切；\| 表示字面竖线（与 GitHub 一致） */
+  /** One line→ Single元格数组：去掉首尾的包裹竖线后按 | 切；\| 表示字面竖线（ and  GitHub 一due to) */
   function splitCells(row) {
     const guarded = String(row).trim().replace(/\\\|/g, '\u0000');
     return guarded.replace(/^\|/, '').replace(/\|$/, '').split('|')
       .map(part => part.trim().replace(/\u0000/g, '&#124;'));
   }
 
-  /** 分隔行的一格 → 对齐类名（:--: 居中、--: 右对齐，其余左对齐不标） */
+  /** 分隔行的一格 → 对齐类名（:--: 居中、--: 右对齐，其余左Do not mark alignment） */
   function alignClass(cell) {
     if (/^:-+:$/.test(cell)) return ' md-ta-c';
     if (/^-+:$/.test(cell)) return ' md-ta-r';

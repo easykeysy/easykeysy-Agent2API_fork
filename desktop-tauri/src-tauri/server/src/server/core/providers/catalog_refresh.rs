@@ -53,7 +53,7 @@ fn deferred_message(state: &task_state::TaskState, manual: bool) -> String {
     if state.retry_at > logging::now_ms() || state.running() {
         if manual { state.waiting_message_bypassing() } else { state.waiting_message() }
     } else {
-        "沿用缓存，尚未到刷新时间".to_string()
+        "Using the cache; the next update is not due yet".to_string()
     }
 }
 
@@ -98,7 +98,7 @@ pub async fn refresh(
         if !adapter.supports_model_refresh() {
             item["status"] = json!("skipped");
             item["fixed"] = json!(true);
-            item["message"] = json!("该提供商使用固定模型清单");
+            item["message"] = json!("This provider uses a fixed model list");
             results.push(item);
             continue;
         }
@@ -155,11 +155,11 @@ pub async fn refresh(
             item["message"] = json!(message);
         } else {
             item["status"] = json!("skipped");
-            item["message"] = json!("沿用缓存或当前没有可用的目录来源");
+            item["message"] = json!("Using cached data, or no catalog source is currently available");
         }
         item["refreshedAt"] = json!(catalog::refresh_meta(kind).1);
         let success = item["status"] != "failed";
-        let summary = item.get("message").and_then(Value::as_str).unwrap_or("模型清单已刷新").to_string();
+        let summary = item.get("message").and_then(Value::as_str).unwrap_or("Model catalog refreshed").to_string();
         // 间隔在这里**现读一次**（而不是复用开跑前那份）：这一轮可能跨几十秒的
         // 网络请求，期间用户完全可能把间隔改掉；用旧值排期会让界面显示「已生效」
         // 而实际按旧节奏跑（与 `scheduled_tasks::finish` 同一取舍）。
@@ -192,7 +192,7 @@ pub async fn refresh(
         if !adapter.supports_model_refresh() {
             item["status"] = json!("skipped");
             item["fixed"] = json!(true);
-            item["message"] = json!("该提供商使用固定模型清单");
+            item["message"] = json!("This provider uses a fixed model list");
             results.push(item);
             continue;
         }
@@ -207,9 +207,9 @@ pub async fn refresh(
             let Some(selected) = selected else {
                 item["status"] = json!("skipped");
                 item["message"] = json!(if requested.is_empty() {
-                    "当前没有可用的目录账号"
+                    "No account is available for fetching the catalog"
                 } else {
-                    "指定账号不属于该提供商、未启用或没有可用凭证"
+                    "The selected account belongs to another provider, is disabled, or has no usable credentials"
                 });
                 results.push(item);
                 continue;
@@ -260,7 +260,7 @@ pub async fn refresh(
         }
         if let Some(guard) = guard {
             let success = item["status"] != "failed";
-            let summary = item.get("message").and_then(Value::as_str).unwrap_or("模型清单已刷新").to_string();
+            let summary = item.get("message").and_then(Value::as_str).unwrap_or("Model catalog refreshed").to_string();
             let interval = config::scheduled_settings().model_refresh.interval * 60_000;
             if let Err(error) = guard.finish(success, summary, None, 0, interval) {
                 item["status"] = json!("failed");

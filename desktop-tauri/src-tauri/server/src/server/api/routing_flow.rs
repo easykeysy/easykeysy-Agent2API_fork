@@ -8,7 +8,7 @@ use crate::server::{errors, http::ok_json, request_stats::FlowQuery, ServerState
 pub async fn get_flow(State(state): State<ServerState>, Query(params): Query<HashMap<String, String>>) -> Response {
     let text = |key: &str| params.get(key).map(|value| value.trim().to_string()).unwrap_or_default();
     let minutes = params.get("minutes").and_then(|value| value.parse::<i64>().ok()).unwrap_or(10);
-    if ![5, 10, 30, 60].contains(&minutes) { return errors::management_error(400, "时间范围必须为 5、10、30 或 60 分钟"); }
+    if ![5, 10, 30, 60].contains(&minutes) { return errors::management_error(400, "时间范围必须为 5, 10, 30 or 60 minutes"); }
     let query = FlowQuery {
         model: text("model"), minutes, running_only: text("scope") == "running", search: text("search"), session_search: text("sessionSearch"),
         path: text("path"), session: text("session"),

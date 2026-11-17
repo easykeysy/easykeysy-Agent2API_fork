@@ -134,7 +134,7 @@ pub fn migrate_cline_split() -> Option<String> {
     }
     if count > 0 {
         touched = true;
-        summary.push(format!("禁用 {count} 条"));
+        summary.push(format!("Disable {count} entries"));
     }
 
     // ② 映射：带旧 provider 的改名；provider 缺失但 target 是 Cline 池前缀的补上
@@ -175,7 +175,7 @@ pub fn migrate_cline_split() -> Option<String> {
     }
     if reseeded > 0 {
         touched = true;
-        summary.push(format!("种子标记 {reseeded} 条"));
+        summary.push(format!("种子标记 {reseeded} rows"));
     }
 
     if !touched {
@@ -183,8 +183,8 @@ pub fn migrate_cline_split() -> Option<String> {
     }
     save(&rules);
     Some(format!(
-        "🔀 Cline 已拆为 Cline Free / Cline Pass 两家，存量规则已迁移（{}）",
-        summary.join("；")
+        "🔀 Cline 已拆为 Cline Free / Cline Pass 两家，存量规则已迁移（{})",
+        summary.join("; ")
     ))
 }
 

@@ -49,22 +49,22 @@ export function RoutingModelPicker({ choices, accounts, lastUsed, selected, onCh
   return <div className='routing-model-selection'>
     <div className='routing-model-columns'>
       <aside className='routing-model-providers'>
-        <Input value={providerSearch} disabled={disabled} placeholder={t('搜索提供商')} aria-label={t('搜索提供商')}
+        <Input value={providerSearch} disabled={disabled} placeholder={t('Search providers')} aria-label={t('Search providers')}
           onChange={event => { setProviderSearch(event.currentTarget.value); setProvider('') }} />
-        <NavList className='routing-model-provider-list' aria-label={t('选择提供商')}>
+        <NavList className='routing-model-provider-list' aria-label={t('Select provider')}>
           <NavItem className='routing-model-provider-all' active={!current} disabled={disabled}
-            count={totalAccounts} title={t('显示全部')}
-            onClick={() => { setProviderSearch(''); chooseProvider('') }}>{t('全部')}</NavItem>
+            count={totalAccounts} title={t('Show all')}
+            onClick={() => { setProviderSearch(''); chooseProvider('') }}>{t('All')}</NavItem>
           {providers.map(item => <NavItem key={item.id} active={item.id === current?.id} disabled={disabled}
-            title={`${item.label} · ${t('{n} 个账号', { n: item.accounts })}`}
+            title={`${item.label} · ${t('{n} accounts', { n: item.accounts })}`}
             icon={<RoutingProviderMark id={item.id} label={item.label} />} count={item.accounts}
             onClick={() => chooseProvider(item.id)}>{item.label}</NavItem>)}
-          {!providers.length ? <Empty>{t('没有匹配的提供商或账号')}</Empty> : null}
+          {!providers.length ? <Empty>{t('No matching providers or accounts')}</Empty> : null}
         </NavList>
       </aside>
       <section className='routing-model-choices'>
-        <div className='routing-model-choices-head'><b>{current?.label || t('全部')}</b><span>{t('{n} 个账号', { n: accountCount })}</span></div>
-        <Input value={modelSearch} disabled={disabled} placeholder={t('搜索模型')} aria-label={t('搜索模型')}
+        <div className='routing-model-choices-head'><b>{current?.label || t('All')}</b><span>{t('{n} accounts', { n: accountCount })}</span></div>
+        <Input value={modelSearch} disabled={disabled} placeholder={t('Search models')} aria-label={t('Search models')}
           onChange={event => setModelSearch(event.currentTarget.value)} />
         <div className='routing-model-choice-list'>
           {models.map(choice => {
@@ -76,12 +76,12 @@ export function RoutingModelPicker({ choices, accounts, lastUsed, selected, onCh
               <span className='routing-group-model-id'>{choice.providerLabel} · {choice.model}</span>
             </label>
           })}
-          {!models.length ? <Empty>{query ? t('没有匹配的模型') : t('没有可添加的模型')}</Empty> : null}
+          {!models.length ? <Empty>{query ? t('No matching models') : t('No models available to add')}</Empty> : null}
         </div>
       </section>
     </div>
-    <div className='routing-model-selection-summary'><span>{t('已选择 {count} / {total} 个', { count: picked.size, total: choices.length })}</span>
-      <Button variant='link' size='sm' disabled={disabled || !picked.size} onClick={() => onChange([])}>{t('清空选择')}</Button></div>
-    {picked.size >= limit ? <p className='routing-config-note'>{t('一个路由组最多允许 {n} 个成员', { n: ROUTING_MEMBER_LIMIT })}</p> : null}
+    <div className='routing-model-selection-summary'><span>{t('Selected {count} / {total}', { count: picked.size, total: choices.length })}</span>
+      <Button variant='link' size='sm' disabled={disabled || !picked.size} onClick={() => onChange([])}>{t('Clear selection')}</Button></div>
+    {picked.size >= limit ? <p className='routing-config-note'>{t('A route group can have at most {n} members', { n: ROUTING_MEMBER_LIMIT })}</p> : null}
   </div>
 }

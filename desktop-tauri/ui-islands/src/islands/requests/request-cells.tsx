@@ -47,16 +47,16 @@ function formatDuration(ms: unknown): string {
   const rounded = Math.round(Number(ms) || 0)
   if (rounded < 1000) return `${rounded}ms`
   const seconds = Math.floor(rounded / 1000)
-  if (seconds >= 60) return t('{m}分{s}秒', { m: Math.floor(seconds / 60), s: seconds % 60 })
+  if (seconds >= 60) return t('{m}m {s}s', { m: Math.floor(seconds / 60), s: seconds % 60 })
   const millis = rounded % 1000
-  return millis > 0 ? t('{s}秒{ms}ms', { s: seconds, ms: millis }) : t('{n}秒', { n: seconds })
+  return millis > 0 ? t('{s}s {ms}ms', { s: seconds, ms: millis }) : t('{n}s', { n: seconds })
 }
 
 /**
  * 生成速度（tok/s）的悬停说明：口径与回落规则都在这里说清 —— 显示出来的数可能
  * 按流式段算、也可能按总用时算（回落），不说明白会让人拿它对不上别的工具。
  */
-const SPEED_TIP = t('生成速度：输出 token ÷ 流式段用时（总用时 − 首响）；流式段不足总用时一半时按总用时计')
+const SPEED_TIP = t('Generation speed: output tokens ÷ streaming time (total duration − TTFB); falls back to total duration when the streaming window is under half the request')
 
 /** 流式段的下界（毫秒）：低于它按总用时计，见 tokensPerSecond */
 const STREAM_MS_FLOOR = 500
@@ -108,7 +108,7 @@ function formatTokens(value: unknown): string {
  */
 function formatElapsed(ts: unknown): string {
   const elapsed = Math.max(0, Date.now() - (Number(ts) || 0))
-  return t('{n}秒', { n: Math.max(1, Math.floor(elapsed / 1000)) })
+  return t('{n}s', { n: Math.max(1, Math.floor(elapsed / 1000)) })
 }
 
 /** 缓存命中率：命中读取 / 输入，分母为 0 时无意义，给「-」 */
@@ -180,8 +180,8 @@ function runningFirstLine(entry: RequestEntry): React.ReactNode {
   const value = Number(entry.firstResponseMs)
   if (!Number.isFinite(value) || value <= 0) return null
   return (
-    <span className='req-dur-line sub' title={t('首响：上游首帧到达的耗时（请求仍在转发中）')}>
-      {t('首响 {time}', { time: formatDuration(value) })}
+    <span className='req-dur-line sub' title={t('TTFB: time to first byte from the upstream (request is still being forwarded)')}>
+      {t('TTFB {time}', { time: formatDuration(value) })}
     </span>
   )
 }
@@ -222,12 +222,12 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
         <span key={key} className={className}>
           {provider ? (
             <span className='req-provider'
-              title={id && id !== provider ? t('{name}（{id}）', { name: provider, id }) : provider}>
+              title={id && id !== provider ? t('{name} ({id})', { name: provider, id }) : provider}>
               {provider}
             </span>
           ) : (
             <span className='req-provider is-empty'
-              title={t('这条明细没有记录提供商（旧数据或请求未走到转发）')}>—</span>
+              title={t('No provider is recorded for this detail row (old data, or the request never reached forwarding)')}>—</span>
           )}
           {entry.accountName ? (
             <span className='req-acct' title={namesHidden ? undefined : entry.accountId || entry.accountName}>
@@ -235,7 +235,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
             </span>
           ) : (
             <span className='req-acct is-empty'
-              title={t('请求在任何账号接手之前就失败了')}>—</span>
+              title={t('The request failed before any account picked it up')}>—</span>
           )}
         </span>
       )
@@ -252,7 +252,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       if (entry.isTest) {
         tags.push(
           <Badge key='test' variant='brand' shape='tag'
-            title={t('面板内发起的模型调用，消耗额度并记录 Key，不计入生产报表')}>{clientRequestLabel(entry)}</Badge>,
+            title={t('Model call started from the panel; uses quota and records the API Key, but is excluded from production reports')}>{clientRequestLabel(entry)}</Badge>,
         )
       }
       // 判据交给悬停面板模块（它要读明细内部字段）；兜底成 attempts > 1：模块没就绪时至少换过
@@ -266,7 +266,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
           // button 上（不是覆盖），观感则回到组件库的语义档（原来手写的 `warn` 即 warning）
           <Badge key='chain' variant='warning' shape='tag' render={<Button size='default' variant='ghost' type='button' />}
             className='req-hover-tag' data-req-hover='chain' data-req-id={identity}>
-            {count > 1 ? t('重试 {n}', { n: count }) : t('重试')}
+            {count > 1 ? t('Retry {n}', { n: count }) : t('Retry')}
           </Badge>,
         )
       }
@@ -278,7 +278,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
         tags.push(
           <Badge key='sensitive' variant='sensitive' shape='tag' render={<Button size='default' variant='ghost' type='button' />}
             className='req-hover-tag' data-req-hover='sensitive' data-req-id={identity}
-            aria-label={t('命中了敏感词')}>{t('敏')}</Badge>,
+            aria-label={t('Sensitive word hit')}>{t('SW')}</Badge>,
         )
       }
       if (!tags.length) return <span key={key} className={`req-none ta-${align}`}>-</span>
@@ -293,8 +293,8 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
           return (
             <span key={key} className={className}>
               <span className='req-status-badge'>
-                <Badge shape='tag' variant='info' title={t('请求正在转发中，用时列显示的是已用时')}>
-                  <StatusDot pulse className='size-[5px] bg-current' />{t('进行中')}
+                <Badge shape='tag' variant='info' title={t('The request is being forwarded; the duration column shows elapsed time')}>
+                  <StatusDot pulse className='size-[5px] bg-current' />{t('In progress')}
                 </Badge>
               </span>
             </span>
@@ -313,12 +313,12 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       const ok = isOk(entry)
       // 走到这里 status=0 的只剩「还没发出请求就失败」的历史行：写 0 会被读成 HTTP 状态码，退成「失败」
       const title = !ok && status >= 200 && status < 300
-        ? t('HTTP {status}，但响应体阶段出错：见错误列', { status })
+        ? t('HTTP {status}, but the response body phase failed: see the error column', { status })
         : undefined
       return (
         <span key={key} className={className}>
           <Badge shape='tag' variant={ok ? 'success' : 'destructive'} title={title}>
-            {status || t('失败')}
+            {status || t('Failed')}
           </Badge>
         </span>
       )
@@ -341,9 +341,9 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       return (
         <span key={key} className={`${className} req-model-split`}>
           <span className='req-model-line'
-            title={t('转发到上游的模型：{model}', { model: upText })}>⬆️ {upText}</span>
+            title={t('Model forwarded to the upstream: {model}', { model: upText })}>⬆️ {upText}</span>
           <span className='req-model-line sub'
-            title={t('下游请求的模型：{model}', { model: downText })}>⬇️ {downText}</span>
+            title={t('Model requested downstream: {model}', { model: downText })}>⬇️ {downText}</span>
         </span>
       )
     }
@@ -351,7 +351,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
     case 'client': {
       const label = clientRequestLabel(entry)
       return <span key={key} className={className}
-        title={entry.clientEvidence?.userAgent || t('来源客户端：{client}', { client: label })}>{label}</span>
+        title={entry.clientEvidence?.userAgent || t('Source client: {client}', { client: label })}>{label}</span>
     }
 
     case 'apiKey': {
@@ -364,7 +364,7 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
         // 进行中行没有 durationMs（收尾才记账）：主行显示已用时（每拍轮询在走）
         return (
           <span key={key} className={className}>
-            <span className='req-dur-line' title={t('已用时（请求仍在转发中）')}>{formatElapsed(entry.ts)}</span>
+            <span className='req-dur-line' title={t('Elapsed time (request is still being forwarded)')}>{formatElapsed(entry.ts)}</span>
             {runningFirstLine(entry)}
           </span>
         )
@@ -372,8 +372,8 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       return (
         <span key={key} className={className}>
           <span className='req-dur-line'>{formatDuration(entry.durationMs)}</span>
-          <span className='req-dur-line sub' title={t('首响：上游首帧到达的耗时')}>
-            {t('首响 {time}', { time: formatFirstResponse(entry.firstResponseMs) })}
+          <span className='req-dur-line sub' title={t('TTFB: time to first byte from the upstream')}>
+            {t('TTFB {time}', { time: formatFirstResponse(entry.firstResponseMs) })}
           </span>
         </span>
       )
@@ -392,17 +392,17 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       // 失败请求不记录用量（后端 normalize 已把 credit 清成 None）：这里与
       // 「用量」列用同一句说明，避免把「失败清零」误读成「这一家没上报」。
       if (!isOk(entry) && visionDetail(entry.route)?.mode !== 'assist_call') {
-        return <span key={key} className={`${className} is-empty`} title={t('失败请求不记录用量')}>—</span>
+        return <span key={key} className={`${className} is-empty`} title={t('Usage is not recorded for failed requests')}>—</span>
       }
       const value = entry.credit
       if (value === null || value === undefined || !Number.isFinite(Number(value))) {
         return (
-          <span key={key} className={`${className} is-empty`} title={t('上游没有返回积分消耗')}>—</span>
+          <span key={key} className={`${className} is-empty`} title={t('The upstream did not report points consumption')}>—</span>
         )
       }
       return (
         <span key={key} className={className}
-          title={t('本次请求消耗 {credit} 积分', { credit: numberText(value) })}>
+          title={t('Points consumed by this request: {credit}', { credit: numberText(value) })}>
           {numberText(value)}
         </span>
       )
@@ -414,14 +414,14 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       // 失败请求的 token 由后端一律清零，写「0」会让人以为真的消耗了这些量
       if (!isOk(entry) && visionDetail(entry.route)?.mode !== 'assist_call') {
         return (
-          <span key={key} className={className} title={t('失败请求不记录用量')}>
+          <span key={key} className={className} title={t('Usage is not recorded for failed requests')}>
             <span className='req-usage-line'>in: - / out: - / all: -</span>
-            <span className='req-usage-line sub'>{t('缓存读取: - / 命中率: -')}</span>
+            <span className='req-usage-line sub'>{t('Cache reads: - / Hit rate: -')}</span>
           </span>
         )
       }
       const line1 = `in: ${formatTokens(entry.promptTokens)} / out: ${formatTokens(entry.completionTokens)} / all: ${formatTokens(entry.totalTokens)}`
-      const line2 = t('缓存读取: {cache} / 命中率: {rate}', {
+      const line2 = t('Cache reads: {cache} / Hit rate: {rate}', {
         cache: formatTokens(entry.cacheReadTokens), rate: cacheRate(entry),
       })
       return (
@@ -446,8 +446,8 @@ export function RequestCell({ entry, column, namesHidden }: { entry: RequestEntr
       if (!id && !entry.clientEvidence) return <span key={key} className={`req-none ${base} ta-${align}`}>-</span>
       return (
         <span key={key} className={className}>
-          <Button size='sm' variant='outline' className='req-detail-btn' title={t('请求详情')}
-            onClick={() => { void shared().wbRequestDetail?.open?.(id, entry) }}>{t('详情')}</Button>
+          <Button size='sm' variant='outline' className='req-detail-btn' title={t('Request details')}
+            onClick={() => { void shared().wbRequestDetail?.open?.(id, entry) }}>{t('Details')}</Button>
         </span>
       )
     }

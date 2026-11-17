@@ -9,7 +9,7 @@ fn native_request(model: &str, stream: bool) -> Value {
             {"role":"user","content":"hi"},
             {"role":"assistant","content":[{"type":"thinking","thinking":"","signature":"history-signed+/=="},
                 {"type":"redacted_thinking","data":"history-opaque"},{"type":"text","text":"previous"}]},
-            {"role":"user","content":[{"type":"text","text":"继续"},{"type":"image","source":{"type":"base64","media_type":"image/png","data":"AA=="}}]}
+            {"role":"user","content":[{"type":"text","text":"Continue"},{"type":"image","source":{"type":"base64","media_type":"image/png","data":"AA=="}}]}
         ],"future_parameter":{"keep":true}})
 }
 

@@ -74,10 +74,10 @@ pub fn profile_name(path: &Path) -> String {
 
 pub fn label(profile: &str) -> String {
     match profile {
-        "legacy" => "旧版共享设置".into(),
-        "web" => "网页版".into(),
-        "desktop" => "桌面版".into(),
-        "home" => "全部配置（全局覆盖）".into(),
+        "legacy" => "Legacy shared settings".into(),
+        "web" => "Web app".into(),
+        "desktop" => "Desktop app".into(),
+        "home" => "All profiles (global override)".into(),
         other => other.into(),
     }
 }
@@ -203,7 +203,7 @@ pub fn detect(binary: Option<&Path>, selected: Option<&Path>) -> Detection {
     let error = if selected.is_none() && (targets.len() > 1 || dirs.len() > targets.len()) {
         Some("发现多套 DSH 配置，请先选择网页版、桌面版或其他实际使用的配置；不会同时覆盖。".into())
     } else if !is_patch(&chosen) && modern {
-        Some("新版 DSH 不再持续读取 settings.yaml，请选择实际使用的 cordis.patch.yml。".into())
+        Some("新版 DSH 不再持续读取 settings.yaml，请选择实际使用的 cordis.patch.yml.".into())
     } else if is_patch(&chosen) && profile_name(&chosen) == "home" {
         Some("DSH 全局覆盖影响所有运行方式，本页只读；请在 DSH 中编辑该文件。".into())
     } else if is_patch(&chosen) && !chosen.parent().is_some_and(profile_manifest) {

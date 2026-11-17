@@ -105,7 +105,7 @@ pub fn add_mapping(
             });
         if create == Some(true) && (alias.eq_ignore_ascii_case(target) || existing.is_some()) {
             return Err(conflict(format!(
-                "模型 ID「{alias}」已绑定到此上游模型，请直接使用已有绑定"
+                "Model ID「{alias}」已绑定到此上游模型，请直接使用已有绑定"
             )));
         }
         if create == Some(false) && existing.is_none() && !alias.eq_ignore_ascii_case(target) {
@@ -163,7 +163,7 @@ pub fn add_mapping(
             }
             if creating && active_conflict(rules, &catalog, owner, alias, target) {
                 return Err(conflict(format!(
-                    "模型 ID「{alias}」在该提供商已有启用绑定，请先关闭它再添加"
+                    "Model ID「{alias}」在该提供商已有启用绑定，请先关闭它再添加"
                 )));
             }
         }
@@ -202,11 +202,11 @@ pub fn add_custom(provider: &str, id: &str) -> Result<ModelRules> {
         if catalog.native_exists(provider, id)
             || rules.custom.iter().any(|model| model.matches(provider, id))
         {
-            return Err(conflict(format!("模型 ID「{id}」已存在，请使用已有模型")));
+            return Err(conflict(format!("Model ID “{id}” already exists. Use the existing model.")));
         }
         if active_conflict(rules, &catalog, provider, id, id) {
             return Err(conflict(format!(
-                "模型 ID「{id}」在该提供商已有启用绑定，请先关闭它再添加"
+                "Model ID “{id}” already has an enabled binding under this provider. Disable it before adding another."
             )));
         }
         rules.custom.push(CustomModel {

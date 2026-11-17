@@ -62,7 +62,7 @@ pub async fn refresh(manual: bool, interval_ms: i64) -> Value {
     });
     if !config::models_dev_enabled() {
         row["status"] = json!("skipped");
-        row["message"] = json!("已在设置里关闭 models.dev 模型元数据");
+        row["message"] = json!("models.dev metadata is disabled in Settings");
         return row;
     }
     let backoff = if manual { ManualBackoff::Bypass } else { ManualBackoff::Respect };
@@ -82,7 +82,7 @@ pub async fn refresh(manual: bool, interval_ms: i64) -> Value {
             row["message"] = json!(if state.retry_at > logging::now_ms() || state.running() {
                 if manual { state.waiting_message_bypassing() } else { state.waiting_message() }
             } else {
-                "沿用缓存，尚未到刷新时间".to_string()
+                "Using the cache; the next update is not due yet".to_string()
             });
             row["retryAt"] = json!(state.retry_at);
             return row;
@@ -98,7 +98,7 @@ pub async fn refresh(manual: bool, interval_ms: i64) -> Value {
         Ok((snapshot, count)) => {
             snapshot::write_cache(&snapshot::serialize(&snapshot));
             snapshot::replace(snapshot);
-            let summary = format!("models.dev 元数据已更新（{count} 条）");
+            let summary = format!("models.dev metadata updated ({count} entries)");
             logging::log("[Models]", &summary);
             row["status"] = json!("refreshed");
             row["count"] = json!(count);
@@ -131,9 +131,9 @@ async fn fetch_json(url: &str) -> Result<Value, String> {
     )
     .await?;
     if !response.status().is_success() {
-        return Err(format!("{url} 返回 HTTP {}", response.status().as_u16()));
+        return Err(format!("{url} Back HTTP {}", response.status().as_u16()));
     }
-    response.json::<Value>().await.map_err(|error| format!("{url} 响应不是合法 JSON：{error}"))
+    response.json::<Value>().await.map_err(|error| format!("{url} 响应不是合法 JSON: {error}"))
 }
 
 /// 两份官方 JSON → 精简索引（与 `scripts/sync-modelsdev.mjs` 逐字同口径）。

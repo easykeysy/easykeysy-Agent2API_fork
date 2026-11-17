@@ -91,7 +91,7 @@ pub(super) fn import_config(conn: &Connection, dir: &Path) -> Option<LegacyOutco
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 配置迁移失败：读取数据库失败（{error}）"),
+                &format!("❌ 配置迁移失败：读取数据库失败（{error})"),
             );
             return None;
         }
@@ -101,7 +101,7 @@ pub(super) fn import_config(conn: &Connection, dir: &Path) -> Option<LegacyOutco
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 配置迁移失败：无法读取 {}（{error}）", path.display()),
+                &format!("❌ 配置迁移失败：无法读取 {}（{error})", path.display()),
             );
             return None;
         }
@@ -121,7 +121,7 @@ pub(super) fn import_config(conn: &Connection, dir: &Path) -> Option<LegacyOutco
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 配置迁移失败：{}（{error}）", path.display()),
+                &format!("❌ 配置迁移失败：{}（{error})", path.display()),
             );
             return None;
         }
@@ -133,7 +133,7 @@ pub(super) fn import_config(conn: &Connection, dir: &Path) -> Option<LegacyOutco
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 配置迁移失败：{}（{error}）", path.display()),
+                &format!("❌ 配置迁移失败：{}（{error})", path.display()),
             );
             return None;
         }

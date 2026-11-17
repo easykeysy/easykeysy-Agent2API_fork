@@ -59,9 +59,9 @@ export function groupScheduleRows(rows: ScheduleProviderRow[]): ScheduleTimeGrou
 }
 
 export function scheduleGroupLabel(group: ScheduleTimeGroup, entry: ScheduleEntry): string {
-  if (group.rows.every(row => !row.builtin && !entry.providerTimes?.[row.id])) return t('跟随默认时间')
-  if (group.rows.every(row => row.builtin === row.time && !entry.providerTimes?.[row.id])) return t('平台专属时间')
-  return t('自定义时间')
+  if (group.rows.every(row => !row.builtin && !entry.providerTimes?.[row.id])) return t('Follows default time')
+  if (group.rows.every(row => row.builtin === row.time && !entry.providerTimes?.[row.id])) return t('Platform-specific time')
+  return t('Custom time')
 }
 
 export function schedulePayload(entry: ScheduleEntry, changes: Record<string, unknown> = {}): Record<string, unknown> {

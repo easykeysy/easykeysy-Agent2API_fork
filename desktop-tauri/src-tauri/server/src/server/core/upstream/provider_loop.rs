@@ -240,8 +240,8 @@ fn defer_to_next_account(
     logging::console_line(
         "[Upstream]",
         &format!(
-            "⚠️ 账号 {} 对模型 {model} {stage}（HTTP {status_code}），\
-             按队列顺延 → {}（优先级 {}{next_home}）",
+            "⚠️ Account {} 对模型 {model} {stage}（HTTP {status_code}），\
+             按队列顺延 → {}（优先级 {}{next_home})",
             account_label(target.account.as_ref(), &target.account_id.clone().unwrap_or_default(), &session),
             account_display(&next),
             next.get("priority")
@@ -318,7 +318,7 @@ pub(super) fn transient_retry_advice(status: u16, remaining: usize) -> Option<Re
     }
     Some(RetryAdvice {
         delay_ms: config::retry_settings().delay_ms(),
-        reason: format!("上游瞬时错误（HTTP {status}）"),
+        reason: format!("上游瞬时错误（HTTP {status})"),
     })
 }
 
@@ -399,7 +399,7 @@ pub(super) fn fallback_retry_advice(
 /// 一个已经算好的数）。改造前这句整句由适配器与两个兜底函数各自拼好，
 /// 措辞与现在一致，只是分隔符统一成「；」（原先瞬时错误与连接失败那两句用「，」）。
 fn retry_log_line(reason: &str, delay_ms: u64, used: usize, total: usize) -> String {
-    format!("⚠️ {reason}；{} 秒后重试（第 {used}/{total} 次）", delay_ms / 1000)
+    format!("⚠️ {reason}; {} 秒后重试（第 {used}/{total} 次）", delay_ms / 1000)
 }
 
 /// 转发入口：在候选家的全部账号里按全局优先级逐个尝试。
@@ -460,7 +460,7 @@ pub(super) async fn forward_with_providers(
         logging::verbose(
             "[Upstream]",
             &format!(
-                "模型 {} 不在聚合目录中，按默认提供商转发",
+                "Model {} 不在聚合目录中，按默认提供商转发",
                 if model.is_empty() { "(未指定)" } else { &model },
             ),
         );
@@ -491,7 +491,7 @@ pub(super) async fn forward_with_providers(
             };
             return Err(GatewayError::with_status(
                 503,
-                format!("模型 {model} 没有可参与转发的提供商：当前路由的参与范围将候选全部排除。{hint}"),
+                format!("Model {model} 没有可参与转发的提供商：当前路由的参与范围将候选全部排除。{hint}"),
             ));
         }
         if ctx.compact_routed {
@@ -519,7 +519,7 @@ pub(super) async fn forward_with_providers(
     logging::verbose(
         "[Upstream]",
         &format!(
-            "候选提供商 {}（按账号全局优先级选路{}）",
+            "候选提供商 {}（按账号全局优先级选路{})",
             provider_ids.join(" / "),
             if with_mapping { "，含映射" } else { "" },
         ),
@@ -571,14 +571,14 @@ fn filter_by_key_scope(
     logging::console_line(
         "[Security]",
         &format!(
-            "🚫 请求被网关 Key 的可用提供商拒绝: 模型 {model}（{}）",
+            "🚫 请求被网关 Key 的可用提供商拒绝: Model {model}（{})",
             scope.describe()
         ),
     );
     Err(GatewayError::with_status(
         404,
         format!(
-            "模型 '{model}' 不可用：提供它的提供商都不在这把网关 Key 的可用提供商列表里（{}）",
+            "Model '{model}' 不可用：提供它的提供商都不在这把网关 Key 的可用提供商列表里（{})",
             scope.describe()
         ),
     )
@@ -599,7 +599,7 @@ async fn attempt_queue(
     connections: &mut ConnectionGuard,
 ) -> Result<ForwardOutcome, GatewayError> {
     let model = model_of(ctx.body);
-    let model_label = if model.is_empty() { "(默认)".to_string() } else { model.clone() };
+    let model_label = if model.is_empty() { "(Default)".to_string() } else { model.clone() };
     // 限额冷却键的解析器：把请求名解析成**各家上游真名**（见 `routing::CooldownKeys`）。
     // 建一次、整条请求共用 —— 选路、429 记账、成功清理三处读的必须是同一个键，
     // 否则冷却会写在一个名字上、查在另一个名字上。
@@ -832,7 +832,7 @@ async fn attempt_queue(
                             logging::console_line(
                                 "[Upstream]",
                                 &format!(
-                                    "⚠️ 自定义转发失败，按队列顺延 → {}（优先级 {}）",
+                                    "⚠️ 自定义转发失败，按队列顺延 → {}（优先级 {})",
                                     account_display(&next),
                                     next.get("priority").and_then(Value::as_i64)
                                         .map(|value| value.to_string())
@@ -955,7 +955,7 @@ async fn attempt_queue(
                         let group = adapter.quota_cooldown_models(account_id, &wire);
                         mark_conversation_limited(service, account_id, &group, &class, &error.message);
                         let label = if group.len() > 1 {
-                            format!("{} 等 {} 个模型（福利池按账号记账）",
+                            format!("{} etc. {} 个模型（福利池按账号记账）",
                                     group.first().cloned().unwrap_or_else(|| wire.clone()),
                                     group.len())
                         } else {
@@ -989,7 +989,7 @@ async fn attempt_queue(
                             logging::console_line(
                                 "[Upstream]",
                                 &format!(
-                                    "⚠️ 会话式转发失败，按队列顺延 → {}（优先级 {}）",
+                                    "⚠️ 会话式转发失败，按队列顺延 → {}（优先级 {})",
                                     account_display(&next),
                                     next.get("priority").and_then(Value::as_i64)
                                         .map(|value| value.to_string())
@@ -1066,7 +1066,7 @@ async fn attempt_queue(
                 Err(error) => logging::verbose(
                     "[Upstream]",
                     &format!(
-                        "账号 {account_id} 的凭证准备失败（沿用现有 token）: {}",
+                        "Account {account_id} 的凭证准备失败（沿用现有 token): {}",
                         error.message
                     ),
                 ),
@@ -1320,7 +1320,7 @@ async fn attempt_queue(
             logging::verbose(
                 "[Upstream]",
                 &format!(
-                    "POST {} model={} stream={} uid={} priority={} 出口={} msgs={} provider={provider_id}",
+                    "POST {} model={} stream={} uid={} priority={} Exit={} msgs={} provider={provider_id}",
                     plan.url,
                     model_label,
                     ctx.stream,
@@ -1414,7 +1414,7 @@ async fn attempt_queue(
                             crate::server::core::blocking::in_place(|| service.store.set_needs_relogin(account_id, None));
                             logging::log(
                                 "[Upstream]",
-                                &format!("账号 {account_id} 转发成功，已清除「需要重新登录」标记"),
+                                &format!("Account {account_id} 转发成功，已清除「需要重新登录」标记"),
                             );
                         }
                     }
@@ -1562,14 +1562,14 @@ async fn attempt_queue(
                         // 与退避重试同一落点 —— 请求日志的重试链因此能回答
                         // 「这一轮重试过没有、为什么」，运行日志不再写这一行。
                         ctx.telemetry.note_attempt_retry(
-                            &format!("token 被上游拒绝（401），刷新后重试一次（账号 {account_id}）"),
+                            &format!("token 被上游拒绝（401），刷新后重试一次（账号 {account_id})"),
                             Some(i64::from(failure.error.status_code)),
                             0,
                         );
                         logging::console_line(
                             "[Upstream]",
                             &format!(
-                                "token 被上游拒绝（401），尝试刷新后重试一次（账号 {account_id}）"
+                                "token 被上游拒绝（401），尝试刷新后重试一次（账号 {account_id})"
                             ),
                         );
                         if adapter
@@ -1598,7 +1598,7 @@ async fn attempt_queue(
                             logging::log(
                                 "[Upstream]",
                                 &format!(
-                                    "账号 {account_id} 的凭证续期失败，本次 401 无法通过重试恢复\
+                                    "Account {account_id} 的凭证续期失败，本次 401 无法通过重试恢复\
                                      （请检查该账号的 refreshToken 是否仍有效）"
                                 ),
                             );
@@ -1635,7 +1635,7 @@ async fn attempt_queue(
                                 logging::log(
                                     "[Upstream]",
                                     &format!(
-                                        "账号 {account_id} 的登录态已被上游注销（该家无续期手段），\
+                                        "Account {account_id} 的登录态已被上游注销（该家无续期手段），\
                                          已标记为「需要重新登录」"
                                     ),
                                 );
@@ -1731,8 +1731,8 @@ async fn attempt_queue(
                                     logging::console_line(
                                         "[Upstream]",
                                         &format!(
-                                            "⚠️ 账号 {from_label} 对模型 {limit_label} 已限额{reset_hint}，\
-                                             按优先级降级 → {next_label}（优先级 {}{next_home}）",
+                                            "⚠️ Account {from_label} 对模型 {limit_label} 已限额{reset_hint}, \
+                                             按优先级降级 → {next_label}（优先级 {}{next_home})",
                                             next_priority
                                                 .map(|value| value.to_string())
                                                 .unwrap_or_else(|| "-".to_string()),
@@ -1745,7 +1745,7 @@ async fn attempt_queue(
                                     rotate::report_limit_event(
                                         "warn",
                                         &format!(
-                                            "账号「{from_label}」对模型 {limit_label} 已限额{reset_hint}，\
+                                            "账号「{from_label}」对模型 {limit_label} 已限额{reset_hint}, \
                                              按优先级降级 → 「{next_label}」",
                                         ),
                                         Some(&from_label),
@@ -1776,19 +1776,19 @@ async fn attempt_queue(
                                         if text.is_empty() {
                                             String::new()
                                         } else {
-                                            format!("，最早 {text} 恢复")
+                                            format!("，最早 {text} Restore")
                                         }
                                     } else {
                                         String::new()
                                     };
                                     let message = format!(
-                                        "{}（所有候选账号对模型 {model} 均已限额或禁用{wait_hint}）",
+                                        "{}（所有候选账号对模型 {model} 均已限额或禁用{wait_hint})",
                                         failure.error.message
                                     );
                                     rotate::report_limit_event(
                                         "error",
                                         &format!(
-                                            "模型 {limit_label} 在所有候选账号均已限额或禁用，\
+                                            "Model {limit_label} 在所有候选账号均已限额或禁用，\
                                              无法继续转发（尝试过 {} 个账号）",
                                             tried_ids.len(),
                                         ),
@@ -1847,7 +1847,7 @@ async fn attempt_queue(
                                     logging::console_line(
                                         "[Upstream]",
                                         &format!(
-                                            "⛔ 账号 {} 连续失败 {} 次，熔断 {} 秒（到点放行试一次，\
+                                            "⛔ Account {} 连续失败 {} 次，熔断 {} 秒（到点放行试一次，\
                                              连续成功 {} 次恢复）",
                                             account_display(target.account.as_ref().unwrap_or(&serde_json::Value::Null)),
                                             route_settings.breaker_threshold,
@@ -1898,7 +1898,7 @@ async fn attempt_queue(
         logging::verbose(
             "[Upstream]",
             &format!(
-                "上游响应 HTTP {}（{}ms）",
+                "上游响应 HTTP {}（{}ms)",
                 response.status().as_u16(),
                 logging::now_ms() - started_at
             ),
@@ -1995,7 +1995,7 @@ async fn attempt_queue(
                             logging::console_line(
                                 "[Upstream]",
                                 &format!(
-                                    "⚠️ {provider_id} 账号 {account_id} 配额拒绝（正文标记命中），已限流{reset_text}"
+                                    "⚠️ {provider_id} Account {account_id} 配额拒绝（正文标记命中），已限流{reset_text}"
                                 ),
                             );
                         }
@@ -2023,7 +2023,7 @@ async fn attempt_queue(
                         // 同一个数）—— 只读 body 的客户端也知道要等多久。
                         let when = if refusal_reset_at > 0 {
                             format!(
-                                "，额度预计在 {} 重置",
+                                "，额度预计在 {} Reset",
                                 crate::server::errors::format_reset_at_text(refusal_reset_at)
                             )
                         } else {
@@ -2071,8 +2071,8 @@ async fn attempt_queue(
                             logging::console_line(
                                 "[Upstream]",
                                 &format!(
-                                    "⚠️ 账号 {} 对模型 {model} 上游拒答（HTTP {}），\
-                                     按队列顺延 → {}（优先级 {}{next_home}）",
+                                    "⚠️ Account {} 对模型 {model} 上游拒答（HTTP {}），\
+                                     按队列顺延 → {}（优先级 {}{next_home})",
                                     account_label(
                                         target.account.as_ref(),
                                         &target.account_id.clone().unwrap_or_default(),
@@ -2410,7 +2410,7 @@ async fn attempt_custom(
     logging::verbose(
         "[Upstream]",
         &format!(
-            "自定义转发 model={} stream={} account={} priority={} 出口={} provider={provider_id}",
+            "自定义转发 model={} stream={} account={} priority={} Exit={} provider={provider_id}",
             limit_model_label(&model_of(ctx.body), &custom_forward::cooldown_model(&provider_id, &model_of(ctx.body))),
             ctx.stream,
             target.account_id.as_deref().unwrap_or("-"),
@@ -2477,7 +2477,7 @@ async fn attempt_custom(
                 ).await;
                 logging::verbose(
                     "[Upstream]",
-                    &format!("自定义转发完成: HTTP {status}（{}ms）", logging::now_ms() - started_at),
+                    &format!("自定义转发完成: HTTP {status}（{}ms)", logging::now_ms() - started_at),
                 );
                 ctx.telemetry.finish_last_attempt(Some(status), None);
                 return Ok(outcome);
@@ -2603,7 +2603,7 @@ async fn attempt_stateful(
             logging::verbose(
                 "[Upstream]",
                 &format!(
-                    "账号 {account_id} 的凭证准备失败（继续尝试转发）: {}",
+                    "Account {account_id} 的凭证准备失败（继续尝试转发）: {}",
                     error.message
                 ),
             );
@@ -2647,7 +2647,7 @@ async fn attempt_stateful(
     logging::verbose(
         "[Upstream]",
         &format!(
-            "会话式转发 model={} stream={} account={} priority={} 出口={} provider={provider_id}",
+            "会话式转发 model={} stream={} account={} priority={} Exit={} provider={provider_id}",
             limit_model_label(&model, wire_model),
             ctx.stream,
             target.account_id.as_deref().unwrap_or("-"),
@@ -2691,7 +2691,7 @@ async fn attempt_stateful(
             ).await;
             logging::verbose(
                 "[Upstream]",
-                &format!("会话式转发完成（{}ms）", logging::now_ms() - started_at),
+                &format!("会话式转发完成（{}ms)", logging::now_ms() - started_at),
             );
             // 明细定稿：这条路径的成功标志是「outcome 拿到了」（会话式转发的
             // 状态码由协议层自定，取不到上游 HTTP 码），所以 status 给 None、
@@ -2862,7 +2862,7 @@ fn limit_model_label(requested: &str, wire: &str) -> String {
     let wire = wire.trim();
     if wire.is_empty() {
         // 没有真名（请求体没带 model）：退回请求名，与改造前逐字一致
-        return if requested.is_empty() { "(默认)".to_string() } else { requested.to_string() };
+        return if requested.is_empty() { "(Default)".to_string() } else { requested.to_string() };
     }
     if requested.is_empty() || requested.eq_ignore_ascii_case(wire) {
         return wire.to_string();
@@ -3126,7 +3126,7 @@ async fn send_with_retry(
                 Ok(detail) => detail,
                 Err(_elapsed) => super::request::UpstreamErrorDetail {
                     code: None,
-                    message: format!("非流式响应超时({}秒)", budget.as_secs()),
+                    message: format!("Non-Streaming Timeout({}seconds)", budget.as_secs()),
                     payload: None,
                 },
             }

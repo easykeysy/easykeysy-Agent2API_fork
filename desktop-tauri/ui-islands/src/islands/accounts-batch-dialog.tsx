@@ -24,22 +24,22 @@ import { readUsageDraft, UsageSettingsSection, usageDraftOf, type UsageDraft } f
 import { draftOfProxy, ProxyForm, readProxyDraft, type ProxyDraft } from './accounts-proxy-form'
 
 const BATCH_ACTIONS = [
-  { value: 'enable', label: () => t('启用') },
-  { value: 'disable', label: () => t('禁用') },
-  { value: 'refresh', label: () => t('刷新 Token') },
-  { value: 'proxy', label: () => t('修改代理') },
-  { value: 'concurrency', label: () => t('设置并发上限') },
-  { value: 'usageQuery', label: () => t('查询设置') },
-  { value: 'limiters', label: () => t('限制器') },
-  { value: 'remove', label: () => t('删除') },
+  { value: 'enable', label: () => t('enabled') },
+  { value: 'disable', label: () => t('Disable') },
+  { value: 'refresh', label: () => t('Refresh token') },
+  { value: 'proxy', label: () => t('Change proxy') },
+  { value: 'concurrency', label: () => t('Set concurrency limit') },
+  { value: 'usageQuery', label: () => t('Query settings') },
+  { value: 'limiters', label: () => t('Limiter') },
+  { value: 'remove', label: () => t('Delete') },
 ] as const
 
 const LIMITER_MODES: Array<{ value: BatchLimiterMode; label: () => string }> = [
-  { value: 'append', label: () => t('追加规则（保留原有）') },
-  { value: 'replace', label: () => t('替换全部规则') },
-  { value: 'enable', label: () => t('启用全部规则') },
-  { value: 'disable', label: () => t('停用全部规则') },
-  { value: 'clear', label: () => t('清空全部规则') },
+  { value: 'append', label: () => t('Append rules (keep existing)') },
+  { value: 'replace', label: () => t('Replace all rules') },
+  { value: 'enable', label: () => t('Enable all rules') },
+  { value: 'disable', label: () => t('Disable all rules') },
+  { value: 'clear', label: () => t('Clear all rules') },
 ]
 
 function labelOf(account: AccountRecord | null | undefined): string {
@@ -75,7 +75,7 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
   const allowRotate = accounts.length > 0 && accounts.every(supportsProxyRotate)
   const destructive = current === 'remove' || (current === 'limiters' && (limiterMode === 'replace' || limiterMode === 'clear'))
   const verb = current === 'limiters'
-    ? (limiterMode === 'append' ? t('追加限制规则') : LIMITER_MODES.find(item => item.value === limiterMode)!.label())
+    ? (limiterMode === 'append' ? t('Append limiter rules') : LIMITER_MODES.find(item => item.value === limiterMode)!.label())
     : BATCH_ACTIONS.find(item => item.value === current)!.label()
 
   function copySettings(): void {
@@ -83,16 +83,16 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
     if (current === 'usageQuery') setUsageDraft(usageDraftOf(source))
     else setLimiterDraft(limiterDraftOf(source))
     setResult('')
-    toast(t('已复制到草稿，执行后才会应用到所选账号'))
+    toast(t('Copied to the draft; applies to the selected accounts only after running'))
   }
 
   async function confirmOperation(): Promise<boolean> {
     const ask = shared().wbConfirm?.ask
     if (current === 'remove') {
       const ok = await Promise.resolve(ask?.({
-        title: t('删除选中的账号'),
-        html: t('确定删除选中的 <strong>{count}</strong> 个账号？此操作不可恢复，账号的登录态会一并移除。', { count: ids.length }),
-        okText: t('删除'), okClass: 'danger',
+        title: t('Delete selected accounts'),
+        html: t('Delete the selected <strong>{count}</strong> accounts? This cannot be undone, and their login state will be removed as well.', { count: ids.length }),
+        okText: t('Delete'), okClass: 'danger',
       }) ?? false)
       if (!ok) return false
     }
@@ -100,30 +100,30 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
       const picked = new Set(ids)
       const survivors = allAccounts().filter(account => account.enabled !== false && !picked.has(account.id))
       if (!survivors.length) {
-        const what = current === 'remove' ? t('删除') : t('禁用')
+        const what = current === 'remove' ? t('Delete') : t('Disable')
         return Promise.resolve(ask?.({
-          title: t('全部启用中的账号将被{what}', { what }),
-          html: t('这会<strong>{what}</strong>所有启用中的账号，转发将不可用。确定继续？', { what }),
+          title: t('This will {what} all enabled accounts', { what }),
+          html: t('This will <strong>{what}</strong> all enabled accounts, and forwarding will be unavailable. Continue?', { what }),
           okText: what, okClass: current === 'remove' ? 'danger' : 'primary',
         }) ?? false)
       }
     }
     if (current === 'limiters' && limiterMode === 'replace') {
       return Promise.resolve(ask?.({
-        title: t('替换选中账号的限制规则'),
-        html: t('将用草稿中的 <strong>{rules}</strong> 条规则替换 <strong>{count}</strong> 个账号的全部限制规则，原有规则不会保留。确定继续？', {
+        title: t('Replace selected accounts’ limiter rules'),
+        html: t('Replace all limiter rules of <strong>{count}</strong> accounts with the <strong>{rules}</strong> draft rules? Existing rules will not be kept.', {
           rules: limiterDraft.length, count: targets.length,
-        }) + (skippedAccounts.length ? `<p>${t('以下 {count} 个账号不支持余额查询，本次会跳过：{names}', {
-          count: skippedAccounts.length, names: esc(skippedAccounts.map(labelOf).join(t('、'))),
+        }) + (skippedAccounts.length ? `<p>${t('These {count} accounts do not support balance queries and will be skipped: {names}', {
+          count: skippedAccounts.length, names: esc(skippedAccounts.map(labelOf).join(t(', '))),
         })}</p>` : ''),
-        okText: t('替换全部规则'), okClass: 'danger',
+        okText: t('Replace all rules'), okClass: 'danger',
       }) ?? false)
     }
     if (current === 'limiters' && limiterMode === 'clear') {
       return Promise.resolve(ask?.({
-        title: t('清空选中账号的限制规则'),
-        html: t('确定清空 <strong>{count}</strong> 个账号的全部限制规则？余额与 Token 将不再设限；已禁用的账号不会自动启用。', { count: targets.length }),
-        okText: t('清空全部规则'), okClass: 'danger',
+        title: t('Clear selected accounts’ limiter rules'),
+        html: t('Clear all limiter rules from <strong>{count}</strong> accounts? Balance and Token limits will be removed; disabled accounts will not be enabled automatically.', { count: targets.length }),
+        okText: t('Clear all rules'), okClass: 'danger',
       }) ?? false)
     }
     return true
@@ -131,15 +131,15 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
 
   async function run(): Promise<void> {
     if (running.current) return
-    if (!ids.length) { toast(t('没有选中的账号'), 'err'); return }
-    if (!targets.length) { toast(t('没有适用于本次操作的账号'), 'err'); return }
+    if (!ids.length) { toast(t('No accounts selected'), 'err'); return }
+    if (!targets.length) { toast(t('No accounts eligible for this operation'), 'err'); return }
     const payload: BatchAccountsPayload = { action: current, ids }
     try {
       if (current === 'proxy') payload.proxy = readProxyDraft(proxyDraft)
       if (current === 'concurrency') {
         const raw = Number(concDraft.trim())
         if (!concDraft.trim() || !Number.isFinite(raw) || raw < 0) {
-          throw new Error(t('并发上限必须是 0~{max} 的整数', { max: CONC_MAX }))
+          throw new Error(t('Concurrency limit must be an integer from 0 to {max}', { max: CONC_MAX }))
         }
         payload.maxConcurrent = Math.min(CONC_MAX, Math.round(raw))
       }
@@ -151,10 +151,10 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
       if (current === 'limiters') {
         payload.limiterMode = limiterMode
         if (editingRules) {
-          if (!limiterDraft.length) throw new Error(t('请至少添加一条限制规则；清空请使用清空操作'))
+          if (!limiterDraft.length) throw new Error(t('Add at least one limiter rule; use the clear operation to remove all rules'))
           if (limiterDraft.some(group => group.conditions.some(condition =>
             condition.sourceId !== '' && condition.sourceId !== 'local' && condition.sourceId !== 'account'))) {
-            throw new Error(t('套餐实例不能跨账号复制，请改用通用额度或本地保护条件'))
+            throw new Error(t('Plan instances cannot be copied between accounts. Use a general quota or local protection condition instead.'))
           }
           payload.limiterGroups = structuredClone(limiterDraft)
         }
@@ -176,7 +176,7 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
         data = await refreshAccountTokens(ids, setRefreshProgress)
       } else {
         const bridge = shared().workbuddyDesktop
-        if (!bridge?.batchAccounts) throw new Error(t('批量操作接口不可用，请重新打开页面'))
+        if (!bridge?.batchAccounts) throw new Error(t('Bulk operation service is unavailable; reopen the page'))
         data = confirmBatchResult(await bridge.batchAccounts(payload), payload)
       }
       const accepted = data.ok || []
@@ -186,21 +186,21 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
       const failed = data.failed || []
       const skipped = data.skipped || []
       const summary = current === 'refresh'
-        ? t('刷新 Token 完成：成功 {ok} 个，跳过 {skip} 个，失败 {fail} 个', {
+        ? t('Token refresh complete: {ok} succeeded, {skip} skipped, {fail} failed', {
           ok: changed, skip: skipped.length, fail: failed.length,
         })
-        : t('{verb}完成：成功 {ok} 个，未变更 {unchanged} 个，跳过 {skip} 个，失败 {fail} 个', {
+        : t('{verb} completed: {ok} changed, {unchanged} unchanged, {skip} skipped, {fail} failed', {
           verb, ok: changed, unchanged, skip: skipped.length, fail: failed.length,
         })
       toast(summary, failed.length ? 'err' : 'ok')
       if (failed.length || skipped.length) {
         setResult(<div role='status' className='space-y-2'>
           <p>{summary}</p>
-          {skipped.length ? <p>{t('跳过 {count} 个：', { count: skipped.length })}
-            {skipped.map(item => `${labelOf(findAccount(String(item.id))) || item.name || item.id}（${item.reason}）`).join(t('；'))}
+          {skipped.length ? <p>{t('{count} skipped: ', { count: skipped.length })}
+            {skipped.map(item => `${labelOf(findAccount(String(item.id))) || item.name || item.id}（${item.reason}）`).join(t('; '))}
           </p> : null}
-          {failed.length ? <p className='text-destructive'>{t('失败 {count} 个：', { count: failed.length })}
-            {failed.map(item => `${labelOf(findAccount(String(item.id))) || item.id}（${item.error}）`).join(t('；'))}
+          {failed.length ? <p className='text-destructive'>{t('{count} failed:', { count: failed.length })}
+            {failed.map(item => `${labelOf(findAccount(String(item.id))) || item.id}（${item.error}）`).join(t('; '))}
           </p> : null}
         </div>)
       } else {
@@ -210,11 +210,11 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
         await refreshSavedAccounts()
         await syncBalancesSnapshot()
       } catch (error) {
-        toast(t('批量操作已保存，但列表刷新失败：{error}', { error: errorMessage(error) }), 'err')
+        toast(t('Bulk changes were saved, but the list failed to refresh: {error}', { error: errorMessage(error) }), 'err')
       }
     } catch (error) {
       setResult(<span className='text-destructive'>{errorMessage(error)}</span>)
-      toast(t('批量操作失败：{error}', { error: errorMessage(error) }), 'err')
+      toast(t('Batch operation failed: {error}', { error: errorMessage(error) }), 'err')
     } finally {
       running.current = false
       setBusy(false)
@@ -225,27 +225,27 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
   return (
     <Dialog open onOpenChange={next => { if (next || busy) return; onClose() }}>
       <DialogContent className='w-[min(900px,calc(100vw-48px))]' showCloseButton={!busy}>
-        <DialogHeader><DialogTitle>{t('批量操作 · 已选 {count} 个账号', { count: ids.length })}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t('Batch operation · {count} accounts selected', { count: ids.length })}</DialogTitle></DialogHeader>
         <DialogBody>
           <FieldSet disabled={busy} className='m-0 flex min-w-0 flex-col gap-4 border-0 p-0'>
             <DialogSection>
-              <h3>{t('将作用于以下账号')}</h3>
-              <p className='max-h-[84px] overflow-y-auto'>{targets.map(labelOf).join(t('、')) || t('没有适用于本次操作的账号')}</p>
+              <h3>{t('Applies to the following accounts')}</h3>
+              <p className='max-h-[84px] overflow-y-auto'>{targets.map(labelOf).join(t(', ')) || t('No accounts eligible for this operation')}</p>
               {skippedAccounts.length ? <p className='max-h-[84px] overflow-y-auto'>{current === 'refresh'
-                ? <>{t('跳过 {count} 个：', { count: skippedAccounts.length })}
-                  {skippedAccounts.map(account => `${labelOf(account)}（${tokenRefreshSkipReason(account)}）`).join(t('；'))}
+                ? <>{t('{count} skipped: ', { count: skippedAccounts.length })}
+                  {skippedAccounts.map(account => `${labelOf(account)}（${tokenRefreshSkipReason(account)}）`).join(t('; '))}
                 </>
-                : t('以下 {count} 个账号不支持余额查询，本次会跳过：{names}', {
-                  count: skippedAccounts.length, names: skippedAccounts.map(labelOf).join(t('、')),
+                : t('These {count} accounts do not support balance queries and will be skipped: {names}', {
+                  count: skippedAccounts.length, names: skippedAccounts.map(labelOf).join(t(', ')),
                 })}</p> : null}
               {current === 'refresh'
-                ? <p>{t('逐个刷新所选账号的 Token，未到期也会尝试刷新；不改变启用状态、代理或转发顺序。')}</p>
-                : current !== 'remove' ? <p>{t('只修改本次选择的设置，不影响备注、凭证、转发顺序或其他设置。')}</p> : null}
+                ? <p>{t('Refresh tokens for the selected accounts one at a time, even if they have not expired. Enabled status, proxies, and forwarding order are kept.')}</p>
+                : current !== 'remove' ? <p>{t('Only changes the chosen settings; labels, credentials, forwarding order, and other settings are kept.')}</p> : null}
             </DialogSection>
             <DialogSection>
-              <h3>{t('操作')}</h3>
+              <h3>{t('Actions')}</h3>
               <RadioGroup value={current} onValueChange={value => { setCurrent(value); setResult('') }}
-                disabled={busy} className='flex-row flex-wrap items-center gap-5' aria-label={t('批量动作')}>
+                disabled={busy} className='flex-row flex-wrap items-center gap-5' aria-label={t('Batch action')}>
                 {BATCH_ACTIONS.map(item => <Label key={item.value} className='inline-flex cursor-pointer items-center gap-2 font-normal'>
                   <RadioGroupItem value={item.value} />{item.label()}
                 </Label>)}
@@ -255,19 +255,19 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
               </div> : null}
               {current === 'concurrency' ? <div className='mt-2.5'>
                 <Field orientation='horizontal' className='field-row'>
-                  <FieldLabel htmlFor='batch-conc-input'>{t('并发上限')}</FieldLabel>
+                  <FieldLabel htmlFor='batch-conc-input'>{t('Concurrency limit')}</FieldLabel>
                   <Input id='batch-conc-input' type='number' min={0} max={CONC_MAX} step={1}
-                    className='max-w-[110px]' placeholder={t('并发上限')} value={concDraft}
+                    className='max-w-[110px]' placeholder={t('Concurrency limit')} value={concDraft}
                     onChange={event => setConcDraft(event.currentTarget.value)} />
-                  <span className='detail'>{t('0 = 不限')}</span>
+                  <span className='detail'>{t('0 = unlimited')}</span>
                 </Field>
                 <p className='detail mt-2.5'>{concHardCap > 0
-                  ? t('并发上限 0~{max}；CodeArts 等有默认值的家填 0 即按本家默认；达到上限的账号会被跳过、请求转给其他账号', { max: CONC_MAX })
-                  : t('并发上限 0~{max}；达到上限的账号会被跳过、请求转给其他账号', { max: CONC_MAX })}</p>
+                  ? t('Concurrency limit 0–{max}; for providers with a default (e.g. CodeArts), 0 means that default; accounts at the limit are skipped and requests go to other accounts', { max: CONC_MAX })
+                  : t('Concurrency limit 0–{max}; accounts at the limit are skipped and requests go to other accounts', { max: CONC_MAX })}</p>
               </div> : null}
               {current === 'limiters' ? <div className='mt-2.5'>
                 <Field orientation='horizontal' className='field-row'>
-                  <FieldLabel htmlFor='batch-limiter-mode'>{t('规则操作')}</FieldLabel>
+                  <FieldLabel htmlFor='batch-limiter-mode'>{t('Rule operation')}</FieldLabel>
                   <Select value={limiterMode} onValueChange={value => { setLimiterMode(value as BatchLimiterMode); setResult('') }}>
                     <SelectTrigger id='batch-limiter-mode' className='min-w-[220px]'>
                       <SelectValue>{LIMITER_MODES.find(item => item.value === limiterMode)!.label()}</SelectValue>
@@ -276,47 +276,47 @@ export function BatchDialog({ ids, action, onClose }: { ids: string[]; action: s
                   </Select>
                 </Field>
                 <p className='detail mt-2.5'>{limiterMode === 'append'
-                  ? t('保留各账号原有规则，只追加下面的规则；完全相同的规则不会重复添加。')
+                  ? t('Keeps each account’s existing rules and appends the rules below; identical rules are not added twice.')
                   : limiterMode === 'replace'
-                    ? t('用下面的规则统一替换各账号的全部规则，执行前会再次确认。')
+                    ? t('Replaces every account’s entire rule list with the rules below; confirmation is required before running.')
                     : limiterMode === 'clear'
-                      ? t('删除各账号的全部限制规则，执行前会再次确认。')
-                      : t('仅统一修改现有规则的开关，保留阈值、动作和重置方式；不改变账号的启用状态。')}</p>
+                      ? t('Removes every account’s limiter rules; confirmation is required before running.')
+                      : t('Only changes existing rule switches; thresholds, actions, reset modes, and account enabled states are kept.')}</p>
               </div> : null}
               {current === 'usageQuery' || editingRules ? <div className='mt-2.5'>
                 <Field orientation='horizontal' className='field-row'>
-                  <FieldLabel htmlFor='batch-settings-source'>{t('复制自账号')}</FieldLabel>
+                  <FieldLabel htmlFor='batch-settings-source'>{t('Copy from account')}</FieldLabel>
                   <Select value={source?.id || ''} disabled={!copyOptions.length} onValueChange={value => setSourceId(String(value))}>
                     <SelectTrigger id='batch-settings-source' className='min-w-0 flex-1'>
-                      <SelectValue>{source ? labelOf(source) : t('选择所选账号作为模板（可选）')}</SelectValue>
+                      <SelectValue>{source ? labelOf(source) : t('Choose a selected account as a template (optional)')}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>{copyOptions.map(account => <SelectItem key={account.id} value={account.id}>{labelOf(account)}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Button variant='outline' size='sm' disabled={!source} onClick={copySettings}>{t('复制当前设置')}</Button>
+                  <Button variant='outline' size='sm' disabled={!source} onClick={copySettings}>{t('Copy current settings')}</Button>
                 </Field>
                 {current === 'usageQuery' ? <>
                   <UsageSettingsSection draft={usageDraft} onChange={setUsageDraft} idPrefix='batch-usage' />
-                  <p className='detail mt-2.5'>{t('统一设置自动查询的开关、间隔和失败重试次数；不会复制或覆盖余额查询凭证。')}</p>
+                  <p className='detail mt-2.5'>{t('Sets the auto-query switch, interval, and retry count; balance query credentials are never copied or overwritten.')}</p>
                 </> : <LimiterSection draft={limiterDraft} onChange={setLimiterDraft} allowBalance={usageAccounts.length > 0} />}
               </div> : null}
               {current === 'usageQuery' && !usageDraft.enabled ? <p className='detail mt-2.5'>
-                {t('关闭自动查询后，余额限制器只能使用上次读数；手动查询仍可用。')}
+                {t('With auto-query off, balance limiters use the last reading; manual queries remain available.')}
               </p> : null}
               {current === 'limiters' ? <p className='detail mt-2.5'>
-                {t('Token 规则按每个账号已有的窗口消耗判定，保存不会清零；停用或清空规则不会自动启用账号。')}
+                {t('Token rules use each account’s existing window usage; saving does not reset usage. Disabling or clearing rules does not enable accounts.')}
               </p> : null}
             </DialogSection>
           </FieldSet>
           {refreshProgress ? <p role='status' className='detail'>
-            {t('刷新 Token：已处理 {completed}/{total} 个，当前账号：{name}', refreshProgress)}
+            {t('Refreshing tokens: {completed}/{total} processed, current account: {name}', refreshProgress)}
           </p> : null}
           <div className='detail min-h-[18px]'>{result}</div>
         </DialogBody>
         <DialogFooter>
           <div className='mr-auto' />
-          <Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
+          <Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
           <Button variant={destructive ? 'destructive' : 'default'} disabled={busy || !targets.length} onClick={() => void run()}>
-            {busy ? t('执行中…') : t('执行（{action}）', { action: verb })}
+            {busy ? t('Running…') : t('Run ({action})', { action: verb })}
           </Button>
         </DialogFooter>
       </DialogContent>

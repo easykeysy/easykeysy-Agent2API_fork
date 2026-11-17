@@ -31,13 +31,13 @@ $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    throw "需要管理员权限。请以管理员身份打开 PowerShell，再运行安装脚本。"
+    throw "Administrator rights are required. Open PowerShell as an administrator, then run the install script."
 }
 
 function Invoke-ServiceCommand {
     param([string[]]$Arguments)
     & "$env:SystemRoot\System32\sc.exe" @Arguments | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw "服务配置操作失败（退出码 $LASTEXITCODE）" }
+    if ($LASTEXITCODE -ne 0) { throw "Service configuration operation failed (exit code$LASTEXITCODE)" }
 }
 
 function Wait-ServiceState {
@@ -45,7 +45,7 @@ function Wait-ServiceState {
     $service = Get-Service -Name $ServiceName
     $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]$State, [TimeSpan]::FromSeconds($Seconds))
     $service.Refresh()
-    if ($service.Status.ToString() -ne $State) { throw "等待服务进入 $State 状态超时" }
+    if ($service.Status.ToString() -ne $State) { throw "Wait for the service to enter$State The state timed out" }
 }
 
 function Assert-SafeDirectory {
@@ -54,14 +54,14 @@ function Assert-SafeDirectory {
     if (-not [IO.Path]::IsPathRooted($Path) -or $full.StartsWith('\\') -or
         $full.TrimEnd('\') -eq [IO.Path]::GetPathRoot($full).TrimEnd('\') -or
         $full.TrimEnd('\') -eq $env:SystemRoot.TrimEnd('\')) {
-        throw "不安全的安装路径：$Path"
+        throw "Unsafe install path:$Path"
     }
     $cursor = $full
     while ($cursor) {
         if (Test-Path -LiteralPath $cursor) {
             $item = Get-Item -LiteralPath $cursor -Force
             if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-                throw "安装路径不能包含目录链接：$cursor"
+                throw "The install path must not contain directory links:$cursor"
             }
         }
         $parent = [IO.Directory]::GetParent($cursor)
@@ -101,15 +101,15 @@ if ($hadService) {
     $command = $existing.PathName.Trim()
     if ($command -match '^"([^"\r\n]+)"\s+--service\s*$') { $installedExe = $Matches[1] }
     elseif ($command -match '^(.+?\.exe)\s+--service\s*$') { $installedExe = $Matches[1] }
-    else { throw "现有服务启动参数已自定义，未修改任何文件。请按原部署方式升级。" }
+    else { throw "The existing service start parameters have been customized; no files were modified. Please upgrade using the original deployment method." }
     if ([IO.Path]::GetFileName($installedExe) -ine $ExeName) {
-        throw "现有服务不是 Agent2API 服务端，未修改任何文件。"
+        throw "The existing service is not an Agent2API server; no files were modified."
     }
     if (-not $PSBoundParameters.ContainsKey('InstallDir')) { $InstallDir = Split-Path -Parent $installedExe }
     if (-not $PSBoundParameters.ContainsKey('DataDir')) {
         if ($environment.ContainsKey('AGENT2API_PROXY_HOME')) { $DataDir = $environment['AGENT2API_PROXY_HOME'] }
         elseif ($environment.ContainsKey('WORKBUDDY_PROXY_HOME')) { $DataDir = $environment['WORKBUDDY_PROXY_HOME'] }
-        else { throw '无法确认旧安装的数据目录。请显式指定原 DataDir，避免改用空目录。' }
+        else { throw 'The old install\'s data directory cannot be confirmed. Specify the original DataDir explicitly to avoid falling back to an empty one.' }
     }
     if (-not $PSBoundParameters.ContainsKey('Port')) {
         if ($environment.ContainsKey('AGENT2API_PROXY_PORT')) { $Port = [int]$environment['AGENT2API_PROXY_PORT'] }
@@ -118,16 +118,16 @@ if ($hadService) {
 }
 $InstallDir = Assert-SafeDirectory $InstallDir
 $DataDir = Assert-SafeDirectory $DataDir
-if ($Port -lt 1 -or $Port -gt 65535) { throw "服务端口配置无效，未修改安装。" }
+if ($Port -lt 1 -or $Port -gt 65535) { throw "The service port configuration is invalid; the installation was not modified." }
 if (-not $Uninstall -and $hadService -and $PSBoundParameters.ContainsKey('InstallDir') -and
     [IO.Path]::GetFullPath((Split-Path -Parent $installedExe)).TrimEnd('\') -ine $InstallDir) {
-    throw '升级不迁移安装目录，请先完成升级后再按部署方式迁移。'
+    throw 'The upgrade does not migrate the install directory; finish the upgrade first, then migrate per the deployment method.'
 }
 if (-not $Uninstall -and $hadService -and $PSBoundParameters.ContainsKey('DataDir')) {
     $previousData = $environment['AGENT2API_PROXY_HOME']
     if (-not $previousData) { $previousData = $environment['WORKBUDDY_PROXY_HOME'] }
     if ($previousData -and [IO.Path]::GetFullPath($previousData).TrimEnd('\') -ine $DataDir) {
-        throw '升级不迁移账号数据，请保留原 DataDir；数据迁移需单独进行。'
+        throw 'Upgrades do not migrate account data — keep the original DataDir; data migration is a separate step.'
     }
 }
 $targetExe = Join-Path $InstallDir $ExeName
@@ -146,24 +146,24 @@ if ($Uninstall) {
     if ($Purge) {
         if (Test-Path -LiteralPath $InstallDir) { Remove-Item -LiteralPath $InstallDir -Recurse -Force }
         if (Test-Path -LiteralPath $DataDir) { Remove-Item -LiteralPath $DataDir -Recurse -Force }
-        Write-Host "✅ 已卸载并清理"
+        Write-Host "✅ Uninstalled and cleaned up"
     } else {
-        Write-Host "✅ 服务已卸载，程序与数据保留：$InstallDir / $DataDir"
+        Write-Host "✅ The service has been uninstalled; the program and data are kept:$InstallDir / $DataDir"
     }
     exit 0
 }
 
 $sourceExe = Join-Path $PSScriptRoot $ExeName
 $sourceUi = Join-Path $PSScriptRoot 'ui'
-if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) { throw "发行包缺少 $ExeName" }
+if (-not (Test-Path -LiteralPath $sourceExe -PathType Leaf)) { throw "The release package is missing$ExeName" }
 if ([IO.Path]::GetFullPath($PSScriptRoot).TrimEnd('\') -ieq $InstallDir) {
-    throw "请把新版包解压到新的目录后运行脚本，不要从现有程序目录执行覆盖升级。"
+    throw "Unpack the new package into a fresh directory before running the script; do not run an overwrite upgrade from the existing program directory."
 }
 $hasUi = Test-Path -LiteralPath (Join-Path $sourceUi 'index.html') -PathType Leaf
-if (-not $hasUi) { Write-Warning "发行包没有完整 ui 目录，仅更新程序，不删除原界面。" }
+if (-not $hasUi) { Write-Warning "The release package has no complete ui directory; only the program is updated, the original UI is not deleted." }
 if ($DataDir -ieq $targetUi -or $DataDir.StartsWith($targetUi + '\', [StringComparison]::OrdinalIgnoreCase) -or
     $DataDir -ieq $updateDir -or $DataDir.StartsWith($updateDir + '\', [StringComparison]::OrdinalIgnoreCase)) {
-    throw "数据目录不能位于待替换的界面或升级工作目录内。"
+    throw "The data directory must not be inside the UI or upgrade working directory being replaced."
 }
 
 $isSystem = -not $hadService -or $existing.StartName -in @('LocalSystem', 'NT AUTHORITY\SYSTEM')
@@ -183,13 +183,13 @@ try {
         $updateLock = [IO.File]::Open((Join-Path $updateDir 'update.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
     }
     if ($hadService) {
-        Write-Host '→ 停止现有服务'
+        Write-Host '→ Stop the existing service'
         $stopRequested = $true
         Stop-Service -Name $ServiceName -ErrorAction Stop
         Wait-ServiceState 'Stopped'
         if ($existing.ProcessId -gt 0) {
             $process = Get-Process -Id $existing.ProcessId -ErrorAction SilentlyContinue
-            if ($null -ne $process -and -not $process.WaitForExit(30000)) { throw '旧服务进程尚未退出，未覆盖程序。' }
+            if ($null -ne $process -and -not $process.WaitForExit(30000)) { throw 'The old service process has not exited yet; the program was not overwritten.' }
         }
     }
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
@@ -220,8 +220,8 @@ try {
     if ($hadService) {
         Invoke-ServiceCommand @('config', $ServiceName, 'binPath=', $binPath)
     } else {
-        Invoke-ServiceCommand @('create', $ServiceName, 'binPath=', $binPath, 'start=', 'auto', 'DisplayName=', 'Agent2API 网关')
-        Invoke-ServiceCommand @('description', $ServiceName, 'Agent2API 无界面网关服务')
+        Invoke-ServiceCommand @('create', $ServiceName, 'binPath=', $binPath, 'start=', 'auto', 'DisplayName=', 'Agent2API Gateway')
+        Invoke-ServiceCommand @('description', $ServiceName, 'Agent2API The headless gateway service')
         Invoke-ServiceCommand @('failure', $ServiceName, 'reset=', '86400', 'actions=', 'restart/5000/restart/10000/restart/30000')
     }
 
@@ -255,12 +255,12 @@ try {
         New-ItemProperty -Path $parameters -Name UpdateInstallDir -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $parameters -Name UpdateWorkDir -Value $updateDir -PropertyType String -Force | Out-Null
         $updateRegistered = $true
-        Write-Host '→ 已登记面板更新组件，服务账号保持不变'
+        Write-Host '→ Panel update component registered; the service account is unchanged'
     } else {
-        Write-Warning '当前使用自定义服务账号或界面位置，保持原设置，不启用一键更新。'
+        Write-Warning 'A custom service account or UI location is currently in use; keep the original settings, and do not enable one-click updates.'
     }
 
-    $ruleName = "Agent2API 网关 (TCP $Port)"
+    $ruleName = "Agent2API Gateway (TCP $Port)"
     if (-not (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue)) {
         New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort $Port -Action Allow -Profile Domain,Private | Out-Null
     }
@@ -297,21 +297,21 @@ try {
             }
         }
     } catch {
-        Write-Warning "旧服务恢复未完成：$($_.Exception.Message)"
+        Write-Warning "Restoring the old service did not complete:$($_.Exception.Message)"
     }
-    Write-Warning "升级未完整完成，旧文件备份：$backupExe / $backupUi。账号数据未删除。"
+    Write-Warning "The upgrade did not complete fully; old files backed up:$backupExe / $backupUi. Account data was not deleted."
     throw $failure
 } finally {
     if ($null -ne $updateLock) { $updateLock.Dispose() }
 }
-Write-Host '✅ 服务已启动' -ForegroundColor Green
-Write-Host "   面板：http://<本机IP>:$Port/"
-Write-Host "   程序：$InstallDir"
-Write-Host "   数据：$DataDir"
-Write-Host "   日志：$($environment['AGENT2API_LOG_FILE'])"
+Write-Host '✅ The service has started' -ForegroundColor Green
+Write-Host "   Panel: http://<local IP>:$Port/"
+Write-Host "   Program:$InstallDir"
+Write-Host "   Data:$DataDir"
+Write-Host "   Log:$($environment['AGENT2API_LOG_FILE'])"
 if ($updateRegistered) {
-    Write-Host '   已登记更新组件，能否一键更新以「设置 → 更新」的权限检查结果为准。'
-    Write-Host '   AGENT2API_WINDOWS_UPDATE=0 可关闭入口。'
+    Write-Host '   Update component registered; whether one-click update works depends on "Settings→ update", per the permission check result.'
+    Write-Host '   AGENT2API_WINDOWS_UPDATE=0 An entry that can be turned off.'
 } else {
-    Write-Host '   当前部署保留手动升级，请继续使用原部署方式。'
+    Write-Host '   This deployment keeps manual upgrades; please keep using the original deployment method.'
 }

@@ -31,7 +31,7 @@ export function PluginArtwork({ src, kind = 'script', fallback }: {
 }
 
 export function PluginSettingsButton({ name, onClick, t }: { name: string; onClick: () => void; t: PluginTranslate }) {
-  const label = `${name} · ${t('设置')}`
+  const label = `${name} · ${t('Settings')}`
   return <Button variant='ghost' size='icon-sm' aria-label={label} title={label} aria-haspopup='dialog' onClick={onClick}>
     <svg viewBox='0 0 24 24' className='size-4' fill='none' stroke='currentColor' strokeWidth='1.6'
       strokeLinecap='round' strokeLinejoin='round' aria-hidden='true'>
@@ -44,7 +44,7 @@ export function PluginSettingsButton({ name, onClick, t }: { name: string; onCli
 export function PluginGetButton({ disabled, onClick, t }: { disabled: boolean; onClick: () => void; t: PluginTranslate }) {
   return <Button variant='secondary' size='sm' disabled={disabled} onClick={onClick}
     className='rounded-pill border-primary-bd bg-primary-soft px-4 font-semibold text-primary-fg hover:bg-primary-tint'>
-    {t('获取')}
+    {t('Fetch')}
   </Button>
 }
 
@@ -59,7 +59,7 @@ export function PluginSectionHeading({ title, count, hint, filters, actions, t }
   return <div className='mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2'>
     <div className='flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2'>
       <h2 className='m-0 flex items-baseline gap-2 text-[15px] font-semibold leading-5'>
-        {title}<span className='text-[12px] font-normal text-muted-foreground'>{t('{count} 个插件', { count })}</span>
+        {title}<span className='text-[12px] font-normal text-muted-foreground'>{t('{count} plugins', { count })}</span>
       </h2>
       {filters}
     </div>
@@ -93,15 +93,15 @@ export function PluginStoreCard({ name, description, version, icon, artwork, hig
   const pending = status !== 'disabled' && pluginPending(startup)
   const failed = status !== 'disabled' && pluginFailed(startup)
   const running = status !== 'disabled' && (startup ? startup.phase === 'ready' : status === 'running')
-  const statusText = status === 'disabled' ? t('已停用') : status === 'missing' ? t('未安装')
-    : startup ? pluginPhaseLabel(startup, t) : running ? t('运行中') : t('状态待确认')
+  const statusText = status === 'disabled' ? t('Disabled') : status === 'missing' ? t('Not installed')
+    : startup ? pluginPhaseLabel(startup, t) : running ? t('Running') : t('Status unconfirmed')
   return <Card render={<article />} data-plugin-card='' aria-label={name} className='flex h-full flex-col gap-3 p-4'>
     <div className='flex items-start gap-3.5'>
       <PluginArtwork src={icon} kind={artwork} />
       <div className='min-w-0 flex-1'>
         <h3 className='m-0 break-words text-[14px] font-semibold leading-5'>{name}</h3>
         <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
-          <Badge variant={highlightedSource ? 'brand' : 'outline'} shape='tag'>{sourceLabel ?? t('社区插件')}</Badge>
+          <Badge variant={highlightedSource ? 'brand' : 'outline'} shape='tag'>{sourceLabel ?? t('Community plugin')}</Badge>
           {badges}
         </div>
       </div>
@@ -116,7 +116,7 @@ export function PluginStoreCard({ name, description, version, icon, artwork, hig
       </span>
       {providerCount !== undefined ? <>
         <span className='opacity-40' aria-hidden='true'>·</span>
-        <span className='tabular-nums'>{t('{count} 家提供商', {
+        <span className='tabular-nums'>{t('{count} providers', {
           count: enabledCount === undefined ? providerCount : `${enabledCount}/${providerCount}`,
         })}</span>
       </> : null}

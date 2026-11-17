@@ -12,5 +12,5 @@ export function hasProxyUsage(item: ProxyUsage): boolean {
 export function proxyServiceLabels(item: ProxyUsage, t: (key: string) => string): string[] {
   return [...new Set(item.usedByServices || [])]
     .filter(service => service === 'update')
-    .map(() => t('软件 / 插件更新'))
+    .map(() => t('Software / plugin updates'))
 }

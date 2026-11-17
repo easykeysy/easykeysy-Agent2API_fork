@@ -94,7 +94,7 @@ type Bridge = {
 
 function bridge(): Bridge {
   const api = (window as unknown as { workbuddyDesktop?: Bridge }).workbuddyDesktop
-  if (!api) throw new Error(t('桌面桥不可用（本页需要在 Agent2API 客户端里打开）'))
+  if (!api) throw new Error(t('Desktop bridge unavailable (this page must be opened inside the Agent2API client)'))
   return api
 }
 
@@ -183,7 +183,7 @@ function customSource(): CustomSourceModule | undefined {
  */
 function customWriter(): CustomSourceModule {
   const source = customSource()
-  if (!source) throw new Error(t('自定义提供商模块未就绪（请刷新界面后重试）'))
+  if (!source) throw new Error(t('Custom provider module is not ready (refresh the UI and try again)'))
   return source
 }
 
@@ -256,9 +256,9 @@ function customView(id: string): ManageViewLike | null {
  */
 async function readModels(): Promise<AssistantModelView> {
   const read = bridge().getModelManage
-  if (!read) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'getModelManage' }))
+  if (!read) throw new Error(t('This client is missing the read interface: {name}', { name: 'getModelManage' }))
   const data = await read() as ManageViewLike | undefined
-  if (!Array.isArray(data?.models) || !Array.isArray(data?.mappings)) throw new Error(t('读取模型清单失败'))
+  if (!Array.isArray(data?.models) || !Array.isArray(data?.mappings)) throw new Error(t('Failed to load the model list'))
   const models: ModelRow[] = data.models.slice()
   const mappings: MappingRow[] = data.mappings.slice()
   const providers: ModelProviderRow[] = Array.isArray(data.providers) ? data.providers.slice() : []
@@ -289,17 +289,17 @@ const listModels: AssistantTool = createModelListTool(readModels, t)
 const listAccountBalance: AssistantTool = createBalanceTool({
   accounts: async () => {
     const read = bridge().getAccounts
-    if (!read) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'getAccounts' }))
+    if (!read) throw new Error(t('This client is missing the read interface: {name}', { name: 'getAccounts' }))
     return read()
   },
   usageSnapshot: async () => {
     const read = bridge().getBalancesSnapshot
-    if (!read) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'getBalancesSnapshot' }))
+    if (!read) throw new Error(t('This client is missing the read interface: {name}', { name: 'getBalancesSnapshot' }))
     return read()
   },
   refreshBalance: async id => {
     const query = bridge().getAllBalances
-    if (!query) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'getAllBalances' }))
+    if (!query) throw new Error(t('This client is missing the read interface: {name}', { name: 'getAllBalances' }))
     return query(id)
   },
 }, t)
@@ -307,21 +307,21 @@ const listAccountBalance: AssistantTool = createBalanceTool({
 /** 3 · 启用 / 禁用模型（改动） */
 const setModelEnabled: AssistantTool = {
   id: 'set_model_enabled',
-  label: t('启用 / 禁用模型'),
+  label: t('Enable / disable models'),
   kind: 'write',
-  desc: '开启或关闭某几个模型在网关上的可用性（粒度是「提供商 × 模型」）。禁用后下游请求不再路由到它。一次可以改多个。内置家与自定义提供商（custom- 前缀）都支持。',
+  desc: 'Turn on or off the availability of one or more models on the gateway (at the granularity of "provider× model"). After disabling, downstream requests are no longer routed to it. Several can be changed at once. Both built-in and custom providers (with the custom- prefix) are supported.',
   params: {
     type: 'object',
     properties: {
       items: {
         type: 'array',
-        description: '要改的模型列表',
+        description: 'The model list to change',
         items: {
           type: 'object',
           properties: {
-            provider: { type: 'string', description: '提供商 id' },
-            id: { type: 'string', description: '模型 ID' },
-            enabled: { type: 'boolean', description: 'true = 启用，false = 禁用' },
+            provider: { type: 'string', description: 'Provider id' },
+            id: { type: 'string', description: 'Model ID' },
+            enabled: { type: 'boolean', description: 'true = Enable, false= Disable' },
           },
           required: ['provider', 'id', 'enabled'],
         },
@@ -332,16 +332,16 @@ const setModelEnabled: AssistantTool = {
   plan: args => {
     const items = list(args.items)
     return {
-      lead: t('将修改 {n} 个模型的启停状态：', { n: items.length }),
+      lead: t('About to change the enabled state of {n} models:', { n: items.length }),
       table: {
-        head: [t('提供商'), t('模型'), t('改成')],
+        head: [t('Provider'), t('Model'), t('Change to')],
         rows: items.map(item => [
           str(item.provider),
           str(item.id),
-          bool(item.enabled) === false ? t('禁用') : t('启用'),
+          bool(item.enabled) === false ? t('Disable') : t('enabled'),
         ]),
       },
-      note: t('改动立即生效；禁用后指向它的请求会落到下一个候选。'),
+      note: t('Changes take effect immediately; once disabled, requests for it fall through to the next candidate.'),
     }
   },
   run: async (args, context) => {
@@ -350,14 +350,14 @@ const setModelEnabled: AssistantTool = {
       const provider = str(item.provider)
       const id = str(item.id)
       const enabled = bool(item.enabled)
-      if (!provider || !id || enabled === undefined) throw new Error(t('参数不完整（需要 provider / id / enabled）'))
+      if (!provider || !id || enabled === undefined) throw new Error(t('Incomplete parameters (provider / id / enabled required)'))
       if (isCustomProvider(provider)) {
         await customBinding(provider, id, id, { enabled })
       } else {
-        if (!api.setModelState) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'setModelState' }))
+        if (!api.setModelState) throw new Error(t('This client is missing the read interface: {name}', { name: 'setModelState' }))
         await api.setModelState({ provider, id, enabled })
       }
-      return `${enabled ? '启用' : '禁用'} ${provider}/${id}`
+      return `${enabled ? 'enabled' : 'Disable'} ${provider}/${id}`
     }, t)
     refreshApp()
     return result
@@ -369,22 +369,22 @@ const setModelEnabled: AssistantTool = {
  *   都只是同一批 alias 的两组参数。 */
 const setModelMapping: AssistantTool = {
   id: 'set_model_mapping',
-  label: t('设置模型映射 ID'),
+  label: t('Set model mapping ID'),
   kind: 'write',
-  desc: '给模型新增或删除映射名（对外名）。同一对外名可以在多个提供商各挂一条：下游用同一个名字请求，网关按账号优先级主备切换；也可以给不同家的同名模型各加前缀（如 ca/claude-sonnet-4.5）来精确指定某一家。一次可以改多条。删掉的映射名只是不再对外可用，不删任何模型。内置家与自定义提供商（custom- 前缀）都支持。',
+  desc: 'Add or remove mapping names (external names) for a model. The same external name may be registered on multiple providers: downstream clients request with the same name, and the gateway failovers between providers by account priority; you can also prefix same-named models from different providers (e.g. ca/claude-sonnet-4.5) to target one specific provider. Multiple mappings can be changed in one call. Removing a mapping name only makes it unavailable to external clients; no model is deleted. Both the built-in providers and custom providers (custom- prefix) are supported.",',
   params: {
     type: 'object',
     properties: {
       items: {
         type: 'array',
-        description: '要改的映射列表',
+        description: 'The mapping list to change',
         items: {
           type: 'object',
           properties: {
-            provider: { type: 'string', description: '提供商 id' },
-            id: { type: 'string', description: '上游模型 ID' },
-            alias: { type: 'string', description: '要新增 / 删除的映射名（对外名）' },
-            action: { type: 'string', enum: ['add', 'remove'], description: 'add = 新增映射，remove = 删除映射' },
+            provider: { type: 'string', description: 'Provider id' },
+            id: { type: 'string', description: 'Upstream model ID' },
+            alias: { type: 'string', description: 'The mapping names (outward-facing names) to add / remove' },
+            action: { type: 'string', enum: ['add', 'remove'], description: 'add = add mappings, remove= Delete mapping' },
           },
           required: ['provider', 'id', 'alias', 'action'],
         },
@@ -397,20 +397,20 @@ const setModelMapping: AssistantTool = {
     const adds = items.filter(item => str(item.action) !== 'remove').length
     const removes = items.length - adds
     const parts: string[] = []
-    if (adds) parts.push(t('新增 {n} 条', { n: adds }))
-    if (removes) parts.push(t('删除 {n} 条', { n: removes }))
+    if (adds) parts.push(t('Add {n} entries', { n: adds }))
+    if (removes) parts.push(t('Delete {n} entries', { n: removes }))
     return {
-      lead: t('将改动 {n} 条映射（{parts}）：', { n: items.length, parts: parts.join('、') }),
+      lead: t('About to change {n} mappings ({parts}):', { n: items.length, parts: parts.join(', ') }),
       table: {
-        head: [t('提供商'), t('上游模型'), t('操作'), t('映射名')],
+        head: [t('Provider'), t('Upstream model'), t('Actions'), t('Mapping name')],
         rows: items.map(item => [
           str(item.provider),
           str(item.id),
-          str(item.action) === 'remove' ? t('删除') : t('新增'),
+          str(item.action) === 'remove' ? t('Delete') : t('Added'),
           str(item.alias),
         ]),
       },
-      note: t('只改映射名，不动上游模型 ID；映射立即生效（新对话即可用）。'),
+      note: t('Only the mapping name changes; the upstream model ID stays. Mappings take effect immediately (usable in a new chat).'),
     }
   },
   run: async (args, context) => {
@@ -420,18 +420,18 @@ const setModelMapping: AssistantTool = {
       const id = str(item.id)
       const alias = str(item.alias, 128)
       const action = str(item.action)
-      if (!provider || !id || !alias || !['add', 'remove'].includes(action)) throw new Error(t('参数不完整（需要 provider / id / alias / action）'))
+      if (!provider || !id || !alias || !['add', 'remove'].includes(action)) throw new Error(t('Incomplete parameters (provider / id / alias / action required)'))
       if (isCustomProvider(provider)) {
         if (action === 'remove') await customWriter().removeMapping(provider, alias, id)
         else await customBinding(provider, alias, id, { enabled: true })
       } else if (action === 'remove') {
-        if (!api.removeModelMapping) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'removeModelMapping' }))
+        if (!api.removeModelMapping) throw new Error(t('This client is missing the read interface: {name}', { name: 'removeModelMapping' }))
         await api.removeModelMapping(alias, id, provider)
       } else {
-        if (!api.addModelMapping) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'addModelMapping' }))
+        if (!api.addModelMapping) throw new Error(t('This client is missing the read interface: {name}', { name: 'addModelMapping' }))
         await api.addModelMapping(alias, id, provider)
       }
-      return `${action === 'remove' ? '删除' : '新增'} ${alias} → ${provider}/${id}`
+      return `${action === 'remove' ? 'Delete' : 'Added'} ${alias} → ${provider}/${id}`
     }, t)
     refreshApp()
     return result
@@ -440,34 +440,34 @@ const setModelMapping: AssistantTool = {
 
 /** 5 · 修改模型能力（改动） */
 const CAPABILITY_LABELS: Record<string, string> = {
-  maxInputTokens: t('上下文窗口'),
-  maxOutputTokens: t('最大输出 Token'),
-  supportsToolCall: t('工具调用'),
-  supportsImages: t('图片识别'),
-  supportsVideo: t('视频识别'),
-  supportsReasoning: t('深度推理'),
+  maxInputTokens: t('Context window'),
+  maxOutputTokens: t('Max output tokens'),
+  supportsToolCall: t('Tool calling'),
+  supportsImages: t('Image recognition'),
+  supportsVideo: t('Video recognition'),
+  supportsReasoning: t('Deep reasoning'),
 }
 
 const setModelCapability: AssistantTool = {
   id: 'set_model_capability',
-  label: t('修改模型能力'),
+  label: t('Edit model capabilities'),
   kind: 'write',
-  desc: '修改某个模型对下游声明的能力位：上下文窗口、最大输出 Token、工具调用 / 图片 / 视频 / 深度推理四个布尔位。只传要改的键；布尔位给 null 表示恢复上游原值（自定义提供商没有「上游原值」，给 null 等于清除这一项）。内置家与自定义提供商（custom- 前缀）都支持。',
+  desc: 'Change the capability flags a model declares downstream: context window, max output tokens, and four booleans — tool calling / Images / Videos / deep reasoning. Only pass the keys you want to change; null restores the upstream original value for a boolean (custom providers have no "upstream original" — null on one just clears that item). Both the built-in providers and custom providers (custom- prefix) are supported.",',
   params: {
     type: 'object',
     properties: {
-      provider: { type: 'string', description: '提供商 id' },
-      id: { type: 'string', description: '模型 ID' },
+      provider: { type: 'string', description: 'Provider id' },
+      id: { type: 'string', description: 'Model ID' },
       capabilities: {
         type: 'object',
-        description: '要改的能力位（只写要改的键）',
+        description: 'The capability bits to change (write only the keys to change)',
         properties: {
-          maxInputTokens: { type: ['number', 'null'], description: '上下文窗口（token 数）' },
-          maxOutputTokens: { type: ['number', 'null'], description: '最大输出 token 数' },
-          supportsToolCall: { type: ['boolean', 'null'], description: '是否支持工具调用；null = 恢复上游原值' },
-          supportsImages: { type: ['boolean', 'null'], description: '是否支持图片识别；null = 恢复上游原值' },
-          supportsVideo: { type: ['boolean', 'null'], description: '是否支持视频识别；null = 恢复上游原值' },
-          supportsReasoning: { type: ['boolean', 'null'], description: '是否支持深度推理；null = 恢复上游原值' },
+          maxInputTokens: { type: ['number', 'null'], description: 'Context window (token count)' },
+          maxOutputTokens: { type: ['number', 'null'], description: 'Maximum output token count' },
+          supportsToolCall: { type: ['boolean', 'null'], description: 'Whether tool calling is supported; null= Restore upstream values' },
+          supportsImages: { type: ['boolean', 'null'], description: 'Whether image recognition is supported; null= Restore upstream values' },
+          supportsVideo: { type: ['boolean', 'null'], description: 'Whether video recognition is supported; null= Restore upstream values' },
+          supportsReasoning: { type: ['boolean', 'null'], description: 'Whether deep reasoning is supported; null= Restore upstream values' },
         },
       },
     },
@@ -477,16 +477,16 @@ const setModelCapability: AssistantTool = {
     const caps = (args.capabilities && typeof args.capabilities === 'object' ? args.capabilities : {}) as Record<string, unknown>
     const keys = CAPABILITY_KEYS.filter(key => key in caps)
     return {
-      lead: t('将修改 {model} 的 {n} 项能力：', { model: `${str(args.provider)} / ${str(args.id)}`, n: keys.length }),
+      lead: t('About to change {n} capabilities of {model}:', { model: `${str(args.provider)} / ${str(args.id)}`, n: keys.length }),
       table: {
-        head: [t('能力'), t('改成')],
+        head: [t('Capabilities'), t('Change to')],
         rows: keys.map(key => {
           const value = caps[key]
-          const text = value === null ? t('恢复上游原值') : typeof value === 'boolean' ? (value ? t('支持') : t('不支持')) : String(value)
+          const text = value === null ? t('Restore upstream values') : typeof value === 'boolean' ? (value ? t('Supported') : t('Not supported')) : String(value)
           return [CAPABILITY_LABELS[key] || key, text]
         }),
       },
-      note: t('能力位决定下游看到的声明（能不能贴图、能塞多少上下文），不改上游的真实行为。'),
+      note: t('Capability flags decide what downstream sees declared (image input, context size) without changing upstream behavior.'),
     }
   },
   run: async (args, context) => {
@@ -501,15 +501,15 @@ const setModelCapability: AssistantTool = {
       if (value === null) { caps[key] = null; continue }
       if (key === 'maxInputTokens' || key === 'maxOutputTokens') {
         const n = num(value)
-        if (n === undefined) throw new Error(t('{key} 需要数字', { key: CAPABILITY_LABELS[key] }))
+        if (n === undefined) throw new Error(t('{key} must be a number', { key: CAPABILITY_LABELS[key] }))
         caps[key] = Math.round(n)
       } else {
         const b = bool(value)
-        if (b === undefined) throw new Error(t('{key} 需要 true / false / null', { key: CAPABILITY_LABELS[key] }))
+        if (b === undefined) throw new Error(t('{key} must be true / false / null', { key: CAPABILITY_LABELS[key] }))
         caps[key] = b
       }
     }
-    if (!provider || !id || !Object.keys(caps).length) throw new Error(t('参数不完整（需要 provider / id / capabilities）'))
+    if (!provider || !id || !Object.keys(caps).length) throw new Error(t('Incomplete parameters (provider / id / capabilities required)'))
     if (isCustomProvider(provider)) {
       // 自定义家的能力位存在提供商记录的 models[] 条目里，写入口是整表保存
       // （后端 `POST /api/models/capabilities` 对 custom- id 明确 400，见
@@ -517,45 +517,45 @@ const setModelCapability: AssistantTool = {
       await customWriter().setCapabilities(provider, id, caps as Record<string, number | boolean | null>)
     } else {
       const write = bridge().setModelCapabilities
-      if (!write) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'setModelCapabilities' }))
+      if (!write) throw new Error(t('This client is missing the read interface: {name}', { name: 'setModelCapabilities' }))
       await write(provider, id, caps)
     }
     refreshApp()
-    return { text: JSON.stringify({ ok: true, provider, id, capabilities: caps }), summary: t('已修改 {n} 项能力', { n: Object.keys(caps).length }) }
+    return { text: JSON.stringify({ ok: true, provider, id, capabilities: caps }), summary: t('Changed {n} capabilities', { n: Object.keys(caps).length }) }
   },
 }
 
 /** 6 · 发起模型测试（消耗额度） */
 const testModel: AssistantTool = {
   id: 'test_model',
-  label: t('发起模型测试'),
+  label: t('Run a model test'),
   kind: 'run',
-  desc: '对某个模型发一次真实的对话请求，回报连通性、耗时与首字延迟。会消耗该账号的额度。回答「这个模型通不通 / 快不快」时用它。内置家与自定义提供商（custom- 前缀）都支持，模型名可以是模型 ID 或已登记的映射别名。',
+  desc: 'Send one real chat request to a given model and report connectivity, duration, and time to first token. This consumes the account\'s quota. Use it to answer "does this model work / is it fast". Both the built-in providers and custom providers (custom- prefix) are supported; the model name may be a model ID or a registered mapping alias.",',
   params: {
     type: 'object',
     properties: {
-      provider: { type: 'string', description: '提供商 id' },
-      id: { type: 'string', description: '模型 ID' },
-      prompt: { type: 'string', description: '测试用的用户提示词；不填 = 默认一句问候（最小请求）' },
+      provider: { type: 'string', description: 'Provider id' },
+      id: { type: 'string', description: 'Model ID' },
+      prompt: { type: 'string', description: 'The user prompt used for testing; leave blank= one greeting by default (minimal request)' },
     },
     required: ['provider', 'id'],
   },
   plan: args => ({
-    lead: t('将对 {model} 发起一次真实请求：', { model: `${str(args.provider)} / ${str(args.id)}` }),
+    lead: t('About to send one real request to {model}:', { model: `${str(args.provider)} / ${str(args.id)}` }),
     table: {
-      head: [t('项'), t('值')],
+      head: [t('items'), t('Value')],
       rows: [
-        [t('提示词'), str(args.prompt) || t('（默认问候）')],
-        [t('代价'), t('消耗该账号额度')],
+        [t('Prompt'), str(args.prompt) || t('(default greeting)')],
+        [t('Cost'), t('Spends this account\'s quota')],
       ],
     },
-    note: t('这是真实的上游请求，与生产走同一条链路（会记账，报表排除）。'),
+    note: t('This is a real upstream request over the same path as production (it is billed but excluded from reports).'),
   }),
   run: async (args, context) => {
     checkToolSignal(context)
     const api = bridge()
-    if (!api.testModel) throw new Error(t('当前客户端缺少读取接口：{name}', { name: 'testModel' }))
-    if (!context?.apiKey) throw new Error(t('请先选择一把 API Key'))
+    if (!api.testModel) throw new Error(t('This client is missing the read interface: {name}', { name: 'testModel' }))
+    if (!context?.apiKey) throw new Error(t('Select an API Key first'))
     const testId = crypto.randomUUID()
     const payload: Record<string, unknown> = { provider: str(args.provider), model: str(args.id), test_id: testId }
     const prompt = str(args.prompt, 4000)
@@ -581,7 +581,7 @@ const testModel: AssistantTool = {
     }
     return {
       text: JSON.stringify(slim),
-      summary: ok ? t('连通 · {ms}ms', { ms: String(slim.duration_ms ?? '') }) : t('失败 · {status}', { status: status || '—' }),
+      summary: ok ? t('Reachable · {ms}ms', { ms: String(slim.duration_ms ?? '') }) : t('Failed · {status}', { status: status || '—' }),
     }
   },
 }
@@ -627,15 +627,15 @@ export function toolsPayload(enabled: Record<string, boolean>): Array<Record<str
 export const TOOL_META: Array<{ id: string; label: string; desc: string; tag?: 'danger' | 'cost' }> = [
   ...ASSISTANT_READ_META,
   ...ASSISTANT_IMAGE_META,
-  { id: 'list_models', label: t('获取模型列表'), desc: t('按提供商名称查询模型、能力、来源与映射，支持自定义提供商。') },
-  { id: 'list_account_balance', label: t('查询账号余额'), desc: t('读各账号的额度 / 剩余用量。') },
-  { id: 'set_model_enabled', label: t('启用 / 禁用模型'), desc: t('开关模型的对外可用性，不改其它属性。') },
-  { id: 'set_model_mapping', label: t('设置模型映射 ID'), desc: t('新增 / 删除映射名，支持批量加前缀与同名合并到多家。') },
-  { id: 'set_model_capability', label: t('修改模型能力'), desc: t('改上下文窗口 / 最大输出 Token / 工具调用等能力位。') },
-  { id: 'test_model', label: t('发起模型测试'), desc: t('对指定模型发一次真实请求，回报连通性与耗时。'), tag: 'cost' },
-  { id: 'set_provider_order', label: t('调整提供商顺位'), desc: t('改某一家的整组顺位（先试哪一家）。') },
-  { id: 'set_account_order', label: t('调整账号优先级'), desc: t('改账号在全局队列里的名次，决定主备与切换顺序。') },
-  { id: 'set_account_enabled', label: t('启用 / 禁用账号'), desc: t('禁用会把账号移出转发队列，线路可能因此断供。'), tag: 'danger' },
+  { id: 'list_models', label: t('List models'), desc: t('Query models, capabilities, sources, and mappings by provider name, including custom providers.') },
+  { id: 'list_account_balance', label: t('Query account balance'), desc: t('Reads each account\'s quota and remaining usage.') },
+  { id: 'set_model_enabled', label: t('Enable / disable models'), desc: t('Toggles a model\'s outward availability without touching other attributes.') },
+  { id: 'set_model_mapping', label: t('Set model mapping ID'), desc: t('Adds/removes mapping names, with bulk prefixing and merging a shared name across providers.') },
+  { id: 'set_model_capability', label: t('Edit model capabilities'), desc: t('Edits capability flags such as context window, max output tokens, and tool calls.') },
+  { id: 'test_model', label: t('Run a model test'), desc: t('Sends one real request to the given model and reports reachability and latency.'), tag: 'cost' },
+  { id: 'set_provider_order', label: t('Reorder providers'), desc: t('Reorders a provider\'s whole group (which provider is tried first).') },
+  { id: 'set_account_order', label: t('Adjust account priority'), desc: t('Changes an account\'s rank in the global queue, deciding primary/backup and failover order.') },
+  { id: 'set_account_enabled', label: t('Enable / disable accounts'), desc: t('Disabling removes the account from the forwarding queue; the route may run dry as a result.'), tag: 'danger' },
   ...ACCOUNT_IMPORT_META,
 ]
 
@@ -648,8 +648,8 @@ export async function loadModelNames(): Promise<string[]> {
 
 export async function loadModelOptions(): Promise<ModelOption[]> {
   const readState = bridge().getState
-  if (!readState) throw new Error(t('读取模型清单失败'))
+  if (!readState) throw new Error(t('Failed to load the model list'))
   const state = await readState() as { models?: unknown } | null | undefined
-  if (!Array.isArray(state?.models)) throw new Error(t('读取模型清单失败'))
+  if (!Array.isArray(state?.models)) throw new Error(t('Failed to load the model list'))
   return modelOptionsFrom(state.models)
 }

@@ -53,15 +53,15 @@ export function TurnstileWidget({ url, t, onToken, onState, resetKey = 0 }: {
         callbacks.current.onState?.('verified')
       } else if (data.state === 'verifying') {
         clearTimeout(timer)
-        timer = setTimeout(() => fail(t('Turnstile 验证超时，请重试。')), 120000)
+        timer = setTimeout(() => fail(t('Turnstile verification timed out. Please try again.')), 120000)
         setError('')
         callbacks.current.onToken(null)
         callbacks.current.onState?.('verifying')
       } else if (data.state === 'error') {
-        const message = data.reason === 'configuration' ? t('机器人校验配置已变更或不完整，请刷新页面或联系管理员。')
-          : data.reason === 'timeout' ? t('Turnstile 验证超时，请重试。')
-            : data.reason === 'unsupported' ? t('当前浏览器不支持 Turnstile，请更新浏览器后重试。')
-              : t('Turnstile 加载或验证失败，请检查网络、浏览器拦截和域名配置后重试。')
+        const message = data.reason === 'configuration' ? t('Bot verification settings have changed or are incomplete. Refresh the page or contact the administrator.')
+          : data.reason === 'timeout' ? t('Turnstile verification timed out. Please try again.')
+            : data.reason === 'unsupported' ? t('This browser does not support Turnstile. Update your browser and try again.')
+              : t('Turnstile could not load or verify. Check your connection, browser blocking and hostname settings, then try again.')
         fail(data.code && /^[0-9]{3,12}$/.test(data.code) ? `${message} (${data.code})` : message)
       }
     }
@@ -79,8 +79,8 @@ export function TurnstileWidget({ url, t, onToken, onState, resetKey = 0 }: {
         theme: document.documentElement.dataset.theme || 'auto',
       }, endpoint.origin, [connection.port2])
     }
-    frame.onerror = () => fail(t('Turnstile 加载或验证失败，请检查网络、浏览器拦截和域名配置后重试。'))
-    timer = setTimeout(() => fail(t('Turnstile 验证超时，请重试。')), 120000)
+    frame.onerror = () => fail(t('Turnstile could not load or verify. Check your connection, browser blocking and hostname settings, then try again.'))
+    timer = setTimeout(() => fail(t('Turnstile verification timed out. Please try again.')), 120000)
     host.appendChild(frame)
     return () => {
       alive = false
@@ -95,7 +95,7 @@ export function TurnstileWidget({ url, t, onToken, onState, resetKey = 0 }: {
     <div ref={container} className='w-full min-w-0' />
     {error ? <>
       <Alert variant='destructive' className='break-words text-xs'>{error}</Alert>
-      <Button type='button' variant='outline' size='sm' onClick={() => setRetry(value => value + 1)}>{t('重新验证')}</Button>
+      <Button type='button' variant='outline' size='sm' onClick={() => setRetry(value => value + 1)}>{t('Verify again')}</Button>
     </> : null}
   </div>
 }

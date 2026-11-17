@@ -71,10 +71,10 @@ pub fn plan(
         let version = detection.version.split('.').take(3).map(|part| part.parse::<u32>().ok()).collect::<Option<Vec<_>>>();
         if let Some(version) = version.filter(|version| version.len() == 3) {
             if version.as_slice() < [2, 1, 242].as_slice() {
-                return Err("当前 Claude Code 版本不支持多模型菜单，请先升级到 2.1.242 或更新版本".into());
+                return Err("Current Claude Code 版本不支持多模型菜单，请先升级到 2.1.242 或更新版本".into());
             }
             if profile.models.iter().any(|model| !model.effort.is_empty()) && version.as_slice() < [2, 1, 251].as_slice() {
-                return Err("当前 Claude Code 版本不支持逐模型思考设置，请先升级到 2.1.251 或更新版本".into());
+                return Err("Current Claude Code 版本不支持逐模型思考设置，请先升级到 2.1.251 或更新版本".into());
             }
         }
     }

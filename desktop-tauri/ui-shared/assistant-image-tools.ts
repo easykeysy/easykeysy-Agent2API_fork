@@ -26,12 +26,12 @@ export type AssistantImageTool = {
 }
 
 const properties = {
-  prompt: { type: 'string', description: '完整的生成或编辑要求，包括需要保留的内容。', maxLength: 32000 },
-  model: { type: 'string', description: 'list_models 返回的 kind=image 模型 ID 或启用的映射名；不要使用对话模型。' },
-  n: { type: 'integer', minimum: 1, maximum: 10, description: '生成数量，默认 1；Antigravity 仅支持 1。' },
-  size: { type: 'string', description: 'auto 或 WIDTHxHEIGHT，如 1024x1024；精确支持范围由提供商决定。' },
-  quality: { type: 'string', description: '仅传提供商支持的质量；默认 auto。Antigravity 不支持显式质量档。' },
-  output_format: { type: 'string', enum: ['png', 'jpeg', 'webp'], description: '图片输出编码；默认保留上游编码。' },
+  prompt: { type: 'string', description: 'The full generation or editing requirement, including what should be kept.', maxLength: 32000 },
+  model: { type: 'string', description: 'list_models the returned kind=image Model ID or an enabled mapping name; do not use a chat model.' },
+  n: { type: 'integer', minimum: 1, maximum: 10, description: 'Generation count, default 1; Antigravity Only 1. is supported' },
+  size: { type: 'string', description: 'auto or WIDTHxHEIGHT, e.g. 1024x1024; the exact supported range is up to the provider.' },
+  quality: { type: 'string', description: 'Only pass a quality the provider supports; the default is auto. Antigravity does not support explicit quality tiers.",' },
+  output_format: { type: 'string', enum: ['png', 'jpeg', 'webp'], description: 'Image output encoding; the upstream encoding is kept by default.' },
 }
 
 function text(value: unknown): string { return typeof value === 'string' ? value.trim() : '' }
@@ -41,12 +41,12 @@ function reference(value: unknown, context: ImageToolContext, t: Translate): str
   const match = /^attachment:(\d+)$/.exec(input)
   if (match) {
     const index = Number(match[1]) - 1
-    if (index < 0 || index >= context.images.length) throw new Error(t('参考图片编号不存在'))
+    if (index < 0 || index >= context.images.length) throw new Error(t('The reference image number does not exist'))
     return context.images[index]
   }
   if (/^assistant-image:[a-f0-9]{64}$/.test(input)) return input
   if (/^https?:\/\//i.test(input)) return input
-  throw new Error(t('参考图片请使用附件编号、已生成图片 ID 或 HTTP(S) 链接'))
+  throw new Error(t('Use an attachment number, a generated image ID, or an HTTP(S) link for reference images'))
 }
 
 export function imageAssets(raw: unknown): ImageAsset[] {
@@ -75,40 +75,40 @@ export function imageContext(messages: Array<{ role: string; images?: unknown }>
 export function createAssistantImageTools(api: ImageToolApi, t: Translate): AssistantImageTool[] {
   return ([false, true] as const).map(editing => ({
     id: editing ? 'edit_images' : 'generate_images',
-    label: editing ? t('编辑图片') : t('生成图片'),
+    label: editing ? t('Edit images') : t('Generate images'),
     kind: 'run',
     desc: editing
-      ? '用自然语言编辑图片或按参考图生成新图，走标准 Images 编辑链路。先用 list_models 选择 supports_image_editing=true 的模型（Loomy、Antigravity、ModelScope 或 WorkBuddy）。images 可写 attachment:1 等当前参考图编号，或之前图片工具返回的 assistant-image:ID；不填时使用最近上传或生成的图片。若无图，请让用户上传。只支持 PNG/JPEG/WebP 参考图，不支持 mask、input_fidelity、流式。会真实消耗额度，不自动重发不确定结果。工具返回的图片已在界面显示，只报告结果，不要编造本地文件路径。'
-      : '根据文本生成图片，走标准 Images 生成链路。先用 list_models 选择 kind=image、supports_image_generation=true 的模型（小浣熊、Loomy、Antigravity、ModelScope 或 WorkBuddy）。会真实消耗额度，默认只生成 1 张；仅用户要求时才增加数量。不自动重发不确定结果。工具返回的图片已在界面显示，只报告结果，不要编造本地文件路径。',
+      ? 'Edits an image with natural language or generates a new image from a reference, via the standard Images editing pipeline. First use list_models with Select supports_image_editing",=true  model (Loomy, Antigravity, ModelScope or WorkBuddy). For images you can pass the current reference image number such as attachment:1, or an assistant-image:ID returned by a previous image tool; when omitted, the most recently uploaded or generated image is used. If there is no image, ask the user to upload one. Only PNG/JPEG/WebP reference images are supported; masks, input_fidelity, and streaming are not. This really consumes quota, and uncertain results are not resent automatically. Images returned by the tool are already displayed in the UI — just report the result; do not invent local file paths.",'
+      : 'Generates an image from text, via the standard Images generation pipeline. First use list_models with Select kind",=image, supports_image_generation=true  model (Little Raccoon, Loomy, Antigravity, ModelScope or WorkBuddy). This really consumes quota and generates 1 image by default; increase the count only when the user asks. Uncertain results are not resent automatically. Images returned by the tool are already displayed in the UI — just report the result; do not invent local file paths.",',
     params: {
       type: 'object',
       properties: {
         ...properties,
-        ...(editing ? { images: { type: 'array', minItems: 1, maxItems: 16, items: { type: 'string' }, description: '参考图编号 attachment:1 等、assistant-image:ID 或 HTTP(S) URL；不填时用最近一组图片。' } } : {}),
+        ...(editing ? { images: { type: 'array', minItems: 1, maxItems: 16, items: { type: 'string' }, description: 'Reference image numbers such as attachment:1, assistant-image:ID, or an HTTP(S) URL; when empty, the most recent set of images is used.",' } } : {}),
       },
       required: ['prompt', 'model'],
       additionalProperties: false,
     },
     plan: args => ({
-      lead: editing ? t('按提示词编辑参考图片。') : t('按提示词生成图片。'),
-      table: { head: [t('参数'), t('内容')], rows: [[t('模型'), text(args.model)], [t('提示词'), text(args.prompt)], [t('数量'), String(args.n ?? 1)]] },
-      note: t('这会真实发起上游请求并消耗额度'),
+      lead: editing ? t('Edit reference images using the prompt.') : t('Generate images from the prompt.'),
+      table: { head: [t('参数'), t('内容')], rows: [[t('Model'), text(args.model)], [t('Prompt'), text(args.prompt)], [t('The count'), String(args.n ?? 1)]] },
+      note: t('This sends a real upstream request and spends quota'),
     }),
     run: async (args, context) => {
-      if (!context?.session) throw new Error(t('图片工具缺少当前会话'))
-      if (!context.apiKey) throw new Error(t('请先选择一把 API Key'))
+      if (!context?.session) throw new Error(t('The image tool has no current session'))
+      if (!context.apiKey) throw new Error(t('Select an API Key first'))
       if (context.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
       const unknown = Object.keys(args).find(key => !Object.hasOwn(properties, key) && !(editing && key === 'images'))
-      if (unknown) throw new Error(t('图片工具包含不支持的参数：{name}', { name: unknown }))
+      if (unknown) throw new Error(t('The image tool received an unsupported parameter: {name}', { name: unknown }))
       const request: Record<string, unknown> = {}
       for (const key of Object.keys(properties)) if (args[key] !== undefined) request[key] = args[key]
-      if (!text(request.prompt) || !text(request.model)) throw new Error(t('图片工具需要提示词和图片模型'))
+      if (!text(request.prompt) || !text(request.model)) throw new Error(t('The image tool requires a prompt and an image model'))
       if (editing) {
         if (args.images !== undefined && (!Array.isArray(args.images) || !args.images.length)) {
-          throw new Error(t('参考图片列表不能为空'))
+          throw new Error(t('The reference image list cannot be empty'))
         }
         const inputs = args.images === undefined ? context.images : (args.images as unknown[]).map(value => reference(value, context, t))
-        if (!inputs.length) throw new Error(t('请先上传参考图片，或先生成一张图片'))
+        if (!inputs.length) throw new Error(t('Upload a reference image or generate an image first'))
         request.images = inputs.map(image => ({ image_url: image }))
       }
       const raw = await api(`/api/assistant/images/${editing ? 'edits' : 'generations'}`, {
@@ -116,16 +116,16 @@ export function createAssistantImageTools(api: ImageToolApi, t: Translate): Assi
       }, context.signal, context.apiKey)
       const response = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
       const images = imageAssets(response.data)
-      if (!images.length) throw new Error(t('图片工具没有返回可显示的图片'))
+      if (!images.length) throw new Error(t('The image tool returned no displayable images'))
       const result = { ...response, data: images.map(image => ({ ...image, ref: `assistant-image:${image.id}` })), displayed: true }
-      return { text: JSON.stringify(result), summary: t('已生成 {n} 张图片', { n: images.length }), images }
+      return { text: JSON.stringify(result), summary: t('Generated {n} images', { n: images.length }), images }
     },
   }))
 }
 
 export function assistantImageMeta(t: Translate) {
   return [
-    { id: 'generate_images', label: t('生成图片'), desc: t('按文本生成图片，结果直接显示在对话中。'), tag: 'cost' as const },
-    { id: 'edit_images', label: t('编辑图片'), desc: t('修改上传或已生成的图片，支持多张参考图。'), tag: 'cost' as const },
+    { id: 'generate_images', label: t('Generate images'), desc: t('Generate images from text and display them in the conversation.'), tag: 'cost' as const },
+    { id: 'edit_images', label: t('Edit images'), desc: t('Edit uploaded or generated images using multiple references.'), tag: 'cost' as const },
   ]
 }

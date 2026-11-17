@@ -8,19 +8,19 @@ type PoolStats = NonNullable<Awaited<ReturnType<NonNullable<AccountsBridge['zcod
 type MintStatus = { state: string; error: string }
 
 export function poolStatus(pool: PoolStats | null, mint: MintStatus | null): string {
-  if (!pool) return t('读取中…')
+  if (!pool) return t('Loading…')
   const error = pool.error || pool.configError
-  if (error) return t('读取失败：{error}', { error })
-  if (pool.required === false) return t('当前模型请求免人机验证')
-  if (mint?.state === 'verifying') return t('正在验证…')
-  if (mint?.state === 'error') return t('验证失败：{error}', { error: mint.error })
-  if (mint?.state === 'paused') return t('已暂停验证，需要时请手动重试')
+  if (error) return t('Failed to load: {error}', { error })
+  if (pool.required === false) return t('Model requests currently require no human verification.')
+  if (mint?.state === 'verifying') return t('Verifying…')
+  if (mint?.state === 'error') return t('Verification failed: {error}', { error: mint.error })
+  if (mint?.state === 'paused') return t('Verification paused. Retry manually when needed.')
   const counts = `${Number(pool.ready) || 0} / ${Number(pool.target) || 3}`
-  if (!Number(pool.startPlanAccounts)) return t('未启用套餐池账号，不生成验证码令牌')
-  if (Number(pool.ready) > 0) return t('验证码令牌：{counts}', { counts })
+  if (!Number(pool.startPlanAccounts)) return t('No enabled Start Plan accounts; no verification tokens are generated.')
+  if (Number(pool.ready) > 0) return t('Captcha tokens: {counts}', { counts })
   return pool.needsTokens === true
-    ? t('套餐池请求需要验证，请主动开始验证后重试请求')
-    : t('没有近期套餐池请求，不生成验证码令牌')
+    ? t('A Start Plan request needs verification. Start verification manually, then retry the request.')
+    : t('No recent Start Plan requests; no verification tokens are generated.')
 }
 
 export function ZcodeCaptchaStatus({ accountId, disabled = false, onBusy }: {
@@ -34,7 +34,7 @@ export function ZcodeCaptchaStatus({ accountId, disabled = false, onBusy }: {
   const refresh = React.useCallback(async () => {
     const api = shared().workbuddyDesktop
     try {
-      const value = api?.zcodeCaptchaStats ? await api.zcodeCaptchaStats() : { error: t('验证码令牌池接口不可用') }
+      const value = api?.zcodeCaptchaStats ? await api.zcodeCaptchaStats() : { error: t('CAPTCHA token pool interface unavailable') }
       if (mounted.current) {
         setPool(value || null)
         if (shared().wbZcodeCaptchaPool?.status) setMint(shared().wbZcodeCaptchaPool?.status?.() || null)
@@ -91,17 +91,17 @@ export function ZcodeCaptchaStatus({ accountId, disabled = false, onBusy }: {
    */
   return (
     <div className='flex flex-wrap items-center gap-2'
-      title={t('后台只读取状态，不会自动弹出验证码；验证结果一次性使用，短时间内过期。')}>
+      title={t('The background only reads status and never opens verification automatically. Each token is single-use and expires shortly.')}>
       <StatusDot variant={failed ? 'destructive' : pool?.required === false ? 'success' : 'warning'} />
       <span className={cn('text-[12.5px]', failed && 'text-destructive')}>{poolStatus(pool, mint)}</span>
       <div className='ml-auto flex flex-wrap items-center gap-2'>
         {pool?.required !== false && Number(pool?.startPlanAccounts) > 0 ? (
           <Button variant='outline' size='xs' disabled={disabled || busy || Boolean(pool?.error || pool?.configError) || !shared().wbZcodeCaptchaPool?.verify}
-            onClick={() => void verify()}>{busy ? t('正在验证…') : t('开始验证')}</Button>
+            onClick={() => void verify()}>{busy ? t('Verifying…') : t('Start verification')}</Button>
         ) : null}
         {busy ? <Button variant='outline' size='xs' disabled={phase === 'submitting'}
-          onClick={() => controller.current?.abort()}>{t('取消验证')}</Button> : null}
-        <Button variant='ghost' size='xs' disabled={busy || disabled} onClick={() => void refresh()}>{t('刷新')}</Button>
+          onClick={() => controller.current?.abort()}>{t('Cancel verification')}</Button> : null}
+        <Button variant='ghost' size='xs' disabled={busy || disabled} onClick={() => void refresh()}>{t('Refresh')}</Button>
       </div>
     </div>
   )
@@ -112,16 +112,16 @@ export function PlanChannelField({ plan, hasJwt, onChange }: {
 }) {
   return (
     <Field orientation='horizontal' className='field-row mt-2.5'>
-      <FieldLabel htmlFor='account-plan-channel'>{t('使用套餐')}</FieldLabel>
+      <FieldLabel htmlFor='account-plan-channel'>{t('Plan in use')}</FieldLabel>
       <Select value={plan} onValueChange={value => onChange(String(value))}>
         <SelectTrigger id='account-plan-channel' className='min-w-[220px]'><SelectValue>{zcodePlanLabel(plan)}</SelectValue></SelectTrigger>
         <SelectContent>
-          <SelectItem value={ZCODE_PLAN_CODING}>{t('编码套餐（Coding Plan）— 走开放平台端点，消耗开放平台的额度（订阅套餐 / 资源包 / 充值余额）')}</SelectItem>
-          <SelectItem value={ZCODE_PLAN_START}>{t('套餐池（Start Plan）— 走 zcode.z.ai 端点，消耗 ZCode 套餐池的额度（新用户体验额度 / 活动领取）')}</SelectItem>
+          <SelectItem value={ZCODE_PLAN_CODING}>{t('Coding Plan — uses the open-platform endpoints and consumes open-platform quota (subscription plan / resource packs / prepaid balance)')}</SelectItem>
+          <SelectItem value={ZCODE_PLAN_START}>{t('Plan pool (Start Plan) — uses the zcode.z.ai endpoints and the ZCode plan-pool quota (new-user trial quota / event grants)')}</SelectItem>
         </SelectContent>
       </Select>
-      {plan === ZCODE_PLAN_START && !hasJwt ? <span className='detail text-destructive'>{t('该账号没有套餐登录态（jwt），套餐池通道会失败：请重新登录该账号')}</span> : null}
-      {plan === ZCODE_PLAN_START ? <p className='detail'>{t('需要人机验证时，在该账号的「套餐明细」中主动开始验证。')}</p> : null}
+      {plan === ZCODE_PLAN_START && !hasJwt ? <span className='detail text-destructive'>{t('This account has no plan login state (JWT); the plan-pool channel will fail — sign in to this account again')}</span> : null}
+      {plan === ZCODE_PLAN_START ? <p className='detail'>{t('When human verification is required, start it manually in this account’s Plan details.')}</p> : null}
     </Field>
   )
 }

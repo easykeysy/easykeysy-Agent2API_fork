@@ -60,7 +60,7 @@ pub async fn put_queue(State(_state): State<ServerState>, body: Bytes) -> Respon
             object.get(KEY_QUEUE_MAX_WAITS),
             QUEUE_MIN_MAX_WAITS,
             QUEUE_MAX_MAX_WAITS,
-            "排队等待次数",
+            "Queue Wait Count",
             &mut patch.max_waits,
         ),
         (
@@ -68,7 +68,7 @@ pub async fn put_queue(State(_state): State<ServerState>, body: Bytes) -> Respon
             object.get(KEY_QUEUE_WAIT_SECONDS),
             QUEUE_MIN_WAIT_SECONDS,
             QUEUE_MAX_WAIT_SECONDS,
-            "排队等待秒数",
+            "Queue Wait Seconds",
             &mut patch.wait_seconds,
         ),
     ];
@@ -98,13 +98,13 @@ pub async fn put_queue(State(_state): State<ServerState>, body: Bytes) -> Respon
     let settings = config::queue_settings();
     if updated {
         let wait = if settings.wait_seconds > 0 {
-            format!("{} 秒", settings.wait_seconds)
+            format!("{} seconds", settings.wait_seconds)
         } else {
             "跟随上游建议".to_string()
         };
         logging::log(
             "[Config]",
-            &format!("排队等待已更新: 最多 {} 次 / 单次 {wait}", settings.max_waits),
+            &format!("排队等待已更新: 最多 {} times / 单次 {wait}", settings.max_waits),
         );
     }
     ok_json(queue_json(settings))

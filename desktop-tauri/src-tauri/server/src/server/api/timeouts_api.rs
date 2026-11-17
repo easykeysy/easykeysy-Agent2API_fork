@@ -103,7 +103,7 @@ pub async fn put_timeouts(State(_state): State<ServerState>, body: Bytes) -> Res
         logging::log(
             "[Config]",
             &format!(
-                "请求超时已更新: 连接 {} 秒 / 等待响应 {} 秒 / 流空闲 {} 秒 / 非流式 {} 秒",
+                "请求超时已更新: 连接 {} seconds / Awaiting response {} seconds / 流空闲 {} seconds / 非流式 {} seconds",
                 settings.connect_seconds,
                 settings.headers_seconds,
                 settings.stream_idle_seconds,
@@ -142,7 +142,7 @@ fn parse_seconds(key: &str, value: &Value) -> Result<i64, String> {
     match number {
         Some(number) if (TIMEOUT_MIN_SECONDS..=TIMEOUT_MAX_SECONDS).contains(&number) => Ok(number),
         _ => Err(format!(
-            "{key} 必须是 {TIMEOUT_MIN_SECONDS}-{TIMEOUT_MAX_SECONDS} 的整数（收到: {value}）"
+            "{key} 必须是 {TIMEOUT_MIN_SECONDS}-{TIMEOUT_MAX_SECONDS} 的整数（收到: {value})"
         )),
     }
 }

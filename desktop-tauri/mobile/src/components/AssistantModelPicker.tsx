@@ -34,14 +34,14 @@ export function AssistantModelPicker({
     <Sheet open={open} onOpenChange={next => { if (!next) onClose() }}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>{t('选择对话模型')}</SheetTitle>
+          <SheetTitle>{t('Choose chat model')}</SheetTitle>
           <Button size='icon-sm' variant='ghost' disabled={loading} onClick={onRefresh}
-            title={t('刷新列表')} aria-label={t('刷新列表')}><Icon name='refresh' /></Button>
+            title={t('Refresh list')} aria-label={t('Refresh list')}><Icon name='refresh' /></Button>
         </SheetHeader>
         <SheetBody>
           <InputGroup>
             <InputGroupInput value={query} onChange={event => setQuery(event.currentTarget.value)}
-              placeholder={t('搜索模型…')} aria-label={t('搜索模型…')} />
+              placeholder={t('Search models…')} aria-label={t('Search models…')} />
             <InputGroupAddon><Icon name='search' style={{ width: 16, height: 16 }} /></InputGroupAddon>
           </InputGroup>
           {warning && !loading ? <Alert variant='destructive' role='status'>{warning}</Alert> : null}
@@ -57,10 +57,10 @@ export function AssistantModelPicker({
           >
             <span className='m-logo'><Icon name='settings' /></span>
             <div className='m-grow'>
-              <div className='m-t1'>{t('跟随网关设置')}</div>
+              <div className='m-t1'>{t('Use gateway setting')}</div>
               <div className='m-t2 m-mono' style={{ fontSize: 11.5 }}>
-                {defaultModel || t('还没有配置默认模型')}
-                {defaultModel && ready && !defaultAvailable ? ` · ${t('不可用')}` : ''}
+                {defaultModel || t('No default model configured yet')}
+                {defaultModel && ready && !defaultAvailable ? ` · ${t('Unavailable')}` : ''}
               </div>
             </div>
             {followingDefault ? <Icon name='check' style={{ width: 16, height: 16, color: 'var(--m-primary)' }} /> : null}
@@ -83,10 +83,10 @@ export function AssistantModelPicker({
               </Button>
             )
           }) : <Empty>
-            {loading ? t('正在读取可用模型…') : query.trim() ? t('没有匹配的模型') : t('没有可用的模型')}
+            {loading ? t('Loading available models…') : query.trim() ? t('No matching models') : t('No models available')}
           </Empty>}
           <p className='text-[11.5px] leading-[1.7] text-subtle'>
-            {t('这里只改本次会话用的模型，不会改网关里保存的默认值。')}
+            {t('This only changes the model for this session; the default saved in the gateway is untouched.')}
           </p>
         </SheetBody>
       </SheetContent>

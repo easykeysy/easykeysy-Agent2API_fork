@@ -69,10 +69,10 @@ const USAGE = `
   node scripts/probe-provider.mjs --provider workbuddy --model glm-5.3 --cases stream,tool_call --json
 `.trim()
 
-/** 单次请求的默认超时（秒）。模型首字慢是常态，给足。 */
+/** The default timeout (seconds) for a single request. A slow first token from the model is normal; allow enough time. */
 const DEFAULT_TIMEOUT_SEC = 120
 
-/** 用法 / 前置条件错误：打一行红字并以 2 退出（与「探测失败」区分开）。 */
+/** Usage / precondition error: print one red line and exit with 2 (to distinguish it from "probe failed"). */
 function fail(message) {
   console.error(`\n✗ ${message}\n`)
   process.exitCode = 2
@@ -97,7 +97,7 @@ function parseArgs(argv) {
     const next = () => {
       const value = argv[index + 1]
       if (value === undefined || value.startsWith('--')) {
-        fail(`参数 ${arg} 缺少取值`)
+        fail(`参数 ${arg} Missing value`)
       }
       index += 1
       return value
@@ -117,7 +117,7 @@ function parseArgs(argv) {
     }
   }
   if (!Number.isFinite(options.timeoutSec) || options.timeoutSec <= 0) {
-    fail('--timeout 必须是正数（秒）')
+    fail('--timeout Must be a positive number (seconds)')
   }
   options.base = options.base.replace(/\/+$/, '')
   return options
@@ -242,7 +242,7 @@ async function chat(options, body) {
   try {
     return { ok: true, status: res.status, body: JSON.parse(text), durationMs }
   } catch {
-    return { ok: false, status: res.status, error: '响应不是 JSON', durationMs }
+    return { ok: false, status: res.status, error: 'The response is not JSON', durationMs }
   }
 }
 
@@ -259,7 +259,7 @@ async function preflight(options) {
   if (!health.ok) {
     fail(
       `连不上网关 ${options.base}（${health.text ?? `HTTP ${health.status}`}）。\n` +
-        '  确认服务在跑：桌面端启动应用，或服务端 / Docker 已就绪。',
+        '  Confirm the service is running: start the app on desktop, or make sure the server / Docker is ready.',
     )
   }
   const models = await getJson(options, '/v1/models')
@@ -269,11 +269,11 @@ async function preflight(options) {
   const items = models.body.data
   const matched = items.filter(item => String(item?.id ?? '').toLowerCase() === options.model.toLowerCase())
   if (matched.length === 0) {
-    const sample = items.slice(0, 8).map(item => item.id).join('、')
+    const sample = items.slice(0, 8).map(item => item.id).join(', ')
     fail(
       `/v1/models 里没有模型 ${options.model}。\n` +
-        `  当前可见：${sample || '（空）'}${items.length > 8 ? ' …' : ''}\n` +
-        '  先刷新清单：面板「模型管理」页点「获取模型」，或 POST /api/models/refresh。',
+        `  当前可见：${sample || '(empty)'}${items.length > 8 ? ' …' : ''}\n` +
+        '  Refresh the list first: click "Fetch models" on the panel\'s "Model management" page, or POST /api/models/refresh.',
     )
   }
   const item = matched[0]
@@ -281,7 +281,7 @@ async function preflight(options) {
   if (options.provider && owner && owner !== options.provider) {
     fail(
       `模型 ${options.model} 由 ${owner} 承载，不是 --provider ${options.provider}。\n` +
-        '  换一个该家自己的模型名，或确认 --provider 填的是 provider id（不是展示名）。',
+        '  Switch to a model name of that provider\'s own, or confirm that --provider is filled with the provider id (not the display name).",',
     )
   }
   return {
@@ -332,20 +332,20 @@ async function main() {
       const item = CASES[id]
       console.log(`${item.severity === 'required' ? '*' : ' '} ${id.padEnd(16)} ${item.label}`)
     }
-    console.log('\n* = 必需项（失败时脚本以 1 退出）')
+    console.log('\n* = Required items (on failure the script exits with 1)')
     return
   }
-  if (!options.provider) fail('缺少 --provider（provider id，如 workbuddy）')
-  if (!options.model) fail('缺少 --model（要探测的模型名）')
+  if (!options.provider) fail('Missing --provider (the provider id, e.g. workbuddy)",')
+  if (!options.model) fail('Missing --model (the model name to probe)')
 
   const selected = options.cases ?? CASE_ORDER
   for (const id of selected) {
-    if (!CASES[id]) fail(`未知用例 ${id}。可用：${CASE_ORDER.join('、')}`)
+    if (!CASES[id]) fail(`未知用例 ${id}。可用：${CASE_ORDER.join(', ')}`)
   }
 
   if (!options.key) {
     console.error(
-      '⚠️  未提供 --key：无法钉住 provider。若同名模型在多家中存在，请求可能落到别家，结论不可归因。\n',
+      '⚠️  No --key provided: the provider cannot be pinned down. When same-named models exist at several providers, the request may land at a different one, and the conclusion cannot be attributed.",\n',
     )
   }
 
@@ -426,12 +426,12 @@ async function main() {
         `跳过 ${counts.skip ?? 0} · 提示 ${counts.info ?? 0}`,
     )
     if (requiredFailures.length > 0) {
-      console.log(`\n✗ 必需项未通过：${requiredFailures.map(result => result.case).join('、')}`)
-      console.log('  这家的「LLM 请求」不能算接完 —— 见 SKILL 第 6 节的验收口径。')
+      console.log(`\n✗ 必需项未通过：${requiredFailures.map(result => result.case).join(', ')}`)
+      console.log('  This provider\'s LLM request cannot count as connected yet. See the acceptance criteria in section 6 of the SKILL.')
     } else if (optionalFailures.length > 0) {
-      console.log(`\n提示：可选项未通过 ${optionalFailures.map(result => result.case).join('、')}（不阻断验收）`)
+      console.log(`\n提示：可选项未通过 ${optionalFailures.map(result => result.case).join(', ')}（不阻断验收）`)
     } else {
-      console.log('\n✓ 必需项全部通过。')
+      console.log('\n✓ All required items passed.')
     }
     console.log('')
   }

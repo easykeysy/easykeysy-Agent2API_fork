@@ -582,7 +582,7 @@ export function renderUnits(): void {
 export function applyUnits(on: boolean): void {
   shared().wbUnits?.setChinese?.(on)
   renderUnits()
-  toast(on ? t('✅ 已改用本地量级词（万 / 亿式）') : t('✅ 已改用 k / M / B 缩写'))
+  toast(on ? t('✅ Now using local magnitude words (10k / 100M-style)') : t('✅ Now using k / M / B abbreviations'))
 }
 
 /* ─── 启动与托盘 ───────────────────────────── */
@@ -615,7 +615,7 @@ async function loadSettings(): Promise<void> {
   try {
     renderSettings(await shared().workbuddyDesktop?.getAppSettings())
   } catch (error) {
-    console.warn('读取应用设置失败:', errorMessage(error))
+    console.warn('Failed to read the app settings:', errorMessage(error))
     renderSettings(null)
   }
 }
@@ -663,21 +663,21 @@ export async function saveToggle(kind: 'tray' | 'autostart' | 'lightweight', nex
   beginBusy('app')
   publishApp(patch)
   const label = kind === 'autostart'
-    ? t('开机自动启动')
+    ? t('Launch at startup')
     : kind === 'lightweight'
-      ? t('轻量模式')
-      : t('关闭窗口时最小化到托盘')
+      ? t('Lightweight mode')
+      : t('Minimize to tray when the window is closed')
   try {
     const api = shared().workbuddyDesktop
-    if (!api) throw new Error(t('主进程桥不可用'))
+    if (!api) throw new Error(t('Main process bridge unavailable'))
     const saved = await api.saveAppSettings(patch)
     // 以主进程返回的设置为准渲染，避免界面与真实状态不一致（旁路读数保留当前值）
     publishApp({ status: 'ready', ...normalizeApp(saved, patch) })
-    toast(t('✅ 已更新「{label}」', { label }))
+    toast(t('✅ Updated "{label}"', { label }))
   } catch (error) {
     // 回滚到拨动前的状态（旧实现：已知状态按状态回滚，未知状态只把刚切的这项切回去）
     publishApp(previous)
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
   } finally {
     endBusy()
   }
@@ -719,14 +719,14 @@ export function resolveLanConfirm(accepted: boolean): void {
  */
 async function proceedEnable(): Promise<void> {
   const api = shared().workbuddyDesktop
-  if (!api?.panelAdminStatus) { toast(t('当前环境不支持网络访问设置'), 'err'); return }
+  if (!api?.panelAdminStatus) { toast(t('Network access settings are not supported in this environment'), 'err'); return }
   beginBusy('lan')
   let registered: boolean
   try {
     registered = (await api.panelAdminStatus())?.registered === true
   } catch (error) {
     endBusy()
-    toast(t('查询管理员状态失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Failed to check admin status: {message}', { message: errorMessage(error) }), 'err')
     return
   }
   endBusy()
@@ -749,11 +749,11 @@ export async function submitLanRegister(username: string, password: string): Pro
   if (!api?.panelRegister) return
   const name = username.trim()
   if (!name || name.length > 64) {
-    publish({ lanRegister: { busy: false, error: t('请填写管理员账号（64 字符以内）') } })
+    publish({ lanRegister: { busy: false, error: t('Enter an admin account (up to 64 characters)') } })
     return
   }
   if (password.length < 8) {
-    publish({ lanRegister: { busy: false, error: t('密码至少 8 位') } })
+    publish({ lanRegister: { busy: false, error: t('Password must be at least 8 characters') } })
     return
   }
   publish({ lanRegister: { busy: true, error: '' } })
@@ -783,15 +783,15 @@ export function cancelLanRegister(): void {
 async function applyLan(enabled: boolean, panel: boolean): Promise<void> {
   if (busyScope) return
   const api = shared().workbuddyDesktop
-  if (!api?.changeLanAccess) { toast(t('当前环境不支持网络访问设置'), 'err'); return }
+  if (!api?.changeLanAccess) { toast(t('Network access settings are not supported in this environment'), 'err'); return }
   beginBusy('lan')
   publishApp({ lanAccess: enabled, lanPanel: panel })
   try {
     const result = await api.changeLanAccess(enabled, panel) as { createdKey?: unknown } | null | undefined
-    if (result?.createdKey) toast(t('✅ 已自动创建网关 Key「默认」（可在「网关 Key」页查看）'))
-    toast(t('✅ 设置已保存，应用正在重启…'))
+    if (result?.createdKey) toast(t('✅ Automatically created the gateway key "Default" (view it on the "Gateway Key" page)'))
+    toast(t('✅ Settings saved, the app is restarting…'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadSettings() // 回滚到磁盘上的真实值
   } finally {
     endBusy()
@@ -810,16 +810,16 @@ export async function exportAccounts(): Promise<void> {
   beginBusy('export')
   try {
     const result = await shared().workbuddyDesktop?.exportAccounts()
-    if (result?.canceled) { toast(t('已取消导出')); return }
+    if (result?.canceled) { toast(t('Export canceled')); return }
     const count = Number(result?.count) || 0
     const providers = Number(result?.customProviders) || 0
-    if (!count && !providers) { toast(t('没有可导出的账号'), 'err'); return }
+    if (!count && !providers) { toast(t('No accounts to export'), 'err'); return }
     // v2 导出文件附带自定义提供商定义：账号为 0 但有定义时同样值得导
-    const providerNote = providers ? t('、{n} 个自定义提供商', { n: providers }) : ''
-    const fileNote = result?.file ? t(' 到 {file}', { file: result.file }) : ''
-    toast(t('✅ 已导出 {count} 个账号{note}{file}', { count, note: providerNote, file: fileNote }))
+    const providerNote = providers ? t(', {n} custom providers', { n: providers }) : ''
+    const fileNote = result?.file ? t(' to {file}', { file: result.file }) : ''
+    toast(t('✅ Exported {count} accounts{note}{file}', { count, note: providerNote, file: fileNote }))
   } catch (error) {
-    toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Operation failed: {message}', { message: errorMessage(error) }), 'err')
   } finally {
     endBusy()
   }
@@ -832,7 +832,7 @@ export async function importAccounts(): Promise<void> {
   beginBusy('import')
   try {
     const result = await shared().workbuddyDesktop?.importAccounts()
-    if (result?.canceled) { toast(t('已取消导入')); return }
+    if (result?.canceled) { toast(t('Import canceled')); return }
 
     const added = Number(result?.added) || 0
     const updated = Number(result?.updated) || 0
@@ -844,20 +844,20 @@ export async function importAccounts(): Promise<void> {
     const customUpdated = Number(custom.updated) || 0
 
     const extras: string[] = []
-    if (skipped) extras.push(t('跳过 {n} 个', { n: skipped }))
-    if (failed) extras.push(t('失败 {n} 个', { n: failed }))
-    const suffix = extras.length ? t('，{items}', { items: extras.join(t('、')) }) : ''
+    if (skipped) extras.push(t('skipped: {n}', { n: skipped }))
+    if (failed) extras.push(t('failed: {n}', { n: failed }))
+    const suffix = extras.length ? t(', {items}', { items: extras.join(t(', ')) }) : ''
     const providerNote = (customAdded || customUpdated)
-      ? t('，自定义提供商新增 {added} 个、更新 {updated} 个', { added: customAdded, updated: customUpdated })
+      ? t(', custom providers: {added} added, {updated} updated', { added: customAdded, updated: customUpdated })
       : ''
-    const summary = t('新增 {added} 个、更新 {updated} 个{suffix}{note}', {
+    const summary = t('{added} added, {updated} updated{suffix}{note}', {
       added, updated, suffix, note: providerNote,
     })
 
     const notice = accountImportNotice(result)
     const message = failed || notice?.warning
-      ? t('导入完成：{summary}', { summary })
-      : t('✅ 导入完成：{summary}', { summary })
+      ? t('Import complete: {summary}', { summary })
+      : t('✅ Import complete: {summary}', { summary })
     toast(notice ? `${message}\n${t(notice.text)}` : message, failed ? 'err' : notice?.warning ? 'warn' : 'ok')
     if (failed) {
       // 失败明细只列前 3 条，与账号页批量操作的展示密度保持一致；
@@ -865,12 +865,12 @@ export async function importAccounts(): Promise<void> {
       const detail = errors.slice(0, 3)
         .map(item => {
           const label = item?.customProvider
-            ? t('自定义提供商 {id}', { id: item?.id || t('(无 id)') })
-            : (item?.id ?? t('未知账号'))
-          const message = item?.message ?? t('未知原因')
-          return t('{label}（{message}）', { label, message })
+            ? t('Custom provider {id}', { id: item?.id || t('(no id)') })
+            : (item?.id ?? t('Unknown account'))
+          const message = item?.message ?? t('Unknown reason')
+          return t('{label} ({message})', { label, message })
         })
-        .join(t('；'))
+        .join(t('; '))
       publish({ ioFailure: { failed, detail, more: errors.length > 3 } })
     }
 
@@ -878,7 +878,7 @@ export async function importAccounts(): Promise<void> {
     // 自定义提供商定义有变化时同样要刷（分组名、模型清单都会变）
     if (added || updated || customAdded || customUpdated) await shared().wbApp?.refresh?.()
   } catch (error) {
-    toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Operation failed: {message}', { message: errorMessage(error) }), 'err')
   } finally {
     endBusy()
   }
@@ -911,20 +911,20 @@ export async function exportDatabase(password: string): Promise<void> {
   try {
     const api = shared().workbuddyDesktop
     if (!api?.exportDatabase) {
-      toast(t('当前环境不支持整库备份'), 'err')
+      toast(t('Full-database backup is not available in this environment'), 'err')
       return
     }
     const result = await api.exportDatabase(snapshot.dbIncludeLogs, password)
-    if (result?.canceled) { toast(t('已取消导出')); return }
+    if (result?.canceled) { toast(t('Export canceled')); return }
     const size = Number(result?.bytes) || 0
     const tables = Array.isArray(result?.tables) ? result.tables.length : 0
-    toast(t('✅ 已加密备份 {n} 张表（{size}），包含恢复密钥：{file}', {
+    toast(t('✅ Encrypted backup of {n} tables ({size}), including recovery keys: {file}', {
       n: tables,
       size: formatBytes(size),
       file: result?.file || '',
     }))
   } catch (error) {
-    toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Operation failed: {message}', { message: errorMessage(error) }), 'err')
   } finally {
     endBusy()
   }
@@ -961,7 +961,7 @@ async function proceedDbRestore(password: string): Promise<void> {
   if (busyScope) return
   const api = shared().workbuddyDesktop
   if (!api?.importDatabase) {
-    toast(t('当前环境不支持整库恢复'), 'err')
+    toast(t('Full-database restore is not available in this environment'), 'err')
     return
   }
   beginBusy('dbImport')
@@ -985,7 +985,7 @@ async function proceedDbRestore(password: string): Promise<void> {
     if (result?.canceled) {
       stop()
       publish({ dbRestore: null })
-      toast(t('已取消恢复'))
+      toast(t('Restore canceled'))
       return
     }
     const tables = Array.isArray(result?.tables) ? result.tables.length : 0
@@ -1046,11 +1046,11 @@ async function proceedDbRestore(password: string): Promise<void> {
           active: true,
           done: false,
           failed: false,
-          phase: t('恢复仍在进行中…'),
+          phase: t('The restore is still in progress…'),
           startedAt: snapshot.dbRestore?.startedAt || Date.now(),
         },
       })
-      toast(t('请求已断开，但恢复仍在后台进行 —— 请等待进度弹窗给出结果'))
+      toast(t('The request was dropped, but the restore is still going on in the background—— Please wait for the progress dialog to give the result'))
       return
     }
     stop()
@@ -1209,7 +1209,7 @@ function watchRestoreProgress(attemptStartedAt: number): () => void {
           active: true,
           done: false,
           failed: false,
-          phase: typeof data.phase === 'string' && data.phase ? data.phase : (current?.phase ?? t('正在恢复…')),
+          phase: typeof data.phase === 'string' && data.phase ? data.phase : (current?.phase ?? t('Restoring…')),
           // 进度只增不减：后端给的百分比是阶段起点，这里再兜一层，避免抖动
           percent: Math.max(current?.percent ?? 0, Number(data.percent) || 0),
           startedAt: startedAt || current?.startedAt || Date.now(),
@@ -1257,7 +1257,7 @@ async function loadRetention(): Promise<void> {
   try {
     renderRetention(await shared().workbuddyDesktop?.getRetention())
   } catch (error) {
-    console.warn('读取数据保留设置失败:', errorMessage(error))
+    console.warn('Failed to read the data-retention settings:', errorMessage(error))
     renderRetention(null)
   }
 }
@@ -1295,7 +1295,7 @@ export async function saveRetentionField(field: RetentionField, raw: string): Pr
   // 遮罩已经挡住了页面，走到这里只剩键盘 Tab 之类的少数路径，挡一下成本极低。
   if (snapshot.retentionConfirm) return
 
-  const parsed = parseInteger(raw, field.min, field.max, field.kind === 'count' ? t('条数') : t('天数'))
+  const parsed = parseInteger(raw, field.min, field.max, field.kind === 'count' ? t('Record count') : t('Days'))
   if (!parsed.ok) { toast(parsed.message, 'err'); return }
 
   const known = snapshot.retention.values?.[field.key]
@@ -1334,7 +1334,7 @@ async function commitRetention(field: RetentionField, value: number, shrinking: 
     toast(retentionSavedMessage(field, snapshot.retention.values?.[field.key] ?? value, shrinking))
   } catch (error) {
     // 400 的 message（点名哪个字段、超出多少）比自造一句更指向具体问题
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadRetention() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1403,10 +1403,10 @@ async function saveNumericField(panel: NumericPanel, field: NumberField, raw: st
     renderNumericPanel(panel, saved)
     const applied = panel.read().values?.[field.key]
     const shown = Number.isInteger(applied) ? applied : parsed.value
-    toast(t('✅ 已保存：{label} {value}', { label: field.label, value: String(shown) }))
+    toast(t('✅ Saved: {label} {value}', { label: field.label, value: String(shown) }))
   } catch (error) {
     // 400 的 message（点名哪个字段、超出多少）比自造一句更指向具体问题
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadNumericPanel(panel) // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1418,7 +1418,7 @@ async function saveNumericField(panel: NumericPanel, field: NumberField, raw: st
 const queuePanel: NumericPanel = {
   scope: 'queue',
   fields: QUEUE_FIELDS,
-  consoleLabel: '读取排队等待设置',
+  consoleLabel: 'Read the queue wait settings',
   get: () => shared().workbuddyDesktop?.getQueue(),
   save: patch => shared().workbuddyDesktop?.saveQueue(patch),
   read: () => snapshot.queue,
@@ -1453,7 +1453,7 @@ function imageCompressEnabledFlag(data: unknown): boolean {
 const imageCompressPanel: NumericPanel = {
   scope: 'imageCompress',
   fields: IMAGE_COMPRESS_FIELDS,
-  consoleLabel: '读取会话图片压缩设置',
+  consoleLabel: 'Read the session image compression settings',
   get: () => shared().workbuddyDesktop?.getImageCompress(),
   save: patch => shared().workbuddyDesktop?.saveImageCompress(patch),
   read: () => ({ status: snapshot.imageCompress.status, values: snapshot.imageCompress.values }),
@@ -1486,9 +1486,9 @@ export async function saveImageCompressEnabled(next: boolean): Promise<void> {
   try {
     const saved = await shared().workbuddyDesktop?.saveImageCompress({ [IMAGE_COMPRESS_ENABLED_KEY]: next })
     renderImageCompress(saved)
-    toast(next ? t('✅ 会话图片压缩已开启') : t('已关闭会话图片压缩'))
+    toast(next ? t('✅ Image compression is on') : t('Image compression disabled'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadImageCompress() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1500,7 +1500,7 @@ export async function saveImageCompressEnabled(next: boolean): Promise<void> {
 const captchaPoolPanel: NumericPanel = {
   scope: 'captchaPool',
   fields: CAPTCHA_POOL_FIELDS,
-  consoleLabel: '读取验证码令牌池设置',
+  consoleLabel: 'Read the verification-code token pool settings',
   get: () => shared().workbuddyDesktop?.getCaptchaPool(),
   save: patch => shared().workbuddyDesktop?.saveCaptchaPool(patch),
   read: () => snapshot.captchaPool,
@@ -1567,7 +1567,7 @@ export async function loadRouting(): Promise<void> {
     if (data === undefined) { publish({ routing: { ...snapshot.routing, status: 'unavailable' } }); return }
     publish({ routing: { status: 'ready', ...routingValuesFrom(data) } })
   } catch (error) {
-    console.warn('读取路由设置失败:', errorMessage(error))
+    console.warn('Failed to read the routing settings:', errorMessage(error))
     publish({ routing: { ...snapshot.routing, status: 'unavailable' } })
   }
 }
@@ -1586,7 +1586,7 @@ export async function saveRoutingField(patch: {
   if (busyScope) return
   const bridge = shared().workbuddyDesktop
   if (!bridge?.setRoutingConfig) {
-    toast(t('桌面运行时不可用，暂时无法保存'), 'err')
+    toast(t('Desktop runtime unavailable; cannot save right now'), 'err')
     return
   }
   beginBusy('routing')
@@ -1598,9 +1598,9 @@ export async function saveRoutingField(patch: {
       // 老壳不回响应体：回读一次拿真实生效值（loadRouting 会给出 ready / unavailable）
       await loadRouting()
     }
-    toast(t('✅ 路由设置已保存'))
+    toast(t('✅ Routing settings saved'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadRouting() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1612,13 +1612,13 @@ export async function saveRoutingField(patch: {
 const retryPanel: NumericPanel = {
   scope: 'retry',
   fields: RETRY_FIELDS,
-  consoleLabel: '读取请求重试设置',
+  consoleLabel: 'Read the request retry settings',
   get: () => shared().workbuddyDesktop?.getRetry(),
   save: patch => shared().workbuddyDesktop?.saveRetry(patch),
   read: () => snapshot.retry,
   write: state => publish({ retry: state }),
   syncExtras: data => {
-    // 「指定错误码直接换号」的名单：只收 100–599 的整数项（后端已排序去重，这里不再排序
+    // 「指定错误码直接换号」的The list：只收 100–599 的整数项（后端已排序去重，这里不再排序
     // —— 顺序就是后端给的）。键缺失（旧后端）时沿用上一轮的值，不误判成「清空」；
     // data 为 null（整块不可用）时清掉并锁住输入框。
     if (data === null) { publish({ retryCodes: null }); return }
@@ -1655,9 +1655,9 @@ async function saveRetryCodes(codes: number[]): Promise<void> {
     // PUT 契约返回生效后的全量值（含三个数字项），交给面板统一回填，
     // 顺带把徽章重画成后端确认的形态（排序去重后的结果）
     renderNumericPanel(retryPanel, saved)
-    toast(t('✅ 已保存：指定错误码直接换号'))
+    toast(t('✅ Saved: Switch Accounts on Specified Error Codes'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadNumericPanel(retryPanel) // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1671,15 +1671,15 @@ export async function addRetryCode(raw: string): Promise<void> {
   const text = String(raw ?? '').trim()
   if (!text) return
   if (!/^\d+$/.test(text) || Number(text) < RETRY_CODE_MIN || Number(text) > RETRY_CODE_MAX) {
-    toast(t('状态码必须是 {min}–{max} 的整数（收到: {text}）', {
+    toast(t('Status code must be an integer from {min} to {max} (received: {text})', {
       min: RETRY_CODE_MIN, max: RETRY_CODE_MAX, text,
     }), 'err')
     return
   }
   const code = Number(text)
-  if (codes.includes(code)) { toast(t('状态码 {code} 已在名单里', { code })); return }
+  if (codes.includes(code)) { toast(t('Status code {code} is already in the list', { code })); return }
   if (codes.length >= RETRY_MAX_CODES) {
-    toast(t('名单最多 {max} 个状态码', { max: RETRY_MAX_CODES }), 'err')
+    toast(t('At most {max} status codes', { max: RETRY_MAX_CODES }), 'err')
     return
   }
   await saveRetryCodes([...codes, code])
@@ -1704,7 +1704,7 @@ export async function dropLastRetryCode(): Promise<void> {
 const timeoutsPanel: NumericPanel = {
   scope: 'timeouts',
   fields: TIMEOUT_FIELDS,
-  consoleLabel: '读取请求超时设置',
+  consoleLabel: 'Read the request timeout settings',
   get: () => shared().workbuddyDesktop?.getTimeouts(),
   save: patch => shared().workbuddyDesktop?.saveTimeouts(patch),
   read: () => snapshot.timeouts,
@@ -1750,7 +1750,7 @@ async function readDebug(): Promise<void> {
     if (revision === debugRevision) renderDebug(data ?? null)
   } catch (error) {
     if (revision !== debugRevision) return
-    console.warn('读取调试模式设置失败:', errorMessage(error))
+    console.warn('Failed to read the debug-mode settings:', errorMessage(error))
     renderDebug(null)
   }
 }
@@ -1768,15 +1768,15 @@ export async function saveDebug(next: boolean): Promise<void> {
   publish({ debug: { ...previous, on: next } })
   try {
     const bridge = shared().workbuddyDesktop
-    if (!bridge?.saveDebug) throw new Error(t('主进程桥不可用'))
+    if (!bridge?.saveDebug) throw new Error(t('Main process bridge unavailable'))
     const saved = await bridge.saveDebug(next)
     renderDebug(saved ?? null)
     if (snapshot.debug.status !== 'ready' || snapshot.debug.on !== next) {
-      throw new Error(t('未能读取调试模式设置，请稍后重试'))
+      throw new Error(t('Could not read the debug mode settings. Please try again later.'))
     }
-    toast(next ? t('✅ 调试模式已开启') : t('✅ 调试模式已关闭'))
+    toast(next ? t('✅ Debug mode enabled') : t('✅ Debug mode disabled'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     publish({ debug: previous })
     await readDebug()
   } finally {
@@ -1793,14 +1793,14 @@ async function loadSanitize(): Promise<void> {
   try {
     renderSanitize(await shared().workbuddyDesktop?.getSanitize())
   } catch (error) {
-    console.warn('读取出站指纹脱敏设置失败:', errorMessage(error))
+    console.warn('Failed to read the outbound-fingerprint masking settings:', errorMessage(error))
     renderSanitize(null)
   }
 }
 
 export async function saveSanitize(next: boolean): Promise<void> {
   await saveSanitizeConfig({ sanitizeBlacklistFingerprints: next }, next
-    ? t('✅ 出站指纹脱敏已开启') : t('已关闭出站指纹脱敏'))
+    ? t('✅ Fingerprint masking enabled') : t('Fingerprint masking disabled'))
 }
 
 export async function saveSanitizeConfig(patch: SanitizePatch, message?: string): Promise<boolean> {
@@ -1808,22 +1808,22 @@ export async function saveSanitizeConfig(patch: SanitizePatch, message?: string)
   beginBusy('sanitize')
   try {
     const api = shared().workbuddyDesktop
-    if (!api?.saveSanitize) throw new Error(t('主进程桥不可用'))
+    if (!api?.saveSanitize) throw new Error(t('Main process bridge unavailable'))
     const request = !snapshot.sanitize.editable && typeof patch.sanitizeBlacklistFingerprints === 'boolean'
       ? patch.sanitizeBlacklistFingerprints : patch
     const data = await api.saveSanitize(request)
     const state = sanitizeStateFrom(data, snapshot.sanitize)
-    if (state.status !== 'ready') throw new Error(t('未能读取保存后的指纹脱敏设置'))
+    if (state.status !== 'ready') throw new Error(t('Could not read the saved fingerprint masking settings'))
     publish({ sanitize: state })
     toast(
       state.saved
-        ? message ?? t('✅ 指纹脱敏设置已保存')
-        : t('指纹脱敏设置仅本次运行生效，写入数据库失败，请检查配置目录'),
+        ? message ?? t('✅ Fingerprint masking settings saved')
+        : t('Fingerprint masking settings apply only to this run. Database writing failed; check the configuration directory.'),
       state.saved ? 'ok' : 'err',
     )
     return true
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     return false
   } finally {
     endBusy()
@@ -1846,7 +1846,7 @@ async function loadDeveloperRoleCompat(): Promise<void> {
   try {
     renderDeveloperRoleCompat(await shared().workbuddyDesktop?.getDeveloperRoleCompat())
   } catch (error) {
-    console.warn('读取开发者角色兼容设置失败:', errorMessage(error))
+    console.warn('Failed to read the developer role compatibility settings:', errorMessage(error))
     renderDeveloperRoleCompat(null)
   }
 }
@@ -1858,9 +1858,9 @@ export async function saveDeveloperRoleCompat(next: boolean): Promise<void> {
   try {
     const saved = await shared().workbuddyDesktop?.saveDeveloperRoleCompat(next)
     renderDeveloperRoleCompat(saved)
-    toast(next ? t('✅ 开发者角色兼容已开启') : t('已关闭开发者角色兼容'))
+    toast(next ? t('✅ Developer role compatibility enabled') : t('Developer role compatibility disabled'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadDeveloperRoleCompat() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1883,7 +1883,7 @@ async function loadReasoningCollapse(): Promise<void> {
   try {
     renderReasoningCollapse(await shared().workbuddyDesktop?.getReasoningCollapse())
   } catch (error) {
-    console.warn('读取第三方模型回答完自动折叠过程设置失败:', errorMessage(error))
+    console.warn('Failed to read the auto-collapse setting for third-party model answers:', errorMessage(error))
     renderReasoningCollapse(null)
   }
 }
@@ -1895,9 +1895,9 @@ export async function saveReasoningCollapse(next: boolean): Promise<void> {
   try {
     const saved = await shared().workbuddyDesktop?.saveReasoningCollapse(next)
     renderReasoningCollapse(saved)
-    toast(next ? t('✅ 第三方模型回答完自动折叠过程已开启') : t('已关闭第三方模型回答完自动折叠过程'))
+    toast(next ? t('✅ Collapse third-party model work after the answer enabled') : t('Collapse third-party model work after the answer disabled'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadReasoningCollapse() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1937,14 +1937,14 @@ async function loadClineHeaders(): Promise<void> {
   try {
     renderClineHeaders(await shared().workbuddyDesktop?.getClineHeaders())
   } catch (error) {
-    console.warn('读取 Cline 伪装头失败:', errorMessage(error))
+    console.warn('Failed to read the Cline spoofing headers:', errorMessage(error))
     renderClineHeaders(null)
   }
 }
 
 export async function refreshClineHeaders(): Promise<void> {
   await loadClineHeaders()
-  toast(t('Cline 伪装头已刷新'))
+  toast(t('Cline spoofed headers refreshed'))
 }
 
 /**
@@ -1958,9 +1958,9 @@ export async function saveClineHeaders(overrides: Record<string, string>): Promi
   try {
     const saved = await shared().workbuddyDesktop?.saveClineHeaders(overrides)
     renderClineHeaders(saved)
-    toast(t('✅ Cline 伪装头已保存'))
+    toast(t('✅ Cline spoofed headers saved'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadClineHeaders() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -1983,7 +1983,7 @@ async function loadCors(): Promise<void> {
   try {
     renderCors(await shared().workbuddyDesktop?.getCors())
   } catch (error) {
-    console.warn('读取网关跨域访问设置失败:', errorMessage(error))
+    console.warn('Failed to read the gateway cross-origin access settings:', errorMessage(error))
     renderCors(null)
   }
 }
@@ -1995,9 +1995,9 @@ export async function saveCors(next: boolean): Promise<void> {
   try {
     const saved = await shared().workbuddyDesktop?.saveCors(next)
     renderCors(saved)
-    toast(next ? t('网关跨域访问已开启') : t('已关闭网关跨域访问'))
+    toast(next ? t('Gateway CORS enabled') : t('Gateway CORS disabled'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadCors() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -2019,7 +2019,7 @@ async function loadAccount(): Promise<void> {
     })
   } catch (error) {
     publish({ account: { ...snapshot.account, status: 'unavailable' } })
-    console.warn('读取面板账户失败:', errorMessage(error))
+    console.warn('Failed to read the panel account:', errorMessage(error))
   }
 }
 
@@ -2043,15 +2043,15 @@ export async function submitPasswordChange(oldPassword: string, newPassword: str
   const current = snapshot.account.password
   if (!current || current.busy) return
   if (!oldPassword) {
-    publish({ account: { ...snapshot.account, password: { busy: false, error: t('请输入当前密码') } } })
+    publish({ account: { ...snapshot.account, password: { busy: false, error: t('Please enter your current password') } } })
     return
   }
   if (newPassword.length < 8) {
-    publish({ account: { ...snapshot.account, password: { busy: false, error: t('新密码至少 8 位') } } })
+    publish({ account: { ...snapshot.account, password: { busy: false, error: t('Password must be at least 8 characters') } } })
     return
   }
   if (newPassword === oldPassword) {
-    publish({ account: { ...snapshot.account, password: { busy: false, error: t('新密码不能与当前密码相同') } } })
+    publish({ account: { ...snapshot.account, password: { busy: false, error: t('New password must differ from the current one') } } })
     return
   }
   publish({ account: { ...snapshot.account, password: { busy: true, error: '' } } })
@@ -2059,7 +2059,7 @@ export async function submitPasswordChange(oldPassword: string, newPassword: str
     await shared().workbuddyDesktop?.changePanelPassword(oldPassword, newPassword)
     // 其他会话已被后端撤销，本机这条仍然有效 —— 关掉弹窗、提示即可
     publish({ account: { ...snapshot.account, password: null } })
-    toast(t('✅ 密码已修改，其他设备的登录已失效'))
+    toast(t('✅ Password changed. Sign-ins on other devices have been revoked'))
   } catch (error) {
     publish({
       account: {
@@ -2094,7 +2094,7 @@ async function loadModelsDev(): Promise<void> {
     publish({ modelsDev: modelsDevState(state) })
   } catch (error) {
     publish({ modelsDev: { ...snapshot.modelsDev, status: 'unavailable' } })
-    console.warn('读取 models.dev 元数据设置失败:', errorMessage(error))
+    console.warn('Failed to read the models.dev metadata settings:', errorMessage(error))
   }
 }
 
@@ -2105,9 +2105,9 @@ export async function saveModelsDev(next: boolean): Promise<void> {
   try {
     const state = await shared().workbuddyDesktop?.saveModelsDev?.(next)
     publish({ modelsDev: modelsDevState(state) })
-    toast(next ? t('✅ models.dev 模型元数据已开启') : t('已关闭 models.dev 联网刷新'))
+    toast(next ? t('✅ models.dev model metadata enabled') : t('Online refresh for models.dev turned off'))
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadModelsDev() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -2129,15 +2129,15 @@ export async function refreshModelsDev(): Promise<void> {
     const result = payload?.result
     const status = String(result?.status || '')
     if (status === 'refreshed') {
-      toast(t('models.dev 元数据已更新（{count} 条）', { count: Number(result?.count) || 0 }))
+      toast(t('models.dev metadata updated ({count} entries)', { count: Number(result?.count) || 0 }))
     } else if (status === 'failed') {
-      toast(t('刷新失败：{message}', { message: String(result?.message || '') }), 'err')
+      toast(t('Refresh failed: {message}', { message: String(result?.message || '') }), 'err')
     } else {
       // skipped：未到间隔 / 设置里关着 —— 原因由后端给，原样透出
-      toast(String(result?.message || t('本次无需刷新')))
+      toast(String(result?.message || t('No refresh needed this time')))
     }
   } catch (error) {
-    toast(t('刷新失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Refresh failed: {message}', { message: errorMessage(error) }), 'err')
     await loadModelsDev()
   } finally {
     endBusy()
@@ -2282,7 +2282,7 @@ async function loadPrompt(): Promise<void> {
   try {
     renderPrompt(await shared().workbuddyDesktop?.getPrompt())
   } catch (error) {
-    console.warn('读取系统提示词设置失败:', errorMessage(error))
+    console.warn('Failed to read the system prompt settings:', errorMessage(error))
     renderPrompt(null)
   }
 }
@@ -2305,10 +2305,10 @@ async function savePromptField(label: string, patch: PromptPatch): Promise<boole
   try {
     const saved = await shared().workbuddyDesktop?.savePrompt(patch)
     renderPrompt(saved)
-    toast(t('✅ 已保存：{label}', { label }))
+    toast(t('✅ Saved: {label}', { label }))
     return true
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadPrompt() // 回滚到后端的真实值
     return false
   } finally {
@@ -2318,12 +2318,12 @@ async function savePromptField(label: string, patch: PromptPatch): Promise<boole
 
 export async function savePromptMode(mode: string): Promise<void> {
   const option = PROMPT_MODES.find(item => item.value === mode)
-  await savePromptField(t('模式改为「{mode}」', { mode: option?.toastLabel ?? mode }), { promptMode: mode })
+  await savePromptField(t('Mode changed to "{mode}"', { mode: option?.toastLabel ?? mode }), { promptMode: mode })
 }
 
 export async function savePromptFile(raw: string): Promise<void> {
   await savePromptField(
-    raw.trim() ? t('提示词文件已更新') : t('已改回内置默认提示词'),
+    raw.trim() ? t('Prompt file updated') : t('Reverted to the built-in default prompt'),
     { promptFile: raw },
   )
 }
@@ -2337,7 +2337,7 @@ export async function savePromptFile(raw: string): Promise<void> {
 export async function savePromptText(text: string): Promise<boolean> {
   const empty = !text.trim()
   return savePromptField(
-    empty ? t('已清掉界面编辑的提示词（回落文件 / 内置默认）') : t('提示词正文已更新'),
+    empty ? t('Cleared the UI-edited prompt (falls back to the file / built-in default)') : t('Prompt text updated'),
     { promptText: empty ? '' : text },
   )
 }
@@ -2403,7 +2403,7 @@ export async function addProviderPrompt(rawId: string): Promise<void> {
   if (!id) return
   const prompt = snapshot.prompt
   await saveProviderPrompt(
-    t('已为「{label}」单独配置提示词', { label: promptProviderLabel(prompt, id) }),
+    t('Prompt configured individually for "{label}"', { label: promptProviderLabel(prompt, id) }),
     id,
     providerPatch(prompt, {
       id,
@@ -2424,7 +2424,7 @@ export async function saveProviderPromptMode(item: ProviderPromptState, mode: st
   if (!id || !PROMPT_MODES.some(option => option.value === mode)) return
   const option = PROMPT_MODES.find(candidate => candidate.value === mode)
   await saveProviderPrompt(
-    t('「{label}」的模式改为「{mode}」', {
+    t('"{label}" mode changed to "{mode}"', {
       label: promptProviderLabel(snapshot.prompt, id),
       mode: option?.toastLabel ?? mode,
     }),
@@ -2438,8 +2438,8 @@ export async function saveProviderPromptFile(item: ProviderPromptState, raw: str
   if (!id) return
   await saveProviderPrompt(
     raw.trim()
-      ? t('「{label}」的提示词文件已更新', { label: promptProviderLabel(snapshot.prompt, id) })
-      : t('「{label}」改用内置默认提示词', { label: promptProviderLabel(snapshot.prompt, id) }),
+      ? t('"{label}" prompt file updated', { label: promptProviderLabel(snapshot.prompt, id) })
+      : t('"{label}" now uses the built-in default prompt', { label: promptProviderLabel(snapshot.prompt, id) }),
     id,
     // 同上：与文件一起把当前显示的模式落定，避免「改文件把模式改回去」
     { ...providerPatch(snapshot.prompt, item), promptFile: raw },
@@ -2462,7 +2462,7 @@ export async function saveProviderPromptText(
   const empty = !text.trim()
   const label = promptProviderLabel(snapshot.prompt, id)
   return saveProviderPrompt(
-    empty ? t('已清掉「{label}」界面编辑的正文', { label }) : t('「{label}」的提示词正文已更新', { label }),
+    empty ? t('Cleared the UI-edited text for "{label}"', { label }) : t('"{label}" prompt text updated', { label }),
     id,
     { ...providerPatch(snapshot.prompt, item), promptText: empty ? '' : text },
   )
@@ -2473,7 +2473,7 @@ export async function removeProviderPrompt(rawId: string): Promise<void> {
   const id = knownProviderId(rawId)
   if (!id) return
   await saveProviderPrompt(
-    t('已取消「{label}」的单独配置', { label: promptProviderLabel(snapshot.prompt, id) }),
+    t('Individual configuration removed for "{label}"', { label: promptProviderLabel(snapshot.prompt, id) }),
     id,
     null,
   )
@@ -2502,12 +2502,12 @@ export async function saveProviderGatewayPrompt(rawId: string, enabled: boolean)
     renderPrompt(saved)
     toast(
       enabled
-        ? t('✅ 已为「{label}」装上网关自带提示词', { label })
-        : t('已关闭「{label}」的网关自带提示词：能否通过上游校验取决于上游当前口径', { label }),
+        ? t('✅ Gateway-provided prompt installed for "{label}"', { label })
+        : t('Turned off the gateway-provided prompt for "{label}": whether it passes upstream validation depends on the upstream\'s current criteria', { label }),
       enabled ? 'ok' : 'err',
     )
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
     await loadPrompt() // 回滚到后端的真实值
   } finally {
     endBusy()
@@ -2538,8 +2538,8 @@ export async function saveProviderGatewayText(
     || !(blocks.identity.trim() || blocks.stable.trim() || blocks.dynamic.trim())
   return savePromptField(
     emptied
-      ? t('「{label}」的网关自带提示词已改回官方原文', { label })
-      : t('「{label}」的网关自带提示词正文已更新', { label }),
+      ? t('"{label}" gateway-provided prompt restored to the official text', { label })
+      : t('"{label}" gateway-provided prompt text updated', { label }),
     { promptGatewayText: { [id]: emptied ? null : blocks } },
   )
 }
@@ -2551,9 +2551,9 @@ export async function clearDegrade(): Promise<void> {
   try {
     const saved = await shared().workbuddyDesktop?.savePrompt({ clearDegrade: true })
     renderPrompt(saved)
-    toast(t('✅ 已解除内容拦截降级'))
+    toast(t('✅ Content-block fallback cleared'))
   } catch (error) {
-    toast(t('解除失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Failed to clear the fallback: {message}', { message: errorMessage(error) }), 'err')
     await loadPrompt()
   } finally {
     endBusy()
@@ -2605,7 +2605,7 @@ async function loadStorage(): Promise<void> {
   try {
     renderStorage(await shared().workbuddyDesktop?.getStorage())
   } catch (error) {
-    console.warn('读取数据存储概况失败:', errorMessage(error))
+    console.warn('Failed to read the data storage overview:', errorMessage(error))
     renderStorage(null)
   }
 }
@@ -2629,7 +2629,7 @@ export async function panelLogout(): Promise<boolean> {
     window.location.href = desktop ? 'login.html' : '/login'
     return true
   } catch (error) {
-    toast(t('退出失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Sign-out failed: {message}', { message: errorMessage(error) }), 'err')
     return false
   }
 }
@@ -2678,70 +2678,70 @@ export async function load({ checkUpdate = false }: { checkUpdate?: boolean } = 
 
 export async function refreshRetention(): Promise<void> {
   await loadRetention()
-  toast(t('数据保留设置已刷新'))
+  toast(t('Data retention settings refreshed'))
 }
 
 export async function refreshRetry(): Promise<void> {
   await loadRetry()
-  toast(t('重试设置已刷新'))
+  toast(t('Retry settings refreshed'))
 }
 
 export async function refreshTimeouts(): Promise<void> {
   await loadTimeouts()
-  toast(t('超时设置已刷新'))
+  toast(t('Timeout settings refreshed'))
 }
 
 export async function refreshQueue(): Promise<void> {
   await loadQueue()
-  toast(t('排队等待设置已刷新'))
+  toast(t('Queueing settings refreshed'))
 }
 
 export async function refreshImageCompress(): Promise<void> {
   await loadImageCompress()
-  toast(t('会话图片压缩设置已刷新'))
+  toast(t('Image compression settings refreshed'))
 }
 
 export async function refreshCaptchaPool(): Promise<void> {
   await loadCaptchaPool()
-  toast(t('验证码令牌池设置已刷新'))
+  toast(t('Captcha token pool settings refreshed'))
 }
 
 export async function refreshRouting(): Promise<void> {
   await loadRouting()
-  toast(t('路由设置已刷新'))
+  toast(t('Routing settings refreshed'))
 }
 
 export async function refreshDebug(): Promise<void> {
   await loadDebug()
-  toast(t('调试模式设置已刷新'))
+  toast(t('Debug mode settings refreshed'))
 }
 
 export async function refreshSanitize(): Promise<void> {
   await loadSanitize()
-  toast(t('指纹脱敏设置已刷新'))
+  toast(t('Fingerprint masking settings refreshed'))
 }
 
 export async function refreshDeveloperRoleCompat(): Promise<void> {
   await loadDeveloperRoleCompat()
-  toast(t('开发者角色兼容设置已刷新'))
+  toast(t('Developer role compatibility setting refreshed'))
 }
 
 export async function refreshReasoningCollapse(): Promise<void> {
   await loadReasoningCollapse()
-  toast(t('第三方模型回答完自动折叠过程设置已刷新'))
+  toast(t('Third-party reasoning collapse setting refreshed'))
 }
 
 export async function refreshCors(): Promise<void> {
   await loadCors()
-  toast(t('网关跨域访问设置已刷新'))
+  toast(t('Gateway CORS settings refreshed'))
 }
 
 export async function refreshPrompt(): Promise<void> {
   await loadPrompt()
-  toast(t('系统提示词设置已刷新'))
+  toast(t('System prompt settings refreshed'))
 }
 
 export async function refreshStorage(): Promise<void> {
   await loadStorage()
-  toast(t('存储概况已刷新'))
+  toast(t('Storage overview refreshed'))
 }

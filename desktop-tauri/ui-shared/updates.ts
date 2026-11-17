@@ -23,15 +23,15 @@ export type SystemdUpdateTask = ServiceUpdateTask
 
 export function updateUnavailableReason(capability: UpdateCapability, t: Translator): string {
   switch (capability.reason) {
-    case 'windows_setup_required': return t('当前 Windows 服务尚未接入一键更新。请解压新版服务端包，以管理员身份运行一次 install-service.ps1，原有账号、目录、端口和配置会保留。')
-    case 'windows_update_permissions': return t('Windows 服务升级权限或目录保护不符合要求。请以管理员身份重跑新版 install-service.ps1；自定义服务账号或外部托管环境请按原方式升级。')
-    case 'disabled': return t('管理员已关闭面板一键更新，请使用手动升级方式。')
-    case 'helper_missing': return t('当前安装尚未接入一键更新。请下载新版服务端包，执行一次 sudo bash install.sh --upgrade；之后即可在面板更新。')
-    case 'helper_unavailable': return t('一键更新组件不可用或权限配置不正确。请使用新版安装包执行 sudo bash install.sh --upgrade 修复。')
-    case 'custom_installation': return t('检测到自定义程序或界面路径，一键更新不会覆盖这些位置。请按原部署方式升级。')
-    case 'unsupported_arch': return t('当前系统或架构暂不支持面板自动安装，请查看发布页。')
-    case 'windows_service': return t('Windows 服务部署需要手动升级。请解压新版服务端包，以管理员身份运行 install-service.ps1；账号与配置会保留。')
-    default: return t('当前为直接运行的服务端，请停止程序后替换服务端包，再重新启动。')
+    case 'windows_setup_required': return t('One-click updates are not set up for this Windows service. Extract the new server package and run install-service.ps1 once as administrator. Existing accounts, directories, ports and settings will be preserved.')
+    case 'windows_update_permissions': return t('The Windows service permissions or directory protection do not meet update requirements. Run the new install-service.ps1 as administrator. Custom service accounts or externally managed environments should use their existing upgrade procedure.')
+    case 'disabled': return t('An administrator has disabled one-click updates. Please upgrade manually.')
+    case 'helper_missing': return t('One-click updates are not installed yet. Download the new server package and run sudo bash install.sh --upgrade once. Future updates can then be installed from the panel.')
+    case 'helper_unavailable': return t('The update helper is unavailable or its permissions are incorrect. Run sudo bash install.sh --upgrade from the new package to repair it.')
+    case 'custom_installation': return t('Custom program or panel paths were detected. One-click updates will not overwrite them. Use your existing deployment procedure.')
+    case 'unsupported_arch': return t('Automatic installation is not supported on this system or architecture. Check the release page.')
+    case 'windows_service': return t('Windows services require manual upgrades. Extract the new server package and run install-service.ps1 as administrator. Accounts and settings are preserved.')
+    default: return t('This server runs without a service manager. Stop it, replace the server files and start it again.')
   }
 }
 
@@ -89,11 +89,11 @@ export function assetMissingReason(
   // ① 被更新源的访问方式过滤掉：文件其实传了，是我们这边把它们挡掉了。
   // 先说这条 —— 它的处置办法（去「更新设置」改访问方式）与另外两种完全不同
   if (probe?.filteredBySource) {
-    return t('发布页上的文件被更新源的访问方式过滤掉了，请检查「更新设置」里的 GitHub 访问方式')
+    return t('The files on the release page were filtered out by your update source settings. Check the GitHub access mode in Update settings.')
   }
   // ② 一个文件都没传：构建失败，或者还在打包上传
   if (probe?.assetsTotal === 0) {
-    return t('这一版还没有上传任何文件（构建可能失败，或仍在打包上传）')
+    return t('No files have been uploaded for this release yet (the build may have failed, or uploads are still in progress)')
   }
   // ③ 传了文件，但没有本机要的那一份 —— 把「有什么」与「要什么」都摆出来。
   // 后端给的 expected 优先（Linux 桌面壳是 [deb, AppImage] 两个候选），
@@ -104,51 +104,51 @@ export function assetMissingReason(
     ? String(probe?.expectedName || '')
     : ((probe?.expectedSuffixes ?? [options.fallbackSuffix || '']).filter(Boolean).join(' / '))
   if (seen.length && wanted) {
-    return t('未找到适用的更新包。需要：{wanted}；发布页包含的文件类型：{seen}。', { seen: seen.join(' / '), wanted })
+    return t('No suitable update package was found. Required: {wanted}. File types on the release page: {seen}.', { seen: seen.join(' / '), wanted })
   }
   // ④ 兜底：连「有什么」都不知道，至少说清「本机要什么」
   if (serverPackage) {
     return wanted
-      ? t('发布页上没有 {wanted} 这个文件', { wanted })
-      : t('发布页上没有对应本机架构的服务端更新包')
+      ? t('The release page has no file named {wanted}', { wanted })
+      : t('The release page has no server update package for this machine\'s architecture')
   }
   return wanted
-    ? t('这一版没有发布本机需要的安装包（{wanted}）', { wanted })
-    : t('这一版没有为当前平台提供安装包')
+    ? t('This release did not publish the installer this machine needs ({wanted})', { wanted })
+    : t('This release provides no installer for the current platform')
 }
 
 export function githubFailureMessage(value: GithubFailure, t: Translator, settings: 'update' | 'plugin', now = Date.now()): string {
   if (!value.rateLimited && !value.rateLimits?.length) return githubErrorMessage(value.reason, t, settings)
   const active = (value.rateLimits || []).filter(limit => limit.retryAt > now)
-  if (!active.length) return t('上次 GitHub 限流的等待时间已结束，可重新检查')
+  if (!active.length) return t('The previous GitHub rate-limit wait has ended. You can check again.')
   const first = active.reduce((left, right) => left.retryAt <= right.retryAt ? left : right)
-  const source = [...new Set(active.map(limit => limit.source === 'official' ? t('官方源') : limit.label))].join(' / ')
+  const source = [...new Set(active.map(limit => limit.source === 'official' ? t('Official source') : limit.label))].join(' / ')
   const params = { source, seconds: Math.ceil((first.retryAt - now) / 1000) }
   const message = first.retrySource === 'fallback'
-    ? t('GitHub 源「{source}」限流，{seconds} 秒后可重试（上游未提供恢复时间）', params)
-    : t('GitHub 源「{source}」限流，请在 {seconds} 秒后重试', params)
-  return value.canRetry ? t('{message}；其他线路可重新检查', { message }) : message
+    ? t('GitHub source “{source}” is rate-limited. Retry in {seconds} seconds (no reset time was provided).', params)
+    : t('GitHub source “{source}” is rate-limited. Try again in {seconds} seconds.', params)
+  return value.canRetry ? t('{message} Other routes can be checked again.', { message }) : message
 }
 
 export function githubErrorMessage(error: unknown, t: Translator, settings: 'update' | 'plugin'): string {
   const message = error instanceof Error ? error.message : String(error ?? '')
   const sourceLimit = /^GitHub 源「(.+)」限流，(?:请在 )?(\d+) 秒后(?:重试|可重试)(（上游未提供恢复时间）)?(；其他线路可重新检查)?$/.exec(message)
   if (sourceLimit) {
-    const params = { source: sourceLimit[1] === '官方源' ? t('官方源') : sourceLimit[1], seconds: sourceLimit[2] }
+    const params = { source: sourceLimit[1] === 'Official source' ? t('Official source') : sourceLimit[1], seconds: sourceLimit[2] }
     const text = sourceLimit[3]
-      ? t('GitHub 源「{source}」限流，{seconds} 秒后可重试（上游未提供恢复时间）', params)
-      : t('GitHub 源「{source}」限流，请在 {seconds} 秒后重试', params)
-    return sourceLimit[4] ? t('{message}；其他线路可重新检查', { message: text }) : text
+      ? t('GitHub source “{source}” is rate-limited. Retry in {seconds} seconds (no reset time was provided).', params)
+      : t('GitHub source “{source}” is rate-limited. Try again in {seconds} seconds.', params)
+    return sourceLimit[4] ? t('{message} Other routes can be checked again.', { message: text }) : text
   }
-  if (message === '上次 GitHub 限流的等待时间已结束，可重新检查') return t('上次 GitHub 限流的等待时间已结束，可重新检查')
-  if (message === 'GitHub 接口限流中，请在「更新设置」的「GitHub 令牌」中填写凭证，以提高请求限额。'
-    || message === 'GitHub 接口限流中，请在「插件设置」的「GitHub 令牌」中填写凭证，以提高请求限额。') {
+  if (message === 'The previous GitHub rate-limit wait has ended. You can check again.') return t('The previous GitHub rate-limit wait has ended. You can check again.')
+  if (message === 'The GitHub API is rate-limited. Enter your credentials under GitHub Token in Update settings to increase the request limit.'
+    || message === 'The GitHub API is rate-limited. Enter your credentials under GitHub Token in Plugin settings to increase the request limit.') {
     return settings === 'plugin'
-      ? t('GitHub 接口限流中，请在「插件设置」的「GitHub 令牌」中填写凭证，以提高请求限额。')
-      : t('GitHub 接口限流中，请在「更新设置」的「GitHub 令牌」中填写凭证，以提高请求限额。')
+      ? t('The GitHub API is rate-limited. Enter your credentials under GitHub Token in Plugin settings to increase the request limit.')
+      : t('The GitHub API is rate-limited. Enter your credentials under GitHub Token in Update settings to increase the request limit.')
   }
   const cooldown = /^GitHub 接口限流中，请在 (\d+) 秒后重试$/.exec(message)
-  if (cooldown) return t('GitHub 接口限流中，请在 {seconds} 秒后重试', { seconds: cooldown[1] })
-  if (message === 'GitHub 接口限流中，请稍后重试') return t('GitHub 接口限流中，请稍后重试')
+  if (cooldown) return t('The GitHub API is rate-limited. Try again in {seconds} seconds.', { seconds: cooldown[1] })
+  if (message === 'The GitHub API is rate-limited. Try again later.') return t('The GitHub API is rate-limited. Try again later.')
   return message
 }

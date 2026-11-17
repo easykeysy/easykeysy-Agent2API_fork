@@ -166,7 +166,7 @@ impl AccountStore {
             .unwrap_or(zcode::PLAN_CODING);
         let Some(plan) = zcode::normalize_plan(raw) else {
             return Err(AccountStoreError::bad_request(
-                "未知的 ZCode 套餐通道（只支持 coding-plan / start-plan）",
+                "未知的 ZCode 套餐通道（只支持 coding-plan / start-plan)",
             ));
         };
         let guard = self.guard();

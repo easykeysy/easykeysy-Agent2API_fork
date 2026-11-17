@@ -8,9 +8,9 @@ import { UsageDonut } from './report-recharts'
 import { t } from '../../i18n'
 
 const SETTINGS_KEY = 'workbuddy-desktop-report-donut-settings'
-const TIP_GROUPING = t('合并只作用于饼图。低于阈值的扇区归入“其他”，右侧列表完整保留每个项目，总量和占比不变。')
-const TIP_MODELS = t('按 Token 用量从多到少排列，扇区角度表示占比。占比不低于 3% 的扇区显示百分比，所有项目的完整读数保留在右侧列表与悬停提示中。')
-const TIP_PROVIDERS = t('所选范围内每个提供商各消耗了多少 Token，按用量从多到少排，扇区角度即占比。同一个模型名可能有多家都能提供，网关按设置页「转发路由」的优先级依次尝试，所以占比也反映了实际落到谁身上。中心是这一维的合计（等于概览里的总 Token），右侧每行给出该提供商的 Token 用量与百分比。「未知」是指那批请求没记下承载它的提供商 —— 主要是记录提供商这个功能上线之前的旧明细，其次是请求在选定上游之前就失败了。')
+const TIP_GROUPING = t('Grouping affects only the donuts. Slices below the threshold are grouped as Other; every item remains in the list, with totals and shares unchanged.')
+const TIP_MODELS = t('Sorted by token usage, with each slice\'s angle showing its share. Slices of at least 3% show a percentage; full readings for every item remain in the list and hover details.')
+const TIP_PROVIDERS = t('How many tokens each provider used in the selected range, sorted by usage from high to low; each sector\'s angle is its share. The same model name may be offered by several providers; the Gateway tries them in priority order as configured in the Forwarding route setting, so the share also reflects where requests actually landed. The center shows the total for this dimension (equal to Total tokens in the overview), and each row on the right gives that provider\'s token usage and percentage. "Unknown" means those requests did not record the provider that served them—mainly detail rows from before provider recording existed, and requests that failed before an upstream was chosen.')
 
 function readSettings(): DonutSettings {
   try {
@@ -50,26 +50,26 @@ export function ReportUsageDonuts({ models, providers }: { models: StatsGroup[] 
       return next
     })
   }
-  const modelView = donutView(models || undefined, t('未知模型'), settings)
-  const providerView = donutView(providers || undefined, t('未知'), settings)
+  const modelView = donutView(models || undefined, t('Unknown model'), settings)
+  const providerView = donutView(providers || undefined, t('Unknown'), settings)
   if (!models && !providers) return null
-  return <section className='report-donut-section' aria-label={t('用量分布')}>
+  return <section className='report-donut-section' aria-label={t('Usage breakdown')}>
     <div className='report-section-heading'>
-      <div><h2>{t('用量分布')}</h2><span>{t('按 Token 统计')}</span></div>
+      <div><h2>{t('Usage breakdown')}</h2><span>{t('By tokens')}</span></div>
       <Popover><PopoverTrigger render={<Button variant='ghost' size='sm' className='report-donut-settings-button' />}>
         <svg width='14' height='14' viewBox='0 0 16 16' fill='none' aria-hidden='true'><path d='M2 4h12M2 12h12M6 2v4M10 10v4' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' /></svg>
-        {settings.enabled ? t('饼图小于 {threshold}% 归入其他', { threshold: settings.threshold }) : t('饼图不合并小项')}
+        {settings.enabled ? t('Group donut slices below {threshold}%', { threshold: settings.threshold }) : t('Show all donut slices')}
       </PopoverTrigger><PopoverContent align='end' className='report-donut-settings'>
-        <div className='report-setting-title'>{t('饼图显示')}</div>
-        <p>{t('仅调整两个饼图，右侧列表始终完整显示')}</p>
-        <div className='report-setting-row'><Label htmlFor={switchId}>{t('合并小项')}</Label>
+        <div className='report-setting-title'>{t('Donut display')}</div>
+        <p>{t('Only the two donuts change; the lists always show every item')}</p>
+        <div className='report-setting-row'><Label htmlFor={switchId}>{t('Group small slices')}</Label>
           <Switch id={switchId} checked={settings.enabled} onCheckedChange={enabled => changeSettings({ enabled })} /></div>
-        <div className='report-setting-row'><Label htmlFor={thresholdId}>{t('占比低于')}</Label>
+        <div className='report-setting-row'><Label htmlFor={thresholdId}>{t('Group shares below')}</Label>
           <Select value={String(settings.threshold)} disabled={!settings.enabled} onValueChange={value => {
             const threshold = Number(value)
             if (DONUT_THRESHOLDS.some(option => option === threshold)) changeSettings({ threshold })
           }}>
-            <SelectTrigger id={thresholdId} className='w-[96px]' aria-label={t('小项合并阈值')}><SelectValue>{`${settings.threshold}%`}</SelectValue></SelectTrigger>
+            <SelectTrigger id={thresholdId} className='w-[96px]' aria-label={t('Small-slice grouping threshold')}><SelectValue>{`${settings.threshold}%`}</SelectValue></SelectTrigger>
             <SelectContent>{DONUT_THRESHOLDS.map(value => <SelectItem key={value} value={String(value)}>{`${value}%`}</SelectItem>)}</SelectContent>
           </Select>
         </div>
@@ -77,11 +77,11 @@ export function ReportUsageDonuts({ models, providers }: { models: StatsGroup[] 
     </div>
     <div className='report-donut-grid'>
       {models ? <DonutPanel panelId='report-models-panel' listId='report-models-donut'
-        title={t('模型用量')} tip={TIP_MODELS} ariaLabel={t('模型用量占比')} itemLabel={t('模型')} view={modelView}
-        countText={t('{n} 个模型', { n: formatInt(modelView?.count || 0) })} emptyText={t('所选范围内还没有模型用量')} /> : null}
+        title={t('Model usage')} tip={TIP_MODELS} ariaLabel={t('Model usage share')} itemLabel={t('Model')} view={modelView}
+        countText={t('{n} models', { n: formatInt(modelView?.count || 0) })} emptyText={t('No model usage in the selected range')} /> : null}
       {providers ? <DonutPanel panelId='report-providers-pie-panel' listId='report-providers-donut'
-        title={t('提供商用量')} tip={TIP_PROVIDERS} ariaLabel={t('提供商用量占比')} itemLabel={t('提供商')} view={providerView}
-        countText={t('{n} 家提供商', { n: formatInt(providerView?.count || 0) })} emptyText={t('所选范围内还没有提供商用量')} /> : null}
+        title={t('Provider usage')} tip={TIP_PROVIDERS} ariaLabel={t('Provider usage share')} itemLabel={t('Provider')} view={providerView}
+        countText={t('{n} providers', { n: formatInt(providerView?.count || 0) })} emptyText={t('No provider usage in the selected range')} /> : null}
     </div>
     <p className='report-distribution-note'>{TIP_GROUPING}</p>
   </section>

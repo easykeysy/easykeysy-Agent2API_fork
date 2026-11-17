@@ -10,9 +10,9 @@ export function LimiterStatus({ account, onOpen }: { account: AccountRecord; onO
   const groups = groupsOf(account)
   const all = groups.some((group, index) => group.action === 'skip' && states[index]?.hit && states[index]?.account)
   const models = [...new Set(groups.flatMap((group, index) => group.action === 'skip' && states[index]?.hit ? states[index].models : []))]
-  const label = all || !models.length ? t('限制器 · 账号已跳过') : t('限制器 · {n} 个模型', { n: models.length })
+  const label = all || !models.length ? t('Limiter · Account skipped') : t('Limiter · {n} models', { n: models.length })
   return <Button variant='ghost' size='xs' className='h-auto p-0' onClick={onOpen}
-    title={all ? t('账号级条件组已触发；点击查看限制器') : t('仅跳过命中条件的模型，其他模型仍可转发；点击查看限制器')}>
+    title={all ? t('An account-wide condition group has triggered; click to view the limiter') : t('Only models whose conditions are met are skipped; other models can still forward requests. Click to view the limiter.')}>
     <Badge variant='warning' shape='tag'>{label}</Badge>
   </Button>
 }

@@ -12,22 +12,22 @@ function titleOf(campaign: CampaignReward, locale: string): string {
 
 function statusLabel(status: CampaignStatus, t: Translate): string {
   switch (status) {
-    case 'claimable': return t('可领取')
-    case 'claimed': return t('已领取')
-    case 'inactive': return t('非活动期')
-    case 'confirming': return t('领取结果待确认')
-    default: return t('暂不可领（未满足条件）')
+    case 'claimable': return t('Claimable')
+    case 'claimed': return t('Claimed')
+    case 'inactive': return t('Event inactive')
+    case 'confirming': return t('Claim awaiting confirmation')
+    default: return t('Not claimable yet (requirements not met)')
   }
 }
 
 function outcomeMessage(outcome: string, t: Translate): string {
   switch (outcome) {
-    case 'claimed': return t('活动奖励领取成功')
-    case 'already_claimed': return t('该活动已领取，无需重复领取')
-    case 'inactive': return t('活动未开放或已结束，请重新查询')
-    case 'ineligible': return t('当前账号暂不符合该活动的领取条件')
-    case 'confirming': return t('领取结果待确认，请稍后查询；不会重复提交领取')
-    default: return t('活动领取未成功，请重新查询后再试')
+    case 'claimed': return t('Campaign reward claimed successfully')
+    case 'already_claimed': return t('This reward has already been claimed. No further claim is needed.')
+    case 'inactive': return t('The campaign has not opened or has ended. Query again.')
+    case 'ineligible': return t('This account is not currently eligible for this reward')
+    case 'confirming': return t('The claim is awaiting confirmation. Query again later; no duplicate claim will be submitted.')
+    default: return t('The reward was not claimed. Query again before retrying.')
   }
 }
 
@@ -89,7 +89,7 @@ export function useCampaignRewards({ entry, api, t, onChange }: {
     setMessage('')
     try {
       const result = await api.query(entry.id)
-      if (!Array.isArray(result?.campaigns)) throw new Error(t('后端未返回活动福利数据'))
+      if (!Array.isArray(result?.campaigns)) throw new Error(t('The gateway returned no campaign reward data'))
       setData(result)
     } catch (error) {
       setData(null)
@@ -108,7 +108,7 @@ export function useCampaignRewards({ entry, api, t, onChange }: {
     setMessage('')
     try {
       const result = await api.claim(entry.id, campaign.campaignId)
-      if (!result?.outcome) throw new Error(t('后端未返回活动福利数据'))
+      if (!result?.outcome) throw new Error(t('The gateway returned no campaign reward data'))
       setMessage(outcomeMessage(result.outcome, t))
       setData(previous => previous ? { ...previous, campaigns: previous.campaigns.map(row => {
         if (row.campaignId !== campaign.campaignId) return row
@@ -156,11 +156,11 @@ function CampaignList({ data, busy, t, locale, formatTime, onClaim, now, compact
       ? `+${campaign.amount.toLocaleString()} ${campaign.unit ? t(campaign.unit) : 'Credits'}`
       : ''
     const window_ = [
-      campaign.startsAt ? t('活动开始：{time}', { time: formatTime(campaign.startsAt) }) : '',
-      campaign.endsAt ? t('领取截止：{time}', { time: formatTime(campaign.endsAt) }) : '',
-      campaign.expiresAt ? t('额度到期：{time}', { time: formatTime(campaign.expiresAt) })
-        : campaign.validDays ? t('领取后 {days} 天有效', { days: campaign.validDays }) : '',
-      campaign.claimedAt ? t('领取时间：{time}', { time: formatTime(campaign.claimedAt) }) : '',
+      campaign.startsAt ? t('Campaign starts: {time}', { time: formatTime(campaign.startsAt) }) : '',
+      campaign.endsAt ? t('Claim deadline: {time}', { time: formatTime(campaign.endsAt) }) : '',
+      campaign.expiresAt ? t('Credits expire: {time}', { time: formatTime(campaign.expiresAt) })
+        : campaign.validDays ? t('Valid for {days} days after claiming', { days: campaign.validDays }) : '',
+      campaign.claimedAt ? t('Claimed at: {time}', { time: formatTime(campaign.claimedAt) }) : '',
     ].filter(Boolean)
 
     if (compact) {
@@ -179,7 +179,7 @@ function CampaignList({ data, busy, t, locale, formatTime, onClaim, now, compact
         <Button size='xs' variant='outline'
           disabled={Boolean(busy) || status !== 'claimable'}
           onClick={() => onClaim(campaign)}>
-          {busy === campaign.campaignId ? t('领取中…') : t('领取')}
+          {busy === campaign.campaignId ? t('Claiming…') : t('Claim')}
         </Button>
       </div>
     }
@@ -196,7 +196,7 @@ function CampaignList({ data, busy, t, locale, formatTime, onClaim, now, compact
         {amount ? <span className='text-sm font-medium tabular-nums'>{amount}</span> : null}
         <Button size='sm' variant='outline' disabled={Boolean(busy) || !data || status !== 'claimable'}
           onClick={() => onClaim(campaign)}>
-          {busy === campaign.campaignId ? t('领取中…') : t('领取')}
+          {busy === campaign.campaignId ? t('Claiming…') : t('Claim')}
         </Button>
       </div>
       {window_.length ? (
@@ -204,7 +204,7 @@ function CampaignList({ data, busy, t, locale, formatTime, onClaim, now, compact
           {window_.map(text => <span key={text}>{text}</span>)}
         </div>
       ) : null}
-      {status === 'confirming' ? <p className='text-sm text-muted-foreground'>{t('领取结果待确认，请稍后查询；不会重复提交领取')}</p> : null}
+      {status === 'confirming' ? <p className='text-sm text-muted-foreground'>{t('The claim is awaiting confirmation. Query again later; no duplicate claim will be submitted.')}</p> : null}
     </div>
   })}</>
 }
@@ -226,19 +226,19 @@ export function CampaignRewards({ entry, api, t, locale, formatTime, onChange }:
 
   return <div className='min-w-0 space-y-3'>
     <div className='flex flex-wrap items-center gap-2'>
-      <span className='text-sm text-muted-foreground'>{t('奖励与权益 · 资格、额度和有效期以官方返回为准')}</span>
+      <span className='text-sm text-muted-foreground'>{t('Rewards and benefits · Eligibility, quota and validity follow the official response')}</span>
       <Button size='sm' variant='outline' className='ml-auto' disabled={Boolean(busy) || !available} onClick={() => void query()}>
-        {busy === 'query' ? t('查询中…') : t('查询活动')}
+        {busy === 'query' ? t('Checking…') : t('Query campaigns')}
       </Button>
     </div>
-    {!available ? <p className='text-sm text-muted-foreground'>{t('凭证不可用')}</p> : null}
-    {!data && !error ? <p className='text-sm text-muted-foreground'>{t('先查询活动，再选择要领取的奖励；不会购买或订阅套餐')}</p> : null}
+    {!available ? <p className='text-sm text-muted-foreground'>{t('Credentials unavailable')}</p> : null}
+    {!data && !error ? <p className='text-sm text-muted-foreground'>{t('Query campaigns, then choose a reward to claim. No plan is purchased or subscribed to.')}</p> : null}
     {error ? <p role='alert' className='text-sm text-destructive break-words'>{error}</p> : null}
     {message ? <p role='status' className='text-sm break-words'>{message}</p> : null}
     {data?.riskNote ? <p className='text-sm text-muted-foreground break-words'>
-      {t('设备校验未就绪，部分活动可能不显示：{reason}', { reason: data.riskNote })}
+      {t('Device verification is unavailable, so some campaigns may be hidden: {reason}', { reason: data.riskNote })}
     </p> : null}
-    {data?.campaigns.length === 0 ? <p className='text-sm text-muted-foreground'>{t('该账号当前没有可领取的限时活动')}</p> : null}
+    {data?.campaigns.length === 0 ? <p className='text-sm text-muted-foreground'>{t('No limited-time rewards are currently available for this account')}</p> : null}
     {data ? <CampaignList data={data} busy={busy} t={t} locale={locale}
       formatTime={formatTime} onClaim={campaign => void claim(campaign)} now={now} /> : null}
     {data ? <CampaignBenefitDetails key={entry.id} entry={entry} data={data} api={api} t={t}
@@ -264,11 +264,11 @@ export function CampaignRewardDetails({ entry, api, t, locale, formatTime, onCha
     {error ? <p role='alert' className='m-0 text-[12px] text-destructive break-words'>{error}</p> : null}
     {message ? <p role='status' className='m-0 text-[12px] break-words'>{message}</p> : null}
     {data?.riskNote ? <p className='m-0 text-[12px] text-muted-foreground break-words'>
-      {t('设备校验未就绪，部分活动可能不显示：{reason}', { reason: data.riskNote })}
+      {t('Device verification is unavailable, so some campaigns may be hidden: {reason}', { reason: data.riskNote })}
     </p> : null}
-    {data?.campaigns.length === 0 ? <p className='m-0 text-[12px] text-muted-foreground'>{t('该账号当前没有可领取的限时活动')}</p> : null}
+    {data?.campaigns.length === 0 ? <p className='m-0 text-[12px] text-muted-foreground'>{t('No limited-time rewards are currently available for this account')}</p> : null}
     {!data && !error ? <p className='m-0 text-[12px] text-muted-foreground'>
-      {t('先查询活动，再选择要领取的奖励；不会购买或订阅套餐')}
+      {t('Query campaigns, then choose a reward to claim. No plan is purchased or subscribed to.')}
     </p> : null}
     {data ? <CampaignList data={data} busy={busy} t={t} locale={locale}
       formatTime={formatTime} onClaim={campaign => void claim(campaign)} now={now} compact /> : null}

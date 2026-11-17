@@ -136,7 +136,7 @@ pub(super) fn plan(def: &ClientDef, path: &Path, profile: &Profile) -> Result<Pl
     let mut target = profile.clone();
     target.kind = "native-delete".into();
     Ok(Plan { changes, profile: target, operation: "native-delete".into(), warnings: vec![
-        "删除只作用于所选客户端连接及关联模型，保留其它配置、MCP、Skill 和系统登录凭证；写入前自动备份。".into(),
+        "删除只作用于所选客户端连接及关联模型，保留其它配置、MCP, Skill 和系统登录凭证；写入前自动备份。".into(),
         "删除当前使用的配置后，客户端可能回到内置默认；不会自动选择另一份自定义配置。".into(),
     ] })
 }

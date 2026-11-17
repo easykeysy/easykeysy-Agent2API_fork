@@ -15,7 +15,7 @@ pub(super) fn prepare(message: &str, data: &mut Map<String, Value>) {
             data.insert("pluginId".into(), json!(id));
             data.insert("phase".into(), json!("ready"));
             data.insert("providerCount".into(), json!(count));
-            data.insert("summary".into(), json!("插件已就绪"));
+            data.insert("summary".into(), json!("Plugin ready"));
             data.insert("routine".into(), json!(true));
             return;
         }
@@ -32,7 +32,7 @@ pub(super) fn prepare(message: &str, data: &mut Map<String, Value>) {
     };
     let Some((duration, timing)) = rest.split_once(" 毫秒，阶段耗时：") else { return };
     let Ok(duration) = duration.parse::<i64>() else { return };
-    let summary = if phase == "ready" { "插件已就绪" } else { "插件未能就绪" };
+    let summary = if phase == "ready" { "Plugin ready" } else { "Plugin did not become ready" };
     data.insert("action".into(), json!("plugin.startup"));
     data.insert("pluginId".into(), json!(id));
     data.insert("phase".into(), json!(phase));

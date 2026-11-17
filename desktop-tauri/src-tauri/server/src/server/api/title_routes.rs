@@ -82,7 +82,7 @@ pub async fn put_routes(State(state): State<ServerState>, body: Bytes) -> Respon
         let count = payload.config.rules.len();
         title_routes::save(payload.config, &payload.revision)?;
         crate::server::logging::log("[Title]", &format!(
-            "标题生成路由已保存：开关={}，规则={count} 条", if enabled { "开" } else { "关" }));
+            "标题生成路由已保存：开关={}，规则={count} entries", if enabled { "On" } else { "Off" }));
         view(&state)
     }).await {
         Ok(Ok(value)) => ok_json(value),

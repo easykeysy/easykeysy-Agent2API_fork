@@ -54,7 +54,7 @@ function LicenseList({ t, openExternal }: LicenseViewerProps) {
   return (
     <>
       <p className='text-xs leading-relaxed text-subtle'>
-        {t('目前展示仓库已登记的图标来源许可，不代表完整的第三方依赖清单。')}
+        {t('This list contains the icon source licenses currently recorded in the repository, not a complete inventory of third-party dependencies.')}
       </p>
       <div className='flex min-w-0 flex-col gap-3'>
         {LICENSES.map(entry => (
@@ -76,7 +76,7 @@ function LicenseList({ t, openExternal }: LicenseViewerProps) {
             <CollapsibleContent className='border-t border-hairline p-4'>
               <dl className='space-y-2 text-xs leading-relaxed'>
                 <div>
-                  <dt className='text-subtle'>{t('项目来源')}</dt>
+                  <dt className='text-subtle'>{t('Project source')}</dt>
                   <dd>
                     <a
                       href={entry.repository}
@@ -90,20 +90,20 @@ function LicenseList({ t, openExternal }: LicenseViewerProps) {
                   </dd>
                 </div>
                 <div>
-                  <dt className='text-subtle'>{entry.licenseRevision ? t('许可核对版本') : t('来源版本')}</dt>
+                  <dt className='text-subtle'>{entry.licenseRevision ? t('Revision used to verify the license') : t('Source revision')}</dt>
                   <dd className='font-mono break-all'>{entry.licenseRevision || entry.sourceRevision}</dd>
                 </div>
               </dl>
               {entry.id === 'lobe-icons' ? (
                 <p className='mt-2 text-xs leading-relaxed text-subtle'>
-                  {t('图标经 Magpie 引入，未单独记录 Lobe Icons 的图标版本；以上版本仅用于核对许可。')}
+                  {t('These icons were obtained through Magpie. The Lobe Icons asset revision was not recorded separately; the revision above was used only to verify the license.')}
                 </p>
               ) : null}
-              <h4 className='mt-4 text-xs font-semibold'>{t('许可原文')}</h4>
+              <h4 className='mt-4 text-xs font-semibold'>{t('Original license text')}</h4>
               <pre
                 tabIndex={0}
                 role='region'
-                aria-label={`${entry.name} ${t('许可原文')}`}
+                aria-label={`${entry.name} ${t('Original license text')}`}
                 lang='en'
                 className='mt-2 max-h-[40vh] overflow-auto rounded-md border border-border bg-surface-inset p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words select-text'
               >{entry.text}</pre>
@@ -112,15 +112,15 @@ function LicenseList({ t, openExternal }: LicenseViewerProps) {
         ))}
       </div>
       <p className='text-xs leading-relaxed text-subtle'>
-        {t('本项目的 AGPL-3.0 许可不替代这些第三方许可。名称与标识的商标权归各自权利人所有。')}
+        {t('This project\'s AGPL-3.0 license does not replace these third-party licenses. Trademark rights in names and logos belong to their respective owners.')}
       </p>
     </>
   )
 }
 
 export function ThirdPartyLicensesButton({ t, openExternal, mobile = false }: LicenseViewerProps) {
-  const title = t('第三方开源许可')
-  const description = t('许可原文已随软件内置，无需联网即可查看；打开项目来源链接需要联网。')
+  const title = t('Third-party open-source licenses')
+  const description = t('License texts are bundled with the app and available offline. Opening project source links requires an internet connection.')
 
   if (mobile) {
     return (
@@ -136,7 +136,7 @@ export function ThirdPartyLicensesButton({ t, openExternal, mobile = false }: Li
           </SheetBody>
           <SheetFooter>
             <SheetClose render={<Button variant='outline' size='touch' className='w-full' />}>
-              {t('关闭')}
+              {t('Close')}
             </SheetClose>
           </SheetFooter>
         </SheetContent>
@@ -156,7 +156,7 @@ export function ThirdPartyLicensesButton({ t, openExternal, mobile = false }: Li
           <LicenseList t={t} openExternal={openExternal} />
         </DialogBody>
         <DialogFooter className='shrink-0'>
-          <DialogClose render={<Button variant='outline' />}>{t('关闭')}</DialogClose>
+          <DialogClose render={<Button variant='outline' />}>{t('Close')}</DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

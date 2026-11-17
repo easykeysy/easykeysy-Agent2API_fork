@@ -106,7 +106,7 @@ pub const CLIENTS: &[ClientDef] = &[
         icon: "kimi-code.png", icon_full: true, format: ConfigFormat::Toml, binaries: &["kimi"],
         behavior: "providers", protocols: &["openai_chat", "responses", "anthropic"], writable: true, gateway: true,
         models: true, effort: true, default_model: true, toggle: false, env_key: false,
-        needs_restart: true, note: "按 models 与 providers 原生表管理；旧版与新版能力、协议字段分别处理。",
+        needs_restart: true, note: "按 models and providers 原生表管理；旧版与新版能力、协议字段分别处理。",
         docs: "https://www.kimi.com/code/docs/en/kimi-code-cli/configuration/providers.html",
     },
     ClientDef {
@@ -130,7 +130,7 @@ pub const CLIENTS: &[ClientDef] = &[
         icon: "dsh.svg", icon_full: true, format: ConfigFormat::Yaml, binaries: &["dsh"],
         behavior: "providers", protocols: &["openai_chat", "responses", "anthropic"], writable: true, gateway: true,
         models: true, effort: true, default_model: true, toggle: false, env_key: true,
-        needs_restart: false, note: "旧版使用 settings.yaml；0.1.7 起使用所选运行方式的 cordis.patch.yml。密钥独立保存，写入校验不代表 DSH 已加载。",
+        needs_restart: false, note: "旧版使用 settings.yaml; 0.1.7 起使用所选运行方式的 cordis.patch.yml。密钥独立保存，写入校验不代表 DSH 已加载。",
         docs: "https://github.com/deepseek-ai/deepseek-harness",
     },
     ClientDef {
@@ -138,7 +138,7 @@ pub const CLIENTS: &[ClientDef] = &[
         icon: "qoder.png", icon_full: true, format: ConfigFormat::Json, binaries: &["qodercli", "qoderclicn"],
         behavior: "readonly", protocols: &[], writable: false, gateway: false,
         models: false, effort: false, default_model: false, toggle: false, env_key: false,
-        needs_restart: true, note: "官方 BYOK 由 /model 向导和账号目录决定，当前仅检测与读取，不猜测写入格式。",
+        needs_restart: true, note: "Official BYOK 由 /model 向导和账号目录决定，当前仅检测与读取，不猜测写入格式。",
         docs: "https://docs.qoder.com/cli/custom-models",
     },
     ClientDef {

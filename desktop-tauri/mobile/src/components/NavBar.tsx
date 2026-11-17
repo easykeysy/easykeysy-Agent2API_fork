@@ -21,7 +21,7 @@ export function NavBar({
 }) {
   return (
     <PageHeader className='m-navbar'>
-      <Button size='icon-touch' variant='outline' type='button' className='m-icon-btn' onClick={onBack} aria-label={t('返回')}>
+      <Button size='icon-touch' variant='outline' type='button' className='m-icon-btn' onClick={onBack} aria-label={t('Back')}>
         <Icon name='back' />
       </Button>
       <span className='m-navbar-title'>{title}</span>

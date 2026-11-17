@@ -257,7 +257,7 @@ async fn dispatch(
             Err(error) => return GatewayError::new(error.message).into_response(),
         };
         let Some(raw) = payload.get("token").cloned() else {
-            return GatewayError::bad_request("请求体缺少 token 字段（清除请传 null）").into_response();
+            return GatewayError::bad_request("请求体缺少 token 字段（清除请传 null)").into_response();
         };
         if !raw.is_null() && raw.as_str().is_none() {
             return GatewayError::bad_request("token 必须是字符串或 null").into_response();
@@ -310,7 +310,7 @@ async fn dispatch(
             Err(error) => return GatewayError::bad_request(error.message).into_response(),
         };
         let Some(enabled) = payload.get("enabled").and_then(Value::as_bool) else {
-            return GatewayError::bad_request("请求体缺少 enabled 字段（须为 true / false）")
+            return GatewayError::bad_request("请求体缺少 enabled 字段（须为 true / false)")
                 .into_response();
         };
         // 旧界面关闭 beta 时仍表示切回正式版，不能留下两个通道都关闭的状态。

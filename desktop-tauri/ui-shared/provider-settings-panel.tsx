@@ -52,13 +52,13 @@ export function ProviderSettingsPanel({ request, t, locale, active = true, provi
           result = await latest.current.request('GET', '/api/plugins/provider-settings')
           endpoint.current = '/api/plugins/provider-settings'
         }
-        if (!Array.isArray(result?.settings)) throw new Error(t('提供商设置返回格式无效，请刷新后重试'))
+        if (!Array.isArray(result?.settings)) throw new Error(t('The provider settings response is invalid. Refresh and try again.'))
         if (!alive.current || current !== generation.current) return
         setRows(previous => {
           const next = [...result.settings]
           for (const row of previous || []) {
             if (dirty.current.has(providerSettingsKey(row)) && !next.some(item => providerSettingsKey(item) === providerSettingsKey(row))) {
-              next.push({ ...row, error: t('提供商当前不可用，未保存的修改已保留；恢复插件后可继续编辑。') })
+              next.push({ ...row, error: t('The provider is unavailable. Unsaved edits are kept; restore the plugin to continue editing.') })
             }
           }
           return next
@@ -118,40 +118,40 @@ export function ProviderSettingsPanel({ request, t, locale, active = true, provi
 
   const selected = filter ? rows?.find(row => matchesProviderSettings(row, filter)) : undefined
   const selectedKey = selected ? providerSettingsKey(selected) : filter
-  const options = [{ value: '', label: t('全部') }, ...(rows || []).map(row => ({
+  const options = [{ value: '', label: t('All') }, ...(rows || []).map(row => ({
     value: providerSettingsKey(row), label: providerSettingsLabel(row, locale, t),
   }))]
-  if (filter && !selected) options.push({ value: filter, label: t('选定提供商') })
+  if (filter && !selected) options.push({ value: filter, label: t('Selected provider') })
   const empty = rows !== null && (!rows.length || Boolean(filter && !selected))
 
-  return <section className='flex min-w-0 flex-col gap-4' aria-label={t('提供商设置')}>
+  return <section className='flex min-w-0 flex-col gap-4' aria-label={t('Provider settings')}>
     <div className='flex flex-wrap items-start justify-between gap-3'>
       <div className='min-w-0'>
-        <h2 className='text-base font-semibold'>{t('提供商设置')}</h2>
+        <h2 className='text-base font-semibold'>{t('Provider settings')}</h2>
         <p className='mt-1.5 max-w-[72ch] text-xs leading-relaxed text-muted-foreground'>
-          {t('按提供商管理专属选项，作用于当前网关中该提供商的所有账号。')}
+          {t('Manage provider-specific options. Changes apply to all accounts for that provider on the current gateway.')}
         </p>
       </div>
       <Button type='button' size='sm' variant='outline' disabled={loading} onClick={() => void load()}>
-        {loading ? t('刷新中…') : t('刷新')}
+        {loading ? t('Refreshing…') : t('Refresh')}
       </Button>
     </div>
     <div className='min-w-0 max-w-full overflow-x-auto pb-1'>
-      <SegmentedControl value={selectedKey} options={options} onValueChange={setFilter} aria-label={t('按提供商筛选设置')}
+      <SegmentedControl value={selectedKey} options={options} onValueChange={setFilter} aria-label={t('Filter settings by provider')}
         className='w-max [&_[data-slot=segmented-item]]:h-8' />
     </div>
     {error ? <Alert variant='destructive'>{error}</Alert> : null}
     {rows === null && !error ? <Card className='px-4 py-8 text-center text-sm text-muted-foreground' role='status'>
-      {t('正在读取提供商设置…')}
+      {t('Loading provider settings…')}
     </Card> : null}
     {empty && !error ? <Card className='flex flex-col items-start gap-3 p-5'>
-      <p className='text-sm font-medium'>{filter ? t('该提供商暂无可编辑的专属设置') : t('暂无可编辑的提供商设置')}</p>
+      <p className='text-sm font-medium'>{filter ? t('This provider has no editable settings') : t('No editable provider settings')}</p>
       <p className='text-xs leading-relaxed text-muted-foreground'>
-        {t('只有已安装、启用并声明了设置项的提供商会出现在这里。可前往插件页检查安装与启用状态。')}
+        {t('Only providers with an installed, enabled plugin that declares settings appear here. Check installation and activation on the Plugins page.')}
       </p>
       <div className='flex flex-wrap gap-2'>
-        {filter ? <Button type='button' size='sm' variant='outline' onClick={() => setFilter('')}>{t('查看全部')}</Button> : null}
-        <Button type='button' size='sm' variant='outline' onClick={onPlugins}>{t('管理插件')}</Button>
+        {filter ? <Button type='button' size='sm' variant='outline' onClick={() => setFilter('')}>{t('View all')}</Button> : null}
+        <Button type='button' size='sm' variant='outline' onClick={onPlugins}>{t('Manage plugins')}</Button>
       </div>
     </Card> : null}
     {(rows || []).map(row => {
@@ -162,7 +162,7 @@ export function ProviderSettingsPanel({ request, t, locale, active = true, provi
       </div>
     })}
     {rows?.length ? <p className='text-xs leading-relaxed text-muted-foreground'>
-      {t('选项与默认值由插件提供，你保存的修改不会被插件更新覆盖。切换提供商不会丢失未保存的修改。')}
+      {t('Options and defaults come from plugins. Plugin updates do not overwrite your saved changes. Switching providers keeps unsaved edits.')}
     </p> : null}
   </section>
 }

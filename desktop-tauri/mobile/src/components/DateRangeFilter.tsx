@@ -3,8 +3,8 @@ import { DATE_RANGES, dayKey, updateCustomRange, type CustomDates, type DateRang
 import { t } from '../i18n'
 
 const LABELS: Record<DateRange, string> = {
-  today: t('今天'), yesterday: t('昨天'), 7: t('7 天'), 30: t('30 天'),
-  month: t('本月'), all: t('全部'), custom: t('自定义'),
+  today: t('Today'), yesterday: t('Yesterday'), 7: t('7 days'), 30: t('30 days'),
+  month: t('This month'), all: t('All'), custom: t('Custom'),
 }
 
 export function DateRangeFilter({ range, dates, onRangeChange, onDatesChange, label }: {
@@ -25,11 +25,11 @@ export function DateRangeFilter({ range, dates, onRangeChange, onDatesChange, la
     </div>
     {range === 'custom' ? <div className='m-section flex items-center gap-2 !mt-0 pb-2'>
       <Input type='date' value={dates.start} max={dates.end < today ? dates.end : today} className='min-w-0 flex-1'
-        aria-label={t('开始日期')} title={t('起始日期（含当天）')}
+        aria-label={t('Start date')} title={t('Start date (inclusive)')}
         onChange={event => change({ start: event.currentTarget.value })} />
       <span className='text-muted-foreground' aria-hidden='true'>～</span>
       <Input type='date' value={dates.end} min={dates.start} max={today} className='min-w-0 flex-1'
-        aria-label={t('结束日期')} title={t('结束日期（含当天）')}
+        aria-label={t('End date')} title={t('End date (inclusive)')}
         onChange={event => change({ end: event.currentTarget.value })} />
     </div> : null}
   </>

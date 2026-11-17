@@ -178,7 +178,7 @@ pub(super) fn read(
     config_dir: &Path,
 ) -> Result<ImportedBackup, String> {
     if password.len() > 1024 {
-        return Err("备份密码不能超过 1024 字节".into());
+        return Err("The backup password must not exceed 1024 bytes".into());
     }
     let file = std::fs::File::open(source).map_err(|error| format!("读取备份文件失败: {error}"))?;
     let file_size = file

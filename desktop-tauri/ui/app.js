@@ -145,22 +145,22 @@ const PAGES = ['assistant', 'overview', 'accounts', 'checkin', 'routing', 'gatew
  *
  *  `checkin` 是**内置页**（见 index.html 的说明）：页面归网关，签到能力归插件。 */
 const PAGE_LABELS = {
-  assistant: wbI18n.t('对话'),
-  overview: wbI18n.t('报表'),
-  accounts: wbI18n.t('账号'),
-  checkin: wbI18n.t('签到中心'),
-  routing: wbI18n.t('路由'),
-  gateway: wbI18n.t('模型管理'),
-  agent: wbI18n.t('Agent 配置'),
+  assistant: wbI18n.t('Chats'),
+  overview: wbI18n.t('Reports'),
+  accounts: wbI18n.t('Accounts'),
+  checkin: wbI18n.t('Check-in center'),
+  routing: wbI18n.t('Routing'),
+  gateway: wbI18n.t('Model management'),
+  agent: wbI18n.t('Agent Configuration'),
   tools: wbI18n.t('MCP & Skills'),
-  proxies: wbI18n.t('网络代理'),
-  keys: wbI18n.t('网关 Key'),
-  docs: wbI18n.t('文档'),
-  logs: wbI18n.t('日志'),
-  tasks: wbI18n.t('自动维护'),
-  requests: wbI18n.t('请求日志'),
-  plugins: wbI18n.t('插件'),
-  settings: wbI18n.t('设置'),
+  proxies: wbI18n.t('Network proxy'),
+  keys: wbI18n.t('Gateway key'),
+  docs: wbI18n.t('Docs'),
+  logs: wbI18n.t('Logs'),
+  tasks: wbI18n.t('Automatic maintenance'),
+  requests: wbI18n.t('Request logs'),
+  plugins: wbI18n.t('Plugins'),
+  settings: wbI18n.t('Settings'),
 };
 
 /** 当前页（子模块据此判断是否需要重新加载） */
@@ -471,9 +471,9 @@ function pushPanelTheme(target) {
  *     是主路径，`load` 那次是页面重新加载后的补发。
  *   · `agent2api:request-theme` —— 插件页主动索取主题模式。与凭证同一套时序
  *     理由：页面首帧就要正确的深浅，不能等宿主的 `load`。
- *   · `agent2api:open-zcode-plans` —— 插件页的「活动福利」行要打开宿主的套餐
+ *   · `agent2api:open-zcode-plans` —— 插件page的「活动福利」行要打开宿主的套餐
  *     明细弹窗（`wbZcodePlans` 是 React 岛，iframe 里拿不到）。让插件页自己
- *     重画一份弹窗等于把那个界面复制一遍，两份会各自漂移。
+ *     重画一份弹窗等于把那个界面复制一遍，两份will各自漂移。
  */
 function onPluginMessage(event) {
   const data = event.data;
@@ -643,25 +643,25 @@ function renderTopbarStatus() {
       ? [{ text: badge.textContent, kind: badge.dataset.tone || "" }]
       : [];
   };
-  const gateway = optional => chip(ready ? wbI18n.t("网关运行中") : wbI18n.t("未就绪"), ready ? "ok" : "bad", optional);
+  const gateway = optional => chip(ready ? wbI18n.t("Gateway running") : wbI18n.t("Not ready"), ready ? "ok" : "bad", optional);
   const views = {
-    accounts: () => [chip(wbI18n.t("{n} 个启用", { n: enabled }), enabled ? "ok" : ""), ...(limited ? [chip(wbI18n.t("{n} 个已限流", { n: limited }), "warn")] : [])],
-    gateway: () => [chip(ready ? isWebPanel() ? wbI18n.t("网关运行中") : wbI18n.t("监听 127.0.0.1") : wbI18n.t("未就绪"), ready ? "ok" : "bad"), chip(port, "", true)],
+    accounts: () => [chip(wbI18n.t("{n} enabled", { n: enabled }), enabled ? "ok" : ""), ...(limited ? [chip(wbI18n.t("{n} rate-limited", { n: limited }), "warn")] : [])],
+    gateway: () => [chip(ready ? isWebPanel() ? wbI18n.t("Gateway running") : wbI18n.t("Listening on 127.0.0.1") : wbI18n.t("Not ready"), ready ? "ok" : "bad"), chip(port, "", true)],
     keys: () => mirror("keys-status"),
     docs: () => [gateway(), chip(port, "", true)],
     logs: () => mirror("logs-badge"),
     requests: () => mirror("req-badge"),
     tasks: () => [gateway(true)],
-    settings: () => [gateway(true), ...(enabled ? [chip(wbI18n.t("{n} 个账号启用", { n: enabled }))] : [])],
-    overview: () => [gateway(), available ? chip(wbI18n.t("{n} 个账号可用", { n: available }), "ok") : chip(session.loggedIn ? wbI18n.t("已登录") : wbI18n.t("未登录"), session.loggedIn ? "ok" : "warn")],
+    settings: () => [gateway(true), ...(enabled ? [chip(wbI18n.t("{n} accounts enabled", { n: enabled }))] : [])],
+    overview: () => [gateway(), available ? chip(wbI18n.t("{n} accounts available", { n: available }), "ok") : chip(session.loggedIn ? wbI18n.t("Signed in") : wbI18n.t("Not signed in"), session.loggedIn ? "ok" : "warn")],
   };
   const items = views[currentPage]?.() || views.overview();
   // 启动期的历史统计整理在后台跑（见后端 start_background_maintenance）：
   // 顶栏挂一条轻提示，下一次 20 秒轮询读到 running=false 时自然消失。
   if (state?.maintenance?.running) {
-    items.push(chip(wbI18n.t('历史数据整理中'), 'warn', true));
+    items.push(chip(wbI18n.t('Organizing history data'), 'warn', true));
   }
-  window.wbShell?.status(items, stateError ? wbI18n.t("加载失败：{error}", { error: stateError }) : "");
+  window.wbShell?.status(items, stateError ? wbI18n.t("Load failed: {error}", { error: stateError }) : "");
 }
 
 // ─── 日志未读徽标（只提示 error） ─────────────
@@ -765,7 +765,7 @@ function paintLogsBadgeFromMemory() {
     return;
   }
   badge.textContent = unreadLogErrors > 99 ? '99+' : String(unreadLogErrors);
-  badge.title = wbI18n.t('{n} 条错误日志未读，点开「日志」查看', { n: unreadLogErrors });
+  badge.title = wbI18n.t('{n} unread error logs — open "Logs" to view', { n: unreadLogErrors });
   badge.style.display = '';
 }
 
@@ -788,7 +788,7 @@ async function refreshUnreadErrors(badge) {
       return;
     }
     live.textContent = unread > 99 ? '99+' : String(unread);
-    live.title = wbI18n.t('{n} 条错误日志未读，点开「日志」查看', { n: unread });
+    live.title = wbI18n.t('{n} unread error logs — open "Logs" to view', { n: unread });
     live.style.display = '';
   } catch {
     // 保持上一次的显示
@@ -873,7 +873,7 @@ function paintRequestsBadge() {
   }
   if (runningRequests > 0) {
     badge.textContent = runningRequests > 99 ? '99+' : String(runningRequests);
-    badge.title = wbI18n.t('{n} 个请求正在转发中，点开「请求日志」查看', { n: runningRequests });
+    badge.title = wbI18n.t('{n} requests in flight — open "Request logs" to view', { n: runningRequests });
     badge.style.display = '';
     // 类名用 is-running 而不是 live：layout.css 里 .live 是**侧栏状态灯**
     // （7px 圆点 + 绿底 + 光晕），加上它会把这颗数字角标压成小圆点 ——
@@ -884,7 +884,7 @@ function paintRequestsBadge() {
   badge.classList.remove('is-running');
   if (unreadFailures > 0) {
     badge.textContent = unreadFailures > 99 ? '99+' : String(unreadFailures);
-    badge.title = wbI18n.t('{n} 条失败请求未读，点开「请求日志」查看', { n: unreadFailures });
+    badge.title = wbI18n.t('{n} unread failed requests — open "Request logs" to view', { n: unreadFailures });
     badge.style.display = '';
     return;
   }
@@ -989,10 +989,10 @@ function syncUpdateBadge() {
   }
   // 只放一个「新」字而不是数字：这里没有「未读条数」的含义，
   // 写成数字容易被误会成还有多少个版本可以更新
-  badge.textContent = wbI18n.t('新');
-  badge.title = wbI18n.t('发现新版本 {latest}（当前 {current}），点开「设置 - 软件更新」可查看更新日志并下载', {
+  badge.textContent = wbI18n.t('New');
+  badge.title = wbI18n.t('New version {latest} available (current: {current}) — open "Settings - Software update" to see the changelog and download', {
     latest,
-    current: info.currentVersion || wbI18n.t('未知'),
+    current: info.currentVersion || wbI18n.t('Unknown'),
   });
   badge.style.display = '';
 }
@@ -1033,12 +1033,12 @@ function renderProxyStatus() {
   // 这里说的是「上游凭证」（有没有可用账号），与网关进程是否在监听是两件事，
   // 所以措辞明确指向账号 —— 别再说成「代理不可用」（那会让人去查端口）
   if (!health?.upstreamConfigured) {
-    box.innerHTML = wbI18n.t('<span style="color:var(--danger)">无可用账号：{reason}</span>', {
-      reason: esc(health?.unavailableReason || wbI18n.t('尚未登录')),
+    box.innerHTML = wbI18n.t('<span style="color:var(--danger)">No accounts available: {reason}</span>', {
+      reason: esc(health?.unavailableReason || wbI18n.t('Not signed in yet')),
     });
     return;
   }
-  box.textContent = wbI18n.t('运行正常 · {url}', { url: health.upstreamBaseUrl || '' });
+  box.textContent = wbI18n.t('Running normally · {url}', { url: health.upstreamBaseUrl || '' });
 }
 
 function render() {
@@ -1100,7 +1100,7 @@ function refresh({ force = true } = {}) {
       try {
         const next = await api.getState();
         if (!next || typeof next !== 'object' || !Array.isArray(next.accounts?.accounts)) {
-          throw new Error(wbI18n.t('账号列表响应异常'));
+          throw new Error(wbI18n.t('Unexpected account list response'));
         }
         if (completed !== refreshRequested) continue;
         state = next;
@@ -1117,7 +1117,7 @@ function refresh({ force = true } = {}) {
         stateError = error instanceof Error ? error.message : String(error);
         publishRefreshStatus({ error: stateError });
         renderTopbarStatus();
-        console.warn('加载状态失败:', stateError);
+        console.warn('Failed to load the state:', stateError);
       }
     } while (completed !== refreshRequested);
     return applied;
@@ -1143,31 +1143,31 @@ async function runAccountAction(action, id) {
       const result = await api.switchAccount(id);
       await refresh();
       toast(result?.changed === false
-        ? wbI18n.t('账号已在全局队列第一位')
-        : wbI18n.t('✅ 已将账号优先级调整到全局第一位'));
+        ? wbI18n.t('Account is already first in the global queue')
+        : wbI18n.t('✅ Account moved to first in the global queue'));
     } else if (action === 'refresh') {
       await api.refreshAccountToken(id);
       await refresh();
-      toast(wbI18n.t('✅ Token 已刷新'));
+      toast(wbI18n.t('✅ Token refreshed'));
     } else if (action === 'remove') {
       const account = state?.accounts?.accounts?.find(a => a.id === id);
       // 与岛内 displayNameOf 同一口径：nameCustom 恒赢，未打标维持旧口径（昵称优先）
       const name = esc(account?.nameCustom && account?.name ? account.name : (account?.nickname || account?.name || id));
       // 原生 confirm 在 Tauri 的 WebView 里不弹窗、直接放行（等于没有确认），
       // 危险确认一律走自绘弹窗（wbConfirm，见 confirm-dialog.js）—— 下同
-      const note = window.wbAccountsModel?.isDesktopAccount?.(account) ? wbI18n.t('（不会影响客户端登录态）') : '';
+      const note = window.wbAccountsModel?.isDesktopAccount?.(account) ? wbI18n.t('(does not affect the client\'s sign-in state)') : '';
       if (!(await window.wbConfirm?.ask?.({
-        title: wbI18n.t('删除账号'),
-        html: wbI18n.t('确定删除账号「<strong>{name}</strong>」？{note}', { name, note: esc(note) }),
-        okText: wbI18n.t('删除'),
+        title: wbI18n.t('Delete account'),
+        html: wbI18n.t('Delete account "<strong>{name}</strong>"? {note}', { name, note: esc(note) }),
+        okText: wbI18n.t('Delete'),
         okClass: 'danger',
       }))) return;
       await api.removeAccount(id);
       await refresh();
-      toast(wbI18n.t('账号已删除'));
+      toast(wbI18n.t('Account deleted'));
     }
   } catch (error) {
-    toast(wbI18n.t('操作失败：{message}', { message: error.message }), 'err');
+    toast(wbI18n.t('Operation failed: {message}', { message: error.message }), 'err');
   } finally {
     releaseBusy();
   }
@@ -1300,7 +1300,7 @@ async function restoreInitialPage() {
   // 先处理托盘意图，避免轻量模式重建时恢复旧更新页、顺带启动遗留安装包。
   if (api.takeTrayUpdateCheck) {
     try { checkUpdate = await api.takeTrayUpdateCheck(); }
-    catch (error) { console.warn('读取托盘更新请求失败:', error); }
+    catch (error) { console.warn('Failed to read the tray update request:', error); }
   }
   showPage(checkUpdate ? 'settings' : initialPage, { persist: false, checkUpdate });
   restorePortPanel();

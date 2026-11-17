@@ -22,7 +22,7 @@
 
   class CaptchaCancelledError extends CaptchaError {
     constructor() {
-      super(t('已取消验证码'));
+      super(t('Verification canceled'));
       this.name = 'CaptchaCancelledError';
     }
   }
@@ -43,7 +43,7 @@
     return ['ar', 'de', 'es', 'fr', 'in', 'it', 'ja', 'ko', 'pt', 'ru', 'th', 'tr', 'vi'].includes(code) ? code : 'en';
   }
 
-  function errorOf(value, fallback = t('验证码校验失败，请重试')) {
+  function errorOf(value, fallback = t('Code verification failed; try again')) {
     if (value instanceof CaptchaError) return value;
     const source = value && typeof value === 'object' ? value : {};
     const result = source.Result || source.result || {};
@@ -51,9 +51,9 @@
     const requestId = String(source.RequestId || source.requestId || '');
     const message = String(source.message || source.msg || source.Message || (typeof value === 'string' && value !== code ? value : '') || fallback);
     let reason = message;
-    if (code === 'F010' || code === 'F011') reason = t('验证请求过于频繁，请稍后重试');
-    if (code === 'F008') reason = t('验证码已使用，请重新验证');
-    if (['F001', 'F009', 'F024', 'F025'].includes(code)) reason = t('验证被上游风控拒绝，请稍后重试');
+    if (code === 'F010' || code === 'F011') reason = t('Verification requests are too frequent. Please try again later.');
+    if (code === 'F008') reason = t('This verification token has already been used. Verify again.');
+    if (['F001', 'F009', 'F024', 'F025'].includes(code)) reason = t('The upstream security service rejected verification. Please try again later.');
     const error = new CaptchaError([reason, code].filter(Boolean).join(' · '), { code, requestId, upstreamMessage: message });
     if (['F001', 'F009', 'F010', 'F011', 'F024', 'F025'].includes(code)) {
       retryAt = Date.now() + 5 * 60000;
@@ -124,7 +124,7 @@
       script.id = SCRIPT_ID;
       script.src = SDK_URL;
       script.async = true;
-      const timer = window.setTimeout(() => finish(new CaptchaError(t('验证码组件加载超时，请检查网络后重试'))), SCRIPT_TIMEOUT_MS);
+      const timer = window.setTimeout(() => finish(new CaptchaError(t('Verification component timed out while loading; check your network and try again'))), SCRIPT_TIMEOUT_MS);
       const finish = error => {
         window.clearTimeout(timer);
         script.onload = null;
@@ -132,8 +132,8 @@
         if (error) { script.remove(); reject(error); }
         else resolve();
       };
-      script.onload = () => finish(typeof window.initAliyunCaptcha === 'function' ? null : new CaptchaError(t('验证码组件加载异常，请重试')));
-      script.onerror = () => finish(new CaptchaError(t('验证码组件加载失败，请检查网络后重试')));
+      script.onload = () => finish(typeof window.initAliyunCaptcha === 'function' ? null : new CaptchaError(t('Verification component encountered a loading error; try again')));
+      script.onerror = () => finish(new CaptchaError(t('Verification component failed to load; check your network and try again')));
       document.head.appendChild(script);
     });
     scriptPromise = promise;
@@ -158,12 +158,12 @@
   async function submit(flow, param) {
     if (!current(flow) || flow.submitting) return null;
     if (typeof param !== 'string' || !param.trim()) {
-      settle(flow, null, new CaptchaError(t('验证码组件返回的验证串不完整（请重试）')));
+      settle(flow, null, new CaptchaError(t('The verification component returned an incomplete token. Please retry.')));
       return null;
     }
     flow.submitting = true;
     onPhase(flow, 'submitting');
-    armTimeout(flow, REQUEST_TIMEOUT_MS, t('验证码业务请求超时，请刷新状态后重试'));
+    armTimeout(flow, REQUEST_TIMEOUT_MS, t('The verified operation timed out. Refresh its status before retrying.'));
     try {
       const result = await flow.request(param);
       if (current(flow)) {
@@ -184,7 +184,7 @@
     elements(flow);
     await new Promise((resolve, reject) => {
       let done = false;
-      const timer = window.setTimeout(() => finish(new CaptchaError(t('验证码组件初始化超时，请重试'))), INIT_TIMEOUT_MS);
+      const timer = window.setTimeout(() => finish(new CaptchaError(t('Verification component initialization timed out; try again'))), INIT_TIMEOUT_MS);
       const finish = error => {
         if (done) return;
         done = true;
@@ -239,19 +239,19 @@
     if (remaining > 0) await new Promise(resolve => window.setTimeout(resolve, remaining));
     requireCurrent(flow);
     onPhase(flow, 'verifying');
-    armTimeout(flow, VERIFY_TIMEOUT_MS, t('验证码校验超时，请重试'));
+    armTimeout(flow, VERIFY_TIMEOUT_MS, t('Code verification timed out; try again'));
     // 手动操作或已启用的定时领取可请求当次验证；模型令牌池不在后台主动验证。
     if (flow.protocol === 'v3' && typeof flow.instance?.startTracelessVerification === 'function') flow.instance.startTracelessVerification();
     else if (typeof flow.instance?.show === 'function') flow.instance.show();
-    else throw new CaptchaError(t('验证码组件不可用，请重试'));
+    else throw new CaptchaError(t('Verification component unavailable; try again'));
   }
 
   function solve(config, request, signal, options = {}) {
     if (signal?.aborted) return Promise.reject(new CaptchaCancelledError());
-    if (active) return Promise.reject(new CaptchaError(t('已有验证码流程正在进行，请先完成或取消')));
+    if (active) return Promise.reject(new CaptchaError(t('A verification is already in progress. Complete or cancel it first.')));
     if (Date.now() < retryAt && cooldownError) return Promise.reject(cooldownError);
     if (!config?.prefix || !config?.sceneId || typeof request !== 'function') {
-      return Promise.reject(new CaptchaError(t('风控验证配置不完整，请稍后重试')));
+      return Promise.reject(new CaptchaError(t('Risk-control verification config is incomplete; try again later')));
     }
     const id = ++sequence;
     return new Promise((resolve, reject) => {
@@ -267,7 +267,7 @@
       active = flow;
       signal?.addEventListener('abort', flow.onAbort, { once: true });
       onPhase(flow, 'preparing');
-      armTimeout(flow, SCRIPT_TIMEOUT_MS + INIT_TIMEOUT_MS + WARMUP_MS, t('验证码组件初始化超时，请重试'));
+      armTimeout(flow, SCRIPT_TIMEOUT_MS + INIT_TIMEOUT_MS + WARMUP_MS, t('Verification component initialization timed out; try again'));
       void initialize(flow, { ...config, region: config.region || 'cn' }).catch(error => {
         settle(flow, null, errorOf(error));
       });

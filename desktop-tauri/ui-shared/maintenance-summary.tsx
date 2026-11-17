@@ -20,10 +20,10 @@ import type { MaintenanceRun, MaintenanceTask, MaintenanceTaskId } from './maint
  */
 
 const describe = (id: MaintenanceTaskId): string => id === 'credentialMaintenance'
-  ? t('仅维护过期或即将过期的凭证')
-  : t('逐个提供商更新模型目录，模型基础信息单独列出结果')
+  ? t('Only expired or soon-to-expire credentials are maintained')
+  : t('Updates each provider\'s catalog; model metadata results are listed separately')
 
-const actionLabel = (id: MaintenanceTaskId): string => id === 'credentialMaintenance' ? t('立即检查') : t('立即更新')
+const actionLabel = (id: MaintenanceTaskId): string => id === 'credentialMaintenance' ? t('Check now') : t('Update now')
 
 type TaskRow = {
   task: MaintenanceTask
@@ -46,14 +46,14 @@ export function MaintenanceSummary({ tasks, latest, busy, compact, onRun, onShow
     return { task, run, running, stalled: running || run?.status === 'running' || run?.status === 'interrupted' }
   })
   const schedule = ({ task }: TaskRow) => task.enabled
-    ? <>{t('每 {n} 分钟', { n: task.interval })}<span className='maintenance-sep'>·</span>{t('下次执行 {time}', { time: stamp(task.nextRunAt) })}</>
-    : t('自动维护已关闭')
+    ? <>{t('Every {n} minutes', { n: task.interval })}<span className='maintenance-sep'>·</span>{t('Next run: {time}', { time: stamp(task.nextRunAt) })}</>
+    : t('Automatic maintenance is off')
   const cooldown = ({ task }: TaskRow) => task.enabled && task.retryAt && task.retryAt > Date.now()
-    ? <span className='maintenance-cooldown'>{t('冷却至 {time}', { time: stamp(task.retryAt) })}</span>
+    ? <span className='maintenance-cooldown'>{t('Cooldown until {time}', { time: stamp(task.retryAt) })}</span>
     : null
   const lastRun = ({ task, run }: TaskRow) => run
-    ? <>{t('最近一次')}<span className='maintenance-sep'>·</span>{stamp(run.startedAt)}<span className='maintenance-sep'>·</span>{sourceLabel(run.source)}<span className='maintenance-sep'>·</span>{duration(run.durationMs)}</>
-    : <span title={task.lastResult ?? undefined}>{task.lastResult ? t('此前仅有汇总，尚无逐项记录') : t('尚未执行维护')}</span>
+    ? <>{t('Last run')}<span className='maintenance-sep'>·</span>{stamp(run.startedAt)}<span className='maintenance-sep'>·</span>{sourceLabel(run.source)}<span className='maintenance-sep'>·</span>{duration(run.durationMs)}</>
+    : <span title={task.lastResult ?? undefined}>{task.lastResult ? t('Only a summary was recorded previously; item details are not available') : t('Not run yet')}</span>
 
   if (compact) {
     return <Card className='maintenance-summary'>
@@ -66,9 +66,9 @@ export function MaintenanceSummary({ tasks, latest, busy, compact, onRun, onShow
         {row.run ? <RunCounts run={row.run} /> : null}
         <p className='maintenance-summary-line'>{schedule(row)}{cooldown(row)}</p>
         <div className='maintenance-summary-block-actions'>
-          <Button size='sm' variant='ghost' disabled={!row.run} onClick={() => onShowLatest(row.task.id)}>{t('查看结果')}</Button>
+          <Button size='sm' variant='ghost' disabled={!row.run} onClick={() => onShowLatest(row.task.id)}>{t('View result')}</Button>
           <Button size='sm' disabled={Boolean(busy) || row.task.running} onClick={() => onRun(row.task.id)}>
-            {row.running ? <Spinner /> : null}{row.running ? t('执行中…') : actionLabel(row.task.id)}
+            {row.running ? <Spinner /> : null}{row.running ? t('Running…') : actionLabel(row.task.id)}
           </Button>
         </div>
       </div>)}
@@ -84,9 +84,9 @@ export function MaintenanceSummary({ tasks, latest, busy, compact, onRun, onShow
           <TableCell>{row.run ? <RunCounts run={row.run} /> : null}</TableCell>
           <TableCell className='maintenance-summary-line'>{schedule(row)}{cooldown(row)}</TableCell>
           <TableCell className='maintenance-summary-actions'>
-            <Button size='sm' variant='ghost' disabled={!row.run} onClick={() => onShowLatest(row.task.id)}>{t('查看结果')}</Button>
+            <Button size='sm' variant='ghost' disabled={!row.run} onClick={() => onShowLatest(row.task.id)}>{t('View result')}</Button>
             <Button size='sm' disabled={Boolean(busy) || row.task.running} onClick={() => onRun(row.task.id)}>
-              {row.running ? <Spinner /> : null}{row.running ? t('执行中…') : actionLabel(row.task.id)}
+              {row.running ? <Spinner /> : null}{row.running ? t('Running…') : actionLabel(row.task.id)}
             </Button>
           </TableCell>
         </TableRow>)}

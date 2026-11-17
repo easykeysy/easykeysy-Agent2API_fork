@@ -79,12 +79,12 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
     const info = modelReasoning(model)
     const effective = info.bindingSupported === true ? bindingReasoningLevel(level, model) : ''
     const title = info.bindingSupported === false
-      ? t('当前通道未声明可用档位，映射等级不会注入；请先获取模型目录。')
+      ? t('This route has not declared supported levels. Mapping levels will not be injected; fetch the model catalog first.')
       : info.fixedLevel
-        ? t('上游固定为 {level}，绑定其他等级也无法调高。', { level: info.fixedLevel })
+        ? t('Upstream is fixed at {level}; binding another level cannot increase it.', { level: info.fixedLevel })
         : effective && effective.toLowerCase() !== level.toLowerCase()
-          ? t('绑定 {requested}，按当前通道将发送 {effective}。', { requested: level, effective })
-          : level ? t('思考等级 {level}（点击修改）', { level }) : t('设置思考等级（当前未绑定）')
+          ? t('Bound to {requested}; this route will send {effective}.', { requested: level, effective })
+          : level ? t('Reasoning level {level} (click to edit)', { level }) : t('Set reasoning level (not bound)')
     return (
       // 16px 小件（2xs 档）：原来那枚 mono 10px 的小药丸。已绑定走实心档、未绑定走虚线档，
       // 与旧 CSS 的 `.alias-level` / `.alias-level.unset` 同一套语义（mono 粗体也照旧）；
@@ -93,8 +93,8 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
         className='font-mono font-bold shadow-none'
         title={title}
         onClick={() => openMapping({ alias, target, provider: providerId })}>
-        {info.fixedLevel ? `${t('固定思考档位')} ${info.fixedLevel}` : effective && effective.toLowerCase() !== level.toLowerCase()
-          ? `${level} → ${effective}` : level || t('＋等级')}
+        {info.fixedLevel ? `${t('Fixed reasoning level')} ${info.fixedLevel}` : effective && effective.toLowerCase() !== level.toLowerCase()
+          ? `${level} → ${effective}` : level || t('+Level')}
       </Button>
     )
   }
@@ -111,16 +111,16 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
      */
     async function confirmUnmap(alias: string): Promise<void> {
       const ok = await shared().wbConfirm?.ask?.({
-        title: t('删除映射'),
-        html: t('确定删除映射「<strong>{alias} → {target}</strong>」？', { alias: esc(alias), target: esc(model.id) }),
-        okText: t('删除'),
+        title: t('Delete mapping'),
+        html: t('Delete the mapping “<strong>{alias} → {target}</strong>”?', { alias: esc(alias), target: esc(model.id) }),
+        okText: t('Delete'),
         okClass: 'danger',
       })
       if (!ok) return
       void runRowAction(
         bindingKeyOf(alias, model.id, providerId),
         () => writeRemoveMapping(providerId, alias, model.id),
-        t('映射已删除'),
+        t('Mapping deleted'),
       )
     }
 
@@ -136,28 +136,28 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
               与旧 CSS 里 `.alias .switch .track` 同尺寸：标准档（36×21）塞进 22px 的药丸里
               会把 chip 连同整张表的行高一起撑高 */}
           <Switch size='sm' checked={on} disabled={busy}
-            title={on ? t('映射已启用，点击关闭') : conflicts.length
-              ? t('启用后将自动关闭该提供商的其他同名绑定：{bindings}', { bindings: conflicts.map(binding => `${binding.alias} → ${binding.target}`).join('、') })
-              : t('映射已关闭，点击启用')}
-            aria-label={t('{action}映射 {alias}', { action: on ? t('关闭') : t('启用'), alias })}
+            title={on ? t('Mapping enabled; click to close') : conflicts.length
+              ? t('Enabling this will automatically disable the provider’s other bindings with the same name: {bindings}', { bindings: conflicts.map(binding => `${binding.alias} → ${binding.target}`).join(', ') })
+              : t('Mapping disabled; click to enable')}
+            aria-label={t('{action} mapping {alias}', { action: on ? t('Close') : t('enabled'), alias })}
             onCheckedChange={next => {
               void runRowAction(
                 bindingKeyOf(alias, model.id, providerId),
                 () => writeBinding(providerId, alias, model.id, { enabled: next }),
-                next ? (conflicts.length ? t('映射已启用，其他同名绑定已自动关闭') : t('映射已启用')) : t('映射已关闭'),
+                next ? (conflicts.length ? t('Mapping enabled. Other bindings with the same name were disabled automatically.') : t('Mapping enabled')) : t('Mapping disabled'),
               )
             }} />
           {/* 名字本身就是复制入口（data-copy 走 clipboard.js 的全局委托，点一下
               toast「已复制」）；title 同时承担两件事 —— 提示可点、长名字被
               ellipsis 截断时悬停能看全 */}
-          <span className='t' data-copy={alias} title={t('点击复制：{name}', { name: alias })}>{alias}</span>
-          {binding.isDefault ? <span className='binding-default'>{t('默认')}</span> : null}
+          <span className='t' data-copy={alias} title={t('Click to copy: {name}', { name: alias })}>{alias}</span>
+          {binding.isDefault ? <span className='binding-default'>{t('Default')}</span> : null}
           {levelBadge(alias, model.id, providerId, busy)}
           {binding.isDefault ? null : (
             // 16px 的删除小件（icon-2xs 档）：字号 / 行高照旧 CSS 的 `.alias .x` 给，
             // 免得 × 跟着 chip 的 11px 一起缩水
             <Button variant='ghost' size='icon-2xs' className='text-[12px] leading-none'
-              disabled={busy} title={t('删除映射 {alias}', { alias })}
+              disabled={busy} title={t('Delete mapping {alias}', { alias })}
               onClick={() => void confirmUnmap(alias)}>×</Button>
           )}
         </span>
@@ -172,7 +172,7 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
           {/* dashed = 「这里还能再添一个」的入口语义（对应旧的 .alias-add），与旁边那些
               实心按钮一眼分开 */}
           <Button variant='dashed' size='xs'
-            onClick={() => openMapping({ target: model.id, provider: providerId })}>{t('＋ 映射')}</Button>
+            onClick={() => openMapping({ target: model.id, provider: providerId })}>{t('+ Mapping')}</Button>
         </div>
         {rest.map(chip)}
       </div>
@@ -186,21 +186,21 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
    */
   function sourceCell(model: ManageModel) {
     if (model.source === 'manual') {
-      return <span className='src manual' title={t('手动登记的上游模型；移除它会直接删掉这条登记')}><i aria-hidden='true' />{t('手动')}</span>
+      return <span className='src manual' title={t('A manually registered upstream model; removing it deletes this registration outright')}><i aria-hidden='true' />{t('Manual')}</span>
     }
     // 自定义家的行（source 留空串）：只在聚合视图里出现 —— 选中该家时这一列整个
     // 按视图隐藏。给个明确的「自定义」档而不是落「—」：聚合视图里「—」读起来像
     // 「来源未知」，而它恰恰是唯一确定的一档（清单就是用户登记的）
     if (!model.source && customSource.isCustom(model.provider)) {
-      return <span className='src manual' title={t('用户登记的自定义模型；整份清单只属于这一家')}><i aria-hidden='true' />{t('自定义')}</span>
+      return <span className='src manual' title={t('Custom models registered by you; the whole list belongs to this provider only')}><i aria-hidden='true' />{t('Custom')}</span>
     }
     if (model.source !== 'remote' && model.source !== 'builtin') return <span className='rate'>—</span>
     const remote = model.source === 'remote'
     const at = formatTime(Number(model.refreshedAt) || 0)
     const hint = remote
-      ? (at ? t('来自上游目录接口，清单拉取于 {at}；刷新失败时保留上一份成功结果', { at }) : t('来自上游目录接口；刷新失败时保留上一份成功结果'))
-      : t('上游目录尚未拉到，用的是内置静态清单；点「刷新模型清单」可重试')
-    return <span className={cn('src', remote ? 'remote' : 'builtin')} title={hint}><i aria-hidden='true' />{remote ? t('远程') : t('内置')}</span>
+      ? (at ? t('From the upstream catalog API; catalog fetched at {at}; the last successful result is kept if a refresh fails', { at }) : t('From the upstream catalog API; the last successful result is kept if a refresh fails'))
+      : t('The upstream catalog hasn\'t been fetched yet, so the built-in static catalog is in use; click “Fetch models” to retry')
+    return <span className={cn('src', remote ? 'remote' : 'builtin')} title={hint}><i aria-hidden='true' />{remote ? t('Remote') : t('Built-in')}</span>
   }
 
   /**
@@ -223,24 +223,24 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
     if (visibility === 'hidden') {
       return (
         <span className='src hidden-visibility'
-          title={t('上游能列出这个模型，但官方客户端不展示它；本仓已默认关闭它的默认绑定（点这一行的开关可以手动打开）')}>
-          <i aria-hidden='true' />{t('不展示')}
+          title={t('Upstream lists this model, but the official client does not show it; the gateway has disabled its default binding (use the row switch to enable it manually)')}>
+          <i aria-hidden='true' />{t('Not shown')}
         </span>
       )
     }
     if (visibility === 'visible') {
       return (
-        <span className='src shown-visibility' title={t('官方客户端会展示这个模型')}>
-          <i aria-hidden='true' />{t('可见')}
+        <span className='src shown-visibility' title={t('The official client lists this model')}>
+          <i aria-hidden='true' />{t('Visible')}
         </span>
       )
     }
     if (visibility === 'undeclared') {
-      return <span className='rate' title={t('这家有可见性判据，但这一条上游没有表态 —— 按可见处理')}>—</span>
+      return <span className='rate' title={t('This provider has a visibility rule, but upstream did not state it for this entry — treated as visible')}>—</span>
     }
     // 没有判据的家：这一格本来就该按视图隐藏吗？不 —— 家是逐行判的（聚合视图里
     // 有判据的家与没判据的家混在同一张表上），所以给一个带说明的 `—`。
-    return <span className='rate' title={t('这家提供商没有可见性判据（目前只有 Antigravity / Qoder / 小浣熊 / CodeArts 有）')}>—</span>
+    return <span className='rate' title={t('This provider has no visibility rule (currently only Antigravity / Qoder / Raccoon / CodeArts have one)')}>—</span>
   }
 
   /**
@@ -261,19 +261,19 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
     const overrides = normalizeOverrides(model.capOverrides)
     const input = typeof caps.maxInputTokens === 'number' ? caps.maxInputTokens : null
     const output = typeof caps.maxOutputTokens === 'number' ? caps.maxOutputTokens : null
-    const hint = t('上下文窗口 {input} / 最大输出 Token {output} —— 点击修改模型能力', { input: exactTokens(input), output: exactTokens(output) })
+    const hint = t('Context window {input} / max output tokens {output} — click to edit model capabilities', { input: exactTokens(input), output: exactTokens(output) })
       + tokenOriginSuffix(model)
     return (
       <Button size='default' variant='ghost' type='button' className='caps-open' title={hint}
         onClick={() => openCapability(model.provider || '', model.id)}>
         <span className={cn('cap-num', input === null && 'unset', capSourceOf(model, 'maxInputTokens') === 'modelsdev' && 'filled')}>
           {formatTokens(input)}
-          {overrides.includes('maxInputTokens') ? <i className='cap-mark' title={t('已覆盖上游值')} /> : null}
+          {overrides.includes('maxInputTokens') ? <i className='cap-mark' title={t('Upstream value overridden')} /> : null}
         </span>
         <span className='cap-sep'>/</span>
         <span className={cn('cap-num', output === null && 'unset', capSourceOf(model, 'maxOutputTokens') === 'modelsdev' && 'filled')}>
           {formatTokens(output)}
-          {overrides.includes('maxOutputTokens') ? <i className='cap-mark' title={t('已覆盖上游值')} /> : null}
+          {overrides.includes('maxOutputTokens') ? <i className='cap-mark' title={t('Upstream value overridden')} /> : null}
         </span>
       </Button>
     )
@@ -288,7 +288,7 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
     const filled = (['maxInputTokens', 'maxOutputTokens'] as const)
       .filter(key => capSourceOf(model, key) === 'modelsdev')
       .map(key => CAPABILITY_LABELS[key])
-    return filled.length ? t('；其中 {keys} 由 models.dev 补齐', { keys: filled.join(t('、')) }) : ''
+    return filled.length ? t('; {keys} filled in by models.dev', { keys: filled.join(t(', ')) }) : ''
   }
 
   /**
@@ -306,7 +306,7 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
     const overrides = normalizeOverrides(model.capOverrides)
     return (
       <Button size='default' variant='ghost' type='button' className='caps-open caps-badges'
-        title={t('对下游声明的能力（工具调用 / 图片识别 / 视频识别 / 支持思考）—— 点击修改')}
+        title={t('Capabilities declared to downstream (tool calling / image recognition / video recognition / reasoning support) — click to edit')}
         onClick={() => openCapability(model.provider || '', model.id)}>
         {BOOLEAN_KEYS.map(key => {
           const value = caps[key] ?? null
@@ -341,17 +341,17 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
   function imageCapsCell(model: ManageModel) {
     const tags: Array<{ key: string; label: string; title: string }> = []
     if (model.supports_image_generation) {
-      tags.push({ key: 'generate', label: t('图片生成'), title: 'POST /v1/images/generations' })
+      tags.push({ key: 'generate', label: t('Image generation'), title: 'POST /v1/images/generations' })
     }
     if (model.supports_image_editing) {
-      tags.push({ key: 'edit', label: t('图片编辑'), title: 'POST /v1/images/edits' })
+      tags.push({ key: 'edit', label: t('Image editing'), title: 'POST /v1/images/edits' })
     }
     if (!tags.length) {
-      tags.push({ key: 'generate', label: t('图片生成'), title: 'POST /v1/images/generations' })
+      tags.push({ key: 'generate', label: t('Image generation'), title: 'POST /v1/images/generations' })
     }
     return (
       <Button size='default' variant='ghost' type='button' className='caps-open caps-image'
-        title={t('这个模型的图片能力（图片生成 / 图片编辑）—— 点击修改')}
+        title={t('This model\'s image capabilities (image generation / image editing) — click to edit')}
         onClick={() => openCapability(model.provider || '', model.id)}>
         {tags.map(tag => (
           <span key={tag.key} className='binding-default' title={tag.title}>{tag.label}</span>
@@ -375,9 +375,9 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
      */
     async function confirmRemoveModel(): Promise<void> {
       const ok = await shared().wbConfirm?.ask?.({
-        title: t('移除自定义模型'),
-        html: t('确定移除自定义模型「<strong>{id}</strong>」？这条登记会被<b>直接移除</b>，之后 <code>/v1/models</code> 不再广告它、请求它也会被拒。', { id: esc(model.id) }),
-        okText: t('移除'),
+        title: t('Remove custom model'),
+        html: t('Remove the custom model “<strong>{id}</strong>”? This registration will be <b>removed directly</b>, after which <code>/v1/models</code> will no longer advertise it and requests to it will be rejected.', { id: esc(model.id) }),
+        okText: t('Remove'),
         okClass: 'danger',
       })
       if (!ok) return
@@ -385,7 +385,7 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
         rowKeyOf(model),
         () => writeRemoveModel(model.provider || '', model.id),
         // 文案按**行**的归属判（聚合视图里两家的行混在一张表上，视图级 custom 不再适用）
-        customSource.isCustom(model.provider || '') ? t('模型已移除') : t('自定义模型已移除'),
+        customSource.isCustom(model.provider || '') ? t('Model removed') : t('Custom model removed'),
       )
     }
 
@@ -393,8 +393,8 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
       case 'check':
         return (
           <TableCell className={cellClass('cell-check', column.align)}>
-            <Checkbox checked={selection.has(rowKeyOf(model))} title={t('勾选后可批量操作')}
-              aria-label={t('勾选后可批量操作')}
+            <Checkbox checked={selection.has(rowKeyOf(model))} title={t('Check to enable batch actions')}
+              aria-label={t('Check to enable batch actions')}
               onCheckedChange={next => togglePick(rowKeyOf(model), next === true)} />
           </TableCell>
         )
@@ -406,11 +406,11 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
                 ellipsis 截断时悬停能看全。曾经这里另挂一颗 ⧉ 小按钮，已去掉：
                 点名字更省事，也少一个悬停才显形的控件 */}
             <div className='mid'>
-              <span className='t' data-copy={model.id} title={t('点击复制：{name}', { name: model.id })}>{model.id}</span>
+              <span className='t' data-copy={model.id} title={t('Click to copy: {name}', { name: model.id })}>{model.id}</span>
               {model.upstreamStatus === 'undeployed' ? (
                 <Badge variant='warning' shape='tag'
-                  title={t('上游目录列出了这个模型，但推理端尚未识别；保留在清单中，后续探测成功后自动清除标记')}>
-                  {t('上游未部署')}
+                  title={t('The upstream catalog lists this model, but the inference backend does not recognize it yet. It remains in the catalog, and the marker is cleared automatically after a successful probe.')}>
+                  {t('Not deployed upstream')}
                 </Badge>
               ) : null}
             </div>
@@ -447,13 +447,13 @@ export function ModelCell({ columns, model, selection, togglePick, setTestTarget
           <TableCell className={cellClass('cell-act r', column.align)}>
             <div className='row-actions'>
               <Button variant='ghost' size='sm' disabled={Boolean(blocked)}
-                title={blocked || t('以这个上游模型发一次最小请求，走真实转发链路')}
+                title={blocked || t('Send a minimal request with this upstream model through the real forwarding path')}
                 onClick={() => setTestTarget({ provider: model.provider || '', id: model.id })}>
-                {t('测试')}
+                {t('Test')}
               </Button>
               {removable ? (
                 <Button variant='ghost' size='sm' className='text-destructive' disabled={busyRow}
-                  onClick={() => void confirmRemoveModel()}>{t('移除')}</Button>
+                  onClick={() => void confirmRemoveModel()}>{t('Remove')}</Button>
               ) : null}
             </div>
           </TableCell>

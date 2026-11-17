@@ -57,7 +57,7 @@ export function ProfileDialog({ client, profile, creating, onClose }: { client: 
   }
   const close = async () => {
     if (saving) return
-    if (dirty && !await confirm(t('放弃未保存的修改？'), t('关闭后丢弃本次修改，不会保存配置或改动客户端。'), t('放弃修改'))) return
+    if (dirty && !await confirm(t('Discard unsaved changes?'), t('Closing discards these changes without saving the configuration or changing the client.'), t('Discard changes'))) return
     onClose()
   }
   const save = async () => {
@@ -71,7 +71,7 @@ export function ProfileDialog({ client, profile, creating, onClose }: { client: 
     setSaving(true); setError('')
     try {
       await saveConfiguration(previewClient, draft, creating)
-      onClose(); toast(t('配置已保存，可在列表中点击使用'))
+      onClose(); toast(t('Configuration saved. Select it in the list to use it.'))
     } catch (error) { setError(errorMessage(error)); setSaving(false) }
   }
   const showPreview = async () => {
@@ -92,44 +92,44 @@ export function ProfileDialog({ client, profile, creating, onClose }: { client: 
   }
   return <Dialog open onOpenChange={(open,details) => { if (!open) { details.cancel(); void close() } }}>
     <DialogContent className='agent-config-dialog' showCloseButton={!saving}>
-      <DialogHeader className='agent-config-head'><DialogTitle>{creating ? t('新增配置') : t('编辑配置')} · {client.name}</DialogTitle>
-        <DialogDescription>{native ? t('保存后同步更新客户端；写入前可查看改动，并自动备份。') : t('保存后可在配置列表中切换，不影响当前使用的配置。')}</DialogDescription>
+      <DialogHeader className='agent-config-head'><DialogTitle>{creating ? t('Add configuration') : t('Edit configuration')} · {client.name}</DialogTitle>
+        <DialogDescription>{native ? t('Saving also updates the client. Review the changes before writing; a backup is created automatically.') : t('Once saved, switch to it from the configuration list. The current configuration remains unchanged.')}</DialogDescription>
       </DialogHeader>
       <DialogBody>
         {!confirming && <>
         <section className='agent-profile-connection flex min-w-0 flex-col gap-4'>
           <div className='grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2'>
-            <TextField label={t('配置名称')} fieldKey='' value={draft.name} onChange={name => update({name})} disabled={saving || previewing} />
-            <TextField label={t('备注')} fieldKey='' value={draft.note} onChange={note => update({note})} disabled={saving || previewing} />
+            <TextField label={t('Configuration name')} fieldKey='' value={draft.name} onChange={name => update({name})} disabled={saving || previewing} />
+            <TextField label={t('Note')} fieldKey='' value={draft.note} onChange={note => update({note})} disabled={saving || previewing} />
           </div>
           <ConnectionFields client={client} draft={draft} update={update} disabled={saving || previewing} />
-          {draft.kind === 'gateway' && catalogLoading && <p className='text-xs text-subtle'>{t('正在读取网关模型并填入配置…')}</p>}
-          {catalogError && draft.kind === 'gateway' && <Alert variant='warning'>{t('模型目录读取失败，可手动填写真实模型 ID。')} {catalogError}
-            <Button variant='outline' size='sm' onClick={retryCatalog} disabled={saving || previewing}>{t('重试')}</Button></Alert>}
+          {draft.kind === 'gateway' && catalogLoading && <p className='text-xs text-subtle'>{t('Loading gateway models and filling the configuration…')}</p>}
+          {catalogError && draft.kind === 'gateway' && <Alert variant='warning'>{t('Failed to read the model catalog. You can enter the actual model ID manually.')} {catalogError}
+            <Button variant='outline' size='sm' onClick={retryCatalog} disabled={saving || previewing}>{t('Retry')}</Button></Alert>}
         </section>
         {validationClient.supportsModels ? <ModelsFields client={validationClient} draft={draft} update={update} catalog={catalog} disabled={saving || previewing || draft.kind === 'gateway' && catalogLoading} native={native} />
-          : <section className='flex min-w-0 flex-col gap-4 border-t border-hairline pt-4'><h3 className='text-sm font-semibold'>{t('模型配置')}</h3>
+          : <section className='flex min-w-0 flex-col gap-4 border-t border-hairline pt-4'><h3 className='text-sm font-semibold'>{t('Model settings')}</h3>
             <SingleModelFields client={validationClient} draft={draft} update={update} catalog={catalog} disabled={saving || previewing} /></section>}
         {client.supportsToggle && native && <Field className='rounded-md border border-border bg-surface-inset p-3'>
-          <div className='flex items-center justify-between gap-3'><FieldLabel>{t('启用此配置')}</FieldLabel>
-            <Switch checked={draft.enabled} disabled={saving || previewing} onCheckedChange={enabled => update({enabled})} aria-label={t('启用此配置')} /></div>
-          <FieldDescription>{t('确认写入后会同步修改客户端开关；取消不会生效。')}</FieldDescription>
+          <div className='flex items-center justify-between gap-3'><FieldLabel>{t('Enable this configuration')}</FieldLabel>
+            <Switch checked={draft.enabled} disabled={saving || previewing} onCheckedChange={enabled => update({enabled})} aria-label={t('Enable this configuration')} /></div>
+          <FieldDescription>{t('Confirming the write also updates the client entry\'s enabled state. Canceling leaves it unchanged.')}</FieldDescription>
         </Field>}
         </>}
         {preview && <>
-          <Alert>{t('确认后将更新 {name} 的配置文件，原配置会自动备份。', { name: client.name })}</Alert>
+          <Alert>{t('Confirm to update the configuration files for {name}. The original files will be backed up automatically.', { name: client.name })}</Alert>
           {preview.warnings.map((warning, index) => <p key={index} className='text-xs leading-relaxed text-subtle'>{warning}</p>)}
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-            <CollapsibleTrigger render={<Button variant='ghost' size='sm' />}><AgentIcon name='chevron' />{t('查看文件改动')}</CollapsibleTrigger>
+            <CollapsibleTrigger render={<Button variant='ghost' size='sm' />}><AgentIcon name='chevron' />{t('View file changes')}</CollapsibleTrigger>
             <CollapsibleContent><WritePreview preview={preview} showWarnings={false} /></CollapsibleContent>
           </Collapsible>
         </>}
         {error && <Alert variant='destructive'>{error}</Alert>}
       </DialogBody>
       <DialogFooter className='agent-config-footer'>
-        {confirming && <Button variant='ghost' disabled={saving || previewing} onClick={() => { setConfirming(false); setPreview(null) }}>{t('返回编辑')}</Button>}<span className='mr-auto' />
-        <Button variant='outline' disabled={saving || previewing} onClick={() => void close()}>{t('取消')}</Button>
-        <Button disabled={saving || previewing || (!creating && !dirty) || (confirming && !preview)} onClick={() => void (confirming ? apply() : save())}>{saving ? t('保存中…') : previewing ? t('处理中…') : confirming ? t('确认保存') : t('保存')}</Button>
+        {confirming && <Button variant='ghost' disabled={saving || previewing} onClick={() => { setConfirming(false); setPreview(null) }}>{t('Back to editing')}</Button>}<span className='mr-auto' />
+        <Button variant='outline' disabled={saving || previewing} onClick={() => void close()}>{t('Cancel')}</Button>
+        <Button disabled={saving || previewing || (!creating && !dirty) || (confirming && !preview)} onClick={() => void (confirming ? apply() : save())}>{saving ? t('Saving…') : previewing ? t('Processing…') : confirming ? t('Confirm save') : t('Save')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

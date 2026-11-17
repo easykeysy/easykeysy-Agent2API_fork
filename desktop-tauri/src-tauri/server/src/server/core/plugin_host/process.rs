@@ -67,7 +67,7 @@ impl ExitReport {
                 match status.code() {
                     Some(code) => {
                         #[cfg(windows)]
-                        { format!("退出码 {code}（0x{:08X}）", code as u32) }
+                        { format!("退出码 {code}（0x{:08X})", code as u32) }
                         #[cfg(not(windows))]
                         { format!("退出码 {code}") }
                     }
@@ -77,7 +77,7 @@ impl ExitReport {
             None => "尚未取得退出码".to_string(),
         };
         if self.forced { text.push_str("，已请求网关终止"); }
-        if let Some(error) = &self.wait_error { text.push_str(&format!("；{error}")); }
+        if let Some(error) = &self.wait_error { text.push_str(&format!("; {error}")); }
         text
     }
 }
@@ -243,7 +243,7 @@ pub(super) fn drain_stderr(
                     }
                 }
                 Err(error) => {
-                    run.record_stderr(format!("读取 stderr 失败：{error}").as_bytes(), false);
+                    run.record_stderr(format!("读取 stderr Failed: {error}").as_bytes(), false);
                     break;
                 }
             }

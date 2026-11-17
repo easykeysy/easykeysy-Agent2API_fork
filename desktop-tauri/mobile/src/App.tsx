@@ -46,25 +46,25 @@ type ScreenDef = {
 }
 
 const SCREENS: Record<ScreenId, ScreenDef> = {
-  home: { title: t('首页'), component: HomePage, primary: true },
-  report: { title: t('报表'), component: ReportPage, primary: true },
-  accounts: { title: t('账号'), component: AccountsPage, primary: true },
-  assistant: { title: t('对话'), component: AssistantPage, primary: true },
-  more: { title: t('更多'), component: MorePage, primary: true },
-  models: { title: t('模型管理'), component: ModelsPage },
-  keys: { title: t('网关 Key'), component: KeysPage },
-  proxies: { title: t('网络代理'), component: ProxiesPage },
-  tasks: { title: t('自动维护'), component: TasksPage },
-  requests: { title: t('请求日志'), component: RequestsPage },
-  logs: { title: t('运行日志'), component: LogsPage },
-  settings: { title: t('设置'), component: SettingsPage },
-  'provider-settings': { title: t('提供商设置'), component: ProviderSettingsPage },
-  docs: { title: t('接口文档'), component: DocsPage },
-  agent: { title: t('Agent 配置'), component: AgentPage },
+  home: { title: t('Home'), component: HomePage, primary: true },
+  report: { title: t('Reports'), component: ReportPage, primary: true },
+  accounts: { title: t('Accounts'), component: AccountsPage, primary: true },
+  assistant: { title: t('Chats'), component: AssistantPage, primary: true },
+  more: { title: t('More'), component: MorePage, primary: true },
+  models: { title: t('Model management'), component: ModelsPage },
+  keys: { title: t('Gateway key'), component: KeysPage },
+  proxies: { title: t('Network proxy'), component: ProxiesPage },
+  tasks: { title: t('Automatic maintenance'), component: TasksPage },
+  requests: { title: t('Request logs'), component: RequestsPage },
+  logs: { title: t('The run log'), component: LogsPage },
+  settings: { title: t('Settings'), component: SettingsPage },
+  'provider-settings': { title: t('Provider settings'), component: ProviderSettingsPage },
+  docs: { title: t('The API documentation'), component: DocsPage },
+  agent: { title: t('Agent Configuration'), component: AgentPage },
   tools: { title: t('MCP & Skills'), component: ToolsPage },
-  servers: { title: t('服务器'), component: ServersPage },
-  checkin: { title: t('签到中心'), component: CheckinPage },
-  plugins: { title: t('网关插件'), component: PluginsPage },
+  servers: { title: t('Servers'), component: ServersPage },
+  checkin: { title: t('Check-in center'), component: CheckinPage },
+  plugins: { title: t('Gateway plugins'), component: PluginsPage },
 }
 
 export function App() {
@@ -148,7 +148,7 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    applyDocumentBranding(branding, `${needsServer ? t('服务器') : def.title} · ${branding.displayName}`)
+    applyDocumentBranding(branding, `${needsServer ? t('Servers') : def.title} · ${branding.displayName}`)
   }, [branding, def.title, needsServer])
 
   if (needsServer) {

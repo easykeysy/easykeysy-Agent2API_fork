@@ -53,7 +53,7 @@ export function putUsageRow(value: Record<string, unknown>, at: number): boolean
   const row: UsageQueryRow = {
     id,
     usage: object(value.usage),
-    error: value.error ? String(value.error) : value.usage ? null : t('余额响应为空'),
+    error: value.error ? String(value.error) : value.usage ? null : t('Empty balance response'),
     code: typeof value.code === 'string' || typeof value.code === 'number' ? value.code : null,
     at: Number(value.at) || at,
     stale: value.stale === true,

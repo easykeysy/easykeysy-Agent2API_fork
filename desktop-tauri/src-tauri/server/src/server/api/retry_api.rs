@@ -122,7 +122,7 @@ pub async fn put_retry(State(_state): State<ServerState>, body: Bytes) -> Respon
         logging::log(
             "[Config]",
             &format!(
-                "请求重试已更新: 同一账号 {} 次 / 最多换 {} 个账号 / 间隔 {} 秒 / 直接换号错误码 {:?}",
+                "请求重试已更新: 同一账号 {} times / 最多换 {} accounts / 间隔 {} seconds / 直接换号错误码 {:?}",
                 settings.count,
                 settings.account_switch_count,
                 settings.interval_seconds,
@@ -153,7 +153,7 @@ fn retry_json(settings: RetrySettings) -> Value {
 /// 有一项非法就整单 400（不悄悄剔除），写盘前排序去重，落库形态规整。
 fn parse_no_retry_codes(value: &Value) -> Result<Vec<u16>, String> {
     let Some(items) = value.as_array() else {
-        return Err(format!("{KEY_RETRY_NO_RETRY_CODES} 必须是状态码数组（收到: {value}）"));
+        return Err(format!("{KEY_RETRY_NO_RETRY_CODES} 必须是状态码数组（收到: {value})"));
     };
     if items.len() > RETRY_MAX_NO_RETRY_CODES {
         return Err(format!(
@@ -170,11 +170,11 @@ fn parse_no_retry_codes(value: &Value) -> Result<Vec<u16>, String> {
                 .map(|raw| raw as i64)
         });
         let Some(number) = number else {
-            return Err(format!("{KEY_RETRY_NO_RETRY_CODES} 里必须是整数（收到: {item}）"));
+            return Err(format!("{KEY_RETRY_NO_RETRY_CODES} 里必须是整数（收到: {item})"));
         };
         if !(i64::from(RETRY_CODE_MIN)..=i64::from(RETRY_CODE_MAX)).contains(&number) {
             return Err(format!(
-                "{KEY_RETRY_NO_RETRY_CODES} 里的值必须是 {}-{} 的 HTTP 状态码（收到: {number}）",
+                "{KEY_RETRY_NO_RETRY_CODES} 里的值必须是 {}-{} — see the HTTP 状态码（收到: {number})",
                 RETRY_CODE_MIN, RETRY_CODE_MAX
             ));
         }
@@ -201,6 +201,6 @@ fn parse_bounded_int(key: &str, value: &Value, min: i64, max: i64) -> Result<i64
     };
     match number {
         Some(number) if (min..=max).contains(&number) => Ok(number),
-        _ => Err(format!("{key} 必须是 {min}-{max} 的整数（收到: {value}）")),
+        _ => Err(format!("{key} 必须是 {min}-{max} 的整数（收到: {value})")),
     }
 }

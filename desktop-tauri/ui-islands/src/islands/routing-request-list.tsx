@@ -65,7 +65,7 @@ export function RoutingRequestList({ active, query, selectedKey, refreshToken, o
       try {
         const next: FlowDetails & { available?: boolean } = await bridge().getRoutingFlow(tableQuery)
         if (!alive || id !== sequence.current) return
-        if (next.available === false) throw new Error(t('请求记录数据库不可用'))
+        if (next.available === false) throw new Error(t('Request database unavailable'))
         const rows = (next.entries || []).filter((entry): entry is ReplayRow => !('latest' in entry))
         const lastOffset = Math.max(0, Math.ceil(next.matched / 30) - 1) * 30
         if (offset > lastOffset) { setOffset(lastOffset); return }
@@ -109,18 +109,18 @@ export function RoutingRequestList({ active, query, selectedKey, refreshToken, o
   }
 
   return <>
-    <div className='routing-request-head'><b>{t('最近请求')}</b><span>{matched}</span>{loading ? <Spinner /> : null}</div>
+    <div className='routing-request-head'><b>{t('Recent requests')}</b><span>{matched}</span>{loading ? <Spinner /> : null}</div>
     <div className='routing-request-tools'>
-      <InputGroup><InputGroupInput placeholder={t('搜索请求、模型或账号')} aria-label={t('搜索请求、模型或账号')}
+      <InputGroup><InputGroupInput placeholder={t('Search requests, models, or accounts')} aria-label={t('Search requests, models, or accounts')}
         value={query.search || ''} onChange={event => onSearch(event.currentTarget.value)} /><InputGroupAddon><RouteIcon name='search' size={14} /></InputGroupAddon></InputGroup>
       <div className='routing-request-filters'>
-        <RoutingSelect label={t('请求模型')} value={query.model || '__all'} searchPlaceholder={t('搜索模型')}
-          options={[['__all', models.length ? t('全部模型') : t('全部模型（窗口内没有请求）')],
-            ...(query.model && !models.includes(query.model) ? [[query.model, `${query.model} · ${t('窗口内无请求')}`]] as Array<[string, string]> : []),
+        <RoutingSelect label={t('Request model')} value={query.model || '__all'} searchPlaceholder={t('Search models')}
+          options={[['__all', models.length ? t('All models') : t('All models (no requests in window)')],
+            ...(query.model && !models.includes(query.model) ? [[query.model, `${query.model} · ${t('No requests in window')}`]] as Array<[string, string]> : []),
             ...models.map(model => [model, model] as [string, string])]}
           onChange={value => onModel(value === '__all' ? '' : value)} />
-        <RoutingSelect label={t('已完成请求时间范围')} value={String(query.minutes)}
-          options={[5, 10, 30, 60].map(minutes => [String(minutes), t('最近 {n} 分钟', { n: minutes })])}
+        <RoutingSelect label={t('Completed request time range')} value={String(query.minutes)}
+          options={[5, 10, 30, 60].map(minutes => [String(minutes), t('Last {n} minutes', { n: minutes })])}
           onChange={value => onMinutes(Number(value))} />
         <label className='routing-request-only'><Switch size='sm' checked={query.scope === 'running'} onCheckedChange={on => onScope(on ? 'running' : 'window')} />{t('仅在途')}</label>
       </div>
@@ -128,13 +128,13 @@ export function RoutingRequestList({ active, query, selectedKey, refreshToken, o
     <div className='routing-request-list'>
       {entries.map(renderRow)}
       {loading && !entries.length ? <Empty><Spinner /></Empty> : null}
-      {!loading && !entries.length ? <Empty>{t('没有匹配的请求')}</Empty> : null}
+      {!loading && !entries.length ? <Empty>{t('No matching requests')}</Empty> : null}
       {error ? <p className='routing-request-error' role='alert'>{error}</p> : null}
     </div>
     <div className='routing-request-foot'>
-      <Button variant='ghost' size='icon-sm' title={t('上一页')} aria-label={t('上一页')} disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - 30))}><RouteIcon name='chevronLeft' size={14} /></Button>
+      <Button variant='ghost' size='icon-sm' title={t('Previous')} aria-label={t('Previous')} disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - 30))}><RouteIcon name='chevronLeft' size={14} /></Button>
       <span>{Math.floor(offset / 30) + 1} / {Math.max(1, Math.ceil(matched / 30))}</span>
-      <Button variant='ghost' size='icon-sm' title={t('下一页')} aria-label={t('下一页')} disabled={loading || offset + 30 >= matched} onClick={() => setOffset(offset + 30)}><RouteIcon name='chevronRight' size={14} /></Button>
+      <Button variant='ghost' size='icon-sm' title={t('Next')} aria-label={t('Next')} disabled={loading || offset + 30 >= matched} onClick={() => setOffset(offset + 30)}><RouteIcon name='chevronRight' size={14} /></Button>
     </div>
   </>
 }

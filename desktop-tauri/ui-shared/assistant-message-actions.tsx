@@ -35,25 +35,25 @@ export function AssistantMessageActions({ text, disabled, t, onEdit, onDelete, o
     return () => clearTimeout(timer)
   }, [copied])
   return <>
-    <div className='flex items-center gap-1 pt-1 text-muted-foreground' role='group' aria-label={t('消息操作')}>
-      {copyable && navigator.clipboard?.writeText ? <Button size='icon-sm' variant='ghost' title={copied ? t('已复制') : t('复制')} aria-label={copied ? t('已复制') : t('复制')}
+    <div className='flex items-center gap-1 pt-1 text-muted-foreground' role='group' aria-label={t('Message actions')}>
+      {copyable && navigator.clipboard?.writeText ? <Button size='icon-sm' variant='ghost' title={copied ? t('Copied') : t('Copy')} aria-label={copied ? t('Copied') : t('Copy')}
         onClick={() => { void navigator.clipboard.writeText(text).then(() => setCopied(true)).catch(() => setCopied(false)) }}><ActionIcon action={copied ? 'check' : 'copy'} /></Button> : null}
-      {onEdit ? <Button size='icon-sm' variant='ghost' disabled={disabled} title={t('编辑')} aria-label={t('编辑')} onClick={() => { setDraft(text); setOpen(true) }}><ActionIcon action='edit' /></Button> : null}
-      {onDelete ? <Button size='icon-sm' variant='ghost' disabled={disabled} title={t('删除')} aria-label={t('删除')} onClick={async () => {
-        if (await confirmDialog(t('删除这条消息？模型消息关联的工具结果也会一并删除。'), { title: t('删除消息') })) await onDelete()
+      {onEdit ? <Button size='icon-sm' variant='ghost' disabled={disabled} title={t('Edit')} aria-label={t('Edit')} onClick={() => { setDraft(text); setOpen(true) }}><ActionIcon action='edit' /></Button> : null}
+      {onDelete ? <Button size='icon-sm' variant='ghost' disabled={disabled} title={t('Delete')} aria-label={t('Delete')} onClick={async () => {
+        if (await confirmDialog(t('Delete this message? Tool results associated with a model message will also be deleted.'), { title: t('Delete message') })) await onDelete()
       }}><ActionIcon action='delete' /></Button> : null}
-      {onFork ? <Button size='icon-sm' variant='ghost' disabled={disabled || forkDisabled} title={forkLabel || t('分叉')} aria-label={forkLabel || t('分叉')} onClick={() => void onFork()}><ActionIcon action='fork' /></Button> : null}
+      {onFork ? <Button size='icon-sm' variant='ghost' disabled={disabled || forkDisabled} title={forkLabel || t('Fork')} aria-label={forkLabel || t('Fork')} onClick={() => void onFork()}><ActionIcon action='fork' /></Button> : null}
     </div>
     {onEdit ? <Dialog open={open} onOpenChange={value => { if (!saving) setOpen(value) }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{t('编辑消息')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t('Edit message')}</DialogTitle></DialogHeader>
         <DialogBody><Textarea rows={10} value={draft} onChange={event => setDraft(event.currentTarget.value)} disabled={saving} /></DialogBody>
         <DialogFooter>
-          <Button variant='outline' disabled={saving} onClick={() => setOpen(false)}>{t('取消')}</Button>
+          <Button variant='outline' disabled={saving} onClick={() => setOpen(false)}>{t('Cancel')}</Button>
           <Button disabled={saving || disabled} onClick={async () => {
             setSaving(true)
             try { await onEdit(draft); setOpen(false) } finally { setSaving(false) }
-          }}>{t('保存')}</Button>
+          }}>{t('Save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog> : null}

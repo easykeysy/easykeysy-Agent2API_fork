@@ -258,7 +258,7 @@ function errorText(error: unknown, depth = 0): string {
 /** Tauri rejection 可能是裸字符串；结构化错误只取 message/error 等文字。 */
 export function describeError(error: unknown): string {
   const text = errorText(error)
-  return text ? t(text) : t('未知错误')
+  return text ? t(text) : t('Unknown error')
 }
 
 /** 优先读取 HTTP 状态；原生桥仅返回文字时，只认网关明确的能力缺失文案。 */
@@ -296,7 +296,7 @@ export function accountCountOf(providerId: string): number {
 export async function accountRequest(method: string, path: string, body?: unknown): Promise<unknown> {
   const internals = shared().__TAURI_INTERNALS__
   if (!internals || typeof internals.invoke !== 'function') {
-    throw new Error(t('桌面运行时不可用（Tauri 未初始化）'))
+    throw new Error(t('Desktop runtime unavailable (Tauri not initialized)'))
   }
   const result = await internals.invoke('api_request', {
     request: { method, path, body: body === undefined ? null : body },
@@ -347,7 +347,7 @@ export function normalizeLoginResult(value: unknown): LoginResult {
     }
     if (item.pending === true || resultRecord(item.pending) || item.accepted === true
       || item.done === false || item.state === 'pending' || item.status === 'pending') {
-      throw new Error(t('登录尚未完成，请继续通过共享登录桥等待结果'))
+      throw new Error(t('Sign-in is not complete yet. Continue waiting for the result through the shared sign-in bridge.'))
     }
   }
   const account = sources.map(item => publicAccount(item.account)).find(Boolean)
@@ -356,12 +356,12 @@ export function normalizeLoginResult(value: unknown): LoginResult {
     || (typeof item.accountId === 'string' && Boolean(item.accountId))
     || (typeof item.nickname === 'string' && Boolean(item.nickname)))
   if (!account && !summary && sources.some(item => (item.flow || item.authUrl) && item.done !== true)) {
-    throw new Error(t('登录尚未完成，请继续通过共享登录桥等待结果'))
+    throw new Error(t('Sign-in is not complete yet. Continue waiting for the result through the shared sign-in bridge.'))
   }
   if (!account && !summary && record?.ok !== true) {
     throw new Error(session && !Object.keys(session).length
-      ? t('登录桥返回了空会话，无法确认账号已添加')
-      : t('登录桥未返回已完成的账号或会话，请重试'))
+      ? t('The sign-in bridge returned an empty session, so account addition cannot be confirmed.')
+      : t('The sign-in bridge did not return a completed account or session. Try again.'))
   }
   const text = (key: string): string | undefined => {
     const value = sources.map(item => item[key]).find(item => typeof item === 'string' && item.trim())
@@ -380,12 +380,12 @@ export function normalizeLoginResult(value: unknown): LoginResult {
 export async function saveAccountProxySelection(result: LoginResult, proxy: unknown): Promise<LoginResult> {
   if (result.canceled || result.proxySaved === true) return result
   const id = result.account?.id || result.session?.accountUid || result.session?.accountId
-  let warning = t('旧网关未确认代理同次保存，已使用兼容接口保存；请在账号设置中确认代理选择。')
+  let warning = t('The older gateway did not confirm a combined proxy save. The compatibility endpoint was used; check the proxy selection in account settings.')
   try {
     if (typeof id !== 'string' || !id) throw new Error('Missing account ID')
     await accountRequest('PATCH', `/api/accounts/${encodeURIComponent(id)}`, { proxy: proxy ?? { source: 'direct' } })
   } catch {
-    warning = t('账号已添加，但代理选择未确认保存；请在账号设置中重新检查。')
+    warning = t('Account added, but saving the proxy selection was not confirmed. Check it in account settings.')
   }
   return { ...result, warning: [result.warning, warning].filter(Boolean).join('\n') }
 }
@@ -403,19 +403,19 @@ export async function startLogin(
   // 两者的收尾判定不同：动态方法必须回来一个账号 id，旧入口照旧不看。
   const dynamic = options !== undefined && options.methodIndex !== undefined
   if (isSuspendedProvider(provider) || (dynamic && !runtimeProviderOf(provider))) {
-    throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
+    throw new Error(t('This provider is no longer in the runtime catalog. Return to the list and select again.'))
   }
   try {
     const bridge = shared().workbuddyDesktop
     let result: unknown
     if (dynamic && bridge?.platform !== 'web') {
       const internals = shared().__TAURI_INTERNALS__
-      if (!internals?.invoke) throw new Error(t('桌面运行时不可用（Tauri 未初始化）'))
+      if (!internals?.invoke) throw new Error(t('Desktop runtime unavailable (Tauri not initialized)'))
       result = await internals.invoke('start_login', {
         provider, edition, mode, socialRestore: socialRestore === true, options,
       })
     } else {
-      if (!bridge?.startLogin) throw new Error(t('共享登录桥不可用，请重新打开面板'))
+      if (!bridge?.startLogin) throw new Error(t('The shared sign-in bridge is unavailable. Reopen the panel.'))
       result = await bridge.startLogin(edition, mode, provider, socialRestore, options)
     }
     const normalized = normalizeLoginResult(result)
@@ -423,7 +423,7 @@ export async function startLogin(
       const accountId = normalized.account?.id || normalized.session?.accountUid || normalized.session?.accountId
       const resultProvider = normalized.account?.provider || normalized.session?.provider
       if (!accountId || resultProvider && resultProvider !== provider) {
-        throw new Error(t('登录桥返回了空会话，无法确认账号已添加'))
+        throw new Error(t('The sign-in bridge returned an empty session, so account addition cannot be confirmed.'))
       }
     }
     return options && Object.hasOwn(options, 'proxy') && !normalized.canceled
@@ -455,7 +455,7 @@ export function closeAddModals(): void {
 export async function afterAdd(name: string, label: string, result?: unknown): Promise<void> {
   closeAddModals()
   await shared().wbApp?.refresh?.()
-  const added = t('✅ {label}账号已添加{name}', { label, name: name ? `：${name}` : '' })
+  const added = t('✅ {label} account added{name}', { label, name: name ? `：${name}` : '' })
   const notice = accountImportNotice(result)
   toast(notice ? `${added}\n${t(notice.text)}` : added, notice?.warning ? 'warn' : 'ok')
 }

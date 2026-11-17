@@ -777,7 +777,7 @@ impl ChatFromAnthropicStream {
         }
         if !self.started {
             // 心跳或无法识别的载荷不能在 EOF 时变成一次成功的空回答。
-            return self.fail_message("上游未返回有效 Anthropic 消息");
+            return self.fail_message("上游未返回有效 Anthropic Message");
         }
         self.finished = true;
         let mut out = self.start();
@@ -908,7 +908,7 @@ mod tests {
             let text = std::str::from_utf8(&frames[0]).unwrap();
             let error: Value = serde_json::from_str(text.strip_prefix("data: ").unwrap()).unwrap();
             assert_eq!(error["error"]["type"], "upstream_error");
-            assert_eq!(error["error"]["message"], "上游未返回有效 Anthropic 消息");
+            assert_eq!(error["error"]["message"], "上游未返回有效 Anthropic Message");
             assert!(error.get("choices").is_none());
             assert_eq!(frames[1].as_ref(), b"data: [DONE]\n\n");
             assert!(stream.finish().is_empty());
@@ -997,7 +997,7 @@ mod tests {
         match result {
             Err(error) => {
                 assert_eq!(error.status_code, 502);
-                assert_eq!(error.message, "上游未返回有效 Anthropic 消息");
+                assert_eq!(error.message, "上游未返回有效 Anthropic Message");
             }
             Ok(_) => panic!("empty upstream must not aggregate to a successful completion"),
         }

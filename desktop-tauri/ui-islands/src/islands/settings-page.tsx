@@ -333,14 +333,14 @@ function NumberRow({ field, value, disabled, onCommit }: NumberRowProps) {
 
 /** 数字面板的徽章：首屏「检测中…」、读到「已生效」、读不到「不可用」 */
 function numericBadge(state: NumericState): React.ReactNode {
-  if (state.status === 'ready') return <StatusBadge tone='ok'>{t('已生效')}</StatusBadge>
-  if (state.status === 'unavailable') return <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-  return <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>
+  if (state.status === 'ready') return <StatusBadge tone='ok'>{t('In Effect')}</StatusBadge>
+  if (state.status === 'unavailable') return <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+  return <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>
 }
 
 /** 刷新按钮（无修饰的 button → Button 的 outline 档，与静态骨架的观感一致） */
 function RefreshButton({ id, onClick }: { id: string; onClick: () => void }) {
-  return <Button id={id} variant='outline' onClick={onClick}>{t('刷新')}</Button>
+  return <Button id={id} variant='outline' onClick={onClick}>{t('Refresh')}</Button>
 }
 
 /* ─── 通用分类 ─────────────────────────────── */
@@ -363,13 +363,13 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('启动与托盘')}
+          title={t('Startup & Tray')}
           tip={TIPS.tray}
           badge={app.status === 'ready'
-            ? <StatusBadge tone='ok'>{t('已应用')}</StatusBadge>
+            ? <StatusBadge tone='ok'>{t('Applied')}</StatusBadge>
             : app.status === 'unavailable'
-              ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-              : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+              ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+              : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
         />
         <CardContent className='panel-body'>
           <div className='settings-switches'>
@@ -377,7 +377,7 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
                 保存成功即回到「已应用」，不必让用户重开程序 */}
             <SwitchRow
               id='settings-close-to-tray'
-              label={t('关闭窗口时最小化到托盘')}
+              label={t('Minimize to tray when the window is closed')}
               checked={app.closeToTray}
               disabled={snap.busy === 'app'}
               onCheckedChange={next => void saveToggle('tray', next)}
@@ -385,7 +385,7 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
             {/* 轻量模式依赖「关闭到托盘」：关掉托盘时该开关无意义，置灰并提示 */}
             <SwitchRow
               id='settings-lightweight'
-              label={t('轻量模式（关窗释放界面内存）')}
+              label={t('Lightweight mode (releases UI memory when the window is closed)')}
               tip={TIPS.lightweight}
               checked={app.lightweightMode}
               disabled={snap.busy === 'app' || !app.closeToTray}
@@ -393,7 +393,7 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
             />
             <SwitchRow
               id='settings-autostart'
-              label={t('开机自动启动')}
+              label={t('Launch at startup')}
               checked={app.autostart}
               disabled={snap.busy === 'app'}
               onCheckedChange={next => void saveToggle('autostart', next)}
@@ -404,12 +404,12 @@ function GeneralPane({ snap }: { snap: SettingsSnapshot }) {
       </Card>
 
       <Card render={<section />} className='panel'>
-        <PanelHead title={t('计量单位')} tip={TIPS.units} />
+        <PanelHead title={t('Number notation')} tip={TIPS.units} />
         <CardContent className='panel-body'>
           <div className='settings-switches'>
             <SwitchRow
               id='settings-chinese-units'
-              label={t('使用中文单位（亿 / 万）')}
+              label={t('Use Chinese units (yi / wan)')}
               checked={snap.unitsChinese}
               onCheckedChange={applyUnits}
             />
@@ -499,16 +499,16 @@ function DisplayPane() {
     setNamesHiddenState(next)
   }
 
-  const zoomLabel = zoom === 100 ? t('100%（默认）') : `${zoom}%`
+  const zoomLabel = zoom === 100 ? t('100% (default)') : `${zoom}%`
 
   return (
     <>
       <Card render={<section />} className='panel'>
-        <PanelHead title={t('显示模式')} tip={TIPS.displayTheme} />
+        <PanelHead title={t('Theme')} tip={TIPS.displayTheme} />
         <CardContent className='panel-body'>
           <div>
             <SegmentedControl<ThemeMode>
-              aria-label={t('显示模式')}
+              aria-label={t('Theme')}
               options={THEME_MODES}
               value={theme}
               onValueChange={next => shared().wbApp?.applyTheme?.(next)}
@@ -519,11 +519,11 @@ function DisplayPane() {
       </Card>
 
       <Card render={<section />} className='panel'>
-        <PanelHead title={t('界面缩放')} tip={TIPS.displayZoom} />
+        <PanelHead title={t('Interface Zoom')} tip={TIPS.displayZoom} />
         <CardContent className='panel-body'>
           <div className='retention-list'>
             <div className='retention-row'>
-              <Label htmlFor='settings-zoom'>{t('缩放比例')}</Label>
+              <Label htmlFor='settings-zoom'>{t('Zoom Level')}</Label>
               <span className='prompt-input'>
                 {/* 档位是 80%–130% 的 11 个定值，用下拉而不是滑块：每一档都要能精确
                     复述（用户问「我现在多少」时答案是个整数），且组件库目前没有 Slider。
@@ -536,32 +536,32 @@ function DisplayPane() {
                     id='settings-zoom'
                     className='w-[140px]'
                     disabled={isWeb}
-                    aria-label={t('界面缩放比例')}
+                    aria-label={t('Interface Zoom Level')}
                   >
                     <SelectValue>{zoomLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {ZOOM_PERCENTS.map(percent => (
                       <SelectItem key={percent} value={String(percent)}>
-                        {percent === 100 ? t('100%（默认）') : `${percent}%`}
+                        {percent === 100 ? t('100% (default)') : `${percent}%`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </span>
               <div className='hint'>
-                {t('放大或缩小整个界面（文字与控件一起变），效果与浏览器 Ctrl +/- 相同：共 11 档，立即生效并记住。')}
+                {t('Zoom the whole interface in or out (text and controls scale together), equivalent to Ctrl +/- in a browser: 11 steps, applied immediately and remembered.')}
               </div>
             </div>
           </div>
           <div className='settings-state'>
-            {isWeb ? STATES.zoomWeb : zoom === 100 ? STATES.zoomDefault : t('当前按 {n}% 显示。', { n: zoom })}
+            {isWeb ? STATES.zoomWeb : zoom === 100 ? STATES.zoomDefault : t('Currently displayed at {n}%.', { n: zoom })}
           </div>
         </CardContent>
       </Card>
 
       <Card render={<section />} className='panel'>
-        <PanelHead title={t('语言设置')} tip={TIPS.displayLanguage} />
+        <PanelHead title={t('Language Settings')} tip={TIPS.displayLanguage} />
         <CardContent className='panel-body'>
           <LanguageRow />
           <div className='settings-state'>{STATES.languageHint}</div>
@@ -574,18 +574,18 @@ function DisplayPane() {
           的后端快照。账号页有自己的入口改这两项（表头那颗眼睛、合计徽标本身），
           两边读写的是同一份键。 */}
       <Card render={<section />} className='panel'>
-        <PanelHead title={t('账号列表')} tip={TIPS.accountList} />
+        <PanelHead title={t('Account list')} tip={TIPS.accountList} />
         <CardContent className='panel-body'>
           <div className='settings-switches'>
             <SwitchRow
               id='settings-group-total-filtered'
-              label={t('积分合计只统计当前筛选出来的账号')}
+              label={t('Only sum accounts visible under the current filter')}
               checked={groupTotalFiltered}
               onCheckedChange={applyGroupTotalFiltered}
             />
             <SwitchRow
               id='settings-names-hidden'
-              label={t('隐藏账号名（显示成星号）')}
+              label={t('Hide account names (show asterisks)')}
               checked={namesHidden}
               onCheckedChange={applyNamesHidden}
             />
@@ -624,22 +624,22 @@ function LanguageRow() {
   const value = api?.rawLocale?.() ?? 'auto'
   const locales = api?.LOCALES ?? []
   const labelOf = (code: string): string => (
-    code === 'auto' ? t('跟随系统') : (locales.find(item => item.code === code)?.label ?? code)
+    code === 'auto' ? t('System') : (locales.find(item => item.code === code)?.label ?? code)
   )
 
   return (
     <div className='retention-list'>
       <div className='retention-row'>
-        <Label htmlFor='settings-language'>{t('界面语言')}</Label>
+        <Label htmlFor='settings-language'>{t('Interface Language')}</Label>
         <span className='prompt-input'>
           {/* 与「界面缩放」同一个 Select 形态：展示文案显式给 SelectValue，不依赖 value 自动显示。
               组件的 onValueChange 可能给 null（被清空），这里只在拿到非空值时切换 */}
           <Select value={value} onValueChange={next => { if (next) api?.setLocale(next) }}>
-            <SelectTrigger id='settings-language' className='w-[200px]' aria-label={t('界面语言')}>
+            <SelectTrigger id='settings-language' className='w-[200px]' aria-label={t('Interface Language')}>
               <SelectValue>{labelOf(value)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='auto'>{t('跟随系统')}</SelectItem>
+              <SelectItem value='auto'>{t('System')}</SelectItem>
               {locales.map(item => (
                 <SelectItem key={item.code} value={item.code}>{item.label}</SelectItem>
               ))}
@@ -666,7 +666,7 @@ function RetryCodesField({ codes, status, busy }: {
 
   return (
     <div className='retention-row'>
-      <Label htmlFor='settings-retry-no-codes-input'>{t('指定错误码直接换号')}</Label>
+      <Label htmlFor='settings-retry-no-codes-input'>{t('Switch Accounts on Specified Error Codes')}</Label>
       <div className='retention-input'>
         {/* 点框体空白处 = 聚焦输入框（整框是一个输入控件的观感，旧实现同） */}
         <InputGroup
@@ -683,8 +683,8 @@ function RetryCodesField({ codes, status, busy }: {
                 variant='ghost'
                 size='icon-2xs'
                 className='tag-x text-muted-foreground hover:bg-destructive-soft hover:text-destructive'
-                title={t('删除 {code}', { code })}
-                aria-label={t('删除状态码 {code}', { code })}
+                title={t('Delete {code}', { code })}
+                aria-label={t('Delete status code {code}', { code })}
                 onClick={event => { event.stopPropagation(); void removeRetryCode(code) }}
               >
                 ✕
@@ -696,7 +696,7 @@ function RetryCodesField({ codes, status, busy }: {
             id='settings-retry-no-codes-input'
             type='text'
             className='h-6 min-w-[120px] flex-1 px-0'
-            placeholder={locked ? '—' : t('输入状态码，回车添加')}
+            placeholder={locked ? '—' : t('Enter a status code and press Enter')}
             inputMode='numeric'
             autoComplete='off'
             value={text}
@@ -736,12 +736,12 @@ function PromptFileRow({ prompt, locked, busy }: {
 
   return (
     <div className='retention-row'>
-      <Label htmlFor='settings-prompt-file'>{t('提示词文件')}</Label>
+      <Label htmlFor='settings-prompt-file'>{t('Prompt File')}</Label>
       <span className='prompt-input'>
         <Input
           id='settings-prompt-file'
           type='text'
-          placeholder={t('留空 = 用内置默认提示词')}
+          placeholder={t('Leave empty = use the built-in default prompt')}
           value={draft !== null ? draft : prompt.file}
           disabled={locked || busy}
           onChange={event => setDraft(event.target.value)}
@@ -762,13 +762,13 @@ function promptStateText(prompt: PromptState): string {
   const source = promptSourceText(prompt.source)
   const parts: string[] = []
   if (prompt.mode === 'passthrough') {
-    parts.push(t('客户端 system 原样出站（只靠指纹脱敏改写模板句）。'))
+    parts.push(t('The client\'s system prompt goes out as-is (only fingerprint masking rewrites template sentences).'))
   } else {
     parts.push(
-      t('{mode}生效：上游收到的 system 来自{source}{lines}。', {
-        mode: prompt.mode === 'custom' ? t('替换') : t('追加'),
+      t('{mode} in effect: the system prompt sent upstream comes from {source}{lines}.', {
+        mode: prompt.mode === 'custom' ? t('Replace') : t('Append'),
         source,
-        lines: prompt.lines ? t('（{n} 行）', { n: prompt.lines }) : '',
+        lines: prompt.lines ? t(' ({n} lines)', { n: prompt.lines }) : '',
       }),
     )
   }
@@ -778,18 +778,18 @@ function promptStateText(prompt: PromptState): string {
 
 /** 正文来源的中文说法（三处状态行共用；'' = 没有正文可讲） */
 function promptSourceText(source: string): string {
-  if (source === 'inline') return t('界面里编辑的正文')
-  if (source === 'file') return t('提示词文件')
-  if (source === 'builtin') return t('内置默认提示词')
+  if (source === 'inline') return t('the text edited in the UI')
+  if (source === 'file') return t('Prompt File')
+  if (source === 'builtin') return t('the built-in default prompt')
   return ''
 }
 
 /** 降级行的说明：只在真的处于降级期时出现（平时它是一行与用户无关的状态噪音） */
 function degradeHint(prompt: PromptState): string {
-  return t('已自动切换到最小中性提示词（撞了上游内容拦截，多半是 system 指纹误报），到 {until} 自动解除。', {
+  return t('Switched automatically to a minimal neutral prompt (an upstream content block — most likely a system-prompt fingerprint false positive); lifts automatically at {until}.', {
     until: prompt.degradeUntilText || STATES.degradeUntilFallback,
   })
-    + t('期间本模式自己的提示词不会发出；把提示词改好后可以立即解除。')
+    + t('While this mode is on, its own prompt is not sent; lift it as soon as your prompt is fixed.')
 }
 
 /**
@@ -818,8 +818,8 @@ function ProviderFileRow({ item, label, locked, busy }: {
       <Input
         id={`settings-prompt-file-${item.id}`}
         type='text'
-        placeholder={t('留空 = 用内置默认提示词')}
-        aria-label={t('{label} 提示词文件', { label })}
+        placeholder={t('Leave empty = use the built-in default prompt')}
+        aria-label={t('{label} prompt file', { label })}
         value={draft !== null ? draft : item.file}
         disabled={locked || busy}
         onChange={event => setDraft(event.target.value)}
@@ -835,14 +835,14 @@ function ProviderFileRow({ item, label, locked, busy }: {
 function providerStateText(item: ProviderPromptState, configured: boolean): string {
   // 没单独配过的家（只在「有网关自带提示词」时才会被列出来）走全局那份 ——
   // 不说这一句的话，用户会以为这一行显示的就是「这家的设置」
-  if (!configured) return t('未单独配置：模式、提示词文件与正文都跟随上面的全局配置（当前「{mode}」）。', {
+  if (!configured) return t('Not configured individually: mode, prompt file, and text all follow the global configuration above (currently "{mode}").', {
     mode: PROMPT_MODES.find(option => option.value === item.mode)?.toastLabel ?? item.mode,
   })
-  if (item.mode === 'passthrough') return t('客户端 system 原样出站。')
-  const head = t('{mode}生效：上游收到的 system 来自{source}{lines}。', {
-    mode: item.mode === 'custom' ? t('替换') : t('追加'),
+  if (item.mode === 'passthrough') return t('The client\'s system prompt goes out as-is.')
+  const head = t('{mode} in effect: the system prompt sent upstream comes from {source}{lines}.', {
+    mode: item.mode === 'custom' ? t('Replace') : t('Append'),
     source: promptSourceText(item.source),
-    lines: item.lines ? t('（{n} 行）', { n: item.lines }) : '',
+    lines: item.lines ? t(' ({n} lines)', { n: item.lines }) : '',
   })
   return item.fileError ? `${head} ⚠️ ${item.fileError}` : head
 }
@@ -865,15 +865,15 @@ function ProviderGatewayRow({ item, option, over, locked, busy }: {
 }) {
   const on = item.gateway
   const chars = option.gatewayChars
-  const size = chars ? t('约 {n} 字符', { n: chars.toLocaleString('zh-CN') }) : t('一段内置装配')
+  const size = chars ? t('approx. {n} characters', { n: chars.toLocaleString('zh-CN') }) : t('a built-in assembly')
   const edited = gatewayEditedText(over)
   return (
     <div className='retention-row'>
-      <Label className='prompt-gateway-label'>{t('网关自带')}</Label>
+      <Label className='prompt-gateway-label'>{t('Gateway-Provided Prompt')}</Label>
       <span className='prompt-input'>
         <SwitchRow
           id={`settings-prompt-gateway-${item.id}`}
-          label={t('装上{size}的官方身份提示词', { size })}
+          label={t('Install the official identity prompt ({size})', { size })}
           checked={on}
           disabled={locked || busy}
           onCheckedChange={next => void saveProviderGatewayPrompt(item.id, next)}
@@ -883,8 +883,8 @@ function ProviderGatewayRow({ item, option, over, locked, busy }: {
         <GatewayTextButton item={item} option={option} over={over} locked={locked} busy={busy} />
       </span>
       <div className={on ? 'hint' : 'hint prompt-gateway-off'}>
-        {on ? option.gatewayNote : t('已关闭。{note}', { note: option.gatewayNote })}
-        {edited ? t(' 正文已改：{edited}（其余段用官方原文）。', { edited }) : ''}
+        {on ? option.gatewayNote : t('Disabled. {note}', { note: option.gatewayNote })}
+        {edited ? t(' Text edited: {edited} (the remaining blocks use the official text).', { edited }) : ''}
       </div>
     </div>
   )
@@ -932,7 +932,7 @@ function ProviderPromptRows({ prompt, locked, busy }: {
                     id={`settings-prompt-mode-${item.id}`}
                     className='w-[240px]'
                     disabled={locked || busy}
-                    aria-label={t('{label} 的提示词模式', { label })}
+                    aria-label={t('{label} prompt mode', { label })}
                   >
                     <SelectValue>{modeLabel}</SelectValue>
                   </SelectTrigger>
@@ -952,7 +952,7 @@ function ProviderPromptRows({ prompt, locked, busy }: {
                     disabled={locked || busy}
                     onClick={() => void removeProviderPrompt(item.id)}
                   >
-                    {t('跟随默认')}
+                    {t('Follow Default')}
                   </Button>
                 ) : null}
               </span>
@@ -974,12 +974,12 @@ function ProviderPromptRows({ prompt, locked, busy }: {
       })}
 
       <div className='retention-row'>
-        <Label htmlFor='settings-prompt-provider-add'>{t('添加提供商')}</Label>
+        <Label htmlFor='settings-prompt-provider-add'>{t('Add Provider')}</Label>
         <span className='prompt-input'>
           <SearchableSelect value={pending} disabled={locked || busy || candidates.length === 0}
             id='settings-prompt-provider-add' className='w-[240px]'
-            aria-label={t('添加要单独配置的提供商')} searchPlaceholder={t('搜索提供商')}
-            displayValue={pending ? labelOf(pending) : (candidates.length ? t('添加提供商…') : t('全部已配置'))}
+            aria-label={t('Add a provider to configure individually')} searchPlaceholder={t('Search providers')}
+            displayValue={pending ? labelOf(pending) : (candidates.length ? t('Add provider…') : t('All configured'))}
             options={candidates.map(item => ({ value: item.id, label: item.label }))}
             onValueChange={id => { setPending(''); if (id) void addProviderPrompt(id) }} />
         </span>
@@ -998,13 +998,13 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
   return (
     <Card render={<section />} className='panel'>
       <PanelHead
-        title={t('系统提示词')}
+        title={t('System prompt')}
         tip={TIPS.prompt}
         badge={prompt.status === 'ready'
-          ? <StatusBadge tone='ok'>{prompt.mode === 'passthrough' ? t('透传') : t('已接管')}</StatusBadge>
+          ? <StatusBadge tone='ok'>{prompt.mode === 'passthrough' ? t('Passthrough') : t('Managed')}</StatusBadge>
           : prompt.status === 'unavailable'
-            ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-            : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+            ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+            : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
         actions={<RefreshButton id='btn-prompt-refresh' onClick={() => void refreshPrompt()} />}
       />
       <CardContent className='panel-body'>
@@ -1013,11 +1013,11 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
               家共用的默认值，下面那张表是逐家的例外 —— 不分开时它们是一串同构的行，
               用户读不出哪几行管全部、哪几行只管一家（见 page-settings.css 的 .prompt-group）。 */}
           <div className='prompt-group'>
-            {t('全局配置')}<span className='note'>{t('所有未单独配置的提供商都用这一份')}</span>
+            {t('Global Configuration')}<span className='note'>{t('Used by every provider that is not configured individually')}</span>
           </div>
 
           <div className='retention-row'>
-            <Label htmlFor='settings-prompt-mode'>{t('模式')}</Label>
+            <Label htmlFor='settings-prompt-mode'>{t('Mode')}</Label>
             <span className='prompt-input'>
               {/* 旧实现是原生 <select>（select.js 增强 + wbSelect.sync）；这里换成组件库的
                   Select：触发器是按钮，page-settings.css 的 `.prompt-input select{width:240px}`
@@ -1032,7 +1032,7 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
                   id='settings-prompt-mode'
                   className='w-[240px]'
                   disabled={locked || busy}
-                  aria-label={t('系统提示词模式')}
+                  aria-label={t('System Prompt Mode')}
                 >
                   <SelectValue>{modeLabel}</SelectValue>
                 </SelectTrigger>
@@ -1051,22 +1051,22 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
           {/* 提示词正文：与文件是同一件事的两个来源（正文优先），所以紧挨着文件那一行。
               行里只放按钮与状态 —— 几百行文本塞进行内输入框既看不清也没法编辑 */}
           <div className='retention-row'>
-            <Label htmlFor='btn-prompt-edit-body'>{t('提示词正文')}</Label>
+            <Label htmlFor='btn-prompt-edit-body'>{t('Prompt Text')}</Label>
             <span className='prompt-input'>
               <PromptTextButton prompt={prompt} locked={locked} busy={busy} />
             </span>
             <div className='hint'>
               {NOTES.promptText}
               {prompt.source === 'inline'
-                ? t('（当前生效的就是这一份，{n} 行）', { n: prompt.lines })
+                ? t(' (this is the active copy, {n} lines)', { n: prompt.lines })
                 : prompt.text.trim()
-                  ? t('（已存一份正文，{n} 行；切成「替换 / 追加」后生效）', { n: prompt.lines })
+                  ? t(' (a text copy is saved, {n} lines; takes effect after switching to "Replace / Append")', { n: prompt.lines })
                   : ''}
             </div>
           </div>
 
           <div className='prompt-group'>
-            {t('按提供商配置')}<span className='note'>{t('只列单独配置过的家，其余沿用上面的全局配置')}</span>
+            {t('Per-Provider Configuration')}<span className='note'>{t('Only providers configured individually are listed; the rest use the global configuration above')}</span>
           </div>
 
           <ProviderPromptRows prompt={prompt} locked={locked} busy={busy} />
@@ -1074,7 +1074,7 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
           {/* 降级行只在真的处于降级期时渲染（旧实现是切 hidden） */}
           {prompt.status === 'ready' && prompt.degradeActive ? (
             <div className='retention-row'>
-              <Label>{t('内容拦截降级')}</Label>
+              <Label>{t('Content-block fallback')}</Label>
               <span className='prompt-input'>
                 <Button
                   id='btn-prompt-clear-degrade'
@@ -1082,7 +1082,7 @@ function PromptPanel({ snap }: { snap: SettingsSnapshot }) {
                   disabled={busy}
                   onClick={() => void clearDegrade()}
                 >
-                  {t('立即解除')}
+                  {t('Clear Now')}
                 </Button>
               </span>
               <div className='hint'>{degradeHint(prompt)}</div>
@@ -1101,9 +1101,9 @@ function debugStateText(debug: DebugState): string {
   if (debug.status === 'loading') return STATES.appLoading
   if (debug.status === 'unavailable') return STATES.debugUnavailable
   const stored = debug.count !== null && debug.limit !== null
-    ? t('已保存 {count} / {limit} 条报文（超出后丢弃最旧的）。', { count: debug.count, limit: debug.limit })
+    ? t('{count} / {limit} payloads saved (oldest discarded when the limit is exceeded).', { count: debug.count, limit: debug.limit })
     : ''
-  return debug.on ? `${STATES.debugOn}${stored}${t('凭据类请求头已脱敏。')}` : STATES.debugOff
+  return debug.on ? `${STATES.debugOn}${stored}${t('Credential request headers have been redacted.')}` : STATES.debugOff
 }
 
 /* ─── 重试 / 超时分类（从「网关」拆出的两个独立菜单）── */
@@ -1113,7 +1113,7 @@ function TimeoutPane({ snap }: { snap: SettingsSnapshot }) {
   return (
     <Card render={<section />} className='panel'>
       <PanelHead
-        title={t('请求超时')}
+        title={t('Request Timeouts')}
         tip={TIPS.timeouts}
         badge={numericBadge(snap.timeouts)}
         actions={<RefreshButton id='btn-timeouts-refresh' onClick={() => void refreshTimeouts()} />}
@@ -1141,7 +1141,7 @@ function RetryPane({ snap }: { snap: SettingsSnapshot }) {
   return (
     <Card render={<section />} className='panel'>
       <PanelHead
-        title={t('请求重试')}
+        title={t('Request Retries')}
         tip={TIPS.retry}
         badge={numericBadge(snap.retry)}
         actions={<RefreshButton id='btn-retry-refresh' onClick={() => void refreshRetry()} />}
@@ -1176,7 +1176,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
     <>
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('排队等待')}
+          title={t('Queueing')}
           tip={TIPS.queue}
           badge={numericBadge(snap.queue)}
           actions={<RefreshButton id='btn-queue-refresh' onClick={() => void refreshQueue()} />}
@@ -1199,12 +1199,12 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('图片压缩')}
+          title={t('Image compression')}
           tip={TIPS.imageCompress}
           badge={snap.imageCompress.status === 'unavailable'
-            ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
+            ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
             : <StatusBadge tone={snap.imageCompress.enabled ? 'ok' : 'idle'}>
-                {snap.imageCompress.enabled ? t('已开启') : t('已关闭')}
+                {snap.imageCompress.enabled ? t('Enabled') : t('Disabled')}
               </StatusBadge>}
           actions={<RefreshButton id='btn-image-compress-refresh' onClick={() => void refreshImageCompress()} />}
         />
@@ -1212,7 +1212,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
           <div className='settings-switches'>
             <SwitchRow
               id='settings-image-compress'
-              label={t('转发前压缩对话里内嵌的大图（只改发给上游的副本，生图与图片编辑不受影响）')}
+              label={t('Compress large inline images in conversations before forwarding (only the copy sent upstream changes; image generation and editing are unaffected)')}
               checked={snap.imageCompress.enabled}
               // 读到后端值之前不许切（与 developerRoleCompat 同一取舍）
               disabled={snap.imageCompress.status !== 'ready' || snap.busy === 'imageCompress'}
@@ -1239,7 +1239,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
       {panels.has('captcha_pool') ? (
         <Card render={<section />} className='panel'>
           <PanelHead
-            title={t('验证码令牌池')}
+            title={t('Captcha token pool')}
             tip={TIPS.captchaPool}
             badge={numericBadge(snap.captchaPool)}
             actions={
@@ -1265,13 +1265,13 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('models.dev 模型元数据')}
+          title={t('models.dev model metadata')}
           tip={TIPS.modelsDev}
           badge={snap.modelsDev.status === 'ready'
-            ? <StatusBadge tone='ok'>{t('{count} 条', { count: Number(snap.modelsDev.count).toLocaleString('zh-CN') })}</StatusBadge>
+            ? <StatusBadge tone='ok'>{t('{count} entries', { count: Number(snap.modelsDev.count).toLocaleString('zh-CN') })}</StatusBadge>
             : snap.modelsDev.status === 'unavailable'
-              ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-              : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+              ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+              : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
           actions={
             <RefreshButton id='btn-modelsdev-refresh' onClick={() => void refreshModelsDev()} />
           }
@@ -1279,7 +1279,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
         <CardContent className='panel-body'>
           <SwitchRow
             id='settings-modelsdev'
-            label={t('用 models.dev 补齐上游没声明的模型能力与思考档位（联网刷新，内嵌快照始终生效）')}
+            label={t('Fill in model capabilities and reasoning levels the upstream never declares, using models.dev (refreshed online; the bundled snapshot always applies)')}
             checked={snap.modelsDev.enabled}
             disabled={snap.modelsDev.status !== 'ready' || snap.busy === 'modelsDev'}
             onCheckedChange={next => void saveModelsDev(next)}
@@ -1293,13 +1293,13 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('开发者角色兼容')}
+          title={t('Developer role compat')}
           tip={TIPS.developerRoleCompat}
           badge={snap.developerRoleCompat.status === 'ready'
-            ? <StatusBadge tone='ok'>{t('已生效')}</StatusBadge>
+            ? <StatusBadge tone='ok'>{t('In Effect')}</StatusBadge>
             : snap.developerRoleCompat.status === 'unavailable'
-              ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-              : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+              ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+              : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
           actions={
             <RefreshButton id='btn-role-compat-refresh' onClick={() => void refreshDeveloperRoleCompat()} />
           }
@@ -1308,7 +1308,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
           <div className='settings-switches'>
             <SwitchRow
               id='settings-developer-role-compat'
-              label={t('转发前将 developer 角色消息转换为 system，兼容不支持 developer 角色的 OpenAI 兼容上游')}
+              label={t('Convert developer-role messages to system before forwarding, for OpenAI-compatible upstreams that do not support the developer role')}
               checked={snap.developerRoleCompat.on}
               // 读到后端值之前不许切（否则会出现「切了但不知道后端原本是什么」，回滚也没依据）
               disabled={snap.developerRoleCompat.status !== 'ready' || snap.busy === 'developerRoleCompat'}
@@ -1328,13 +1328,13 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('第三方模型回答完自动折叠过程')}
+          title={t('Collapse third-party model work after the answer')}
           tip={TIPS.reasoningCollapse}
           badge={snap.reasoningCollapse.status === 'ready'
-            ? <StatusBadge tone='ok'>{t('已生效')}</StatusBadge>
+            ? <StatusBadge tone='ok'>{t('In Effect')}</StatusBadge>
             : snap.reasoningCollapse.status === 'unavailable'
-              ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-              : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+              ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+              : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
           actions={
             <RefreshButton id='btn-reasoning-collapse-refresh' onClick={() => void refreshReasoningCollapse()} />
           }
@@ -1343,7 +1343,7 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
           <div className='settings-switches'>
             <SwitchRow
               id='settings-reasoning-collapse'
-              label={t('给 Codex 的响应补阶段标记，回答完后像官方模型一样把推理与命令过程折叠起来')}
+              label={t('Add phase markers to Codex responses so reasoning and commands collapse after the answer, like official models')}
               checked={snap.reasoningCollapse.on}
               // 读到后端值之前不许切（与 developerRoleCompat 同一取舍）
               disabled={snap.reasoningCollapse.status !== 'ready' || snap.busy === 'reasoningCollapse'}
@@ -1369,20 +1369,20 @@ function GatewayPane({ snap, panels }: { snap: SettingsSnapshot; panels: Set<str
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('调试模式')}
+          title={t('Debug mode')}
           tip={TIPS.debug}
           badge={snap.debug.status === 'ready'
-            ? <StatusBadge tone='ok'>{t('已生效')}</StatusBadge>
+            ? <StatusBadge tone='ok'>{t('In Effect')}</StatusBadge>
             : snap.debug.status === 'unavailable'
-              ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-              : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+              ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+              : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
           actions={<RefreshButton id='btn-debug-refresh' onClick={() => void refreshDebug()} />}
         />
         <CardContent className='panel-body'>
           <div className='settings-switches'>
             <SwitchRow
               id='settings-debug-mode'
-              label={t('保存上游原始报文（请求头、请求体、响应头、响应体）')}
+              label={t('Save raw upstream payloads (request headers, request body, response headers, response body)')}
               checked={snap.debug.on}
               disabled={snap.debug.status !== 'ready' || snap.busy === 'debug'}
               onCheckedChange={next => void saveDebug(next)}
@@ -1467,13 +1467,13 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
 
   return (
     <CollapsiblePanel
-      title={t('Cline 伪装头')}
+      title={t('Cline Spoofed Headers')}
       tip={TIPS.clineHeaders}
       badge={state.status === 'ready'
-        ? <StatusBadge tone='ok'>{t('已生效')}</StatusBadge>
+        ? <StatusBadge tone='ok'>{t('In Effect')}</StatusBadge>
         : state.status === 'unavailable'
-          ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-          : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+          ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+          : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
       actions={<RefreshButton id='btn-cline-headers-refresh' onClick={() => void refreshClineHeaders()} />}
     >
       <CardContent className='panel-body'>
@@ -1493,7 +1493,7 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
                   className='flex-1 font-mono text-[13px]'
                   value={row.value}
                   disabled={busy}
-                  placeholder={row.isDefault ? t('值（留空 = 不发送）') : t('值')}
+                  placeholder={row.isDefault ? t('Value (empty = not sent)') : t('Value')}
                   onChange={event => updateRow(index, { value: event.target.value })}
                 />
                 <Button
@@ -1507,7 +1507,7 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
                     }
                   }}
                 >
-                  {row.isDefault ? t('还原') : t('删除')}
+                  {row.isDefault ? t('Revert') : t('Delete')}
                 </Button>
               </div>
             ))
@@ -1518,7 +1518,7 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
               disabled={busy || !ready}
               onClick={() => setRows(current => [...current, { key: '', value: '', isDefault: false }])}
             >
-              {t('添加自定义头')}
+              {t('Add Custom Header')}
             </Button>
             <div className='flex-1' />
             <Button
@@ -1526,10 +1526,10 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
               disabled={busy || !ready || Object.keys(state.overrides).length === 0}
               onClick={() => void saveClineHeaders({})}
             >
-              {t('恢复默认')}
+              {t('Restore Defaults')}
             </Button>
             <Button disabled={busy || !ready || !dirty} onClick={() => void saveClineHeaders(buildOverrides())}>
-              {t('保存')}
+              {t('Save')}
             </Button>
           </div>
         </div>
@@ -1537,13 +1537,13 @@ function ClineHeadersPanel({ snap }: { snap: SettingsSnapshot }) {
           {state.status === 'loading'
             ? STATES.appLoading
             : state.status === 'unavailable'
-              ? t('未能读取 Cline 伪装头设置，请稍后重试')
+              ? t('Could not read the Cline spoofed header settings. Please try again later.')
               : dirty
-                ? t('有未保存的修改')
-                : t('{n} 个头将随每个 Cline 请求发送', { n: Object.keys(state.effective).length })
+                ? t('There are unsaved changes')
+                : t('{n} headers will be sent with every Cline request', { n: Object.keys(state.effective).length })
                   + (Object.keys(state.overrides).length > 0
-                    ? t('（{n} 项被覆盖）', { n: Object.keys(state.overrides).length })
-                    : t('（全部为默认值）'))}
+                    ? t(' ({n} overridden)', { n: Object.keys(state.overrides).length })
+                    : t(' (all defaults)'))}
         </div>
         <div className='hint retention-note'>{NOTES.clineHeaders}</div>
       </CardContent>
@@ -1566,22 +1566,22 @@ function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
     <>
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('网关跨域访问（CORS）')}
+          title={t('Gateway CORS')}
           tip={TIPS.cors}
           badge={snap.cors.status === 'ready'
             // 极性与指纹脱敏相反：这个开关「关闭」才是不扩大暴露面的常态，
             // 所以开着时给提醒色（bad），关着才是 ok
-            ? (snap.cors.on ? <StatusBadge tone='bad'>{t('已开启')}</StatusBadge> : <StatusBadge tone='ok'>{t('已关闭')}</StatusBadge>)
+            ? (snap.cors.on ? <StatusBadge tone='bad'>{t('Enabled')}</StatusBadge> : <StatusBadge tone='ok'>{t('Disabled')}</StatusBadge>)
             : snap.cors.status === 'unavailable'
-              ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
-              : <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>}
+              ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
+              : <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>}
           actions={<RefreshButton id='btn-cors-refresh' onClick={() => void refreshCors()} />}
         />
         <CardContent className='panel-body'>
           <div className='settings-switches'>
             <SwitchRow
               id='settings-cors'
-              label={t('允许浏览器里的页面跨来源调用网关（/v1/*）')}
+              label={t('Allow pages in a browser to call the gateway cross-origin (/v1/*)')}
               checked={snap.cors.on}
               // 读到后端值之前不许切（同指纹脱敏：切了也不知道后端原本是什么）
               disabled={snap.cors.status !== 'ready' || snap.busy === 'cors'}
@@ -1605,7 +1605,7 @@ function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
       {/* 面板登录：仅网页端（桌面壳的面板跟着应用走，没有「登录面板」的概念） */}
       {snap.panelLogin ? (
         <Card render={<section />} className='panel' id='panel-login-section'>
-          <PanelHead title={t('面板登录')} />
+          <PanelHead title={t('Panel login')} />
           <CardContent className='panel-body'>
             <div className='hint'>{NOTES.panelLogin}</div>
             <div className='mt-2.5'>
@@ -1615,7 +1615,7 @@ function SecurityPane({ snap }: { snap: SettingsSnapshot }) {
                 disabled={loggingOut}
                 onClick={() => void onLogout()}
               >
-                {t('退出登录')}
+                {t('Sign Out')}
               </Button>
             </div>
           </CardContent>
@@ -1638,11 +1638,11 @@ function StorageCount({ label, value }: { label: string; value: string }) {
 }
 
 function storageBadge(state: StorageState): React.ReactNode {
-  if (state.status === 'loading') return <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>
-  if (state.status === 'unavailable') return <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
+  if (state.status === 'loading') return <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>
+  if (state.status === 'unavailable') return <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
   // 「数据库不可用」是读到了概况但库打不开，与「读不到」不是一回事（旧实现同）
   return <StatusBadge tone={state.available ? 'ok' : 'bad'}>
-    {state.available ? t('已生效') : t('数据库不可用')}
+    {state.available ? t('In Effect') : t('Database unavailable')}
   </StatusBadge>
 }
 
@@ -1662,15 +1662,15 @@ function AccountPane({ snap }: { snap: SettingsSnapshot }) {
     <>
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('管理员账号')}
+          title={t('Admin account')}
           badge={
             account.status === 'loading'
-              ? <StatusBadge tone='idle'>{t('检测中…')}</StatusBadge>
+              ? <StatusBadge tone='idle'>{t('Checking…')}</StatusBadge>
               : account.status === 'unavailable'
-                ? <StatusBadge tone='bad'>{t('不可用')}</StatusBadge>
+                ? <StatusBadge tone='bad'>{t('Unavailable')}</StatusBadge>
                 : account.registered
-                  ? <StatusBadge tone='ok'>{t('已启用登录')}</StatusBadge>
-                  : <StatusBadge tone='idle'>{t('未注册')}</StatusBadge>
+                  ? <StatusBadge tone='ok'>{t('Sign-in enabled')}</StatusBadge>
+                  : <StatusBadge tone='idle'>{t('Not registered')}</StatusBadge>
           }
           actions={
             account.registered ? (
@@ -1679,7 +1679,7 @@ function AccountPane({ snap }: { snap: SettingsSnapshot }) {
                 variant='outline'
                 onClick={() => openPasswordDialog()}
               >
-                {t('修改密码')}
+                {t('Change password')}
               </Button>
             ) : null
           }
@@ -1687,14 +1687,14 @@ function AccountPane({ snap }: { snap: SettingsSnapshot }) {
         <CardContent className='panel-body'>
           <div className='settings-state' id='account-username'>
             {account.status === 'unavailable'
-              ? t('未能读取账户信息，请稍后重试')
+              ? t('Could not read account information, please try again later')
               : account.registered
-                ? t('当前管理员：{name}', { name: account.username || '—' })
-                : t('尚未注册管理员。开启「网关 → 网络访问 → 允许其他设备访问网关」时会引导注册，也可以从登录页注册。')}
+                ? t('Signed in as: {name}', { name: account.username || '—' })
+                : t('No administrator is registered yet. Enabling Gateway → Network access → Allow other devices to access the gateway guides you through registration. You can also register from the sign-in page.')}
           </div>
           {account.registered ? (
             <div className='hint'>
-              {t('修改密码需要输入当前密码；修改成功后，其他设备 / 浏览器上的登录会立即失效，当前这条会话保留。')}
+              {t('Changing the password requires the current one. After success, sign-ins on other devices and browsers are revoked immediately; this session stays active.')}
             </div>
           ) : null}
         </CardContent>
@@ -1703,13 +1703,13 @@ function AccountPane({ snap }: { snap: SettingsSnapshot }) {
       <CaptchaSettingsPanel disabled={snap.busy !== null} />
 
       <Card render={<section />} className='panel'>
-        <PanelHead title={t('重置管理员')} />
+        <PanelHead title={t('Reset administrator')} />
         <CardContent className='panel-body'>
           <div className='hint'>
-            {t('忘记密码时无法在界面里找回：需要停掉程序后，从数据库删除管理员记录（kv 表的 panelAdmin 键），重启后按首次使用重新注册。具体命令与各形态的库文件路径见 docs 目录下的「重置管理员」文档。')}
+            {t('If you forget the password it cannot be recovered in the UI: stop the program, delete the administrator record from the database (the panelAdmin key in the kv table), then restart and register again as on first use. Commands and the database path for each deployment form are in the "Reset administrator" document under docs.')}
           </div>
           <Alert variant='destructive' className='danger-zone'>
-            <strong>{t('重置会清空管理员账号与密码，面板将回到「未注册」状态。')}</strong>
+            <strong>{t('Reset clears the administrator account and password, returning the panel to the "not registered" state.')}</strong>
           </Alert>
         </CardContent>
       </Card>
@@ -1739,7 +1739,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('账号导入 / 导出')}
+          title={t('Account Import / Export')}
           tip={TIPS.io}
           actions={
             <>
@@ -1751,7 +1751,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
                 disabled={io === 'export'}
                 onClick={() => void exportAccounts()}
               >
-                {io === 'export' ? t('导出中…') : t('导出账号')}
+                {io === 'export' ? t('Exporting…') : t('Export Accounts')}
               </Button>
               <Button
                 id='btn-settings-import'
@@ -1759,22 +1759,22 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
                 disabled={io === 'import'}
                 onClick={() => void importAccounts()}
               >
-                {io === 'import' ? t('导入中…') : t('导入账号')}
+                {io === 'import' ? t('Importing…') : t('Import Accounts')}
               </Button>
             </>
           }
         />
         <CardContent className='panel-body'>
           <Alert variant='destructive' className='danger-zone'>
-            <strong>{t('导出文件内含 accessToken / refreshToken / apiKey 等凭证与自定义提供商定义')}</strong>
-            {t('，可直接用于登录。请妥善保管，不要外传或上传到公共位置。')}
+            <strong>{t('The export file contains credentials such as accessToken / refreshToken / apiKey along with custom provider definitions')}</strong>
+            {t(', and it can be used to sign in directly. Keep it safe; do not share it or upload it to a public location.')}
           </Alert>
           {/* 失败明细（旧实现写 innerHTML 并 display:none 收起空结果，这里条件渲染） */}
           {snap.ioFailure ? (
             <div className='io-result'>
               <span className='text-destructive'>
-                {t('失败 {n} 个：{detail}', { n: snap.ioFailure.failed, detail: snap.ioFailure.detail })}
-                {snap.ioFailure.more ? t(' 等') : ''}
+                {t('Failed: {n}; {detail}', { n: snap.ioFailure.failed, detail: snap.ioFailure.detail })}
+                {snap.ioFailure.more ? t(' etc.') : ''}
               </span>
             </div>
           ) : null}
@@ -1783,7 +1783,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('数据保留')}
+          title={t('Data Retention')}
           tip={TIPS.retention}
           badge={numericBadge(snap.retention)}
           actions={<RefreshButton id='btn-retention-refresh' onClick={() => void refreshRetention()} />}
@@ -1806,7 +1806,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
 
       <Card render={<section />} className='panel'>
         <PanelHead
-          title={t('数据存储')}
+          title={t('Data Storage')}
           tip={TIPS.storage}
           badge={storageBadge(storage)}
           actions={<RefreshButton id='btn-storage-refresh' onClick={() => void refreshStorage()} />}
@@ -1814,7 +1814,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
         <CardContent className='panel-body'>
           <div className='retention-list'>
             <div className='retention-row'>
-              <Label htmlFor='storage-db-path'>{t('数据库文件')}</Label>
+              <Label htmlFor='storage-db-path'>{t('Database file')}</Label>
               <span className='storage-line'>
                 {/* 悬停看完整路径（元素上是折行显示的，长路径会被截成好几行） */}
                 <span className='storage-path' id='storage-db-path' title={path}>{path}</span>
@@ -1822,7 +1822,7 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
               <div className='hint'>{NOTES.storageFile}</div>
             </div>
             <div className='retention-row'>
-              <Label htmlFor='storage-db-size'>{t('占用大小')}</Label>
+              <Label htmlFor='storage-db-size'>{t('Size on Disk')}</Label>
               <span className='storage-line'>
                 <span className='storage-path' id='storage-db-size'>
                   {counts ? formatBytes(storage.bytes) : '—'}
@@ -1832,12 +1832,12 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
             </div>
           </div>
           <div className='retention-list storage-counts'>
-            <StorageCount label={t('账号')} value={count(storage.accounts)} />
-            <StorageCount label={t('事件日志')} value={count(storage.logs)} />
-            <StorageCount label={t('请求记录')} value={count(storage.requests)} />
-            <StorageCount label={t('报表天数')} value={count(storage.dailyDays)} />
-            <StorageCount label={t('上游调试报文')} value={count(storage.upstreamRaw)} />
-            <StorageCount label={t('下游正文')} value={count(storage.downstreamRaw)} />
+            <StorageCount label={t('Accounts')} value={count(storage.accounts)} />
+            <StorageCount label={t('Event logs')} value={count(storage.logs)} />
+            <StorageCount label={t('Request Records')} value={count(storage.requests)} />
+            <StorageCount label={t('Report Days')} value={count(storage.dailyDays)} />
+            <StorageCount label={t('Upstream debug payloads')} value={count(storage.upstreamRaw)} />
+            <StorageCount label={t('Downstream bodies')} value={count(storage.downstreamRaw)} />
           </div>
           <div className='hint retention-note'>{NOTES.storage}</div>
         </CardContent>
@@ -1855,21 +1855,21 @@ function DataPane({ snap }: { snap: SettingsSnapshot }) {
  */
 const FEEDBACK_LINKS = [
   {
-    title: t('问题反馈'),
-    desc: t('遇到 Bug、报错或异常行为'),
-    cta: t('去反馈'),
+    title: t('Bug Report'),
+    desc: t('Bugs, errors, or unexpected behavior'),
+    cta: t('Give Feedback'),
     url: 'https://github.com/aimod-cc/Agent2API/issues/new?template=bug_report.yml',
   },
   {
-    title: t('功能建议'),
-    desc: t('想要的新功能或改进想法'),
-    cta: t('提建议'),
+    title: t('Feature Request'),
+    desc: t('A new feature or improvement you would like to see'),
+    cta: t('Make a Suggestion'),
     url: 'https://github.com/aimod-cc/Agent2API/issues/new?template=feature_request.yml',
   },
   {
-    title: t('请求提供商 / 模型支持'),
-    desc: t('希望接入新的提供商或模型'),
-    cta: t('去申请'),
+    title: t('Provider / Model Support Request'),
+    desc: t('A new provider or model you would like supported'),
+    cta: t('Submit a Request'),
     url: 'https://github.com/aimod-cc/Agent2API/issues/new?template=provider_request.yml',
   },
 ] as const
@@ -1877,10 +1877,10 @@ const FEEDBACK_LINKS = [
 function FeedbackPane() {
   return (
     <Card render={<section />} className='panel'>
-      <PanelHead title={t('反馈与需求')} />
+      <PanelHead title={t('Feedback & Requests')} />
       <CardContent className='panel-body'>
         <div className='hint'>
-          {t('点下面的入口会用系统默认浏览器打开 GitHub 的对应表单（需要 GitHub 账号，模板已预设好，填完直接提交即可）。')}
+          {t('The entries below open the matching GitHub form in your system\'s default browser (a GitHub account is required; the template is preset, so just fill it in and submit).')}
         </div>
         <div className='mt-3 flex flex-col gap-2'>
           {FEEDBACK_LINKS.map(item => (
@@ -1920,21 +1920,21 @@ function RetentionConfirmDialog({ confirm }: { confirm: { head: string } | null 
       {/* 旧 .modal-confirm 把宽度收到 440px（这类框只有一段话加两个按钮，620px 太宽） */}
       <DialogContent className='w-[min(440px,calc(100vw-48px))]' initialFocus={cancelRef}>
         <DialogHeader>
-          <DialogTitle>{t('确认缩减数据保留')}</DialogTitle>
+          <DialogTitle>{t('Confirm reduced data retention')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <Alert variant='destructive' className='danger-zone'>
             {confirm?.head}
             <br />
-            <strong>{t('超出的历史数据会被立即删除，且不可恢复。')}</strong>{t('确定继续？')}</Alert>
+            <strong>{t('Excess historical data will be deleted immediately and cannot be recovered.')}</strong>{t(' Continue?')}</Alert>
         </DialogBody>
         <DialogFooter>
           <div className='mr-auto' />
           <Button ref={cancelRef} variant='outline' onClick={() => resolveRetentionConfirm(false)}>
-            {t('取消')}
+            {t('Cancel')}
           </Button>
           <Button variant='destructive' onClick={() => resolveRetentionConfirm(true)}>
-            {t('继续并清理')}
+            {t('Continue & Clean Up')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1979,7 +1979,7 @@ function PasswordDialog({ password }: { password: { busy: boolean; error: string
     <Dialog open={open} onOpenChange={next => { if (!next) closePasswordDialog() }}>
       <DialogContent className='w-[min(440px,calc(100vw-48px))]' initialFocus={cancelRef}>
         <DialogHeader>
-          <DialogTitle>{t('修改密码')}</DialogTitle>
+          <DialogTitle>{t('Change password')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           {/* form 让浏览器的密码管理器能识别「旧密码 → 新密码」这一组 */}
@@ -1988,53 +1988,53 @@ function PasswordDialog({ password }: { password: { busy: boolean; error: string
             autoComplete='on'
           >
             <Label htmlFor='account-old-password' className='mb-[5px] block text-[12.5px]'>
-              {t('当前密码')}
+              {t('Current password')}
             </Label>
             <Input
               id='account-old-password'
               type='password'
               autoComplete='current-password'
-              placeholder={t('输入当前登录用的密码')}
+              placeholder={t('Enter your current password')}
               value={oldValue}
               disabled={busy}
               onChange={event => setOldValue(event.target.value)}
             />
             <Label htmlFor='account-new-password' className='mt-3.5 mb-[5px] block text-[12.5px]'>
-              {t('新密码')}
+              {t('New password')}
             </Label>
             <Input
               id='account-new-password'
               type='password'
               autoComplete='new-password'
-              placeholder={t('至少 8 位')}
+              placeholder={t('At least 8 characters')}
               value={newValue}
               disabled={busy}
               onChange={event => setNewValue(event.target.value)}
             />
             <Label htmlFor='account-repeat-password' className='mt-3.5 mb-[5px] block text-[12.5px]'>
-              {t('确认新密码')}
+              {t('Confirm new password')}
             </Label>
             <Input
               id='account-repeat-password'
               type='password'
               autoComplete='new-password'
-              placeholder={t('再输入一次新密码')}
+              placeholder={t('Re-enter the new password')}
               value={repeat}
               disabled={busy}
               onChange={event => setRepeat(event.target.value)}
             />
           </form>
           <div className='mt-3 min-h-5 text-[13px] whitespace-pre-wrap text-destructive'>
-            {mismatch ? t('两次输入的新密码不一致') : (password?.error || '')}
+            {mismatch ? t('The new passwords do not match') : (password?.error || '')}
           </div>
         </DialogBody>
         <DialogFooter>
           <div className='mr-auto' />
           <Button ref={cancelRef} variant='outline' onClick={() => closePasswordDialog()} disabled={busy}>
-            {t('取消')}
+            {t('Cancel')}
           </Button>
           <Button onClick={submit} disabled={busy || mismatch || !oldValue || !newValue || !repeat}>
-            {busy ? t('正在修改…') : t('修改密码')}
+            {busy ? t('Changing…') : t('Change password')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2143,7 +2143,7 @@ function SettingsPage() {
       <div className='settings-back-bar'>
         <Button size='default' variant='ghost' type='button' className='settings-back-btn' onClick={() => setMobileDetail(false)}>
           <span className='ico' dangerouslySetInnerHTML={{ __html: iconHtml('caretRight', 17) }} />
-          {t('返回')}
+          {t('Back')}
         </Button>
         <span className='settings-back-title'>{activeCategory.label}</span>
       </div>

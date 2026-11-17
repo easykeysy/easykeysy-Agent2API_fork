@@ -17,9 +17,9 @@ export type SpecialKey = 'compact' | 'vision' | 'title'
  * 一屏看不下几条。左栏的职责是「切到哪一块」，不是解释每一块在干什么。
  */
 export const SPECIAL_RAIL: Array<{ key: SpecialKey; label: string; icon: string }> = [
-  { key: 'compact', label: t('压缩上下文'), icon: 'database' },
-  { key: 'vision', label: t('图片兼容'), icon: 'eye' },
-  { key: 'title', label: t('标题生成'), icon: 'spark' },
+  { key: 'compact', label: t('Context compaction'), icon: 'database' },
+  { key: 'vision', label: t('Image compatibility'), icon: 'eye' },
+  { key: 'title', label: t('Title generation'), icon: 'spark' },
 ]
 
 export function RoutingRail({ editor, groups, workspace, onModel, onGroup, onAdd, special, onSpecial }: {
@@ -37,34 +37,34 @@ export function RoutingRail({ editor, groups, workspace, onModel, onGroup, onAdd
   const addDisabled = disabled || editor.loading || !(editor.draft || workspace) || !groups.data
   const groupDrafts = Object.values(groups.drafts)
   const globalSelected = !special && !groups.selected && !editor.scope
-  const dirtyDot = (dirty: boolean) => dirty ? <span className='routing-rail-dirty' title={t('有未保存的修改')} aria-label={t('有未保存的修改')}><StatusDot variant='warning' /></span> : undefined
+  const dirtyDot = (dirty: boolean) => dirty ? <span className='routing-rail-dirty' title={t('There are unsaved changes')} aria-label={t('There are unsaved changes')}><StatusDot variant='warning' /></span> : undefined
   return <Sidebar className='routing-config-rail'>
-    <SidebarHeader className='routing-config-rail-head'><b>{t('路由配置')}</b><span>{1 + SPECIAL_RAIL.length + models.length + groupDrafts.length}</span>
+    <SidebarHeader className='routing-config-rail-head'><b>{t('Routing configuration')}</b><span>{1 + SPECIAL_RAIL.length + models.length + groupDrafts.length}</span>
       <Button variant='ghost' size='icon-sm' disabled={addDisabled} onClick={onAdd}
-        title={t('新增路由配置')} aria-label={t('新增路由配置')}><RouteIcon name='plus' size={14} /></Button>
+        title={t('Add routing configuration')} aria-label={t('Add routing configuration')}><RouteIcon name='plus' size={14} /></Button>
     </SidebarHeader>
-    <NavList render={<SidebarContent />} className='routing-config-rail-list' aria-label={t('路由配置列表')}>
-      <SidebarGroupLabel>{t('默认规则')}</SidebarGroupLabel>
+    <NavList render={<SidebarContent />} className='routing-config-rail-list' aria-label={t('Route configuration list')}>
+      <SidebarGroupLabel>{t('Default rules')}</SidebarGroupLabel>
       <NavItem className='routing-config-scope-item' active={globalSelected} disabled={disabled}
         trailing={dirtyDot(Boolean(editor.drafts[''] && draftDirty(editor.drafts[''])))} onClick={() => onModel('')}>
-        <b>{t('全局默认')}</b>
+        <b>{t('Global defaults')}</b>
       </NavItem>
-      <SidebarGroupLabel>{t('特殊请求路由')}</SidebarGroupLabel>
+      <SidebarGroupLabel>{t('Special request routing')}</SidebarGroupLabel>
       {SPECIAL_RAIL.map(item => <NavItem key={item.key} className='routing-config-scope-item' active={special === item.key}
         onClick={() => onSpecial(item.key)} title={item.label}>
         <b><span className='routing-rail-special'><RouteIcon name={item.icon} size={13} />{item.label}</span></b>
       </NavItem>)}
-      {models.length ? <SidebarGroupLabel>{t('模型路由')}</SidebarGroupLabel> : null}
+      {models.length ? <SidebarGroupLabel>{t('Model routes')}</SidebarGroupLabel> : null}
       {models.map(model => <NavItem key={model} className='routing-config-scope-item' active={!special && !groups.selected && model.toLowerCase() === editor.scope.toLowerCase()}
         disabled={disabled} trailing={dirtyDot(Boolean(editor.drafts[model.toLowerCase()] && draftDirty(editor.drafts[model.toLowerCase()])))} onClick={() => onModel(model)} title={model}>
         <b>{model}</b>
       </NavItem>)}
-      {groupDrafts.length ? <SidebarGroupLabel>{t('自定义路由组')}</SidebarGroupLabel> : null}
+      {groupDrafts.length ? <SidebarGroupLabel>{t('Custom route groups')}</SidebarGroupLabel> : null}
       {groupDrafts.map(draft => <NavItem key={draft.group.id} disabled={disabled} className='routing-config-scope-item'
         active={draft.group.id === groups.selected} trailing={dirtyDot(groupDirty(draft))} onClick={() => onGroup(draft.group.id)} title={draft.group.model}>
         <b>{draft.group.name}</b>
       </NavItem>)}
-      {groups.error ? <p className='routing-config-error' role='alert'>{groups.error}<Button variant='link' disabled={groups.loading} onClick={() => void groups.load()}>{t('重新读取')}</Button></p> : null}
+      {groups.error ? <p className='routing-config-error' role='alert'>{groups.error}<Button variant='link' disabled={groups.loading} onClick={() => void groups.load()}>{t('Reload')}</Button></p> : null}
     </NavList>
     <SidebarFooter className='routing-config-rail-foot'>
       <Button variant='dashed' disabled={addDisabled} onClick={onAdd}><RouteIcon name='plus' size={14} />{t('新增路由配置')}</Button>

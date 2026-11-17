@@ -86,7 +86,7 @@ fn rewrite_compact(
     // 用同一套模型目录及 Key 权限检查目标；不递归调用本入口，A→B 不会接着套 B→C。
     let mut target_body = serde_json::json!({ "model": rule.target });
     let target = super::pipeline::resolve_model(state, &mut target_body, scope).map_err(|mut error| {
-        error.message = format!("压缩路由 {} → {} 无法执行：{}；未回退原模型", source, rule.target, error.message);
+        error.message = format!("Compaction routing {} → {} 无法执行：{}；未回退原模型", source, rule.target, error.message);
         error
     })?;
     if let Some(object) = body.as_object_mut() {
@@ -132,7 +132,7 @@ fn rewrite_title(
                 return Err(error);
             }
             crate::server::logging::log("[Title]", &format!(
-                "标题模型 {target_model} 不可用（{}），本次退回原模型 {source}", error.message));
+                "The title model {target_model} 不可用（{}），本次退回原模型 {source}", error.message));
             return Ok(source.to_string());
         }
     };

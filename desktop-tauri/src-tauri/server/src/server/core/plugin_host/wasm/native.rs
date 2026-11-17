@@ -110,7 +110,7 @@ pub(crate) async fn grant(provider: &str, helper: &str, selected: &Value, pack_i
         }
         all[provider].as_object_mut().ok_or("授权记录无效")?.remove(helper);
     } else {
-        let caller = super::super::host_for_provider(provider).filter(|host| host.ready()).ok_or("Wasm 插件未加载")?;
+        let caller = super::super::host_for_provider(provider).filter(|host| host.ready()).ok_or("Wasm Plugin not loaded")?;
         let options = caller.options.wasm.as_ref().ok_or("只有 Wasm 插件使用原生辅助授权")?;
         if !options.manifest.helpers.iter().any(|id| id == helper) { return Err("插件没有申报该辅助能力".into()); }
         let caller_pack = super::super::provider_pack(provider).ok_or("插件归属不可用")?;

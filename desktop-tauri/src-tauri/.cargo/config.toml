@@ -1,7 +1,9 @@
-# 编译产物统一放到项目根的 target/ 下（默认是 src-tauri/target/）。
-# 目的：target 目录层级更浅、便于清理，也让源码目录保持干净。
+# Build output is kept outside the repo tree (LAW-15.3: builds never enter the tree).
+# Three levels up from the directory holding .cargo (src-tauri) = a2a-target/ under the repo parent,
+# so on any machine it lands outside the clone; CI uses the workflow env CARGO_TARGET_DIR to explicitly
+# pin it back into the ephemeral workspace (see .github/workflows/*; paired verbatim with the rust-cache path).
 [build]
-target-dir = "../../target"
+target-dir = "../../../a2a-target"
 
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "target-cpu=x86-64"]

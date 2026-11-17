@@ -230,35 +230,35 @@ pub const PROVIDERS: &[ProviderMeta] = &[
     // 顺序 = 展示顺序，也决定模型目录合并时同名模型先归谁家。
     // 成对/成组的提供商**相邻**排列（同一条产品线的两个版本，中间隔着别家
     // 会让「找国际版」变成一次扫描），国内版在前（与存量账号的归属一致）。
-    ProviderMeta { id: "workbuddy", label: "WorkBuddy 国内版" },
-    ProviderMeta { id: "workbuddy-intl", label: "WorkBuddy 国际版" },
-    ProviderMeta { id: "raccoon", label: "小浣熊" },
+    ProviderMeta { id: "workbuddy", label: "WorkBuddy China edition" },
+    ProviderMeta { id: "workbuddy-intl", label: "WorkBuddy International edition" },
+    ProviderMeta { id: "raccoon", label: "Raccoon" },
     ProviderMeta { id: "catpaw", label: "CatPaw" },
-    ProviderMeta { id: "autoclaw", label: "AutoClaw 国内版" },
-    ProviderMeta { id: "autoclaw-intl", label: "AutoClaw 国际版" },
-    ProviderMeta { id: "qoder", label: "Qoder 中国版" },
-    ProviderMeta { id: "qoder-intl", label: "Qoder 国际版" },
+    ProviderMeta { id: "autoclaw", label: "AutoClaw China edition" },
+    ProviderMeta { id: "autoclaw-intl", label: "AutoClaw International edition" },
+    ProviderMeta { id: "qoder", label: "Qoder China edition" },
+    ProviderMeta { id: "qoder-intl", label: "Qoder International edition" },
     ProviderMeta { id: "cline-free", label: "Cline Free" },
     ProviderMeta { id: "cline-pass", label: "Cline Pass" },
     ProviderMeta { id: "accio", label: "Accio" },
-    ProviderMeta { id: "accio-cn", label: "Accio 国内版" },
-    ProviderMeta { id: "zcode", label: "ZCode 国内版" },
-    ProviderMeta { id: "zcode-intl", label: "ZCode 国际版" },
+    ProviderMeta { id: "accio-cn", label: "Accio China edition" },
+    ProviderMeta { id: "zcode", label: "ZCode China edition" },
+    ProviderMeta { id: "zcode-intl", label: "ZCode International edition" },
     ProviderMeta { id: "codearts", label: "CodeArts" },
     ProviderMeta { id: "trae", label: "Trae" },
     ProviderMeta { id: "loomy", label: "Loomy" },
     ProviderMeta { id: "kuku", label: "KukuAI" },
     ProviderMeta { id: "monkeycode", label: "MonkeyCode" },
-    ProviderMeta { id: "monkeycode-intl", label: "MonkeyCode 国际版" },
+    ProviderMeta { id: "monkeycode-intl", label: "MonkeyCode International edition" },
     ProviderMeta { id: "commandcode", label: "Command Code" },
     ProviderMeta { id: "antigravity", label: "Antigravity" },
     // 以下各家排在末尾：它们与前面几家的模型名大面积同名，注册表顺序决定
     // 目录合并时同名模型先归谁家 —— 放末尾即「同名时优先已有各家」。
-    ProviderMeta { id: "officeace", label: "OfficeAce 果办" },
+    ProviderMeta { id: "officeace", label: "OfficeAce" },
     ProviderMeta { id: "orcaterm", label: "OrcaTerm" },
-    ProviderMeta { id: "chatglm", label: "智谱清言" },
-    ProviderMeta { id: "modelscope", label: "ModelScope 国内版" },
-    ProviderMeta { id: "modelscope-intl", label: "ModelScope 国际版" },
+    ProviderMeta { id: "chatglm", label: "Zhipu Qingyan" },
+    ProviderMeta { id: "modelscope", label: "ModelScope (China)" },
+    ProviderMeta { id: "modelscope-intl", label: "ModelScope (International)" },
     ProviderMeta { id: "atomcode", label: "AtomCode" },
     ProviderMeta { id: "lobsterai", label: "LobsterAI" },
 ];
@@ -354,7 +354,7 @@ pub fn kind_from_id(id: &str) -> Option<ProviderKind> {
         // 只可能是有人给 `PROVIDERS` 加了条目忘了加这里。开发期喊出来；
         // release 返回 None（见上：宁可为「未知」，不可误认成别家）。
         other => {
-            debug_assert!(false, "PROVIDERS 里的 id `{other}` 缺少 kind_from_id 分支");
+            debug_assert!(false, "PROVIDERS, they appear as id `{other}` 缺少 kind_from_id Branch");
             None
         }
     }

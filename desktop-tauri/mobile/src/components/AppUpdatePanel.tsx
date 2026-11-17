@@ -182,7 +182,7 @@ export function AppUpdatePanel() {
     if (!url) {
       // 手机端要的包固定是 `.apk`（后端按后缀挑，见 pick_android_apk）——
       // 原因与桌面端同一处口径，只是「本机要什么」这一项换成 apk
-      setError(t('这一版没有提供 Android 安装包：{reason}', {
+      setError(t('This release does not include an Android package: {reason}', {
         reason: assetMissingReason(info?.assetProbe, { fallbackSuffix: '.apk' }, t),
       }))
       return
@@ -211,12 +211,12 @@ export function AppUpdatePanel() {
     try {
       // 先确认授权：没有的话跳到系统设置页，回来后用户再点一次安装
       if (!(await canInstallApk())) {
-        store.toast(t('请允许安装未知来源应用后重试'))
+        store.toast(t('Allow installing apps from unknown sources, then try again'))
         await openInstallPermission()
         return
       }
       await installApk()
-      store.toast(t('已启动安装器'))
+      store.toast(t('Installer launched'))
     } catch (failure) {
       setError(githubErrorMessage(failure, t, 'update'))
     } finally {
@@ -246,7 +246,7 @@ export function AppUpdatePanel() {
     const next = !auto
     setAutoCheckEnabled(next)
     setAuto(next)
-    store.toast(next ? t('已开启自动检查') : t('已关闭自动检查'))
+    store.toast(next ? t('Automatic checks on') : t('Automatic checks off'))
   }
 
   useEffect(() => {
@@ -274,8 +274,8 @@ export function AppUpdatePanel() {
 
   return (
     <div className='m-section'>
-      <SectionHead title={t('软件更新')} />
-      {info?.forceUpdate?.required ? <div className='mb-2 text-sm text-warning'>{t('需要强制更新')} · {info.forceUpdate.message}</div> : null}
+      <SectionHead title={t('Software update')} />
+      {info?.forceUpdate?.required ? <div className='mb-2 text-sm text-warning'>{t('Required update')} · {info.forceUpdate.message}</div> : null}
       <Card className='m-card'>
         <div className='m-row' style={{ alignItems: 'flex-start' }}>
           <span className='m-logo' style={{ background: 'var(--m-primary-soft)', borderColor: 'transparent', color: 'var(--m-primary)' }}>
@@ -284,41 +284,41 @@ export function AppUpdatePanel() {
           <div className='m-grow' style={{ minWidth: 0 }}>
             <div className='m-t1'>
               {phase === 'latest'
-                ? t('已是最新版本')
+                ? t('You are on the latest version')
                 : phase === 'available'
-                  ? t('发现新版本 {version}', { version: info?.latestVersion || '' })
+                  ? t('New version {version} available', { version: info?.latestVersion || '' })
                   : phase === 'downloading'
-                    ? progress?.phase === 'selecting' ? t('正在选择下载通道…') : t('正在下载…')
+                    ? progress?.phase === 'selecting' ? t('Selecting a download source…') : t('Downloading…')
                     : phase === 'downloaded'
-                      ? t('已下载，待安装')
+                      ? t('Downloaded, ready to install')
                       : phase === 'checking'
-                        ? t('正在检查…')
-                        : t('当前版本 {version}', { version: APP_VERSION })}
+                        ? t('Checking…')
+                        : t('Current version {version}', { version: APP_VERSION })}
             </div>
             <div className='m-t2' style={{ wordBreak: 'break-word' }}>
               {phase === 'available' && !selfUpdate
-                ? t('请在 Release 页面下载后通过 TestFlight 或 App Store 安装')
+                ? t('Download from the Release page, then install via TestFlight or the App Store')
                 : phase === 'available' && info?.asset
-                  ? t('{size} · 下载后可直接安装，无需跳转浏览器', { size: sizeText(info.asset.size) })
+                  ? t('{size} · Downloads and installs in place — no browser redirect', { size: sizeText(info.asset.size) })
                   : phase === 'downloaded'
-                    ? t('安装包已就绪，点「安装」即可完成更新')
+                    ? t('Package ready — tap "Install" to finish updating')
                     : phase === 'downloading' && percent !== null
-                      ? t('已完成 {percent}%', { percent })
+                      ? t('Completed {percent}%', { percent })
                     : phase === 'latest'
-                      ? t('当前版本 {version}', { version: APP_VERSION })
+                      ? t('Current version {version}', { version: APP_VERSION })
                       : selfUpdate
-                        ? t('版本 {version} · 按 GitHub 访问设置下载安装包', { version: APP_VERSION })
-                        : t('版本 {version} · 更新包需从 Release 页面获取', { version: APP_VERSION })}
+                        ? t('Version {version} · Downloads installers using GitHub access settings', { version: APP_VERSION })
+                        : t('Version {version} · get the update from the Release page', { version: APP_VERSION })}
             </div>
 
             {phase === 'downloading' && progress?.source ? <div className='m-t2'>
-              {t('当前下载通道：{source}', { source: progress.source })}
+              {t('Download source: {source}', { source: progress.source })}
             </div> : null}
 
             {/* 进度条：总长度未知（percent = null）时不画，只显示已下载量 */}
             {phase === 'downloading' ? (
               <div style={{ marginTop: 8 }}>
-                <UiProgress value={percent} aria-label={t('下载进度')} />
+                <UiProgress value={percent} aria-label={t('Download progress')} />
                 {progress ? (
                   <div style={{ marginTop: 4, fontSize: 11, color: 'var(--m-text-3)' }}>
                     {sizeText(progress.received)}
@@ -338,20 +338,20 @@ export function AppUpdatePanel() {
           {/* 动作按钮：按状态给唯一的主动作，避免一屏好几个可点的东西 */}
           {phase === 'downloading' ? (
             <Button size='touch-sm' variant='outline' type='button' className='m-btn m-ghost m-sm' onClick={() => void stop()}>
-              {t('取消')}
+              {t('Cancel')}
             </Button>
           ) : phase === 'downloaded' ? (
             <Button size='touch-sm' variant='default' type='button' className='m-btn m-sm' disabled={busy} onClick={() => void install()}>
-              {t('安装')}
+              {t('Install')}
             </Button>
           ) : phase === 'available' && !selfUpdate ? (
             // iOS：只能跳出去，由系统渠道安装
             <Button size='touch-sm' variant='default' type='button' className='m-btn m-sm' onClick={openReleasePage}>
-              {t('去下载')}
+              {t('Get it')}
             </Button>
           ) : phase === 'available' ? (
             <Button size='touch-sm' variant='default' type='button' className='m-btn m-sm' disabled={busy} onClick={() => void download()}>
-              {t('立即更新')}
+              {t('Update now')}
             </Button>
           ) : (
             <Button size='touch-sm' variant='outline'
@@ -360,7 +360,7 @@ export function AppUpdatePanel() {
               disabled={busy}
               onClick={() => void runCheck()}
             >
-              {phase === 'checking' ? t('检查中…') : t('检查更新')}
+              {phase === 'checking' ? t('Checking…') : t('Check for updates')}
             </Button>
           )}
         </div>
@@ -390,14 +390,14 @@ export function AppUpdatePanel() {
             <Icon name='refresh' />
           </span>
           <div className='m-grow'>
-            <div className='m-t1'>{t('允许本机自动检查')}</div>
+            <div className='m-t1'>{t('Allow automatic checks on this device')}</div>
             <div className='m-t2'>
               {interval > 0
-                ? t('与电脑端一致：每 {n} 分钟', { n: Math.round(interval / 60_000) })
-                : t('网关已关闭自动检查，此处只做手动检查')}
+                ? t('Matches the desktop app: every {n} min', { n: Math.round(interval / 60_000) })
+                : t('The gateway has disabled automatic checks. Only manual checks are available here.')}
             </div>
           </div>
-          <UiSwitch size='touch' variant='success' checked={auto} aria-label={t('允许本机自动检查')}  onCheckedChange={() => toggleAuto()} />
+          <UiSwitch size='touch' variant='success' checked={auto} aria-label={t('Allow automatic checks on this device')}  onCheckedChange={() => toggleAuto()} />
         </div>
         <AppUpdateSettings onChanged={channelsChanged => {
           if (channelsChanged) channelRevision.current += 1

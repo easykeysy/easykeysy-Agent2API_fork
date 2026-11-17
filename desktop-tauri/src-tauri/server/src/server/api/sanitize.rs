@@ -66,7 +66,7 @@ fn parse_patch(payload: &Value) -> Result<SanitizePatch, String> {
         .map(|value| {
             value
                 .as_bool()
-                .ok_or_else(|| format!("{KEY_SANITIZE_FINGERPRINTS} 必须是 true 或 false"))
+                .ok_or_else(|| format!("{KEY_SANITIZE_FINGERPRINTS} 必须是 true or false"))
         })
         .transpose()?;
     let rules = match object.get(KEY_SANITIZE_RULES) {
@@ -97,7 +97,7 @@ fn parse_providers(value: &Value) -> Result<Vec<String>, String> {
         .as_array()
         .ok_or_else(|| format!("{KEY_SANITIZE_PROVIDERS} 必须是字符串数组"))?;
     if items.len() > MAX_SANITIZE_PROVIDERS {
-        return Err(format!("应用提供商最多 {MAX_SANITIZE_PROVIDERS} 个"));
+        return Err(format!("应用提供商最多 {MAX_SANITIZE_PROVIDERS} total"));
     }
     let previous = config::current().sanitize_settings().providers.clone();
     let mut selected = Vec::with_capacity(items.len());
@@ -108,7 +108,7 @@ fn parse_providers(value: &Value) -> Result<Vec<String>, String> {
             .trim()
             .to_ascii_lowercase();
         if id.is_empty() {
-            return Err("应用提供商 id 不能为空".to_string());
+            return Err("Apply to providers id 不能为空".to_string());
         }
         // 插件暂时卸载时保留已选范围，不能因为保存词表而扩大成全部提供商。
         if !providers::is_known_provider_id(&id)

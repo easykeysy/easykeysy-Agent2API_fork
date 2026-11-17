@@ -41,7 +41,7 @@ pub fn snapshot(port: u16) -> Value {
         .map(|key| json!({ "id": key.id, "name": key.name, "allowedModels": key.allowed_models, "allowedProviders": key.allowed_providers }))
         .collect::<Vec<_>>();
     if crate::server::config::parse::env_api_key_value().is_some() {
-        keys.push(json!({ "id": "env", "name": "环境变量 Key", "allowedModels": [], "allowedProviders": [] }));
+        keys.push(json!({ "id": "env", "name": "Environment variable key", "allowedModels": [], "allowedProviders": [] }));
     }
     json!({
         "clients": CLIENTS.iter().map(|def| client_view(def, &gateway)).collect::<Vec<_>>(),

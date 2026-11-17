@@ -30,7 +30,7 @@ pub fn parse(usage: &Value) -> SourceFacts {
     }).unwrap_or_default();
     let (remaining, unlimited) = crate::server::core::usage_records::extract_remaining(usage);
     let unit = usage.get("unit").and_then(Value::as_str).unwrap_or_else(|| {
-        if usage.get("totalLeft").is_some() { "积分" } else { "" }
+        if usage.get("totalLeft").is_some() { "Points" } else { "" }
     }).trim().to_string();
     SourceFacts { sources, remaining, unlimited, unit, query_config: String::new() }
 }
@@ -67,8 +67,8 @@ pub fn rows_for(account: &Value, facts: &Facts) -> Value {
         let unit = record.map(|facts| facts.unit.as_str()).filter(|unit| !unit.is_empty())
             .or_else(|| sources.iter().find(|source| source.id == "account").map(|source| source.unit.as_str()))
             .unwrap_or("");
-        let credit = unit == "积分" || unit.eq_ignore_ascii_case("credits");
-        let label = if credit { "总积分" } else { "账号主额度" };
+        let credit = unit == "Points" || unit.eq_ignore_ascii_case("credits");
+        let label = if credit { "Total points" } else { "Account primary quota" };
         if let Some(account) = rows.iter_mut().find(|source| source.get("id").and_then(Value::as_str) == Some("account")) {
             if credit { account["label"] = json!(label); }
             account["unit"] = json!(unit);
@@ -80,9 +80,9 @@ pub fn rows_for(account: &Value, facts: &Facts) -> Value {
     }
     if provider == crate::server::core::account_store::codearts_accounts::CODEARTS_PROVIDER_ID {
         rows.retain(|source| source.get("id").and_then(Value::as_str) == Some("account")
-            || source.get("unit").and_then(Value::as_str) == Some("积分"));
+            || source.get("unit").and_then(Value::as_str) == Some("Points"));
     } else {
-        rows.push(json!({ "id": "local", "label": "本地用量保护", "provider": provider,
+        rows.push(json!({ "id": "local", "label": "Local usage protection", "provider": provider,
             "localOnly": true, "localEstimate": true }));
     }
     Value::Array(rows)

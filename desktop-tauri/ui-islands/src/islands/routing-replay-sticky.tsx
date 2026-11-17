@@ -30,16 +30,16 @@ export function ReplayStickyBinding({ row }: { row: ReplayRow }) {
     try {
       const result = await bridge().clearRoutingSticky({ id: entry.id, model: entry.model })
       setEntry(null)
-      notify(t('已解除 {n} 条会话粘滞', { n: result.cleared }))
+      notify(t('Released {n} session bindings', { n: result.cleared }))
       await loadWorkspace(true)
     } catch (error) { setError(errorMessage(error)) }
     finally { setBusy(false) }
   }
   return <div className='rounded-md border border-hairline bg-surface-2 p-3 text-xs'>
     <div className='flex items-center gap-3'><span className='flex-1 text-muted-foreground'>{entry
-      ? t('这条请求对应的会话当前仍绑定到「{account}」。', { account: entry.accountName })
-      : loaded ? t('这条会话已解除或过期，不再有活跃绑定。') : t('正在读取会话绑定…')}</span>
-      {entry ? <Button variant='outline' size='sm' disabled={busy} onClick={() => void clear()}>{t('解除这条会话')}</Button> : null}
+      ? t('The session for this request is currently bound to “{account}”.', { account: entry.accountName })
+      : loaded ? t('This session has been released or expired and no longer has an active binding.') : t('Loading session binding…')}</span>
+      {entry ? <Button variant='outline' size='sm' disabled={busy} onClick={() => void clear()}>{t('Release this session')}</Button> : null}
     </div>{error ? <p role='alert' className='mt-2 text-destructive'>{error}</p> : null}
   </div>
 }

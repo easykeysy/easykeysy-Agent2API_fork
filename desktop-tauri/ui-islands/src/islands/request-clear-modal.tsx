@@ -62,12 +62,12 @@ type Mode = 'all' | 'raw'
  */
 const MODES: Record<Mode, { title: string; desc: string }> = {
   all: {
-    title: t('全部删除'),
-    desc: t('删除请求记录，并同步清理对应的上游调试报文与下游正文。有筛选时只删除命中的记录，按天聚合报表不受影响；无筛选时清空全部并重置报表。此操作无法恢复。'),
+    title: t('Delete all'),
+    desc: t('Deletes request records together with their upstream debug payloads and downstream bodies. With filters active, only matching records are deleted and daily reports are preserved; without filters, all data is cleared and reports are reset. This cannot be undone.'),
   },
   raw: {
-    title: t('仅清空报文原文'),
-    desc: t('保留请求记录、用量统计与报表，同时清理上游调试报文和下游请求 / 响应正文。清理后「预览对话」与「原始报文」不再保留原文。有筛选时只清理命中请求的报文；无筛选时清空两侧全部报文。此操作无法恢复。'),
+    title: t('Clear raw payloads only'),
+    desc: t('Keeps request records, usage statistics, and reports while clearing upstream debug payloads and downstream request / response bodies. Conversation preview and Raw payload will no longer contain the original content. With filters active, only payloads for matching requests are cleared; without filters, all payloads on both sides are cleared. This cannot be undone.'),
   },
 }
 
@@ -205,7 +205,7 @@ function countOrNull(value: unknown): number | null {
 function toCounts(preview: ClearPreviewResponse | null | undefined): Counts {
   const all = countOrNull(preview?.all)
   const raw = countOrNull(preview?.raw)
-  if (all === null || raw === null) throw new Error(t('清理预览数据不完整'))
+  if (all === null || raw === null) throw new Error(t('Cleanup preview data is incomplete'))
   return {
     all,
     raw,
@@ -223,7 +223,7 @@ async function refreshStorageCounts() {
   await Promise.all([
     api.getStorage().then(data => panel.renderStorage?.(data)),
     api.getDebug().then(data => panel.renderDebug?.(data)),
-  ]).catch(error => console.warn('刷新报文存储统计失败:', errorMessage(error)))
+  ]).catch(error => console.warn('Failed to refresh the payload storage statistics:', errorMessage(error)))
 }
 
 function errorMessage(error: unknown): string {
@@ -307,7 +307,7 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
     if (next.vacuumRunning) return
     stopPolling()
     setHint('')
-    toast(t('✅ 压缩完成'))
+    toast(t('✅ Vacuum complete'))
     // 压缩不改数据，但库占用变小了：预览刚随上面那次响应更新过，
     // 列表顺带刷一次（vacuum 期间可能又进了新请求）
     void shared().wbRequestsPanel?.load?.({ silent: true })
@@ -331,7 +331,7 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
     setPreview({ status: 'loading' })
     try {
       const api = shared().workbuddyDesktop
-      if (!api) throw new Error(t('后端桥不可用'))
+      if (!api) throw new Error(t('Backend bridge unavailable'))
       const raw = await api.getStatsClearPreview(queryRef.current)
       if (!aliveRef.current) return // 等待期间已关窗：丢弃这次结果
       const next = toCounts(raw)
@@ -341,7 +341,7 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
     } catch (error) {
       if (!aliveRef.current) return
       setPreview({ status: 'failed' })
-      setHint(t('预览读取失败：{error}', { error: errorMessage(error) }))
+      setHint(t('Failed to load preview: {error}', { error: errorMessage(error) }))
     }
   }
 
@@ -364,7 +364,7 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
 
   /**
    * 触发压缩：POST compact 只表示「是否受理」，进度靠 clear-preview 的
-   * vacuumRunning 轮询。409（已有一个在跑）不算失败 —— 接上它的进度，
+   * vacuumRunning 轮询。409（已有一个在跑）不算Failed —— 接上它的进度，
    * 用户看到的结果与「自己触发成功」一致，只是多一句提示。
    */
   async function handleCompact() {
@@ -373,21 +373,21 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
     setVacuumRunning(true) // 先切「压缩中…」并禁用（旧实现同序）
     try {
       await api.compactStatsDb()
-      setHint(t('压缩已在后台开始，完成后会自动提示'))
+      setHint(t('Vacuum started in the background; you will be notified when it completes'))
       startPolling()
     } catch (error) {
       const message = errorMessage(error)
       // 409 = 另一个压缩正在跑：后端文案「数据库压缩正在进行中…」，
       // 桥接层只透出这句话（不带状态码），两种特征都认一下
       if (/409|正在进行/.test(message)) {
-        toast(t('压缩已在进行中'))
-        setHint(t('压缩已在进行中，接上它的进度等待完成'))
+        toast(t('Vacuum already in progress'))
+        setHint(t('Vacuum already in progress; joining it and waiting for it to finish'))
         startPolling()
         return
       }
       setVacuumRunning(false)
-      setHint(t('压缩失败：{message}', { message }))
-      toast(t('压缩失败：{message}', { message }), 'err')
+      setHint(t('Vacuum failed: {message}', { message }))
+      toast(t('Vacuum failed: {message}', { message }), 'err')
     }
   }
 
@@ -408,21 +408,21 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
     const label = MODES[mode].title
     const query = queryRef.current
     const hasFilters = query.length > 0
-    const scope = hasFilters ? t('当前筛选范围') : t('全部请求数据')
+    const scope = hasFilters ? t('the current filter results') : t('all request data')
     const counts = {
       count: preview.all,
       upstream: preview.upstreamRaw ?? 0,
       downstream: preview.downstreamRaw ?? 0,
     }
     const summary = mode === 'raw'
-      ? t('保留 {count} 条请求记录；将清理上游调试报文 {upstream} 条、下游正文 {downstream} 条。用量统计与报表不变。', counts)
-      : t('将删除 {count} 条请求记录，并清理上游调试报文 {upstream} 条、下游正文 {downstream} 条。', counts)
+      ? t('Keeps {count} request records; clears {upstream} upstream debug payloads and {downstream} downstream bodies. Usage statistics and reports remain unchanged.', counts)
+      : t('Deletes {count} request records and clears {upstream} upstream debug payloads and {downstream} downstream bodies.', counts)
     const confirmed = await ask({
-      title: t('清理请求日志'),
-      html: t('确定对<strong>{scope}</strong>执行「<strong>{label}</strong>」？<br>{summary}<br>此操作无法恢复。', {
+      title: t('Clear request logs'),
+      html: t('Run <strong>{label}</strong> on <strong>{scope}</strong>?<br>{summary}<br>This cannot be undone.', {
         scope: escapeHtml(scope), label: escapeHtml(label), summary: escapeHtml(summary),
       }),
-      okText: mode === 'raw' ? t('清空两侧原文') : t('删除'),
+      okText: mode === 'raw' ? t('Clear both sides') : t('Delete'),
       okClass: 'danger',
     })
     if (!confirmed || clearing || !aliveRef.current) return
@@ -435,11 +435,11 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
       const upstream = countOrNull(result?.upstreamRaw)
       const downstream = countOrNull(result?.downstreamRaw)
       if (deleted === null || upstream === null || downstream === null) {
-        toast(t('清理请求已返回，但结果数据不完整，请刷新后确认。'), 'err')
+        toast(t('The cleanup request returned incomplete result data. Refresh to confirm the outcome.'), 'err')
       } else {
         toast(mode === 'raw'
-          ? t('已清理上游调试报文 {upstream} 条、下游正文 {downstream} 条；请求记录与报表已保留。', { upstream, downstream })
-          : t('已删除 {count} 条请求记录，并清理上游调试报文 {upstream} 条、下游正文 {downstream} 条。', { count: deleted, upstream, downstream }))
+          ? t('Cleared {upstream} upstream debug payloads and {downstream} downstream bodies; request records and reports were preserved.', { upstream, downstream })
+          : t('Deleted {count} request records and cleared {upstream} upstream debug payloads and {downstream} downstream bodies.', { count: deleted, upstream, downstream }))
       }
       setInFlight(false) // 先解除守卫，closeModal() 才放行（与旧实现同序）
       onClose()
@@ -449,8 +449,8 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
       void refreshStorageCounts()
     } catch (error) {
       const message = errorMessage(error)
-      setHint(t('清理失败：{message}', { message }))
-      toast(t('清理失败：{message}', { message }), 'err')
+      setHint(t('Clear failed: {message}', { message }))
+      toast(t('Clear failed: {message}', { message }), 'err')
       // 失败必须解除守卫，否则弹窗再也关不掉（按钮与取消键一并恢复可用）
       setInFlight(false)
     }
@@ -458,19 +458,19 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
 
   const previewText = preview.status === 'ready'
     ? preview.downstreamRaw === null || preview.upstreamRaw === null
-      ? t('当前网关未提供上游 / 下游清理统计，请更新网关后再清理。')
+      ? t('This gateway does not provide upstream / downstream cleanup counts. Update the gateway before clearing data.')
       : mode === 'raw'
-        ? t('保留 {count} 条请求记录 · 将清理上游调试报文 {upstream} 条、下游正文 {downstream} 条 · 数据库占用 {db}', {
+        ? t('Keep {count} request records · Clear {upstream} upstream debug payloads and {downstream} downstream bodies · Database size {db}', {
             count: preview.all, upstream: preview.upstreamRaw, downstream: preview.downstreamRaw,
             db: formatBytes(preview.dbBytes),
           })
-        : t('将删除 {count} 条请求记录 · 同步清理上游调试报文 {upstream} 条、下游正文 {downstream} 条 · 数据库占用 {db}', {
+        : t('Delete {count} request records · Clear {upstream} upstream debug payloads and {downstream} downstream bodies · Database size {db}', {
             count: preview.all, upstream: preview.upstreamRaw, downstream: preview.downstreamRaw,
             db: formatBytes(preview.dbBytes),
           })
     : preview.status === 'failed'
-      ? t('预览读取失败')
-      : t('正在统计…')
+      ? t('Failed to load preview')
+      : t('Calculating…')
 
   return (
     <Dialog
@@ -490,11 +490,11 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('清理请求日志')}</DialogTitle>
+          <DialogTitle>{t('Clear request logs')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <RadioGroup
-            aria-label={t('清理方式')}
+            aria-label={t('Clear mode')}
             value={mode}
             onValueChange={next => {
               if (!clearing) setMode(next === 'raw' ? 'raw' : 'all')
@@ -526,7 +526,7 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
           </RadioGroup>
           <p className='text-[11.5px] text-muted-foreground'>{previewText}</p>
           <p className='text-[11.5px] text-muted-foreground'>
-            {t('数据库占用包含主文件与 WAL 文件；清理后可点击「压缩数据库」回收空闲空间。')}
+            {t('Database size includes the main file and WAL file. After clearing data, use Vacuum database to reclaim unused space.')}
           </p>
         </DialogBody>
         <DialogFooter>
@@ -541,14 +541,14 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
             disabled={vacuumRunning}
             title={
               vacuumRunning
-                ? t('压缩正在后台执行，完成后自动恢复')
-                : t('回收已删除数据占用的磁盘空间（checkpoint + VACUUM，后台执行）')
+                ? t('Vacuum is running in the background; it resumes automatically when it completes')
+                : t('Reclaims the disk space used by deleted data (checkpoint + VACUUM, runs in the background)')
             }
           >
-            {vacuumRunning ? t('压缩中…') : t('压缩数据库')}
+            {vacuumRunning ? t('Vacuuming…') : t('Vacuum database')}
           </Button>
           <Button variant='outline' onClick={onClose} disabled={clearingView}>
-            {t('取消')}
+            {t('Cancel')}
           </Button>
           <Button
             variant='destructive'
@@ -557,7 +557,7 @@ function RequestClearModal({ onClose }: RequestClearModalProps) {
             }}
             disabled={clearingView || !canClear}
           >
-            {clearingView ? t('清理中…') : t('执行清理')}
+            {clearingView ? t('Clearing…') : t('Run clear')}
           </Button>
         </DialogFooter>
       </DialogContent>

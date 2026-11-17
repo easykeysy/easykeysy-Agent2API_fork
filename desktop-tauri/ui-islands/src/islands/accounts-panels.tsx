@@ -109,15 +109,15 @@ export function OrderCell({ account, rank, sortActive }: {
   rank: number
   sortActive?: boolean
 }) {
-  const label = t('组内第 {rank} 位', { rank })
+  const label = t('Position {rank} in group', { rank })
   return (
     <div className='order-cell'>
       <span className={`order-grip${sortActive ? ' locked' : ''}`} role='button' tabIndex={-1}
-        aria-label={t('拖动调整组内顺序')}
+        aria-label={t('Drag to reorder within the group')}
         aria-disabled={sortActive || undefined}
         title={sortActive
           ? manualOrderBlockedMessage(activeGroupSortRules(providerOf(account), groupSortRules(providerOf(account))))
-          : t('按住拖动，调整这个账号在本组内的顺序')}
+          : t('Hold and drag to change this account\'s order within its group')}
         dangerouslySetInnerHTML={{ __html: iconHtml('gripVertical', 14) }} />
       <span className='order-rank' title={label}>{`#${rank}`}</span>
     </div>
@@ -144,33 +144,33 @@ function GroupMenu({ group, ids, collapsed }: { group: AccountGroup; ids: string
   const itemClass = 'w-full justify-start px-2 font-normal'
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button size='default' variant='ghost' type='button' className='grp-iconbtn' title={t('本组操作')} />}>⋯</PopoverTrigger>
+      <PopoverTrigger render={<Button size='default' variant='ghost' type='button' className='grp-iconbtn' title={t('Group actions')} />}>⋯</PopoverTrigger>
       <PopoverContent align='end' sideOffset={4} className='w-[196px] p-1.5'>
         <div className='flex flex-col gap-0.5'>
           <Button variant='ghost' size='sm' className={itemClass}
-            title={t('启用这一组里的全部账号（含被筛选隐藏的）')}
+            title={t('Enable every account in this group (including ones hidden by filters)')}
             onClick={() => { setOpen(false); void setGroupEnabled(ids, true) }}>
-            {t('全部启用（{n}）', { n: ids.length })}
+            {t('Enable all ({n})', { n: ids.length })}
           </Button>
           <Button variant='ghost' size='sm' className={itemClass}
-            title={t('禁用这一组里的全部账号（含被筛选隐藏的）')}
+            title={t('Disable every account in this group (including ones hidden by filters)')}
             onClick={() => { setOpen(false); void setGroupEnabled(ids, false) }}>
-            {t('全部禁用（{n}）', { n: ids.length })}
+            {t('Disable all ({n})', { n: ids.length })}
           </Button>
           <Button variant='ghost' size='sm' className={itemClass}
-            title={t('打开批量操作弹窗，并预选这一组的账号（改代理等动作在弹窗里挑参数）')}
+            title={t('Opens the bulk-operations dialog with this group\'s accounts preselected (pick parameters like the proxy inside the dialog)')}
             onClick={() => { setOpen(false); openBatchDialog(ids, 'proxy') }}>
-            {t('批量操作本组')}
+            {t('Bulk operations for this group')}
           </Button>
           <Button variant='ghost' size='sm' className={itemClass}
-            title={t('导出本组全部账号，每个账号一个 JSON 文件（含被筛选隐藏的）')}
+            title={t('Export every account in this group as a separate JSON file, including accounts hidden by filters')}
             onClick={() => { setOpen(false); void exportAccountFiles({ provider: group.provider }) }}>
-            {t('导出本组账号')}
+            {t('Export accounts in this group')}
           </Button>
           <div className='my-1 h-px bg-hairline' />
           <Button variant='ghost' size='sm' className={itemClass}
             onClick={() => { setOpen(false); toggleGroupCollapsed(group.provider) }}>
-            {collapsed ? t('展开这一组') : t('折叠这一组')}
+            {collapsed ? t('Expand this group') : t('Collapse this group')}
           </Button>
         </div>
       </PopoverContent>
@@ -225,11 +225,11 @@ export function GroupBandRow({ group, collapsed, colSpan }: {
     <TableRow className='grp-band' data-provider={group.provider}>
       <TableCell colSpan={colSpan} onClick={onBandClick}>
         <div className='grp-band-inner'>
-          <span className='queue-grip' role='button' tabIndex={-1} aria-label={t('拖动调整整组顺序')}
-            title={t('按住拖动，调整这一家的组顺位（整组一起动）')}
+          <span className='queue-grip' role='button' tabIndex={-1} aria-label={t('Drag to reorder whole groups')}
+            title={t('Hold and drag to change this provider\'s group position (the whole group moves together)')}
             dangerouslySetInnerHTML={{ __html: iconHtml('gripVertical', 14) }} />
-          <span className='grp-rank' title={t('组顺位：越小越先用（拖动分组带调整）')}>
-            {t('第 {rank} 顺位', { rank: group.rank })}
+          <span className='grp-rank' title={t('Group position: smaller goes first (drag the group band to adjust)')}>
+            {t('Position {rank}', { rank: group.rank })}
           </span>
           <span className='grp-logo'>
             {icon
@@ -237,16 +237,16 @@ export function GroupBandRow({ group, collapsed, colSpan }: {
               : <span className='grp-logo-txt'>{String(group.label || '?').trim().slice(0, 1).toUpperCase()}</span>}
           </span>
           <span className='grp-name'>{t(group.label)}</span>
-          <span className='grp-stat'>{t('{total} 个账号 · 启用 {enabled} · 禁用 {disabled}{limited}', {
+          <span className='grp-stat'>{t('{total} accounts · {enabled} enabled · {disabled} disabled{limited}', {
             total: group.members.length,
             enabled: group.enabled,
             disabled: group.disabled,
-            limited: group.limited > 0 ? t(' · 限流 {n}', { n: group.limited }) : '',
+            limited: group.limited > 0 ? t(' · {n} rate-limited', { n: group.limited }) : '',
           })}</span>
           {balance ? <GroupBalanceBadge balance={balance} /> : null}
           {sortSummary ? (
             <Button size='default' variant='ghost' type='button' className='grp-sort-mark'
-              title={t('当前排序规则：{rules}。点击调整', { rules: sortSummary })}
+              title={t('Current sorting: {rules}. Click to adjust', { rules: sortSummary })}
               onClick={() => openGroupDialog(group.provider)}>
               <span dangerouslySetInnerHTML={{ __html: iconHtml('sort', 10) }} />
               {sortSummary}
@@ -254,8 +254,8 @@ export function GroupBandRow({ group, collapsed, colSpan }: {
           ) : null}
           <span className='grp-spacer' />
           <Button size='default' variant='ghost' type='button' className='grp-iconbtn' aria-haspopup='dialog'
-            title={t('添加 {name} 账号', { name: t(group.label) })}
-            aria-label={t('添加 {name} 账号', { name: t(group.label) })}
+            title={t('Add {name} account', { name: t(group.label) })}
+            aria-label={t('Add {name} account', { name: t(group.label) })}
             onClick={event => {
               event.stopPropagation()
               shared().wbAddAccountModal?.openProvider?.(group.provider)
@@ -265,8 +265,8 @@ export function GroupBandRow({ group, collapsed, colSpan }: {
               <path d='M12 5v14M5 12h14' />
             </svg>
           </Button>
-          <Button size='default' variant='ghost' type='button' className='grp-iconbtn' title={t('分组设置')}
-            aria-label={t('分组设置')}
+          <Button size='default' variant='ghost' type='button' className='grp-iconbtn' title={t('Group settings')}
+            aria-label={t('Group settings')}
             onClick={() => openGroupDialog(group.provider)}
             dangerouslySetInnerHTML={{ __html: iconHtml('settings', 14) }} />
           <GroupMenu group={group} ids={group.members.map(account => account.id)} collapsed={collapsed} />
@@ -292,16 +292,16 @@ export function StatusCell({ account }: { account: AccountRecord }) {
   // 自动禁用钩子同判据，见 tokenDisableTriggeredOf）。
   if (!enabled && tokenDisableTriggeredOf(account, tokenUsageOf(account))) {
     tags.push({
-      text: t('Token 限额 · 已禁用'),
+      text: t('Token limit · Disabled'),
       kind: 'bad' as const,
-      title: t('本周期 Token 消耗达到限制器的上限，账号已被自动禁用（窗口重置也不恢复，需手动启用）'),
+      title: t('This period\'s Token usage reached the limiter cap, and the account was disabled automatically (a window reset will not restore it; enable it manually)'),
     })
   }
   const who = displayNameOf(account) || account.id
   return (
     <>
-      <Switch checked={enabled} aria-label={t('{action}{who}', { action: enabled ? t('禁用') : t('启用'), who })}
-        title={enabled ? t('已启用，点击禁用（不参与转发）') : t('已禁用，点击启用')}
+      <Switch checked={enabled} aria-label={t('{action}{who}', { action: enabled ? t('Disable') : t('enabled'), who })}
+        title={enabled ? t('Enabled; click to disable (excluded from forwarding)') : t('Disabled; click to enable')}
         onCheckedChange={next => void setAccountEnabled(account.id, next)} />
       {tags.length ? (
         <div className='status-tags'>
@@ -338,7 +338,7 @@ export function LimitsCell({ account, onClear }: {
   const cooldown = upstreamCooldownOf(account)
   const suspendedReason = upstreamSuspendedReasonOf(account)
   if (suspendedReason) {
-    return <Badge variant='destructive' shape='tag' title={suspendedReason}>{t('上游限制 · 已禁用')}</Badge>
+    return <Badge variant='destructive' shape='tag' title={suspendedReason}>{t('Upstream restriction · Disabled')}</Badge>
   }
   if (!entries.length && !cooldown) {
     if (Array.isArray(account.limiterGroups) && limiterHit(account)) {
@@ -347,22 +347,22 @@ export function LimitsCell({ account, onClear }: {
     if (balanceBlockedOf(account, usageEntryOf(account))) {
       return (
         <Badge variant='warning' shape='tag'
-          title={t('余额低于限制器的阈值，转发时会跳过该账号（余额回升自动恢复）')}>
-          {t('余额不足')}
+          title={t('Balance is below the limiter threshold; forwarding skips this account (recovers automatically when the balance rises)')}>
+          {t('Low balance')}
         </Badge>
       )
     }
     if (tokenBlockedOf(account, tokenUsageOf(account))) {
       return (
         <Badge variant='warning' shape='tag'
-          title={t('本周期 Token 消耗达到限制器的上限，转发时会跳过该账号（窗口重置自动恢复）')}>
-          {t('Token 限额')}
+          title={t('This period\'s Token usage reached the limiter cap; forwarding skips this account (recovers automatically when the window resets)')}>
+          {t('Token limit')}
         </Badge>
       )
     }
     return (
-      <Badge variant='success' shape='tag' title={t('当前没有任何模型处于限流中')}>
-        <BadgeDot />{t('正常')}
+      <Badge variant='success' shape='tag' title={t('No models are currently rate-limited')}>
+        <BadgeDot />{t('Normal')}
       </Badge>
     )
   }
@@ -405,18 +405,18 @@ export function ExpiryCell({ account }: { account: AccountRecord }) {
     {rows.map(row => <CredentialExpiryLine key={row.label} row={row} />)}
   </div>
   if (features.longLived) {
-    return <span title={t('主凭证没有固定到期时刻，到期由网关自动续期或本来就不会过期')}>{t('长期有效')}</span>
+    return <span title={t('The primary credential has no fixed expiry — the gateway renews it automatically, or it does not expire at all')}>{t('Long-lived')}</span>
   }
-  if (!expiresAt) return <span className='muted' title={t('记录里没有过期时间')}>—</span>
+  if (!expiresAt) return <span className='muted' title={t('No expiry time in the record')}>—</span>
   const left = expiresAt - Date.now()
-  if (left <= 0) return <Badge variant='destructive' shape='tag' title={t('凭证已过期；能否续期取决于登录方式，本机引用需由原客户端处理')}>{t('已过期')}</Badge>
-  const text = left < 3600e3 ? t('{n} 分钟后', { n: Math.max(1, Math.round(left / 60e3)) })
-    : left < 48 * 3600e3 ? t('{n} 小时后', { n: (left / 3600e3).toFixed(1) })
-      : t('{n} 天后', { n: Math.floor(left / 24 / 3600e3) })
+  if (left <= 0) return <Badge variant='destructive' shape='tag' title={t('Credential expired; renewal depends on the sign-in method. Local references must be handled in the original client')}>{t('Expired')}</Badge>
+  const text = left < 3600e3 ? t('in {n} min', { n: Math.max(1, Math.round(left / 60e3)) })
+    : left < 48 * 3600e3 ? t('in {n} h', { n: (left / 3600e3).toFixed(1) })
+      : t('in {n} days', { n: Math.floor(left / 24 / 3600e3) })
   // 完整时间点只在解析得出时补进 title：formatTime 对非法时间戳返回空串，
   // 直接拼会留下一个空的「（）」
   const full = formatTime(expiresAt)
-  return <span title={full ? t('{text}过期（{full}）', { text, full }) : t('{text}过期', { text })}>{text}</span>
+  return <span title={full ? t('Expires {text} ({full})', { text, full }) : t('Expires {text}', { text })}>{text}</span>
 }
 
 /**
@@ -431,10 +431,10 @@ export function ExpiryCell({ account }: { account: AccountRecord }) {
  */
 function CredentialExpiryLine({ row }: { row: CredentialExpiryRow }) {
   const expired = row.expiresAt !== null && row.expiresAt <= Date.now()
-  const title = row.expiresAt === null ? t('记录里没有过期时间') : formatTime(row.expiresAt)
+  const title = row.expiresAt === null ? t('No expiry time in the record') : formatTime(row.expiresAt)
   return <div className='flex items-center justify-center gap-1.5 whitespace-nowrap' title={`${row.label} · ${title}`}>
     <span className='text-[9px] text-subtle' translate='no'>{row.label}</span>
-    {expired ? <Badge variant='destructive' shape='tag'>{t('已过期')}</Badge>
+    {expired ? <Badge variant='destructive' shape='tag'>{t('Expired')}</Badge>
       : <span className={row.expiresAt === null && !row.longLived ? 'muted' : undefined}>{credentialExpiryText(row, t)}</span>}
   </div>
 }
@@ -450,7 +450,7 @@ export function ConnectionsCell({ account }: { account: AccountRecord }) {
   const value = connectionsOf(account.id)
   if (value <= 0) return null
   return (
-    <span className='conn-count' title={t('{n} 个请求正在使用该账号（含还在下发内容的流式请求）', { n: value })}>
+    <span className='conn-count' title={t('{n} requests are using this account (including streaming requests still sending content)', { n: value })}>
       {value}
     </span>
   )
@@ -477,8 +477,8 @@ function subscriptionText(subscription: unknown): string {
   if (!subscription || typeof subscription !== 'object') return ''
   const info = subscription as Record<string, unknown>
   const parts: string[] = []
-  if (info.planName) parts.push(t('套餐 {name}', { name: String(info.planName) }))
-  if (info.status) parts.push(t('状态 {status}', { status: String(info.status) }))
+  if (info.planName) parts.push(t('Plan {name}', { name: String(info.planName) }))
+  if (info.status) parts.push(t('Status {status}', { status: String(info.status) }))
   // 三态里的非「生效中」档要说清楚：代表套餐可能是**待生效**的（刚领到还没到生效
   // 时间的活动包，见后端 `plan_state`），只写「套餐 X 到期 …」会被读成现在就在用
   if (info.state && String(info.state) !== 'active') {
@@ -488,10 +488,10 @@ function subscriptionText(subscription: unknown): string {
   if (expireAt !== null && expireAt !== undefined && expireAt !== '') {
     const asNumber = Number(expireAt)
     const text = Number.isFinite(asNumber) && asNumber > 1e11 ? formatTime(asNumber) : String(expireAt)
-    if (text) parts.push(t('到期 {time}', { time: text }))
+    if (text) parts.push(t('Expires {time}', { time: text }))
   }
-  if (Number.isFinite(Number(info.remainQuota))) parts.push(t('余量 {value}', { value: numberText(info.remainQuota) }))
-  if (Number.isFinite(Number(info.totalQuota))) parts.push(t('总量 {value}', { value: numberText(info.totalQuota) }))
+  if (Number.isFinite(Number(info.remainQuota))) parts.push(t('Remaining {value}', { value: numberText(info.remainQuota) }))
+  if (Number.isFinite(Number(info.totalQuota))) parts.push(t('Total {value}', { value: numberText(info.totalQuota) }))
   return parts.join(' ')
 }
 
@@ -520,13 +520,13 @@ export function pendingPlans(entry: UsageEntry): Array<Record<string, unknown>> 
  */
 export function pendingPlansTitle(plans: Array<Record<string, unknown>>): string {
   const lines = plans.map(plan => {
-    const name = String(plan.name || plan.planId || t('套餐'))
+    const name = String(plan.name || plan.planId || t('Plan'))
     const starts = Number(plan.pendingUntil ?? plan.startsAt)
     return Number.isFinite(starts) && starts > 0
-      ? t('{name}（{time} 起生效）', { name, time: formatTime(starts * 1000) })
+      ? t('{name} (takes effect at {time})', { name, time: formatTime(starts * 1000) })
       : name
   })
-  return t('已领到、还没到生效时间的套餐（生效后余额列会按它显示）：\n{lines}', { lines: lines.join('\n') })
+  return t('Claimed plans that have not taken effect yet (the balance column shows them once they do):\n{lines}', { lines: lines.join('\n') })
 }
 
 /**
@@ -539,24 +539,24 @@ export function pendingPlansTitle(plans: Array<Record<string, unknown>>): string
  * 余额列是这张表里最窄的几列之一。
  */
 export function usageSummary(entry: UsageEntry): { text: string; kind: string; title: string } {
-  if (entry === undefined) return { text: t('未查询'), kind: 'muted', title: t('尚未查询该账号的余额') }
-  if (entry === null) return { text: t('查询中…'), kind: 'muted', title: t('正在查询') }
+  if (entry === undefined) return { text: t('Not queried'), kind: 'muted', title: t('This account\'s balance has not been queried yet') }
+  if (entry === null) return { text: t('Checking…'), kind: 'muted', title: t('Querying') }
   const failure = usageFailureOf(entry)
   if (failure) {
     return failure.notConfigured
-      ? { text: t('未配置'), kind: 'muted', title: t('{message}（去该账号的「设置」里填上查询凭证即可）', { message: failure.message }) }
-      : { text: t('查询失败'), kind: 'bad', title: failure.message }
+      ? { text: t('Not configured'), kind: 'muted', title: t('{message} (fill in the query credential in this account\'s Settings)', { message: failure.message }) }
+      : { text: t('Query failed'), kind: 'bad', title: failure.message }
   }
-  if (typeof entry !== 'object' || entry === null) return { text: t('无数据'), kind: 'muted', title: String(entry) }
+  if (typeof entry !== 'object' || entry === null) return { text: t('No data'), kind: 'muted', title: String(entry) }
   const data = entry as Record<string, unknown>
   const empty = usageEmptyStateOf(data, t)
   if (empty) return { text: empty.text, kind: 'muted', title: empty.detail }
   if (Object.prototype.hasOwnProperty.call(data, 'totalLeft')) {
     const total = data.unlimited ? '∞' : numberText(data.totalLeft)
     return {
-      text: t('可用 {total}', { total }),
+      text: t('{total} available', { total }),
       kind: 'ok',
-      title: t('总剩余 {total} · 套餐 {plan} · 奖励 {bonus}', {
+      title: t('Total left {total} · plan {plan} · bonus {bonus}', {
         total, plan: numberText(data.planLeft), bonus: numberText(data.bonusLeft),
       }),
     }
@@ -565,18 +565,18 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
     const windows = data.windows as Array<Record<string, unknown>>
     const missing = usageWarningsOf(data)
     return {
-      text: t('分窗口额度'),
+      text: t('Quota by window'),
       kind: missing.length ? 'warn' : 'ok',
       title: [...new Set([...usageSupplementReadingsOf(data, t, numberText), subscriptionText(data.subscription), ...windows.filter(row => row && typeof row === 'object').map(row => [usageWindowLabel(row.label, t), usageWindowView(row, t, numberText)].filter(Boolean).join(' ')), ...missing.map(line => t(line))].filter(Boolean))].join(' · '),
     }
   }
   if (Object.prototype.hasOwnProperty.call(data, 'available') || Array.isArray(data.wallets)) {
-    const unit = usageUnitLabel(String(data.unit || t('积分')), t)
+    const unit = usageUnitLabel(String(data.unit || t('Points')), t)
     const wallets = creditStatisticsWalletsOf(data) ?? (Array.isArray(data.wallets) ? data.wallets as Array<Record<string, unknown>> : [])
     // 上游给的展示串优先（带千分位 / 单位的格式化），没有才按数值拼
     const detail = wallets
       .filter(wallet => !isSnapshotWallet(wallet))
-      .map(wallet => `${wallet?.displayName || wallet?.type || t('明细')} `
+      .map(wallet => `${wallet?.displayName || wallet?.type || t('Details')} `
         + `${wallet?.balanceView ? String(wallet.balanceView) : numberText(wallet?.balance)}`)
       .join(' · ')
     const readings = snapshotReadingsOf(data, t, numberText)
@@ -593,11 +593,11 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
     if (wallets.length === 0 && Array.isArray(data.plans) && data.plans.length > 0) {
       const plan = leadPlan(data)
       notes.push(plan && grantUsage(plan)
-        ? t('读数里没有额度桶，这里按套餐权益里的已用 / 总量显示（上游给的数）')
-        : t('上游的余额读数里没有这个套餐的额度桶，剩余量读不到；余额列显示的是套餐发放的权益额度，不是剩余量'))
+        ? t('The reading has no quota bucket; this shows the used / total from the plan entitlement (the upstream figures)')
+        : t('The upstream balance reading has no quota bucket for this plan, so the remaining amount is unavailable; the balance column shows the plan\'s granted entitlement, not the remaining amount'))
     }
     if (String(data.walletsFrom || '') === 'monitor') {
-      notes.push(t('额度窗口读数来自开放平台监控通道（套餐 JWT 那条通道没有额度桶）：读的是每 N 小时 / 每周窗口的剩余比例'))
+      notes.push(t('The quota-window reading comes from the open-platform monitoring channel (the Coding Plan JWT channel has no quota bucket): it reads the remaining percentage of each N-hour / weekly window'))
     }
     // 展示串优先：ZCode 的额度单位是 token（1 亿 = 9 位数字），而余额列只有几十
     // 像素宽 —— 后端因此给了 `availableView`（`1亿 token` 这类紧凑串）。没有这个
@@ -612,15 +612,15 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
     const available = data.availableView
       ? String(data.availableView)
       : fallbackWallet
-        ? t('可用 {value} {unit}', {
+        ? t('{value} {unit} available', {
             value: numberText(fallbackWallet.balance),
             unit: usageUnitLabel(String(fallbackWallet.unit || unit), t),
           })
-        : t('可用 {value} {unit}', { value: numberText(data.available), unit })
+        : t('{value} {unit} available', { value: numberText(data.available), unit })
     // 部分读数缺失时保留已知余额，并显示查询警告。
     const missing = [
       ...usageWarningsOf(data).map(line => t(line)),
-      data.statisticsError ? t('订阅统计未读到：{error}', { error: String(data.statisticsError) }) : '',
+      data.statisticsError ? t('Failed to read subscription stats: {error}', { error: String(data.statisticsError) }) : '',
     ].filter(Boolean)
     const supplement = usageSupplementReadingsOf(data, t, numberText)
     const missingNumber = numberOrNull(data.available) === null && !fallbackWallet && !data.availableView
@@ -631,7 +631,7 @@ export function usageSummary(entry: UsageEntry): { text: string; kind: string; t
       title: [...new Set([knownView, detail, readings, subscription, ...supplement, ...notes, ...missing].filter(Boolean))].join(' · '),
     }
   }
-  return { text: t('无数据'), kind: 'muted', title: t('未返回可识别的余额数据') }
+  return { text: t('No data'), kind: 'muted', title: t('No recognizable balance data returned') }
 }
 
 /**
@@ -748,7 +748,7 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
       const view = String(tightest.wallet.balanceView || '').split(' · ')[0].trim()
       return {
         planName: String(tightest.wallet.planName || subscription.planName || ''),
-        text: view || t('剩余 {percent}%', { percent: Math.round(percent) }),
+        text: view || t('{percent}% left', { percent: Math.round(percent) }),
         percent,
       }
     }
@@ -761,7 +761,7 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
       const remaining = Math.max(0, usage.total - usage.used)
       return {
         planName,
-        text: t('剩 {left} / {total}{unit}', {
+        text: t('{left} / {total}{unit} left', {
           left: compactNumber(remaining),
           total: compactNumber(usage.total),
           unit: usage.unit ? ` ${usage.unit}` : '',
@@ -774,8 +774,8 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
     return {
       planName,
       text: grant.unit
-        ? t('权益 {value} {unit}', { value: compactNumber(grant.units), unit: grant.unit })
-        : t('权益 {value}', { value: compactNumber(grant.units) }),
+        ? t('Grant {value} {unit}', { value: compactNumber(grant.units), unit: grant.unit })
+        : t('Grant {value}', { value: compactNumber(grant.units) }),
       // 权益额度不是剩余量：不画条（口径见上面那段文档）
       percent: null,
     }
@@ -788,8 +788,8 @@ export function usagePool(entry: UsageEntry): { planName: string; text: string; 
   const percent = numberOrNull(lead.remainingPercent)
     ?? (remaining !== null && total !== null && total > 0 ? remaining / total * 100 : null)
   const text = remaining !== null && total !== null && total > 0
-    ? t('剩 {remaining} / {total}', { remaining: compactNumber(remaining), total: compactNumber(total) })
-    : t('可用 {value} {unit}', { value: numberText(lead.balance), unit: usageUnitLabel(String(lead.unit || ''), t) }).trim()
+    ? t('{remaining} / {total} left', { remaining: compactNumber(remaining), total: compactNumber(total) })
+    : t('{value} {unit} available', { value: numberText(lead.balance), unit: usageUnitLabel(String(lead.unit || ''), t) }).trim()
   return {
     planName,
     text: String(lead.balanceView || text),
@@ -866,7 +866,7 @@ function UsageFlatRowView({ row }: { row: UsageFlatRow }) {
       </span>
       {row.percent !== null ? (
         <Meter value={row.percent} variant={row.over || row.tone === 'bad' ? 'destructive' : row.tone === 'ok' ? 'success' : row.tone === 'warn' ? 'warning' : 'muted'}
-          className='mt-1' trackClassName='h-[3px]' aria-label={t('剩余 {percent}%', { percent: Math.round(row.percent) })} />
+          className='mt-1' trackClassName='h-[3px]' aria-label={t('{percent}% left', { percent: Math.round(row.percent) })} />
       ) : null}
     </span>
   )
@@ -927,10 +927,10 @@ function usageDetailOf(entry: UsageEntry): UsageDetail | null {
   const data = entry as Record<string, unknown>
   const wallets = Array.isArray(data.wallets) ? data.wallets as Array<Record<string, unknown>> : []
   if (!wallets.length) return null
-  const unit = usageUnitLabel(String(data.unit || '积分'), t)
+  const unit = usageUnitLabel(String(data.unit || 'Points'), t)
   const credit: UsageDetailRow[] = []
   for (const wallet of wallets) {
-    const name = String(wallet.displayName || wallet.type || t('明细'))
+    const name = String(wallet.displayName || wallet.type || t('Details'))
     const remaining = numberOrNull(wallet.creditRemaining)
     const total = numberOrNull(wallet.creditTotal)
     if (remaining === null && total === null && wallet.creditUsed == null) continue
@@ -941,22 +941,22 @@ function usageDetailOf(entry: UsageEntry): UsageDetail | null {
       credit.push({
         name,
         view: hasTotal
-          ? t('剩 {remaining} / {total}', { remaining: numberText(remaining), total: numberText(total) })
-          : t('剩 {remaining}', { remaining: numberText(remaining) }),
+          ? t('{remaining} / {total} left', { remaining: numberText(remaining), total: numberText(total) })
+          : t('{remaining} left', { remaining: numberText(remaining) }),
         tone: remaining <= 0 ? 'muted' : percent !== null && percent < 20 ? 'warn' : 'ok',
         percent,
         over: false,
-        title: hasTotal ? undefined : t('上游未给总量，画不出剩余比例'),
+        title: hasTotal ? undefined : t('The upstream gave no total, so the remaining ratio cannot be drawn'),
       })
       continue
     }
-    credit.push({ name, view: wallet.creditUsed == null ? t('总量 {value}', { value: numberText(total) })
-      : t('已用 {used}', { used: numberText(wallet.creditUsed) }), tone: 'muted', percent: null, over: false })
+    credit.push({ name, view: wallet.creditUsed == null ? t('Total {value}', { value: numberText(total) })
+      : t('{used} used', { used: numberText(wallet.creditUsed) }), tone: 'muted', percent: null, over: false })
   }
   const subscription = (data.subscription && typeof data.subscription === 'object'
     ? data.subscription : {}) as Record<string, unknown>
   const missing = [
-    data.statisticsError ? t('订阅统计未读到：{error}', { error: String(data.statisticsError) }) : '',
+    data.statisticsError ? t('Failed to read subscription stats: {error}', { error: String(data.statisticsError) }) : '',
   ].filter(Boolean)
   return {
     credit,
@@ -1009,14 +1009,14 @@ function prominentTokenLimit(account: AccountRecord): React.ReactNode {
   const hit = reading.used >= rule.threshold
   const info = tokenWindowInfo(rule)
   const countdown = !hit ? ` · ${tokenCountdownText(info.remainingMs, info.daily)}` : ''
-  const scope = info.daily ? t('今日已用') : t('周期 Token')
-  const windowText = rule.reset === 'daily' ? t('今天（本地 0 点重置）') : t('{period}窗口', { period: formatIntervalSeconds(rule.period ?? 0) })
-  const title = t('限制器：{window}已用 {used} / {threshold} Token', {
+  const scope = info.daily ? t('Used today') : t('Period tokens')
+  const windowText = rule.reset === 'daily' ? t('Today (resets at midnight local)') : t('{period} window', { period: formatIntervalSeconds(rule.period ?? 0) })
+  const title = t('Limiter: {window} — {used} / {threshold} tokens used', {
     window: windowText,
     used: Math.round(reading.used).toLocaleString('en-US'),
     threshold: Math.round(rule.threshold).toLocaleString('en-US'),
   })
-    + (hit ? t('，已达到上限') : t('，{countdown}重置', { countdown: tokenCountdownText(info.remainingMs, info.daily) }))
+    + (hit ? t(', limit reached') : t(', {countdown} until reset', { countdown: tokenCountdownText(info.remainingMs, info.daily) }))
   return (
     <span className='usage-token-sub' title={title}>
       {scope} <span className={hit ? 'hit' : undefined}>{formatTokenCount(reading.used)}</span>
@@ -1040,7 +1040,7 @@ export function UsageCell({ account }: { account: AccountRecord }) {
         {failureStatus.text}
       </span> : null}
       {stateText ? <span className='text-[11px] text-subtle' role='status'>{stateText}</span> : null}
-      {stale ? <span className='text-[11px] text-subtle'>{t('历史余额，尚未按新配置验证')}</span> : null}
+      {stale ? <span className='text-[11px] text-subtle'>{t('Previous balance, not yet verified with the new settings')}</span> : null}
     </span>
   )
 }
@@ -1054,8 +1054,8 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
     return (
       <span className='muted'
         title={account.isGuest === true
-          ? t('访客账号没有积分体系，因此不查询余额（登录账号可以查）')
-          : t('该提供商尚未接入余额查询')}>—</span>
+          ? t('Guest accounts have no points system, so no balance is queried (a signed-in account can be queried)')
+          : t('Balance queries are not integrated for this provider')}>—</span>
     )
   }
   const rawSummary = usageSummary(entry)
@@ -1070,13 +1070,13 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
     <LimiterStatus account={account} onOpen={() => openSettingsDialog(account.id)} />
   ) : balanceBlockedOf(account, entry) ? (
     <Badge variant='warning' shape='tag'
-      title={t('余额低于限制器的阈值，转发时会跳过该账号（余额回升自动恢复）')}>
-      {t('余额不足 · 已跳过')}
+      title={t('Balance is below the limiter threshold; forwarding skips this account (recovers automatically when the balance rises)')}>
+      {t('Low balance · Skipped')}
     </Badge>
   ) : tokenBlockedOf(account, tokenUsageOf(account)) ? (
     <Badge variant='warning' shape='tag'
-      title={t('本周期 Token 消耗达到限制器的上限，转发时会跳过该账号（窗口重置自动恢复）')}>
-      {t('Token 限额 · 已跳过')}
+      title={t('This period\'s Token usage reached the limiter cap; forwarding skips this account (recovers automatically when the window resets)')}>
+      {t('Token limit · Skipped')}
     </Badge>
   ) : null
   const tokenSub = prominentTokenLimit(account)
@@ -1086,7 +1086,7 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
   const pending = summary.kind === 'ok' || summary.kind === 'warn' ? pendingPlans(entry) : []
   const pendingBadge = pending.length ? (
     <Badge variant='warning' shape='tag' title={pendingPlansTitle(pending)}>
-      {t('待生效 {n} 份', { n: pending.length })}
+      {t('{n} pending', { n: pending.length })}
     </Badge>
   ) : null
   // 明细可能有到期时间但没有总余额；保留这类入口，失败和未配置时不挂空明细。
@@ -1104,7 +1104,7 @@ function UsageReadingCell({ account, entry }: { account: AccountRecord; entry: U
   const windows = summary.kind === 'ok' || summary.kind === 'warn' ? usageWindows(entry) : []
   if (windows.length) {
     const detail = creditDetail ? (
-      <CreditDetailButton variant='sum' {...creditDetail}>{t('积分明细')}</CreditDetailButton>
+      <CreditDetailButton variant='sum' {...creditDetail}>{t('Points details')}</CreditDetailButton>
     ) : null
     return (
       <UsageWindowsCell entry={entry} rows={windows} updatedAt={usageUpdatedAtOf(account)} creditDetail={detail}>
@@ -1204,13 +1204,13 @@ function UsageDetailCell({ summary, detail, blockedBadge, tokenSub }: {
           ? <Badge variant={detail.free ? 'secondary' : 'brand'} shape='tag' className={`plan-chip${detail.free ? ' free' : ''}`}>{detail.plan}</Badge>
           : null}
         {detail.resetDate
-          ? <span className='plan-sub' title={t('套餐积分的重置日期')}>{t('重置 {date}', { date: detail.resetDate })}</span>
+          ? <span className='plan-sub' title={t('Reset date for plan points')}>{t('Resets {date}', { date: detail.resetDate })}</span>
           : null}
       </span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={<Button size='default' variant='ghost' type='button' className={`usage-toggle ${summary.kind}`}
-            title={summary.title} aria-label={t('积分明细')} />}
+            title={summary.title} aria-label={t('Points details')} />}
         >
           <span className='val'>{summary.text}</span>
           <span className='caret' aria-hidden>▾</span>
@@ -1220,7 +1220,7 @@ function UsageDetailCell({ summary, detail, blockedBadge, tokenSub }: {
         <PopoverContent align='center' sideOffset={6} className='usage-pop w-[288px]'>
           {detail.total !== null ? (
             <div className='usage-pop-total'>
-              <span className='k'>{t('总积分')}</span>
+              <span className='k'>{t('Total points')}</span>
               <span className='v'>{numberText(detail.total)} <small>{detail.unit}</small></span>
             </div>
           ) : null}
@@ -1229,12 +1229,12 @@ function UsageDetailCell({ summary, detail, blockedBadge, tokenSub }: {
             : null}
           {detail.credit.length ? (
             <>
-              <div className='usage-pop-group'>{t('积分')}</div>
+              <div className='usage-pop-group'>{t('Points')}</div>
               {detail.credit.map(row => <UsageDetailRowView key={row.name} row={row} />)}
             </>
           ) : null}
           {!detail.credit.length && detail.total === null ? (
-            <Empty className='usage-pop-empty'>{t('未返回可识别的余额数据')}</Empty>
+            <Empty className='usage-pop-empty'>{t('No recognizable balance data returned')}</Empty>
           ) : null}
         </PopoverContent>
       </Popover>
@@ -1256,7 +1256,7 @@ function UsageDetailRowView({ row }: { row: UsageDetailRow }) {
       </div>
       {row.percent !== null ? (
         <Meter value={row.percent} variant={row.over || row.tone === 'bad' ? 'destructive' : row.tone === 'ok' ? 'success' : row.tone === 'warn' ? 'warning' : 'muted'}
-          className='mt-1.5' trackClassName='h-[3px]' aria-label={t('剩余 {percent}%', { percent: Math.round(row.percent) })} />
+          className='mt-1.5' trackClassName='h-[3px]' aria-label={t('{percent}% left', { percent: Math.round(row.percent) })} />
       ) : null}
     </div>
   )
@@ -1282,7 +1282,7 @@ function UsageDetailRowView({ row }: { row: UsageDetailRow }) {
  */
 export function AccountCell({ account, namesHidden }: { account: AccountRecord; namesHidden: boolean }) {
   const ident = identifierOf(account)
-  const name = displayNameOf(account) || t('未命名账号')
+  const name = displayNameOf(account) || t('Unnamed account')
   const email = String(account.email || '').trim()
   const nickname = String(account.nickname || '').trim()
   // 记录里原样的备注名（未经 displayNameOf 的兜底链）：未设备注时它建号时就有种子值，
@@ -1290,16 +1290,16 @@ export function AccountCell({ account, namesHidden }: { account: AccountRecord; 
   const rawName = String(account.name || '').trim()
   const mask = (value: string): string => (namesHidden ? maskName(value) : value)
   const titleLines = [
-    email && email !== name ? t('邮箱 {email}', { email: mask(email) }) : '',
+    email && email !== name ? t('Email {email}', { email: mask(email) }) : '',
     ident ? `${identifierKeyOf(account) || 'id'} ${ident}` : '',
     !account.nameCustom && rawName && rawName !== email && rawName !== nickname
-      ? t('备注名 {name}', { name: mask(rawName) })
+      ? t('Label {name}', { name: mask(rawName) })
       : '',
-    nickname && nickname !== name && nickname !== email ? t('昵称 {name}', { name: mask(nickname) }) : '',
-    isDesktopAccount(account) ? t('桌面端实时登录态（凭证每次从客户端登录态文件读取）') : '',
-    account.updatedAt ? t('更新于 {time}', { time: formatTime(account.updatedAt) }) : '',
+    nickname && nickname !== name && nickname !== email ? t('Nickname {name}', { name: mask(nickname) }) : '',
+    isDesktopAccount(account) ? t('Live desktop login state (the credential is read from the client login-state file each time)') : '',
+    account.updatedAt ? t('Updated {time}', { time: formatTime(account.updatedAt) }) : '',
     account.needsRelogin ? accountReloginText(account) : '',
-    account.source ? t('来源 {source}', { source: account.source === 'imported' ? t('旧数据导入') : t('手动添加') }) : '',
+    account.source ? t('Source {source}', { source: account.source === 'imported' ? t('Legacy import') : t('Manual entry') }) : '',
   ].filter(Boolean)
 
   const showEmail = email && email !== name
@@ -1329,13 +1329,13 @@ export function AccountCell({ account, namesHidden }: { account: AccountRecord; 
       {nameNode}
       {showEmail ? (
         <div className='acct-sub'>
-          <span className='acct-email' title={t('账号邮箱')}>{mask(email)}</span>
+          <span className='acct-email' title={t('Account email')}>{mask(email)}</span>
         </div>
       ) : null}
       {account.needsRelogin ? <div className='acct-note bad'>{accountReloginText(account)}</div> : null}
       {proxyError ? (
         <div className='acct-note bad'
-          title={t('代理不可用：{error}', { error: proxyError })}>{t('代理不可用：{error}', { error: proxyError })}</div>
+          title={t('Proxy unavailable: {error}', { error: proxyError })}>{t('Proxy unavailable: {error}', { error: proxyError })}</div>
       ) : null}
     </>
   )
@@ -1345,7 +1345,7 @@ export function AccountCell({ account, namesHidden }: { account: AccountRecord; 
 export function ProxyCell({ account }: { account: AccountRecord }) {
   const proxy = account.proxy
   const source = proxy?.config?.source || proxy?.source
-  const label = proxy?.label || (source === 'custom' ? t('自定义代理') : t('已设置'))
+  const label = proxy?.label || (source === 'custom' ? t('Custom proxy') : t('Configured'))
   const broken = proxy?.error
   const pool = proxyPoolSnapshot()
   const poolItems = Array.isArray(pool) ? pool : []
@@ -1356,7 +1356,7 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
   if (source === 'pool' && proxy?.config?.proxyId) current = `${POOL_VALUE_PREFIX}${proxy.config.proxyId}`
   else if (proxy) current = PROXY_CUSTOM_CURRENT
 
-  const items: Array<{ value: string; label: string; disabled?: boolean }> = [{ value: '', label: t('直连') }]
+  const items: Array<{ value: string; label: string; disabled?: boolean }> = [{ value: '', label: t('Direct') }]
   for (const item of poolItems) {
     // 文案是「名字（协议 主机:端口）」—— 名字是用户在「网络代理」页起的，
     // 地址是后端解析出来的实时值（见 poolItemLabel）。同一格里多条目同名时
@@ -1374,13 +1374,13 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
   if (pool === null) {
     // 还没读到（首帧 / 自愈 effect 尚未跑完）：给一句「读取中」而不是
     // 「还没有代理」—— 后者会让用户以为池是空的
-    items.push({ value: '__hint_pool__', label: t('正在读取代理列表…'), disabled: true })
+    items.push({ value: '__hint_pool__', label: t('Loading proxy list…'), disabled: true })
   } else if (!poolItems.length) {
     // 池为空 / 读取失败各说明一句：后者是故障（页面侧在节流重试），前者是
     // 「还没配」—— 两种都不该静默成「只有直连」
     items.push({
       value: '__hint_pool__',
-      label: poolError() ? t('代理列表读取失败（重试中）') : t('还没有代理（去「网络代理」页添加）'),
+      label: poolError() ? t('Failed to load the proxy list (retrying)') : t('No proxies yet (add one on the Network proxy page)'),
       disabled: true,
     })
   }
@@ -1388,24 +1388,24 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
     // 补位项：不带动任何写操作（PROXY_CUSTOM_CURRENT 在 applyProxyPick 里被忽略），
     // 只是把当前值原样显示出来。轮询档不加前缀 —— 后端给的 label 本身就是
     // 「轮询全部代理（N 个出口）」这种完整一句话（见 describe_account_proxy）
-    const prefix = source === 'clash' ? t('Clash 出口：') : source === 'custom' ? t('自定义：') : ''
-    items.push({ value: PROXY_CUSTOM_CURRENT, label: `${prefix}${label}${broken ? t('（不可用）') : ''}` })
+    const prefix = source === 'clash' ? t('Clash exit: ') : source === 'custom' ? t('Custom: ') : ''
+    items.push({ value: PROXY_CUSTOM_CURRENT, label: `${prefix}${label}${broken ? t(' (unavailable)') : ''}` })
   } else if (source === 'pool' && !poolItems.some(item => `${POOL_VALUE_PREFIX}${item.id}` === current)) {
     // 池引用但条目已不在池里（被删 / Clash 侧删了出口）：补位显示当前值
-    items.push({ value: current, label: `${label}${broken ? t('（不可用）') : ''}` })
+    items.push({ value: current, label: `${label}${broken ? t(' (unavailable)') : ''}` })
   }
-  items.push({ value: PROXY_CUSTOM_EDIT, label: t('自定义代理…') })
+  items.push({ value: PROXY_CUSTOM_EDIT, label: t('Custom proxy…') })
 
   const title = broken
-    ? t('代理不可用：{error}（不会自动改为直连）；选「自定义代理…」去修改', { error: broken })
+    ? t('Proxy unavailable: {error} (no automatic direct connection); choose "Custom proxy…" to fix it', { error: broken })
     : source === 'rotate'
-      ? t('当前：{label}（每条请求换一个出口）；「自定义代理…」打开完整设置', { label })
+      ? t('Current: {label} (a different exit per request); "Custom proxy…" opens the full settings', { label })
       : source === 'clash'
-        ? t('当前：{label}（Clash Verge 直接引用）；可在「网络代理」页同步端点后改选', { label })
+        ? t('Current: {label} (direct Clash Verge reference). You can sync endpoints on the Network proxy page and select one instead.', { label })
         : source === 'custom'
-          ? t('当前：{label}（未经过代理池 —— 可在「网络代理」页添加相同地址后来这里改选）', { label })
-          : t('当前：{label}；选项来自「网络代理」页；「自定义代理…」打开完整设置', {
-          label: proxy ? label : t('直连'),
+          ? t('Current: {label} (not using the proxy pool; add the same address on the Network proxy page, then select it here).', { label })
+          : t('Current: {label}; options come from the Network proxy page; "Custom proxy…" opens the full settings', {
+          label: proxy ? label : t('Direct'),
         })
   const selected = items.find(item => item.value === current)
 
@@ -1415,8 +1415,8 @@ export function ProxyCell({ account }: { account: AccountRecord }) {
           换成组件库的 Select 之后触发器没有 .select-trigger 这个类名（它走 data-slot），
           所以把描边色直接写在工具类上（见最终报告里变死的 CSS） */}
       <SelectTrigger className={cn('w-full', broken && 'border-destructive-bd')}
-        title={title} aria-label={t('出网代理')}>
-        <SelectValue>{selected?.label || t('直连')}</SelectValue>
+        title={title} aria-label={t('Outbound proxy')}>
+        <SelectValue>{selected?.label || t('Direct')}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {items.map(item => (
@@ -1452,11 +1452,11 @@ export function ActionsCell({ account, atFront }: { account: AccountRecord; atFr
     <div className='acct-actions'>
       {canUsage ? (
         <Button variant='outline' size='xs' disabled={usageStarting}
-          title={usageBusy ? t('停止旧查询，按当前配置重新查询余额') : t('查询该账号剩余余额（读数显示在余额列）')}
-          onClick={() => void queryUsageOnce(account.id)}>{usageStarting ? t('启动中…') : usageBusy ? t('重查') : t('余额')}</Button>
+          title={usageBusy ? t('Stop the previous query and check the balance using the current settings') : t('Query this account\'s remaining balance (the reading shows in the balance column)')}
+          onClick={() => void queryUsageOnce(account.id)}>{usageStarting ? t('Starting…') : usageBusy ? t('Retry') : t('Balance')}</Button>
       ) : null}
-      <Button variant='outline' size='xs' title={t('备注名 / 启用 / 代理')}
-        onClick={() => openSettingsDialog(account.id)}>{t('设置')}</Button>
+      <Button variant='outline' size='xs' title={t('Label / enable / proxy')}
+        onClick={() => openSettingsDialog(account.id)}>{t('Settings')}</Button>
       <MoreMenu account={account} atFront={atFront} />
     </div>
   )
@@ -1486,44 +1486,44 @@ export function MoreMenu({ account, atFront }: { account: AccountRecord; atFront
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button variant='outline' size='xs' title={t('更多操作')} />}>⋯</PopoverTrigger>
+      <PopoverTrigger render={<Button variant='outline' size='xs' title={t('More actions')} />}>⋯</PopoverTrigger>
       <PopoverContent align='end' sideOffset={4} className='w-[172px] p-1.5'>
         <div className='flex flex-col gap-0.5'>
           {getStore().usageInflight.has(account.id) ? <Button variant='ghost' size='sm' className={itemClass}
-            onClick={() => { setOpen(false); void cancelUsageQuery(account.id) }}>{t('取消余额查询')}</Button> : null}
+            onClick={() => { setOpen(false); void cancelUsageQuery(account.id) }}>{t('Cancel balance query')}</Button> : null}
           <Button variant='ghost' size='sm' className={dangerClass}
             onClick={() => { setOpen(false); void setAccountEnabled(account.id, !enabled) }}>
-            {enabled ? t('禁用') : t('启用')}
+            {enabled ? t('Disable') : t('enabled')}
           </Button>
           <Button variant='ghost' size='sm' className={itemClass} disabled={atFront || sortActive}
-            title={sortActive ? t('自动消耗排序已启用，请先关闭规则再手动调整') : atFront ? t('已在全局队列第一位') : t('仅将优先级调整到全局第一位，不改变启用状态')}
+            title={sortActive ? t('Automatic consumption sorting is enabled. Turn off the rules before reordering manually') : atFront ? t('Already first in the global queue') : t('Only moves priority to first in the global queue; does not change the enabled state')}
             onClick={() => { setOpen(false); shared().wbApp?.runAccountAction?.('switch', account.id) }}>
-            {t('设为首选')}
+            {t('Set as first')}
           </Button>
           <Button variant='ghost' size='sm' className={itemClass}
-            title={t('在账号设置的「基本」分组里设置该账号同时最多处理的请求数')}
+            title={t('Set the maximum number of requests this account can handle at once under "Basic" in account settings')}
             onClick={() => { setOpen(false); openSettingsDialog(account.id) }}>
-            {t('并发上限：{value}', { value: maxConcurrent > 0 ? maxConcurrent : t('不限') })}
+            {t('Concurrency limit: {value}', { value: maxConcurrent > 0 ? maxConcurrent : t('Unlimited') })}
           </Button>
           {supportsTokenRefresh(account) ? (
             <Button variant='ghost' size='sm' className={itemClass} disabled={account.needsRelogin === true}
               title={account.needsRelogin ? accountReloginText(account) : undefined}
               onClick={() => { setOpen(false); shared().wbApp?.runAccountAction?.('refresh', account.id) }}>
-              {t('刷新 Token')}
+              {t('Refresh token')}
             </Button>
           ) : null}
           <Button variant='ghost' size='sm' className={itemClass}
-            title={t('将这个账号及其登录凭证保存为单独的 JSON 文件')}
+            title={t('Save this account and its credentials as a separate JSON file')}
             onClick={() => { setOpen(false); void exportAccountFiles({ id: account.id }) }}>
-            {t('导出账号')}
+            {t('Export Accounts')}
           </Button>
           <div className='my-1 h-px bg-hairline' />
           <Button variant='ghost' size='sm' className={dangerClass}
             title={isDesktopAccount(account)
-              ? t('删除这条账号记录（不会影响客户端自己的登录态；之后可再点「导入桌面端登录态」加回来）')
+              ? t('Delete this account record (it does not affect the client\'s own login state; you can add it back later with "Import desktop login state")')
               : undefined}
             onClick={() => { setOpen(false); shared().wbApp?.runAccountAction?.('remove', account.id) }}>
-            {t('删除账号')}
+            {t('Delete account')}
           </Button>
         </div>
       </PopoverContent>
@@ -1550,55 +1550,55 @@ export function TableHead({ namesHidden, allPicked, somePicked, disabled, onTogg
   disabled: boolean
   onToggleAll: (picked: boolean) => void
 }) {
-  const grip = <span className='col-grip' title={t('拖动调整列宽（双击还原）')} />
+  const grip = <span className='col-grip' title={t('Drag to resize the column (double-click to reset)')} />
   return (
     <TableHeader>
       <TableRow>
         <UiTableHead className='cell-pick' data-col='pick'>
           {/* 表头这颗「全选」与批量栏那颗是**同一个选择**（表头入口是表格化之后补的） */}
           <Checkbox id='acct-select-all' checked={allPicked} indeterminate={!allPicked && somePicked}
-            disabled={disabled} aria-label={t('全选当前筛选结果')}
-            title={t('全选 / 取消全选当前筛选结果（与批量栏同一个选择）')}
+            disabled={disabled} aria-label={t('Select all filtered results')}
+            title={t('Select / deselect all current filter results (the same selection as the batch bar)')}
             onCheckedChange={next => onToggleAll(next)} />
         </UiTableHead>
         <UiTableHead className='cell-order' data-col='order'>
-          <span className='th-label' title={t('组内先后：按住左边的把手上下拖动即可调整；整组的先后拖分组带的把手')}>
-            {t('顺序')}
+          <span className='th-label' title={t('Within the group: hold the handle on the left and drag up / down to reorder; for the order of whole groups, drag the group band\'s handle')}>
+            {t('Order')}
           </span>
           {grip}
         </UiTableHead>
         <UiTableHead className='cell-account' data-col='account'>
           <span className='th-label'>
-            {t('账号')}
+            {t('Accounts')}
             <NameEyeButton hidden={namesHidden} />
           </span>
           {grip}
         </UiTableHead>
         <UiTableHead className='cell-proxy' data-col='proxy'>
-          <span className='th-label' title={t('该账号出网走的代理（已保存的代理 / 自定义 / 直连）；点击可修改')}>{t('代理')}</span>
+          <span className='th-label' title={t('Proxy used by this account (saved proxy / custom / direct); click to change.')}>{t('Proxy')}</span>
           {grip}
         </UiTableHead>
         <UiTableHead className='cell-connections' data-col='connections'>
-          <span className='th-label' title={t('此刻正在使用这个账号的请求数（含还在下发内容的流式请求）；为 0 时不显示')}>{t('连接数')}</span>
+          <span className='th-label' title={t('The number of requests currently using this account (including streaming requests still sending content); hidden when 0')}>{t('Connections')}</span>
           {grip}
         </UiTableHead>
         <UiTableHead className='cell-status' data-col='status'>
-          <span className='th-label'>{t('状态')}</span>{grip}
+          <span className='th-label'>{t('Status')}</span>{grip}
         </UiTableHead>
         <UiTableHead className='cell-limits' data-col='limits'>
-          <span className='th-label' title={t('该账号当前限流中的模型；点徽章看明细')}>
-            {t('限流')}
+          <span className='th-label' title={t('Models this account is currently rate-limited on; click the badge for details')}>
+            {t('Rate limit')}
           </span>
           {grip}
         </UiTableHead>
         <UiTableHead className='cell-expiry' data-col='expiry'>
-          <span className='th-label'>{t('有效期')}</span>{grip}
+          <span className='th-label'>{t('Expiry')}</span>{grip}
         </UiTableHead>
         <UiTableHead className='cell-usage' data-col='usage'>
-          <span className='th-label'>{t('余额')}</span>{grip}
+          <span className='th-label'>{t('Balance')}</span>{grip}
         </UiTableHead>
         {/* 最后一列不给把手：它绝对定位在右缘，钉在表格右缘会顶出一条横向滚动条 */}
-        <UiTableHead className='cell-actions' data-col='actions'><span className='th-label'>{t('操作')}</span></UiTableHead>
+        <UiTableHead className='cell-actions' data-col='actions'><span className='th-label'>{t('Actions')}</span></UiTableHead>
       </TableRow>
     </TableHeader>
   )
@@ -1610,7 +1610,7 @@ export function TableHead({ namesHidden, allPicked, somePicked, disabled, onTogg
  * 「现在处于打码状态」不用悬停就能看出来。
  */
 export function NameEyeButton({ hidden }: { hidden: boolean }) {
-  const label = hidden ? t('显示账号名') : t('隐藏账号名（名字显示为星号）')
+  const label = hidden ? t('Show name') : t('Hide name (shown as asterisks)')
   return (
     <Button size='default' variant='ghost' type='button' className={`name-eye${hidden ? ' on' : ''}`} title={label} aria-label={label}
       aria-pressed={hidden} onClick={() => toggleNamesHidden()}

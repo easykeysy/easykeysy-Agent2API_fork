@@ -361,8 +361,8 @@ const V1_SCHEMA: &str = "
 -- 为什么要有它：这些数据的共同点是「没有固定结构、读写都是整份进出」——
 -- 为它们各建一张表，表数量会随配置项增长；塞进一个 TEXT 列则失去按 key 精确
 -- 读写的能力（那是它们唯一需要的查询能力）。一列值 + 主键键名正好。
--- 为什么值是 TEXT 而不是 BLOB / JSONB：SQLite 没有原生 JSON 类型，JSON 就是
--- 文本；存 TEXT 时 `json_extract` 等 JSON 函数可以直接用来做条件查询，
+-- 为什么值是 TEXT 而不是 BLOB / JSONB: SQLite 没有原生 JSON 类型，JSON 就是
+-- 文本；存 TEXT 时 `json_extract` etc. JSON 函数可以直接用来做条件查询，
 -- 而 BLOB 会强制每次比较都做编码转换。值里存什么形态由写入方决定（见模块头
 -- 的键命名规范），本表不做校验。
 CREATE TABLE IF NOT EXISTS kv (
@@ -370,22 +370,22 @@ CREATE TABLE IF NOT EXISTS kv (
   value TEXT NOT NULL
 );
 
--- ── accounts：账号表（原 accounts.json）────────────────────────
--- 存什么：一条账号记录一行。`data` 列存**整条账号记录的 JSON 原文**。
+-- ── accounts：账号表（原 accounts.json)────────────────────────
+-- 存什么：一条账号记录一行。`data` 列存**整条账号记录的 JSON 原文**.
 -- 为什么保留 JSON 原文而不是把每个字段都拆成列：「用户升级绝不能丢账号里
 -- 任何字段」是本项目的硬约束（含未知字段、用户手工加的备注、旧版本遗留的
 -- currentAccountId），而账号里有 `rateLimits` 这类嵌套结构、各家 provider
 -- 的字段集还在演进。拆列意味着每加一个字段都要一次 schema 迁移 + 一次数据
 -- 重写，且**漏掉一个字段就等于升级时把那列的数据静默丢掉** —— 这是
 -- `core::account_store` 模块头第 1 条不变量，JSON 原文是唯一能自然满足它的形态。
--- 那一列的例外：需要**排序 / 筛选 / 校验唯一性**的字段额外提取成列，
+-- 那一列的例外：需要**Sorting / Filter / 校验唯一性**的字段额外提取成列，
 -- 它们的值从 JSON 里复制一份（权威副本仍是 `data`，提取列是查询用的投影）。
---   id       主键，账号唯一标识（与 JSON 里的 id 同值）
---   provider 提供商 id（workbuddy / raccoon / cline-free…），按家分组查
---   priority 优先级数值，越小越先用（全局唯一，见账号存储不变量 2）
---   enabled  是否启用，0/1。SQLite 没有布尔类型，按惯例用 INTEGER
+--   id       主键，账号唯一标识（与 JSON, they appear as id 同值）
+--   provider Provider id（workbuddy / raccoon / cline-free…），按家分组查
+--   priority 优先级数值，越小越先用（全局唯一，见账号存储不变量 2)
+--   enabled  是否启用，0/1.SQLite 没有布尔类型，按惯例用 INTEGER
 --   added_at 加入时间（毫秒 Unix 时间戳），同优先级时的稳定排序依据
---   data     整条记录的 JSON 原文（**权威副本**）
+--   data     整条记录的 JSON 原文（**权威副本**)
 -- 「已启用且有凭证的第一个账号」这个派生（pick_current）走下面的复合索引：
 -- 先按 provider 分片、再按 priority 升序，added_at 保证同优先级顺序稳定。
 CREATE TABLE IF NOT EXISTS accounts (
@@ -398,14 +398,14 @@ CREATE TABLE IF NOT EXISTS accounts (
 );
 CREATE INDEX IF NOT EXISTS idx_accounts_order ON accounts(provider, priority, added_at);
 
--- ── logs：事件日志（原 logs.jsonl）─────────────────────────────
+-- ── logs：事件日志（原 logs.jsonl)─────────────────────────────
 -- 存什么：日志页展示的运行日志，一行一条。
--- 为什么 id 是 INTEGER PRIMARY KEY 而不另建自增列：SQLite 里
+-- 为什么 id Yes INTEGER PRIMARY KEY 而不另建自增列：SQLite 里
 -- 「INTEGER PRIMARY KEY」这一列**就是** rowid 的别名，天然自增、天然唯一，
--- 且是物理存储顺序（按 id 查是 O(log n) 的 B 树查找）。这正是原来内存里
+-- 且是物理存储顺序（按 id 查是 O(log n) — see the B 树查找）。这正是原来内存里
 -- 那条「自增 id」的等价物，前端按 id 增量拉取（`since_id`）因此直接可用。
 -- 为什么 data 可空：结构化事件的附加字段（429 切换的 from/to 等）只有部分
--- 日志有；空串与「没有 data」语义不同，所以用 NULL 而不是默认 '{}'。
+-- 日志有；空串与「没有 data」语义不同，所以用 NULL 而不是默认 '{}'.
 -- 为什么 ts 存 INTEGER 毫秒：原文件里就是 `Date.now()` 的毫秒数，且范围
 -- 与负数场景都在 i64 内，不需要 TEXT 的日期格式（排序即数值排序才是重点）。
 -- 三个索引（ts / level / category）对应日志页固定的三种过滤维度：
@@ -424,10 +424,10 @@ CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts);
 CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
 CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category);
 
--- ── requests：请求明细（原 requests.jsonl）─────────────────────
+-- ── requests：请求明细（原 requests.jsonl)─────────────────────
 -- 存什么：每次对话转发的记账明细（模型、账号、状态、耗时、token 用量）。
--- 为什么是 AUTOINCREMENT 的 row_id 而不是让 id 当主键：
---   row_id 是**自增物理行号**（内部用，保证稳定顺序、可作游标）；
+-- 为什么是 AUTOINCREMENT — see the row_id 而不是让 id 当主键：
+--   row_id Yes**自增物理行号**（内部用，保证稳定顺序、可作游标）；
 --   id 是请求的**关联键**（与调试报文 debug_traffic.id 同值，靠它把明细与
 --   原始报文对上），旧数据里可能是空串，**且不保证唯一**（重试、去重排队
 --   的若干路径会产生同 id 的记账）。两个字段职责不同，混用会让「空串 id
@@ -461,21 +461,21 @@ CREATE TABLE IF NOT EXISTS requests (
   client_model      TEXT NOT NULL DEFAULT '',
   upstream_model    TEXT NOT NULL DEFAULT ''
 );
--- ts：报表按区间聚合（近 24 小时 / 7 天 / 30 天）与明细按时间倒序翻页。
+-- ts：报表按区间聚合（近 24 hours / 7 days / 30 天）与明细按时间倒序翻页。
 -- id：由请求 id 反查明细（与调试报文对照、按 id 看一次请求的完整记录）。
 CREATE INDEX IF NOT EXISTS idx_requests_ts ON requests(ts);
 CREATE INDEX IF NOT EXISTS idx_requests_id ON requests(id);
 
--- ── request_daily：按天聚合（原 request-daily.jsonl）──────────
--- 存什么：一天一行（date 是**本地时区**的 `YYYY-MM-DD`，与文件名版逐字相同；
+-- ── request_daily：按天聚合（原 request-daily.jsonl)──────────
+-- 存什么：一天一行（date Yes**本地时区**的 `YYYY-MM-DD`，与文件名版逐字相同；
 -- 时区处理在 `request_stats::clock`，本表只存字符串、不做时区推断）。
 -- 为什么 date 直接当主键：一天一行是这张表的全部语义，主键即唯一约束，
 -- 天然让「同一天重复记账」变成 UPSERT 而不是插入两行。
--- 为什么三个 *Stats 列是 JSON 数组文本：它们是「当天按模型 / 提供商 / 账号
+-- 为什么三个 *Stats 列是 JSON 数组文本：它们是「当天按模型 / Provider / Account
 -- 的累计」，条目数随用户配置变化（模型目录是远程刷新的）、且**整体读写**
--- （报表要整份拿出来算），拆表会让「取一天的三个维度」变成三次 join。
+-- （报表要整份拿出来算），拆表会让「取一天的三个维度」变成三次 join.
 -- 与文件版的行内嵌数组一一对应，导入时原样搬过来即可。
--- 默认 `'[]'` 而不是 NULL：空数组与「这一列没有数据」在这张表里是同一件事，
+-- Default `'[]'` 而不是 NULL：空数组与「这一列没有数据」在这张表里是同一件事，
 -- 统一成 `'[]'` 让读取方少一个分支。
 -- requests/successful/tokens 这几列是「当天总量」，保留成独立列而不是也从
 -- JSON 里算：热力图与汇总行只读它们，拆出来才走得上主键索引。
@@ -491,11 +491,11 @@ CREATE TABLE IF NOT EXISTS request_daily (
   account_stats      TEXT NOT NULL DEFAULT '[]'
 );
 
--- ── debug_traffic：调试报文（原 debug-traffic.jsonl）──────────
+-- ── debug_traffic：调试报文（原 debug-traffic.jsonl)──────────
 -- 存什么：调试模式下的**上游侧**原始请求/响应（头部已脱敏，脱敏不可关闭）。
 -- 为什么 id 是主键：它与 requests.id 同值、是跨表关联键；一条请求只有一份
 -- 报文，所以天然唯一（与 requests 不同 —— 那边同 id 可以有多行记账）。
--- 为什么 request/response 的 body 列可空、而 header 列 NOT NULL 带默认值：
+-- 为什么 request/response — see the body 列可空、而 header Column NOT NULL 带默认值：
 -- 请求侧一定存在（我们至少发出去过），响应侧可能因为上游断连而没有；
 -- 而头部哪怕没有也应该是 `'{}'`（前端按对象读）。
 -- 为什么体用 TEXT 而不用 BLOB：里面是 SSE 文本 / JSON 文本，存 TEXT 才能在
@@ -554,8 +554,8 @@ CREATE INDEX IF NOT EXISTS idx_debug_traffic_ts ON debug_traffic(ts);
 /// 于是两条路径（新库 / 老库升级）得到同一份表结构。不要为了「少跑一条 ALTER」
 /// 把这两列塞回 v1 的 DDL —— 那样老库升级后与 v1 的 DDL 定义就对不上了。
 const V2_SCHEMA: &str = "
--- ── requests 补两列（schema v2）───────────────────────────────
--- attempt_details：每次上游尝试的明细 `[{provider,status,error}]`，
+-- ── requests 补两列（schema v2)───────────────────────────────
+-- attempt_details：每次上游尝试的明细 `[{provider,status,error}]`, 
 --   按发生顺序。条数 <= attempts（采集侧一一对应），另受
 --   `core::upstream::usage::MAX_ATTEMPT_DETAILS`（24）的体积闸约束。
 -- sensitive_hits：本次请求命中的脱敏规则 `[{word,count}]`，按次数降序。
@@ -563,7 +563,7 @@ const V2_SCHEMA: &str = "
 --   「命中的硬编码规则标签」，见 `core::sanitize`；列名与结构未动，
 --   前端请求日志的「敏」标签因此照常工作）。
 -- 两列都 NOT NULL DEFAULT '[]'：见上面「默认值为什么是 '[]'」。
--- 「DEFAULT 后面的值必须是常量」——SQLite 对带非常量默认值的 ADD COLUMN 会
+-- 「DEFAULT 后面的值必须是常量」——SQLite 对带非常量默认值的 ADD COLUMN will
 -- 直接报错，`'[]'` 是字面量，满足这条。
 ALTER TABLE requests ADD COLUMN attempt_details TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE requests ADD COLUMN sensitive_hits TEXT NOT NULL DEFAULT '[]';
@@ -632,7 +632,7 @@ const V4_SCHEMA: &str = V3_SCHEMA;
 /// 加列走 ALTER 的全部理由（为什么不动 v1 的 DDL、为什么不能写
 /// IF NOT EXISTS、幂等靠版本号）与 [`V2_SCHEMA`] 完全相同，不赘述。
 const V5_SCHEMA: &str = "
--- ── requests 补两列（schema v5）──────────────────────────────
+-- ── requests 补两列（schema v5)──────────────────────────────
 ALTER TABLE requests ADD COLUMN client_reasoning TEXT NOT NULL DEFAULT '';
 ALTER TABLE requests ADD COLUMN upstream_reasoning TEXT NOT NULL DEFAULT '';
 ";
@@ -667,7 +667,7 @@ ALTER TABLE requests ADD COLUMN upstream_reasoning TEXT NOT NULL DEFAULT '';
 /// 加列走 ALTER 的全部理由（为什么不动 v1 的 DDL、为什么不能写
 /// IF NOT EXISTS、幂等靠版本号）与 [`V2_SCHEMA`] 完全相同，不赘述。
 const V6_SCHEMA: &str = "
--- ── requests 补两列（schema v6）──────────────────────────────
+-- ── requests 补两列（schema v6)──────────────────────────────
 ALTER TABLE requests ADD COLUMN phase TEXT NOT NULL DEFAULT '';
 ALTER TABLE requests ADD COLUMN phase_started_at INTEGER;
 ";
@@ -688,7 +688,7 @@ ALTER TABLE requests ADD COLUMN phase_started_at INTEGER;
 /// 加列走 ALTER 的全部理由（为什么不动 v1 的 DDL、为什么不能写
 /// IF NOT EXISTS、幂等靠版本号）与 [`V2_SCHEMA`] 完全相同，不赘述。
 const V7_SCHEMA: &str = "
--- ── requests 补一列（schema v7）──────────────────────────────
+-- ── requests 补一列（schema v7)──────────────────────────────
 ALTER TABLE requests ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0;
 ";
 
@@ -710,7 +710,7 @@ ALTER TABLE requests ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0;
 /// 为什么时间是 INTEGER 毫秒而不是 DATETIME：调度判定（到期 = 上次尝试 +
 /// 间隔）要的是可直接比较的毫秒数，与 `logging::now_ms` 同一口径，读出来即用。
 const V8_SCHEMA: &str = "
--- ── account_usage_records：每账号的余额查询记录（schema v8）──
+-- ── account_usage_records：每账号的余额查询记录（schema v8)──
 CREATE TABLE IF NOT EXISTS account_usage_records (
   account_id      TEXT PRIMARY KEY,
   usage           TEXT,
@@ -741,7 +741,7 @@ CREATE TABLE IF NOT EXISTS account_usage_records (
 /// 聚合查询的全部调用方：`core::limiter` 的窗口刷新（按 distinct 周期分组
 /// 查）与单账号即时复查（自动禁用判定）。
 const V9_SCHEMA: &str = "
--- ── requests 补按账号聚合的索引（schema v9）──────────────────
+-- ── requests 补按账号聚合的索引（schema v9)──────────────────
 CREATE INDEX IF NOT EXISTS idx_requests_account_ts ON requests(account_id, ts);
 ";
 
@@ -753,7 +753,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_account_ts ON requests(account_id, ts);
 /// `attempt_details` 的 `'[]'` 不同（那表达「空表」是有意的信息，这里 NULL
 /// 就是「没这回事」，不必造一种空形态）。
 const V10_SCHEMA: &str = "
--- ── requests 补选路决策快照列（schema v10）───────────────────
+-- ── requests 补选路决策快照列（schema v10)───────────────────
 ALTER TABLE requests ADD COLUMN route TEXT;
 ";
 
@@ -784,7 +784,7 @@ ALTER TABLE requests ADD COLUMN route TEXT;
 /// 索引三个（ts / outcome / provider），对应记录页固定的三种过滤维度，
 /// 刻意不做复合索引（与 logs 表同一取舍：组合多、量级小，让 SQLite 自己挑）。
 const V11_SCHEMA: &str = "
--- ── checkin_records：签到记录的每账号明细台账（schema v11）────
+-- ── checkin_records：签到记录的每账号明细台账（schema v11)────
 CREATE TABLE IF NOT EXISTS checkin_records (
   row_id       INTEGER PRIMARY KEY AUTOINCREMENT,
   ts           INTEGER NOT NULL,
@@ -812,7 +812,7 @@ CREATE INDEX IF NOT EXISTS idx_checkin_records_provider ON checkin_records(provi
 /// 请求日志的「客户端」列读它。DEFAULT ''：旧行与「请求没带 UA」的路径都是
 /// 空串 —— 两者在展示层的处理相同（占位符），不必分两种形态。
 const V12_SCHEMA: &str = "
--- ── requests 补来源客户端列（schema v12）─────────────────────
+-- ── requests 补来源客户端列（schema v12)─────────────────────
 ALTER TABLE requests ADD COLUMN client TEXT NOT NULL DEFAULT '';
 ";
 // v13 没有对应的 `*_SCHEMA` 常量：它只有一条 DELETE，且在 `apply_version`
@@ -831,9 +831,9 @@ ALTER TABLE requests ADD COLUMN client TEXT NOT NULL DEFAULT '';
 /// / `prompt_tokens`）就是报表要读的全部内容 —— 少一列就要回表，多一列白占
 /// 空间与写入开销。
 const V15_SCHEMA: &str = "
--- ── requests 补 status 索引（schema v15）─────────────────────
+-- ── requests 补 status 索引（schema v15)─────────────────────
 CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
--- ── requests 补报表窄列覆盖索引（schema v15）─────────────────
+-- ── requests 补报表窄列覆盖索引（schema v15)─────────────────
 CREATE INDEX IF NOT EXISTS idx_requests_summary ON requests(
   ts, is_test, model, upstream_model, total_tokens, cache_read_tokens, prompt_tokens
 );
@@ -861,7 +861,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_summary ON requests(
 /// 只有一条 `updated_at` 倒序索引：侧边栏的全部查询就是「按最近更新排序列出」，
 /// 没有按标题 / 模型检索的需求（会话量级是几十条，前端一次全取即可）。
 const V16_SCHEMA: &str = "
--- ── assistant_sessions：AI 助手的对话会话（schema v16）───────
+-- ── assistant_sessions: AI 助手的对话会话（schema v16)───────
 CREATE TABLE IF NOT EXISTS assistant_sessions (
   id          TEXT PRIMARY KEY,
   title       TEXT NOT NULL DEFAULT '',
@@ -902,7 +902,7 @@ FROM requests WHERE account_id != '' AND status != 0 AND attempts > 0;
 ///     显示「—」、对后者显示「0」—— 把两者并成 0 会让「没读到」看起来像
 ///     「这条请求免费」，正是余额/用量一列最怕的那种假读数。
 const V23_SCHEMA: &str = "
--- ── requests 补积分消耗列（schema v23）──────────────────────
+-- ── requests 补积分消耗列（schema v23)──────────────────────
 ALTER TABLE requests ADD COLUMN credit REAL;
 ";
 

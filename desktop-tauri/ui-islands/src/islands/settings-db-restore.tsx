@@ -43,49 +43,49 @@ export function DbRestoreDialog(): React.ReactElement | null {
       <DialogContent showCloseButton={false} className='db-restore-dialog'>
         <DialogHeader>
           <DialogTitle>
-            {done ? t('整库恢复完成') : failed ? t('整库恢复失败') : t('正在恢复整库')}
+            {done ? t('The full-database restore is complete') : failed ? t('The full-database restore failed') : t('Restoring the full database')}
           </DialogTitle>
         </DialogHeader>
 
         <div className='db-restore-body'>
           {/* 阶段文案 + 已用时：文案由后端给（它是「这一步在做什么」的唯一权威） */}
           <div className='db-restore-phase'>
-            <span>{progress.phase || t('正在恢复…')}</span>
+            <span>{progress.phase || t('Restoring…')}</span>
             <Elapsed startedAt={progress.startedAt} finishedAt={progress.finishedAt} active={active} />
           </div>
 
           <Progress
             value={progress.percent}
-            aria-label={t('恢复进度')}
+            aria-label={t('Restore progress')}
             className='db-restore-progress'
           />
 
           {active ? (
             <p className='db-restore-note'>
-              {t('恢复期间请不要关闭应用或退出登录 —— 中途中断会让数据停在一个不完整的状态。完成后本页会自动刷新。')}
+              {t('Please do not close the app or log out during the restore—— An interruption midway leaves the data in an incomplete state. This page will refresh automatically when done.')}
             </p>
           ) : null}
 
           {done ? (
             <div className='db-restore-result'>
               <p>
-                <strong>{t('✅ 已恢复 {n} 张表', { n: progress.tables })}</strong>
+                <strong>{t('✅ Restored {n} tables', { n: progress.tables })}</strong>
               </p>
               {progress.safetyBackup ? (
                 <p className='hint'>
-                  {t('替换前的数据已自动备份为 {name}（在数据目录的 backups/ 下，可整文件拷回）', {
+                  {t('The pre-replacement data was automatically backed up as {name} (in the data directory\'s backups/; you can copy the whole file back)",', {
                     name: progress.safetyBackup,
                   })}
                 </p>
               ) : null}
               {progress.localKeysPreserved ? (
                 <p className='hint'>
-                  {t('已使用本机密钥重新加密 {n} 项凭证，原有密钥未被覆盖。', { n: progress.reencryptedSecrets })}
+                  {t('Re-encrypted {n} credentials with local keys. Existing keys were not overwritten.', { n: progress.reencryptedSecrets })}
                 </p>
               ) : null}
               {progress.warning ? (
                 <Alert variant='destructive' className='danger-zone'>
-                  <strong>{t('⚠️ 密钥警告')}</strong>
+                  <strong>{t('⚠️ Key warning')}</strong>
                   <br />
                   {progress.warning}
                 </Alert>
@@ -96,12 +96,12 @@ export function DbRestoreDialog(): React.ReactElement | null {
           {failed ? (
             <div className='db-restore-result'>
               <Alert variant='destructive' className='danger-zone'>
-                <strong>{t('恢复没有完成')}</strong>
+                <strong>{t('The restore did not complete')}</strong>
                 <br />
                 {progress.error || t('原因未知')}
               </Alert>
               <p className='hint'>
-                {t('密码、文件或密钥校验失败时不会替换主库；替换阶段失败会自动尝试还原，实际结果以上方错误说明为准。')}
+                {t('Password, file, or key validation failures leave the main database unchanged. If replacement fails, restoration is attempted automatically; the error above reports the actual outcome.')}
               </p>
             </div>
           ) : null}
@@ -111,11 +111,11 @@ export function DbRestoreDialog(): React.ReactElement | null {
           {/* 进行中：只有一个禁用的说明按钮（让人看到「现在不能关」是设计，不是卡住） */}
           {active ? (
             <Button variant='outline' disabled>
-              {t('恢复中，请稍候…')}
+              {t('Restoring; please wait…')}
             </Button>
           ) : (
             <Button variant='default' onClick={() => dismissDbRestore()}>
-              {t('知道了')}
+              {t('Got it')}
             </Button>
           )}
         </DialogFooter>
@@ -144,7 +144,7 @@ function Elapsed({ startedAt, finishedAt, active }: {
   const end = active ? now : (finishedAt || now)
   const seconds = Math.max(0, Math.round((end - startedAt) / 1000))
   const text = seconds < 60
-    ? t('{n} 秒', { n: seconds })
-    : t('{m} 分 {s} 秒', { m: Math.floor(seconds / 60), s: seconds % 60 })
-  return <span className='db-restore-elapsed'>{active ? t('已用时 {time}', { time: text }) : t('总耗时 {time}', { time: text })}</span>
+    ? t('{n} s', { n: seconds })
+    : t('{m} {s} seconds', { m: Math.floor(seconds / 60), s: seconds % 60 })
+  return <span className='db-restore-elapsed'>{active ? t('Elapsed {time}', { time: text }) : t('Total duration {time}', { time: text })}</span>
 }

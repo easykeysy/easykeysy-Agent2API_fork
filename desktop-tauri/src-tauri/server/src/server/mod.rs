@@ -150,6 +150,10 @@ pub mod logs_store;
 mod panel_captcha;
 pub mod request_stats;
 mod static_files;
+// fork: re-exports the crate-root `paths` (ramdisk layout / directory conventions; `ramdisk_root` is already pub) one level up under the name `crate::server::paths`,
+// so existing call sites (e.g. `crate::server::paths::ramdisk_root` inside `logging`)
+// need not each be rewritten to `crate::paths::…`. Pure re-export, no files moved.
+pub use crate::paths;
 
 #[cfg(test)]
 mod native_gateway_tests;
@@ -387,7 +391,7 @@ impl ServerState {
         if core::checkin_schedules::extend_providers_once() {
             logging::console_line(
                 "[Checkin]",
-                "已把新加入的签到提供商补进定时条目的签到范围（OfficeAce 果办 / CodeArts）",
+                "已把新加入的签到提供商补进定时条目的签到范围（OfficeAce 果办 / CodeArts)",
             );
         }
         // 每账号的「限制器」（余额 / Token 规则列表）：Token 周期消耗的窗口
@@ -442,7 +446,7 @@ impl ServerState {
                         "[Storage]",
                         &format!(
                             "⏳ 检测到待迁移的旧数据（{}），等待用户在界面点「升级」后导入",
-                            pending.join("、")
+                            pending.join(", ")
                         ),
                     );
                 }
@@ -456,6 +460,9 @@ impl ServerState {
         // AccountStore 的说明）。`db` 是 `Option<Db>`：打不开时日志库照常装起来，
         // 但写入静默丢弃、读取返回空（日志丢一条不影响任何业务，降级值见
         // `LogStore` 各方法的说明）。
+        // fork: ramdisk side directories vanish with tmpfs on machine reboot, so top them up early;
+        // a no-op on Windows / without a ramdisk; `logging::init_store` tops them up again when it selects the file backend.
+        crate::paths::ensure_side_dirs();
         logging::init_store(db.clone(), verbose);
         // 调试模式的原始报文存储：无论开关是否打开都初始化 —— 开关是**逐请求**
         // 判定的（改完设置下一个请求就生效），存储没就绪会让开启后的第一批
@@ -593,26 +600,26 @@ impl ServerState {
             startup_maintenance: Arc::new(AtomicBool::new(false)),
         };
         logging::log("[Server]", "Agent2API 多提供商本地网关（Rust 进程内服务）启动中…");
-        logging::log("[Config]", &format!("API 端口: {}", port));
-        logging::log("[Config]", &format!("API 监听地址: {}", host));
+        logging::log("[Config]", &format!("API Port: {}", port));
+        logging::log("[Config]", &format!("API Listen address: {}", host));
         logging::log(
             "[Config]",
             &format!(
-                "API Key 认证: {}",
-                if snapshot.api_key_set() { "✅ 已启用" } else { "❌ 未启用" }
+                "API Key Authentication: {}",
+                if snapshot.api_key_set() { "✅ Enabled" } else { "❌ Disabled" }
             ),
         );
-        logging::log("[Config]", &format!("默认模型: {}", snapshot.default_model()));
+        logging::log("[Config]", &format!("Default model: {}", snapshot.default_model()));
         logging::log("[Config]", &format!("计费语言: {}", snapshot.locale()));
         let sanitize = snapshot.sanitize_settings();
         logging::log(
             "[Config]",
             &format!(
                 "出站指纹脱敏: {} · {} 条启用规则 · 应用范围={}",
-                if sanitize.enabled { "✅ 已启用" } else { "❌ 已关闭" },
+                if sanitize.enabled { "✅ Enabled" } else { "❌ Disabled" },
                 sanitize.rules.entries().iter().filter(|rule| rule.enabled).count(),
                 if sanitize.providers.is_empty() {
-                    "全部提供商".to_string()
+                    "All providers".to_string()
                 } else {
                     sanitize.providers.join(", ")
                 },
@@ -624,11 +631,11 @@ impl ServerState {
         logging::log(
             "[Config]",
             &format!(
-                "系统提示词: {}（{}）{}",
+                "System prompt: {}（{}){}",
                 snapshot.prompt_settings().mode.label(),
                 snapshot.prompt_settings().source.label(),
                 match snapshot.prompt_settings().file_error.as_deref() {
-                    Some(reason) => format!("；⚠️  {reason}"),
+                    Some(reason) => format!("; ⚠️  {reason}"),
                     None => String::new(),
                 },
             ),
@@ -654,9 +661,9 @@ impl ServerState {
         logging::log(
             "[Accounts]",
             &format!(
-                "账号列表: {}（当前账号 {}）",
+                "Account list: {}（当前账号 {})",
                 state.store.file().display(),
-                current.as_deref().unwrap_or("无")
+                current.as_deref().unwrap_or("None")
             ),
         );
         // 对照 server.mjs 1028-1042：有可用登录态时补一行凭证来源，并异步刷新模型目录
@@ -669,12 +676,12 @@ impl ServerState {
             let source = summary
                 .get("authSource")
                 .and_then(serde_json::Value::as_str)
-                .unwrap_or("未知");
+                .unwrap_or("Unknown");
             let account = summary
                 .get("currentAccountId")
                 .and_then(serde_json::Value::as_str)
-                .unwrap_or("未知");
-            logging::log("[Init]", &format!("✅ 凭证来源: {source}（账号 {account}）"));
+                .unwrap_or("Unknown");
+            logging::log("[Init]", &format!("✅ 凭证来源: {source}（账号 {account})"));
             if let Some(expires_at) = summary
                 .get("tokenExpiresAt")
                 .and_then(serde_json::Value::as_f64)
@@ -737,7 +744,7 @@ impl ServerState {
                 .get("time")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or(core::auto_checkin::DEFAULT_TIME);
-            logging::log("[Checkin]", &format!("定时签到已启用：每天 {time} 执行"));
+            logging::log("[Checkin]", &format!("定时签到已启用：每天 {time} Run"));
             state.auto_checkin.start();
         }
 
@@ -1115,7 +1122,7 @@ pub fn start(state: &ServerState) -> Result<oneshot::Sender<()>, PortConflict> {
     // 面板 serve（分端口形态才有）：独立监听、同一份停机广播。
     // 统计收尾只归主 serve（上面那个任务），这里只管转发请求。
     if let Some(listener) = panel_listener {
-        let router = panel_router.expect("panel_port 与 panel_router 必须成对");
+        let router = panel_router.expect("panel_port and panel_router 必须成对");
         let stop_from_panel = stop_tx;
         crate::spawn_task(async move {
             let listener = match tokio::net::TcpListener::from_std(listener) {

@@ -63,7 +63,7 @@ pub fn prepare(
 ) -> Result<PreparedPack, String> {
     if bytes.is_empty() || bytes.len() > MAX_PACK_BYTES {
         return Err(format!(
-            "插件包必须为非空且不超过 {} MiB 的 zip",
+            "插件包必须为非空且不超过 {} MiB — see the zip",
             MAX_PACK_BYTES / (1024 * 1024)
         ));
     }
@@ -177,7 +177,7 @@ impl PreparedPack {
         let previous_registry = registry.clone();
         if let Some(provider) = self.manifest.providers.iter()
             .find(|provider| super::script::package_for_provider(provider.id.as_str()).is_some()) {
-            return Err(format!("提供商 {} 已由脚本插件接管，请先停用对应脚本插件", provider.id));
+            return Err(format!("Provider {} 已由脚本插件接管，请先停用对应脚本插件", provider.id));
         }
         let record = self.record(&registry);
         let version_dir = install::plugins_dir()

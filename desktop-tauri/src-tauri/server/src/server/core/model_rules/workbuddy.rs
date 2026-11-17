@@ -149,7 +149,7 @@ pub fn migrate_workbuddy_split() -> (SplitMigrationOutcome, Option<String>) {
         }
     }
     if changed > 0 {
-        summary.push(format!("启停同步 {changed} 条"));
+        summary.push(format!("启停同步 {changed} rows"));
     }
 
     // ② 别名 / 发送名映射（`(alias, target, provider)` 三元组唯一）。
@@ -177,7 +177,7 @@ pub fn migrate_workbuddy_split() -> (SplitMigrationOutcome, Option<String>) {
         added += 1;
     }
     if added > 0 {
-        summary.push(format!("映射 {added} 条"));
+        summary.push(format!("映射 {added} rows"));
     }
 
     // ③ 手动登记的模型（`(provider, id)`）
@@ -195,7 +195,7 @@ pub fn migrate_workbuddy_split() -> (SplitMigrationOutcome, Option<String>) {
         added += 1;
     }
     if added > 0 {
-        summary.push(format!("自定义模型 {added} 条"));
+        summary.push(format!("自定义模型 {added} rows"));
     }
 
     // ④ 能力位覆盖（`(provider, id)`）
@@ -213,7 +213,7 @@ pub fn migrate_workbuddy_split() -> (SplitMigrationOutcome, Option<String>) {
         added += 1;
     }
     if added > 0 {
-        summary.push(format!("能力位 {added} 条"));
+        summary.push(format!("能力位 {added} rows"));
     }
 
     // ⑤ 种子标记：`workbuddy:<id>[#alias:<别名>]` → 再补一条 `workbuddy-intl:<同一段>`。
@@ -234,7 +234,7 @@ pub fn migrate_workbuddy_split() -> (SplitMigrationOutcome, Option<String>) {
         added += 1;
     }
     if added > 0 {
-        summary.push(format!("种子标记 {added} 条"));
+        summary.push(format!("种子标记 {added} rows"));
     }
 
     if summary.is_empty() {
@@ -248,16 +248,16 @@ pub fn migrate_workbuddy_split() -> (SplitMigrationOutcome, Option<String>) {
             SplitMigrationOutcome::Failed,
             Some(format!(
                 "⚠️  WorkBuddy 拆家的模型规则同步未能落盘（{}）：下次启动会重试",
-                summary.join("；")
+                summary.join("; ")
             )),
         );
     }
     (
         SplitMigrationOutcome::Done,
         Some(format!(
-            "🔀 WorkBuddy 已拆为国内版 / 国际版两家，存量模型规则已同步（{}）\
+            "🔀 WorkBuddy 已拆为国内版 / 国际版两家，存量模型规则已同步（{})\
              —— 两家的启用、别名与能力位保持一致",
-            summary.join("；")
+            summary.join("; ")
         )),
     )
 }

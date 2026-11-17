@@ -17,7 +17,7 @@ import { SearchableSelect } from '../../../ui-shared/searchable-select'
 
 /* ─── 映射弹窗 ───────────────────────────────── */
 
-const REASONING_TIP = t('设置思考等级后，会覆盖下游请求中的等级；选择“不覆盖”则保留下游参数。实际档位以提供商支持范围为准，无法注入时保留原请求并记录原因。off / none 仍不由映射注入。')
+const REASONING_TIP = t('A configured reasoning level overrides the level in downstream requests. Choose “Do not override” to preserve downstream parameters. The effective level depends on provider support; if it cannot be applied, the original request is preserved and the reason is logged. Mappings still do not inject off / none.')
 
 /** 上游下拉的初值：候选里有就用候选里的原始拼写（value 必须与 option 逐字相同才会选中） */
 function pickUpstream(providerId: string, keep: string, locked: boolean): string {
@@ -83,12 +83,12 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
     const options = upstreamOptions(provider)
     const wanted = (upstream || '').trim()
     if (wanted && !options.some(item => item.id.toLowerCase() === wanted.toLowerCase())) {
-      options.unshift({ id: wanted, label: t('{name}（不在该家当前清单里）', { name: wanted }), off: true })
+      options.unshift({ id: wanted, label: t('{name} (not in this provider\'s current catalog)', { name: wanted }), off: true })
     }
     return options
   })()
 
-  const providerLabel = providerChoices.find(item => item.id === provider)?.label || provider || t('(全局)')
+  const providerLabel = providerChoices.find(item => item.id === provider)?.label || provider || t('(global)')
   /**
    * 显示用的等级：已选的档位不在当前候选里（换了上游 / 后端换了候选表）时按「自定义」呈现
    * —— 与初始化同一条规则，值留在输入框里而不是被静默抹掉（派生态，不改 state）。
@@ -101,15 +101,15 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
   const effectiveLevel = reasoningInfo.bindingSupported === true
     ? bindingReasoningLevel(level, targetModel) : ''
   const reasoningNotice = reasoningInfo.bindingSupported === false
-    ? t('当前通道未声明可用档位，映射等级不会注入；请先获取模型目录。')
+    ? t('This route has not declared supported levels. Mapping levels will not be injected; fetch the model catalog first.')
     : reasoningInfo.fixedLevel
-      ? t('上游固定为 {level}，绑定其他等级也无法调高。', { level: reasoningInfo.fixedLevel })
+      ? t('Upstream is fixed at {level}; binding another level cannot increase it.', { level: reasoningInfo.fixedLevel })
       : effectiveLevel && effectiveLevel.toLowerCase() !== level.toLowerCase()
-        ? t('绑定 {requested}，按当前通道将发送 {effective}。', { requested: level, effective: effectiveLevel })
+        ? t('Bound to {requested}; this route will send {effective}.', { requested: level, effective: effectiveLevel })
         : reasoningInfo.source === 'modelsdev'
-          ? t('社区参考档位，不代表当前上游通道支持；实际以该通道目录为准。')
+          ? t('Community reference levels do not guarantee support on this upstream route; its catalog is authoritative.')
           : reasoningInfo.declared && reasoningInfo.levels.length
-            ? t('上游可用档位：{levels}', { levels: reasoningInfo.levels.join(' / ') })
+            ? t('Upstream supported levels: {levels}', { levels: reasoningInfo.levels.join(' / ') })
             : ''
 
   /** 换了一家，上游候选整体换掉（保留同名项，切回来时不用重选） */
@@ -123,12 +123,12 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
     if (saving) return
     const wanted = editing ? (context.alias || '') : alias.trim()
     const target = upstream
-    if (!wanted) { setStatus(t('请填写对外映射名')); return }
+    if (!wanted) { setStatus(t('Enter a public mapping name')); return }
     // 下拉为空 = 这一家清单里一个模型都没有（还没加账号 / 清单没拉到）
-    if (!target) { setStatus(t('该提供商当前没有可选的上游模型')); return }
-    if (!provider) { setStatus(t('请选择提供商')); return }
+    if (!target) { setStatus(t('This provider currently has no selectable upstream models')); return }
+    if (!provider) { setStatus(t('Select a provider')); return }
     if (level && reasoningInfo.bindingSupported === true && !effectiveLevel) {
-      setStatus(t('该等级无法注入，请选择上游可用档位或清除绑定。'))
+      setStatus(t('This level cannot be injected. Select an upstream supported level or clear the binding.'))
       return
     }
     if (!editing) {
@@ -136,7 +136,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
       if (error) { setStatus(error); return }
     }
     setSaving(true)
-    setStatus(t('保存中…'))
+    setStatus(t('Saving…'))
     try {
       // `reasoning` **总是显式给出**（空串 = 清空绑定）：三元组相同走的也是这条接口，而用户
       // 在这个弹窗里看到的就是他要的结果 —— 传 undefined（= 不改）会让「从 high 改成不覆盖」
@@ -144,13 +144,13 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
       accept(await writeBinding(provider, wanted, target, { reasoning: level, create: !editing }))
       setSaving(false)
       onClose()
-      const suffix = level ? t(' · 思考等级 {level}', { level }) : ''
+      const suffix = level ? t(' · Reasoning level {level}', { level }) : ''
       // 展示名走注册表 / 自定义目录：直接印 provider id 时，自定义家会显示成一串
       // custom-3f2a91b04c7e，用户认不出是哪一家
       const label = t(shared().wbProviders?.labelOf?.(provider) || provider)
-      toast(editing ? t('✅ 已更新 {name} 的思考等级', { name: wanted }) : t('✅ 已添加映射 {name} → {target}（{label}）{suffix}', { name: wanted, target, label, suffix }))
+      toast(editing ? t('✅ Updated the reasoning level for {name}', { name: wanted }) : t('✅ Added mapping {name} → {target} ({label}){suffix}', { name: wanted, target, label, suffix }))
     } catch (error) {
-      setStatus(t('保存失败：{message}', { message: errorMessage(error) }))
+      setStatus(t('Save failed: {message}', { message: errorMessage(error) }))
       setSaving(false)
     }
   }
@@ -171,11 +171,11 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
     }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editing ? t('设置思考等级') : t('添加模型映射')}</DialogTitle>
+          <DialogTitle>{editing ? t('Set reasoning level') : t('Add model mapping')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='mapping-provider'>{t('提供商')}</Label>
+            <Label htmlFor='mapping-provider'>{t('Provider')}</Label>
             {/* 锁定 = 行内入口：提供商与上游模型就是这一行，不允许改 */}
             <Select value={provider} disabled onValueChange={next => changeProvider(String(next))}>
               <SelectTrigger id='mapping-provider' className='w-full'>
@@ -190,14 +190,14 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
           </div>
           <div className='grid grid-cols-[1fr_24px_1fr] items-end gap-2.5'>
             <div className='flex min-w-0 flex-col gap-1.5'>
-              <Label htmlFor='mapping-alias'>{t('对外映射名（下游请求时用）')}</Label>
-              <Input id='mapping-alias' maxLength={128} placeholder={t('例如 gpt-4o')} autoComplete='off'
+              <Label htmlFor='mapping-alias'>{t('Public mapping name (used in downstream requests)')}</Label>
+              <Input id='mapping-alias' maxLength={128} placeholder={t('e.g. gpt-4o')} autoComplete='off'
                 autoFocus={!editing} value={alias} disabled={editing}
                 onChange={event => setAlias(event.currentTarget.value)} onKeyDown={onEnter} />
             </div>
             <div className='pb-2 text-center text-muted-foreground'>→</div>
             <div className='flex min-w-0 flex-col gap-1.5'>
-              <Label htmlFor='mapping-upstream'>{t('转发到上游模型')}</Label>
+              <Label htmlFor='mapping-upstream'>{t('Forward to upstream model')}</Label>
               <Select value={upstream} disabled onValueChange={next => setUpstream(String(next))}>
                 <SelectTrigger id='mapping-upstream' className='w-full'>
                   <SelectValue>{upstreamChoices.find(item => item.id === upstream)?.label || upstream}</SelectValue>
@@ -205,7 +205,7 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
                 <SelectContent>
                   {upstreamChoices.map(item => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.label}{item.off ? t('（已禁用）') : ''}
+                      {item.label}{item.off ? t(' (disabled)') : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -214,16 +214,16 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
           </div>
           {/* 预览：当前选择会变成哪一条映射（等级一起显示，保存前就能核对） */}
           <div className='rounded-md border border-border bg-surface-inset px-3 py-2.5 font-mono text-[12px] text-subtle'>
-            {t('下游请求 ')}<b className='text-primary-fg'>{alias.trim() || t('<对外名>')}</b>{t(' → 转发')}{' '}
-            <b className='text-primary-fg'>{upstream || t('<上游模型>')}</b>{t('（{label}）', { label: providerLabel })}
-            {level ? <>{t(' · 思考等级 ')}<b className='text-primary-fg'>{level}</b></> : null}
+            {t('Downstream request ')}<b className='text-primary-fg'>{alias.trim() || t('<public name>')}</b>{t(' → forwards to')}{' '}
+            <b className='text-primary-fg'>{upstream || t('<upstream model>')}</b>{t(' ({label})', { label: providerLabel })}
+            {level ? <>{t(' · Reasoning level ')}<b className='text-primary-fg'>{level}</b></> : null}
           </div>
           <div className='flex flex-col gap-1.5'>
             <div className='flex items-center gap-[7px]'>
-              <Label htmlFor='mapping-reasoning'>{t('思考等级')}</Label>
+              <Label htmlFor='mapping-reasoning'>{t('Reasoning level')}</Label>
               {/* 问号走组件库 Tooltip（旧的 data-tip + desktop-tooltip.tsx 是同一目标的更简陋版本） */}
               <Tooltip>
-                <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('思考等级的注入规则')} />}>?</TooltipTrigger>
+                <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('Reasoning level injection rules')} />}>?</TooltipTrigger>
                 <TooltipContent>{REASONING_TIP}</TooltipContent>
               </Tooltip>
             </div>
@@ -234,41 +234,41 @@ export function MappingDialog({ context, onClose }: { context: MappingContext; o
               {/* 改等级形态没别的可填，把焦点直接放在等级下拉上（旧实现是 setTimeout 里 focus） */}
               <SelectTrigger id='mapping-reasoning' className='w-full' autoFocus={editing}>
                 <SelectValue>{active.select === CUSTOM_LEVEL
-                  ? t('自定义等级…')
-                  : (active.select || t('不覆盖'))}</SelectValue>
+                  ? t('Custom level…')
+                  : (active.select || t('Do not override'))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value=''>{t('不覆盖')}</SelectItem>
+                <SelectItem value=''>{t('Do not override')}</SelectItem>
                 {candidates.map(candidate => (
                   <SelectItem key={candidate} value={candidate}>{candidate}</SelectItem>
                 ))}
                 {allowsCustomLevel || showCustomLevel
-                  ? <SelectItem value={CUSTOM_LEVEL}>{t('自定义等级…')}</SelectItem> : null}
+                  ? <SelectItem value={CUSTOM_LEVEL}>{t('Custom level…')}</SelectItem> : null}
               </SelectContent>
             </Select>
 
             {showCustomLevel ? (
               <Input id='mapping-reasoning-custom' maxLength={32} autoFocus
-                placeholder={t('自定义等级（例如 custom-high）')} autoComplete='off'
+                placeholder={t('Custom level (e.g. custom-high)')} autoComplete='off'
                 disabled={saving} value={active.custom}
                 onChange={event => setReasoning(prev => ({ ...prev, custom: event.currentTarget.value }))}
                 onKeyDown={onEnter} />
             ) : null}
             {reasoningNotice ? <p className='text-xs leading-[1.65] text-subtle'>{reasoningNotice}</p> : null}
             {reasoningInfo.defaultLevel && !reasoningInfo.fixedLevel
-              ? <p className='text-xs text-subtle'>{t('默认档位：{level}', { level: reasoningInfo.defaultLevel })}</p> : null}
+              ? <p className='text-xs text-subtle'>{t('Default level: {level}', { level: reasoningInfo.defaultLevel })}</p> : null}
           </div>
           <p className='text-xs leading-[1.65] text-subtle'>
-            {t('对外名可以是中文、字母、数字与 ')}<code>- _ . / :</code>{t(' 这类符号，但不能含空格或换行，且不超过 128 个字符。同一提供商内，同名绑定最多启用一条；已有启用绑定时不能新增，启用备用绑定会自动关闭其他同名绑定。不同提供商可各启用一条同名绑定，用于主备切换。')}
+            {t('Public names may contain Chinese characters, letters, digits and ')}<code>- _ . / :</code>{t(' symbols like those, but no spaces or line breaks, and at most 128 characters. Only one binding with the same name can be enabled per provider. Disable an active binding before adding another. Enabling a standby binding automatically disables the others. Different providers may each enable one binding with that name for failover.')}
           </p>
           {/* 状态行：高度固定，出现错误时弹窗不跳高 */}
           <div className='min-h-[18px] text-xs text-subtle' role='status'>{duplicateError || status}</div>
         </DialogBody>
         <DialogFooter>
           <div className='mr-auto' />
-          <Button variant='outline' disabled={saving} onClick={onClose}>{t('取消')}</Button>
+          <Button variant='outline' disabled={saving} onClick={onClose}>{t('Cancel')}</Button>
           <Button variant='default' disabled={saving || Boolean(duplicateError)} onClick={() => void save()}>
-            {editing ? t('保存等级') : t('保存映射')}
+            {editing ? t('Save level') : t('Save mapping')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -299,18 +299,18 @@ export function CustomModelDialog({ initial, onClose }: { initial: CustomModelCo
   })()
   // 候选里没有当前值时退回首项（原生 select 赋一个不存在的值也是这个结果）
   const providerValue = choices.some(item => item.id === provider) ? provider : (choices[0]?.id || '')
-  const providerLabel = choices.find(item => item.id === providerValue)?.label || providerValue || t('(未选)')
+  const providerLabel = choices.find(item => item.id === providerValue)?.label || providerValue || t('(not selected)')
   const duplicateError = id.trim() ? addModelError(providerValue, id.trim()) : ''
 
   async function save(): Promise<void> {
     if (saving) return
     const value = id.trim()
-    if (!providerValue) { setStatus(t('请选择提供商')); return }
-    if (!value) { setStatus(t('请填写上游模型 ID')); return }
+    if (!providerValue) { setStatus(t('Select a provider')); return }
+    if (!value) { setStatus(t('Enter an upstream model ID')); return }
     const error = addModelError(providerValue, value)
     if (error) { setStatus(error); return }
     setSaving(true)
-    setStatus(t('保存中…'))
+    setStatus(t('Saving…'))
     try {
       const next = await writeAddModel(providerValue, value)
       accept(next)
@@ -319,18 +319,18 @@ export function CustomModelDialog({ initial, onClose }: { initial: CustomModelCo
       const label = choices.find(item => item.id === providerValue)?.label || providerValue
       if (customSource.isCustom(providerValue)) {
         // 自定义家的清单就是用户自己的登记表，登记了必然出现在表里，所以只有一句成功提示
-        toast(t('✅ 已登记模型 {name}（{label}）', { name: value, label }))
+        toast(t('✅ Registered model {name} ({label})', { name: value, label }))
       } else {
         // 内置家：登记成功但表格里看不到这一行时，必须说清为什么 —— 表格只列「当前有可用
         // 登录态」的家，给一个还没加账号的家登记模型不会立刻出现。不说的话用户会以为没保存成功
         const view = next as ManageView | null
         const visible = Array.isArray(view?.models)
           && view.models.some(item => item.id === value && (item.provider || '') === providerValue)
-        if (visible) toast(t('✅ 已登记自定义模型 {name}（{label}）', { name: value, label }))
-        else toast(t('✅ 已登记 {name}（{label}），但该提供商还没有可用账号，这一行要加上账号后才会显示', { name: value, label }), 'err')
+        if (visible) toast(t('✅ Registered custom model {name} ({label})', { name: value, label }))
+        else toast(t('✅ Registered {name} ({label}), but this provider has no usable accounts yet; the row will appear once you add one', { name: value, label }), 'err')
       }
     } catch (error) {
-      setStatus(t('保存失败：{message}', { message: errorMessage(error) }))
+      setStatus(t('Save failed: {message}', { message: errorMessage(error) }))
       setSaving(false)
     }
   }
@@ -350,38 +350,38 @@ export function CustomModelDialog({ initial, onClose }: { initial: CustomModelCo
     }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('添加自定义模型')}</DialogTitle>
+          <DialogTitle>{t('Add custom model')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='custom-model-provider'>{t('提供商')}</Label>
+            <Label htmlFor='custom-model-provider'>{t('Provider')}</Label>
             <SearchableSelect value={providerValue} disabled={initial.locked} onValueChange={setProvider}
               id='custom-model-provider' className='w-full' displayValue={providerLabel}
-              aria-label={t('提供商')} searchPlaceholder={t('搜索提供商')}
+              aria-label={t('Provider')} searchPlaceholder={t('Search providers')}
               options={choices.map(item => ({ value: item.id, label: item.label }))} />
           </div>
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='custom-model-id'>{t('上游模型 ID')}</Label>
-            <Input id='custom-model-id' maxLength={128} placeholder={t('例如 gpt-5.5-preview')}
+            <Label htmlFor='custom-model-id'>{t('Upstream model ID')}</Label>
+            <Input id='custom-model-id' maxLength={128} placeholder={t('e.g. gpt-5.5-preview')}
               autoComplete='off' spellCheck={false} autoFocus value={id}
               onChange={event => setId(event.currentTarget.value)} onKeyDown={onEnter} />
           </div>
           <div className='rounded-md border border-border bg-surface-inset px-3 py-2.5 font-mono text-[12px] text-subtle'>
-            {t('在 ')}<b className='text-primary-fg'>{providerLabel}</b>{t(' 上登记上游模型')}{' '}
-            <b className='text-primary-fg'>{id.trim() || t('<上游模型 ID>')}</b>{t('（登记后即可用这个名字请求）')}
+            {t('On ')}<b className='text-primary-fg'>{providerLabel}</b>{t(', register upstream model')}{' '}
+            <b className='text-primary-fg'>{id.trim() || t('<upstream model ID>')}</b>{t(' (you can request with this name once registered)')}
           </div>
           <p className='text-xs leading-[1.65] text-subtle'>
-            {t('填上游真正认识的那个模型 ID（不是给下游用的名字）。登记后它会进入该家的模型清单： 表格里出现这一行、')}<code>/v1/models</code>{t(' 会广告它、请求它也会被转发到这家。 支持字母、数字与 ')}<code>- _ . / :</code>{t('。')}
+            {t('Enter the model ID that upstream actually recognizes (not the name used downstream). Once registered, it enters this provider\'s model catalog: this row appears in the table, ')}<code>/v1/models</code>{t(' will advertise it, and requests for it will be forwarded to this provider. Supported characters are letters, digits and ')}<code>- _ . / :</code>{t('.')}
           </p>
           <p className='text-xs leading-[1.65] text-subtle'>
-            {t('「来源」列会标成')}<b>{t('手动')}</b>{t('，与远程目录 / 内置清单区分开。删除自定义模型是')}<b>{t('直接移除')}</b>{t('这条登记（不像内置模型那样只是隐藏），因为它的存在完全由这次登记决定。')}
+            {t('The “Source” column will show ')}<b>{t('Manual')}</b>{t(', which distinguishes it from the remote catalog / built-in catalog. Deleting a custom model ')}<b>{t('directly removes ')}</b>{t('this registration (unlike built-in models, which are merely hidden), because its existence is decided entirely by this registration.')}
           </p>
           <div className='min-h-[18px] text-xs text-subtle' role='status'>{duplicateError || status}</div>
         </DialogBody>
         <DialogFooter>
           <div className='mr-auto' />
-          <Button variant='outline' disabled={saving} onClick={onClose}>{t('取消')}</Button>
-          <Button variant='default' disabled={saving || Boolean(duplicateError)} onClick={() => void save()}>{t('保存')}</Button>
+          <Button variant='outline' disabled={saving} onClick={onClose}>{t('Cancel')}</Button>
+          <Button variant='default' disabled={saving || Boolean(duplicateError)} onClick={() => void save()}>{t('Save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

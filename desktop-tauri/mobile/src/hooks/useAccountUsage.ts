@@ -75,7 +75,7 @@ export function useAccountUsage(id: string, enabled: boolean) {
       }))
       if (epoch.current === version && serverIdentity() === identity) {
         const task = result.queries.find(task => task.id === id)
-        if (!task) throw new Error(t('余额查询接口返回异常'))
+        if (!task) throw new Error(t('The balance query returned an invalid response.'))
         setTask(task)
       }
     } catch (error) {

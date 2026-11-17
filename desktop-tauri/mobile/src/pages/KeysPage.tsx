@@ -49,7 +49,7 @@ export function KeysPage() {
     try {
       const payload = await setKeyEnabled(key.id, next)
       setData(payload)
-      store.toast(next ? t('已启用「{name}」', { name: key.name || key.id }) : t('已禁用「{name}」', { name: key.name || key.id }))
+      store.toast(next ? t('Enabled "{name}"', { name: key.name || key.id }) : t('Disabled "{name}"', { name: key.name || key.id }))
     } catch (failure) {
       store.toast(failure instanceof Error ? failure.message : String(failure), 'err')
     } finally {
@@ -59,12 +59,12 @@ export function KeysPage() {
 
   const remove = async (key: GatewayKey) => {
     if (!key.id) return
-    if (!await confirmDialog(t('确定删除「{name}」？用这把 Key 的客户端会立即失效。', { name: key.name || key.id }))) return
+    if (!await confirmDialog(t('Delete "{name}"? Clients using this key will stop working immediately.', { name: key.name || key.id }))) return
     setBusy(key.id)
     try {
       const payload = await deleteKey(key.id)
       setData(payload)
-      store.toast(t('已删除'))
+      store.toast(t('Deleted'))
     } catch (failure) {
       store.toast(failure instanceof Error ? failure.message : String(failure), 'err')
     } finally {
@@ -82,7 +82,7 @@ export function KeysPage() {
   return (
     <div className='m-page' ref={pull.bindRef}>
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
-      <PageIntro actions={<IconButton name='refresh' label={t('刷新')} onClick={() => void load()} />}
+      <PageIntro actions={<IconButton name='refresh' label={t('Refresh')} onClick={() => void load()} />}
       />
 
       <div className='m-section' style={{ marginTop: 0 }}>
@@ -91,11 +91,11 @@ export function KeysPage() {
           style={{ background: 'var(--m-primary-soft)', borderColor: 'var(--m-primary-line)' }}
         >
           <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--m-text-2)' }}>
-            {t('客户端请求带上 ')}
+            {t('The client request carries')}
             <span className='m-mono' style={{ fontSize: 11.5, color: 'var(--m-primary)' }}>
               Authorization: Bearer &lt;Key&gt;
             </span>
-            {t('；当前必须带 Key。')}
+            {t('; an enabled Key is required.')}
           </div>
         </Card>
       </div>
@@ -106,7 +106,7 @@ export function KeysPage() {
       {data && !keys.length ? (
         <div className='m-section'>
           <Card className='m-card'>
-            <Empty text={t('还没有 Key。去桌面端「网关 Key」页新建一把。')} />
+            <Empty text={t('No Key yet. Create one on the "Gateway Keys" page of the desktop.')} />
           </Card>
         </div>
       ) : null}
@@ -122,7 +122,7 @@ export function KeysPage() {
                 <GlyphLogo name='key' />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {key.name || t('未命名')}
+                    {key.name || t('Untitled')}
                   </div>
                   <div style={{ fontSize: 11.5, color: 'var(--m-text-3)', marginTop: 2 }}>
                     {scopeText(key)}
@@ -157,15 +157,15 @@ export function KeysPage() {
                 <Button size='default' variant='ghost'
                   type='button'
                   onClick={() => toggleReveal(id)}
-                  aria-label={shown ? t('隐藏') : t('显示')}
+                  aria-label={shown ? t('Hide') : t('Shown')}
                   style={{ display: 'flex', border: 0, background: 'none', color: 'var(--m-text-3)', padding: 2 }}
                 >
                   <Icon name='eye' style={{ width: 15, height: 15, opacity: shown ? 1 : 0.55 }} />
                 </Button>
                 <Button size='default' variant='ghost'
                   type='button'
-                  onClick={() => void copyWithToast(key.key || '', key.name || t('网关 Key'))}
-                  aria-label={t('复制')}
+                  onClick={() => void copyWithToast(key.key || '', key.name || t('Gateway key'))}
+                  aria-label={t('Copy')}
                   style={{ display: 'flex', border: 0, background: 'none', color: 'var(--m-primary)', padding: 2 }}
                 >
                   <Icon name='copy' style={{ width: 15, height: 15 }} />
@@ -173,8 +173,8 @@ export function KeysPage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 9, fontSize: 11.5, color: 'var(--m-text-3)' }}>
-                <span>{key.enabled ? t('已启用') : t('已停用')}</span>
-                <span>{t('创建于 {time}', { time: key.createdAt ? new Date(key.createdAt).toLocaleDateString('zh-CN') : '—' })}</span>
+                <span>{key.enabled ? t('Enabled') : t('Disabled')}</span>
+                <span>{t('Created at {time}', { time: key.createdAt ? new Date(key.createdAt).toLocaleDateString('zh-CN') : '—' })}</span>
                 <Button size='default' variant='ghost'
                   type='button'
                   onClick={() => void remove(key)}
@@ -192,7 +192,7 @@ export function KeysPage() {
                   }}
                 >
                   <Icon name='trash' style={{ width: 13, height: 13 }} />
-                  {t('删除')}
+                  {t('Delete')}
                 </Button>
               </div>
             </Card>
@@ -202,7 +202,7 @@ export function KeysPage() {
 
       <div className='m-section' style={{ paddingBottom: 8 }}>
         <Card className='m-card m-card-pad' style={{ fontSize: 11.5, color: 'var(--m-text-3)', lineHeight: 1.7 }}>
-          {t('新建 Key 与设置可用范围（提供商 / 模型白名单）在桌面端完成。')}
+          {t('Creating a new key and setting its allowed scope (provider / model whitelist) is done on the desktop.')}
         </Card>
       </div>
     </div>
@@ -212,11 +212,11 @@ export function KeysPage() {
 function scopeText(key: GatewayKey): string {
   const providers = key.allowedProviders || []
   const models = key.allowedModels || []
-  if (!providers.length && !models.length) return t('不限制提供商与模型')
+  if (!providers.length && !models.length) return t('No restriction on providers and models')
   const parts: string[] = []
-  if (providers.length) parts.push(providers.map(id => providerLabel(id)).join('、'))
-  if (models.length) parts.push(t('{n} 个模型', { n: models.length }))
-  return t('限制：{text}', { text: parts.join(' / ') })
+  if (providers.length) parts.push(providers.map(id => providerLabel(id)).join(', '))
+  if (models.length) parts.push(t('{n} models', { n: models.length }))
+  return t('Restrictions: {text}', { text: parts.join(' / ') })
 }
 
 function maskKey(key?: string): string {

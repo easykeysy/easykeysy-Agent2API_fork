@@ -44,7 +44,7 @@ pub async fn batch_accounts(state: &ServerState, body: &Bytes) -> Response {
         "proxy" => {
             // 允许 proxy=null（批量改为直连）；缺字段是显式报错
             let Some(target) = payload.get("proxy") else {
-                return management_error(400, "批量修改代理时缺少 proxy 字段");
+                return management_error(400, "批量修改代理时缺少 proxy field");
             };
             state.store().batch_update(&ids, &json!({ "proxy": target }))
         }
@@ -52,7 +52,7 @@ pub async fn batch_accounts(state: &ServerState, body: &Bytes) -> Response {
             // 并发上限（0 = 不限）；缺字段是显式报错，值本身由 store 归一
             // （非负整数、封顶 999，与单账号设置面板同一份校验）
             let Some(target) = payload.get("maxConcurrent") else {
-                return management_error(400, "批量设置并发上限时缺少 maxConcurrent 字段");
+                return management_error(400, "批量设置并发上限时缺少 maxConcurrent field");
             };
             state
                 .store()
@@ -60,13 +60,13 @@ pub async fn batch_accounts(state: &ServerState, body: &Bytes) -> Response {
         }
         "usageQuery" => {
             let Some(target) = payload.get("usageQuery") else {
-                return management_error(400, "批量查询设置缺少 usageQuery 字段");
+                return management_error(400, "批量查询设置缺少 usageQuery field");
             };
             state.store().batch_update(&ids, &json!({ "usageQuery": target }))
         }
         "limiters" => {
             let Some(mode) = payload.get("limiterMode") else {
-                return management_error(400, "批量限制器操作缺少 limiterMode 字段");
+                return management_error(400, "批量限制器操作缺少 limiterMode field");
             };
             let mut patch = Map::new();
             patch.insert("limiterMode".to_string(), mode.clone());

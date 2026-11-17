@@ -49,8 +49,8 @@ function ModelSelect({ value, models, exclude, onChange, disabled, ariaLabel }: 
     .filter(id => !exclude?.includes(modelKey(id)) || modelKey(id) === modelKey(value))
   const selectedId = ids.find(id => modelKey(id) === modelKey(value)) || value
   return <SearchableSelect value={selectedId} disabled={disabled} onValueChange={onChange}
-    className='w-full' aria-label={ariaLabel} searchPlaceholder={t('搜索模型')}
-    displayValue={selectedId || t('请选择模型')}
+    className='w-full' aria-label={ariaLabel} searchPlaceholder={t('Search models')}
+    displayValue={selectedId || t('Select a model')}
     options={ids.map(id => ({ value: id, label: id,
       searchText: models.filter(model => modelKey(model.id) === modelKey(id))
         .map(model => `${model.name || ''} ${model.providerLabel || ''} ${model.provider || ''}`).join(' '),
@@ -86,20 +86,20 @@ function RulePanel({ title, lede, enabled, onEnabled, busy, dirty, error, loadin
         <p className='rp-lede'>{lede}</p>
       </div>
       <label className='rp-enable'>
-        <span>{enabled ? t('已启用') : t('已关闭')}</span>
-        <Switch checked={enabled} disabled={busy} aria-label={enabled ? t('关闭') : t('启用')}
+        <span>{enabled ? t('Enabled') : t('Disabled')}</span>
+        <Switch checked={enabled} disabled={busy} aria-label={enabled ? t('Close') : t('enabled')}
           onCheckedChange={onEnabled} />
       </label>
     </header>
-    <p className='rp-note'>{t('规则全局生效，不受原路由池限制；指定模型按自己的路由选账号，网关 Key 权限仍然生效。')}</p>
-    {loading ? <div className='rp-loading'><Spinner />{t('读取中…')}</div> : children}
+    <p className='rp-note'>{t('Rules apply globally, without being limited to the original routing pool. Selected models use their own routing to choose accounts; gateway key permissions still apply.')}</p>
+    {loading ? <div className='rp-loading'><Spinner />{t('Loading…')}</div> : children}
     {error ? <p className='routing-config-error' role='alert'>{error}</p> : null}
     <footer className='rp-foot'>
-      <span className='rp-foot-state'>{dirty ? t('有未保存的修改') : t('已保存')}</span>
+      <span className='rp-foot-state'>{dirty ? t('There are unsaved changes') : t('Saved')}</span>
       <div className='rp-foot-actions'>
-        <Button variant='ghost' size='sm' disabled={busy} onClick={onReload}>{t('重新读取')}</Button>
-        <Button variant='ghost' size='sm' disabled={!dirty || busy} onClick={onDiscard}>{t('撤销修改')}</Button>
-        <Button size='sm' disabled={!dirty || busy} onClick={onSave}>{busy ? t('保存中…') : t('保存')}</Button>
+        <Button variant='ghost' size='sm' disabled={busy} onClick={onReload}>{t('Reload')}</Button>
+        <Button variant='ghost' size='sm' disabled={!dirty || busy} onClick={onDiscard}>{t('Discard changes')}</Button>
+        <Button size='sm' disabled={!dirty || busy} onClick={onSave}>{busy ? t('Saving…') : t('Save')}</Button>
       </div>
     </footer>
   </section>
@@ -149,9 +149,9 @@ function RuleSwitchRow({ enabled, disabled, onChange }: {
   enabled: boolean; disabled?: boolean; onChange(next: boolean): void
 }) {
   return <div className='rp-switch-row'>
-    <Switch checked={enabled} disabled={disabled} aria-label={t('启用规则')} onCheckedChange={onChange} />
-    <span>{t('启用规则')}</span>
-    <small>{enabled ? t('已启用') : t('已停用')}</small>
+    <Switch checked={enabled} disabled={disabled} aria-label={t('Enable rule')} onCheckedChange={onChange} />
+    <span>{t('Enable rule')}</span>
+    <small>{enabled ? t('Enabled') : t('Disabled')}</small>
   </div>
 }
 
@@ -161,9 +161,9 @@ function RuleDialogFooter({ onClose, onSave, onDelete, disabled }: {
 }) {
   return <DialogFooter>
     {onDelete ? <Button variant='destructive' className='mr-auto' disabled={disabled}
-      onClick={() => { onDelete(); onClose() }}>{t('删除规则')}</Button> : null}
-    <Button variant='ghost' disabled={disabled} onClick={onClose}>{t('取消')}</Button>
-    <Button disabled={disabled} onClick={onSave}>{t('保存规则')}</Button>
+      onClick={() => { onDelete(); onClose() }}>{t('Delete rule')}</Button> : null}
+    <Button variant='ghost' disabled={disabled} onClick={onClose}>{t('Cancel')}</Button>
+    <Button disabled={disabled} onClick={onSave}>{t('Save rule')}</Button>
   </DialogFooter>
 }
 
@@ -183,27 +183,27 @@ function CompactRuleDialog({ rule, models, clients, saving, onClose, onSave, onD
   const clientLabel = clients.find(client => client.id === draft.client)?.label || draft.client
   return <Dialog open onOpenChange={next => { if (!next) onClose() }}>
     <DialogContent className='w-[min(520px,calc(100vw-24px))]'>
-      <DialogHeader><DialogTitle>{onDelete ? t('编辑规则') : t('添加规则')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{onDelete ? t('Edit rule') : t('Add rule')}</DialogTitle></DialogHeader>
       <DialogBody>
         <p className='text-[12px] leading-[1.7] text-muted-foreground'>
-          {t('命中这条规则的压缩请求会改用「压缩模型」重发一次；改写之后按新模型自己的路由挑账号。')}
+          {t('Compaction requests matching this rule are re-sent once with the compaction model; the account is then chosen by that model\'s own route.')}
         </p>
         <RuleSwitchRow enabled={draft.enabled} disabled={saving} onChange={enabled => update({ enabled })} />
-        <DlgField label={t('触发客户端')}>
+        <DlgField label={t('Triggering client')}>
           <Select value={draft.client} disabled={saving}
             onValueChange={next => update({ client: String(next) })}>
-            <SelectTrigger aria-label={t('触发客户端')}><SelectValue>{clientLabel}</SelectValue></SelectTrigger>
+            <SelectTrigger aria-label={t('Triggering client')}><SelectValue>{clientLabel}</SelectValue></SelectTrigger>
             <SelectContent>{clients.map(client =>
               <SelectItem key={client.id} value={client.id}>{client.label}</SelectItem>)}</SelectContent>
           </Select>
         </DlgField>
-        <DlgField label={t('原模型')}>
+        <DlgField label={t('Original model')}>
           <ModelSelect value={draft.source} models={models} exclude={[modelKey(draft.target)]} disabled={saving}
-            ariaLabel={t('原模型')} onChange={source => update({ source })} />
+            ariaLabel={t('Original model')} onChange={source => update({ source })} />
         </DlgField>
-        <DlgField label={t('压缩模型')}>
+        <DlgField label={t('Compaction model')}>
           <ModelSelect value={draft.target} models={models} exclude={[modelKey(draft.source)]} disabled={saving}
-            ariaLabel={t('压缩模型')} onChange={target => update({ target })} />
+            ariaLabel={t('Compaction model')} onChange={target => update({ target })} />
         </DlgField>
       </DialogBody>
       <RuleDialogFooter disabled={saving} onClose={onClose} onSave={() => onSave(draft)} onDelete={onDelete} />
@@ -226,30 +226,30 @@ export function CompactSpecialPanel({ editor }: { editor: SpecialEditor<CompactC
     rules: index < 0 ? [...current.rules, rule] : current.rules.map((item, at) => at === index ? rule : item),
   }))
   const blank: CompactRoute = { client: clients[0]?.id || '', source: '', target: '', enabled: true }
-  return <RulePanel title={t('压缩上下文')}
-    lede={t('命中下面规则的上下文压缩请求，会改用指定的模型压缩一次；账号仍按新模型自己的路由挑。')}
+  return <RulePanel title={t('Context compaction')}
+    lede={t('Context compaction requests matching a rule below are compacted once with the model you pick; the account is then chosen by that model\'s own route.')}
     enabled={Boolean(draft?.enabled)} onEnabled={next => editor.update(current => ({ ...current, enabled: next }))}
     busy={saving || loading} dirty={dirty} error={error} loading={loading}
     onReload={() => void editor.reload()} onSave={() => void editor.save()} onDiscard={editor.discard}>
     {draft ? <>
-      <RuleSection title={t('规则')} count={t('{n} 条', { n: rules.length })}
+      <RuleSection title={t('Rules')} count={t('{n} entries', { n: rules.length })}
         action={<Button variant='outline' size='sm' disabled={saving || full || !models.length}
           onClick={() => setEditing({ rule: blank, index: -1 })}>
-          <RouteIcon name='plus' size={13} />{t('添加规则')}
+          <RouteIcon name='plus' size={13} />{t('Add rule')}
         </Button>}>
         {rules.length ? rules.map((rule, index) => <RuleRow key={index} off={!rule.enabled}
-          title={t('{client} 的压缩请求', { client: clientLabel(rule.client) })}
+          title={t('Compaction request from {client}', { client: clientLabel(rule.client) })}
           detail={<>
-            <span>{rule.source || t('还没选原模型')}</span>
+            <span>{rule.source || t('No source model selected')}</span>
             <span aria-hidden='true'>→</span>
-            <span className='rp-row-target'>{rule.target || t('还没选压缩模型')}</span>
+            <span className='rp-row-target'>{rule.target || t('No compaction model selected')}</span>
           </>}
-          side={rule.enabled ? null : t('已停用')}
+          side={rule.enabled ? null : t('Disabled')}
           onClick={() => setEditing({ rule, index })} />)
-          : <p className='rp-empty'>{t('还没有规则。压缩请求会按原模型照常转发。')}</p>}
+          : <p className='rp-empty'>{t('No rules yet. Compaction requests are forwarded with the original model.')}</p>}
       </RuleSection>
-      {!models.length ? <p className='rp-note'>{t('没有可选的对话模型，请先启用模型和对应账号。')}</p> : null}
-      {full ? <p className='rp-note'>{t('规则最多 {n} 条。', { n: maxRules })}</p> : null}
+      {!models.length ? <p className='rp-note'>{t('No chat models are available. Enable a model and its account first.')}</p> : null}
+      {full ? <p className='rp-note'>{t('Up to {n} rules.', { n: maxRules })}</p> : null}
     </> : null}
     {editing ? <CompactRuleDialog key={editing.index} rule={editing.rule} models={models} clients={clients} saving={saving}
       onClose={() => setEditing(null)}
@@ -311,88 +311,88 @@ function VisionRuleDialog({ rule, view, saving, onClose, onSave, onDelete }: {
   }
   return <Dialog open onOpenChange={next => { if (!next) onClose() }}>
     <DialogContent className='w-[min(560px,calc(100vw-24px))]'>
-      <DialogHeader><DialogTitle>{onDelete ? t('编辑规则') : t('添加规则')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{onDelete ? t('Edit rule') : t('Add rule')}</DialogTitle></DialogHeader>
       <DialogBody>
         <p className='text-[12px] leading-[1.7] text-muted-foreground'>
-          {t('这条规则里的模型收到图片时按选定的方式处理；没被任何规则选中的模型一律原样放行。')}
+          {t('Requests for the models in this rule are handled the chosen way when they contain images; models not selected by any rule pass through unchanged.')}
         </p>
         <RuleSwitchRow enabled={draft.enabled} disabled={saving} onChange={enabled => update({ enabled })} />
-        <DlgField label={t('哪些模型用这种方式')}>
+        <DlgField label={t('Which models use this way')}>
           <MultiSelect className='w-full' value={draft.models.map(visionKey)} disabled={saving}
-            options={listChoices} placeholder={t('选择一个或多个模型')} searchPlaceholder={t('搜索提供商或模型')}
-            aria-label={t('哪些模型用这种方式')}
+            options={listChoices} placeholder={t('Select one or more models')} searchPlaceholder={t('Search providers or models')}
+            aria-label={t('Which models use this way')}
             onValueChange={keys => update({ models: keys.map(parseVisionKey).filter((ref): ref is VisionModelRef => ref !== null) })} />
         </DlgField>
-        <DlgField label={t('处理方式')}>
+        <DlgField label={t('Processing mode')}>
           <Select value={draft.mode} disabled={saving}
             onValueChange={next => update({ mode: String(next) as VisionRuleItem['mode'] })}>
-            <SelectTrigger className='w-full' aria-label={t('处理方式')}><SelectValue>
-              {draft.mode === 'assist' ? t('辅助识图') : t('整体接管')}
+            <SelectTrigger className='w-full' aria-label={t('Processing mode')}><SelectValue>
+              {draft.mode === 'assist' ? t('Assisted image reading') : t('Take over entirely')}
             </SelectValue></SelectTrigger>
             <SelectContent>
-              <SelectItem value='assist'>{t('辅助识图')}</SelectItem>
-              <SelectItem value='reroute'>{t('整体接管')}</SelectItem>
+              <SelectItem value='assist'>{t('Assisted image reading')}</SelectItem>
+              <SelectItem value='reroute'>{t('Take over entirely')}</SelectItem>
             </SelectContent>
           </Select>
         </DlgField>
         {draft.mode === 'assist' ? <>
-          <DlgField label={t('用哪只模型识图')}>
+          <DlgField label={t('Which model reads the image')}>
             <SearchableSelect className='w-full' value={draft.source === 'shared' ? 'shared' : (draft.target ? visionKey(draft.target) : '')}
-              disabled={saving} aria-label={t('用哪只模型识图')} searchPlaceholder={t('搜索模型')}
-              displayValue={draft.source === 'shared' ? t('沿用工具服务的视觉模型') : (visionLabel(view.models, draft.target) || t('请选择模型'))}
-              options={[{ value: 'shared', label: t('沿用工具服务的视觉模型') }, ...targetChoices]}
+              disabled={saving} aria-label={t('Which model reads the image')} searchPlaceholder={t('Search models')}
+              displayValue={draft.source === 'shared' ? t('Use the tool service vision model') : (visionLabel(view.models, draft.target) || t('Select a model'))}
+              options={[{ value: 'shared', label: t('Use the tool service vision model') }, ...targetChoices]}
               onValueChange={next => {
                 if (next === 'shared') { update({ source: 'shared' }); return }
                 const target = pick(next)
                 if (target) update({ source: 'custom', target: { ...target, reasoning: draft.target?.reasoning || '' } })
               }} />
           </DlgField>
-          <DlgField label={t('复用相同图片的识读结果')}>
+          <DlgField label={t('Reuse readings of identical images')}>
             <div className='flex items-center gap-3'>
-              <Switch checked={draft.reuseResults} disabled={saving} aria-label={t('复用相同图片的识读结果')}
+              <Switch checked={draft.reuseResults} disabled={saving} aria-label={t('Reuse readings of identical images')}
                 onCheckedChange={next => update({ reuseResults: next === true })} />
-              <span className='text-[12px] text-muted-foreground'>{t('同一会话、同一问题、相同权限范围内复用；追问新细节会重新识读。')}</span>
+              <span className='text-[12px] text-muted-foreground'>{t('Reused within the same session, question and permission scope; asking about new details triggers a fresh read.')}</span>
             </div>
           </DlgField>
         </> : <>
-          <DlgField label={t('优先使用当前路由内的视觉模型')}>
+          <DlgField label={t('Prefer vision models in the current route')}>
             <div className='flex items-center gap-3'>
-              <Switch checked={draft.preferCurrentRoute} disabled={saving} aria-label={t('优先使用当前路由内的视觉模型')}
+              <Switch checked={draft.preferCurrentRoute} disabled={saving} aria-label={t('Prefer vision models in the current route')}
                 onCheckedChange={next => update({ preferCurrentRoute: next === true })} />
-              <span className='text-[12px] text-muted-foreground'>{t('先尝试当前路由内的视觉模型，不可用时再按顺序尝试指定模型；指定模型可跨路由池。')}</span>
+              <span className='text-[12px] text-muted-foreground'>{t('Try vision models in the current route first, then try the selected models in order if unavailable. Selected models can use a different routing pool.')}</span>
             </div>
           </DlgField>
-          <DlgField label={t('接管回答的模型')}>
+          <DlgField label={t('Model that takes over the answer')}>
             <SearchableSelect className='w-full' value={primary ? visionKey(primary) : ''} disabled={saving}
-              aria-label={t('接管回答的模型')} searchPlaceholder={t('搜索模型')}
-              displayValue={primary ? visionLabel(view.models, primary) : t('请选择模型')}
+              aria-label={t('Model that takes over the answer')} searchPlaceholder={t('Search models')}
+              displayValue={primary ? visionLabel(view.models, primary) : t('Select a model')}
               options={targetChoices}
               onValueChange={next => {
                 const target = pick(next)
                 if (target) setTargets(target ? [{ ...target, reasoning: primary?.reasoning || '' }, ...backups] : backups)
               }} />
           </DlgField>
-          <DlgField label={t('备选模型')}>
+          <DlgField label={t('Backup model')}>
             <div className='flex flex-col gap-2'>
               <div className='flex items-center gap-2'>
                 <SearchableSelect className='min-w-0 flex-1' value={candidate} disabled={saving || draft.targets.length >= view.maxTargets}
-                  aria-label={t('备选模型')} searchPlaceholder={t('搜索模型')}
-                  displayValue={visionLabel(view.models, parseVisionKey(candidate)) || t('请选择模型')}
+                  aria-label={t('Backup model')} searchPlaceholder={t('Search models')}
+                  displayValue={visionLabel(view.models, parseVisionKey(candidate)) || t('Select a model')}
                   options={targetChoices} onValueChange={setCandidate} />
                 <Button variant='outline' size='sm' disabled={saving || !candidate || draft.targets.length >= view.maxTargets}
                   onClick={() => { const target = pick(candidate); if (target) { setTargets([...draft.targets, target]); setCandidate('') } }}>
-                  {t('加入备选')}
+                  {t('Add as backup')}
                 </Button>
               </div>
               {backups.map((backup, index) => <div key={visionKey(backup)} className='flex items-center gap-2 text-[12px]'>
                 <span className='min-w-0 flex-1 truncate'>{visionLabel(view.models, backup)}</span>
-                <Button variant='ghost' size='xs' disabled={saving || index === 0} onClick={() => move(index + 1, -1)}>{t('上移')}</Button>
-                <Button variant='ghost' size='xs' disabled={saving || index === backups.length - 1} onClick={() => move(index + 1, 1)}>{t('下移')}</Button>
+                <Button variant='ghost' size='xs' disabled={saving || index === 0} onClick={() => move(index + 1, -1)}>{t('Move up')}</Button>
+                <Button variant='ghost' size='xs' disabled={saving || index === backups.length - 1} onClick={() => move(index + 1, 1)}>{t('Move down')}</Button>
                 <Button variant='ghost' size='xs' disabled={saving}
-                  onClick={() => setTargets(draft.targets.filter((_, at) => at !== index + 1))}>{t('移除')}</Button>
+                  onClick={() => setTargets(draft.targets.filter((_, at) => at !== index + 1))}>{t('Remove')}</Button>
               </div>)}
               <span className='text-[11.5px] leading-[1.6] text-muted-foreground'>
-                {t('备选按顺序尝试；一个都不加时，当前路由内找不到视觉模型就停止并说明原因。')}
+                {t('Fallbacks are tried in order; with none added, the request stops with an explanation when no vision model is found in the current route.')}
               </span>
             </div>
           </DlgField>
@@ -418,33 +418,33 @@ export function VisionSpecialPanel({ editor }: { editor: SpecialEditor<VisionCon
   const detail = (rule: VisionRuleItem) => {
     const label = visionLabel(view?.models || [], rule.targets[0] || rule.target)
     if (rule.mode === 'assist') {
-      const reader = rule.source === 'shared' ? t('工具服务的视觉模型') : (label || t('还没选视觉模型'))
-      return <><span>{t('先读图再交回')}</span><span className='rp-row-target'>{reader}</span><span>· {t('原模型继续回答')}</span></>
+      const reader = rule.source === 'shared' ? t('the tool service vision model') : (label || t('No vision model selected'))
+      return <><span>{t('Reads the image first, then hands back to')}</span><span className='rp-row-target'>{reader}</span><span>· {t('The original model continues answering')}</span></>
     }
-    const taker = rule.preferCurrentRoute ? t('当前路由内的视觉模型') : (label || t('还没选视觉模型'))
-    return <><span>{t('整次请求改交')}</span><span className='rp-row-target'>{taker}</span></>
+    const taker = rule.preferCurrentRoute ? t('a vision model in this route') : (label || t('No vision model selected'))
+    return <><span>{t('Hands the whole request to')}</span><span className='rp-row-target'>{taker}</span></>
   }
-  return <RulePanel title={t('图片兼容')}
-    lede={t('模型看不了图片时，按下面的规则交给视觉模型；没配到的模型、以及本来就能看图的，一律原样放行。')}
+  return <RulePanel title={t('Image compatibility')}
+    lede={t('When a model cannot read images, the rules below hand them to a vision model; models not configured here — and those that can read images anyway — pass through unchanged.')}
     enabled={Boolean(draft?.enabled)} onEnabled={next => editor.update(current => ({ ...current, enabled: next }))}
     busy={saving || loading} dirty={dirty} error={error} loading={loading}
     onReload={() => void editor.reload()} onSave={() => void editor.save()} onDiscard={editor.discard}>
     {draft && view ? <>
-      <RuleSection title={t('规则')} count={t('{n} 条', { n: rules.length })}
+      <RuleSection title={t('Rules')} count={t('{n} entries', { n: rules.length })}
         action={<Button variant='outline' size='sm' disabled={saving}
           onClick={() => setEditing({ rule: blank, index: -1 })}>
-          <RouteIcon name='plus' size={13} />{t('添加规则')}
+          <RouteIcon name='plus' size={13} />{t('Add rule')}
         </Button>}>
         {rules.length ? rules.map((rule, index) => <RuleRow key={index} off={!rule.enabled}
           title={rule.models.length
-            ? t('{models} 看不了图时', { models: rule.models.map(model => visionLabel(view.models, model)).join('、') })
-            : t('未选择模型')}
+            ? t('When {models} cannot read images', { models: rule.models.map(model => visionLabel(view.models, model)).join(', ') })
+            : t('No model selected')}
           detail={detail(rule)}
-          side={rule.enabled ? null : t('已停用')}
+          side={rule.enabled ? null : t('Disabled')}
           onClick={() => setEditing({ rule, index })} />)
-          : <p className='rp-empty'>{t('还没有规则。图片会照常交给原模型，看不了的就会报错。')}</p>}
+          : <p className='rp-empty'>{t('No rules yet. Images go to the original model as usual; models that cannot read them will fail.')}</p>}
       </RuleSection>
-      {!view.models.length ? <p className='rp-note'>{t('还没有可用的模型，请先启用模型和对应账号。')}</p> : null}
+      {!view.models.length ? <p className='rp-note'>{t('No models available yet; enable models and their accounts first.')}</p> : null}
     </> : null}
     {editing && view ? <VisionRuleDialog key={editing.index} rule={editing.rule} view={view} saving={saving}
       onClose={() => setEditing(null)}
@@ -470,31 +470,31 @@ function TitleRuleDialog({ rule, models, clients, saving, onClose, onSave, onDel
   const update = (patch: Partial<TitleRule>) => setDraft(current => ({ ...current, ...patch }))
   return <Dialog open onOpenChange={next => { if (!next) onClose() }}>
     <DialogContent className='w-[min(520px,calc(100vw-24px))]'>
-      <DialogHeader><DialogTitle>{onDelete ? t('编辑规则') : t('添加规则')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{onDelete ? t('Edit rule') : t('Add rule')}</DialogTitle></DialogHeader>
       <DialogBody>
         <p className='text-[12px] leading-[1.7] text-muted-foreground'>
-          {t('这条规则只改写被识别为标题生成的小请求，普通对话不受影响。')}
+          {t('This rule only rewrites small requests recognised as title generation; normal conversations are unaffected.')}
         </p>
         <RuleSwitchRow enabled={draft.enabled} disabled={saving} onChange={enabled => update({ enabled })} />
-        <DlgField label={t('识别客户端')}>
+        <DlgField label={t('Recognised clients')}>
           <MultiSelect className='w-full' value={draft.clients} disabled={saving}
             options={clients.map(client => ({ value: client.id, label: client.label, disabled: !client.supported }))}
-            placeholder={t('选择一个或多个客户端')} searchPlaceholder={t('搜索客户端')}
-            aria-label={t('识别客户端')} onValueChange={next => update({ clients: next })} />
+            placeholder={t('Select one or more clients')} searchPlaceholder={t('Search clients')}
+            aria-label={t('Recognised clients')} onValueChange={next => update({ clients: next })} />
         </DlgField>
-        <DlgField label={t('标题模型')}>
+        <DlgField label={t('The title model')}>
           <ModelSelect value={draft.model} models={models} disabled={saving}
-            ariaLabel={t('标题模型')} onChange={model => update({ model })} />
+            ariaLabel={t('The title model')} onChange={model => update({ model })} />
         </DlgField>
-        <DlgField label={t('标题模型失败时')}>
+        <DlgField label={t('When the title model fails')}>
           <Select value={draft.fallback} disabled={saving}
             onValueChange={next => update({ fallback: next as TitleRule['fallback'] })}>
-            <SelectTrigger className='w-full' aria-label={t('标题模型失败时')}><SelectValue>
-              {draft.fallback === 'original' ? t('退回原模型') : t('直接报错')}
+            <SelectTrigger className='w-full' aria-label={t('When the title model fails')}><SelectValue>
+              {draft.fallback === 'original' ? t('Fall back to the original model') : t('Error out directly')}
             </SelectValue></SelectTrigger>
             <SelectContent>
-              <SelectItem value='original'>{t('退回原模型')}</SelectItem>
-              <SelectItem value='error'>{t('直接报错')}</SelectItem>
+              <SelectItem value='original'>{t('Fall back to the original model')}</SelectItem>
+              <SelectItem value='error'>{t('Error out directly')}</SelectItem>
             </SelectContent>
           </Select>
         </DlgField>
@@ -516,32 +516,32 @@ export function TitleSpecialPanel({ editor }: { editor: SpecialEditor<TitleConfi
     rules: index < 0 ? [...current.rules, rule] : current.rules.map((item, at) => at === index ? rule : item),
   }))
   const blank: TitleRule = { enabled: true, clients: [], model: '', fallback: 'original' }
-  return <RulePanel title={t('标题生成')}
-    lede={t('只改写被识别为标题生成的小请求，普通对话不受影响。')}
+  return <RulePanel title={t('Title generation')}
+    lede={t('Only small requests recognised as title generation are rewritten; normal conversations are unaffected.')}
     enabled={Boolean(draft?.enabled)} onEnabled={next => editor.update(current => ({ ...current, enabled: next }))}
     busy={saving || loading} dirty={dirty} error={error} loading={loading}
     onReload={() => void editor.reload()} onSave={() => void editor.save()} onDiscard={editor.discard}>
     {draft ? <>
-      <RuleSection title={t('规则')} count={t('{n} 条', { n: rules.length })}
+      <RuleSection title={t('Rules')} count={t('{n} entries', { n: rules.length })}
         action={<Button variant='outline' size='sm' disabled={saving || !models.length}
           onClick={() => setEditing({ rule: blank, index: -1 })}>
-          <RouteIcon name='plus' size={13} />{t('添加规则')}
+          <RouteIcon name='plus' size={13} />{t('Add rule')}
         </Button>}>
         {rules.length ? rules.map((rule, index) => <RuleRow key={index} off={!rule.enabled}
           title={rule.clients.length
-            ? t('{clients} 的标题请求', { clients: rule.clients.map(clientLabel).join('、') })
-            : t('未选择客户端')}
+            ? t('Title request from {clients}', { clients: rule.clients.map(clientLabel).join(', ') })
+            : t('No client selected')}
           detail={<>
-            <span>{t('改用')}</span>
-            <span className='rp-row-target'>{rule.model || t('还没选标题模型')}</span>
+            <span>{t('Switch to')}</span>
+            <span className='rp-row-target'>{rule.model || t('No title model selected')}</span>
             <span>·</span>
-            <span>{rule.fallback === 'original' ? t('失败时退回原模型') : t('失败时直接报错')}</span>
+            <span>{rule.fallback === 'original' ? t('Fall back to the original model on failure') : t('Report the error on failure')}</span>
           </>}
-          side={rule.enabled ? null : t('已停用')}
+          side={rule.enabled ? null : t('Disabled')}
           onClick={() => setEditing({ rule, index })} />)
-          : <p className='rp-empty'>{t('还没有规则。标题请求会照常交给原模型。')}</p>}
+          : <p className='rp-empty'>{t('No rules yet. Title requests go to the original model as usual.')}</p>}
       </RuleSection>
-      {!models.length ? <p className='rp-note'>{t('没有可选的对话模型，请先启用模型和对应账号。')}</p> : null}
+      {!models.length ? <p className='rp-note'>{t('No chat models are available. Enable a model and its account first.')}</p> : null}
     </> : null}
     {editing ? <TitleRuleDialog key={editing.index} rule={editing.rule} models={models} clients={clients} saving={saving}
       onClose={() => setEditing(null)}

@@ -200,7 +200,7 @@ export function PullIndicator(props: {
   if (pull === 0 && !refreshing) return null
 
   const ready = pull >= threshold
-  const text = refreshing ? t('正在刷新…') : ready ? t('松开刷新') : t('下拉刷新')
+  const text = refreshing ? t('Refreshing…') : ready ? t('Release to refresh') : t('Pull to refresh')
   // 未触发刷新时让图标跟着下拉角度转，到位后交给 .m-ptr-spin 匀速转
   const tilt = refreshing
     ? undefined

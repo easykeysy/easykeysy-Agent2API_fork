@@ -64,25 +64,25 @@ pub(super) fn fold_sources(day: &mut DailyEntry, item: &RequestEntry) {
 
 pub(super) fn client_label(client: &str) -> &str {
     match client {
-        "" => "未记录客户端",
-        "other" => "其它",
-        "model_test" => "模型测试",
-        "assistant" => "AI 助手",
-        "assistant_images" => "助手图片工具",
-        "assistant_title" => "助手标题总结",
-        "checkin_keepalive" => "日活保活",
-        "image-generation" => "图片生成 MCP",
+        "" => "Unrecorded client",
+        "other" => "Other",
+        "model_test" => "Model test",
+        "assistant" => "AI Assistant",
+        "assistant_images" => "Assistant image tools",
+        "assistant_title" => "Assistant title summary",
+        "checkin_keepalive" => "Daily activity keepalive",
+        "image-generation" => "Image generation MCP",
         _ => client,
     }
 }
 
 pub(super) fn key_label(identity: &ApiKeyIdentity) -> String {
     match identity.source.as_str() {
-        "none" => "免鉴权调用".to_string(),
-        "env" => "环境变量 Key".to_string(),
+        "none" => "Unauthenticated calls".to_string(),
+        "env" => "Environment variable key".to_string(),
         "key" if !identity.name.is_empty() => identity.name.clone(),
         "key" => identity.id.clone(),
-        _ => "历史未记录 Key".to_string(),
+        _ => "Key not recorded in history".to_string(),
     }
 }
 
@@ -193,7 +193,7 @@ fn model_rows(models: &[ModelAccum]) -> Vec<Value> {
     let mut rows: Vec<_> = models.iter().filter(|item| item.requests > 0 || item.tokens > 0).collect();
     rows.sort_by(|left, right| right.tokens.cmp(&left.tokens).then(right.requests.cmp(&left.requests)).then(left.model.cmp(&right.model)));
     rows.into_iter().map(|item| json!({
-        "model": item.model, "label": if item.model.is_empty() { "未知模型" } else { &item.model },
+        "model": item.model, "label": if item.model.is_empty() { "Unknown model" } else { &item.model },
         "requests": item.requests, "totalTokens": item.tokens,
     })).collect()
 }
@@ -225,7 +225,7 @@ pub(super) fn day_usage(day: &DailyEntry) -> UsageAccum {
 pub(super) fn all_model_rows(models: &[ModelAccum]) -> Vec<Value> {
     let mut rows = model_breakdown_json(models);
     for item in models.iter().filter(|item| item.requests > 0 && item.tokens == 0) {
-        rows.push(json!({ "model": item.model, "label": if item.model.is_empty() { "未知模型" } else { &item.model }, "tokens": 0, "requests": item.requests }));
+        rows.push(json!({ "model": item.model, "label": if item.model.is_empty() { "Unknown model" } else { &item.model }, "tokens": 0, "requests": item.requests }));
     }
     rows
 }

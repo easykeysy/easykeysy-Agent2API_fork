@@ -53,7 +53,7 @@ export class ApiError extends Error {
 export function url(path: string): string {
   if (!isPackaged()) return path
   const base = apiBase()
-  if (!base) throw new ApiError('还没有配置服务器地址', 0)
+  if (!base) throw new ApiError('No server address has been configured yet', 0)
   return `${base}${path}`
 }
 
@@ -137,7 +137,7 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
 const refreshInFlight = new Map<string, Promise<boolean>>()
 
 function requireCurrentServer(identity: string): void {
-  if (serverIdentity() !== identity) throw new DOMException('服务器已切换', 'AbortError')
+  if (serverIdentity() !== identity) throw new DOMException('The server has switched', 'AbortError')
 }
 
 /**
@@ -233,7 +233,7 @@ export function apiCall<T = unknown>(path: string, init: RequestInitLite = {}): 
 
 async function requestApi<T>(path: string, init: RequestInitLite, identity: string, retry: boolean): Promise<T> {
   requireCurrentServer(identity)
-  if (init.signal?.aborted) throw new DOMException('请求已取消', 'AbortError')
+  if (init.signal?.aborted) throw new DOMException('Request cancelled', 'AbortError')
   await ensureFreshSession()
   requireCurrentServer(identity)
   const method = init.method || 'GET'

@@ -194,7 +194,7 @@ pub fn mark_attempt(account_id: &str) {
         .is_err()
     });
     if failed != Some(false) {
-        logging::verbose("[Usage]", &format!("账号 {account_id} 余额查询占位失败（库里没记上本次尝试）"));
+        logging::verbose("[Usage]", &format!("Account {account_id} 余额查询占位失败（库里没记上本次尝试）"));
     }
 }
 
@@ -234,7 +234,7 @@ pub fn write_result(account_id: &str, outcome: &UsageOutcome, query_config: &str
                 Some((true, remaining))
             }
             None => {
-                let error = outcome.error.clone().unwrap_or_else(|| "查询失败".to_string());
+                let error = outcome.error.clone().unwrap_or_else(|| "Query failed".to_string());
                 conn.execute(
                     "INSERT INTO account_usage_records
                        (account_id, error, code, last_attempt_at, updated_at, query_request_id)
@@ -517,7 +517,7 @@ fn migrate_legacy_snapshot() {
                     let error = row
                         .get("error")
                         .and_then(Value::as_str)
-                        .unwrap_or("查询失败")
+                        .unwrap_or("Query failed")
                         .to_string();
                     let code = row.get("code").and_then(Value::as_str);
                     conn.execute(

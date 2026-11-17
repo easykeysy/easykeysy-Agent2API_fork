@@ -50,12 +50,12 @@ export function AccountProxySection({ draft, onChange, idPrefix, disabled = fals
   disabled?: boolean
   onSystemImportBusy?: (busy: boolean) => void
 }) {
-  return <AddGroup label={t('账号 / 登录出网代理')}>
+  return <AddGroup label={t('Account / sign-in outbound proxy')}>
     <div inert={disabled}>
       <ProxyForm draft={draft} onChange={onChange} idPrefix={idPrefix}
         allowSystemImport onSystemImportBusy={onSystemImportBusy} />
     </div>
-    <p className='detail'>{t('所选代理会保存到账号设置，后续请求继续使用。')}</p>
+    <p className='detail'>{t('The selected proxy will be saved in account settings and used for subsequent requests.')}</p>
   </AddGroup>
 }
 

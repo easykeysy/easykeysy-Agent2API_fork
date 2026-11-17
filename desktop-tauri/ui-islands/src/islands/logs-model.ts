@@ -14,18 +14,18 @@ const CUSTOM_RANGE_KEY = 'workbuddy-desktop-logs-custom-range'
 const VIEW_KEY = 'workbuddy-desktop-logs-view'
 const AGGREGATE_KEY = 'workbuddy-desktop-logs-aggregate'
 export const RANGE_OPTIONS = [
-  { value: 'today', label: t('今天') }, { value: 'yesterday', label: t('昨天') }, { value: '7', label: t('7 天') },
-  { value: '30', label: t('30 天') }, { value: 'month', label: t('本月') }, { value: 'all', label: t('全部') },
-  { value: 'custom', label: t('自定义') },
+  { value: 'today', label: t('Today') }, { value: 'yesterday', label: t('Yesterday') }, { value: '7', label: t('7 days') },
+  { value: '30', label: t('30 days') }, { value: 'month', label: t('This month') }, { value: 'all', label: t('All') },
+  { value: 'custom', label: t('Custom') },
 ]
 export const VIEW_OPTIONS = [
-  { value: 'important' as LogView, label: t('重要事件') },
-  { value: 'all' as LogView, label: t('全部事件') },
-  { value: 'debug' as LogView, label: t('调试详情') },
+  { value: 'important' as LogView, label: t('Important events') },
+  { value: 'all' as LogView, label: t('All events') },
+  { value: 'debug' as LogView, label: t('Debug details') },
 ]
 export const LEVEL_OPTIONS = [
-  { value: '', label: t('全部级别') }, { value: 'info', label: t('信息及以上') },
-  { value: 'warn', label: t('警告及以上') }, { value: 'error', label: t('仅错误') },
+  { value: '', label: t('All levels') }, { value: 'info', label: t('Info and above') },
+  { value: 'warn', label: t('Warnings and errors') }, { value: 'error', label: t('Errors only') },
 ]
 
 type Shared = {

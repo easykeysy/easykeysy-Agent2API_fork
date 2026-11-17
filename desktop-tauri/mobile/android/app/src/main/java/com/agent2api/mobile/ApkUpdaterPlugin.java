@@ -84,20 +84,20 @@ public class ApkUpdaterPlugin extends Plugin {
         String hash = call.getString("sha256", "");
         String scope = call.getString("scope", "");
         if (values == null || values.length() == 0 || values.length() > 7) {
-            call.reject("下载源数量无效");
+            call.reject("The number of download sources is invalid");
             return;
         }
         if (hash == null || (!hash.isEmpty() && !hash.matches("[0-9a-fA-F]{64}"))) {
-            call.reject("官方校验值格式无效");
+            call.reject("The official verification value is malformed");
             return;
         }
         List<String> urls = new ArrayList<>();
         for (int index = 0; index < values.length(); index++) {
             String value = values.optString(index, "");
-            if (value.isEmpty() || value.length() > 8192) { call.reject("下载源地址无效"); return; }
+            if (value.isEmpty() || value.length() > 8192) { call.reject("The download source address is invalid"); return; }
             urls.add(value);
         }
-        if (!operationActive.compareAndSet(false, true)) { call.reject("下载或探测正在进行"); return; }
+        if (!operationActive.compareAndSet(false, true)) { call.reject("A download or probe is in progress"); return; }
         cancelled.set(false);
         final String expectedHash = hash;
         executor.execute(() -> {
@@ -106,10 +106,10 @@ public class ApkUpdaterPlugin extends Plugin {
             try {
                 result = selector.select(getContext(), urls, expectedHash, scope, cancelled);
             } catch (Exception error) {
-                failure = cancelled.get() ? "已取消下载" : error.getMessage();
+                failure = cancelled.get() ? "Download cancelled" : error.getMessage();
             } finally { operationActive.set(false); }
             if (result != null) call.resolve(result);
-            else call.reject(failure == null ? "探测下载源失败" : failure);
+            else call.reject(failure == null ? "Failed to probe the download source" : failure);
         });
     }
 
@@ -124,18 +124,18 @@ public class ApkUpdaterPlugin extends Plugin {
     public void download(PluginCall call) {
         String url = call.getString("url", "");
         if (url == null || url.isEmpty()) {
-            call.reject("缺少下载地址");
+            call.reject("Missing download address");
             return;
         }
         String expectedHash = call.getString("sha256", "");
         if (expectedHash == null) expectedHash = "";
         if (!expectedHash.isEmpty() && !expectedHash.matches("[0-9a-fA-F]{64}")) {
-            call.reject("官方校验值格式无效");
+            call.reject("The official verification value is malformed");
             return;
         }
         final String hash = expectedHash;
         final long expectedSize = call.getData().optLong("size", 0);
-        if (!operationActive.compareAndSet(false, true)) { call.reject("下载或探测正在进行"); return; }
+        if (!operationActive.compareAndSet(false, true)) { call.reject("A download or probe is in progress"); return; }
         cancelled.set(false);
 
         executor.execute(() -> {
@@ -146,23 +146,23 @@ public class ApkUpdaterPlugin extends Plugin {
             String failure = null;
             try {
                 File file = partialFile();
-                if (file.exists() && !file.delete()) throw new Exception("无法清理上次下载的临时文件");
+                if (file.exists() && !file.delete()) throw new Exception("Could not clean up the temporary files from the last download");
                 File old = targetFile();
-                if (old.exists() && !old.delete()) throw new Exception("无法清理上次下载的安装包");
-                if (cancelled.get()) throw new Exception("已取消下载");
+                if (old.exists() && !old.delete()) throw new Exception("Could not clean up the install package from the last download");
+                if (cancelled.get()) throw new Exception("Download cancelled");
 
                 connection = ApkUpdateConnection.open(url, hash, SystemClock.elapsedRealtime() + 12_000, false, cancelled, connections);
                 int status = connection.getResponseCode();
                 if (ApkUpdateConnection.rateLimited(connection, url)) {
-                    throw new Exception("下载源限流中，请稍后重试");
+                    throw new Exception("The download source is rate-limited; please retry later");
                 }
                 if (status != HttpURLConnection.HTTP_OK) {
-                    throw new Exception("服务器返回 HTTP " + status);
+                    throw new Exception("The server returned HTTP" + status);
                 }
 
                 long declared = connection.getContentLengthLong();
                 long total = expectedSize > 0 ? expectedSize : declared;
-                if (total > MAX_BYTES || declared > MAX_BYTES) throw new Exception("安装包超过体积上限");
+                if (total > MAX_BYTES || declared > MAX_BYTES) throw new Exception("The install package exceeds the size limit");
                 input = connection.getInputStream();
                 output = new FileOutputStream(file);
                 MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -172,9 +172,9 @@ public class ApkUpdaterPlugin extends Plugin {
                 emitProgress(0, total);
                 int read;
                 while ((read = input.read(buffer)) != -1) {
-                    if (cancelled.get()) throw new Exception("已取消下载");
+                    if (cancelled.get()) throw new Exception("Download cancelled");
                     received += read;
-                    if (received > MAX_BYTES) throw new Exception("安装包超过体积上限");
+                    if (received > MAX_BYTES) throw new Exception("The install package exceeds the size limit");
                     output.write(buffer, 0, read);
                     digest.update(buffer, 0, read);
                     long now = System.currentTimeMillis();
@@ -188,10 +188,10 @@ public class ApkUpdaterPlugin extends Plugin {
                 output = null;
                 input.close();
                 input = null;
-                if (cancelled.get()) throw new Exception("已取消下载");
+                if (cancelled.get()) throw new Exception("Download cancelled");
                 if (received == 0 || (declared > 0 && received != declared)
                     || (expectedSize > 0 && received != expectedSize)) {
-                    throw new Exception("安装包不完整，已拒绝使用");
+                    throw new Exception("The install package is incomplete; use refused");
                 }
                 if (!hash.isEmpty()) {
                     StringBuilder actual = new StringBuilder();
@@ -199,18 +199,18 @@ public class ApkUpdaterPlugin extends Plugin {
                         actual.append(String.format(java.util.Locale.ROOT, "%02x", value & 0xff));
                     }
                     if (!hash.equalsIgnoreCase(actual.toString())) {
-                        throw new Exception("安装包 SHA-256 与 GitHub 官方校验值不一致，已拒绝使用");
+                        throw new Exception("installer SHA-256 and GitHub The official verification value does not match; use refused");
                     }
                 }
                 File target = targetFile();
-                if (!file.renameTo(target)) throw new Exception("无法保存校验后的安装包");
+                if (!file.renameTo(target)) throw new Exception("Could not save the verified install package");
                 emitProgress(received, total);
                 result = new JSObject();
                 result.put("path", target.getAbsolutePath());
                 result.put("size", received);
             } catch (Exception error) {
                 selector.forget(url);
-                failure = cancelled.get() ? "已取消下载" : "下载失败：" + error.getMessage();
+                failure = cancelled.get() ? "Download cancelled" : "Download failed:" + error.getMessage();
             } finally {
                 try { if (input != null) input.close(); } catch (Exception ignored) { }
                 try { if (output != null) output.close(); } catch (Exception ignored) { }
@@ -220,7 +220,7 @@ public class ApkUpdaterPlugin extends Plugin {
             }
             if (failure != null) call.reject(failure);
             else if (result != null) call.resolve(result);
-            else call.reject("下载失败");
+            else call.reject("Download failed");
         });
     }
 
@@ -281,7 +281,7 @@ public class ApkUpdaterPlugin extends Plugin {
     public void install(PluginCall call) {
         File file = targetFile();
         if (!file.exists()) {
-            call.reject("安装包不存在，请先下载");
+            call.reject("The install package does not exist; please download it first");
             return;
         }
         try {
@@ -297,7 +297,7 @@ public class ApkUpdaterPlugin extends Plugin {
             getContext().startActivity(intent);
             call.resolve();
         } catch (Exception error) {
-            call.reject("无法启动安装器：" + error.getMessage());
+            call.reject("Could not start the installer:" + error.getMessage());
         }
     }
 

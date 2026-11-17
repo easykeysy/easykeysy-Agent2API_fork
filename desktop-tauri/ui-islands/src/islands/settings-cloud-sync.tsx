@@ -81,9 +81,9 @@ export function CloudSyncPanel() {
       setBusy(current => current ?? 'load')
       try {
         const api = shared().workbuddyDesktop
-        if (!api?.getCloudSync) throw new Error(t('后端桥不可用'))
+        if (!api?.getCloudSync) throw new Error(t('Backend bridge unavailable'))
         const data = (await api.getCloudSync()) as CloudSyncView | null | undefined
-        if (!data || !data.webdav || !data.s3) throw new Error(t('配置响应不完整'))
+        if (!data || !data.webdav || !data.s3) throw new Error(t('Incomplete config response'))
         setLoadError('')
         setView(data)
         if (!silent || !dirtyRef.current) {
@@ -101,7 +101,7 @@ export function CloudSyncPanel() {
       } catch (error) {
         const message = errorMessage(error)
         setLoadError(message)
-        if (!silent) toast(t('读取云同步设置失败：{message}', { message }), 'err')
+        if (!silent) toast(t('Failed to read cloud sync settings: {message}', { message }), 'err')
       } finally {
         setBusy(null)
       }
@@ -139,9 +139,9 @@ export function CloudSyncPanel() {
     setBusy('test')
     try {
       const result = (await bridge.testCloudSync(payloadOf(form))) as { remotePath?: string } | null
-      toast(t('✅ 连接成功：{path}', { path: result?.remotePath || '' }))
+      toast(t('✅ Connected: {path}', { path: result?.remotePath || '' }))
     } catch (error) {
-      toast(t('连接失败：{message}', { message: errorMessage(error) }), 'err')
+      toast(t('Connection failed: {message}', { message: errorMessage(error) }), 'err')
     } finally {
       setBusy(null)
     }
@@ -157,9 +157,9 @@ export function CloudSyncPanel() {
         setForm(formFromView(data))
       }
       setDirty(false)
-      toast(t('✅ 云同步设置已保存'))
+      toast(t('✅ Cloud sync settings saved'))
     } catch (error) {
-      toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+      toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
       return
     } finally {
       setBusy(null)
@@ -174,7 +174,7 @@ export function CloudSyncPanel() {
     try {
       return (await bridge.getCloudSyncRemote()) as RemoteInfo
     } catch (error) {
-      toast(t('读取远端信息失败：{message}', { message: errorMessage(error) }), 'err')
+      toast(t('Failed to read remote info: {message}', { message: errorMessage(error) }), 'err')
       return null
     } finally {
       setBusy(null)
@@ -183,7 +183,7 @@ export function CloudSyncPanel() {
 
   const beginUpload = async () => {
     if (dirty) {
-      toast(t('请先保存设置再同步'), 'err')
+      toast(t('Save the settings before syncing'), 'err')
       return
     }
     const info = await fetchRemote()
@@ -198,10 +198,10 @@ export function CloudSyncPanel() {
     setBusy('upload')
     try {
       const result = (await bridge.cloudSyncUpload()) as { bytes?: number; rows?: Record<string, number> } | null
-      toast(t('✅ 已上传到云端（{size}）', { size: `${Math.round((Number(result?.bytes) || 0) / 1024)} KB` }))
+      toast(t('✅ Uploaded to the cloud ({size})', { size: `${Math.round((Number(result?.bytes) || 0) / 1024)} KB` }))
       await load()
     } catch (error) {
-      toast(t('上传失败：{message}', { message: errorMessage(error) }), 'err')
+      toast(t('Upload failed: {message}', { message: errorMessage(error) }), 'err')
     } finally {
       setBusy(null)
     }
@@ -209,17 +209,17 @@ export function CloudSyncPanel() {
 
   const beginDownload = async () => {
     if (dirty) {
-      toast(t('请先保存设置再同步'), 'err')
+      toast(t('Save the settings before syncing'), 'err')
       return
     }
     const info = await fetchRemote()
     if (!info) return
     if (info.empty) {
-      toast(t('远端还没有可下载的同步数据'))
+      toast(t('No sync data available to download on the remote'))
       return
     }
     if (info.compatible === false) {
-      toast(info.incompatibleReason || t('远端数据与当前版本不兼容'), 'err')
+      toast(info.incompatibleReason || t('Remote data is incompatible with this version'), 'err')
       return
     }
     setRemote(info)
@@ -228,7 +228,7 @@ export function CloudSyncPanel() {
       // 这时输入密码也解不出来，直接说清楚，别让用户白输一次
       if (info.hasKeyArtifact === false) {
         toast(
-          t('远端快照使用了另一把账号密钥，但没有携带密钥文件，无法在本机解密。请在原来那台机器上重新上传一次。'),
+          t('The remote snapshot uses a different account key but does not include the key file, so it cannot be decrypted here. Re-upload once from the original machine.'),
           'err'
         )
         return
@@ -247,14 +247,14 @@ export function CloudSyncPanel() {
     try {
       const result = (await bridge.cloudSyncDownload()) as { deviceName?: string; safetyBackup?: string } | null
       const note = result?.safetyBackup
-        ? t('，替换前的数据已备份为 {name}', { name: result.safetyBackup })
+        ? t(', the pre-replace data was backed up as {name}', { name: result.safetyBackup })
         : ''
-      toast(t('✅ 已从云端恢复{note}', { note }))
+      toast(t('✅ Restored from the cloud{note}', { note }))
       await load()
       // 账号、配置、签到 / 余额记录都换了 —— 主界面（账号列表、导航计数）要重绘
       await shared().wbApp?.refresh?.()
     } catch (error) {
-      toast(t('下载失败：{message}', { message: errorMessage(error) }), 'err')
+      toast(t('Download failed: {message}', { message: errorMessage(error) }), 'err')
     } finally {
       setBusy(null)
     }
@@ -263,14 +263,14 @@ export function CloudSyncPanel() {
   const importKey = async () => {
     if (!bridge?.importCloudSyncKey) return
     if (!keyPassword) {
-      toast(t('请输入同步密码'), 'err')
+      toast(t('Enter the sync password'), 'err')
       return
     }
     setBusy('key')
     try {
       await bridge.importCloudSyncKey(keyPassword)
       setKeyPassword('')
-      toast(t('✅ 已导入账号密钥，请继续下载'))
+      toast(t('✅ Account key imported; continue with the download'))
       const info = await fetchRemote()
       setDialog(null)
       if (info && !info.empty) {
@@ -278,7 +278,7 @@ export function CloudSyncPanel() {
         setDialog('download')
       }
     } catch (error) {
-      toast(t('导入密钥失败：{message}', { message: errorMessage(error) }), 'err')
+      toast(t('Key import failed: {message}', { message: errorMessage(error) }), 'err')
     } finally {
       setBusy(null)
     }
@@ -294,41 +294,41 @@ export function CloudSyncPanel() {
     <>
       <Card render={<section />} className='panel'>
         <CardHeader className='panel-head'>
-          <h2>{t('云同步')}</h2>
+          <h2>{t('Cloud sync')}</h2>
           <span
             className='tip-q'
             data-tip={t(
-              '把账号、网关配置、自定义提供商、Agent 配置、代理池 / 订阅、签到与余额记录同步到 WebDAV 或 S3 兼容存储，换台机器后一键取回。事件日志、请求明细、调试报文与面板登录态不在同步范围内（它们是本机的运行痕迹）。上传的账号凭证仍是加密形态，解密用的账号密钥由「同步密码」单独加密后一并上传 —— 同步密码不会保存到云端，换机下载时需要重新输入。'
+              'Sync accounts, gateway configuration, custom providers, Agent profiles, proxy pool / subscriptions, and check-in and balance records to WebDAV or S3-compatible storage, then pull them back on another machine in one click. Event logs, request details, debug payloads and panel login state are out of scope (they are this machine\'s runtime traces). Uploaded account credentials stay encrypted; the account key that decrypts them is itself encrypted with the sync password and uploaded alongside — the sync password is never stored in the cloud, so you must re-enter it when restoring on another machine.'
             )}
           ></span>
           <Badge variant={loadError ? 'destructive' : view?.enabled ? 'success' : 'outline'}>
-            {!view && busy === 'load' ? t('正在加载…') : loadError ? t('不可用') : view?.enabled ? t('已启用') : t('未启用')}
+            {!view && busy === 'load' ? t('Loading…') : loadError ? t('Unavailable') : view?.enabled ? t('Enabled') : t('Disabled')}
           </Badge>
           <div className='head-actions'>
             <Button variant='outline' disabled={disabled} onClick={() => void load(true)}>
-              {t('刷新')}
+              {t('Refresh')}
             </Button>
           </div>
         </CardHeader>
         <CardContent className='panel-body'>
           {loadError ? (
             <div className='hint' role='status'>
-              {t('未能读取云同步设置，请稍后重试。')}<br />{loadError}
+              {t('Could not read cloud sync settings. Please try again later.')}<br />{loadError}
             </div>
           ) : (
             <>
               <div className='retention-list'>
                 <div className='retention-row'>
-                  <Label>{t('服务商')}</Label>
+                  <Label>{t('Provider')}</Label>
                   <div className='routing-row'>
                     <SegmentedControl
                       options={[
                         { value: PROVIDER_WEBDAV, label: 'WebDAV' },
-                        { value: PROVIDER_S3, label: t('S3 兼容存储') },
+                        { value: PROVIDER_S3, label: t('S3-compatible storage') },
                       ]}
                       value={form.provider}
                       disabled={disabled}
-                      aria-label={t('服务商')}
+                      aria-label={t('Provider')}
                       onValueChange={value => patch({ provider: String(value) })}
                     />
                   </div>
@@ -337,7 +337,7 @@ export function CloudSyncPanel() {
                 {isWebDav ? (
                   <>
                     <div className='retention-row'>
-                      <Label>{t('预设')}</Label>
+                      <Label>{t('Preset')}</Label>
                       <div className='routing-row'>
                         <Select
                           value={webdavPreset?.id || 'custom'}
@@ -348,7 +348,7 @@ export function CloudSyncPanel() {
                           }}
                         >
                           <SelectTrigger className='min-w-[220px]'>
-                            <SelectValue>{webdavPreset?.label || t('自定义')}</SelectValue>
+                            <SelectValue>{webdavPreset?.label || t('Custom')}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {WEBDAV_PRESETS.map(item => (
@@ -361,7 +361,7 @@ export function CloudSyncPanel() {
                       </div>
                     </div>
                     <div className='retention-row'>
-                      <Label htmlFor='cloud-webdav-url'>{t('服务器地址')}</Label>
+                      <Label htmlFor='cloud-webdav-url'>{t('Server URL')}</Label>
                       <Input
                         id='cloud-webdav-url'
                         value={form.webdavBaseUrl}
@@ -371,7 +371,7 @@ export function CloudSyncPanel() {
                       />
                     </div>
                     <div className='retention-row'>
-                      <Label htmlFor='cloud-webdav-user'>{t('用户名')}</Label>
+                      <Label htmlFor='cloud-webdav-user'>{t('Username')}</Label>
                       <Input
                         id='cloud-webdav-user'
                         value={form.webdavUsername}
@@ -381,30 +381,30 @@ export function CloudSyncPanel() {
                       />
                     </div>
                     <div className='retention-row'>
-                      <Label htmlFor='cloud-webdav-password'>{t('密码')}</Label>
+                      <Label htmlFor='cloud-webdav-password'>{t('Password')}</Label>
                       <Input
                         id='cloud-webdav-password'
                         type='password'
                         value={form.webdavPassword}
                         disabled={disabled}
                         autoComplete='off'
-                        placeholder={view?.webdav.hasPassword ? t('已保存，留空沿用') : t('第三方应用密码')}
+                        placeholder={view?.webdav.hasPassword ? t('Saved; leave blank to keep') : t('App-specific password')}
                         onChange={event => patch({ webdavPassword: event.target.value })}
                       />
                     </div>
                     <div className='retention-row'>
-                      <Label htmlFor='cloud-webdav-ua'>{t('自定义 User-Agent')}</Label>
+                      <Label htmlFor='cloud-webdav-ua'>{t('Custom User-Agent')}</Label>
                       <Input
                         id='cloud-webdav-ua'
                         value={form.webdavUserAgent}
                         disabled={disabled}
                         autoComplete='off'
-                        placeholder={t('留空使用默认')}
+                        placeholder={t('Leave blank to use the default')}
                         onChange={event => patch({ webdavUserAgent: event.target.value })}
                       />
                       <div className='hint'>
                         {t(
-                          '可选。部分服务（如中国科技云数据胶囊）会按 User-Agent 校验凭据绑定的客户端类型，此时填写包含该类型名的字符串（例如 rclone/v1.67.0）。留空则维持默认。'
+                          'Optional. Some services (such as CSTCloud Data Capsule) validate the credential\'s bound client type via the User-Agent; if so, enter a string containing that type name (for example rclone/v1.67.0). Leave blank to keep the default.'
                         )}
                       </div>
                     </div>
@@ -413,7 +413,7 @@ export function CloudSyncPanel() {
                 ) : (
                   <>
                     <div className='retention-row'>
-                      <Label>{t('预设')}</Label>
+                      <Label>{t('Preset')}</Label>
                       <div className='routing-row'>
                         <Select
                           value={s3Preset.id}
@@ -437,7 +437,7 @@ export function CloudSyncPanel() {
                       </div>
                     </div>
                     <div className='retention-row'>
-                      <Label htmlFor='cloud-s3-region'>{t('区域（Region）')}</Label>
+                      <Label htmlFor='cloud-s3-region'>{t('Region')}</Label>
                       <Input
                         id='cloud-s3-region'
                         value={form.s3Region}
@@ -447,7 +447,7 @@ export function CloudSyncPanel() {
                       />
                     </div>
                     <div className='retention-row'>
-                      <Label htmlFor='cloud-s3-bucket'>{t('存储桶（Bucket）')}</Label>
+                      <Label htmlFor='cloud-s3-bucket'>{t('Bucket')}</Label>
                       <Input
                         id='cloud-s3-bucket'
                         value={form.s3Bucket}
@@ -473,7 +473,7 @@ export function CloudSyncPanel() {
                         value={form.s3SecretAccessKey}
                         disabled={disabled}
                         autoComplete='off'
-                        placeholder={view?.s3.hasSecretKey ? t('已保存，留空沿用') : ''}
+                        placeholder={view?.s3.hasSecretKey ? t('Saved; leave blank to keep') : ''}
                         onChange={event => patch({ s3SecretAccessKey: event.target.value })}
                       />
                     </div>
@@ -483,23 +483,23 @@ export function CloudSyncPanel() {
                         id='cloud-s3-endpoint'
                         value={form.s3Endpoint}
                         disabled={disabled}
-                        placeholder={t('留空使用 AWS 官方地址')}
+                        placeholder={t('Leave blank to use the official AWS address')}
                         onChange={event => patch({ s3Endpoint: event.target.value })}
                       />
                     </div>
                     <div className='retention-row'>
-                      <Label htmlFor='cloud-s3-ua'>{t('自定义 User-Agent')}</Label>
+                      <Label htmlFor='cloud-s3-ua'>{t('Custom User-Agent')}</Label>
                       <Input
                         id='cloud-s3-ua'
                         value={form.s3UserAgent}
                         disabled={disabled}
                         autoComplete='off'
-                        placeholder={t('留空使用默认')}
+                        placeholder={t('Leave blank to use the default')}
                         onChange={event => patch({ s3UserAgent: event.target.value })}
                       />
                       <div className='hint'>
                         {t(
-                          '可选。部分服务（如中国科技云数据胶囊）会按 User-Agent 校验凭据绑定的客户端类型，此时填写包含该类型名的字符串（例如 rclone/v1.67.0）。留空则维持默认。'
+                          'Optional. Some services (such as CSTCloud Data Capsule) validate the credential\'s bound client type via the User-Agent; if so, enter a string containing that type name (for example rclone/v1.67.0). Leave blank to keep the default.'
                         )}
                       </div>
                     </div>
@@ -508,7 +508,7 @@ export function CloudSyncPanel() {
                 )}
 
                 <div className='retention-row'>
-                  <Label htmlFor='cloud-remote-root'>{t('远程根目录')}</Label>
+                  <Label htmlFor='cloud-remote-root'>{t('Remote root directory')}</Label>
                   <Input
                     id='cloud-remote-root'
                     value={form.remoteRoot}
@@ -518,7 +518,7 @@ export function CloudSyncPanel() {
                   />
                 </div>
                 <div className='retention-row'>
-                  <Label htmlFor='cloud-profile'>{t('档案')}</Label>
+                  <Label htmlFor='cloud-profile'>{t('Profile')}</Label>
                   <Input
                     id='cloud-profile'
                     value={form.profile}
@@ -528,24 +528,24 @@ export function CloudSyncPanel() {
                   />
                 </div>
                 <div className='retention-row'>
-                  <Label htmlFor='cloud-sync-password'>{t('同步密码')}</Label>
+                  <Label htmlFor='cloud-sync-password'>{t('Sync password')}</Label>
                   <Input
                     id='cloud-sync-password'
                     type='password'
                     value={form.syncPassword}
                     disabled={disabled}
                     autoComplete='new-password'
-                    placeholder={view?.hasSyncPassword ? t('已保存，留空沿用') : t('至少 8 位，换机下载时需要')}
+                    placeholder={view?.hasSyncPassword ? t('Saved; leave blank to keep') : t('At least 8 characters; needed when restoring on another machine')}
                     onChange={event => patch({ syncPassword: event.target.value })}
                   />
                   <div className='hint'>
                     {t(
-                      '用于加密上云的账号密钥。请自己记牢 —— 它不保存到云端，换机下载时必须输入同一个密码，否则账号数据无法解密。'
+                      'Used to encrypt the account key that goes to the cloud. Remember it — it is not stored in the cloud, and you must enter the same password when restoring on another machine, otherwise the account data cannot be decrypted.'
                     )}
                   </div>
                 </div>
                 <div className='retention-row'>
-                  <Label htmlFor='cloud-auto-sync'>{t('自动同步')}</Label>
+                  <Label htmlFor='cloud-auto-sync'>{t('Auto sync')}</Label>
                   <Switch
                     id='cloud-auto-sync'
                     checked={form.autoSync}
@@ -553,26 +553,26 @@ export function CloudSyncPanel() {
                     onCheckedChange={checked => patch({ autoSync: checked })}
                   />
                   <div className='hint'>
-                    {t('仅在账号、配置、签到或余额等实质内容变化时上传；导出时间或查询时间单独变化不会触发上传。')}
+                    {t('Upload only when account data, settings, check-in results or balances change. Changes to export or query timestamps alone do not trigger an upload.')}
                   </div>
                 </div>
                 <div className='retention-row'>
-                  <Label htmlFor='cloud-auto-sync-interval'>{t('最小自动上传间隔')}</Label>
+                  <Label htmlFor='cloud-auto-sync-interval'>{t('Minimum automatic upload interval')}</Label>
                   <Select value={String(form.autoSyncIntervalMinutes)} disabled={disabled || !form.autoSync || !form.enabled}
                     onValueChange={value => { if (value !== null) patch({ autoSyncIntervalMinutes: Number(value) }) }}>
                     <SelectTrigger id='cloud-auto-sync-interval' className='min-w-[220px]'>
-                      <SelectValue>{t('{minutes} 分钟', { minutes: form.autoSyncIntervalMinutes })}</SelectValue>
+                      <SelectValue>{t('{minutes} minutes', { minutes: form.autoSyncIntervalMinutes })}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {[...new Set([5, 15, 30, 60, form.autoSyncIntervalMinutes])].sort((a, b) => a - b).map(minutes => (
-                        <SelectItem key={minutes} value={String(minutes)}>{t('{minutes} 分钟', { minutes })}</SelectItem>
+                        <SelectItem key={minutes} value={String(minutes)}>{t('{minutes} minutes', { minutes })}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className='hint'>{t('默认 5 分钟。间隔内的变化合并为最新快照，到期后上传；手动上传不受限制。失败后会延长等待并自动重试。')}</div>
+                  <div className='hint'>{t('Defaults to 5 minutes. Changes during the interval are merged into the latest snapshot and uploaded when it is due. Manual uploads are not limited. Failed attempts are retried automatically with a longer delay.')}</div>
                 </div>
                 <div className='retention-row'>
-                  <Label htmlFor='cloud-enabled'>{t('启用云同步')}</Label>
+                  <Label htmlFor='cloud-enabled'>{t('Enable cloud sync')}</Label>
                   <Switch
                     id='cloud-enabled'
                     checked={form.enabled}
@@ -581,61 +581,61 @@ export function CloudSyncPanel() {
                       patch({ enabled: checked, autoSync: checked ? form.autoSync : false })
                     }
                   />
-                  <div className='hint'>{t('关闭后手动上传 / 下载也会被拒绝。')}</div>
+                  <div className='hint'>{t('When off, manual upload/download is rejected too.')}</div>
                 </div>
               </div>
 
               {dirty ? (
-                <div className='hint'>{t('有未保存的改动：保存后才能同步（测试连接不受影响）。')}</div>
+                <div className='hint'>{t('Unsaved changes: save first to sync (testing the connection is unaffected).')}</div>
               ) : null}
 
               <div className='head-actions mt-3 flex flex-wrap gap-2'>
                 <Button variant='outline' disabled={disabled} onClick={() => void test()}>
-                  {busy === 'test' ? t('测试中…') : t('测试连接')}
+                  {busy === 'test' ? t('Testing…') : t('Test connection')}
                 </Button>
                 <Button variant='outline' disabled={disabled || !dirty} onClick={() => void save()}>
-                  {busy === 'save' ? t('保存中…') : t('保存')}
+                  {busy === 'save' ? t('Saving…') : t('Save')}
                 </Button>
                 <Button
                   disabled={disabled || dirty || !view?.enabled}
                   onClick={() => void beginUpload()}
                 >
-                  {busy === 'upload' ? t('上传中…') : busy === 'remote' ? t('读取远端…') : t('上传到云端')}
+                  {busy === 'upload' ? t('Uploading…') : busy === 'remote' ? t('Reading remote…') : t('Upload to cloud')}
                 </Button>
                 <Button
                   variant='secondary'
                   disabled={disabled || dirty || !view?.enabled}
                   onClick={() => void beginDownload()}
                 >
-                  {busy === 'download' ? t('下载中…') : t('从云端恢复')}
+                  {busy === 'download' ? t('Downloading…') : t('Restore from cloud')}
                 </Button>
               </div>
 
               <div className='hint'>
                 {lastSync
-                  ? t('上次同步：{time}（{action}）', {
+                  ? t('Last sync: {time} ({action})', {
                       time: lastSync,
-                      action: status.lastAction === 'download' ? t('下载') : t('上传'),
+                      action: status.lastAction === 'download' ? t('Download') : t('Upload'),
                     })
-                  : t('还没有同步过。')}
-                {view?.remotePath ? ` ${t('远端路径：{path}', { path: view.remotePath })}` : ''}
+                  : t('Not synced yet.')}
+                {view?.remotePath ? ` ${t('Remote path: {path}', { path: view.remotePath })}` : ''}
               </div>
 
               {showAutoError ? (
                 <Alert variant='destructive' className='danger-zone' id='cloud-sync-auto-error'>
-                  <strong>{t('自动同步上次失败')}</strong>
+                  <strong>{t('Last auto sync failed')}</strong>
                   <br />
                   {status.lastError}
                   <br />
-                  {t('改动仍保存在本机，系统会延长等待并自动重试；修复网络或凭据后，也可以手动点「上传到云端」。')}
-                  {status.retryAt ? <div>{t('下次自动重试：{time}', { time: formatTime(status.retryAt) })}</div> : null}
+                  {t('Your changes remain saved locally. The system will retry automatically with a longer delay. After fixing the network or credentials, you can also select "Upload to cloud" manually.')}
+                  {status.retryAt ? <div>{t('Next automatic retry: {time}', { time: formatTime(status.retryAt) })}</div> : null}
                 </Alert>
               ) : null}
 
               <Alert variant='destructive' className='danger-zone'>
-                <strong>{t('上传内容含加密后的账号凭证与网关配置')}</strong>
+                <strong>{t('The upload contains encrypted account credentials and gateway configuration')}</strong>
                 {t(
-                  '，以及代理池 / 订阅里可能存在的代理凭据。请使用只有你能访问的私有存储；账号密钥由同步密码单独加密，泄露存储本身不等于泄露账号。'
+                  ', plus any proxy credentials that may exist in the proxy pool / subscriptions. Use private storage only you can access; the account key is encrypted separately with the sync password, so leaking the storage alone does not expose your accounts.'
                 )}
               </Alert>
             </>
@@ -647,35 +647,35 @@ export function CloudSyncPanel() {
       <Dialog open={dialog === 'upload'} onOpenChange={next => { if (!next) setDialog(null) }}>
         <DialogContent className='w-[min(460px,calc(100vw-48px))]'>
           <DialogHeader>
-            <DialogTitle>{t('上传到云端')}</DialogTitle>
+            <DialogTitle>{t('Upload to cloud')}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <div>
-              {t('本机的业务数据（账号、配置、Agent 配置、代理池 / 订阅、签到与余额记录）将上传并')}
-              <strong>{t('覆盖')}</strong>
-              {t('远端同一路径下的旧快照。事件日志、请求明细与调试报文不会上传。')}
+              {t('This machine\'s business data (accounts, configuration, Agent profiles, proxy pool / subscriptions, check-in and balance records) will be uploaded and')}
+              <strong>{t('overwrite')}</strong>
+              {t('the old snapshot at the same remote path. Event logs, request details and debug payloads are not uploaded.')}
             </div>
             <div className='hint mt-2'>
-              {t('目标路径：{path}', { path: view?.remotePath || '' })}
+              {t('Target path: {path}', { path: view?.remotePath || '' })}
             </div>
             {remote ? (
               <Alert variant='destructive' className='danger-zone mt-3'>
-                <strong>{t('远端已有一份快照，将被覆盖')}</strong>
+                <strong>{t('A snapshot already exists on the remote and will be overwritten')}</strong>
                 <br />
-                {t('来自 {device}，生成于 {time}', {
-                  device: remote.deviceName || t('未知设备'),
+                {t('From {device}, created at {time}', {
+                  device: remote.deviceName || t('Unknown device'),
                   time: formatDateText(remote.createdAt),
                 })}
               </Alert>
             ) : (
-              <div className='hint mt-3'>{t('远端该路径下还没有快照，本次是首次上传。')}</div>
+              <div className='hint mt-3'>{t('No snapshot exists at that remote path yet; this is the first upload.')}</div>
             )}
           </DialogBody>
           <DialogFooter>
             <Button variant='outline' onClick={() => setDialog(null)}>
-              {t('取消')}
+              {t('Cancel')}
             </Button>
-            <Button onClick={() => void confirmUpload()}>{t('确认上传')}</Button>
+            <Button onClick={() => void confirmUpload()}>{t('Confirm upload')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -684,27 +684,27 @@ export function CloudSyncPanel() {
       <Dialog open={dialog === 'download'} onOpenChange={next => { if (!next) setDialog(null) }}>
         <DialogContent className='w-[min(480px,calc(100vw-48px))]'>
           <DialogHeader>
-            <DialogTitle>{t('从云端恢复')}</DialogTitle>
+            <DialogTitle>{t('Restore from cloud')}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <Alert variant='destructive' className='danger-zone'>
-              {t('本机的账号、网关配置、Agent 配置、代理池 / 订阅、签到与余额记录将被远端快照')}
-              <strong>{t('整体替换')}</strong>
-              {t('。事件日志、请求明细、调试报文与面板登录态保持不变。替换前会自动把当前业务数据备份到配置目录的 backups/ 下。')}
+              {t('This machine\'s accounts, gateway configuration, Agent profiles, proxy pool / subscriptions, and check-in and balance records will be replaced by the remote snapshot')}
+              <strong>{t('wholesale-replaced')}</strong>
+              {t('. Event logs, request details, debug payloads and panel login state stay untouched. The current business data is backed up to backups/ under the config directory before replacing.')}
             </Alert>
             <div className='mt-3 text-[12.5px]'>
-              <div>{t('来源设备：{device}', { device: remote?.deviceName || t('未知设备') })}</div>
-              <div>{t('生成时间：{time}', { time: formatDateText(remote?.createdAt) })}</div>
-              <div>{t('应用版本：{version}', { version: remote?.appVersion || '—' })}</div>
-              <div>{t('包含：{items}', { items: (remote?.artifacts || []).join(', ') || '—' })}</div>
+              <div>{t('Source device: {device}', { device: remote?.deviceName || t('Unknown device') })}</div>
+              <div>{t('Created at: {time}', { time: formatDateText(remote?.createdAt) })}</div>
+              <div>{t('App version: {version}', { version: remote?.appVersion || '—' })}</div>
+              <div>{t('Includes: {items}', { items: (remote?.artifacts || []).join(', ') || '—' })}</div>
             </div>
           </DialogBody>
           <DialogFooter>
             <Button variant='outline' onClick={() => setDialog(null)}>
-              {t('取消')}
+              {t('Cancel')}
             </Button>
             <Button variant='destructive' onClick={() => void confirmDownload()}>
-              {t('替换并恢复')}
+              {t('Replace and restore')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -714,19 +714,19 @@ export function CloudSyncPanel() {
       <Dialog open={dialog === 'key'} onOpenChange={next => { if (!next) setDialog(null) }}>
         <DialogContent className='w-[min(440px,calc(100vw-48px))]'>
           <DialogHeader>
-            <DialogTitle>{t('输入同步密码')}</DialogTitle>
+            <DialogTitle>{t('Enter sync password')}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <div>
               {t(
-                '远端快照使用的账号密钥与本机不同。请输入上传那台机器设置的同步密码，用它解出密钥装到本机后再继续下载。'
+                'The remote snapshot uses a different account key than this machine. Enter the sync password set on the uploading machine to decrypt the key and install it here, then continue the download.'
               )}
             </div>
             <div className='hint mt-2'>
-              {t('导入前会把本机的 account.key 改名备份（account.key.bak-时间戳），不会直接删除。')}
+              {t('The local account.key is renamed to a backup (account.key.bak-<timestamp>) before importing; it is never deleted.')}
             </div>
             <Label htmlFor='cloud-sync-key-password' className='mt-3 mb-[5px] block text-[12.5px]'>
-              {t('同步密码')}
+              {t('Sync password')}
             </Label>
             <Input
               id='cloud-sync-key-password'
@@ -741,10 +741,10 @@ export function CloudSyncPanel() {
           </DialogBody>
           <DialogFooter>
             <Button variant='outline' onClick={() => setDialog(null)}>
-              {t('取消')}
+              {t('Cancel')}
             </Button>
             <Button disabled={busy === 'key'} onClick={() => void importKey()}>
-              {busy === 'key' ? t('导入中…') : t('导入密钥并继续')}
+              {busy === 'key' ? t('Importing…') : t('Import key and continue')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -58,7 +58,7 @@ export function useAssistantSessions(refs: SessionRefs) {
           return previous.map(item => item.id === id ? saved : item)
         })
       } catch (failure) {
-        toast(t('这条会话没能存进历史：{message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'err')
+        toast(t('This conversation could not be saved to history: {message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'err')
       }
     })
     return queueRef.current
@@ -107,7 +107,7 @@ export function useAssistantSessions(refs: SessionRefs) {
       if (refs.activeId.current === id) refs.title.current = saved.title
       setSessions(previous => previous.map(item => item.id === id ? saved : item))
     } catch (failure) {
-      toast(t('标题总结失败：{message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'warn')
+      toast(t('Title generation failed: {message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'warn')
     } finally { summarizingRef.current.delete(id) }
   }, [refs.activeId, refs.title])
 

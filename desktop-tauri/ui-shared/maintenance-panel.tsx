@@ -127,7 +127,7 @@ export function MaintenancePanel({ api, active = true, revision = 0, onAccount, 
       setQuery(initialQuery)
       currentQuery.current = initialQuery
       setSearch('')
-      notify?.(detail.status === 'running' ? t('维护已开始，结果会自动更新，可离开此页') : hasFailures(detail) ? t('维护已结束，有失败项，请查看明细') : t('维护已完成，结果已保存'), hasFailures(detail) ? 'err' : 'ok')
+      notify?.(detail.status === 'running' ? t('Maintenance started. Results will update automatically; you can leave this page.') : hasFailures(detail) ? t('Maintenance finished with failures. Review the details.') : t('Maintenance completed and results saved'), hasFailures(detail) ? 'err' : 'ok')
       await load(true)
       try { await onChanged?.() } catch { /* 执行结果已经保存，页面同步失败不重新执行维护。 */ }
     } catch (failure) {
@@ -157,17 +157,17 @@ export function MaintenancePanel({ api, active = true, revision = 0, onAccount, 
   return <div className='maintenance-page'>
     <div className='maintenance-heading'>
       <div>
-        <h2>{t('自动维护')}</h2>
-        <p>{t('查看凭证与模型目录的每次维护结果，失败和跳过都有原因')}</p>
+        <h2>{t('Automatic maintenance')}</h2>
+        <p>{t('Review every credential and model catalog maintenance run, with reasons for failures and skipped items')}</p>
       </div>
       <div className='maintenance-heading-actions'>
-        <Button variant='ghost' disabled={loading} onClick={() => void load()}>{loading ? <Spinner /> : null}{loading ? t('加载中…') : t('刷新记录')}</Button>
-        <Button variant='ghost' disabled={!overview?.tasks.length} onClick={() => setSettingsOpen(true)}>{t('维护设置')}</Button>
+        <Button variant='ghost' disabled={loading} onClick={() => void load()}>{loading ? <Spinner /> : null}{loading ? t('Loading…') : t('Refresh records')}</Button>
+        <Button variant='ghost' disabled={!overview?.tasks.length} onClick={() => setSettingsOpen(true)}>{t('Maintenance settings')}</Button>
       </div>
     </div>
 
     {error || actionError ? <Alert variant='destructive'>{actionError || error}</Alert> : null}
-    {!overview && loading ? <Empty><Spinner />{t('正在读取维护记录…')}</Empty> : null}
+    {!overview && loading ? <Empty><Spinner />{t('Loading maintenance records…')}</Empty> : null}
 
     {overview ? <>
       <MaintenanceSummary tasks={overview.tasks} latest={overview.latest} busy={busy} compact={compact}

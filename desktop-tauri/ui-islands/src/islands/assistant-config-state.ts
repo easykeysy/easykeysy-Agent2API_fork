@@ -34,7 +34,7 @@ export function useAssistantConfig() {
     }).catch(error => {
       if (!mountedRef.current || revision !== revisionRef.current) return
       setFailed(true)
-      setStatus(t('加载助手设置失败：{message}', { message: error instanceof Error ? error.message : String(error) }))
+      setStatus(t('Failed to load assistant settings: {message}', { message: error instanceof Error ? error.message : String(error) }))
       if (retryRef.current < 3) {
         retryRef.current += 1
         timerRef.current = setTimeout(() => {
@@ -61,7 +61,7 @@ export function useAssistantConfig() {
       } catch (error) {
         if (!mountedRef.current || revision !== revisionRef.current) return
         setFailed(true)
-        setStatus(t('保存失败：{message}', { message: error instanceof Error ? error.message : String(error) }))
+        setStatus(t('Save failed: {message}', { message: error instanceof Error ? error.message : String(error) }))
       }
     })
   }, [update])

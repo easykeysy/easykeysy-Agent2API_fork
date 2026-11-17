@@ -49,7 +49,7 @@ function clampMaxPackBytes(value: unknown): number {
 }
 
 function packSizeLimitMessage(maxPackBytes: number): string {
-  return t('插件包大小不能超过 {n} MiB', { n: maxPackBytes / MIB })
+  return t('Plugin package size cannot exceed {n} MiB.', { n: maxPackBytes / MIB })
 }
 
 async function readPackBase64(file: File, maxPackBytes: number): Promise<string> {
@@ -98,7 +98,7 @@ function PluginsPage(): React.ReactElement {
     const app = bridge().wbApp
     const [refreshed] = await Promise.all([app?.refresh?.(), app?.refreshPluginPages?.(result)])
     if (mounted.current) setSyncError(refreshed === true ? ''
-      : t('插件状态已变更，但账号列表同步失败。请回到账号页点击「刷新」重试。'))
+      : t('Plugin status changed, but the account list could not be synced. Return to Accounts and click "Refresh" to retry.'))
   }, [])
 
   const load = React.useCallback(async (): Promise<void> => {
@@ -129,7 +129,7 @@ function PluginsPage(): React.ReactElement {
           if (Date.now() - operation.updatedAt > 30_000) continue
           if (operation.error) toast(operation.error, 'err')
           else if (operation.hostError) toast(operation.hostError, 'err')
-          else if (operation.done) toast(t('插件包已安装到 v{version}', { version: operation.version }), 'ok')
+          else if (operation.done) toast(t('Plugin installed: v{version}', { version: operation.version }), 'ok')
         }
       } catch (cause) {
         if (mounted.current) setError(errorMessage(cause))
@@ -170,7 +170,7 @@ function PluginsPage(): React.ReactElement {
         api('GET', '/api/plugins/scripts/check').catch(() => undefined),
       ])
       await load()
-      if (result.error) toast(result.reason || t('检查更新失败'), 'err')
+      if (result.error) toast(result.reason || t('Failed to check for updates'), 'err')
     })
   }
 
@@ -178,7 +178,7 @@ function PluginsPage(): React.ReactElement {
     await run('refresh', async () => {
       const result = await api<ReleaseState>('GET', '/api/plugins/release')
       await load()
-      if (result.error) toast(result.reason || t('检查更新失败'), 'err')
+      if (result.error) toast(result.reason || t('Failed to check for updates'), 'err')
     })
   }
 
@@ -227,13 +227,13 @@ function PluginsPage(): React.ReactElement {
             if (!mounted.current) return
             const progress = await api<{ operations: PluginOperation[] }>('GET', '/api/plugins/progress')
             const next = progress.operations.find(item => item.id === id)
-            if (!next) throw new Error(t('无法读取插件更新进度，请刷新后查看结果。'))
+            if (!next) throw new Error(t('Could not read plugin update progress. Refresh to view the result.'))
             operation = next
             remember()
           }
           if (!mounted.current) return
           if (!operation.done || operation.error || operation.hostError) {
-            throw new Error(operation.error || operation.hostError || t('插件更新未完成'))
+            throw new Error(operation.error || operation.hostError || t('Plugin update did not complete'))
           }
         } catch (cause) {
           failures.push(`${pluginName(id, payload?.packs.find(pack => pack.id === id)?.name)}：${errorMessage(cause instanceof Error ? cause.message : cause)}`)
@@ -265,9 +265,9 @@ function PluginsPage(): React.ReactElement {
       }
       const done = total - failures.length
       if (failures.length) {
-        toast(t('已更新 {done} 个插件，{failed} 个失败：{error}', { done, failed: failures.length, error: failures.join('；') }), 'err')
+        toast(t('Updated {done} plugins, {failed} failed: {error}', { done, failed: failures.length, error: failures.join('; ') }), 'err')
       } else {
-        toast(t('已更新 {count} 个插件', { count: done }), 'ok')
+        toast(t('Updated {count} plugins', { count: done }), 'ok')
       }
     } finally {
       if (mounted.current) { setBusy(''); setBulk(null); await load() }
@@ -285,7 +285,7 @@ function PluginsPage(): React.ReactElement {
     await run('file', async () => {
       const packB64 = await readPackBase64(file, maxPackBytes)
       await accept(await api<PluginMutation>('POST', '/api/plugins/install', { packB64 }))
-      toast(t('插件包已安装'), 'ok')
+      toast(t('Plugin pack installed'), 'ok')
     })
   }
 
@@ -367,14 +367,14 @@ function PluginsPage(): React.ReactElement {
       <div className='flex shrink-0 flex-col gap-6'>
       <PageHeader className='flex-wrap items-end gap-x-6 gap-y-3'>
         <div className='min-w-0 flex-1'>
-          <PageTitle className='text-[26px] font-bold tracking-[-0.022em]'>{t('插件')}</PageTitle>
+          <PageTitle className='text-[26px] font-bold tracking-[-0.022em]'>{t('Plugins')}</PageTitle>
           <PageDescription className='mt-1.5 max-w-[52em] leading-relaxed'>
-            {t('按需安装插件，为 AI 路由网关扩展提供商能力。插件独立于主程序更新，下载完成后自动校验并安装。')}
+            {t('Install optional plugins to extend your AI routing gateway. Plugins update independently of the application and are verified and installed automatically after download.')}
           </PageDescription>
         </div>
         <div className='ml-auto flex items-center gap-2'>
           <InputGroup className='w-[220px] rounded-pill border-hairline bg-surface-inset'>
-            <InputGroupInput type='search' value={search} placeholder={t('搜索插件')} aria-label={t('搜索插件')}
+            <InputGroupInput type='search' value={search} placeholder={t('Search plugins')} aria-label={t('Search plugins')}
               onChange={event => setSearch(event.currentTarget.value)} />
             <InputGroupAddon>
               <svg width='13' height='13' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.7'
@@ -393,32 +393,32 @@ function PluginsPage(): React.ReactElement {
       <Input ref={fileRef} type='file' accept='.zip,application/zip' className='hidden' onChange={event => void onFile(event)} />
       {error || syncError ? <Alert variant='destructive' className='break-words'>{error || syncError}</Alert> : null}
       {busy === 'file' ? <div className='flex flex-col gap-2' aria-live='polite'>
-        <span className='text-[12px] text-subtle'>{t('正在读取、校验并安装插件包…')}</span><Progress value={null} />
+        <span className='text-[12px] text-subtle'>{t('Reading, verifying and installing plugin…')}</span><Progress value={null} />
       </div> : null}
       <div className='flex flex-wrap items-center gap-x-7 gap-y-3'>
-        <FilterGroup label={t('来源')} value={source} onChange={setSource} options={[
-          { value: 'all', label: t('全部'), count: countMatching('all', status) },
-          { value: 'agent2', label: t('Agent2API 社区'), count: countMatching('agent2', status) },
-          { value: 'magpie', label: t('Magpie 插件'), count: countMatching('magpie', status) },
+        <FilterGroup label={t('Source')} value={source} onChange={setSource} options={[
+          { value: 'all', label: t('All'), count: countMatching('all', status) },
+          { value: 'agent2', label: t('Agent2API community'), count: countMatching('agent2', status) },
+          { value: 'magpie', label: t('Magpie plugins'), count: countMatching('magpie', status) },
         ]} />
-        <FilterGroup label={t('状态')} value={status} onChange={setStatus} options={[
-          { value: 'all', label: t('全部'), count: countMatching(source, 'all') },
-          { value: 'updatable', label: t('可更新'), count: countMatching(source, 'updatable') },
-          { value: 'installed', label: t('已安装'), count: countMatching(source, 'installed') },
-          { value: 'missing', label: t('未安装'), count: countMatching(source, 'missing') },
+        <FilterGroup label={t('Status')} value={status} onChange={setStatus} options={[
+          { value: 'all', label: t('All'), count: countMatching(source, 'all') },
+          { value: 'updatable', label: t('Updates available'), count: countMatching(source, 'updatable') },
+          { value: 'installed', label: t('Installed'), count: countMatching(source, 'installed') },
+          { value: 'missing', label: t('Not installed'), count: countMatching(source, 'missing') },
         ]} />
         {bulk ? <span className='ml-auto text-[12px] text-subtle' aria-live='polite'>
-          {t('正在更新第 {index}／{total} 个…', { index: bulk.index, total: bulk.total })}
+          {t('Updating {index} of {total}…', { index: bulk.index, total: bulk.total })}
         </span> : pendingUpdates ? <div className='ml-auto flex flex-wrap items-center gap-2.5'>
-          <span className='text-[12px] text-primary-fg'>{t('有 {count} 个插件可更新', { count: pendingUpdates })}</span>
-          <Button size='sm' disabled={locked || active || scripts?.operation.active === true} onClick={() => void updateAll(bulkIds, bulkScripts)}>{t('全部更新')}</Button>
+          <span className='text-[12px] text-primary-fg'>{t('{count} plugins have updates', { count: pendingUpdates })}</span>
+          <Button size='sm' disabled={locked || active || scripts?.operation.active === true} onClick={() => void updateAll(bulkIds, bulkScripts)}>{t('Update all')}</Button>
         </div> : null}
       </div>
       </div>
       <div ref={listRef} className='flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain pb-5 pr-2 [overflow-anchor:none] [scrollbar-gutter:stable]'>
-      {showNative && (installedRows.length > 0 || storeRows.length > 0) ? <section className='shrink-0' aria-label={t('Agent2API 社区')}>
-        <PluginSectionHeading t={t} title={t('Agent2API 社区')} count={installedRows.length + storeRows.length}
-          hint={t('原生插件包，来自项目插件仓库')} />
+      {showNative && (installedRows.length > 0 || storeRows.length > 0) ? <section className='shrink-0' aria-label={t('Agent2API community')}>
+        <PluginSectionHeading t={t} title={t('Agent2API community')} count={installedRows.length + storeRows.length}
+          hint={t('Native packages from the project plugin repository')} />
         <div className='grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-2'>
           {installedRows.map(pack => {
             const operation = operations.find(item => item.id === pack.id)
@@ -435,12 +435,12 @@ function PluginsPage(): React.ReactElement {
         </div>
       </section> : null}
       {!payload || (shownCount === 0 && !scripts?.operation.active && !scriptGalleryVisible) ? <Card className='shrink-0'><Empty>
-        <EmptyTitle>{!payload || (!hasAny && catalog?.checking) ? t('正在读取插件列表…')
-          : hasAny ? t('没有符合筛选条件的插件') : t('暂无可安装的插件')}</EmptyTitle>
-        <EmptyDescription>{hasAny ? t('换一组筛选条件，或把来源和状态都切回「全部」。')
-          : errorMessage(catalog?.reason) || t('可以点击「刷新」读取插件仓库，或从本地 zip 安装插件。')}</EmptyDescription>
+        <EmptyTitle>{!payload || (!hasAny && catalog?.checking) ? t('Loading plugin catalog…')
+          : hasAny ? t('No plugins match these filters') : t('No plugins available to install')}</EmptyTitle>
+        <EmptyDescription>{hasAny ? t('Try different filters, or set both Source and Status back to All.')
+          : errorMessage(catalog?.reason) || t('Click Refresh to load the plugin catalog, or install a local zip.')}</EmptyDescription>
         {payload && hasAny && filtersActive ? <Button variant='outline' size='sm' className='mt-2'
-          onClick={clearFilters}>{t('清除筛选')}</Button> : null}
+          onClick={clearFilters}>{t('Clear filters')}</Button> : null}
       </Empty></Card> : null}
       {scripts ? <div className='shrink-0'><ScriptPluginsPanel state={scripts} t={t} disabled={Boolean(busy)} query={search}
         resolveIcon={path => `${gatewayBase.replace(/\/+$/, '')}${path}`} onOpenExternal={openExternal}
@@ -448,7 +448,7 @@ function PluginsPage(): React.ReactElement {
         status={status} publisher={scriptPublisher} onPublisherChange={setScriptPublisher} onClearFilters={clearFilters}
         request={(path, body) => api('POST', path, body)} refresh={load} /></div> : null}
       <p className='m-0 shrink-0 text-[11.5px] leading-relaxed text-muted-foreground'>
-        {t('插件独立安装与更新。卸载后账号数据仍会保留；脚本插件共用一个按需下载的运行时。')}
+        {t('Plugins install and update independently. Uninstalling keeps account data; script plugins share one runtime downloaded on demand.')}
       </p>
       </div>
     </div>
@@ -482,19 +482,19 @@ function PluginsPage(): React.ReactElement {
     <PluginNotesDialog value={notes} onClose={() => setNotes(null)} />
     <Dialog open={confirmRemove !== null} onOpenChange={next => { if (!next) setConfirmRemove(null) }}>
       <DialogContent className='text-foreground'>
-        <DialogHeader><DialogTitle>{t('卸载插件包')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t('Uninstall plugin pack')}</DialogTitle></DialogHeader>
         <DialogBody><p className='text-[13px]'>
-          {t('确定卸载「{name}」吗？卸载后这个包里的提供商将无法转发，也无法添加账号。账号数据本身不会被删除，重新安装后可以继续使用。', {
+          {t('Uninstall "{name}"? Its providers will no longer forward requests or accept new accounts. Account data itself is kept and works again after reinstalling.', {
             name: confirmRemove ? pluginName(confirmRemove.id, confirmRemove.name) : '',
           })}
         </p></DialogBody>
         <DialogFooter>
-          <span className='flex-1' /><Button variant='outline' onClick={() => setConfirmRemove(null)}>{t('取消')}</Button>
+          <span className='flex-1' /><Button variant='outline' onClick={() => setConfirmRemove(null)}>{t('Cancel')}</Button>
           <Button variant='destructive' disabled={locked} onClick={() => {
             const pack = confirmRemove
             setConfirmRemove(null)
             if (pack) void mutation(`remove:${pack.id}`, '/api/plugins/uninstall', { id: pack.id })
-          }}>{t('卸载')}</Button>
+          }}>{t('Uninstall')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

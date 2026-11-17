@@ -18,10 +18,10 @@ export function newRouteId() {
 
 export function routeGroupFieldsError(fields: RoutingGroupFields, reserved: string[], originalModel = '') {
   const alias = fields.model.trim().toLowerCase()
-  if (!fields.name.trim() || !alias) return t('请填写组名和对外模型 ID')
-  if (alias.length > 256 || /[\u0000-\u001f\u007f]/.test(alias)) return t('对外模型 ID 格式不正确')
+  if (!fields.name.trim() || !alias) return t('Enter a group name and public model ID')
+  if (alias.length > 256 || /[\u0000-\u001f\u007f]/.test(alias)) return t('Invalid public model ID')
   if (reserved.some(value => value.toLowerCase() === alias && value.toLowerCase() !== originalModel.toLowerCase())) {
-    return t('对外模型 ID 已被占用，请换一个名称')
+    return t('This public model ID is taken. Choose another.')
   }
   return ''
 }
@@ -36,9 +36,9 @@ export function RoutingGroupForm({ value, onChange, disabled = false }: {
 }) {
   const id = React.useId()
   return <div className='routing-group-form'>
-    <Field><FieldLabel htmlFor={`${id}-name`}>{t('组名')}</FieldLabel><Input id={`${id}-name`} maxLength={64} disabled={disabled}
-      value={value.name} placeholder={t('例如：日常省钱')} onChange={event => onChange({ ...value, name: event.currentTarget.value })} /></Field>
-    <Field><FieldLabel htmlFor={`${id}-model`}>{t('对外模型 ID')}</FieldLabel><Input id={`${id}-model`} maxLength={256} disabled={disabled}
+    <Field><FieldLabel htmlFor={`${id}-name`}>{t('Group name')}</FieldLabel><Input id={`${id}-name`} maxLength={64} disabled={disabled}
+      value={value.name} placeholder={t('For example: Everyday savings')} onChange={event => onChange({ ...value, name: event.currentTarget.value })} /></Field>
+    <Field><FieldLabel htmlFor={`${id}-model`}>{t('Public model ID')}</FieldLabel><Input id={`${id}-model`} maxLength={256} disabled={disabled}
       value={value.model} placeholder='budget-chat' onChange={event => onChange({ ...value, model: event.currentTarget.value })} /></Field>
   </div>
 }

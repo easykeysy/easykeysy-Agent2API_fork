@@ -150,7 +150,7 @@ async function solve(challenge: Challenge, onProgress?: SolveProgress): Promise<
   const target = String(challenge.challenge || '').toLowerCase()
   const salt = String(challenge.salt || '')
   const max = Number(challenge.maxnumber) || 0
-  if (!target || !salt) throw new Error('题面不完整')
+  if (!target || !salt) throw new Error('The question text is incomplete')
   for (let n = 0; n <= max; n++) {
     if ((await sha256Hex(salt + n)) === target) return n
     if (n % 2000 === 1999) {
@@ -158,7 +158,7 @@ async function solve(challenge: Challenge, onProgress?: SolveProgress): Promise<
       await new Promise(resolve => setTimeout(resolve, 0))
     }
   }
-  throw new Error('未找到答案')
+  throw new Error('No answer found')
 }
 
 /** 旧网关只在领题接口明确返回「未启用」；网络失败不能当作关闭校验。 */
@@ -166,8 +166,8 @@ export async function solveCaptcha(onProgress?: SolveProgress): Promise<string |
   const response = await fetch(url('/api/panel/captcha'), { headers: { Accept: 'application/json' }, cache: 'no-store' })
   const payload = await response.json()
   if (!response.ok) {
-    if (response.status === 400 && readError(payload?.error) === '机器人校验未启用') return null
-    throw new Error(readError(payload?.error) || '无法获取人机验证，请刷新后重试')
+    if (response.status === 400 && readError(payload?.error) === 'Robot verification is not enabled') return null
+    throw new Error(readError(payload?.error) || 'Could not get the human-machine verification; refresh and retry')
   }
   const challenge = payload as Challenge
   const number = await solve(challenge, onProgress)
@@ -238,9 +238,9 @@ export async function authenticate(input: {
     const data = payload?.data
     if (!data?.accessToken || !data?.refreshToken) {
       // 服务端没按标记给令牌（老版本网关）：告诉用户升级，而不是让他反复试
-      return { error: '网关没有返回登录令牌，请确认网关版本（需要支持 x-panel-auth-mode 的版本）' }
+      return { error: 'The gateway returned no login token. Check the gateway version (a version that supports x-panel-auth-mode is required).",' }
     }
-    if (serverIdentity() !== identity) return { error: '服务器已切换，请在当前服务器重新登录' }
+    if (serverIdentity() !== identity) return { error: 'The server has switched; please log in again on the current server' }
     storeServerAuth(serverId, data.accessToken, data.refreshToken, data.expiresIn)
     return { access: data.accessToken, refresh: data.refreshToken }
   } catch (error) {

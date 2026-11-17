@@ -25,7 +25,7 @@ export function useRoutingModelFilter(workspace: RoutingWorkspace | undefined, s
       try {
         const next = await bridge().getRoutingWorkspace(model)
         if (next?.model?.toLowerCase() !== model.toLowerCase() || !Array.isArray(next.providers)) {
-          throw new Error(t('路由接口返回了不完整的数据'))
+          throw new Error(t('The routing API returned incomplete data'))
         }
         if (alive) setResult({ source: models, model, providers: next.providers.filter(provider => provider.available).map(provider => provider.id), error: '' })
       } catch (failure) {
@@ -54,7 +54,7 @@ export function RoutingModelFilter({ value, models, lastUsed, disabled, onChange
   const query = search.trim().toLowerCase()
   const matches = React.useMemo(() => (open ? openedModels : orderedModels)
     .filter(model => model.toLowerCase().includes(query)), [open, openedModels, orderedModels, query])
-  const text = value || t('全部')
+  const text = value || t('All')
   const choose = (model: string) => { onChange(model); setOpen(false) }
   const option = (model: string, label: string) => <Button key={model} variant='ghost' className='routing-model-filter-option'
     aria-pressed={value === model} title={label} onClick={() => choose(model)}>
@@ -62,7 +62,7 @@ export function RoutingModelFilter({ value, models, lastUsed, disabled, onChange
   </Button>
 
   return <div className='routing-model-filter'>
-    <Label htmlFor={id}>{t('筛选模型')}</Label>
+    <Label htmlFor={id}>{t('Filter by model')}</Label>
     <Popover open={open} onOpenChange={open => {
       if (open) {
         setSearch('')
@@ -72,20 +72,20 @@ export function RoutingModelFilter({ value, models, lastUsed, disabled, onChange
       setOpen(open)
     }}>
       <PopoverTrigger id={id} render={<Button variant='outline' disabled={disabled} />} className='routing-model-filter-trigger'
-        aria-label={t('筛选模型')} title={text}>
+        aria-label={t('Filter by model')} title={text}>
         <span>{text}</span><RouteIcon name='chevronDown' size={13} />
       </PopoverTrigger>
       <PopoverContent className='routing-model-filter-popover' sideOffset={4}>
         <InputGroup><InputGroupInput type='search' autoFocus autoComplete='off' value={search}
-          placeholder={t('搜索模型')} aria-label={t('搜索模型')} onChange={event => setSearch(event.currentTarget.value)} />
+          placeholder={t('Search models')} aria-label={t('Search models')} onChange={event => setSearch(event.currentTarget.value)} />
           <InputGroupAddon><RouteIcon name='search' size={14} /></InputGroupAddon></InputGroup>
         <div className='routing-model-filter-options'>
-          {option('', t('全部'))}
+          {option('', t('All'))}
           {matches.map(model => option(model, model))}
-          {query && !matches.length ? <Empty>{t('没有匹配的模型')}</Empty> : null}
+          {query && !matches.length ? <Empty>{t('No matching models')}</Empty> : null}
         </div>
       </PopoverContent>
     </Popover>
-    <p className='routing-config-note'>{t('仅筛选右侧账号列表，不改变路由配置。')}</p>
+    <p className='routing-config-note'>{t('Only filters the account list on the right. Routing settings stay unchanged.')}</p>
   </div>
 }

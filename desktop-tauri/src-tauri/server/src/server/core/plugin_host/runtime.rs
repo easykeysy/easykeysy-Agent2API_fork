@@ -144,6 +144,6 @@ pub(super) fn status() -> Option<HostStatus> {
         providers,
         crashes: statuses.iter().map(|status| status.crashes).max().unwrap_or(0),
         disabled: statuses.iter().all(|status| status.disabled),
-        last_error: (!errors.is_empty()).then(|| errors.join("；")),
+        last_error: (!errors.is_empty()).then(|| errors.join("; ")),
     })
 }

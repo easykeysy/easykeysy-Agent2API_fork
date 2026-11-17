@@ -12,14 +12,14 @@ fn anthropic() -> String {
         event("message_start", json!({"message":{"id":"msg_1","type":"message","role":"assistant","model":"wire","content":[],
             "usage":{"input_tokens":10,"cache_read_input_tokens":20,"cache_creation_input_tokens":30,"output_tokens":1},"future":{"keep":true}}})),
         event("content_block_start", json!({"index":0,"content_block":{"type":"thinking","thinking":"","signature":""}})),
-        event("content_block_delta", json!({"index":0,"delta":{"type":"thinking_delta","thinking":"思考🦜"}})),
+        event("content_block_delta", json!({"index":0,"delta":{"type":"thinking_delta","thinking":"Reasoning🦜"}})),
         event("content_block_delta", json!({"index":0,"delta":{"type":"signature_delta","signature":"sig+/=="}})),
         event("content_block_stop", json!({"index":0})),
         event("content_block_start", json!({"index":1,"content_block":{"type":"redacted_thinking","data":"opaque+/=="}})),
         event("content_block_stop", json!({"index":1})),
         event("content_block_start", json!({"index":2,"content_block":{"type":"tool_use","id":"tool_1","name":"read","input":{}}})),
         event("content_block_delta", json!({"index":2,"delta":{"type":"input_json_delta","partial_json":"{\"path\":"}})),
-        event("content_block_delta", json!({"index":2,"delta":{"type":"input_json_delta","partial_json":"\"文档.txt\"}"}})),
+        event("content_block_delta", json!({"index":2,"delta":{"type":"input_json_delta","partial_json":"\"Docs.txt\"}"}})),
         event("content_block_stop", json!({"index":2})),
         event("message_delta", json!({"delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"output_tokens":8}})),
         event("message_stop", json!({})),
@@ -122,7 +122,7 @@ async fn unicode_and_crlf_survive_one_byte_chunks_and_model_aliasing() {
     }
     assert!(output.contains("sig+/=="));
     assert!(output.contains("opaque+/=="));
-    assert!(output.contains("思考🦜"));
+    assert!(output.contains("Reasoning🦜"));
 }
 
 #[tokio::test]
@@ -139,13 +139,13 @@ async fn anthropic_nonstream_aggregation_keeps_signatures_tools_and_usage() {
     .unwrap();
     assert_eq!(
         body["content"][0],
-        json!({"type":"thinking","thinking":"思考🦜","signature":"sig+/=="})
+        json!({"type":"thinking","thinking":"Reasoning🦜","signature":"sig+/=="})
     );
     assert_eq!(
         body["content"][1],
         json!({"type":"redacted_thinking","data":"opaque+/=="})
     );
-    assert_eq!(body["content"][2]["input"], json!({"path":"文档.txt"}));
+    assert_eq!(body["content"][2]["input"], json!({"path":"Docs.txt"}));
     assert_eq!(body["stop_reason"], "tool_use");
     assert_eq!(body["usage"]["output_tokens"], 8);
     assert_eq!(body["usage"]["cache_read_input_tokens"], 20);

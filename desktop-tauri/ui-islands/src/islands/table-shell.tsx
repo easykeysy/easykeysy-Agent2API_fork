@@ -57,7 +57,7 @@ const SIZE_KEY_PREFIX = 'workbuddy-desktop-table-size:'
 
 /** 档位的显示文案：「全部」是唯一的非数字档 */
 export function pageSizeText(size: PageSizeChoice): string {
-  return size === 'all' ? t('全部') : String(size)
+  return size === 'all' ? t('All') : String(size)
 }
 
 /**
@@ -220,10 +220,10 @@ function TableFooter({
 
   const single = pageCount <= 1
   const countText = total === 0
-    ? t('共 0 条')
+    ? t('0 total')
     : range
-      ? t('共 {total} 条 · 当前第 {start}–{end} 条', { total, start: range.start, end: range.end })
-      : t('共 {total} 条（全部显示）', { total })
+      ? t('{total} total · showing {start}–{end}', { total, start: range.start, end: range.end })
+      : t('{total} total (showing all)', { total })
 
   return (
     <CardFooter className={className ? `panel-foot table-foot-bar ${className}` : 'panel-foot table-foot-bar'}>
@@ -232,12 +232,12 @@ function TableFooter({
       <div className='table-foot-ctl'>
         <span className='table-foot-count'>{countText}</span>
         <span className='table-foot-size'>
-          {t('每页')}
+          {t('Per page')}
           <Select
             value={String(size)}
             onValueChange={next => onSizeChange(next === 'all' ? 'all' : Number(next))}
           >
-            <SelectTrigger className='h-[26px] w-[86px]' disabled={disabled} aria-label={t('每页条数')}>
+            <SelectTrigger className='h-[26px] w-[86px]' disabled={disabled} aria-label={t('Rows per page')}>
               <SelectValue>{pageSizeText(size)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -246,16 +246,16 @@ function TableFooter({
               ))}
             </SelectContent>
           </Select>
-          {t('条')}
+          {t('rows')}
         </span>
         <span className='table-foot-jump'>
-          {t('跳至')}
+          {t('Go to')}
           <Input
             className='h-[26px] w-[52px] px-1 text-center'
             value={draft}
             disabled={disabled || single}
-            aria-label={t('跳转到指定页')}
-            title={single ? t('当前只有一页') : t('跳转到第 1–{pageCount} 页', { pageCount })}
+            aria-label={t('Go to a specific page')}
+            title={single ? t('Only one page') : t('Go to page 1–{pageCount}', { pageCount })}
             inputMode='numeric'
             onChange={event => setDraft(event.target.value)}
             onKeyDown={event => {
@@ -265,7 +265,7 @@ function TableFooter({
             }}
             onBlur={commit}
           />
-          {t('页')}
+          {t('page')}
         </span>
         <Pager page={page} pageCount={pageCount} onPageChange={onPageChange} disabled={disabled} />
       </div>

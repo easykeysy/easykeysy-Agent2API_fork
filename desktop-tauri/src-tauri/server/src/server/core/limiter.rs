@@ -43,7 +43,7 @@ pub fn enforce_disable(store: &AccountStore, accounts: &[Value]) {
             .and_then(Value::as_str).unwrap_or(id);
         match store.update_account(id, &serde_json::json!({ "enabled": false })) {
             Ok(_) => logging::log_with_level("[Usage]", &format!("账号「{name}」限制条件组已触发，已自动禁用（需手动重新启用）"), "warn"),
-            Err(error) => logging::verbose("[Usage]", &format!("账号 {id} 限制器自动禁用失败：{}", error.message)),
+            Err(error) => logging::verbose("[Usage]", &format!("Account {id} 限制器自动禁用失败：{}", error.message)),
         }
     }
 }

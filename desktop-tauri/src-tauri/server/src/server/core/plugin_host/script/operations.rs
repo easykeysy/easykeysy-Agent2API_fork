@@ -208,7 +208,7 @@ pub(super) async fn switch(
     let mut ids = super::runtime::all_ids(&before);
     ids.extend(super::runtime::all_ids(&after));
     let hosts: Vec<_> = super::runtime::host().into_iter().collect();
-    stage("waiting", "等待脚本插件的在途请求和登录完成");
+    stage("waiting", "Waiting for active script requests and sign-ins to finish");
     let deadline = tokio::time::Instant::now() + Duration::from_secs(600);
     let guard = loop {
         if let Some(guard) = plugin_host::registry::SwitchGuard::begin(&hosts, ids.clone()) {
@@ -220,7 +220,7 @@ pub(super) async fn switch(
         tokio::time::sleep(Duration::from_millis(500)).await;
     };
     let before_ids = ids.clone();
-    stage("loading", "正在加载脚本插件");
+    stage("loading", "Loading script plugins");
     let old_executable = hosts.first().map(|host| host.options.exe.clone());
     plugin_host::runtime::shutdown_packs(&[super::HOST_ID.to_string()]).await?;
     super::transport::clear();
@@ -246,7 +246,7 @@ pub(super) async fn switch(
     }
     .await;
     if let Err(error) = result {
-        stage("restoring", "正在恢复原有脚本插件");
+        stage("restoring", "Restoring previous script plugins");
         plugin_host::runtime::shutdown_packs(&[super::HOST_ID.to_string()]).await?;
         super::transport::clear();
         for id in super::runtime::all_ids(&after).difference(&before_ids) {

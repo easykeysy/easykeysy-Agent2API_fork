@@ -121,7 +121,7 @@ fn message(provider: &str, status: u16, code: &str, class: &UpstreamErrorClass) 
     if code.to_ascii_lowercase().contains("cleanup") { return "请求资源关闭未确认，未继续重试"; }
     if status == 556 || code == proto::WireError::LOCAL_PRECONDITION {
         return match provider {
-            "claude-subscription" => "Claude 本机运行前提未满足，请检查原生 CLI 2.1.259+、claude.ai 订阅登录与已关联账号；未复制客户端凭证",
+            "claude-subscription" => "Claude 本机运行前提未满足，请检查原生 CLI 2.1.259+, claude.ai 订阅登录与已关联账号；未复制客户端凭证",
             "grok" => "Grok 本机运行前提未满足，请检查 Grok Build CLI 安装、原客户端登录与已关联账号",
             _ => "本机运行、所选账号或凭证前提未满足，请检查原客户端与已授权账号",
         };
@@ -320,7 +320,7 @@ fn quota_words(message: &str) -> bool {
     ["insufficient quota", "insufficient_quota", "insufficient balance", "insufficient credit",
         "credits exhausted", "credit exhausted", "out of budget", "budget exceeded", "budget exhausted",
         "usage limit", "usage_limit", "quota exceeded", "quota exhausted", "quota limit", "out of quota",
-        "hit your usage limit", "rate limit", "rate_limit", "too many requests", "余额不足", "积分不足",
+        "hit your usage limit", "rate limit", "rate_limit", "too many requests", "Low balance", "积分不足",
         "额度耗尽", "额度不足", "额度已用完", "限额已用完", "用量上限", "频率过高", "太频繁"]
         .iter().any(|word| message.contains(word))
 }

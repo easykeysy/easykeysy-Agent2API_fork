@@ -616,7 +616,7 @@ impl Host {
                     if map.get(&id).is_some_and(|call| call._lease.is_none()) { map.remove(&id); }
                 }
                 Err(proto::WireError::with_code(
-                    format!("插件调用超时（{method}）"),
+                    format!("插件调用超时（{method})"),
                     if method == proto::methods::gateway::INIT { "plugin_init_timeout" } else { proto::WireError::INTERNAL },
                 ))
             }

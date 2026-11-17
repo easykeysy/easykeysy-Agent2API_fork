@@ -65,7 +65,7 @@ export function PluginsPage() {
         seenOperations.current.add(key)
         if (Date.now() - operation.updatedAt > 30_000) continue
         if (operation.error || operation.hostError) store.toast(pluginErrorMessage(operation.error || operation.hostError), 'err')
-        else if (operation.done) store.toast(t('插件包已安装到 v{version}', { version: operation.version }))
+        else if (operation.done) store.toast(t('Plugin installed: v{version}', { version: operation.version }))
       }
     } catch (cause) {
       if (serverIdentity() === identity) setError(pluginErrorMessage(cause))
@@ -104,16 +104,16 @@ export function PluginsPage() {
 
   const refresh = async () => {
     const result = await run('catalog', refreshPluginCatalog)
-    if (result?.error) store.toast(pluginErrorMessage(result.reason) || t('读取插件仓库失败'), 'err')
+    if (result?.error) store.toast(pluginErrorMessage(result.reason) || t('Failed to read the plugin repository'), 'err')
   }
   const check = async () => {
     const result = await run('check', checkPluginUpdates)
-    if (result?.error) store.toast(pluginErrorMessage(result.reason) || t('检查更新失败'), 'err')
+    if (result?.error) store.toast(pluginErrorMessage(result.reason) || t('Failed to check for updates'), 'err')
   }
   const install = async (id: string, update: boolean) => {
     if (!payload?.target) return
     const result = await run(`install:${id}`, () => startPluginInstall(id, payload.target, update))
-    if (result) store.toast(t('下载任务已交给网关，关闭手机不影响安装'))
+    if (result) store.toast(t('The download task has been handed to the gateway; closing the phone does not affect installation'))
   }
 
   const packs = payload?.packs || []
@@ -123,16 +123,16 @@ export function PluginsPage() {
   return (
     <div className='m-page' ref={pull.bindRef}>
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
-      <PageIntro subtitle={t('管理所连接网关的插件，不在手机上安装提供商插件')} />
+      <PageIntro subtitle={t('Manage the plugins of the connected gateway; provider plugins are not installed on the phone')} />
       <div className='m-section' style={{ marginTop: 0 }}>
         <Card className='m-card m-card-pad'>
-          <div className='m-ck-title'>{server?.name || server?.base || t('当前网关')}</div>
-          <p className='m-ck-note'>{t('安装、更新与启停均作用在这台网关上。插件平台由网关决定，与手机系统无关。')}</p>
+          <div className='m-ck-title'>{server?.name || server?.base || t('The current gateway')}</div>
+          <p className='m-ck-note'>{t('Installing, updating, and start/stop all act on this gateway. The plugin platform is decided by the gateway and is unrelated to the phone OS.",')}</p>
           {payload ? <p className='m-ck-note m-mono'>{payload.target}</p> : null}
           <div className='m-ck-actions'>
-            <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void refresh()}>{busy === 'catalog' ? t('读取中…') : t('刷新插件仓库')}</Button>
-            <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void check()}>{busy === 'check' ? t('检查中…') : t('检查更新')}</Button>
-            <Button size='sm' variant='ghost' onClick={() => setSettings(true)}>{t('插件设置')}</Button>
+            <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void refresh()}>{busy === 'catalog' ? t('Loading…') : t('Refresh the plugin repository')}</Button>
+            <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => void check()}>{busy === 'check' ? t('Checking…') : t('Check for updates')}</Button>
+            <Button size='sm' variant='ghost' onClick={() => setSettings(true)}>{t('Plugin settings')}</Button>
           </div>
         </Card>
       </div>
@@ -140,12 +140,12 @@ export function PluginsPage() {
         request={(method, path, body) => apiCall(path, { method, body })} /></div>
       {error ? <ErrorNote text={error} /> : null}
       {payload?.host?.lastError ? <ErrorNote text={payload.host.lastError} /> : null}
-      {uninstalled.length ? <div className='m-section'><SectionHead title={t('可安装插件')} />
+      {uninstalled.length ? <div className='m-section'><SectionHead title={t('Installable plugins')} />
         {uninstalled.map(item => <StorePluginCard key={item.id} item={item} target={payload?.target || ''}
           operation={payload?.operations?.find(operation => operation.id === item.id)} busy={Boolean(busy)} onInstall={() => void install(item.id, false)} />)}
       </div> : null}
       <div className='m-section'>
-        <SectionHead title={t('已安装插件')} />
+        <SectionHead title={t('Installed plugins')} />
         {packs.map(pack => <PluginCard key={pack.id} pack={pack} busy={Boolean(busy)} target={payload?.target || ''}
           update={payload?.updates?.find(update => update.id === pack.id)}
           operation={payload?.operations?.find(operation => operation.id === pack.id)}
@@ -153,7 +153,7 @@ export function PluginsPage() {
           onProvider={(provider, enabled) => void mutation(`provider:${provider}`, () => setPluginProvider(pack.id, provider, enabled))}
           onSettings={() => setPackSettings({ id: pack.id, server: identity })}
           onUpdate={() => void install(pack.id, true)} onRemove={() => setRemove(pack)} />)}
-        {!packs.length ? <Card className='m-card'><Empty text={payload ? t('这台网关还没有安装插件') : t('正在读取插件列表…')} /></Card> : null}
+        {!packs.length ? <Card className='m-card'><Empty text={payload ? t('No plugin has been installed on this gateway yet') : t('Loading plugin catalog…')} /></Card> : null}
       </div>
       {payload?.scripts ? <div className='m-section'><Card className='m-card m-card-pad'>
         <ScriptPluginsPanel key={identity} state={payload.scripts} t={t} disabled={Boolean(busy)} resolveIcon={resolveUrl} onOpenExternal={openExternal}
@@ -161,9 +161,9 @@ export function PluginsPage() {
       </Card></div> : null}
       {payload?.catalog?.reason ? <div className='m-section'><p className='m-ck-note'><GithubFailureText value={payload.catalog} t={t} /></p></div> : null}
       {payload ? <div className='m-section'><Collapsible className='m-card m-card-pad'>
-        <CollapsibleTrigger className='m-ck-title'>{t('诊断信息')}</CollapsibleTrigger><CollapsibleContent keepMounted>
-        <p className='m-ck-note'>{t('插件目录')}：<span className='m-mono'>{payload.pluginsDir}</span></p>
-        <p className='m-ck-note'>{t('协议版本')}：{payload.protocol}</p>
+        <CollapsibleTrigger className='m-ck-title'>{t('Diagnostics')}</CollapsibleTrigger><CollapsibleContent keepMounted>
+        <p className='m-ck-note'>{t('Plugin directory')}：<span className='m-mono'>{payload.pluginsDir}</span></p>
+        <p className='m-ck-note'>{t('Protocol version')}：{payload.protocol}</p>
       </CollapsibleContent></Collapsible></div> : null}
       {startupId ? <PluginStartupDialog id={startupId}
         name={packs.find(pack => pack.id === startupId)?.name || payload?.scripts?.packages.find(pack => pack.id === startupId)?.name || startupId}
@@ -187,13 +187,13 @@ export function PluginsPage() {
         setRemove(null)
       }}>
         <SheetContent showCloseButton={!busy}>
-          <SheetHeader><SheetTitle>{t('卸载插件包')}</SheetTitle></SheetHeader>
-          <SheetBody><p className='m-ck-note'>{t('确定卸载「{name}」吗？对应提供商将停止转发，账号数据仍然保留，重新安装后恢复。', { name: remove?.name || '' })}</p></SheetBody>
+          <SheetHeader><SheetTitle>{t('Uninstall plugin pack')}</SheetTitle></SheetHeader>
+          <SheetBody><p className='m-ck-note'>{t('Uninstall “{name}”? Its providers will stop forwarding. Account data is retained and becomes available again after reinstalling.', { name: remove?.name || '' })}</p></SheetBody>
           <SheetFooter>
-            <Button variant='outline' disabled={Boolean(busy)} onClick={() => setRemove(null)}>{t('取消')}</Button>
+            <Button variant='outline' disabled={Boolean(busy)} onClick={() => setRemove(null)}>{t('Cancel')}</Button>
             <Button variant='destructive' disabled={Boolean(busy)} onClick={async () => {
               if (remove && await mutation(`remove:${remove.id}`, () => uninstallPlugin(remove.id))) setRemove(null)
-            }}>{busy ? t('卸载中…') : t('卸载')}</Button>
+            }}>{busy ? t('Uninstalling…') : t('Uninstall')}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

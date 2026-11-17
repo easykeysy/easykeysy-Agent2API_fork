@@ -36,8 +36,8 @@ impl RequestNeeds {
     }
 
     pub fn reason(&self, item: &Value) -> Option<String> {
-        for (required, key, label) in [(self.tools, "supportsToolCall", "工具调用"),
-            (self.images, "supportsImages", "图片输入"), (self.video, "supportsVideo", "视频输入")] {
+        for (required, key, label) in [(self.tools, "supportsToolCall", "Tool calling"),
+            (self.images, "supportsImages", "Image input"), (self.video, "supportsVideo", "Video input")] {
             if required && item.get(key).and_then(Value::as_bool) != Some(true) {
                 return Some(if item.get(key).and_then(Value::as_bool) == Some(false) {
                     format!("该模型不支持{label}，已跳过")
@@ -120,7 +120,7 @@ pub fn project_with_vision(group: &RoutingGroup, accounts: &[Value], needs: &Req
         .into_iter().map(|id| { let items = manifest(&id); (id, items) }).collect();
     for member in group.members.iter().filter(|member| member.included) {
         let item = manifests.get(&member.provider).and_then(|items| items.iter().find(|item| model_id(item).eq_ignore_ascii_case(&member.model))).cloned();
-        let reason = if !key_scope::allows_provider(scope, &member.provider) { Some("网关 Key 不允许此提供商".to_string()) }
+        let reason = if !key_scope::allows_provider(scope, &member.provider) { Some("Gateway key 不允许此提供商".to_string()) }
             else if !provider_active(&member.provider) { Some("提供商当前不可用".to_string()) }
             else if let Some(item) = &item {
                 if providers::images::model_is_image(item) { Some("生图模型不能用于对话路由".to_string()) }

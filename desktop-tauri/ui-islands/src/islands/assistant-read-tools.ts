@@ -14,13 +14,13 @@ type ReadBridge = {
 
 function bridge(): ReadBridge {
   const api = (window as unknown as { workbuddyDesktop?: ReadBridge }).workbuddyDesktop
-  if (!api) throw new Error(t('桌面桥不可用（本页需要在 Agent2API 客户端里打开）'))
+  if (!api) throw new Error(t('Desktop bridge unavailable (this page must be opened inside the Agent2API client)'))
   return api
 }
 
 function method<K extends keyof ReadBridge>(key: K): NonNullable<ReadBridge[K]> {
   const value = bridge()[key]
-  if (typeof value !== 'function') throw new Error(t('当前客户端缺少读取接口：{name}', { name: key }))
+  if (typeof value !== 'function') throw new Error(t('This client is missing the read interface: {name}', { name: key }))
   return value as NonNullable<ReadBridge[K]>
 }
 

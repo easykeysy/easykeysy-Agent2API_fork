@@ -77,7 +77,7 @@ fn normalize_mirror(value: &str) -> Result<String, String> {
     }
     let mut url = url::Url::parse(value).map_err(|_| "GitHub 加速前缀不是合法地址".to_string())?;
     if url.scheme() != "https" || url.host_str().is_none() {
-        return Err("GitHub 加速前缀必须是 HTTPS 地址".to_string());
+        return Err("GitHub 加速前缀必须是 HTTPS Address".to_string());
     }
     if !url.username().is_empty()
         || url.password().is_some()
@@ -86,7 +86,7 @@ fn normalize_mirror(value: &str) -> Result<String, String> {
         || url.path().contains("://")
         || url.path().to_ascii_lowercase().contains("%3a")
     {
-        return Err("GitHub 加速前缀不能包含凭证、查询参数或原始 GitHub 地址".to_string());
+        return Err("GitHub 加速前缀不能包含凭证、查询参数或原始 GitHub Address".to_string());
     }
     if matches!(
         url.host_str(),
@@ -101,7 +101,7 @@ fn normalize_mirror(value: &str) -> Result<String, String> {
 
 fn normalize_mirrors(mirrors: Vec<GithubMirror>) -> Result<Vec<GithubMirror>, String> {
     if mirrors.len() > MAX_MIRRORS {
-        return Err(format!("最多配置 {MAX_MIRRORS} 个 GitHub 加速源"));
+        return Err(format!("最多配置 {MAX_MIRRORS} total GitHub 加速源"));
     }
     let mut urls = std::collections::HashSet::new();
     mirrors.into_iter().map(|mut mirror| {

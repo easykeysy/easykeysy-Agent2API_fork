@@ -72,9 +72,9 @@ type Align = 'left' | 'center' | 'right'
  *（`{ value, label }` 就是它要的形状），所以档位只有这一处定义。
  */
 const ALIGNS: readonly { value: Align; label: string }[] = [
-  { value: 'left', label: t('左') },
-  { value: 'center', label: t('中') },
-  { value: 'right', label: t('右') },
+  { value: 'left', label: t('Left') },
+  { value: 'center', label: t('Center') },
+  { value: 'right', label: t('Right') },
 ]
 
 /** 存盘里的对齐只认这三档（脏值退回该列默认，见 normalize） */
@@ -560,7 +560,7 @@ function ColSettingsPanel({ spec, anchor, repaintRef, onClose }: PanelProps) {
         sideOffset={6}
         collisionPadding={8}
         className='w-[336px]'
-        aria-label={t('{name}的列设置', { name: spec.label || spec.id })}
+        aria-label={t('{name} column settings', { name: spec.label || spec.id })}
       >
         {/* 表头：与数据行同一套网格，四列依次是 手柄 / 列名 / 显示 / 对齐 */}
         <div
@@ -571,9 +571,9 @@ function ColSettingsPanel({ spec, anchor, repaintRef, onClose }: PanelProps) {
           )}
         >
           <span />
-          <span className='text-center'>{t('列')}</span>
-          <span className='text-center'>{t('显示')}</span>
-          <span className='text-center'>{t('对齐')}</span>
+          <span className='text-center'>{t('Column')}</span>
+          <span className='text-center'>{t('Shown')}</span>
+          <span className='text-center'>{t('Alignment')}</span>
         </div>
 
         {/* 行区滚动：列多时面板不跟着长，最大高度由外层（组件库）的 max-h 兜底 */}
@@ -595,7 +595,7 @@ function ColSettingsPanel({ spec, anchor, repaintRef, onClose }: PanelProps) {
               >
                 <span
                   className='flex cursor-grab items-center justify-center text-muted-foreground opacity-50 hover:opacity-100'
-                  title={t('按住拖动调整列顺序')}
+                  title={t('Press and drag to reorder columns')}
                   onPointerDown={event => startDrag(item.key, event)}
                 >
                   {GRIP_ICON}
@@ -607,15 +607,15 @@ function ColSettingsPanel({ spec, anchor, repaintRef, onClose }: PanelProps) {
                   className='justify-self-center'
                   checked={item.visible}
                   onCheckedChange={next => setVisible(item.key, next)}
-                  aria-label={t('显示「{label}」列', { label })}
-                  title={item.visible ? t('这一列正在显示') : t('这一列已隐藏')}
+                  aria-label={t('Show the "{label}" column', { label })}
+                  title={item.visible ? t('This column is visible') : t('This column is hidden')}
                 />
                 <SegmentedControl
                   className='w-full justify-center'
                   options={ALIGNS}
                   value={item.align}
                   onValueChange={next => setAlign(item.key, next)}
-                  aria-label={t('「{label}」列的对齐', { label })}
+                  aria-label={t('"{label}" column alignment', { label })}
                 />
               </div>
             )
@@ -623,9 +623,9 @@ function ColSettingsPanel({ spec, anchor, repaintRef, onClose }: PanelProps) {
         </div>
 
         <div className='flex items-center gap-2 border-t border-hairline px-3 pt-2 pb-[9px]'>
-          <span className='flex-1 text-[11px] text-muted-foreground'>{t('拖动 ⋮⋮ 调整顺序')}</span>
+          <span className='flex-1 text-[11px] text-muted-foreground'>{t('Drag ⋮⋮ to reorder')}</span>
           <Button variant='outline' size='sm' onClick={resetAll}>
-            {t('恢复默认')}
+            {t('Restore Defaults')}
           </Button>
         </div>
       </PopoverContent>
@@ -738,14 +738,14 @@ function makeButton(spec: TableEntry): HTMLElement {
   flushSync(() => createRoot(host).render(<Button variant='outline' size='sm'
     className={`colset-btn${spec.buttonClass ? ` ${spec.buttonClass}` : ''}`}
     id={`btn-colset-${spec.id}`}
-    title={t('调整「{name}」的列：显示 / 隐藏、顺序、对齐', { name: spec.label || spec.id })}
+    title={t('Adjust "{name}" columns: show / hide, order, alignment', { name: spec.label || spec.id })}
     aria-haspopup='dialog' aria-expanded={false}
     onClick={event => {
       if (outsidePressEvent === event.nativeEvent) { outsidePressEvent = null; return }
       togglePanel(spec, event.currentTarget)
     }}>
     <span dangerouslySetInnerHTML={{ __html: shared().wbIcons?.icon?.('settings', 14) || '' }} />
-    <span>{t('列设置')}</span>
+    <span>{t('Column settings')}</span>
   </Button>))
   return host
 }

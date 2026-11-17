@@ -264,7 +264,7 @@ impl CloudSyncSettings {
                     return Err("S3 存储桶不能为空".to_string());
                 }
                 if self.s3.region.is_empty() {
-                    return Err("S3 区域不能为空（Cloudflare R2 填 auto）".to_string());
+                    return Err("S3 区域不能为空（Cloudflare R2 填 auto)".to_string());
                 }
                 if self.s3.access_key_id.is_empty() {
                     return Err("S3 Access Key ID 不能为空".to_string());

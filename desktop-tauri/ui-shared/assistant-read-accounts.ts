@@ -71,15 +71,15 @@ export function usageSummary(value: unknown, t: Translate) {
 
 export function accountReadTools(api: AssistantReadApi, t: Translate): AssistantReadTool[] {
   const listAccounts: AssistantReadTool = {
-    id: 'list_accounts', label: t('获取账号列表'), kind: 'read',
-    desc: '读取本机可见账号列表，包含准确账号 ID、页面展示名、所属提供商、启用状态、全局优先级、凭证存在状态和是否需要重新登录。回答「有哪些账号」「哪个账号被禁用」「现在有哪些账号被限流」之前先调用。禁用、缺少凭证的账号仍在列表中；插件不可用而隐藏的账号只给数量与原因，不代表被删除。rateLimited 只表示上游限流冷却仍未结束，不等于本地限制器命中。position 是配置顺位，不保证实际请求使用它；实际候选请用 get_routing_queue。分页 hasMore 为 true 时按 nextOffset 继续读取，不要只看第一页就下结论。',
+    id: 'list_accounts', label: t('List accounts'), kind: 'read',
+    desc: 'Read the list of accounts visible on this machine: exact account ID, display name, provider, enabled state, global priority, credential presence, and whether a re-login is needed. Call this before answering "which accounts are there", "which account is disabled", or "which account is rate-limited right now". Disabled or credential-less accounts still appear in the list; accounts hidden because a plugin is unavailable show only a count and reason, not deletion. rateLimited only means the upstream rate-limit cooldown has not ended — it is not a local limiter hit. position is the configured order, not a guarantee that real requests use it; for actual candidates use get_routing_queue. Pagination: when hasMore is true, keep reading with nextOffset; do not draw conclusions from a single page.",',
     params: {
       type: 'object', additionalProperties: false,
       properties: {
-        provider: { type: 'string', description: '提供商 ID；不填 = 全部' },
-        keyword: { type: 'string', description: '账号 ID 或页面展示名的子串；不填 = 全部' },
-        enabled: { type: 'boolean', description: 'true = 已启用，false = 已禁用；不填 = 全部' },
-        rateLimited: { type: 'boolean', description: 'true = 当前仍处于上游限流冷却，false = 未处于冷却；不填 = 全部' },
+        provider: { type: 'string', description: 'Provider ID; leave blank= All' },
+        keyword: { type: 'string', description: 'Account ID or a substring of the page display name; leave blank= All' },
+        enabled: { type: 'boolean', description: 'true = Enabled, false= Disabled; leave blank= All' },
+        rateLimited: { type: 'boolean', description: 'true = Still in the upstream rate-limit cooldown, false= Not in cooldown; leave blank= All' },
         ...PAGE_PARAMS,
       },
     },
@@ -98,19 +98,19 @@ export function accountReadTools(api: AssistantReadApi, t: Translate): Assistant
         return limited === undefined || (activeRateLimits(account, now, t).length > 0) === limited
       })
       const data = page(filtered.slice(offset).map(account => accountSummary(account, t, now)), offset, limit, filtered.length)
-      return result({ asOf: now, visibleTotal: accounts.length, ...accountMeta(snapshot), accounts: data }, t('{n} 个账号', { n: filtered.length }))
+      return result({ asOf: now, visibleTotal: accounts.length, ...accountMeta(snapshot), accounts: data }, t('{n} accounts', { n: filtered.length }))
     },
   }
 
   const getAccountDetail: AssistantReadTool = {
-    id: 'get_account_detail', label: t('获取账号详情'), kind: 'read',
-    desc: '读取指定账号的公开配置和本地缓存状态：凭证有效期相关字段、重新登录原因、当前生效的上游限流、活跃连接与并发上限、代理绑定摘要、自动余额查询配置、余额快照、额度来源和限制器规则/命中读数。先用 list_accounts 得到账号 ID；同名不唯一时必须加 provider 或改用 ID。只读本地，不主动刷新凭证、不发实时余额查询。缓存没有读数表示未知，不是余额为零。凭证到期字段可能表示短期访问令牌，不能仅凭该字段断言长期凭证失效；needsRelogin 才是已发现需要重登的标记。section 默认 overview，查看完整限流或限制器用对应 section 并分页；hasMore 时继续取。',
+    id: 'get_account_detail', label: t('Get account details'), kind: 'read',
+    desc: 'Read the public configuration and local cached state of a given account: credential-validity fields, re-login reasons, the upstream rate limit currently in effect, active connections and the concurrency cap, proxy binding summary, automatic balance-query settings, balance snapshot, quota sources, and limiter rules/hit readings. First get the account ID from list_accounts; when a display name is not unique, add provider or use the ID. This is read-only on the local cache — it does not refresh credentials and does not send a live balance query. A missing reading in the cache means unknown, not zero balance. The credential-expiry field may only indicate a short-lived access token; do not conclude that the long-lived credential has expired from that field alone — needsRelogin is the actual flag for a detected re-login need. Use section Default for the overview; use the corresponding section with pagination to see the full rate limits or limiters; when hasMore is set, keep fetching.",',
     params: {
       type: 'object', additionalProperties: false,
       properties: {
-        account: { type: 'string', description: '账号 ID 或唯一匹配的页面展示名；优先使用 ID' },
-        provider: { type: 'string', description: '限定提供商 ID，用于区分同名账号；不填 = 全部' },
-        section: { type: 'string', enum: ['overview', 'rateLimits', 'limiters', 'quotaSources'], description: 'overview = 配置与缓存摘要；其余读取该段的分页明细' },
+        account: { type: 'string', description: 'Account ID or the uniquely matching page display name; prefer the ID' },
+        provider: { type: 'string', description: 'Restrict to a provider ID, used to disambiguate accounts with the same name; leave blank= All' },
+        section: { type: 'string', enum: ['overview', 'rateLimits', 'limiters', 'quotaSources'], description: 'overview = configuration and cache summary; the rest read the paged details of that segment' },
         ...PAGE_PARAMS,
       },
       required: ['account'],

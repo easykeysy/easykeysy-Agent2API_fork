@@ -64,8 +64,8 @@ pub(super) use super::cache_report::{select_summary_rows, sum_cache_windows};
 
 mod raw;
 pub(super) use raw::{
-    count_raw, count_raw_matching, count_upstream_raw, delete_raw_matching, select_raw, trim_raw_rows,
-    upsert_raw,
+    count_raw, count_raw_matching, count_upstream_raw, delete_raw_matching, raw_ids, select_raw,
+    trim_raw_rows, upsert_raw,
 };
 
 /// `requests` 的列顺序（所有 SELECT 都按这个顺序取，`decode_request` 依赖它；
@@ -464,7 +464,7 @@ pub(super) fn source_filter_options(conn: &Connection, max: usize) -> rusqlite::
     let mut clients: Vec<Value> = clients.into_iter().filter(|(client, _)| !client.is_empty()).map(|(client, label)| serde_json::json!({
         "value": client, "label": if label.is_empty() { super::source_report::client_label(&client).to_string() } else { label },
     })).collect();
-    clients.push(serde_json::json!({ "value": "", "label": "未记录客户端" }));
+    clients.push(serde_json::json!({ "value": "", "label": "Unrecorded client" }));
     Ok(serde_json::json!({ "clients": clients, "apiKeys": keys }))
 }
 

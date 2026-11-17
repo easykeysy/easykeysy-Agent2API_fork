@@ -45,53 +45,53 @@ export function CheckinMakeupEditor({ entry, kind, options, defaultRetryTime, on
 
   return <Dialog open onOpenChange={open => { if (!open && !store.saving) onClose() }}>
     <DialogContent className='ck-makeup-editor-dialog w-[min(700px,calc(100vw-48px))] max-[767px]:w-[calc(100vw-24px)]'>
-      <DialogHeader><DialogTitle>{isMakeup ? t('设置定时补签') : t('设置活动窗口重试')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{isMakeup ? t('Configure scheduled catch-up') : t('Configure campaign-window retries')}</DialogTitle></DialogHeader>
       <DialogBody>
-        <p className='ck-schedule-hint'>{t('对应签到计划：{name}', { name: scheduleName(entry) })}</p>
+        <p className='ck-schedule-hint'>{t('Linked check-in schedule: {name}', { name: scheduleName(entry) })}</p>
         <div className='ck-makeup-setting'>
-          <div><h3>{isMakeup ? t('开启定时补签') : t('开启活动窗口重试')}</h3>
-            <p>{isMakeup ? t('每天补查一轮，只处理今天未签到的账号。') : t('仅处理窗口未开或活动暂未下发的账号，不对所有错误反复执行。')}</p>
+          <div><h3>{isMakeup ? t('Enable scheduled catch-up') : t('Enable campaign-window retries')}</h3>
+            <p>{isMakeup ? t('Checks once daily, only for accounts not checked in today.') : t('Only retries accounts waiting for a window or campaign; it does not repeat every error.')}</p>
           </div>
           <Switch checked={enabled} disabled={store.saving} onCheckedChange={next => {
             setEnabled(next === true)
             if (!isMakeup && next && gapValue <= 0) setGap('10')
-          }} aria-label={isMakeup ? t('开启定时补签') : t('开启活动窗口重试')} />
+          }} aria-label={isMakeup ? t('Enable scheduled catch-up') : t('Enable campaign-window retries')} />
         </div>
         <div className='ck-makeup-editor-fields'>
-          <Label className='ck-schedule-field grid items-stretch'><span>{isMakeup ? t('区间结束后等待（分钟）') : t('重试间隔（分钟）')}</span>
+          <Label className='ck-schedule-field grid items-stretch'><span>{isMakeup ? t('Wait after window ends (minutes)') : t('Retry interval (minutes)')}</span>
             <Input type='number' value={gap} min={isMakeup ? 0 : 1} max={120} step={1}
               disabled={!enabled || store.saving} onChange={event => setGap(event.currentTarget.value)} />
           </Label>
-          {isMakeup ? <Label className='ck-schedule-field grid items-stretch'><span>{t('补签不早于')}</span>
+          {isMakeup ? <Label className='ck-schedule-field grid items-stretch'><span>{t('Catch-up no earlier than')}</span>
             <Input type='time' value={time} className='font-mono tabular-nums' disabled={!enabled || store.saving}
               onChange={event => setTime(event.currentTarget.value)} />
-          </Label> : <Label className='ck-schedule-field grid items-stretch'><span>{t('每账号每天最多重试（次）')}</span>
+          </Label> : <Label className='ck-schedule-field grid items-stretch'><span>{t('Maximum retries per account per day')}</span>
             <Input type='number' value={limit} min={1} max={20} step={1} disabled={!enabled || store.saving}
               onChange={event => setLimit(event.currentTarget.value)} />
           </Label>}
         </div>
-        {enabled && !canSave && !store.saving ? <p className='ck-schedule-error'>{t('请检查时间、间隔和次数是否在允许范围内。')}</p> : null}
+        {enabled && !canSave && !store.saving ? <p className='ck-schedule-error'>{t('Check that the time, interval and count are within the allowed ranges.')}</p> : null}
         {isMakeup ? <>
-          <p className='ck-schedule-hint'>{t('补签取「主签到区间结束加等待间隔」与「补签不早于」中较晚的时刻，不会提前补签尚未轮到的账号。')}</p>
+          <p className='ck-schedule-hint'>{t('Catch-up uses the later of the main window end plus the wait interval and the earliest catch-up time. Accounts still waiting for their turn are not processed early.')}</p>
           <Table className='ck-makeup-preview-table'>
-            <TableHeader><TableRow><TableHead>{t('平台批次')}</TableHead><TableHead>{t('签到区间')}</TableHead><TableHead>{t('实际补签')}</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>{t('Platform group')}</TableHead><TableHead>{t('Check-in window')}</TableHead><TableHead>{t('Actual catch-up')}</TableHead></TableRow></TableHeader>
             <TableBody>{groups.map(group => <TableRow key={group.time}>
-              <TableCell>{group.rows.map(row => t(row.label)).join('、')}</TableCell>
+              <TableCell>{group.rows.map(row => t(row.label)).join(', ')}</TableCell>
               <TableCell className='font-mono tabular-nums'>{checkinRangeText(group.time, group.timeEnd)}</TableCell>
               <TableCell className='font-mono tabular-nums'>{enabled && gapValid
-                ? previewMakeupTime(group.timeEnd || group.time, time, gapValue) || '—' : t('已关闭')}</TableCell>
+                ? previewMakeupTime(group.timeEnd || group.time, time, gapValue) || '—' : t('Disabled')}</TableCell>
             </TableRow>)}</TableBody>
           </Table>
         </> : null}
-        <div className='ck-schedule-editor-note'>{t('当前网关中，补签等待间隔与活动重试间隔共用；修改间隔会同步影响两者，开关与重试次数仍分别设置。')}</div>
-        {isMakeup ? <p className='ck-schedule-hint'>{t('间隔填 0 会关闭活动窗口重试；定时补签仍至少等待 1 分钟，不会一起关闭。')}</p>
+        <div className='ck-schedule-editor-note'>{t('The current gateway shares the catch-up wait and campaign retry interval. Changing it affects both; switches and retry counts are still separate.')}</div>
+        {isMakeup ? <p className='ck-schedule-hint'>{t('An interval of 0 disables campaign retries. Scheduled catch-up still waits at least 1 minute and remains enabled.')}</p>
           : <>
-            <p className='ck-schedule-hint'>{t('次数按账号每天单独计算：重试到上限的账号今天不再重试，明天自动重置。')}</p>
-            <p className='ck-schedule-hint'>{t('关闭活动窗口重试不会关闭定时补签。插件提供下次重试时刻时，以插件返回的时间为准。')}</p>
+            <p className='ck-schedule-hint'>{t('The limit is counted per account, per day: an account that reaches it is not retried again today and resets tomorrow.')}</p>
+            <p className='ck-schedule-hint'>{t('Disabling campaign-window retries does not disable scheduled catch-up. If the plugin supplies a retry time, that time takes precedence.')}</p>
           </>}
       </DialogBody>
-      <DialogFooter><Button size='sm' variant='outline' disabled={store.saving} onClick={onClose}>{t('取消')}</Button>
-        <Button size='sm' disabled={!canSave} onClick={() => void submit()}>{store.saving ? t('保存中…') : t('保存设置')}</Button>
+      <DialogFooter><Button size='sm' variant='outline' disabled={store.saving} onClick={onClose}>{t('Cancel')}</Button>
+        <Button size='sm' disabled={!canSave} onClick={() => void submit()}>{store.saving ? t('Saving…') : t('Save settings')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

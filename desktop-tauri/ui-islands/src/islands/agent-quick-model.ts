@@ -47,7 +47,7 @@ export function fillQuickProfile(client: AgentClient, profile: AgentProfile, cat
 }
 
 export function quickBlockReason(client: AgentClient): string {
-  if (!client.supportsGateway) return client.supportNote || t('这个客户端不能接入本网关')
+  if (!client.supportsGateway) return client.supportNote || t('This client cannot connect to this gateway')
   if (!client.writable) return client.readError || client.supportNote
   return ''
 }

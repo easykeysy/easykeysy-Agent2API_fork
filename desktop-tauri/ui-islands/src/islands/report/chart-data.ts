@@ -21,7 +21,7 @@ export type ModelLegendRow = { name: string; fill: string }
 export function modelSlices(list: StatsSlice[] | undefined, colors: Map<string, string>, metric: ChartMetric = 'tokens'): ModelSlice[] {
   const rows = new Map<string, ModelSlice>()
   for (const item of Array.isArray(list) ? list : []) {
-    const name = String(item?.label ?? item?.model ?? '').trim() || t('未知模型')
+    const name = String(item?.label ?? item?.model ?? '').trim() || t('Unknown model')
     const tokens = amount(item?.[metric])
     if (!tokens) continue
     const previous = rows.get(name)
@@ -31,7 +31,7 @@ export function modelSlices(list: StatsSlice[] | undefined, colors: Map<string, 
   return [...rows.values()].sort((left, right) => right.tokens - left.tokens || left.name.localeCompare(right.name))
 }
 
-export function dailyTrendData(series: StatsDay[], colors: Map<string, string>, unknownLabel = t('未知模型'), metric: ChartMetric = 'tokens'): DailyTrendRow[] {
+export function dailyTrendData(series: StatsDay[], colors: Map<string, string>, unknownLabel = t('Unknown model'), metric: ChartMetric = 'tokens'): DailyTrendRow[] {
   return series.map(day => {
     const total = amount(day[metric])
     const models = modelSlices(day.models, colors, metric)
@@ -43,7 +43,7 @@ export function dailyTrendData(series: StatsDay[], colors: Map<string, string>, 
       else segments.push({ name: unknownLabel, tokens: total - sum, fill: colors.get(unknownLabel) || TIP_DOT_FALLBACK })
     } else if (sum > total) {
       // 明细与合计不一致时仍以合计画柱，提示框保留原始分项读数。
-      segments.splice(0, segments.length, { name: metric === 'tokens' ? t('总 Token') : t('总请求数'), tokens: total, fill: TIP_DOT_FALLBACK })
+      segments.splice(0, segments.length, { name: metric === 'tokens' ? t('Total tokens') : t('Total requests'), tokens: total, fill: TIP_DOT_FALLBACK })
     }
     segments.sort((left, right) => right.tokens - left.tokens || left.name.localeCompare(right.name))
     const row: DailyTrendRow = {

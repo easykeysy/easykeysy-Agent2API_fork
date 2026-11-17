@@ -91,7 +91,7 @@ pub fn migrate_config_dir() -> Result<MigrationOutcome, String> {
     if is_link_like(&legacy_metadata) {
         return Err(format!(
             "旧配置目录 {} 是链接或 Windows 重解析点，出于安全考虑不跟随迁移。\
-             请把它改成真实目录后重启，或手动把数据拷到 {}。",
+             请把它改成真实目录后重启，或手动把数据拷到 {}.",
             legacy.display(),
             target.display()
         ));
@@ -99,7 +99,7 @@ pub fn migrate_config_dir() -> Result<MigrationOutcome, String> {
     if !legacy_metadata.is_dir() {
         return Err(format!(
             "旧配置路径 {} 不是目录（可能被同名文件占住），无法迁移。\
-             请先处理该路径后重启；正式配置目录应为 {}。",
+             请先处理该路径后重启；正式配置目录应为 {}.",
             legacy.display(),
             target.display()
         ));
@@ -128,7 +128,7 @@ pub fn migrate_config_dir() -> Result<MigrationOutcome, String> {
     // 否则说明撞名/被别人占了，宁可报错也不能往里面拷
     if let Err(error) = std::fs::create_dir(&staging) {
         return Err(format!(
-            "创建迁移暂存目录 {} 失败：{error}。旧数据仍完整保留在 {}；\
+            "创建迁移暂存目录 {} Failed: {error}。旧数据仍完整保留在 {}; \
              修复后重启本程序会自动重试。",
             staging.display(),
             legacy.display()
@@ -199,7 +199,7 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
         .open(&marker)
     {
         return Err(format!(
-            "在暂存目录 {} 写入标记文件失败：{error}。旧数据仍完整保留在 {}；\
+            "在暂存目录 {} 写入标记文件失败：{error}。旧数据仍完整保留在 {}; \
              修复后重启本程序会自动重试。",
             staging.display(),
             legacy.display()
@@ -208,7 +208,7 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
 
     if let Err(error) = copy_dir_all(legacy, staging, &marker) {
         return Err(format!(
-            "拷贝 {} → {} 失败：{error}。旧数据仍完整保留在 {}；\
+            "拷贝 {} → {} Failed: {error}。旧数据仍完整保留在 {}; \
              修复后（例如关闭占用文件的程序、释放磁盘空间）重启本程序会自动重试，\
              本次未改动或删除旧目录。",
             legacy.display(),
@@ -220,7 +220,7 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
     // 标记文件不能跟着进正式目录（否则新配置目录里会多一个无意义的文件）
     if let Err(error) = std::fs::remove_file(&marker) {
         return Err(format!(
-            "清理暂存目录标记文件 {} 失败：{error}。旧数据仍完整保留在 {}；\
+            "清理暂存目录标记文件 {} Failed: {error}。旧数据仍完整保留在 {}; \
              修复后重启本程序会自动重试。",
             marker.display(),
             legacy.display()
@@ -234,7 +234,7 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
         crate::server::logging::console_line(
             "[Config]",
             &format!(
-                "⚠️  拷贝期间配置目录 {} 已出现，本次不改名覆盖（以已存在的目录为准；旧数据仍在 {}）",
+                "⚠️  拷贝期间配置目录 {} 已出现，本次不改名覆盖（以已存在的目录为准；旧数据仍在 {})",
                 target.display(),
                 legacy.display()
             ),
@@ -245,7 +245,7 @@ fn publish(legacy: &Path, staging: &Path, target: &Path) -> Result<Publish, Stri
         .map(|()| Publish::Published)
         .map_err(|error| {
             format!(
-                "把暂存目录 {} 改名为 {} 失败：{error}。旧数据仍完整保留在 {}；\
+                "把暂存目录 {} 改名为 {} Failed: {error}。旧数据仍完整保留在 {}; \
                  修复后重启本程序会自动重试。",
                 staging.display(),
                 target.display(),

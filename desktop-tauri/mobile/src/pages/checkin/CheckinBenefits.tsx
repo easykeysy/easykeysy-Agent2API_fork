@@ -26,17 +26,17 @@ export function CheckinBenefits({ center, section, busy, action, onChange }: {
     <>
       <div hidden={section !== 'onboarding'}>
         {center.extras?.onboarding?.length ? <div className='m-section'>
-          <SectionHead title={t('新手福利')} />
+          <SectionHead title={t('Starter rewards')} />
           <Card className='m-card'>
             {center.extras.onboarding.map(row => <OnboardingRow key={row.id} row={row} busy={busy} action={action}
               active={section === 'onboarding'} onChange={onChange} />)}
           </Card>
-        </div> : <Empty text={t('没有支持新手福利的账号')} />}
+        </div> : <Empty text={t('No accounts support starter rewards')} />}
       </div>
       <div hidden={section !== 'plans'}>
         {(center.extras?.plans?.length ?? 0) + (center.extras?.campaigns?.length ?? 0) > 0 ? <div className='m-section'>
-          <SectionHead title={t('活动福利')} />
-          <p className='m-ck-note'>{t('限时活动与体验套餐 · 查询后逐项领取 · 不影响每日签到')}</p>
+          <SectionHead title={t('Event rewards')} />
+          <p className='m-ck-note'>{t('Limited-time rewards and trial plans · Query and claim individually · Separate from daily check-in')}</p>
           <Card className='m-card'>
             {center.extras.campaigns?.map(row => <div className='m-card-pad m-ck-account' key={row.id}>
               <div className='m-ck-toolbar mb-3'>
@@ -52,22 +52,22 @@ export function CheckinBenefits({ center, section, busy, action, onChange }: {
                   <ProviderLogo id={row.provider} />
                   <div className='m-ck-grow'>
                     <div className='m-ck-title'>{row.name || row.id}</div>
-                    <div className='m-ck-note'>{claimed.length ? t('今天已领取 {n} 份', { n: claimed.length }) : t('今天还没有领取')}</div>
+                    <div className='m-ck-note'>{claimed.length ? t('Claimed {n} items today', { n: claimed.length }) : t('Nothing has been claimed yet today')}</div>
                   </div>
-                  <Button variant='outline' size='sm' disabled={Boolean(busy)} onClick={() => setPlanId(row.id)}>{t('套餐明细')}</Button>
+                  <Button variant='outline' size='sm' disabled={Boolean(busy)} onClick={() => setPlanId(row.id)}>{t('Plan details')}</Button>
                 </div>
               </div>
             })}
           </Card>
-        </div> : <Empty text={t('没有支持活动福利的账号，请添加账号并更新提供商插件。')} />}
+        </div> : <Empty text={t('No accounts support campaign rewards. Add an account and update the provider plugin.')} />}
       </div>
       <div hidden={section !== 'growth'}>
         {center.extras?.growth?.length ? <div className='m-section'>
-          <SectionHead title={t('成长任务')} />
+          <SectionHead title={t('Growth tasks')} />
           <Card className='m-card'>
             {center.extras.growth.map(row => <CheckinGrowth key={row.id} row={row} busy={busy} action={action} />)}
           </Card>
-        </div> : <Empty text={t('没有支持成长任务的账号（需要 WorkBuddy 国内版）。')} />}
+        </div> : <Empty text={t('No accounts support growth tasks (WorkBuddy CN required).')} />}
       </div>
       {plan ? <CheckinPlansSheet key={plan.id} entry={plan} onClose={() => setPlanId('')} onChange={onChange} /> : null}
     </>
@@ -110,7 +110,7 @@ function OnboardingRow({ row, busy, action, active, onChange }: {
     if (!result) return
     setData(result)
     const failed = Number(result.failed) || 0
-    const text = result.message || t('领取完成：{n} 项，+{points} 积分，{failed} 项失败', {
+    const text = result.message || t('Claimed: {n} items, +{points} points, {failed} failed",', {
       n: Number(result.claimed) || 0, points: Number(result.claimedPoints) || 0, failed,
     })
     setError(failed > 0 ? text : '')
@@ -122,26 +122,26 @@ function OnboardingRow({ row, busy, action, active, onChange }: {
       <div className='m-ck-toolbar'>
         <ProviderLogo id={row.provider} />
         <div className='m-ck-title m-ck-grow'>{row.name || row.id}</div>
-        {settled ? <Badge tone='ok'>{t('已领取')}</Badge> : null}
+        {settled ? <Badge tone='ok'>{t('Claimed')}</Badge> : null}
       </div>
       <div className='m-ck-actions'>
         <Button variant='outline' size='sm' disabled={Boolean(busy)} onClick={() => void query()}>
-          {busy === `onboarding-query:${row.id}` ? t('查询中…') : t('查询任务')}
+          {busy === `onboarding-query:${row.id}` ? t('Checking…') : t('Query tasks')}
         </Button>
         <Button size='sm' disabled={Boolean(busy) || settled || !data || !data.tasks?.some(task => !task.done && !task.blocked)} onClick={() => void claim()}>
-          {busy === `onboarding-claim:${row.id}` ? t('领取中…') : t('领取福利')}
+          {busy === `onboarding-claim:${row.id}` ? t('Claiming…') : t('Claim perks')}
         </Button>
       </div>
       {settled ? <p className='m-ck-note'>
-        {t('一次性福利已结清，无需重复查询')}
-        {settledAt ? ` · ${t('结算于 {time}', { time: formatStamp(settledAt) })}` : ''}
+        {t('One-time rewards have been claimed; no need to query again')}
+        {settledAt ? ` · ${t('Settled at {time}', { time: formatStamp(settledAt) })}` : ''}
       </p> : null}
       {error ? <p className='m-ck-error'>{error}</p> : null}
       {data?.tasks?.map(task => <div className='m-ck-task' key={task.key}>
         <span className='m-ck-grow'>{task.title || task.key}{task.points ? ` · +${task.points}` : ''}</span>
-        <Badge tone={task.done ? 'ok' : task.blocked ? 'mute' : 'warn'}>{task.done ? t('已领取') : task.blocked ? t('未解锁') : t('待领取')}</Badge>
+        <Badge tone={task.done ? 'ok' : task.blocked ? 'mute' : 'warn'}>{task.done ? t('Claimed') : task.blocked ? t('Locked') : t('To claim')}</Badge>
       </div>)}
-      {!data && !settled ? <p className='m-ck-note'>{t('点击查询后查看任务，领取操作由网关执行')}</p> : null}
+      {!data && !settled ? <p className='m-ck-note'>{t('After clicking query, view the tasks; the claim actions are executed by the gateway')}</p> : null}
       {row.provider === 'officeace' ? <div className='mt-3 border-t border-border pt-3'>
         <OfficeaceSubscription accountId={row.id} api={subscriptionApi} t={t} active={active}
           disabled={Boolean(busy)} onChange={() => { onChange(); void store.refresh(true) }} />

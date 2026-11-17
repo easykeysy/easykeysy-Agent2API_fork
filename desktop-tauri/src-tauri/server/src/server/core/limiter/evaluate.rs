@@ -22,15 +22,15 @@ pub fn read(account: &Value, condition: &Condition, facts: &sources::Facts, coun
     let mut reading = Reading::default();
     if let Some(source) = metadata {
         if !source.channel.is_empty() && source.channel != counter::channel_of(account) {
-            reading.reason = "此额度不属于账号当前使用的通道".to_string();
+            reading.reason = "This quota does not belong to the account’s current channel".to_string();
             return reading;
         }
         if source.starts_at > now || (source.ends_at > 0 && now >= source.ends_at) {
-            reading.reason = "套餐尚未生效或已经到期".to_string();
+            reading.reason = "The plan is not active yet or has expired".to_string();
             return reading;
         }
         if source.unlimited && !matches!(condition.metric, Metric::Tokens | Metric::Requests) {
-            reading.reason = "上游额度无上限".to_string();
+            reading.reason = "The upstream quota is unlimited".to_string();
             return reading;
         }
     }
@@ -38,7 +38,7 @@ pub fn read(account: &Value, condition: &Condition, facts: &sources::Facts, coun
         reading.local = true;
         let Some(window) = counter::window_for(condition) else { return reading };
         if window.starts_at > now || (window.ends_at > 0 && now >= window.ends_at) {
-            reading.reason = "统计周期尚未开始或已经结束".to_string();
+            reading.reason = "The counting period has not started or has ended".to_string();
             return reading;
         }
         let (start, end) = counter::window_bounds(&window, now);

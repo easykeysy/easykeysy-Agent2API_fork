@@ -48,16 +48,16 @@ import { t } from '../i18n'
 /** 布尔键的三档（label 随数据源换，`inheritLabel` 由调用方拼） */
 const BOOLEAN_OPTIONS = (inheritLabel: string): SegmentedControlOption<string>[] => [
   { value: 'inherit', label: inheritLabel },
-  { value: 'on', label: t('支持') },
-  { value: 'off', label: t('不支持') },
+  { value: 'on', label: t('Supported') },
+  { value: 'off', label: t('Not supported') },
 ]
 
 /** 布尔值的展示文案（状态行与 tooltip 共用） */
 function booleanText(value: number | boolean | null): string {
   const state = capabilityState(value)
-  if (state === 'on') return t('支持')
-  if (state === 'off') return t('不支持')
-  return t('未声明')
+  if (state === 'on') return t('Supported')
+  if (state === 'off') return t('Not supported')
+  return t('Not declared')
 }
 
 /**
@@ -80,14 +80,14 @@ function statusText(
   const shown = TOKEN_KEYS.includes(key) ? exactTokens(value) : booleanText(value)
   if (set) {
     return custom
-      ? t('已填写：对下游声明 {value}', { value: shown })
-      : t('已覆盖：对下游声明 {value}', { value: shown })
+      ? t('Set: declared to downstream as {value}', { value: shown })
+      : t('Overridden: declared to downstream as {value}', { value: shown })
   }
-  if (custom) return t('未填写（下游按未声明处理）')
-  if (!has) return t('上游未声明（下游会按不支持处理）')
+  if (custom) return t('Not set (downstream treats it as not declared)')
+  if (!has) return t('Not declared upstream (downstream treats it as unsupported)')
   return source === 'modelsdev'
-    ? t('models.dev 补齐：对下游声明 {value}', { value: shown })
-    : t('继承上游：{value}', { value: shown })
+    ? t('Filled in by models.dev: declared to downstream as {value}', { value: shown })
+    : t('Inherit from upstream: {value}', { value: shown })
 }
 
 /**
@@ -142,16 +142,16 @@ export function CapabilityDialog({ context, onClose }: { context: CapabilityCont
       <Dialog open onOpenChange={next => { if (!next) onClose() }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('模型能力')}</DialogTitle>
+            <DialogTitle>{t('Model capabilities')}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <p className='text-sm leading-[1.7] text-subtle'>
-              {t('这一行已不在当前清单里（模型被移除、或目录刷新后上游不再提供它）。关闭后刷新列表再试。')}
+              {t('This row is no longer in the current catalog (the model was removed, or upstream no longer offers it after a catalog refresh). Close this dialog, refresh the list, and try again.')}
             </p>
           </DialogBody>
           <DialogFooter>
             <div className='mr-auto' />
-            <Button variant='outline' onClick={onClose}>{t('关闭')}</Button>
+            <Button variant='outline' onClick={onClose}>{t('Close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -162,15 +162,15 @@ export function CapabilityDialog({ context, onClose }: { context: CapabilityCont
   // 保留 `if (!row)` 的收窄 —— 用 row.id 会按 `possibly null` 报错
   const rowId = row.id
   const providerLabel = row.providerLabel || providerLabelOf(context.provider)
-  const inheritLabel = custom ? t('未声明') : t('继承上游')
-  const clearLabel = custom ? t('清除') : t('恢复继承')
+  const inheritLabel = custom ? t('Not declared') : t('Inherit from upstream')
+  const clearLabel = custom ? t('Clear') : t('Restore inheritance')
 
   /** 数值字段的 placeholder：这一项没有值/未覆盖时提示上游值或「未声明」 */
   function tokenPlaceholder(key: CapabilityKey): string {
     const current = capabilities[key]
     if (isSet(key)) return ''
-    if (custom) return t('未填写')
-    return typeof current === 'number' ? t('继承上游 {value}', { value: exactTokens(current) }) : t('上游未声明')
+    if (custom) return t('Not set')
+    return typeof current === 'number' ? t('Inherit from upstream {value}', { value: exactTokens(current) }) : t('Not declared upstream')
   }
 
   /** 这一项当前有没有值（判据见 setKeysOf） */
@@ -189,19 +189,19 @@ export function CapabilityDialog({ context, onClose }: { context: CapabilityCont
       const raw = draft[key].trim()
       if (!raw) continue
       if (normalizeCapability(key, raw) === null) {
-        setStatus(t('{label}要填 1 ~ 1 亿之间的整数（留空 = {inherit}）',
+        setStatus(t('{label} must be an integer between 1 and 100,000,000 (leave empty = {inherit})',
           { label: CAPABILITY_LABELS[key], inherit: inheritLabel }))
         return
       }
     }
     setSaving(true)
-    setStatus(t('保存中…'))
+    setStatus(t('Saving…'))
     try {
       accept(await writeCapabilities(context.provider, context.id, patchFromDraft(draft)))
       onClose()
-      toast(t('✅ 已保存 {id} 的能力位（{provider}）', { id: rowId, provider: providerLabel }))
+      toast(t('✅ Saved capability flags for {id} ({provider})', { id: rowId, provider: providerLabel }))
     } catch (error) {
-      setStatus(t('保存失败：{message}', { message: errorMessage(error) }))
+      setStatus(t('Save failed: {message}', { message: errorMessage(error) }))
       setSaving(false)
     }
   }
@@ -215,12 +215,12 @@ export function CapabilityDialog({ context, onClose }: { context: CapabilityCont
     }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('模型能力')}</DialogTitle>
+          <DialogTitle>{t('Model capabilities')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           {/* 预览行：改的是哪一条模型（与映射弹窗的预览区同一用意） */}
           <div className='rounded-md border border-border bg-surface-inset px-3 py-2.5 font-mono text-[12px] text-subtle'>
-            <b className='text-primary-fg'>{row.id}</b>{t('（{provider}）', { provider: providerLabel })}
+            <b className='text-primary-fg'>{row.id}</b>{t(' ({provider})', { provider: providerLabel })}
           </div>
 
           {TOKEN_KEYS.map(key => (
@@ -229,7 +229,7 @@ export function CapabilityDialog({ context, onClose }: { context: CapabilityCont
                 <Label htmlFor={`cap-${key}`}>{CAPABILITY_LABELS[key]}</Label>
                 {isSet(key) ? (
                   <Button variant='ghost' size='2xs' disabled={saving}
-                    title={custom ? t('清除这一项（回到未声明）') : t('清除覆盖，回到上游声明值')}
+                    title={custom ? t('Clear this field (back to not declared)') : t('Clear the override and go back to the upstream declared value')}
                     onClick={() => setValue(key, '')}>{clearLabel}</Button>
                 ) : null}
               </div>
@@ -258,38 +258,38 @@ export function CapabilityDialog({ context, onClose }: { context: CapabilityCont
           {levelsInfo ? (
             <div className='rounded-md border border-border bg-surface-inset px-3 py-2.5 text-xs leading-[1.7] text-subtle'>
               <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
-                <span>{levelsInfo.fixedLevel ? t('固定思考档位') : t('可配思考档位')}</span>
+                <span>{levelsInfo.fixedLevel ? t('Fixed reasoning level') : t('Configurable reasoning levels')}</span>
                 <span className='font-mono text-[12px] text-primary-fg'>
                   {levelsInfo.levels.join(' / ')}
                 </span>
                 {levelsInfo.defaultLevel ? (
-                  <span>{t('（默认 ')}<span className='font-mono text-[12px] text-primary-fg'>{levelsInfo.defaultLevel}</span>{t('）')}</span>
+                  <span>{t('(default ')}<span className='font-mono text-[12px] text-primary-fg'>{levelsInfo.defaultLevel}</span>{t(')')}</span>
                 ) : null}
               </div>
               <div className='mt-1'>
                 {levelsInfo.fixedLevel
-                  ? t('上游固定为 {level}，绑定其他等级也无法调高。', { level: levelsInfo.fixedLevel })
+                  ? t('Upstream is fixed at {level}; binding another level cannot increase it.', { level: levelsInfo.fixedLevel })
                   : levelsInfo.source === 'modelsdev'
-                    ? t('社区参考档位，不代表当前上游通道支持；实际以该通道目录为准。')
-                    : t('这是模型自己能配的档位（来自上游目录），只读；要改某一档请到映射弹窗里选。')}
+                    ? t('Community reference levels do not guarantee support on this upstream route; its catalog is authoritative.')
+                    : t('These are the levels the model itself supports (from the upstream catalog); they\'re read-only. To change a level, select it in the mapping dialog.')}
               </div>
             </div>
           ) : null}
 
           <p className='text-xs leading-[1.65] text-subtle'>
-            {t('这几项是给')}<b>{t('下游客户端')}</b>{t('看的能力声明（')}
-            <code>/v1/models</code>{t(' 里的 ')}<code>max_input_tokens</code> / <code>supports_*</code>{t(' 与 ')}<code>input_modalities</code>
-            {t('），下游按它们决定发不发图片、按多大的窗口堆历史。')}
-            <b>{t('不影响网关的转发与路由')}</b>{t('。上游清单给的值不准时，在这里改；')}
-            {custom ? t('这家的清单是你自己登记的，不填的项下游按未声明处理。') : t('「恢复继承」会把这一项交还给上游清单的值。')}
+            {t('These fields are capability declarations for ')}<b>{t('downstream clients')}</b>{t('. In ')}
+            <code>/v1/models</code>{t(', they appear as ')}<code>max_input_tokens</code> / <code>supports_*</code>{t(' and ')}<code>input_modalities</code>
+            {t('. Downstream uses them to decide whether to send images and how much history to pack into the context window.')}
+            <b>{t('Doesn\'t affect gateway forwarding or routing')}</b>{t('. If the upstream catalog\'s values are inaccurate, edit them here; ')}
+            {custom ? t('This provider\'s catalog is what you registered yourself; fields left empty are treated as not declared downstream.') : t('“Restore inheritance” returns this field to the value from the upstream catalog.')}
           </p>
           {/* 状态行：高度固定，出现错误时弹窗不跳高 */}
           <div className='min-h-[18px] text-xs text-subtle'>{status}</div>
         </DialogBody>
         <DialogFooter>
           <div className='mr-auto' />
-          <Button variant='outline' disabled={saving} onClick={onClose}>{t('取消')}</Button>
-          <Button variant='default' disabled={saving} onClick={() => void save()}>{t('保存')}</Button>
+          <Button variant='outline' disabled={saving} onClick={onClose}>{t('Cancel')}</Button>
+          <Button variant='default' disabled={saving} onClick={() => void save()}>{t('Save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

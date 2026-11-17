@@ -79,7 +79,7 @@ pub fn verify_installer(raw: &str) -> Result<PathBuf, String> {
         // 列出本平台允许的全部后缀：Linux 上有两种（deb / AppImage），
         // 只说一个会让拿另一种产物的用户以为自己的包不被支持
         let list = allowed.iter().map(|s| format!(".{s}")).collect::<Vec<_>>().join(" / ");
-        return Err(format!("只允许运行 {list} 安装包"));
+        return Err(format!("只允许运行 {list} installer"));
     }
 
     let target = normalize(&path).ok_or_else(|| "无法解析安装包路径".to_string())?;
@@ -179,7 +179,7 @@ fn launch_installer_linux(path: &Path, silent: bool) -> Result<(), String> {
             .stderr(std::process::Stdio::null())
             .spawn()
             .map(|_| ())
-            .map_err(|error| format!("启动 AppImage 失败: {error}"))
+            .map_err(|error| format!("启动 AppImage failed: {error}"))
     } else {
         // deb：交给桌面环境登记的图形安装器（见函数说明为何不用 dpkg）
         let _ = silent;
@@ -190,7 +190,7 @@ fn launch_installer_linux(path: &Path, silent: bool) -> Result<(), String> {
             .spawn()
             .map(|_| ())
             .map_err(|error| {
-                format!("调用系统安装器失败（需要桌面环境提供 xdg-open）: {error}")
+                format!("调用系统安装器失败（需要桌面环境提供 xdg-open): {error}")
             })
     }
 }
@@ -236,7 +236,7 @@ fn shell_path(path: &Path) -> String {
 /// `ERROR_ELEVATION_REQUIRED (740)`。只有 ShellExecute 会走 shell 的提权路径
 /// 弹出 UAC 确认框，因此这里是唯一可行的调用方式。
 ///
-/// 声明手法与 `login.rs` 的 `open_in_browser` 相同（不新增依赖）。
+/// 声明手法与 `login.rs` — see the `open_in_browser` 相同（不新增依赖）。
 /// `SW_SHOWNORMAL` 让 UAC 确认后安装向导正常显示在用户面前。
 #[cfg(windows)]
 fn launch_installer_elevated(path: &Path, silent: bool) -> Result<(), String> {
@@ -294,10 +294,10 @@ fn launch_installer_elevated(path: &Path, silent: bool) -> Result<(), String> {
     // 而不是一个光秃秃的错误码 —— 这是新安装模式下最常见的一种失败。
     if code == SE_ERR_ACCESSDENIED || code == ERROR_CANCELLED {
         return Err(
-            "安装已取消：没有获得管理员权限（UAC 确认被拒绝）。新版本安装在 Program Files，\
+            "安装已取消：没有获得管理员权限（UAC 确认被拒绝）。新版本安装在 Program Files, \
              安装程序需要管理员权限；可重新点击「安装并重启」，并在系统弹窗中选择「是」"
                 .to_string(),
         );
     }
-    Err(format!("启动安装包失败: ShellExecute 返回 {code}"))
+    Err(format!("启动安装包失败: ShellExecute Back {code}"))
 }

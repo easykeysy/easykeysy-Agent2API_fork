@@ -39,11 +39,11 @@ export function QqGroupDialog({ open, onClose }: { open: boolean; onClose: () =>
     <Dialog open={open} onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent className='w-[min(440px,calc(100vw-48px))]'>
         <DialogHeader>
-          <DialogTitle>{t('加入交流群')}</DialogTitle>
+          <DialogTitle>{t('Join the community')}</DialogTitle>
         </DialogHeader>
         {/* 外链委托挂在 DialogBody 上：卡片是渲染出来的，逐个绑 onClick 既费事又容易漏 */}
         <DialogBody className='gap-2.5' onClick={handleExternalClick}>
-          <p className='qq-intro'>{t('遇到问题或有使用心得，欢迎到群里交流。')}</p>
+          <p className='qq-intro'>{t('Questions and tips are welcome in any of these groups.')}</p>
 
           <div className='qq-cards'>
             {QQ_GROUPS.map((group, index) => (
@@ -51,7 +51,7 @@ export function QqGroupDialog({ open, onClose }: { open: boolean; onClose: () =>
                 key={group.no}
                 className='qq-card h-auto whitespace-normal text-left'
                 data-copy={group.no}
-                title={t('复制群号 {group}', { group: group.no })}
+                title={t('Copy group number {group}', { group: group.no })}
               >
                 <span
                   className='qq-card-logo'
@@ -60,15 +60,15 @@ export function QqGroupDialog({ open, onClose }: { open: boolean; onClose: () =>
                 />
                 <span className='qq-card-body'>
                   <span className='qq-card-title'>
-                    {t('QQ 群 {n}', { n: index + 1 })}
+                    {t('QQQ group {n}', { n: index + 1 })}
                     <code>{group.no}</code>
                   </span>
                   <span className='qq-card-sub'>
-                    {group.nearlyFull ? t('即将满员，请优先加3群、4群') : t('点击复制群号')}
+                    {group.nearlyFull ? t('Almost full — please join group 3 or 4 first') : t('Click to copy the group number')}
                   </span>
                 </span>
                 {group.nearlyFull ? (
-                  <Badge shape='tag' variant='warning' className='qq-card-flag'>{t('即将满员')}</Badge>
+                  <Badge shape='tag' variant='warning' className='qq-card-flag'>{t('Almost full')}</Badge>
                 ) : null}
               </Item>
             ))}
@@ -80,7 +80,7 @@ export function QqGroupDialog({ open, onClose }: { open: boolean; onClose: () =>
                 key={link.id}
                 className='qq-card'
                 data-external={link.url}
-                title={t('在浏览器中打开')}
+                title={t('Open in browser')}
               >
                 <span
                   className='qq-card-logo'
@@ -89,15 +89,15 @@ export function QqGroupDialog({ open, onClose }: { open: boolean; onClose: () =>
                 />
                 <span className='qq-card-body'>
                   <span className='qq-card-title'>
-                    {t('Telegram 群')}
+                    {t('Telegram group')}
                   </span>
-                  <span className='qq-card-sub'>{t('点击在浏览器中打开')}</span>
+                  <span className='qq-card-sub'>{t('Click to open in your browser')}</span>
                 </span>
               </Item>
             ))}
           </div>
 
-          <p className='qq-foot'>{t('在 QQ 里搜索群号即可加入。')}</p>
+          <p className='qq-foot'>{t('Search the group number in QQ to join.')}</p>
         </DialogBody>
       </DialogContent>
     </Dialog>

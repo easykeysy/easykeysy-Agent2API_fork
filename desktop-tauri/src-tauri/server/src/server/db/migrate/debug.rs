@@ -57,7 +57,7 @@ use crate::server::logging;
 const DEBUG_FILE_NAME: &str = "debug-traffic.jsonl";
 
 /// 迁移项的可读名（`LegacyOutcome.label` 与「待迁移项清单」共用同一个字面量）。
-pub(super) const LABEL: &str = "调试报文";
+pub(super) const LABEL: &str = "Debug Payloads";
 
 /// 旧文件的位置（不在原处时 `None`）—— 定位器与 [`import_debug`] 共用这一份。
 ///
@@ -128,7 +128,7 @@ pub(super) fn import_debug(conn: &Connection, dir: &Path) -> Option<LegacyOutcom
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 调试报文迁移失败：无法读取 {}（{error}）", path.display()),
+                &format!("❌ 调试报文迁移失败：无法读取 {}（{error})", path.display()),
             );
             return None;
         }
@@ -139,7 +139,7 @@ pub(super) fn import_debug(conn: &Connection, dir: &Path) -> Option<LegacyOutcom
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 调试报文迁移失败：写入数据库失败（{error}）"),
+                &format!("❌ 调试报文迁移失败：写入数据库失败（{error})"),
             );
             return None;
         }

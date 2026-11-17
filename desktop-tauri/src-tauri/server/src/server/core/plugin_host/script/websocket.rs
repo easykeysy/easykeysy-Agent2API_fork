@@ -64,7 +64,7 @@ pub async fn open(params: &Value) -> Result<Value, proto::WireError> {
     if !matches!(url.scheme(), "ws" | "wss") || url.host_str().is_none()
         || !url.username().is_empty() || url.password().is_some() || url.fragment().is_some()
     {
-        return Err(error("WebSocket 只允许不含账号信息的 ws / wss 地址"));
+        return Err(error("WebSocket 只允许不含账号信息的 ws / wss Address"));
     }
     let secure = url.scheme() == "wss";
     url.set_scheme(if secure { "https" } else { "http" }).map_err(|_| error("WebSocket 地址无效"))?;
@@ -98,7 +98,7 @@ pub async fn open(params: &Value) -> Result<Value, proto::WireError> {
     }
     if !protocols.is_empty() { request = request.header("sec-websocket-protocol", protocols.join(", ")); }
     let id = params["id"].as_str().filter(|id| !id.is_empty() && id.len() <= 80)
-        .ok_or_else(|| error("缺少 WebSocket 会话标识"))?.to_string();
+        .ok_or_else(|| error("缺少 WebSocket Session identifier"))?.to_string();
     let (commands, incoming) = mpsc::channel(8);
     let (events, outgoing) = mpsc::channel(2);
     let connection = Arc::new(Connection {
@@ -221,7 +221,7 @@ pub async fn read(params: &Value) -> Result<Value, proto::WireError> {
     let mut events = connection.events.lock().await;
     tokio::select! {
         biased;
-        _ = connection.cancel.cancelled() => Err(error("WebSocket 已取消")),
+        _ = connection.cancel.cancelled() => Err(error("WebSocket Canceled")),
         event = tokio::time::timeout(Duration::from_secs(20), events.recv()) => Ok(match event {
             Ok(Some(value)) => value,
             Ok(None) => json!({ "type": "close", "code": 1006, "reason": "", "clean": false }),
@@ -251,13 +251,13 @@ pub async fn send(params: &Value) -> Result<Value, proto::WireError> {
     let connection = find(params)?;
     let (reply, result) = oneshot::channel();
     let work = async {
-        connection.commands.send(Command { message, reply }).await.map_err(|_| error("WebSocket 已关闭"))?;
-        result.await.map_err(|_| error("WebSocket 已关闭"))?.map_err(error)?;
+        connection.commands.send(Command { message, reply }).await.map_err(|_| error("WebSocket Disabled"))?;
+        result.await.map_err(|_| error("WebSocket Disabled"))?.map_err(error)?;
         Ok(Value::Null)
     };
     tokio::select! {
         biased;
-        _ = connection.cancel.cancelled() => Err(error("WebSocket 已取消")),
+        _ = connection.cancel.cancelled() => Err(error("WebSocket Canceled")),
         result = tokio::time::timeout(Duration::from_secs(35), work) => result.map_err(|_| error("WebSocket 发送等待超时"))?,
     }
 }

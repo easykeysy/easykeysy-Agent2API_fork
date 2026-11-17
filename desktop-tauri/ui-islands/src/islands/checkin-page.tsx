@@ -46,9 +46,9 @@ type CheckinView = CheckinSection | Exclude<Tab, 'center'>
 function tabOptions() {
   return [
     ...CHECKIN_SECTION_OPTIONS.map(option => ({ ...option, label: t(option.label) })),
-    { value: 'schedule' as const, label: t('定时签到') },
-    { value: 'makeup' as const, label: t('定时补签') },
-    { value: 'records' as const, label: t('签到记录') },
+    { value: 'schedule' as const, label: t('Scheduled check-in') },
+    { value: 'makeup' as const, label: t('Scheduled catch-up') },
+    { value: 'records' as const, label: t('Check-in records') },
   ]
 }
 
@@ -120,7 +120,7 @@ function CheckinPage(): React.ReactElement {
             options={tabOptions()}
             value={view}
             onValueChange={switchTab}
-            aria-label={t('签到功能分类')}
+            aria-label={t('Check-in categories')}
             className="shrink-0"
           />
         </div>
@@ -166,13 +166,13 @@ function CheckinPage(): React.ReactElement {
 function AutoBadge(): React.ReactElement | null {
   const auto = store.center?.auto
   if (!auto) return null
-  if (auto.running) return <Badge variant='warning' shape='tag'>{t('执行中…')}</Badge>
-  if (!auto.enabled) return <Badge variant='outline' shape='tag'>{t('自动执行已暂停')}</Badge>
+  if (auto.running) return <Badge variant='warning' shape='tag'>{t('Running…')}</Badge>
+  if (!auto.enabled) return <Badge variant='outline' shape='tag'>{t('Automatic runs paused')}</Badge>
   const rows = (auto.schedules ?? []).filter(entry => entry.enabled).flatMap(entry => entry.providerRows ?? [])
   const pending = rows.filter(row => !row.firedToday).length
   return (
     <Badge variant={pending ? 'brand' : 'success'} shape='tag'>
-      {pending ? t('还有 {n} 个平台未执行', { n: pending }) : t('自动执行已开启')}
+      {pending ? t('{n} platforms have not run yet', { n: pending }) : t('Automatic runs enabled')}
     </Badge>
   )
 }

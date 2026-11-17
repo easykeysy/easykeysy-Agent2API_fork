@@ -135,8 +135,8 @@ impl SecretScope {
         match self {
             SecretScope::UpdateToken => "重存一次令牌即可自愈",
             SecretScope::Accounts => "重新保存一次账号即可自愈",
-            SecretScope::CloudSync => "在「设置 → 数据 → 云同步」里重新输入同步密码即可自愈",
-            SecretScope::CodingSessions => "在 AI 助手的编程会话连接设置里重新输入密钥即可自愈",
+            SecretScope::CloudSync => "在「设置 → Data → 云同步」里重新输入同步密码即可自愈",
+            SecretScope::CodingSessions => "On AI 助手的编程会话连接设置里重新输入密钥即可自愈",
             SecretScope::PanelCaptcha => "在机器人校验设置中重新保存 Turnstile 服务端密钥即可恢复",
         }
     }
@@ -288,7 +288,7 @@ fn load_or_create_key(scope: SecretScope) -> Result<[u8; KEY_LEN], String> {
         // 不存在才生成新密钥；其余错误（权限等）如实上抛 —— 覆盖式重建会把
         // 已保存的密文变成永远解不开的死数据
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => create_key_file(&path),
-        Err(error) => Err(format!("读取密钥文件 {} 失败: {error}", path.display())),
+        Err(error) => Err(format!("读取密钥文件 {} failed: {error}", path.display())),
     }
 }
 
@@ -299,7 +299,7 @@ fn create_key_file(path: &std::path::Path) -> Result<[u8; KEY_LEN], String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|error| format!("创建配置目录失败: {error}"))?;
     }
-    std::fs::write(path, key).map_err(|error| format!("写入密钥文件 {} 失败: {error}", path.display()))?;
+    std::fs::write(path, key).map_err(|error| format!("写入密钥文件 {} failed: {error}", path.display()))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
@@ -417,7 +417,7 @@ pub(crate) fn backup_key(scope: SecretScope) -> Result<Option<[u8; KEY_LEN]>, St
             .map(Some)
             .map_err(|_| format!("密钥文件 {} 长度异常", path.display())),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(format!("读取密钥文件 {} 失败: {error}", path.display())),
+        Err(error) => Err(format!("读取密钥文件 {} failed: {error}", path.display())),
     }
 }
 
@@ -438,11 +438,11 @@ pub(crate) fn seal_with_key(plaintext: &[u8], key: &[u8; KEY_LEN]) -> Result<Str
     use aes_gcm::{Aes256Gcm, KeyInit as _, Nonce};
 
     let cipher =
-        Aes256Gcm::new_from_slice(key).map_err(|_| "密钥长度不受 AES-256 支持".to_string())?;
+        Aes256Gcm::new_from_slice(key).map_err(|_| "密钥长度不受 AES-256 Supported".to_string())?;
     let mut nonce_bytes = [0u8; NONCE_LEN];
     getrandom::getrandom(&mut nonce_bytes).map_err(|error| format!("系统随机源不可用: {error}"))?;
     let nonce =
-        Nonce::<U12>::try_from(nonce_bytes.as_slice()).map_err(|_| "生成 nonce 失败".to_string())?;
+        Nonce::<U12>::try_from(nonce_bytes.as_slice()).map_err(|_| "生成 nonce failed".to_string())?;
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|_| "AES-GCM 加密失败".to_string())?;
@@ -459,7 +459,7 @@ pub(crate) fn seal_with_key(plaintext: &[u8], key: &[u8; KEY_LEN]) -> Result<Str
 /// 这句会经 `status_json` 显示到界面上。
 pub fn open(envelope: &str, scope: SecretScope) -> Result<Vec<u8>, String> {
     decrypt_envelope(envelope, || secret_key(scope), &format!(
-        "AES-GCM 解密失败（密钥文件 {} 是否被删除或更换？{}）",
+        "AES-GCM 解密失败（密钥文件 {} 是否被删除或更换？{})",
         scope.key_file(), scope.recovery_hint(),
     ))
 }
@@ -490,7 +490,7 @@ fn decrypt_envelope(
     // 密钥在长度校验之后才取：坏信封不该触发「现场生成密钥文件」这类副作用
     let key = resolve()?;
     let cipher =
-        Aes256Gcm::new_from_slice(&key).map_err(|_| "密钥长度不受 AES-256 支持".to_string())?;
+        Aes256Gcm::new_from_slice(&key).map_err(|_| "密钥长度不受 AES-256 Supported".to_string())?;
     let nonce = Nonce::<U12>::try_from(&blob[..NONCE_LEN])
         .map_err(|_| "密文 nonce 长度异常".to_string())?;
     let plaintext = cipher.decrypt(&nonce, &blob[NONCE_LEN..])

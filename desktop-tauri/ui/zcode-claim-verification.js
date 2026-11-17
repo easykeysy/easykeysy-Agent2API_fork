@@ -85,7 +85,7 @@
       controller.abort();
     }, remaining - 750);
     const complete = payload => new Promise((resolve, reject) => {
-      const timer = window.setTimeout(() => reject(new Error(t('验证码业务请求超时，请刷新状态后重试'))), 10000);
+      const timer = window.setTimeout(() => reject(new Error(t('The verified operation timed out. Refresh its status before retrying.'))), 10000);
       Promise.resolve().then(() => window.workbuddyDesktop.zcodeClaimVerification({
         action: 'complete', clientId, requestId: task.requestId,
         accountId: task.accountId, planId: task.planId, ...payload,
@@ -93,12 +93,12 @@
     });
     try {
       const token = await window.wbAliyunCaptcha.requestToken(task.config, controller.signal, { onPhase: setPhase });
-      if (controller.signal.aborted || stopped || active !== flow) throw new DOMException('请求已取消', 'AbortError');
+      if (controller.signal.aborted || stopped || active !== flow) throw new DOMException('Request cancelled', 'AbortError');
       flow.submitting = true;
       setPhase('submitting');
       const result = await complete({ status: 'verified', param: token.param });
       if (!result?.accepted && !stopped) {
-        window.wbApp?.toast(t('领取验证任务已结束，请到套餐明细查看结果'), 'warn');
+        window.wbApp?.toast(t('This verification task has ended. Check the plan details for the result.'), 'warn');
       }
     } catch (error) {
       pausedUntil = Date.now() + 5 * 60000;
@@ -112,8 +112,8 @@
         } catch {}
       }
       if (!stopped) window.wbApp?.toast(flow.submitting
-        ? t('验证提交结果未确认，请查看签到记录，勿重复领取')
-        : t('本次自动领取未完成验证，请在套餐明细中手动领取'), 'warn');
+        ? t('The verification submission is unconfirmed. Check the check-in records and do not repeat the claim.')
+        : t('Verification was not completed for this automatic claim. Claim manually from the plan details.'), 'warn');
     } finally {
       window.clearTimeout(timeout);
       if (active === flow) {

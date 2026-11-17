@@ -9,13 +9,13 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
         return Err("方案 ID 无效".into());
     }
     if profile.name.is_empty() || profile.name.len() > 300 {
-        return Err("请填写方案名称".into());
+        return Err("Enter a profile name".into());
     }
     if !def.writable {
         return Err(def.note.into());
     }
     if !def.protocols.contains(&profile.protocol.as_str()) {
-        return Err("这个客户端不支持所选协议".into());
+        return Err("This client does not support the selected protocol".into());
     }
     if !matches!(
         profile.kind.as_str(),
@@ -24,21 +24,21 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
         return Err("配置来源无效".into());
     }
     if profile.kind == "gateway" && !def.gateway {
-        return Err("这个客户端不能接入本网关".into());
+        return Err("This client cannot connect to this gateway".into());
     }
     let inherited_official = profile.base_url.is_empty()
         && profile.auth_mode == "preserve"
         && !profile.native.settings.is_null();
     if !inherited_official {
         let url = url::Url::parse(&profile.base_url)
-            .map_err(|_| "请填写完整的 http 或 https 接口地址")?;
+            .map_err(|_| "请填写完整的 http or https API address")?;
         if !matches!(url.scheme(), "http" | "https")
             || url.host_str().is_none()
             || !url.username().is_empty()
             || url.password().is_some()
             || url.fragment().is_some()
         {
-            return Err("接口地址必须是 http 或 https，且不能包含账号、密码或片段".into());
+            return Err("接口地址必须是 http or https，且不能包含账号、密码或片段".into());
         }
         if profile.kind == "gateway"
             && !matches!(
@@ -60,7 +60,7 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
                 .iter()
                 .any(|suffix| url.path().ends_with(suffix))
         {
-            return Err("请填写接口基址，不要附加 messages、responses 或 chat/completions".into());
+            return Err("请填写接口基址，不要附加 messages, responses or chat/completions".into());
         }
     }
     if !matches!(
@@ -73,7 +73,7 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
         return Err("本网关认证不能用于其他服务".into());
     }
     if profile.auth_mode == "key" && profile.api_key.trim().is_empty() {
-        return Err("请填写 API Key".into());
+        return Err("Enter an API key".into());
     }
     if profile.api_key.contains(['\r', '\n']) {
         return Err("API Key 不能包含换行".into());
@@ -82,7 +82,7 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
         return Err("这个客户端不支持本页的环境变量认证方式".into());
     }
     if profile.auth_mode == "env" && !valid_env(&profile.env_key) {
-        return Err("请填写有效的环境变量名".into());
+        return Err("Enter a valid environment variable name".into());
     }
     if def.id == "zed" && !matches!(profile.auth_mode.as_str(), "preserve" | "none") {
         return Err("请在 Zed 中配置 API Key，本页不会写入系统凭证".into());
@@ -90,7 +90,7 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
     let optional_catalog = matches!(def.id, "codex" | "claude-code") && profile.models.is_empty();
     if def.models && !optional_catalog {
         if profile.models.is_empty() || profile.models.len() > 200 {
-            return Err("请配置至少一个模型，最多 200 个".into());
+            return Err("请配置至少一个模型，最多 200 total".into());
         }
         let mut ids = HashSet::new();
         for model in &profile.models {
@@ -99,7 +99,7 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
                 || model.id.chars().any(char::is_control)
                 || !ids.insert(&model.id)
             {
-                return Err("模型 ID 不能为空或重复".into());
+                return Err("Model IDs cannot be empty or duplicated".into());
             }
             if model
                 .context_window
@@ -108,7 +108,7 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
                     .max_output_tokens
                     .is_some_and(|value| value == 0 || value > 100_000_000)
             {
-                return Err("模型 Token 上限必须是 1 到 1 亿之间的整数".into());
+                return Err("Model Token limits must be integers between 1 and 100 million".into());
             }
             if matches!(def.id, "zed" | "kimi-code" | "crush") && model.context_window.is_none() {
                 return Err("这个客户端的自定义模型必须填写上下文窗口".into());
@@ -127,7 +127,7 @@ pub fn profile(def: &ClientDef, profile: &Profile) -> Result<(), String> {
                 && model.effort != "default"
                 && (!model.reasoning_levels.contains(&model.effort) || !levels.contains(&model.effort))
             {
-                return Err(format!("模型 {} 或客户端不支持所选思考等级", model.id));
+                return Err(format!("Model {} 或客户端不支持所选思考等级", model.id));
             }
         }
         if def.default_model && !profile.models.iter().any(|model| model.id == profile.model) {

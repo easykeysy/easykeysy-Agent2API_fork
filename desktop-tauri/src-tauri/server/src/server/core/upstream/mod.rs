@@ -469,7 +469,7 @@ impl UpstreamService {
         if history.notable() {
             logging::verbose(
                 "[Upstream]",
-                &format!("历史 sanitize：{}", history.describe()),
+                &format!("历史 sanitize: {}", history.describe()),
             );
         }
         // 内容处理的两个开关**按请求取一次快照**：同一次请求里各 provider 的判定用同一
@@ -872,7 +872,7 @@ pub(super) fn describe_proxy(proxy: Option<&ResolvedProxy>) -> String {
     match proxy {
         Some(proxy) if !proxy.label.is_empty() => proxy.label.clone(),
         Some(proxy) => proxy.host.clone(),
-        None => "直连".to_string(),
+        None => "Direct".to_string(),
     }
 }
 

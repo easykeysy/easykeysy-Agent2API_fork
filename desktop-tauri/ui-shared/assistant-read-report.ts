@@ -21,20 +21,20 @@ function dateArg(args: Record<string, unknown>, key: string, t: Translate): stri
   const value = stringArg(args, key, t, 10)
   const date = new Date(`${value}T00:00:00Z`)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
-    throw new Error(t('参数 {name} 必须是有效日期（YYYY-MM-DD）', { name: key }))
+    throw new Error(t('Parameter {name} must be a valid date (YYYY-MM-DD)', { name: key }))
   }
   return value
 }
 
 export function reportReadTools(api: AssistantReadApi, t: Translate): AssistantReadTool[] {
   const getRoutingQueue: AssistantReadTool = {
-    id: 'get_routing_queue', label: t('查询路由队列'), kind: 'read',
-    desc: '读取指定模型（对外模型名/映射别名）在当前策略下的候选账号、被跳过账号及原因。回答「为什么不用某个账号」「还有哪些备用线路」「这个模型能走谁」前调用。model 不填时读取不限模型的全局队列。结果是静态预演，不会消耗轮转游标或改变会话粘性；真实请求还受轮转/粘性和状态变化影响，pickedId 不保证就是下一次真实请求的账号。ordered 是可尝试候选，blocked 是被跳过账号；modelKnown=false 表示模型不在当前路由目录中，不能把返回内容当成该模型的可用候选。分页 hasMore 时按 nextOffset 继续取。',
+    id: 'get_routing_queue', label: t('Inspect routing queue'), kind: 'read',
+    desc: 'Read, for a given model (external model name / mapping alias), the candidate accounts under the current policy and the skipped accounts with reasons. Call this before answering "why wasn\'t this account used", "what other fallback routes exist", or "who can serve this model". When model is empty, the global queue that is not bound to a model is read. The result is a static rehearsal: it does not consume the rotation cursor and does not change session stickiness. Real requests are also affected by rotation/stickiness and state changes, so pickedId is not guaranteed to be the account for the next real request. ordered lists the candidates to try; blocked lists the skipped accounts; modelKnown",=false  means the model is not in the current routing catalog; the returned content must not be treated as available candidates for that model. Pagination: when hasMore is set, keep fetching with nextOffset.",',
     params: {
       type: 'object', additionalProperties: false,
       properties: {
-        model: { type: 'string', description: '对外模型名或映射别名；不填 = 全局队列' },
-        section: { type: 'string', enum: ['ordered', 'blocked', 'both'], description: 'ordered = 候选，blocked = 被跳过，both = 两段（默认）；各段独立分页' },
+        model: { type: 'string', description: 'The outward model name or mapping alias; leave blank= Global queue' },
+        section: { type: 'string', enum: ['ordered', 'blocked', 'both'], description: 'ordered = candidates, blocked= Skipped, both= two segments (default); each segment paginates independently' },
         ...PAGE_PARAMS,
       },
     },
@@ -55,21 +55,21 @@ export function reportReadTools(api: AssistantReadApi, t: Translate): AssistantR
       }
       if (section !== 'blocked') payload.ordered = page(ordered.slice(offset).map(row => routeEntry(row, t)), offset, limit, ordered.length, 9000)
       if (section !== 'ordered') payload.blocked = page(blocked.slice(offset).map(row => routeEntry(row, t)), offset, limit, blocked.length, 9000)
-      return result(payload, t('{n} 个候选，{m} 个跳过', { n: ordered.length, m: blocked.length }))
+      return result(payload, t('{n} candidates, {m} skipped', { n: ordered.length, m: blocked.length }))
     },
   }
 
   const getUsageReport: AssistantReadTool = {
-    id: 'get_usage_report', label: t('查询用量报表'), kind: 'read',
-    desc: '读取本地生产请求报表，回答「今天用了多少 Token」「这周哪个账号消耗最多」「成功率怎样」「用量趋势」之前调用。range 的日期边界按网关所在机器的本地自然日，自定义日期含首尾两天。助手对话和模型测试按后端口径排除，不是所有上游消费的总账；余额请用 list_account_balance。summary 默认给概览和各维度前 10 项（含分页元信息），要完整排行请选 providers/accounts/models/clients/apiKeys 并分页；apiKeyDetail 按 filterValue 查询该 Key 的客户端和模型分布，不返回密钥值；dailyTrend/cacheTrend24h 可按需查看趋势。successRate 是 0~1 比例，模型统计按实际上游模型名（旧行回落请求模型），不是映射别名。',
+    id: 'get_usage_report', label: t('Read usage report'), kind: 'read',
+    desc: 'Read the local production request report before answering "how many tokens did I use today", "which account consumed the most this week", "what is the success rate", or "what is the usage trend". Call this before any of those questions. Date boundaries for range follow the gateway machine\'s local calendar days; a custom range includes both endpoint days. Assistant conversations and model tests are excluded by backend convention — this is not the total upstream consumption ledger. For balance use list_account_balance.summary: the default gives an overview plus the top 10 of each dimension (with pagination metadata); for a complete ranking, pick providers/accounts/models/clients/apiKeys and paginate. apiKeyDetail queries that key\'s client and model distribution via filterValue and never returns the key value. dailyTrend/cacheTrend24h are available for trends on demand. successRate Yes 0",~1 ratio; model statistics use the actual upstream model name (older rows fall back to the requested model), not the mapping alias.',
     params: {
       type: 'object', additionalProperties: false,
       properties: {
-        range: { type: 'string', enum: ['today', 'yesterday', '7', '30', 'month', 'all', 'custom'], description: '默认 today；custom 时必须带 startDate/endDate' },
-        startDate: { type: 'string', description: '自定义范围开始日期，YYYY-MM-DD（包含）' },
-        endDate: { type: 'string', description: '自定义范围结束日期，YYYY-MM-DD（包含）' },
-        section: { type: 'string', enum: ['summary', 'providers', 'accounts', 'models', 'clients', 'apiKeys', 'apiKeyDetail', 'dailyTrend', 'cacheTrend24h'], description: '默认 summary；其它段可分页完整读取' },
-        apiKey: { type: 'string', description: 'apiKeyDetail 必填：使用 apiKeys 行中的 filterValue（key:<id>/env/none/unknown），不传密钥值' },
+        range: { type: 'string', enum: ['today', 'yesterday', '7', '30', 'month', 'all', 'custom'], description: 'Default today; custom must carry startDate/endDate' },
+        startDate: { type: 'string', description: 'Custom range start date, YYYY-MM-DD (inclusive)' },
+        endDate: { type: 'string', description: 'Custom range end date, YYYY-MM-DD (inclusive)' },
+        section: { type: 'string', enum: ['summary', 'providers', 'accounts', 'models', 'clients', 'apiKeys', 'apiKeyDetail', 'dailyTrend', 'cacheTrend24h'], description: 'Default summary; other segments can be paged and read in full' },
+        apiKey: { type: 'string', description: 'apiKeyDetail Required: use the filterValue from an apiKeys row (key:<id>/env/none/unknown), the key value is not sent' },
         ...PAGE_PARAMS,
       },
     },
@@ -78,13 +78,13 @@ export function reportReadTools(api: AssistantReadApi, t: Translate): AssistantR
       const section = enumArg(args, 'section', ['summary', 'providers', 'accounts', 'models', 'clients', 'apiKeys', 'apiKeyDetail', 'dailyTrend', 'cacheTrend24h'], 'summary', t)
       const { offset, limit } = pageArgs(args, t)
       const dates = range === 'custom' ? { start: dateArg(args, 'startDate', t), end: dateArg(args, 'endDate', t) } : undefined
-      if (dates && dates.start > dates.end) throw new Error(t('开始日期不能晚于结束日期'))
+      if (dates && dates.start > dates.end) throw new Error(t('The start date cannot be later than the end date'))
       const apiKey = stringArg(args, 'apiKey', t, 128)
-      if (section === 'apiKeyDetail' && !apiKey) throw new Error(t('查看 API Key 详情必须指定 API Key 身份'))
+      if (section === 'apiKeyDetail' && !apiKey) throw new Error(t('Specify an API key identity to view its details'))
       const data = expectObject(await api.usageReport(range, dates, apiKey ? { apiKey } : undefined), 'usageReport', t)
       const overview = expectObject(data.overview, 'usageReport.overview', t)
       if (number(overview.requests) === null || number(overview.successful) === null || number(overview.tokens) === null) {
-        throw new Error(t('读取响应不完整：{name}', { name: 'usageReport.overview' }))
+        throw new Error(t('Incomplete response: {name}', { name: 'usageReport.overview' }))
       }
       const requests = number(overview.requests) as number
       const successful = number(overview.successful) as number
@@ -131,7 +131,7 @@ export function reportReadTools(api: AssistantReadApi, t: Translate): AssistantR
         })
         payload[section] = page(projected, offset, limit, items.length)
       }
-      return result(payload, t('{requests} 次请求，{tokens} Token', { requests, tokens: number(overview.tokens) as number }))
+      return result(payload, t('{requests} requests, {tokens} tokens', { requests, tokens: number(overview.tokens) as number }))
     },
   }
 

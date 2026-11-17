@@ -72,10 +72,10 @@ pub async fn set_state(State(state): State<ServerState>, body: Bytes) -> Respons
     // 旧版前端 / 脚本还带着这个字段打进来时，明确报 400 而不是静默忽略 ——
     // 静默忽略会让调用方以为「删除」成功了，模型其实还开着。
     if object.contains_key("hidden") {
-        return errors::management_error(400, "hidden 已移除，请使用 enabled 开关");
+        return errors::management_error(400, "hidden 已移除，请使用 enabled Toggles");
     }
     let enabled = match object.get("enabled") {
-        None => return errors::management_error(400, "缺少 enabled 字段"),
+        None => return errors::management_error(400, "缺少 enabled field"),
         Some(Value::Bool(value)) => Some(*value),
         Some(_) => return errors::management_error(400, "enabled 必须是布尔值"),
     };
@@ -96,8 +96,8 @@ pub async fn set_state(State(state): State<ServerState>, body: Bytes) -> Respons
         Some(name) => format!("[{name}] {id}"),
         None => id.clone(),
     };
-    let what = if enabled == Some(true) { "已启用" } else { "已禁用" };
-    logging::log("[Models]", &format!("模型 {subject} {what}"));
+    let what = if enabled == Some(true) { "Enabled" } else { "Disabled" };
+    logging::log("[Models]", &format!("Model {subject} {what}"));
     ok_json(catalog::manage_view(state.store()))
 }
 
@@ -173,7 +173,7 @@ pub async fn add_mapping(State(state): State<ServerState>, body: Bytes) -> Respo
         return errors::management_error(error.status_code, error.message);
     }
     let subject = match provider_opt {
-        Some(name) => format!("{alias} → {target}（{name}）"),
+        Some(name) => format!("{alias} → {target}（{name})"),
         None => format!("{alias} → {target}"),
     };
     // 日志把等级与开关一并写出来（改等级 / 切开关走的都是这条接口，
@@ -183,11 +183,11 @@ pub async fn add_mapping(State(state): State<ServerState>, body: Bytes) -> Respo
         None => String::new(),
     };
     let enabled_text = match enabled {
-        Some(true) => "，开关 开",
-        Some(false) => "，开关 关",
+        Some(true) => "，开关 On",
+        Some(false) => "，开关 Off",
         None => "",
     };
-    logging::log("[Models]", &format!("保存映射 {subject}{reasoning_text}{enabled_text}"));
+    logging::log("[Models]", &format!("Save mapping {subject}{reasoning_text}{enabled_text}"));
     ok_json(catalog::manage_view(state.store()))
 }
 
@@ -218,7 +218,7 @@ pub async fn remove_mapping(State(state): State<ServerState>, body: Bytes) -> Re
     if alias.eq_ignore_ascii_case(&target)
         && catalog::host_row_exists(state.store(), provider_opt, &target)
     {
-        return errors::management_error(400, "原始 ID 的默认绑定不能删除，请关闭它的开关");
+        return errors::management_error(400, "The default binding for the original ID cannot be deleted; turn it off instead");
     }
     let removed = match model_rules::remove_mapping(&alias, &target, provider_opt) {
         Ok((_, removed)) => removed,
@@ -227,7 +227,7 @@ pub async fn remove_mapping(State(state): State<ServerState>, body: Bytes) -> Re
     if !removed {
         return errors::management_error(404, format!("映射不存在: {alias} → {target}"));
     }
-    logging::log("[Models]", &format!("删除映射 {alias} → {target}"));
+    logging::log("[Models]", &format!("Delete mapping {alias} → {target}"));
     ok_json(catalog::manage_view(state.store()))
 }
 
@@ -271,7 +271,7 @@ pub async fn add_custom(State(state): State<ServerState>, body: Bytes) -> Respon
     if !model_rules::alias_valid(&id) {
         return errors::management_error(
             400,
-            "模型 ID 只能包含字母、数字与 - _ . / :，且不超过 128 个字符",
+            "Model ID 只能包含字母、数字与 - _ . / :，且不超过 128 个字符",
         );
     }
     if id.chars().all(|ch| ch.is_ascii_digit()) {
@@ -317,7 +317,7 @@ pub async fn remove_custom(State(state): State<ServerState>, body: Bytes) -> Res
             format!("自定义模型不存在: [{provider}] {id}"),
         );
     }
-    logging::log("[Models]", &format!("移除自定义模型 [{provider}] {id}"));
+    logging::log("[Models]", &format!("Remove custom model [{provider}] {id}"));
     ok_json(catalog::manage_view(state.store()))
 }
 
@@ -362,7 +362,7 @@ pub async fn set_capabilities(State(state): State<ServerState>, body: Bytes) -> 
         );
     }
     let patch = match object.get("capabilities") {
-        None => return errors::management_error(400, "缺少 capabilities 字段"),
+        None => return errors::management_error(400, "缺少 capabilities field"),
         Some(Value::Object(map)) => map.clone(),
         Some(_) => return errors::management_error(400, "capabilities 必须是对象"),
     };
@@ -388,7 +388,7 @@ pub async fn set_capabilities(State(state): State<ServerState>, body: Bytes) -> 
         .iter()
         .filter_map(|key| patch.get(*key).map(|value| (key, value)))
         .map(|(key, value)| match value {
-            Value::Null => format!("{key}=恢复"),
+            Value::Null => format!("{key}=Restore"),
             other => format!("{key}={other}"),
         })
         .collect::<Vec<_>>()

@@ -14,7 +14,7 @@ const starting = new Set()
 export function methods(provider) {
   return {
     methods: loginMethods(provider).map(method => ({
-      methodIndex: method.methodIndex, type: method.type, label: method.label || (method.type === "oauth" ? "OAuth 登录" : "API Key"),
+      methodIndex: method.methodIndex, type: method.type, label: method.label || (method.type === "oauth" ? "OAuth sign-in" : "API Key"),
       prompts: [
         ...[keyPrompt(method)].filter(Boolean),
         ...(method.prompts ?? []).map(prompt => promptView(provider, method, prompt)),
@@ -33,13 +33,13 @@ export async function start(provider, params) {
   if (flows.size >= 32) throw new Error("Too many pending sign-ins")
   if (provider.hooks.auth?.single === true && (starting.has(provider.id)
     || [...flows.values()].some(flow => flow.provider === provider.id && !flow.result))) {
-    throw new Error("此提供商已有登录任务，请先完成或取消。")
+    throw new Error("A sign-in is already in progress for this provider. Complete or cancel it first.")
   }
   const payload = params.payload ?? {}
   const index = payload.methodIndex ?? 0
   const method = loginMethods(provider).find(method => method.methodIndex === index)
   if (method?.type !== "oauth" || typeof method.authorize !== "function") throw new Error("Unsupported sign-in method")
-  if (method.desktopOnly && payload.mode !== "embedded") throw new Error("此登录方式需要应用内嵌窗口，请在桌面应用中发起")
+  if (method.desktopOnly && payload.mode !== "embedded") throw new Error("This login method needs an embedded in-app window; please start it from the desktop app")
   const controller = new AbortController()
   const parent = scope.getStore()
   parent.inputSecrets = Object.values(payload.inputs ?? {}).filter(value => typeof value === "string" && value)
@@ -55,7 +55,7 @@ export async function start(provider, params) {
       return untilCancelled(method.authorize(method.prompts?.length || typeof method.ask === "function" ? payload.inputs ?? {} : undefined, { signal: controller.signal }), controller.signal)
     })
     if (authorization?.type === "failed") throw new Error(authorization.error || "Sign-in could not be started")
-    if (typeof authorization?.callback !== "function" || !["auto", "code"].includes(authorization.method)) throw new Error("插件没有返回可兼容的登录回调")
+    if (typeof authorization?.callback !== "function" || !["auto", "code"].includes(authorization.method)) throw new Error("The plugin did not return a compatible login callback")
     url = authorization.opened === true || method.localOnly || method.browserMode === "none" ? "" : authorization.url || ""
     if (url && (typeof url !== "string" || !["http:", "https:"].includes(new URL(url).protocol))) throw new Error("Plugin returned an invalid sign-in URL")
     policy = authorizationPolicy(provider, method, authorization)
@@ -114,12 +114,12 @@ export function poll(provider, id) {
   if (flow.result) return flow.result
   if (Date.now() - flow.started > 10 * 60_000) {
     flow.controller.abort()
-    flow.result = { state: "failed", message: "登录等待超时，请重新发起" }
+    flow.result = { state: "failed", message: "The login wait timed out; please start again" }
     return flow.result
   }
   const instructions = typeof flow.authorization.instructions === "string" ? flow.authorization.instructions.trim() : ""
   const hint = flow.context.loginNetwork?.hint || (instructions && !flow.instructions.includes(instructions)
-    ? instructions : flow.policy.ui.browserMode === "plugin" ? "等待插件完成登录" : "等待浏览器完成登录")
+    ? instructions : flow.policy.ui.browserMode === "plugin" ? "Waiting for the plugin to complete sign-in" : "Waiting for browser sign-in to complete")
   return { state: "pending", hint }
 }
 
@@ -128,7 +128,7 @@ export async function callback(provider, params) {
   if (flow.result) return flow.result
   if (flow.authorization.method === "code") {
     const code = flow.policy.ui.cookieCapture ? params.url : params.code
-    if (typeof code !== "string" || !code.trim()) throw new Error("请提交完整登录回调")
+    if (typeof code !== "string" || !code.trim()) throw new Error("Please submit the complete login callback")
     flow.context.inputSecrets.push(code)
     run(flow, code)
   } else if (flow.policy.targets.length && !flow.relaying) {
@@ -140,7 +140,7 @@ export async function callback(provider, params) {
       await scope.run(relay, async () => {
         const response = await fetch(url, { signal: flow.controller.signal })
         await response.body?.cancel()
-        if (!response.ok) throw new Error("插件的本机登录回调未接受提交")
+        if (!response.ok) throw new Error("The plugin's local login callback did not accept the submission")
       })
     } finally { flow.relaying = false; await cleanup(relay) }
   }

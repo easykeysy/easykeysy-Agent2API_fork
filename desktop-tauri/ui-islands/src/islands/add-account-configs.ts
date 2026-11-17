@@ -78,13 +78,13 @@ export type OauthLoginConfig = {
 }
 
 /** 网页端唯一打开方式的提示（没有 webHint 的家用它） */
-export const WEB_LOGIN_HINT = t('将在新标签页中打开授权页；完成后自动加入账号列表。')
+export const WEB_LOGIN_HINT = t('The authorization page opens in a new tab; the account is added to the list automatically when done.')
 
 /**
  * 回调落在本机 / 网关端口那几家的网页端提示：跨机部署时官方页面跳回的地址
  * 属于浏览器所在电脑、回不到网关，需要用户把最终回调地址粘回来。
  */
-export const WEB_LOGIN_PASTE_HINT = t('将在新标签页中打开授权页；完成后自动加入账号列表。若页面跳回本机地址后账号没有出现，按提示把地址栏里的完整回调地址粘贴回来即可。')
+export const WEB_LOGIN_PASTE_HINT = t('The authorization page opens in a new tab; the account is added to the list automatically when done. If the page jumps back to a local address and the account does not appear, paste the full callback URL from the address bar when prompted.')
 
 export type ProviderConfig = {
   provider: string
@@ -146,14 +146,14 @@ export const maxLengthOf = (field: FieldSpec): number =>
 
 const JSON_CREDENTIAL_FILE: NonNullable<ProviderConfig['fileImport']> = {
   accept: '.json,application/json',
-  note: t('选择包含该提供商凭证的 JSON 文件，或本软件导出的单账号 JSON 文件。导入后凭证保存在网关，可独立使用。'),
+  note: t('Select a JSON file containing this provider\'s credentials or an individual account JSON file exported by this application. Imported credentials are stored in the gateway and can be used independently.'),
 }
 
 const RACCOON: ProviderConfig = {
   // raccoon_accounts::add_raccoon_account：token / access_token、refreshToken / refresh_token、name
   provider: 'raccoon',
-  label: '小浣熊',
-  addButton: t('添加小浣熊账号'),
+  label: 'Raccoon',
+  addButton: t('Add Raccoon account'),
   // 网页登录（后端 providers::raccoon::oauth）：官方登录页 + 一次性授权码回调。
   // 桌面端仍优先用内嵌窗口；网页端 / Docker 远程面板会把授权页切到官方
   // redirect 分支自动回调，前提是浏览器以 127.0.0.1/localhost（http + 端口）
@@ -162,28 +162,28 @@ const RACCOON: ProviderConfig = {
   webLogin: {
     // 桌面端在内嵌窗口里跑；网页端没有内嵌窗口，统一在新标签页里打开，
     // 所以这句不写死「内嵌窗口」（否则网页端看到的是一句不成立的话）
-    noteHtml: t('在打开的官方登录页里完成登录，成功后自动加入账号列表。'),
-    button: t('打开网页登录'),
-    hint: t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待'),
-    busyText: t('等待小浣熊登录完成…'),
+    noteHtml: t('Complete the sign-in on the official page that opens; the account is added to the list automatically on success.'),
+    button: t('Open web login'),
+    hint: t('Opens in the embedded window; added to the list when done; closing it cancels the wait'),
+    busyText: t('Waiting for Raccoon sign-in…'),
     // 网页端走的是官方 redirect 分支（见上方注释），浏览器在哪台机器上都能
     // 直接回网关，没有粘贴回调那一步
     webHint: WEB_LOGIN_HINT,
   },
-  manualTitle: t('粘贴 token / refreshToken'),
-  manualNoteHtml: t('refreshToken 可选，填了到期可自动续期；两者都能从<a href="#" class="raccoon-hint-link" data-raccoon-hint>小浣熊客户端登录态文件</a>里取到。'),
+  manualTitle: t('Paste token / refreshToken'),
+  manualNoteHtml: t('refreshToken is optional and enables automatic renewal on expiry; both can be obtained from the <a href="#" class="raccoon-hint-link" data-raccoon-hint>Raccoon client login-state file</a>.'),
   fields: [
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用凭证里的账号名') },
-    { key: 'token', label: 'token', rows: 3, placeholder: t('粘贴 access_token（一长串 JWT）') },
-    { key: 'refreshToken', inputKey: 'refresh', label: 'refreshToken', rows: 2, optional: true, placeholder: t('可选') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the account name in the credential') },
+    { key: 'token', label: 'token', rows: 3, placeholder: t('Paste access_token (a long JWT)') },
+    { key: 'refreshToken', inputKey: 'refresh', label: 'refreshToken', rows: 2, optional: true, placeholder: t('Optional') },
   ],
-  desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。客户端重新登录后点「刷新 Token」同步。'),
+  desktopNote: t('Reads the local client\'s current login state live each time (deleting this record does not affect the client\'s login state). After signing in again in the client, click "Refresh token" to sync.'),
   // 「导入凭证文件」：客户端登录态是明文 JSON，前端读文本传 authFileContent。
   // 与上面 desktop 那条并排保留是刻意的 —— 一个是「实时读本机固定路径」，
   // 一个是「把用户手选的文件解析后落库」（文件可来自别的机器 / 备份）。
   fileImport: {
     accept: '.json,application/json',
-    note: t('选择小浣熊客户端的登录态文件 auth.json（Windows：C:\\Users\\<你的用户名>\\.box-agent\\config\\auth.json；macOS / Linux：~/.box-agent/config/auth.json）。导入后凭证直接落在网关、可独立转发，不再依赖本机客户端。'),
+    note: t('Pick the Little Raccoon client\'s login-state file auth.json (Windows: C:\\\\Users\\<Your username>\\.box-agent\\config\\auth.json; macOS / Linux: ~/.box-agent/config/auth.json). After import, credentials land directly in the gateway and can forward independently, no longer depending on the local client.'),
   },
 }
 
@@ -195,25 +195,25 @@ const CATPAW: ProviderConfig = {
   // 网页登录：美团 passport 授权页 + loopback 回调；服务端同时轮询 poll-token，
   // 因此 Docker / 远程面板不依赖浏览器访问容器内的 loopback 端口。
   webLogin: {
-    noteHtml: t('用 CatPaw 账号完成登录（美团 passport），成功后自动加入账号列表。'),
-    button: t('打开 CatPaw 网页登录'),
-    busyText: t('等待 CatPaw 登录完成…'),
+    noteHtml: t('Sign in with your CatPaw account (Meituan Passport); the account is added to the list automatically on success.'),
+    button: t('Open CatPaw web login'),
+    busyText: t('Waiting for CatPaw sign-in…'),
     modes: [
-      { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待') },
-      { value: 'external', label: t('系统浏览器'), hint: t('系统浏览器打开（复用已登录的美团账号）；完成后自动加入列表') },
+      { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('Opens in the embedded window; added to the list when done; closing it cancels the wait') },
+      { value: 'external', label: t('System browser'), hint: t('Opens in the system browser (reuses the signed-in Meituan account); added to the list when done') },
     ],
   },
-  manualNote: t('token 是登录态 Cookie；CatPaw 没有刷新机制，过期后需在客户端重新登录。'),
+  manualNote: t('token is the login-state Cookie; CatPaw has no refresh mechanism, so sign in again in the client after it expires.'),
   fields: [
-    { key: 'token', label: 'token', rows: 3, placeholder: t('CatPaw 的 X-Passport-Token（登录态 Cookie）') },
-    { key: 'uid', label: 'uid', placeholder: t('必填，CatPaw 账号标识') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用登录名或 uid') },
+    { key: 'token', label: 'token', rows: 3, placeholder: t('CatPaw\'s X-Passport-Token (login-state Cookie)') },
+    { key: 'uid', label: 'uid', placeholder: t('Required; CatPaw account identifier') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the login name or uid') },
   ],
-  desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。客户端重新登录后重新导入即可。'),
-  desktopHint: t('读取 ~/.meituan-catpaw/auth.json，需已在 CatPaw 客户端登录'),
+  desktopNote: t('Reads the local client\'s current login state live each time (deleting this record does not affect the client\'s login state). After signing in again in the client, just re-import.'),
+  desktopHint: t('Reads ~/.meituan-catpaw/auth.json; requires being signed in to the CatPaw client'),
   fileImport: {
     accept: '.json,application/json',
-    note: t('选择 CatPaw 客户端的登录态文件 auth.json（Windows：C:\\Users\\<你的用户名>\\.meituan-catpaw\\auth.json；macOS / Linux：~/.meituan-catpaw/auth.json）。导入后凭证直接落在网关、可独立转发，不再依赖本机客户端。'),
+    note: t('Select CatPaw The client\'s login-state file auth.json (Windows: C:\\Users\\<user>\\AppData\\Roaming\\workbuddy\\)\\Users\\<Your username>\\.meituan-catpaw\\auth.json; macOS / Linux: ~/.meituan-catpaw/auth.json). After import, credentials land directly in the gateway and can forward independently, no longer depending on the local client.'),
   },
 }
 
@@ -227,21 +227,21 @@ const CATPAW: ProviderConfig = {
  */
 const AUTOCLAW: ProviderConfig = {
   provider: 'autoclaw',
-  label: t('AutoClaw 国内版'),
+  label: t('AutoClaw China edition'),
   fileImport: JSON_CREDENTIAL_FILE,
-  manualNote: t('token 支持 enc: 前缀（Windows 上自动解密）。未填 refreshToken 无法自动续期。'),
+  manualNote: t('token supports the enc: prefix (decrypted automatically on Windows). Without a refreshToken, automatic renewal is not possible.'),
   // 国内版**唯一**的官方登录方式（它的登录页不渲染 OAuth 按钮，已核对构建产物）
   smsLogin: {
-    noteHtml: t('用绑定的手机号登录：点「获取验证码」后填入即可。这是国内版官方唯一的登录方式。'),
+    noteHtml: t('Sign in with your bound phone number: click "Get code" and enter it. This is the only official sign-in method for the China edition.'),
   },
   fields: [
-    { key: 'token', label: 'token', rows: 3, placeholder: t('明文 JWT 或 auth.json 里的 enc: 加密值（自动解密）') },
-    { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('没有则无法自动续期') },
-    { key: 'deviceId', label: 'deviceId', optional: true, placeholder: t('可选，续期时带上') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用 userId') },
+    { key: 'token', label: 'token', rows: 3, placeholder: t('Plaintext JWT, or the enc: encrypted value in auth.json (decrypted automatically)') },
+    { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('Without it, automatic renewal is not possible') },
+    { key: 'deviceId', label: 'deviceId', optional: true, placeholder: t('Optional; sent when renewing') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to userId') },
   ],
-  desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。'),
-  desktopHint: t('读取 %APPDATA%/AutoClaw/auth.json 并解密，仅 Windows'),
+  desktopNote: t('Reads the local client\'s current login state live each time (deleting this record does not affect the client\'s login state).'),
+  desktopHint: t('Reads and decrypts %APPDATA%/AutoClaw/auth.json; Windows only'),
   // 登录态是 Electron safeStorage 密文，解密要走 DPAPI（仅 Windows），
   // 因此 macOS 上整段收起（理由见 desktopImportAvailable）
   desktopWindowsOnly: true,
@@ -251,34 +251,34 @@ const AUTOCLAW_INTL: ProviderConfig = {
   // AutoClaw 国际版（autoglm-api.autoglm.ai）：与国内版同一套协议与签名指纹
   // （appId/appKey 两地逐字相同，已实测），只有站点不同。
   provider: 'autoclaw-intl',
-  label: t('AutoClaw 国际版'),
+  label: t('AutoClaw International edition'),
   fileImport: JSON_CREDENTIAL_FILE,
-  manualNote: t('国际版与国内版账号体系独立，请填国际版的凭证。未填 refreshToken 无法自动续期。'),
+  manualNote: t('The International and China editions have separate account systems; enter the International edition\'s credentials. Without a refreshToken, automatic renewal is not possible.'),
   // OAuth 网页登录：国际版**唯一**的登录方式（登录页只渲染 Zai / Google 两个按钮）。
   // 与另外五家的差别：授权地址前有一次强制风控验证码（阿里云滑块），
   // 必须在浏览器里跑完才能拿地址，因此点按钮后会先在本弹窗里弹滑块
   // （见 ui/autoclaw-oauth.js 的文件头）。
   oauthLogin: {
-    title: t('网页登录（Zai / Google）'),
-    noteHtml: t('点按钮后先过一次滑块验证（官方风控），随后打开登录页，登录完成即自动添加账号。<br>这是国际版官方唯一的登录方式；已在客户端登录过的，用「导入桌面端登录态」更快。'),
+    title: t('Web login (Zai / Google)'),
+    noteHtml: t('After clicking the button, first pass a slider verification (the vendor\'s risk control), then the sign-in page opens and the account is added automatically once you sign in.<br>This is the only official sign-in method for the International edition; if you are already signed in to the client, "Import desktop login state" is faster.'),
     modes: [
-      { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('内嵌窗口打开；关窗即取消等待（Google 账号被拒时改用系统浏览器）') },
-      { value: 'external', label: t('系统浏览器'), hint: t('系统浏览器打开（复用已登录的 Zai / Google 账号）；完成后自动加入列表') },
+      { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('Opens in the embedded window; closing it cancels the wait (if a Google account is rejected, switch to the system browser)') },
+      { value: 'external', label: t('System browser'), hint: t('Opens in the system browser (reuses the signed-in Zai / Google account); added to the list when done') },
     ],
     // 网页端由 web_shim 的 runLoginFlow 开新标签页；这条链靠服务端轮询
     // 落定结果（不是回调），所以不需要「粘贴回调地址」那句话
     webHint: WEB_LOGIN_HINT,
   },
   fields: [
-    { key: 'token', label: 'token', rows: 3, placeholder: t('明文 JWT（国际版账号的 access token）') },
-    { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('没有则无法自动续期') },
-    { key: 'deviceId', label: 'deviceId', optional: true, placeholder: t('可选，续期时带上') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用 userId') },
+    { key: 'token', label: 'token', rows: 3, placeholder: t('Plaintext JWT (the access token of an International edition account)') },
+    { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('Without it, automatic renewal is not possible') },
+    { key: 'deviceId', label: 'deviceId', optional: true, placeholder: t('Optional; sent when renewing') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to userId') },
   ],
   // 桌面端登录态导入两个地区都给：auth.json 没有地区标记、本机判断不了，
   // 用户在哪一项下点导入就得到哪一家的账号，猜错的后果是可见的上游 401。
-  desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。用 Zai / Google 登录客户端的用户走这一条。'),
-  desktopHint: t('读取 %APPDATA%/AutoClaw/auth.json 并解密，仅 Windows'),
+  desktopNote: t('Reads the local client\'s current login state live each time (deleting this record does not affect the client\'s login state). Users who sign in to the client with Zai / Google should use this one.'),
+  desktopHint: t('Reads and decrypts %APPDATA%/AutoClaw/auth.json; Windows only'),
   desktopWindowsOnly: true,
 }
 
@@ -300,26 +300,26 @@ function qoderForm(spec: { provider: string; label: string; siteNote: string }):
     webLogin: {
       // 两站是同一套 PKCE 设备授权协议，只有站点主机不同；edition 由 provider
       // 身份决定（后端按 provider id 反查地区，请求里的 edition 只是回显字段）
-      noteHtml: t('打开官方授权页完成设备码授权，登录的是{label}（{site}）的账号。', { label, site: siteNote }),
-      button: t('打开 Qoder 网页登录'),
-      busyText: t('等待 Qoder 授权完成…'),
+      noteHtml: t('Open the official authorization page and complete the device-code authorization; you will be signing in to a {label} ({site}) account.', { label, site: siteNote }),
+      button: t('Open Qoder web login'),
+      busyText: t('Waiting for Qoder authorization…'),
       edition: provider === 'qoder' ? 'cn' : 'global',
       modes: [
-        { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('内嵌窗口用全新环境，多账号互不影响；关窗即取消等待') },
-        { value: 'external', label: t('系统浏览器'), hint: t('系统浏览器打开（复用已登录账号）；完成后自动加入列表') },
+        { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('The embedded window uses a fresh environment, so multiple accounts do not affect each other; closing it cancels the wait') },
+        { value: 'external', label: t('System browser'), hint: t('Opens in the system browser (reuses a signed-in account); added to the list when done') },
       ],
     },
-    manualTitle: t('使用个人访问令牌（PAT）'),
-    manualNote: t('在{label}的 Qoder 账号设置 → Integrations 生成 PAT（别填 Google / GitHub 的令牌）。两个地区的账号与凭证不通用。', { label }),
+    manualTitle: t('Use a personal access token (PAT)'),
+    manualNote: t('Generate a PAT in the Qoder account settings → Integrations for {label} (do not use a Google / GitHub token). Accounts and credentials do not carry over between the two regions.', { label }),
     fields: [
-      { key: 'pat', label: 'Qoder PAT', rows: 3, placeholder: t('粘贴 Qoder 个人访问令牌（pt-…）') },
-      { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空使用账号昵称或邮箱') },
+      { key: 'pat', label: 'Qoder PAT', rows: 3, placeholder: t('Paste the Qoder personal access token (pt-…)') },
+      { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the account nickname or email') },
     ],
   }
 }
 
-const QODER = qoderForm({ provider: 'qoder', label: t('中国版'), siteNote: 'qoder.com.cn' })
-const QODER_INTL = qoderForm({ provider: 'qoder-intl', label: t('国际版'), siteNote: 'qoder.com' })
+const QODER = qoderForm({ provider: 'qoder', label: t('China edition'), siteNote: 'qoder.com.cn' })
+const QODER_INTL = qoderForm({ provider: 'qoder-intl', label: t('International edition'), siteNote: 'qoder.com' })
 
 /**
  * 千问办公两版（国内版 `qwenwork` / 国际版 `qwenwork-intl`）。
@@ -350,31 +350,31 @@ function qwenworkForm(spec: {
     // 站点写死在 provider 身份里（后端按 provider id 反查）
     webLogin: {
       noteHtml: loginable
-        ? t('在打开的页面里登录千问办公{label}（{site}）的账号，登录完成后会自动加入列表。两版的账号与凭证不通用。', { label, site: siteNote })
-        : t('千问办公{label}暂时无法登录：上游只接受它自己的官方回调地址，不论证码到本机。', { label }),
-      button: loginable ? t('打开千问办公网页登录') : t('暂时无法登录'),
-      busyText: t('等待千问办公登录完成…'),
+        ? t('Sign in to your QwenWork {label} ({site}) account in the page that opens. The account joins the list as soon as you finish. The two editions have separate accounts and credentials.', { label, site: siteNote })
+        : t('QwenWork {label} cannot be signed in right now: the upstream service only accepts its own official callback address, so the authorization code never comes back to this machine.', { label }),
+      button: loginable ? t('Open QwenWork web login') : t('Sign-in unavailable'),
+      busyText: t('Waiting for the QwenWork sign-in to finish…'),
       edition: provider === 'qwenwork' ? 'cn' : 'global',
       modes: [
-        { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('内嵌窗口用全新环境，多账号互不影响；关窗即取消等待') },
-        { value: 'external', label: t('系统浏览器'), hint: t('系统浏览器打开（复用已登录账号）；完成后自动加入列表') },
+        { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('The embedded window uses a fresh environment, so multiple accounts do not affect each other; closing it cancels the wait') },
+        { value: 'external', label: t('System browser'), hint: t('Opens in the system browser (reuses a signed-in account); added to the list when done') },
       ],
     },
     fields: [
-      { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空使用账号名或邮箱') },
+      { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; if left blank the account name or email is used') },
     ],
   }
 }
 
 const QWENWORK = qwenworkForm({
   provider: 'qwenwork',
-  label: t('国内版'),
+  label: t('China edition'),
   siteNote: 'qwenwork.cn',
   loginable: true,
 })
 const QWENWORK_INTL = qwenworkForm({
   provider: 'qwenwork-intl',
-  label: t('国际版'),
+  label: t('International edition'),
   siteNote: 'qwenwork.ai',
   loginable: false,
 })
@@ -397,28 +397,28 @@ function clineForm(spec: { provider: string; label: string; poolNote: string }):
     webLogin: {
       // 设备授权登录（WorkOS RFC 8628）：没有回调、没有自定义协议，
       // 就是「打开授权页 → 用户确认 → 网关轮询拿到令牌」，因此两种打开方式都可行。
-      noteHtml: t('打开授权页完成确认，账号自动加入 <b>{label}</b>{note}', { label, note: poolNote }),
-      button: t('打开 Cline 授权页'),
-      busyText: t('等待 Cline 授权确认…'),
+      noteHtml: t('Open the authorization page and confirm; the account is added to <b>{label}</b> automatically{note}', { label, note: poolNote }),
+      button: t('Open Cline authorization page'),
+      busyText: t('Waiting for Cline authorization confirmation…'),
       modes: [
-        { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待') },
-        { value: 'external', label: t('系统浏览器'), hint: t('系统浏览器打开（复用已登录的 Cline 账号）；完成后自动加入列表') },
+        { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('Opens in the embedded window; added to the list when done; closing it cancels the wait') },
+        { value: 'external', label: t('System browser'), hint: t('Opens in the system browser (reuses the signed-in Cline account); added to the list when done') },
       ],
     },
-    manualTitle: t('填写凭证'),
-    manualNote: t('refreshToken 可选，填了可自动续期；两者都能从客户端登录态文件取到。同一个 Cline 账号两个池都能用，这里归入 {label}。', { label }),
+    manualTitle: t('Enter credentials'),
+    manualNote: t('refreshToken is optional and enables automatic renewal; both can be obtained from the client login-state file. The same Cline account works in both pools; here it is grouped under {label}.', { label }),
     fields: [
-      { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('粘贴 workos:… 开头的令牌（不带前缀也会自动补上）') },
-      { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('可选，没有则无法自动续期') },
-      { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空使用账号姓名、邮箱或令牌指纹') },
+      { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('Paste a token starting with workos:… (the prefix is added automatically if missing)') },
+      { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('Optional; without it, automatic renewal is not possible') },
+      { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the account name, email, or token fingerprint') },
     ],
-    desktopNote: t('读本机客户端当前登录态，每次实时读取（删掉这条记录不影响客户端登录态）。这一条归入 {label}。', { label }),
-    desktopHint: t('读取 ~/.cline/data/settings/providers.json，需已在 Cline 客户端登录'),
+    desktopNote: t('Reads the local client\'s current login state live each time (deleting this record does not affect the client\'s login state). This one is grouped under {label}.', { label }),
+    desktopHint: t('Reads ~/.cline/data/settings/providers.json; requires being signed in to the Cline client'),
     // 「导入凭证文件」：providers.json 是**设置**文件（明文 JSON），前端读文本传
     // authFileContent。归池与 desktop 那条同一口径：在哪一项下导入就归入哪个池。
     fileImport: {
       accept: '.json,application/json',
-      note: t('选择 Cline 客户端的登录态文件 providers.json（Windows：C:\\Users\\<你的用户名>\\.cline\\data\\settings\\providers.json；macOS / Linux：~/.cline/data/settings/providers.json）。导入后凭证直接落在网关、可独立转发，不再依赖本机客户端；这一条归入 {label}。', { label }),
+      note: t('Select Cline the client\'s login-state file providers.json (Windows: C:\\Users\\<user>\\AppData\\Roaming\\workbuddy\\)\\Users\\<Your username>\\.cline\\data\\settings\\providers.json; macOS / Linux: ~/.cline/data/settings/providers.json). After import, credentials land directly in the gateway and can forward independently, no longer depending on the local client; this one is filed under {label}.",', { label }),
     },
   }
 }
@@ -435,21 +435,21 @@ function accioForm(spec: { provider: string; label: string; site: string; siteNo
     // OAuth 2.0 授权码 + PKCE：同机直接接收 loopback；Docker / 远程面板
     // 由网页 shim 提示粘贴最终回调地址（与 CodeArts 同一兜底形态）。
     webLogin: {
-      noteHtml: t('打开 Accio <b>{label}</b>的官方登录页（<code>{site}</code>）并用你的 Accio 账号登录：登录成功后官方页面会跳回本机；同机自动完成，Docker / 远程面板按提示粘贴回调地址即可（授权码只在本机传给网关，界面不显示明文 token）。', { label, site }),
-      button: t('打开 Accio {label}登录页', { label }),
-      busyText: t('等待 Accio {label}登录完成…', { label }),
+      noteHtml: t('Open the official sign-in page for Accio <b>{label}</b> (<code>{site}</code>) and sign in with your Accio account: on success the official page redirects back to this machine; a same-machine setup completes automatically, while Docker / remote panels just paste the callback URL as prompted (the authorization code is passed to the gateway only on this machine, and no plaintext token is shown in the UI).', { label, site }),
+      button: t('Open the Accio {label} sign-in page', { label }),
+      busyText: t('Waiting for Accio {label} sign-in…', { label }),
       modes: [
-        { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('将打开内嵌窗口；登录完成后自动加入账号列表。关掉窗口即取消等待') },
-        { value: 'external', label: t('系统浏览器'), hint: t('将用系统默认浏览器打开登录页（会复用浏览器里已登录的 Accio 账号）；完成登录后自动加入账号列表，关掉弹窗即取消等待') },
+        { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('The embedded window will open; the account is added to the list automatically after sign-in. Closing the window cancels the wait') },
+        { value: 'external', label: t('System browser'), hint: t('The sign-in page will open in your system default browser (reusing the Accio account already signed in there); the account is added to the list automatically after sign-in, and closing the popup cancels the wait') },
       ],
       webHint: WEB_LOGIN_PASTE_HINT,
     },
-    manualTitle: t('填写凭证'),
-    manualNoteHtml: t('accessToken 是 Accio 的登录凭证（一长串不透明 token，不是 JWT）；refreshToken 可选，填了之后到期能自动续期。请填写 <b>{label}</b>账号的凭证 —— {siteNote}（最容易拿到的办法：直接用上方的「网页登录」，不需要手工找 token。）', { label, siteNote }),
+    manualTitle: t('Enter credentials'),
+    manualNoteHtml: t('accessToken is Accio\'s login credential (a long opaque token, not a JWT); refreshToken is optional and enables automatic renewal on expiry. Enter the credential of the <b>{label}</b> account — {siteNote} (the easiest way to get it: just use "Web login" above; no need to hunt for the token manually.)', { label, siteNote }),
     fields: [
-      { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('粘贴 Accio 的 accessToken') },
-      { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('可选，没有则无法自动续期') },
-      { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空使用账号昵称或邮箱') },
+      { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('Paste the Accio accessToken') },
+      { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('Optional; without it, automatic renewal is not possible') },
+      { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the account nickname or email') },
     ],
   }
 }
@@ -471,29 +471,29 @@ function zcodeForm(spec: { provider: string; label: string; site: string; planNo
       // 授权地址由**服务端**给且不回本机：网关拿到一次性授权地址，用户在浏览器里
       // 授权后由 ZCode 服务端记录结果，网关在后台轮询取回凭证。因此两种打开方式
       // 都走得通（与 Accio 同构），但「页面最后提示无法打开 zcode:// 链接」是正常的。
-      noteHtml: t('打开 ZCode <b>{label}</b>的官方授权页并用你的账号登录。授权结果由 ZCode 服务端记录，网关在后台自动取回凭证并加入账号列表。', { label }),
-      button: t('打开 ZCode {label}授权页', { label }),
-      busyText: t('等待 ZCode {label}授权完成…', { label }),
+      noteHtml: t('Open the official authorization page for ZCode <b>{label}</b> and sign in with your account. The authorization result is recorded by the ZCode server; the gateway fetches the credential in the background and adds the account to the list.', { label }),
+      button: t('Open the ZCode {label} authorization page', { label }),
+      busyText: t('Waiting for ZCode {label} authorization…', { label }),
       modes: [
-        { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('将打开内嵌窗口；授权完成后自动加入账号列表。关掉窗口即取消等待。授权页最后可能提示无法打开 zcode:// 链接，这是正常的 —— 结果已由服务端记下') },
-        { value: 'external', label: t('系统浏览器'), hint: t('将用系统默认浏览器打开授权页（会复用浏览器里已登录的 ZCode 账号）；授权完成后自动加入账号列表。页面最后可能提示无法打开 zcode:// 链接，属正常现象') },
+        { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('The embedded window will open; the account is added to the list automatically once authorization completes. Closing the window cancels the wait. The authorization page may end with a message that it cannot open the zcode:// link — that is normal; the result has already been recorded server-side') },
+        { value: 'external', label: t('System browser'), hint: t('The authorization page will open in your system default browser (reusing the ZCode account already signed in there); the account is added to the list automatically once authorization completes. A final message that the zcode:// link cannot be opened is normal') },
       ],
     },
-    manualTitle: t('填写凭证'),
-    manualNoteHtml: t('本家有两个**互不替代**的凭证，按你要用的功能填，至少填一个：<b>编码套餐 API Key</b> 用于转发推理（打 <code>{site}</code>）与查询窗口限额（每 N 小时 / 每周的剩余比例）；<b>jwt</b> 用于领取套餐与查询余额（打 <code>zcode.z.ai</code> 的 billing 网关，官方叫 Coding Plan JWT，是一串三段点分的字符串）。余额两把都能查、但读到的东西不同：jwt 读到余额桶与套餐到期，API Key 读到窗口限额；而领取只认 jwt、转发只认 API Key。请填写 <b>{label}</b>账号的凭证 —— {plan}（最容易拿到的办法：直接用上方的「网页登录」—— 它会替你把这个 API Key 换好，两个凭证一起拿到。）', { site, label, plan: planNote }),
+    manualTitle: t('Enter credentials'),
+    manualNoteHtml: t('This provider has two credentials that **do not replace each other**; fill in the one(s) for the features you need, at least one: the <b>Coding Plan API Key</b> is used for forwarding inference (hits <code>{site}</code>) and for querying the window limits (the remaining percentage of each N-hour / weekly window); the <b>jwt</b> is used for claiming plans and querying balance (hits the billing gateway at <code>zcode.z.ai</code>; officially called a Coding Plan JWT, a three-segment dot-separated string). Either one can query balance, but they read different things: the jwt reads the balance buckets and the plan expiry, while the API Key reads the window limits; and claiming only accepts the jwt, forwarding only accepts the API Key. Please enter the credentials for the <b>{label}</b> account — {plan} (the easiest way: just use "Web login" above — it exchanges this API Key for you and gets both credentials at once.)', { site, label, plan: planNote }),
     fields: [
       {
         key: 'accessToken',
-        label: t('编码套餐 API Key'),
+        label: t('Coding Plan API Key'),
         rows: 3,
         optional: true,
         // 这里不能填 OAuth 登录态：那个串拿去转发会被上游按「OAuth 令牌」那条路
         // 校验并回 401。官方客户端与「网页登录」这条链都是先换成编码套餐 API Key 再用。
-        placeholder: t('用于转发；形如 apiKey.secret 两段点分（不填则这个账号不能转发）'),
+        placeholder: t('Used for forwarding; two dot-separated segments like apiKey.secret (if left blank, this account cannot forward)'),
       },
-      { key: 'jwt', label: 'Coding Plan JWT', inputKey: 'jwt', rows: 3, optional: true, placeholder: t('用于领取套餐与查询余额；不填则这个账号不能领取与查余额') },
-      { key: 'userId', label: t('用户 ID'), optional: true, placeholder: t('可选；用于生成账号 id 与展示名') },
-      { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空自动生成') },
+      { key: 'jwt', label: 'Coding Plan JWT', inputKey: 'jwt', rows: 3, optional: true, placeholder: t('Used for claiming plans and querying balance; if left blank, this account cannot claim or check balance') },
+      { key: 'userId', label: t('User ID'), optional: true, placeholder: t('Optional; used to generate the account id and display name') },
+      { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; generated automatically if blank') },
     ],
   }
 }
@@ -529,29 +529,29 @@ const CODEARTS: ProviderConfig = {
   // 浏览器面板看不到这个洞（platform()==='web' 时整段收起），只有 App 里会露。
   desktop: false,
   webLogin: {
-    noteHtml: t('打开华为云 CodeArts 的官方授权页登录：登录完成后官方页面会把浏览器带回<b>网关自己的</b> <code>/oauth/callback</code>，网关用一次性授权码换取临时凭据并加入账号列表。<br>网关跑在另一台机器上时，网页端会提示把地址栏中的最终回调地址直接粘贴回面板。'),
-    button: t('打开 CodeArts 授权页'),
-    busyText: t('等待 CodeArts 登录完成…'),
+    noteHtml: t('Open the official Huawei Cloud CodeArts authorization page to sign in: once done, the official page brings the browser back to the <b>gateway\'s own</b> <code>/oauth/callback</code>, and the gateway exchanges the one-time authorization code for temporary credentials and adds the account to the list.<br>When the gateway runs on another machine, the web UI prompts you to paste the final callback URL from the address bar back into the panel.'),
+    button: t('Open CodeArts authorization page'),
+    busyText: t('Waiting for CodeArts sign-in…'),
     modes: [
       {
         value: 'embedded',
-        label: t('内嵌窗口（推荐）'),
-        hint: t('将打开内嵌窗口；登录完成后自动加入账号列表。关掉窗口即取消等待'),
+        label: t('Embedded window (recommended)'),
+        hint: t('The embedded window will open; the account is added to the list automatically after sign-in. Closing the window cancels the wait'),
       },
       {
         value: 'external',
-        label: t('系统浏览器'),
-        hint: t('将用系统默认浏览器打开授权页（会复用浏览器里已登录的华为云账号）；浏览器与网关不在同一台机器时，按上方说明把最终回调地址粘贴回面板'),
+        label: t('System browser'),
+        hint: t('The authorization page will open in your system default browser (reusing the Huawei Cloud account already signed in there); when the browser and the gateway are not on the same machine, paste the final callback URL back into the panel as described above'),
       },
     ],
     webHint: WEB_LOGIN_PASTE_HINT,
   },
-  manualTitle: t('粘贴登录凭据'),
-  manualNoteHtml: t('整份粘贴官方插件 / CLIProxyAPI 落盘的凭据 JSON（形如 <code>{"codearts_provider_credential":{…}}</code>，铺平的也行）。<br>必填：<code>access_key_id</code>、<code>secret_access_key</code>、<code>security_token</code>。<b>要能自动续期，必须连 <code>refresh_token</code> 与 <code>oauth_context</code> 一起粘</b> —— 临时凭据约一小时到期，缺这半块就续不回来，只能重新登录。'),
+  manualTitle: t('Paste login credentials'),
+  manualNoteHtml: t('Paste the whole credential JSON written to disk by the official plugin / CLIProxyAPI (like <code>{"codearts_provider_credential":{…}}</code>; a flattened form also works).<br>Required: <code>access_key_id</code>, <code>secret_access_key</code>, <code>security_token</code>.<b>For automatic renewal you must paste <code>refresh_token</code> and <code>oauth_context</code> as well</b> — temporary credentials expire in about an hour, and without that half they cannot be renewed; you would have to sign in again.'),
   fields: [
     {
       key: 'credentialJson',
-      label: t('凭据 JSON'),
+      label: t('Credential JSON'),
       rows: 8,
       // 解析后按字段铺开进请求体（后端 `Credential::from_payload` 嵌套/平铺都认）
       jsonExpand: true,
@@ -559,7 +559,7 @@ const CODEARTS: ProviderConfig = {
         + '"security_token":"…","expires_at":"2026-09-27T16:17:00.327Z","domain_id":"…","user_id":"…",'
         + '"user_name":"…","refresh_token":"eyJ…","oauth_context":{…}}}',
     },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空使用凭据里的 user_name') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the user_name in the credential') },
   ],
 }
 
@@ -582,34 +582,34 @@ const TRAE: ProviderConfig = {
   // 没有 auth.json 那种稳定可读的形态 —— 给了入口只会稳定失败。
   desktop: false,
   webLogin: {
-    noteHtml: t('打开 <b>Trae</b> 的官方授权页（<code>trae.cn</code>）并用你的 Trae 账号登录：授权完成后官方页面会跳回<b>本机</b>的一个临时端口；同机部署自动接收，Docker / 远程面板请按提示复制地址栏回调地址。'),
-    button: t('打开 Trae 授权页'),
-    busyText: t('等待 Trae 授权完成…'),
+    noteHtml: t('Open the official authorization page for <b>Trae</b> (<code>trae.cn</code>) and sign in with your Trae account: once authorized, the official page redirects back to a temporary port on <b>this machine</b>; a same-machine deployment receives it automatically, while Docker / remote panels should copy the callback URL from the address bar as prompted.'),
+    button: t('Open Trae authorization page'),
+    busyText: t('Waiting for Trae authorization…'),
     modes: [
       {
         value: 'embedded',
-        label: t('内嵌窗口（推荐）'),
-        hint: t('将打开内嵌窗口；授权完成后自动加入账号列表。远程面板可粘贴回调地址。关掉窗口即取消等待。链接 5 分钟内有效，超时或未点就会作废（可重新发起）'),
+        label: t('Embedded window (recommended)'),
+        hint: t('The embedded window will open; the account is added to the list automatically once authorization completes. On a remote panel you can paste the callback URL. Closing the window cancels the wait. The link is valid for 5 minutes; if it times out or is not clicked, it is voided (you can start again)'),
       },
       {
         value: 'external',
-        label: t('系统浏览器'),
-        hint: t('将用系统默认浏览器打开授权页（会复用浏览器里已登录的 Trae 账号）；同机完成后自动加入，Docker / 远程面板按提示粘贴地址栏回调地址。'),
+        label: t('System browser'),
+        hint: t('The authorization page will open in your system default browser (reusing the Trae account already signed in there); on the same machine the account is added automatically when done. For Docker / remote panels, paste the callback URL from the address bar as prompted.'),
       },
     ],
     // 回调只落在本机端口（上游逐字校验 127.0.0.1），浏览器与网关不同机时
     // 官方页面跳回的地址回不到容器 —— 网页端必须说明「可能要粘回来」
     webHint: WEB_LOGIN_PASTE_HINT,
   },
-  manualTitle: t('填写凭证'),
-  manualNoteHtml: t('accessToken 是 Trae 的 <code>Cloud-IDE-JWT</code>（三段点分），refreshToken 用于到期自动续期（本家 <b>refreshToken 一次一换</b>：换发一次旧的即作废，所以两份程序别同时刷同一个账号）。<br>手工粘贴时请连 <b>machineId / deviceId</b> 一起填：上游把它们与登录时上传的设备公钥绑在一起判设备，凭空换一对会撞 <code>2xxxx</code> 那族设备绑定拒绝。<br>没有这三样时的正路是用上方的「网页登录」；容器 / 远程部署形态按提示粘贴地址栏回调地址即可。'),
+  manualTitle: t('Enter credentials'),
+  manualNoteHtml: t('accessToken is Trae\'s <code>Cloud-IDE-JWT</code> (three dot-separated segments), and refreshToken enables automatic renewal on expiry (this provider <b>rotates refreshToken on every use</b>: once exchanged, the old one is void, so do not refresh the same account from two programs at once).<br>When pasting manually, fill in <b>machineId / deviceId</b> as well: upstream ties them to the device public key uploaded at sign-in to identify the device, and swapping in a new pair from nowhere triggers the <code>2xxxx</code> family of device-binding rejections.<br>Without these three, the proper route is "Web login" above; for container / remote deployments, paste the callback URL from the address bar as prompted.'),
   fields: [
-    { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('Cloud-IDE-JWT（三段点分）') },
-    { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('可选；填了才能到期自动续期') },
-    { key: 'uid', label: t('用户 ID'), optional: true, placeholder: t('可选；用于去重与展示名（留空时网关会问一次上游）') },
-    { key: 'machineId', label: 'machineId', optional: true, placeholder: t('可选；UUID 形态，与凭据同生共死') },
-    { key: 'deviceId', label: 'deviceId', optional: true, placeholder: t('可选；纯数字串（上游只收 8–24 位数字）') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空自动用昵称') },
+    { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('Cloud-IDE-JWT (three dot-separated segments)') },
+    { key: 'refreshToken', label: 'refreshToken', rows: 2, optional: true, placeholder: t('Optional; required for automatic renewal on expiry') },
+    { key: 'uid', label: t('User ID'), optional: true, placeholder: t('Optional; used for deduplication and the display name (when blank, the gateway asks upstream once)') },
+    { key: 'machineId', label: 'machineId', optional: true, placeholder: t('Optional; UUID form, lives and dies with the credential') },
+    { key: 'deviceId', label: 'deviceId', optional: true, placeholder: t('Optional; digits only (upstream accepts only 8–24 digits)') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the nickname') },
   ],
 }
 
@@ -629,14 +629,14 @@ const LOOMY: ProviderConfig = {
   label: 'Loomy',
   fileImport: JSON_CREDENTIAL_FILE,
   smsLogin: {
-    noteHtml: t('用 Loomy 账号绑定的手机号登录：点「获取验证码」后填入即可。这是本家最省事的入口。'),
+    noteHtml: t('Sign in with the phone number bound to your Loomy account: click "Get code" and enter it. This is the easiest way in for this provider.'),
   },
-  manualNote: t('粘贴的是登录 session（同时是模型网关的 token）。Loomy 没有续期接口，session 有效期约 14 天，过期后重新登录即可。'),
+  manualNote: t('What you paste is the login session (which is also the model gateway token). Loomy has no renewal API; the session is valid for about 14 days, so just sign in again after it expires.'),
   fields: [
-    { key: 'session', label: 'session', rows: 3, placeholder: t('登录 session（一长串）') },
-    { key: 'userId', label: 'userId', optional: true, placeholder: t('可选，讯飞侧 userid') },
-    { key: 'phone', label: t('手机号'), optional: true, placeholder: t('可选，展示用') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用脱敏手机号或 userId') },
+    { key: 'session', label: 'session', rows: 3, placeholder: t('Login session (a long string)') },
+    { key: 'userId', label: 'userId', optional: true, placeholder: t('Optional; the userid on the iFlytek side') },
+    { key: 'phone', label: t('Phone number'), optional: true, placeholder: t('Optional; for display') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the masked phone number or userId') },
   ],
   // 登录态在客户端自己的加密存储里（没有 auth.json 那种稳定可读的文件形态），
   // 不提供「导入桌面端登录态」（与 Accio / ZCode 同一处境，理由见各自配置注释）。
@@ -670,22 +670,22 @@ const KUKU: ProviderConfig = {
   // 自动化）。登录成功后壳侧检测到 Cookie 里出现 BDUSS，自动读取**完整会话**
   // （含 HttpOnly 的 BAIDUID_BFESS 等）交回网关，窗口自动关闭、账号落列表。
   webLogin: {
-    noteHtml: t('在打开的登录页里用百度账号登录 KukuAI 主站（手机验证码 / 扫码均可），登录成功后自动加入账号列表。网关会向百度换发 KukuAI 业务会话令牌（依赖本机已安装库库AI 客户端）。'),
-    button: t('打开网页登录'),
-    busyText: t('等待 KukuAI 登录完成…'),
+    noteHtml: t('Sign in to the KukuAI main site with your Baidu account on the login page that opens (SMS code or QR scan both work); the account is added to the list automatically on success. The gateway exchanges it with Baidu for a KukuAI business session token (requires the KukuAI client installed on this machine).'),
+    button: t('Open web login'),
+    busyText: t('Waiting for KukuAI sign-in…'),
     // 这条链靠壳侧读本机客户端的 Cookie 落定（网页端没有壳，见 web_shim.rs
     // 的登录状态机），因此文案只描述「登录页已打开」，不承诺完成方式
     webHint: WEB_LOGIN_HINT,
   },
-  manualTitle: t('粘贴 Cookie'),
-  manualNote: t('BDUSS 必填；请粘贴**完整 Cookie**（Cookie 编辑器一键导出即可）—— 其中 **PTOKEN 必须保留**，网关要用它向百度换发 KukuAI 业务会话令牌，缺了它模型刷新会报「未登录」。支持整段 Cookie 头、Cookie 编辑器导出的 JSON 数组，或 {BDUSS, STOKEN} 对象。KukuAI 没有刷新机制，登录态过期后重新粘贴即可。'),
+  manualTitle: t('Paste Cookie'),
+  manualNote: t('BDUSS is required; paste the **full Cookie** (a Cookie editor can export it in one click) — the **PTOKEN must be kept**, as the gateway uses it to exchange for a KukuAI business session token from Baidu; without it, model refresh reports "Not signed in". A full Cookie header, a JSON array exported by a Cookie editor, or a {BDUSS, STOKEN} object are all supported. KukuAI has no refresh mechanism, so once the login state expires, just paste it again.'),
   fields: [
-    { key: 'cookie', label: 'Cookie', rows: 3, placeholder: t('BDUSS=…; STOKEN=…（或 Cookie 编辑器导出的 JSON）') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用账号 uk') },
+    { key: 'cookie', label: 'Cookie', rows: 3, placeholder: t('BDUSS=…; STOKEN=… (or the JSON exported by a Cookie editor)') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the account uk') },
   ],
   desktop: true,
-  desktopHint: t('读取本机 KukuAI 客户端登录态（%APPDATA%\\baidugenflowpro\\Network\\Cookies），需已在 KukuAI 客户端登录'),
-  desktopNote: t('读本机客户端当前登录态（明文 Cookie，无需解密）。客户端运行时 Cookies 文件被独占占用，导入前请先关闭 KukuAI 客户端。'),
+  desktopHint: t('Read this machine\'s KukuAI client login state (%APPDATA%\\baidugenflowpro\\Network\\Cookies), must already be logged in to the KukuAI client'),
+  desktopNote: t('Reads the local client\'s current login state (plaintext Cookie, no decryption needed). The Cookies file is exclusively locked while the client runs, so close the KukuAI client before importing.'),
   // 「导入凭证文件」：**二进制** SQLite（文件名就叫 Cookies、没有后缀），
   // 原生文件读 base64 传 authFileB64；软件导出的 JSON 走统一单账号回流。
   // 与 desktop 那条的关键差别：网关读的是用户选中文件的**副本**（先解成临时
@@ -695,7 +695,7 @@ const KUKU: ProviderConfig = {
     binary: true,
     // 文件名无扩展名、文件类型也无从按扩展名筛：空串 = 选择器不过滤（全都能选）
     accept: '',
-    note: t('选择 KukuAI 客户端的 Cookies 文件（%APPDATA%\\baidugenflowpro\\Network\\Cookies）：它是**二进制** SQLite 数据库（无扩展名，不是 JSON）。导入时读的是你选中文件的副本、不和运行中的客户端抢占用，因此**无需先关闭客户端**。导入后凭证直接落在网关、可独立转发。'),
+    note: t('Select KukuAI the client\'s Cookies file (%APPDATA%\\baidugenflowpro\\Network\\Cookies): it is a **binary** SQLite database (no extension, not JSON). Import reads a copy of the file you selected and does not compete with a running client, so **the client does not need to be closed first**. After import, credentials land directly in the gateway and can forward independently.",'),
   },
 }
 
@@ -725,11 +725,11 @@ const COMMANDCODE: ProviderConfig = {
   label: t('Command Code'),
   fileImport: JSON_CREDENTIAL_FILE,
   desktop: false,
-  manualTitle: t('粘贴 API Key'),
-  manualNote: t('粘贴 Command Code 的 API Key（user_ 开头；从官方 CLI 的 ~/.commandcode/auth.json 或网页 studio 获取）。整行 / 带引号 / 带 Bearer 前缀地粘都行，网关会自己剥成裸 key。key 不过期、也没有续期接口，失效后重新获取即可；添加时网关会做一次轻量探活，失败不影响添加。'),
+  manualTitle: t('Paste API Key'),
+  manualNote: t('Paste the Command Code API Key (starts with user_; get it from the official CLI\'s ~/.commandcode/auth.json or the web studio). Pasting the whole line / with quotes / with the Bearer prefix all work; the gateway strips it down to the bare key itself. The key does not expire and there is no renewal API, so if it stops working just get a new one. When adding, the gateway runs a lightweight liveness check; a failure does not affect adding.'),
   fields: [
-    { key: 'apiKey', label: 'apiKey', rows: 3, placeholder: t('user_ 开头的 API Key（也可直接粘贴 Authorization: Bearer … 整行）') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用 key 尾号') },
+    { key: 'apiKey', label: 'apiKey', rows: 3, placeholder: t('API Key starting with user_ (you can also paste the whole Authorization: Bearer … line)') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the key suffix') },
   ],
 }
 
@@ -772,21 +772,21 @@ const ANTIGRAVITY: ProviderConfig = {
   // 网页登录：Google 账号授权页 + loopback 回调。回调落在网关自己的端口，
   // 所以两种打开方式都可用（会复用系统浏览器里已登录的 Google 账号）。
   webLogin: {
-    noteHtml: t('在打开的登录页里登录 Google 账号（Antigravity 的授权页），授权完成后自动加入账号列表。'),
-    button: t('打开 Antigravity 网页登录'),
-    busyText: t('等待 Google 授权完成…'),
+    noteHtml: t('Sign in with your Google account on the login page that opens (Antigravity\'s authorization page); the account is added to the list automatically once authorization completes.'),
+    button: t('Open Antigravity web login'),
+    busyText: t('Waiting for Google authorization…'),
     modes: [
-      { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待') },
-      { value: 'external', label: t('系统浏览器'), hint: t('系统浏览器打开（复用已登录的 Google 账号）；完成后自动加入列表') },
+      { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('Opens in the embedded window; added to the list when done; closing it cancels the wait') },
+      { value: 'external', label: t('System browser'), hint: t('Opens in the system browser (reuses the Google account already signed in); added to the list when done') },
     ],
   },
-  manualTitle: t('粘贴 Google refresh token'),
-  manualNoteHtml: t('粘贴 Antigravity 的 Google refresh token（以 <code>1//</code> 开头；直接粘贴含 <code>refresh_token=</code> 的整行也行）。<br>这是网页登录之外的手工入口（例如从已登录的官方 IDE 里导出）。refresh token 不会过期，access token 到期由网关自动续期；令牌丢了只能重新走 Google 授权，请妥善保存。'),
+  manualTitle: t('Paste Google refresh token'),
+  manualNoteHtml: t('Paste Antigravity\'s Google refresh token (starts with <code>1//</code>; pasting the whole line containing <code>refresh_token=</code> also works).<br>This is a manual entry besides web login (for example, exported from the official IDE you are already signed in to). The refresh token does not expire, and the gateway renews the access token automatically when it expires; if the token is lost, you can only go through Google authorization again, so keep it safe.'),
   fields: [
-    { key: 'refreshToken', label: 'refreshToken', rows: 2, placeholder: t('1// 开头的 Google refresh token（也可直接粘贴 refresh_token=… 整行）') },
-    { key: 'projectId', label: 'projectId', optional: true, placeholder: t('可选（cloudaicompanionProject）：留空由网关自动发现') },
-    { key: 'email', label: 'email', optional: true, placeholder: t('可选：账号邮箱，用于展示与身份识别（换新令牌也能认回同一账号）') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用邮箱或令牌尾号') },
+    { key: 'refreshToken', label: 'refreshToken', rows: 2, placeholder: t('Google refresh token starting with 1// (you can also paste the whole refresh_token=… line)') },
+    { key: 'projectId', label: 'projectId', optional: true, placeholder: t('Optional (cloudaicompanionProject); if blank, the gateway discovers it automatically') },
+    { key: 'email', label: 'email', optional: true, placeholder: t('Optional; the account email, used for display and to recognize the identity (the same account is recognized even after switching to a new token)') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the email or token suffix') },
   ],
 }
 
@@ -807,39 +807,39 @@ const ANTIGRAVITY: ProviderConfig = {
  */
 const OFFICEACE: ProviderConfig = {
   provider: 'officeace',
-  label: t('OfficeAce 果办'),
+  label: t('OfficeAce'),
   fileImport: JSON_CREDENTIAL_FILE,
   desktop: false,
   webLogin: {
     // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
-    noteHtml: t('打开华为云授权页登录：登录完成后网关会自动<b>轮询云端</b>取回授权码并加入账号列表（不需要装 OfficeAce 桌面端，也无需手工回填回调地址）。'),
-    button: t('打开授权页'),
-    busyText: t('等待 OfficeAce 登录完成…'),
+    noteHtml: t('Open the Huawei Cloud authorization page and sign in: once finished, the gateway automatically <b>polls the cloud</b> for the authorization code and adds the account to the list (no OfficeAce desktop app required, and no need to paste a callback URL back manually).'),
+    button: t('Open the authorization page'),
+    busyText: t('Waiting for OfficeAce sign-in…'),
     // 两种打开方式都可用：授权码是网关**轮询云端**取回的（云端回调页不往本机
     // 跳），壳侧不开回调监听，因此浏览器在哪台机器上都不影响判定。
     modes: [
       {
         value: 'embedded',
-        label: t('内嵌窗口（推荐）'),
-        hint: t('将打开内嵌窗口；登录完成后自动加入账号列表。关掉窗口即取消等待'),
+        label: t('Embedded window (recommended)'),
+        hint: t('The embedded window will open; the account is added to the list automatically after sign-in. Closing the window cancels the wait'),
       },
       {
         value: 'external',
-        label: t('系统浏览器'),
-        hint: t('将用系统默认浏览器打开授权页（会复用浏览器里已登录的华为云账号）；授权码由网关轮询云端取回，与浏览器跑在哪台机器无关，完成后自动加入账号列表'),
+        label: t('System browser'),
+        hint: t('The authorization page will open in your system default browser (reusing the Huawei Cloud account already signed in there); the gateway polls the cloud for the authorization code, so it does not matter which machine the browser runs on. The account is added to the list automatically once done'),
       },
     ],
     // 授权码由网关轮询云端取回，浏览器在哪都一样
     webHint: WEB_LOGIN_HINT,
   },
-  manualTitle: t('粘贴网关凭据'),
-  manualNoteHtml: t('从别的机器（或 OfficeAce 桌面端 <code>models.json</code>）取三项贴进来：模型网关基址（<code>baseUrl</code>，形如 <code>https://modelgw-…/v2</code>）与 <code>modelAppKey</code> / <code>modelAppSecret</code>。这三项就能转发（网关凭据不过期）；控制面临时凭据（<code>accessKeyId</code> 等）可选，留空则额度/自动续期不可用，但不影响转发。'),
+  manualTitle: t('Paste gateway credentials'),
+  manualNoteHtml: t('Grab three items from another machine (or from the OfficeAce desktop app\'s <code>models.json</code>) and paste them here: the model gateway base URL (<code>baseUrl</code>, shaped like <code>https://modelgw-…/v2</code>) plus <code>modelAppKey</code> / <code>modelAppSecret</code>. These three are enough to forward requests (the gateway credential never expires); the control-plane temporary credentials (<code>accessKeyId</code> and so on) are optional — leaving them blank disables balance queries and auto-renewal but does not affect forwarding.'),
   fields: [
     // 字段名与 URL 示例不包 t()（各语言相同，与 CodeArts 的 JSON 示例同一处置）
-    { key: 'baseUrl', label: t('模型网关基址'), placeholder: 'https://modelgw-…huaweicloud-agentarts.com/v2' },
-    { key: 'modelAppKey', label: t('网关 Key'), placeholder: 'model_app_key' },
-    { key: 'modelAppSecret', label: t('网关 Secret'), placeholder: 'model_app_secret' },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空用「OfficeAce 果办」') },
+    { key: 'baseUrl', label: t('Model gateway base URL'), placeholder: 'https://modelgw-…huaweicloud-agentarts.com/v2' },
+    { key: 'modelAppKey', label: t('Gateway key'), placeholder: 'model_app_key' },
+    { key: 'modelAppSecret', label: t('Gateway secret'), placeholder: 'model_app_secret' },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to “OfficeAce”') },
   ],
 }
 
@@ -874,22 +874,22 @@ const ORCATERM: ProviderConfig = {
   // 它直接跳到微信二维码；扫完上游把浏览器带回自定义协议
   // `orcaterm://oauth_callback?session_id=…`，壳侧截下这一跳交回网关换令牌。
   webLogin: {
-    noteHtml: t('在打开的<strong>官方授权页</strong>里用微信扫码登录（页面会直接显示二维码）。扫码成功后自动加入账号列表。'),
-    button: t('打开网页登录'),
-    hint: t('内嵌窗口打开；扫码完成后自动加入列表，关窗即取消等待'),
-    busyText: t('等待 OrcaTerm 登录完成…'),
+    noteHtml: t('Scan the WeChat QR code on the <strong>official authorization page</strong> that opens (the QR code appears right away). The account is added to the list automatically after a successful scan.'),
+    button: t('Open web login'),
+    hint: t('Opens in an embedded window; the account is added automatically once you have scanned — closing the window cancels the wait'),
+    busyText: t('Waiting for OrcaTerm sign-in…'),
     // 网页端：授权页把浏览器带到 orcaterm:// 自定义协议，网页端没有壳去接它；
     // 结果由网关侧轮询落定，所以只承诺「新标签页打开」
     webHint: WEB_LOGIN_HINT,
   },
   desktop: true,
-  desktopHint: t('读取本机 OrcaTerm 客户端登录态（%APPDATA%\\com.orcaterm-desktop.app\\data.bin），需已在 OrcaTerm 客户端登录'),
-  desktopNote: t('读本机客户端当前登录的 OAuth 令牌（明文 JSON，无需解密）。导入后由网关自动续期，无需跟随客户端的 2 小时时效手动换令牌。'),
-  manualTitle: t('粘贴 accessToken'),
-  manualNoteHtml: t('粘贴 OrcaTerm 的 OAuth accessToken（JWT，三段点分；从桌面客户端 <code>data.bin</code> 或 Web 版 Cookie <code>ot_session</code> 获取）。直接粘贴含 <code>Bearer</code> / <code>ot_session=</code> 的整行也行，网关会自己剥成裸 token。添加后由网关自动续期（上游有续期接口），无需跟随 2 小时时效手动更换。'),
+  desktopHint: t('Read this machine\'s OrcaTerm client login state (%APPDATA%\\com.orcaterm-desktop.app\\data.bin), must already be logged in to the OrcaTerm client'),
+  desktopNote: t('Reads the OAuth token the local client is currently signed in with (plain-text JSON, no decryption needed). After importing, the gateway renews it automatically — no need to follow the client\'s 2-hour expiry by hand.'),
+  manualTitle: t('Paste accessToken'),
+  manualNoteHtml: t('Paste OrcaTerm\'s OAuth accessToken (a JWT with three dot-separated parts; available from the desktop client\'s <code>data.bin</code> or the web version\'s <code>ot_session</code> cookie). Pasting a whole line containing <code>Bearer</code> / <code>ot_session=</code> is fine too — the gateway strips it down to the bare token. After adding, the gateway renews it automatically (the upstream has a renewal API), so you do not need to follow the 2-hour expiry by hand.'),
   fields: [
-    { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('JWT（三段点分；也可直接粘贴 Bearer 整行或 data.bin 内容）') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用账号昵称或 userId') },
+    { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('JWT (three dot-separated parts; you can also paste a whole Bearer line or the data.bin content)') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; leave blank to use the account nickname or userId') },
   ],
 }
 
@@ -915,28 +915,28 @@ const ORCATERM: ProviderConfig = {
  */
 const CHATGLM: ProviderConfig = {
   provider: 'chatglm',
-  label: '智谱清言',
+  label: 'Zhipu Qingyan',
   fileImport: JSON_CREDENTIAL_FILE,
   guestLogin: {
-    noteHtml: t('不需要登录：点下面的按钮，网关会直接在智谱清言换发一份<strong>访客凭证</strong>并加入账号列表（也可以先填个备注名）。访客凭证可以直接用来对话，免费额度由上游按设备发放。<br><br><strong>注意</strong>：访客账号<strong>没有积分体系</strong> —— 它与「会员积分」「每日登录积分」「活动领取」相关的接口一律需要登录，因此那些能力对访客会如实跳过（账号页的积分、签到中心都不显示读数）。想要积分就用「填写凭证」粘一个已登录账号的令牌，或「导入桌面端登录态」。'),
-    button: t('添加访客账号'),
-    busyText: t('正在换发访客凭证…'),
-    namePlaceholder: t('可选，给这个访客账号起个备注名'),
+    noteHtml: t('No sign-in needed: click the button below and the gateway will obtain a <strong>guest credential</strong> from Zhipu Qingyan directly and add it to the account list (you can fill in a note name first). The guest credential can be used for chat right away; the free quota is issued by the upstream per device.<br><br><strong>Note</strong>: a guest account <strong>has no points system</strong> — its member points, daily sign-in points and activity claim endpoints all require sign-in, so those capabilities are skipped for guests (no readings are shown on the accounts page or in the check-in center). To get points, use "Fill in credentials" to paste a signed-in account token, or "Import desktop sign-in state".'),
+    button: t('Add a guest account'),
+    busyText: t('Requesting a guest credential…'),
+    namePlaceholder: t('Optional; a note name for this guest account'),
   },
   desktop: true,
   desktopWindowsOnly: true,
-  desktopHint: t('读取本机智谱清言客户端登录态（%APPDATA%\\chatglm\\Network\\Cookies），需已在客户端登录'),
-  desktopNote: t('读本机客户端当前的登录态。客户端的 Cookies 是 DPAPI 加密的（Chromium os_crypt），因此<strong>仅 Windows 可用</strong>；客户端正在运行时可能读不到该文件，先退出客户端再试即可（也可改用「填写凭证」粘贴令牌）。'),
-  manualTitle: t('粘贴访问令牌'),
-  manualNoteHtml: t('粘贴智谱清言的访问令牌（JWT，三段点分）。获取方式：浏览器打开 <code>chatglm.cn</code> 并登录后，在开发者工具的 Application → Cookies 里复制 <code>chatglm_token</code> 的值（也可以直接粘 <code>chatglm_token=…;</code> 整行）。粘贴后会先向上游校验一次，校验通过才落账号；登录账号的积分、签到能力都能用，之后由网关自动续期（上游有续期接口）。'),
+  desktopHint: t('Read this machine\'s Zhipu Qingyan client login state (%APPDATA%\\chatglm\\Network\\Cookies), must already be logged in to the client'),
+  desktopNote: t('Read the current sign-in state of the local client. The client\'s cookies are DPAPI-encrypted (Chromium os_crypt), so this is <strong>Windows-only</strong>; the file may be unreadable while the client is running — quit the client and retry (or use "Fill in credentials" to paste a token instead).'),
+  manualTitle: t('Paste an access token'),
+  manualNoteHtml: t('Paste a Zhipu Qingyan access token (a JWT with three dot-separated parts). How to get it: open <code>chatglm.cn</code> in a browser, sign in, then copy the value of the <code>chatglm_token</code> cookie from Application → Cookies in the developer tools (pasting the whole <code>chatglm_token=…;</code> line works too). It is verified against the upstream once after pasting, and the account is only saved if that passes; signed-in accounts get points and sign-in capability, and the gateway renews it automatically afterwards (the upstream has a renewal API).'),
   fields: [
     {
       key: 'accessToken',
       label: 'accessToken',
       rows: 3,
-      placeholder: t('JWT（三段点分；也可直接粘贴 chatglm_token=… 整行）'),
+      placeholder: t('JWT (three dot-separated parts; a whole chatglm_token=… line works too)'),
     },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用账号昵称') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the account nickname') },
   ],
 }
 
@@ -973,29 +973,29 @@ function modelscopeForm(spec: {
     fileImport: JSON_CREDENTIAL_FILE,
     // 没有桌面客户端，也就没有可导入的登录态文件（理由见上方注释）
     desktop: false,
-    manualTitle: t('粘贴 API 令牌'),
+    manualTitle: t('Paste API token'),
     // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
-    manualNoteHtml: t('粘贴 ModelScope 的 API 令牌（<code>ms-</code> 开头，在 {site} 的「访问令牌」页获取）。<br>{siteNote}<br>这枚令牌<b>两用</b>：网关既用它调推理，也用它读账号身份、魔粒余额与每日签到。令牌长期有效、没有续期接口，失效后重新获取再粘一次即可。', { site, siteNote }),
+    manualNoteHtml: t('Paste a ModelScope API token (starts with <code>ms-</code>; create one on the "Access tokens" page of {site}).<br>{siteNote}<br>The same token serves <b>two purposes</b>: the gateway uses it both to call inference and to read the account identity, the credits balance and the daily check-in. The token is long-lived and there is no renewal API — if it stops working, just create a new one and paste it again.', { site, siteNote }),
     fields: [
       // 字段名不包 t()（各语言相同，与别家同一处置）
-      { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('ms- 开头的 API 令牌') },
-      { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用上游账号昵称') },
+      { key: 'accessToken', label: 'accessToken', rows: 3, placeholder: t('API token starting with ms-') },
+      { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the upstream account nickname') },
     ],
   }
 }
 
 const MODELSCOPE = modelscopeForm({
   provider: 'modelscope',
-  label: t('ModelScope 国内版'),
+  label: t('ModelScope (China)'),
   site: 'modelscope.cn',
-  siteNote: t('这里填国内站（modelscope.cn）的账号：请粘贴国内站的令牌。国际站（modelscope.ai）是另一家 provider、另一套账号，两边的令牌不通用。'),
+  siteNote: t('This is for the China site (modelscope.cn) account: paste the China site\'s token. The international site (modelscope.ai) is another provider with its own account; tokens are not interchangeable between the two.'),
 })
 
 const MODELSCOPE_INTL = modelscopeForm({
   provider: 'modelscope-intl',
-  label: t('ModelScope 国际版'),
+  label: t('ModelScope (International)'),
   site: 'modelscope.ai',
-  siteNote: t('这里填国际站（modelscope.ai）的账号：请粘贴国际站的令牌。国内站（modelscope.cn）是另一家 provider、另一套账号，两边的令牌不通用。'),
+  siteNote: t('This is for the international site (modelscope.ai) account: paste the international site\'s token. The China site (modelscope.cn) is another provider with its own account; tokens are not interchangeable between the two.'),
 })
 
 /**
@@ -1020,19 +1020,19 @@ const ATOMCODE: ProviderConfig = {
   desktop: false,
   webLogin: {
     // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
-    noteHtml: t('打开 AtomGit 授权页登录：登录完成后网关会自动<b>轮询代理</b>取回令牌并加入账号列表（授权回调由代理终结，不回到本机，因此无需手工回填回调地址）。'),
-    button: t('打开授权页'),
-    busyText: t('等待 AtomCode 登录完成…'),
+    noteHtml: t('Open the AtomGit authorization page and sign in: once finished, the gateway automatically <b>polls the broker</b> for the token and adds the account (the callback is terminated by the broker and never returns to this machine, so no callback URL needs to be filled in).'),
+    button: t('Open the authorization page'),
+    busyText: t('Waiting for AtomCode sign-in…'),
   },
-  manualTitle: t('粘贴令牌对'),
+  manualTitle: t('Paste token pair'),
   // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
-  manualNoteHtml: t('在 AtomGit 的 AtomCode 页面登出后取得两项贴进来：<code>accessToken</code> 与 <code>refreshToken</code>。<b>续期令牌建议填写</b>——本家令牌不是 JWT（约 7 天到期，读不到过期时间），没有它账号无法自动续期，到期只能重新登录。'),
+  manualNoteHtml: t('Paste the two values from the AtomCode page on AtomGit: <code>accessToken</code> and <code>refreshToken</code>. <b>The refresh token is strongly recommended</b> — this provider\'s token is not a JWT (it expires in about 7 days and carries no readable expiry), so an account without it cannot renew itself and must be re-authorised once it expires.'),
   fields: [
     // 字段名与示例值不包 t()（各语言相同，与 CodeArts 的 JSON 示例同一处置）
-    { key: 'accessToken', label: t('访问令牌'), placeholder: 'access_token' },
-    { key: 'refreshToken', label: t('续期令牌'), optional: true, placeholder: 'refresh_token' },
-    { key: 'userId', label: t('用户 ID'), optional: true, placeholder: t('可选，用于生成账号标识') },
-    { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空用「AtomCode」') },
+    { key: 'accessToken', label: t('Access token'), placeholder: 'access_token' },
+    { key: 'refreshToken', label: t('Refresh token'), optional: true, placeholder: 'refresh_token' },
+    { key: 'userId', label: t('User ID'), optional: true, placeholder: t('Optional; used to build the account identifier') },
+    { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to “AtomCode”') },
   ],
 }
 
@@ -1067,12 +1067,12 @@ const LOBSTERAI: ProviderConfig = {
   // 兜底，所以说明里只讲同机这一条前提，不承诺粘贴通道。
   webLogin: {
     // 整段是一个 t() 键：扫描器只认字符串字面量（拼接串提不到键），所以不拆行
-    noteHtml: t('打开 <b>LobsterAI（有道龙虾）</b>的官方登录页（<code>lobsterai.youdao.com</code>）并用你的 LobsterAI 账号登录：登录成功后官方页面会跳回本机并自动加入账号列表 —— 回调落在<b>网关自己的端口</b>上，所以浏览器要与网关在同一台机器上；授权码只在本机传给网关，界面不显示明文 token。'),
-    button: t('打开 LobsterAI 登录页'),
-    busyText: t('等待 LobsterAI 登录完成…'),
+    noteHtml: t('Open the official <b>LobsterAI</b> sign-in page (<code>lobsterai.youdao.com</code>) and sign in with your LobsterAI account: once finished, the official page returns to this machine and the account is added automatically — the callback lands on <b>the gateway\'s own port</b>, so the browser must be on the same machine as the gateway; the auth code is only handed to the gateway locally and no plaintext token is shown in the UI.'),
+    button: t('Open the LobsterAI sign-in page'),
+    busyText: t('Waiting for LobsterAI sign-in…'),
     modes: [
-      { value: 'embedded', label: t('内嵌窗口（推荐）'), hint: t('将打开内嵌窗口；登录完成后自动加入账号列表。关掉窗口即取消等待') },
-      { value: 'external', label: t('系统浏览器'), hint: t('将用系统默认浏览器打开登录页（会复用浏览器里已登录的 LobsterAI 账号）；完成登录后自动加入账号列表，关掉弹窗即取消等待') },
+      { value: 'embedded', label: t('Embedded window (recommended)'), hint: t('The embedded window will open; the account is added to the list automatically after sign-in. Closing the window cancels the wait') },
+      { value: 'external', label: t('System browser'), hint: t('The sign-in page will open in your system default browser (reusing the LobsterAI account already signed in there); the account is added to the list automatically after sign-in, and closing the popup cancels the wait') },
     ],
     // 本家没有粘贴兜底：跨机时网页端只能靠用户自己在浏览器地址栏确认
     // 页面跳回去了，所以提示里只承诺「新标签页打开」
@@ -1096,14 +1096,14 @@ export const BUILTIN_CONFIGS: ProviderConfig[] = [
   QWENWORK,
   QWENWORK_INTL,
   // Cline 顺序即界面上「提供商」分段的顺序：免费池在前（无门槛，更常用）
-  clineForm({ provider: 'cline-free', label: 'Cline Free', poolNote: t('（免费额度池，模型名带 cline-free/ 前缀）。') }),
-  clineForm({ provider: 'cline-pass', label: 'Cline Pass', poolNote: t('（订阅池，模型名带 cline-pass/ 前缀，需要账号有对应订阅）。') }),
+  clineForm({ provider: 'cline-free', label: 'Cline Free', poolNote: t(' (free quota pool; model names carry the cline-free/ prefix).') }),
+  clineForm({ provider: 'cline-pass', label: 'Cline Pass', poolNote: t(' (subscription pool; model names carry the cline-pass/ prefix and the account needs the matching subscription).') }),
   // Accio 顺序：国际版在前（默认安装的版本）
-  accioForm({ provider: 'accio', label: t('国际版'), site: 'www.accio.com', siteNote: t('国际版与国内版是**两套独立的账号**（同一账号体系的两个站点），凭证不通用。') }),
-  accioForm({ provider: 'accio-cn', label: t('国内版'), site: 'www.accio-ai.com', siteNote: t('国内版的登录站点是 www.accio-ai.com，与国际版不是同一站。') }),
+  accioForm({ provider: 'accio', label: t('International edition'), site: 'www.accio.com', siteNote: t('The International and China editions are **two separate sets of accounts** (two sites of the same account system); credentials do not carry over.') }),
+  accioForm({ provider: 'accio-cn', label: t('China edition'), site: 'www.accio-ai.com', siteNote: t('The China edition\'s sign-in site is www.accio-ai.com, a different site from the International edition\'s.') }),
   // ZCode 顺序：国内版在前（国内网络环境下更常被添加的那个，与后端注册表 PROVIDERS 的排列一致）
-  zcodeForm({ provider: 'zcode', label: t('国内版'), site: 'open.bigmodel.cn', planNote: t('国内版与**国际版是两套独立的账号与套餐**，凭证与领取的套餐都不通用。') }),
-  zcodeForm({ provider: 'zcode-intl', label: t('国际版'), site: 'api.z.ai', planNote: t('国际版的推理站点是 api.z.ai，与国内版不是同一站；套餐也各自独立。') }),
+  zcodeForm({ provider: 'zcode', label: t('China edition'), site: 'open.bigmodel.cn', planNote: t('The China edition and **the International edition are two separate sets of accounts and plans**; credentials and claimed plans do not carry over between them.') }),
+  zcodeForm({ provider: 'zcode-intl', label: t('International edition'), site: 'api.z.ai', planNote: t('The International edition\'s inference site is api.z.ai, a different site from the China edition\'s; plans are separate as well.') }),
   // CodeArts（华为云 AI 代码助手）：一家一个 provider，没有地区/额度池之分
   // （region 写死 cn-north-4，与 token 签发地必须一致）。
   CODEARTS,
@@ -1191,13 +1191,13 @@ export function configOf(providerId: string): ProviderConfig | undefined {
  * 是把用户手选的凭证文件解析后落库（可独立转发，文件可来自任意机器 / 备份）。
  * 失败处置与文案也各不相同（后者要选文件、要预检 JSON），因此各占一项。 */
 export const ADD_METHODS = [
-  { id: 'guest', label: t('访客模式（免登录）') },
-  { id: 'oauth', label: t('网页登录（Zai / Google）') },
-  { id: 'sms', label: t('手机验证码登录') },
-  { id: 'web', label: t('网页登录') },
-  { id: 'manual', label: t('填写凭证') },
-  { id: 'file', label: t('导入凭证文件') },
-  { id: 'desktop', label: t('导入桌面端登录态') },
+  { id: 'guest', label: t('Guest mode (no sign-in)') },
+  { id: 'oauth', label: t('Web login (Zai / Google)') },
+  { id: 'sms', label: t('SMS code login') },
+  { id: 'web', label: t('Web login') },
+  { id: 'manual', label: t('Enter credentials') },
+  { id: 'file', label: t('Import credential file') },
+  { id: 'desktop', label: t('Import desktop login state') },
 ] as const
 
 export type MethodId = (typeof ADD_METHODS)[number]['id']
@@ -1253,14 +1253,14 @@ export function methodsOf(config: ProviderConfig, region: string): MethodId[] {
 }
 
 /** 手填表单标题：默认「填写凭证添加」，小浣熊沿用原文案 */
-export const manualTitleOf = (config: ProviderConfig): string => config.manualTitle || t('填写凭证添加')
+export const manualTitleOf = (config: ProviderConfig): string => config.manualTitle || t('Enter credentials to add')
 /** 说明中的行内标记优先，否则按纯文本渲染（React 的文本节点天然转义） */
 export const manualNoteOf = (config: ProviderConfig): { html?: string; text?: string } =>
   (config.manualNoteHtml ? { html: config.manualNoteHtml } : { text: config.manualNote || '' })
 
 /** 手填段主按钮文案 */
 export const addButtonTextOf = (config: ProviderConfig): string =>
-  config.addButton || t('添加 {name} 账号', { name: config.label })
+  config.addButton || t('Add {name} account', { name: config.label })
 
 /** 字段的 DOM id（inputKey 保留小浣熊既有的 refresh-input id，请求体键仍为 refreshToken） */
 export const fieldIdOf = (config: ProviderConfig, field: FieldSpec): string =>

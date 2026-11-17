@@ -38,35 +38,35 @@ const CENTER = {
     // 与 providers 逐家相加一致（后端 todayDone / todayEligible 就是各家之和）
     todayDone: 38,
     todayEligible: 44,
-    outOfScope: [{ label: '智谱清言', reason: '访客账号没有积分体系', count: 16 }],
+    outOfScope: [{ label: 'Zhipu Qingyan', reason: '访客账号没有积分体系', count: 16 }],
     providers: [
-      provider('workbuddy', 'WorkBuddy 国内版', [
+      provider('workbuddy', 'WorkBuddy China edition', [
         account('w1', '138****2048', true, 8, 12), account('w2', '139****7781', true, 8, 5),
         account('w3', '186****3092', true, 9, 3), account('w4', '137****5520', true, 9, 1),
-      ], 4, { description: '腾讯每日签到接口 · 仅国内版', modes: ['keepalive', 'claim'] }),
-      provider('workbuddy-intl', 'WorkBuddy 国际版', Array.from({ length: 12 }, (_, i) =>
+      ], 4, { description: 'Tencent daily check-in API · China edition only', modes: ['keepalive', 'claim'] }),
+      provider('workbuddy-intl', 'WorkBuddy International edition', Array.from({ length: 12 }, (_, i) =>
         account(`wi${i}`, `user${i + 1}@example.com`, true, 8 + (i % 4), i % 7)), 12, {
-        description: '每日活跃任务 · 网页会话保活点亮日活，领取才加分',
+        description: 'Daily active tasks· Keeping the web session alive lights up daily activity; only then do claims score',
         modes: ['keepalive', 'claim'],
       }),
-      provider('raccoon', '小浣熊', [
+      provider('raccoon', 'Raccoon', [
         account('r1', 'raccoon_01', true, 8), account('r2', 'raccoon_02', true, 8),
         account('r3', 'raccoon_03', true, 9), account('r4', 'raccoon_04', true, 9),
       ], 4),
-      provider('autoclaw', 'AutoClaw 国内版', [account('a1', 'claw_01', true, 8), account('a2', 'claw_02', true, 8)], 2),
-      provider('autoclaw-intl', 'AutoClaw 国际版', [account('a3', 'claw_intl_01', true, 9)], 1),
-      provider('qoder', 'Qoder 中国版', [
+      provider('autoclaw', 'AutoClaw China edition', [account('a1', 'claw_01', true, 8), account('a2', 'claw_02', true, 8)], 2),
+      provider('autoclaw-intl', 'AutoClaw International edition', [account('a3', 'claw_intl_01', true, 9)], 1),
+      provider('qoder', 'Qoder China edition', [
         account('q1', 'dev@example.com', true, 7), account('q2', 'ops@example.com', true, 8),
         account('q3', 'qa@example.com', true, 9),
       ], 3),
-      provider('chatglm', '智谱清言', [
+      provider('chatglm', 'Zhipu Qingyan', [
         account('g1', 'glm_01', true, 8), account('g2', 'glm_02', true, 8),
         account('g3', 'glm_03', true, 9), account('g4', 'glm_04', true, 9),
       ], 4),
-      provider('cline-free', 'Cline 免费池', [
+      provider('cline-free', 'Cline The free pool', [
         ...Array.from({ length: 8 }, (_, i) => account(`c${i}`, `cline_0${i + 1}`, true, 8)),
         ...Array.from({ length: 6 }, (_, i) => account(`ct${i}`, `cline_${i + 9}`, false, 0)),
-      ], 8, { description: '免费额度池 · 今日还有 6 个账号未签' }),
+      ], 8, { description: 'The free quota pool· 6 accounts are still unsigned today' }),
     ],
   },
   extras: {
@@ -95,7 +95,7 @@ const CENTER = {
   travel: { times: null, enabled: false },
   history: [],
   adminPanels: [],
-  checkinFeatures: { workbuddy: { description: '腾讯每日签到接口' } },
+  checkinFeatures: { workbuddy: { description: 'Tencent\'s daily sign-in endpoint' } },
 }
 
 /* 壳侧接口：组件只读快照与几个动作，这里给最小实现 */
@@ -113,9 +113,9 @@ w.wbI18n = {
 w.wbApp = { showPage: () => undefined, toast: () => undefined, currentPage: 'checkin', getState: () => ({ accounts: { accounts: [] } }) }
 w.wbProviders = {
   labelOf: (id: string) => ({
-    workbuddy: 'WorkBuddy 国内版', 'workbuddy-intl': 'WorkBuddy 国际版', raccoon: '小浣熊',
-    autoclaw: 'AutoClaw 国内版', 'autoclaw-intl': 'AutoClaw 国际版', qoder: 'Qoder 中国版',
-    chatglm: '智谱清言', 'cline-free': 'Cline 免费池',
+    workbuddy: 'WorkBuddy China edition', 'workbuddy-intl': 'WorkBuddy International edition', raccoon: 'Raccoon',
+    autoclaw: 'AutoClaw China edition', 'autoclaw-intl': 'AutoClaw International edition', qoder: 'Qoder China edition',
+    chatglm: 'Zhipu Qingyan', 'cline-free': 'Cline The free pool',
   } as Record<string, string>)[id] || id,
 }
 w.workbuddyDesktop = {

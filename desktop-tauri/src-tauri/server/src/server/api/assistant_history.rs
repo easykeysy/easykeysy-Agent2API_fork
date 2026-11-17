@@ -22,7 +22,7 @@ pub async fn fork(State(_state): State<ServerState>, Path(id): Path<String>, bod
 }
 
 pub async fn title(State(state): State<ServerState>, Path(id): Path<String>, headers: HeaderMap) -> Response {
-    let access = match model_access::authenticate(&headers, model_access::ASSISTANT_TITLE) {
+    let access = match model_access::authenticate(&headers, model_access::ASSISTANT_TITLE, true) {
         Ok(access) => access,
         Err(error) => return error.into_response(),
     };

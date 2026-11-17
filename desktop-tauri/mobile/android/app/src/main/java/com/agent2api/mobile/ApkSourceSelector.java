@@ -72,21 +72,21 @@ final class ApkSourceSelector {
         try {
             for (String url : urls) pending.add(completed.submit(() -> sample(url, hash, deadline, cancelled)));
             for (int index = 0; index < urls.size(); index++) {
-                if (cancelled.get()) throw new Exception("已取消下载");
+                if (cancelled.get()) throw new Exception("Download cancelled");
                 long remaining = deadline - SystemClock.elapsedRealtime();
                 if (remaining <= 0) break;
                 Future<Sample> done = completed.poll(remaining, TimeUnit.MILLISECONDS);
                 if (done == null) break;
                 Sample sample = done.get();
                 if (sample.error == null) { winner = sample; break; }
-                if (sample.error.contains("限流")) throw new Exception(sample.error);
+                if (sample.error.contains("Rate limit")) throw new Exception(sample.error);
             }
         } finally {
             for (Future<Sample> future : pending) future.cancel(true);
             workers.shutdownNow();
             cancel();
         }
-        if (cancelled.get()) throw new Exception("已取消下载");
+        if (cancelled.get()) throw new Exception("Download cancelled");
         if (winner == null) return result(urls, "", 0, false);
         if (network != null) synchronized (choices) {
             if (choices.size() >= 16) choices.clear();
@@ -99,23 +99,23 @@ final class ApkSourceSelector {
         long started = SystemClock.elapsedRealtime();
         HttpURLConnection connection = null;
         try {
-            if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new Exception("已取消下载");
+            if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new Exception("Download cancelled");
             connection = ApkUpdateConnection.open(url, hash, deadline, true, cancelled, connections);
             int status = connection.getResponseCode();
-            if (ApkUpdateConnection.rateLimited(connection, url)) throw new Exception("下载源限流中，请稍后重试");
-            if (status != 200 && status != 206) throw new Exception("服务器返回 HTTP " + status);
+            if (ApkUpdateConnection.rateLimited(connection, url)) throw new Exception("The download source is rate-limited; please retry later");
+            if (status != 200 && status != 206) throw new Exception("The server returned HTTP" + status);
             String type = connection.getContentType();
-            if (type != null && type.contains("text/html")) throw new Exception("下载源返回了网页而不是文件内容");
+            if (type != null && type.contains("text/html")) throw new Exception("The download source returned a web page instead of the file content");
             long expected = connection.getContentLengthLong();
             if (status == 206) {
                 String range = connection.getHeaderField("Content-Range");
                 if (range == null || !range.matches("bytes 0-[0-9]+/([0-9]+|\\*)")) {
-                    throw new Exception("下载源返回的分段内容无效");
+                    throw new Exception("The segmented content returned by the download source is invalid");
                 }
                 String[] parts = range.substring(8).split("/");
                 long end = Long.parseLong(parts[0]);
                 if (end >= SAMPLE_BYTES || (!parts[1].equals("*") && Long.parseLong(parts[1]) <= end)) {
-                    throw new Exception("下载源返回的分段内容无效");
+                    throw new Exception("The segmented content returned by the download source is invalid");
                 }
                 expected = end + 1;
             }
@@ -124,7 +124,7 @@ final class ApkSourceSelector {
             byte[] buffer = new byte[8192];
             try (InputStream input = connection.getInputStream()) {
                 while (received < SAMPLE_BYTES) {
-                    if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new Exception("已取消下载");
+                    if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new Exception("Download cancelled");
                     connection.setReadTimeout(ApkUpdateConnection.remaining(deadline));
                     int read = input.read(buffer, 0, Math.min(buffer.length, SAMPLE_BYTES - received));
                     if (read == -1) break;
@@ -132,16 +132,16 @@ final class ApkSourceSelector {
                         String prefix = new String(buffer, 0, Math.min(read, 256), java.nio.charset.StandardCharsets.UTF_8)
                             .trim().toLowerCase(java.util.Locale.ROOT);
                         if (prefix.startsWith("<!doctype html") || prefix.startsWith("<html")) {
-                            throw new Exception("下载源返回了网页而不是文件内容");
+                            throw new Exception("The download source returned a web page instead of the file content");
                         }
                     }
                     received += read;
                 }
             }
-            if (received == 0 || (expected >= 0 && received != expected)) throw new Exception("下载源返回的文件内容不完整");
+            if (received == 0 || (expected >= 0 && received != expected)) throw new Exception("The file content returned by the download source is incomplete");
             return new Sample(url, SystemClock.elapsedRealtime() - started, null);
         } catch (Exception error) {
-            return new Sample(url, SystemClock.elapsedRealtime() - started, error.getMessage() == null ? "探测失败" : error.getMessage());
+            return new Sample(url, SystemClock.elapsedRealtime() - started, error.getMessage() == null ? "The probe failed" : error.getMessage());
         } finally {
             ApkUpdateConnection.close(connection, connections);
         }

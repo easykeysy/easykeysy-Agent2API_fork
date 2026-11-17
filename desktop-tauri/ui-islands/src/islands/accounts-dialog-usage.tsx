@@ -82,18 +82,18 @@ export function readUsageDraft(draft: UsageDraft):
   | { value: UsageQuerySettings } {
   const retries = Number(draft.retriesInput)
   if (!draft.retriesInput.trim() || !Number.isInteger(retries) || retries < 0 || retries > USAGE_QUERY_MAX_RETRIES) {
-    return { error: t('失败重试次数必须是 0~{max} 的整数', { max: USAGE_QUERY_MAX_RETRIES }) }
+    return { error: t('Retry count must be an integer from 0 to {max}', { max: USAGE_QUERY_MAX_RETRIES }) }
   }
   const timeoutSeconds = Number(draft.timeoutInput ?? USAGE_QUERY_DEFAULT_TIMEOUT)
   if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 15 || timeoutSeconds > USAGE_QUERY_MAX_TIMEOUT) {
-    return { error: t('整轮查询时限必须是 15~180 秒的整数') }
+    return { error: t('The overall timeout must be an integer from 15 to 180 seconds.') }
   }
   if (!draft.enabled) return { value: { enabled: false, interval: 0, retries, timeoutSeconds } }
   const input = Number(draft.intervalInput)
   const seconds = Math.round(input * UNIT_MS[draft.unit])
-  if (!Number.isFinite(input) || input <= 0) return { error: t('请填写查询间隔') }
+  if (!Number.isFinite(input) || input <= 0) return { error: t('Enter the query interval') }
   if (seconds < USAGE_QUERY_MIN_SECONDS || seconds > USAGE_QUERY_MAX_SECONDS) {
-    return { error: t('查询间隔必须是 {min} 秒 ~ 24 小时', { min: USAGE_QUERY_MIN_SECONDS }) }
+    return { error: t('The query interval must be {min} seconds to 24 hours', { min: USAGE_QUERY_MIN_SECONDS }) }
   }
   return { value: { enabled: true, interval: seconds, retries, timeoutSeconds } }
 }
@@ -122,45 +122,45 @@ export function UsageSettingsSection({
       <Field orientation='horizontal' className='field-row mt-2.5 acct-usage-toggle'>
         <FieldLabel className='inline-flex cursor-pointer items-center gap-2.5 font-normal'>
           <Switch checked={draft.enabled} onCheckedChange={next => patch({ enabled: next === true })}
-            aria-label={t('自动查询余额')} />
-          <span className='text-xs text-subtle'>{t('自动查询余额（按下面的间隔自动刷新余额列的读数）')}</span>
+            aria-label={t('Auto-query balance')} />
+          <span className='text-xs text-subtle'>{t('Auto-query balance (refresh the balance column reading at the interval below)')}</span>
         </FieldLabel>
       </Field>
       {draft.enabled ? (
         <FieldGroup orientation='horizontal' className='field-row mt-2.5 acct-usage-interval'>
           <Field className='contents'>
-            <FieldLabel htmlFor={`${idPrefix}-interval`}>{t('查询间隔')}</FieldLabel>
+            <FieldLabel htmlFor={`${idPrefix}-interval`}>{t('Query interval')}</FieldLabel>
             <Input id={`${idPrefix}-interval`} type='number' min={1} step={1}
               className='max-w-[110px]' value={draft.intervalInput}
               onChange={event => patch({ intervalInput: event.currentTarget.value })} />
           </Field>
           <Select value={draft.unit} onValueChange={value => patch({ unit: value as IntervalUnit })}>
-            <SelectTrigger className='w-[92px]' aria-label={t('间隔单位')}>
-              <SelectValue>{draft.unit === 'hours' ? t('小时') : draft.unit === 'minutes' ? t('分钟') : t('秒')}</SelectValue>
+            <SelectTrigger className='w-[92px]' aria-label={t('Interval unit')}>
+              <SelectValue>{draft.unit === 'hours' ? t('hours') : draft.unit === 'minutes' ? t('minutes') : t('seconds')}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='seconds'>{t('秒')}</SelectItem>
-              <SelectItem value='minutes'>{t('分钟')}</SelectItem>
-              <SelectItem value='hours'>{t('小时')}</SelectItem>
+              <SelectItem value='seconds'>{t('seconds')}</SelectItem>
+              <SelectItem value='minutes'>{t('minutes')}</SelectItem>
+              <SelectItem value='hours'>{t('hours')}</SelectItem>
             </SelectContent>
           </Select>
-          <span className='detail'>{t('30 秒 ~ 24 小时；手动查询会顺延下一轮')}</span>
+          <span className='detail'>{t('30 seconds to 24 hours; a manual query postpones the next round')}</span>
         </FieldGroup>
       ) : null}
       <Field orientation='horizontal' className='field-row mt-2.5 acct-usage-interval'>
-        <FieldLabel htmlFor={`${idPrefix}-timeout`}>{t('整轮查询时限')}</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-timeout`}>{t('Overall query timeout')}</FieldLabel>
         <Input id={`${idPrefix}-timeout`} type='number' min={15} max={USAGE_QUERY_MAX_TIMEOUT} step={1}
           className='max-w-[110px]' value={draft.timeoutInput ?? String(USAGE_QUERY_DEFAULT_TIMEOUT)}
           onChange={event => patch({ timeoutInput: event.currentTarget.value })} />
-        <span className='detail'>{t('秒；默认 60 秒，包含重试等待，多步骤查询可适当延长。')}</span>
+        <span className='detail'>{t('seconds; defaults to 60, including retry waits. Increase for multi-step queries if needed.')}</span>
       </Field>
       <Field orientation='horizontal' className='field-row mt-2.5 acct-usage-interval'>
-        <FieldLabel htmlFor={`${idPrefix}-retries`}>{t('失败重试次数')}</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-retries`}>{t('Retries after failure')}</FieldLabel>
         <Input id={`${idPrefix}-retries`} type='number' min={0} max={USAGE_QUERY_MAX_RETRIES} step={1}
           className='max-w-[110px]' value={draft.retriesInput} aria-describedby={`${idPrefix}-retries-hint`}
           onChange={event => patch({ retriesInput: event.currentTarget.value })} />
         <span id={`${idPrefix}-retries-hint`} className='detail'>
-          {t('只重试临时故障；次数与整轮时间上限任一用尽即停止，凭证错误不重试。')}
+          {t('Only temporary failures are retried. Stops when either the retry count or overall time limit is reached. Credential errors are not retried.')}
         </span>
       </Field>
     </>

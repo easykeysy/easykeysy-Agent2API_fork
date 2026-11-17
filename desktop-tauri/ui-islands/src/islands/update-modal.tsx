@@ -154,12 +154,12 @@ function UpdateModal({ info, onGoUpdate, onClose }: UpdateModalProps) {
     <Dialog open onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('检测到更新')}</DialogTitle>
+          <DialogTitle>{t('Update available')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <p className='text-[12.5px] leading-[1.6] text-subtle'>
-            {t('新版本 ')}<strong className='text-foreground'>{version}</strong>
-            {t(' 已发布（当前 {current}），更新日志如下：', { current: info.currentVersion || t('未知') })}
+            {t('New version ')}<strong className='text-foreground'>{version}</strong>
+            {t(' has been released (current: {current}). Release notes below:', { current: info.currentVersion || t('Unknown') })}
           </p>
           {/* 没有可下的包：先在这里交代原因，再谈更新日志 —— 否则用户读完日志
               点「去更新」才发现无路可走。容器端额外给出宿主机那条命令：它的升级
@@ -167,12 +167,12 @@ function UpdateModal({ info, onGoUpdate, onClose }: UpdateModalProps) {
           {canDownload && !manual ? null : (
             <Alert variant='warning'>
               <AlertTitle>
-                {manual ? t('当前需要手动升级') : t('未找到适用的更新包')}
+                {manual ? t('Manual upgrade required') : t('No suitable update package')}
               </AlertTitle>
               <AlertDescription>
                 {reason}
                 {isSelfUpdate(info)
-                  ? <div className='mt-1.5'>{t('在宿主机执行 docker compose pull && docker compose up -d 即可升级。')}</div>
+                  ? <div className='mt-1.5'>{t('Run docker compose pull && docker compose up -d on the host to upgrade.')}</div>
                   : null}
               </AlertDescription>
             </Alert>
@@ -182,7 +182,7 @@ function UpdateModal({ info, onGoUpdate, onClose }: UpdateModalProps) {
           <div className='max-h-[46vh] overflow-y-auto overscroll-contain pr-1.5' onClick={handleExternalClick}>
             {html ? <HtmlContent className='md-body' html={html} /> : (
               <div className='md-body'>
-                <Empty className='md-body-empty'>{t('这个版本没有填写发布说明。')}</Empty>
+                <Empty className='md-body-empty'>{t('No release notes were provided for this version.')}</Empty>
               </div>
             )}
           </div>
@@ -193,13 +193,13 @@ function UpdateModal({ info, onGoUpdate, onClose }: UpdateModalProps) {
               桌面端换成「到 GitHub 发布页下载」（pageUrl 正常都在，后端在没给
               html_url 时会兜底拼一个 releases 页面地址）；容器端的升级不走安装包，
               上面那条 compose 命令才是正路，这里就不给按钮了 */}
-          <Button variant='outline' size='sm' onClick={handleSkip}>{t('跳过此次更新')}</Button>
+          <Button variant='outline' size='sm' onClick={handleSkip}>{t('Skip this update')}</Button>
           <div className='mr-auto' />
-          <Button variant='outline' onClick={onClose}>{t('取消')}</Button>
+          <Button variant='outline' onClick={onClose}>{t('Cancel')}</Button>
           {canDownload
-            ? <Button variant='default' onClick={handleGo}>{manual ? t('下载服务端包') : t('去更新')}</Button>
+            ? <Button variant='default' onClick={handleGo}>{manual ? t('Download server package') : t('Update now')}</Button>
             : (!isSelfUpdate(info) && pageUrl)
-              ? <Button variant='default' onClick={handleOpenRelease}>{t('到 GitHub 发布页下载')}</Button>
+              ? <Button variant='default' onClick={handleOpenRelease}>{t('Download from the GitHub release page')}</Button>
               : null}
         </DialogFooter>
       </DialogContent>

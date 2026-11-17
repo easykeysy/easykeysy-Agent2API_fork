@@ -36,15 +36,15 @@ export function VisionModelSelect({ models, value, onValueChange, t, includeShar
   const eligible = models.filter(model => anyModel || model.capabilities.supportsImages === true)
   const selected = eligible.find(model => visionTargetKey(model) === value)
   const label = value === 'shared'
-    ? (sharedUnset ? t('沿用工具服务的视觉分析模型（未配置）') : t('沿用工具服务的视觉分析模型'))
+    ? (sharedUnset ? t('Vision model from the tool service (not configured)') : t('Reuse the tool service\'s vision analysis model'))
     : selected ? `${selected.providerLabel} · ${selected.name || selected.model}`
-      : value ? t('当前不可用') : t('请选择模型')
+      : value ? t('Currently unavailable') : t('Select a model')
 
   return <SearchableSelect value={value} disabled={disabled} onValueChange={onValueChange}
-    className={cn('w-[260px]', className)} aria-label={ariaLabel || t('视觉模型')}
-    displayValue={label} searchPlaceholder={t('搜索模型')}
+    className={cn('w-[260px]', className)} aria-label={ariaLabel || t('Vision model')}
+    displayValue={label} searchPlaceholder={t('Search models')}
     options={[
-      ...(includeShared ? [{ value: 'shared', label: t('沿用工具服务的视觉分析模型') }] : []),
+      ...(includeShared ? [{ value: 'shared', label: t('Reuse the tool service\'s vision analysis model') }] : []),
       ...(value && value !== 'shared' && !selected ? [{ value, label, disabled: true }] : []),
       ...eligible.map(model => ({ value: visionTargetKey(model),
         label: `${model.providerLabel} · ${model.name || model.model}`, searchText: model.model,
@@ -61,12 +61,12 @@ export function VisionReasoningSelect({ value, onValueChange, t, disabled, class
   className?: string
 }) {
   const levels = [
-    { value: '', label: t('跟随模型配置') },
+    { value: '', label: t('Follow model settings') },
     { value: 'minimal', label: 'Minimal' }, { value: 'low', label: 'Low' },
     { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }, { value: 'xhigh', label: 'XHigh' },
   ]
   return <Select value={value} disabled={disabled} onValueChange={next => onValueChange(String(next ?? ''))}>
-    <SelectTrigger className={cn('w-[180px]', className)} aria-label={t('思考等级')}>
+    <SelectTrigger className={cn('w-[180px]', className)} aria-label={t('Reasoning level')}>
       <SelectValue>{levels.find(level => level.value === value)?.label || value}</SelectValue>
     </SelectTrigger>
     <SelectContent>{levels.map(level => <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>)}</SelectContent>

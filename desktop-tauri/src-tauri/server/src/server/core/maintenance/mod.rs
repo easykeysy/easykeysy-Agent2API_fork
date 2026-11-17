@@ -61,18 +61,18 @@ pub fn summary(detail: &Detail) -> String {
         "家提供商"
     };
     let mut text = format!(
-        "成功 {} {unit}，跳过 {}，失败 {}",
+        "Success {} {unit}，跳过 {}，失败 {}",
         run.refreshed, run.skipped, run.failed
     );
     if let Some(metadata) = &run.metadata {
         match metadata.status.as_str() {
             "refreshed" => text.push_str(&format!(
-                "；models.dev 已更新 {} 条",
+                "; models.dev 已更新 {} rows",
                 metadata.count.unwrap_or(0)
             )),
             "failed" => text.push_str(&format!(
-                "；models.dev 更新失败：{}",
-                metadata.message.as_deref().unwrap_or("未知原因")
+                "; models.dev 更新失败：{}",
+                metadata.message.as_deref().unwrap_or("Unknown reason")
             )),
             _ => (),
         }
@@ -204,13 +204,13 @@ async fn complete(
         interval(&request.task_id),
     );
     let task_name = if request.task_id == CREDENTIAL {
-        "凭证维护"
+        "Credential maintenance"
     } else {
-        "模型目录更新"
+        "Model catalog update"
     };
     logging::log_with_level(
         "[Maintenance]",
-        &format!("{task_name}：{note}"),
+        &format!("{task_name}: {note}"),
         if failed > 0 || metadata_failed || detail.is_err() {
             "error"
         } else {
@@ -238,7 +238,7 @@ fn complete_missing_targets(
                 continue;
             }
             let raw =
-                json!({ "id": id, "status": "skipped", "message": "账号已不存在，未执行维护" });
+                json!({ "id": id, "status": "skipped", "message": "The account no longer exists; maintenance was not performed" });
             items.push(types::item(&raw, items.len(), snapshots));
         }
     }
@@ -247,7 +247,7 @@ fn complete_missing_targets(
             if items.iter().any(|item| &item.provider == provider) {
                 continue;
             }
-            let raw = json!({ "provider": provider, "status": "skipped", "message": "提供商当前不可用，未执行目录更新" });
+            let raw = json!({ "provider": provider, "status": "skipped", "message": "The provider is unavailable; its catalog was not updated" });
             items.push(types::item(&raw, items.len(), snapshots));
         }
     }

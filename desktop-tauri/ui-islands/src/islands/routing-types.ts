@@ -195,7 +195,7 @@ export type RoutingHost = {
 export const host = () => window as unknown as RoutingHost
 export function bridge(): RoutingBridge {
   const api = host().workbuddyDesktop
-  if (!api?.getRoutingWorkspace) throw new Error(t('路由接口不可用，请确认网关与界面已更新'))
+  if (!api?.getRoutingWorkspace) throw new Error(t('Routing API unavailable. Ensure both the gateway and interface are updated.'))
   return api
 }
 export const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error)

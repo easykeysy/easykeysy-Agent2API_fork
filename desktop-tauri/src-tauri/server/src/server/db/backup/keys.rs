@@ -172,12 +172,12 @@ impl SecretTransform<'_> {
 
     fn config(&mut self, name: &str, value: &mut Value) -> Result<(), String> {
         match name {
-            "apiKey" => self.value(value, SecretScope::Accounts, "网关 Key", false)?,
-            "githubToken" => self.value(value, SecretScope::UpdateToken, "GitHub 令牌", false)?,
+            "apiKey" => self.value(value, SecretScope::Accounts, "Gateway key", false)?,
+            "githubToken" => self.value(value, SecretScope::UpdateToken, "GitHub Token", false)?,
             "apiKeys" => {
-                let items = value.as_array_mut().ok_or("网关 Key 列表格式异常")?;
+                let items = value.as_array_mut().ok_or("Gateway key 列表格式异常")?;
                 for item in items {
-                    self.field(item, "key", SecretScope::Accounts, "网关 Key", false)?;
+                    self.field(item, "key", SecretScope::Accounts, "Gateway key", false)?;
                 }
             }
             "agentProfiles" => {
@@ -226,7 +226,7 @@ impl SecretTransform<'_> {
                         webdav,
                         "password",
                         SecretScope::CloudSync,
-                        "WebDAV 密码",
+                        "WebDAV Password",
                         false,
                     )?;
                 }
@@ -283,7 +283,7 @@ fn transform(conn: &Connection, source: &BackupKeys, rewrite: bool) -> Result<us
         let Some((id, text)) = row else { break };
         last_rowid = Some(id);
         let mut value = Value::String(text);
-        transform.value(&mut value, SecretScope::Accounts, "账号凭证", true)?;
+        transform.value(&mut value, SecretScope::Accounts, "Account credentials", true)?;
         if rewrite {
             conn.execute(
                 "UPDATE accounts SET data=?1 WHERE rowid=?2",
@@ -309,7 +309,7 @@ fn transform(conn: &Connection, source: &BackupKeys, rewrite: bool) -> Result<us
             .map_err(|error| format!("读取加密配置失败: {error}"))?;
         let Some(text) = text else { continue };
         let mut value: Value =
-            serde_json::from_str(&text).map_err(|_| format!("配置项 {name} 格式异常"))?;
+            serde_json::from_str(&text).map_err(|_| format!("Setting {name} 格式异常"))?;
         transform.config(name, &mut value)?;
         if rewrite {
             let serialized = serde_json::to_string(&value).map_err(|_| "序列化加密配置失败")?;

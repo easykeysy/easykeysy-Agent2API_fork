@@ -77,42 +77,42 @@ export function AccountsFilterSheet({
     <Sheet open={open} onOpenChange={next => { if (!next) onClose() }}>
       <SheetContent side='right'>
         <SheetHeader>
-          <SheetTitle>{t('筛选')}</SheetTitle>
+          <SheetTitle>{t('Filter')}</SheetTitle>
         </SheetHeader>
         <SheetBody>
-          <Section title={t('状态')}>
+          <Section title={t('Status')}>
             <Chip
-              label={t('全部')}
+              label={t('All')}
               count={counts.status.all}
               on={filters.status === 'all'}
               onClick={() => patch({ status: 'all' })}
             />
             <Chip
-              label={t('启用')}
+              label={t('enabled')}
               count={counts.status.enabled}
               on={filters.status === 'enabled'}
               onClick={() => patch({ status: 'enabled' })}
             />
             <Chip
-              label={t('禁用')}
+              label={t('Disable')}
               count={counts.status.disabled}
               on={filters.status === 'disabled'}
               onClick={() => patch({ status: 'disabled' })}
             />
             <Chip
-              label={t('限流中')}
+              label={t('Rate-limited')}
               count={counts.status.limited}
               on={filters.status === 'limited'}
               onClick={() => patch({ status: 'limited' })}
             />
             <Chip
-              label={t('需重登')}
+              label={t('Relogin')}
               count={counts.status.relogin}
               on={filters.status === 'relogin'}
               onClick={() => patch({ status: 'relogin' })}
             />
             <Chip
-              label={t('已过期')}
+              label={t('Expired')}
               count={counts.status.expired}
               on={filters.status === 'expired'}
               onClick={() => patch({ status: 'expired' })}
@@ -120,62 +120,62 @@ export function AccountsFilterSheet({
           </Section>
 
           {providers.length > 1 ? (
-            <Section title={t('提供商')}>
+            <Section title={t('Provider')}>
               <MultiSelect value={filters.providers} onValueChange={providers => patch({ providers })}
                 options={providers.map(item => ({ value: item.id, label: item.label }))}
-                className='h-10 w-full text-sm' placeholder={t('全部提供商')}
-                searchPlaceholder={t('搜索提供商')} aria-label={t('提供商')} />
+                className='h-10 w-full text-sm' placeholder={t('All providers')}
+                searchPlaceholder={t('Search providers')} aria-label={t('Provider')} />
             </Section>
           ) : null}
 
-          <Section title={t('有效期')}>
+          <Section title={t('Expiry')}>
             <Chip
-              label={t('全部')}
+              label={t('All')}
               count={counts.expiry.all}
               on={filters.expiry === 'all'}
               onClick={() => patch({ expiry: 'all' })}
             />
             <Chip
-              label={t('7 天内到期')}
+              label={t('Expires within 7 days')}
               count={counts.expiry.soon}
               on={filters.expiry === 'soon'}
               onClick={() => patch({ expiry: 'soon' })}
             />
             <Chip
-              label={t('已过期')}
+              label={t('Expired')}
               count={counts.expiry.expired}
               on={filters.expiry === 'expired'}
               onClick={() => patch({ expiry: 'expired' })}
             />
             <Chip
-              label={t('长期有效')}
+              label={t('Long-lived')}
               count={counts.expiry.longlived}
               on={filters.expiry === 'longlived'}
               onClick={() => patch({ expiry: 'longlived' })}
             />
           </Section>
 
-          <Section title={t('余额')}>
+          <Section title={t('Balance')}>
             <Chip
-              label={t('全部')}
+              label={t('All')}
               count={counts.usage.all}
               on={filters.usage === 'all'}
               onClick={() => patch({ usage: 'all' })}
             />
             <Chip
-              label={t('已查询')}
+              label={t('Queried')}
               count={counts.usage.has}
               on={filters.usage === 'has'}
               onClick={() => patch({ usage: 'has' })}
             />
             <Chip
-              label={t('未查询')}
+              label={t('Not queried')}
               count={counts.usage.unqueried}
               on={filters.usage === 'unqueried'}
               onClick={() => patch({ usage: 'unqueried' })}
             />
             <Chip
-              label={t('查询失败')}
+              label={t('Query failed')}
               count={counts.usage.failed}
               on={filters.usage === 'failed'}
               onClick={() => patch({ usage: 'failed' })}
@@ -183,7 +183,7 @@ export function AccountsFilterSheet({
           </Section>
 
           <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.7, color: 'var(--m-text-3)' }}>
-            {t('条件即时生效，关掉面板就能看到结果。')}
+            {t('Filters apply instantly — close the panel to see the results.')}
           </p>
         </SheetBody>
         <SheetFooter>
@@ -194,10 +194,10 @@ export function AccountsFilterSheet({
             onClick={() => onChange(DEFAULT_FILTERS)}
           >
             <Icon name='refresh' />
-            {t('重置')}
+            {t('Reset')}
           </Button>
           <Button size='touch' variant='default' type='button' className='m-btn w-full' style={{ flex: 1 }} onClick={onClose}>
-            {t('完成')}
+            {t('Done')}
           </Button>
         </SheetFooter>
       </SheetContent>

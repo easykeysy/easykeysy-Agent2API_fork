@@ -48,7 +48,7 @@ export function CheckinPage() {
   const action: CheckinAction = async (key, task, success) => {
     if (busyRef.current || !mounted.current || serverIdentity() !== identity) return undefined
     const requireCurrent = () => {
-      if (!mounted.current || serverIdentity() !== identity) throw new DOMException('请求已取消', 'AbortError')
+      if (!mounted.current || serverIdentity() !== identity) throw new DOMException('Request cancelled', 'AbortError')
     }
     busyRef.current = key
     setBusy(key)
@@ -71,17 +71,17 @@ export function CheckinPage() {
   usePolling(load, center?.auto?.running || center?.travel?.running || tab === 'schedule' && center?.auto?.enabled ? 3000 : 30_000)
   const pull = usePullToRefresh({ onRefresh: load })
   const tabs = [
-    { value: 'center' as const, label: t('签到中心') },
-    { value: 'schedule' as const, label: t('定时签到') },
-    { value: 'records' as const, label: t('签到记录') },
+    { value: 'center' as const, label: t('Check-in center') },
+    { value: 'schedule' as const, label: t('Scheduled check-in') },
+    { value: 'records' as const, label: t('Check-in records') },
   ]
 
   return (
     <div className='m-page' ref={pull.bindRef}>
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
-      <PageIntro subtitle={t('页面由手机端提供，签到能力由所连接网关的插件提供')} />
+      <PageIntro subtitle={t('The page is served by the phone; the sign-in capability is provided by the plugin of the connected gateway')} />
       <div className='m-section' style={{ marginTop: 0 }}>
-        <SegmentedControl options={tabs} value={tab} onValueChange={setTab} aria-label={t('签到中心标签页')}
+        <SegmentedControl options={tabs} value={tab} onValueChange={setTab} aria-label={t('The sign-in center tab')}
           className='m-checkin-tabs' />
       </div>
       {error ? <ErrorNote text={error} /> : null}

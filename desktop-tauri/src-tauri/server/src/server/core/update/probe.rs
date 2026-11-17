@@ -61,22 +61,22 @@ async fn sample(candidate: &Candidate, headers: &[(String, String)]) -> Result<(
             .map_err(|error| error.message)?;
         let status = response.status();
         if !matches!(status.as_u16(), 200 | 206) {
-            return Err(format!("{}返回 HTTP {}", candidate.label(), status.as_u16()));
+            return Err(format!("{}Back HTTP {}", candidate.label(), status.as_u16()));
         }
         let partial_size = if status.as_u16() == 206 {
             let range = response.headers().get("content-range").and_then(|value| value.to_str().ok())
                 .and_then(|value| value.strip_prefix("bytes 0-"))
                 .and_then(|value| value.split_once('/'))
                 .and_then(|(end, total)| end.parse::<usize>().ok().map(|end| (end, total)));
-            let Some((end, total)) = range else { return Err("下载源返回的分段内容无效".to_string()); };
+            let Some((end, total)) = range else { return Err("The segmented content returned by the download source is invalid".to_string()); };
             if end >= SAMPLE_BYTES || (total != "*" && !total.parse::<u64>().is_ok_and(|total| total > end as u64)) {
-                return Err("下载源返回的分段内容无效".to_string());
+                return Err("The segmented content returned by the download source is invalid".to_string());
             }
             Some(end + 1)
         } else { None };
         let content_type = response.headers().get("content-type").and_then(|value| value.to_str().ok()).unwrap_or("");
         if content_type.contains("text/html") {
-            return Err("下载源返回了网页而不是文件内容".to_string());
+            return Err("The download source returned a web page instead of the file content".to_string());
         }
         let expected = partial_size.or_else(|| response.content_length().and_then(|size| usize::try_from(size).ok()))
             .map(|size| size.min(SAMPLE_BYTES));
@@ -87,14 +87,14 @@ async fn sample(candidate: &Candidate, headers: &[(String, String)]) -> Result<(
             if received == 0 {
                 let prefix = String::from_utf8_lossy(&chunk[..chunk.len().min(256)]).trim_start().to_ascii_lowercase();
                 if prefix.starts_with("<!doctype html") || prefix.starts_with("<html") {
-                    return Err("下载源返回了网页而不是文件内容".to_string());
+                    return Err("The download source returned a web page instead of the file content".to_string());
                 }
             }
             received += chunk.len().min(SAMPLE_BYTES - received);
             if received >= SAMPLE_BYTES { break; }
         }
         if received == 0 || expected.is_some_and(|expected| received != expected) {
-            return Err("下载源返回的文件内容不完整".to_string());
+            return Err("The file content returned by the download source is incomplete".to_string());
         }
         Ok(())
     }).await.unwrap_or_else(|_| Err("探测下载源超时".to_string()));

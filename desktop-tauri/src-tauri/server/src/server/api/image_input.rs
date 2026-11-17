@@ -210,7 +210,7 @@ pub(super) fn mime_of(bytes: &[u8]) -> Result<&'static str, GatewayError> {
         Ok(image::ImageFormat::Png) => Ok("image/png"),
         Ok(image::ImageFormat::Jpeg) => Ok("image/jpeg"),
         Ok(image::ImageFormat::WebP) => Ok("image/webp"),
-        _ => Err(invalid("参考图仅支持 PNG、JPEG、WebP")),
+        _ => Err(invalid("Reference images must be PNG, JPEG, or WebP")),
     }
 }
 

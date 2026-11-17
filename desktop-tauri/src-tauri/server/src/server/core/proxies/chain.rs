@@ -53,10 +53,10 @@ fn validate(proxy: &ResolvedProxy) -> Result<(), String> {
     super::normalize_host(&proxy.host)?;
     if proxy.port.is_none_or(|port| port == 0) { return Err("代理端口无效".to_string()); }
     if !matches!(proxy.protocol.as_str(), "http" | "socks5") {
-        return Err("非直连代理只支持 HTTP 或 SOCKS5".to_string());
+        return Err("非直连代理只支持 HTTP or SOCKS5".to_string());
     }
     if proxy.protocol == "socks5" && (proxy.username.len() > 255 || proxy.password.len() > 255) {
-        return Err("SOCKS5 用户名和密码不能超过 255 字节".to_string());
+        return Err("SOCKS5 usernames and passwords must not exceed 255 bytes".to_string());
     }
     Ok(())
 }

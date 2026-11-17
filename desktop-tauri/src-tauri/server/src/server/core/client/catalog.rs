@@ -69,24 +69,24 @@ pub fn normalize_user_agent_override(
         serde_json::Value::Null => return Ok(String::new()),
         serde_json::Value::String(text) => text,
         _ => return Err(crate::server::core::account_store::AccountStoreError::bad_request(
-            "自定义 User-Agent 必须是字符串",
+            "Custom User-Agent 必须是字符串",
         )),
     };
     let trimmed = raw.trim();
     if trimmed.is_empty() { return Ok(String::new()); }
     if trimmed.chars().any(char::is_control) {
         return Err(crate::server::core::account_store::AccountStoreError::bad_request(
-            "自定义 User-Agent 不能包含换行等控制字符",
+            "Custom User-Agent 不能包含换行等控制字符",
         ));
     }
     if trimmed.len() > MAX_UA_BYTES {
         return Err(crate::server::core::account_store::AccountStoreError::bad_request(
-            "自定义 User-Agent 不能超过 1024 字节",
+            "Custom User-Agent 不能超过 1024 字节",
         ));
     }
     if axum::http::HeaderValue::from_str(trimmed).is_err() {
         return Err(crate::server::core::account_store::AccountStoreError::bad_request(
-            "自定义 User-Agent 含有不能放进请求头的字符",
+            "Custom User-Agent 含有不能放进请求头的字符",
         ));
     }
     Ok(trimmed.to_string())

@@ -103,8 +103,8 @@ impl Region {
     /// 展示名（`editionLabel` 与日志用）。
     pub fn label(self) -> &'static str {
         match self {
-            Self::Global => "国际版",
-            Self::Cn => "中国版",
+            Self::Global => "International edition",
+            Self::Cn => "China edition",
         }
     }
 }

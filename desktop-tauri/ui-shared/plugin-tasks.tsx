@@ -42,7 +42,7 @@ export function PluginTasks({ request, t }: { request: Request; t: (key: string)
   }
   if (!rows.length && !error) return null
   return <section className='flex flex-col gap-3'>
-    <h3 className='text-sm font-semibold'>{t('插件任务')}</h3>
+    <h3 className='text-sm font-semibold'>{t('Plugin tasks')}</h3>
     {error ? <Alert variant='destructive'>{error}</Alert> : null}
     {rows.map(row => {
       const key = `${row.provider}:${row.task.id}`
@@ -54,18 +54,18 @@ export function PluginTasks({ request, t }: { request: Request; t: (key: string)
             {row.task.label} <span className='text-xs text-muted-foreground'>{row.provider}</span>
           </Label>
           <Button size='sm' variant='outline' disabled={Boolean(busy) || row.runs.some(run => run.running)}
-            onClick={() => void change(row)}>{t('立即执行')}</Button>
+            onClick={() => void change(row)}>{t('Run now')}</Button>
         </div>
         {row.task.times.length ? <div className='flex flex-wrap gap-2'>
-          <Input className='min-w-40 flex-1' aria-label={t('执行时刻')} value={times[key] ?? row.task.times.join(', ')}
+          <Input className='min-w-40 flex-1' aria-label={t('Run times')} value={times[key] ?? row.task.times.join(', ')}
             onChange={event => setTimes(previous => ({ ...previous, [key]: event.currentTarget.value }))} />
           <span className='self-center text-xs text-muted-foreground'>UTC {row.task.utc_offset_minutes / 60 >= 0 ? '+' : ''}{row.task.utc_offset_minutes / 60}</span>
           <Button size='sm' disabled={Boolean(busy)} onClick={() => void change(row, {
             times: (times[key] ?? row.task.times.join(',')).split(/[,，]/).map(value => value.trim()).filter(Boolean),
-          })}>{t('保存')}</Button>
+          })}>{t('Save')}</Button>
         </div> : null}
         {row.runs.map(run => <div key={run.account} className='text-xs text-muted-foreground'>
-          {run.account} · {run.running ? t('执行中') : run.error || run.result || '—'}
+          {run.account} · {run.running ? t('Running') : run.error || run.result || '—'}
         </div>)}
       </Card>
     })}

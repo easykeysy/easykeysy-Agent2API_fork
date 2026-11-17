@@ -13,11 +13,11 @@ export function toolApiSections(origin: string): ApiSection[] {
   const locale = (window as unknown as { wbI18n?: { locale(): string } }).wbI18n?.locale() || 'zh-Hans'
   return [{
     id: 'tools-api',
-    title: t('工具服务 API'),
+    title: t('Tool services API'),
     path: 'POST /api/web-search/search · POST /api/web-search/fetch',
-    description: t('网络搜索与网页抓取的 REST 接口，使用网关 Key 鉴权；不属于 /v1 对话协议。'),
+    description: t('REST endpoints for web search and page fetching, authenticated with a gateway Key; not part of the /v1 chat protocols.'),
     paragraphs: [
-      t('工具服务 API 是网关对外的固定接口，路径以 /api/web-search 开头；不属于 /v1 对话协议，也不是管理面板的管理接口，鉴权同样使用网关 Key。'),
+      t('The tool services API is a fixed public gateway interface whose paths start with /api/web-search. It is not part of the /v1 chat protocols and is not a management-panel API; authentication also uses a gateway Key.'),
     ],
     markdown: buildWebSearchApiDoc(locale, origin),
   }]

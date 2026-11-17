@@ -148,5 +148,5 @@ pub(crate) async fn refresh_all(adapter: &super::super::RpcAdapter, force: bool)
     }
     rebuild(adapter.provider_id());
     let count = super::super::rpc_cache::models_for(adapter.provider_id()).map(|models| models.len()).unwrap_or(0);
-    ModelRefreshOutcome { refreshed, count, message: (!failures.is_empty()).then(|| format!("部分账号目录未刷新：{}", failures.join("；"))) }
+    ModelRefreshOutcome { refreshed, count, message: (!failures.is_empty()).then(|| format!("部分账号目录未刷新：{}", failures.join("; "))) }
 }

@@ -32,25 +32,25 @@ function ImageResult({ image, load, saveFile, t }: { image: ImageAsset; load: Pr
     if (!blob || saving) return
     setSaving(true)
     try { setError(''); await saveFile(image, blob) } catch (failure) {
-      setError(t('保存图片失败：{message}', { message: failure instanceof Error ? failure.message : String(failure) }))
+      setError(t('Failed to save image: {message}', { message: failure instanceof Error ? failure.message : String(failure) }))
     } finally { setSaving(false) }
   }
   return (
     <figure style={{ margin: 0, minWidth: 0 }}>
       {error ? <Alert variant='destructive'>{error}</Alert> : url ? (
-        <Button variant='ghost' onClick={() => setOpen(true)} aria-label={t('查看图片')}
+        <Button variant='ghost' onClick={() => setOpen(true)} aria-label={t('View image')}
           style={{ padding: 0, width: '100%', height: 'auto', overflow: 'hidden' }}>
-          <img src={url} alt={t('生成的图片')} style={{ display: 'block', width: '100%', maxHeight: 320, objectFit: 'contain' }} />
+          <img src={url} alt={t('Generated image')} style={{ display: 'block', width: '100%', maxHeight: 320, objectFit: 'contain' }} />
         </Button>
-      ) : <Spinner aria-label={t('正在读取图片…')} />}
+      ) : <Spinner aria-label={t('Loading image…')} />}
       <figcaption style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, marginTop: 6 }}>
         <span>{image.width} × {image.height}</span>
-        {url ? <Button variant='ghost' size='sm' disabled={saving} onClick={() => void save()}>{t('下载图片')}</Button> : null}
+        {url ? <Button variant='ghost' size='sm' disabled={saving} onClick={() => void save()}>{t('Download image')}</Button> : null}
       </figcaption>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t('生成的图片')}</DialogTitle></DialogHeader>
-          <DialogBody><img src={url} alt={t('生成的图片')} style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }} /></DialogBody>
+          <DialogHeader><DialogTitle>{t('Generated image')}</DialogTitle></DialogHeader>
+          <DialogBody><img src={url} alt={t('Generated image')} style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }} /></DialogBody>
         </DialogContent>
       </Dialog>
     </figure>

@@ -139,7 +139,7 @@ export function creditRowsOf(entry: UsageEntry, now = Date.now()): CreditRow[] {
   return packs.map(pack => {
     const snapshot = snapshotReadingOf(pack, t, numberText)
     if (snapshot) {
-      const window = snapshot.daily ? t('每日重置') : null
+      const window = snapshot.daily ? t('Resets daily') : null
       return {
         name: snapshot.name,
         view: snapshot.view,
@@ -153,7 +153,7 @@ export function creditRowsOf(entry: UsageEntry, now = Date.now()): CreditRow[] {
         expiry: null,
       }
     }
-    const name = String(pack?.name || '').trim() || t('积分包')
+    const name = String(pack?.name || '').trim() || t('Point pack')
 
     // ── 流水一笔：另一套读法（见 CreditRow.amount）──────────────
     // 右侧读数是**带符号的金额**，不是「剩 x / y」：一笔已经发生的收支没有
@@ -169,7 +169,7 @@ export function creditRowsOf(entry: UsageEntry, now = Date.now()): CreditRow[] {
       const parts: string[] = []
       if (at !== null && at > 0) parts.push(detailTime(at))
       if (expireAt !== null && expireAt > 0) {
-        parts.push(expireAt <= now ? t('已过期') : t('{time} 到期', { time: detailTime(expireAt) }))
+        parts.push(expireAt <= now ? t('Expired') : t('expires {time}', { time: detailTime(expireAt) }))
       }
       const remark = String(pack?.remark || '').trim()
       return {
@@ -184,7 +184,7 @@ export function creditRowsOf(entry: UsageEntry, now = Date.now()): CreditRow[] {
           view,
           at !== null && at > 0 ? formatTime(at) : '',
           expireAt !== null && expireAt > 0
-            ? t('到期 {time}', { time: formatTime(expireAt) })
+            ? t('Expires {time}', { time: formatTime(expireAt) })
             : '',
           remark,
         ].filter(Boolean).join(' · '),
@@ -218,15 +218,15 @@ export function creditRowsOf(entry: UsageEntry, now = Date.now()): CreditRow[] {
     // 照直拼会把小数尾巴铺满弹层（口径见 accounts-shared 那个函数）。
     const hasTotal = total !== null && total > 0
     const amount = unlimited
-      ? t('不限')
+      ? t('Unlimited')
       : remain !== null
         ? hasTotal
-          ? t('剩 {remaining} / {total}', { remaining: numberText(remain), total: numberText(total) })
-          : t('剩 {remaining}', { remaining: numberText(remain) })
+          ? t('{remaining} / {total} left', { remaining: numberText(remain), total: numberText(total) })
+          : t('{remaining} left', { remaining: numberText(remain) })
         : used !== null
-          ? t('已用 {used}', { used: numberText(used) })
+          ? t('{used} used', { used: numberText(used) })
           : declaredPercent !== null
-            ? t('剩余 {percent}%', { percent: Math.round(declaredPercent) })
+            ? t('{percent}% left', { percent: Math.round(declaredPercent) })
             : '—'
     const view = !unlimited && unit && amount !== '—' ? `${amount} ${unitLabel(unit)}` : amount
     const percent = hasTotal && remain !== null
@@ -247,18 +247,18 @@ export function creditRowsOf(entry: UsageEntry, now = Date.now()): CreditRow[] {
     // 缺了发放时刻就标成「领取」等于替上游编一个到手时间。
     const parts: string[] = []
     if (grantAt !== null && grantAt > 0) {
-      parts.push(t('{time} 领取', { time: detailTime(grantAt) }))
+      parts.push(t('claimed {time}', { time: detailTime(grantAt) }))
     } else if (startAt !== null && startAt > 0) {
-      parts.push(t('{time} 生效', { time: detailTime(startAt) }))
+      parts.push(t('starts {time}', { time: detailTime(startAt) }))
     }
     if (daily) {
       // 日额度包的「到期」是今天 24 点（周期边界），不是这笔钱作废 ——
       // 照「到期」写会让人以为额度明天就没了（实际是重置回满）
-      parts.push(t('每日重置'))
+      parts.push(t('Resets daily'))
     } else if (rolling && resetAt !== null && resetAt > 0) {
-      parts.push(t('重置 {date}', { date: detailTime(resetAt) }))
+      parts.push(t('Resets {date}', { date: detailTime(resetAt) }))
     } else if (expireAt !== null && expireAt > 0) {
-      parts.push(expired ? t('已过期') : t('{time} 到期', { time: detailTime(expireAt) }))
+      parts.push(expired ? t('Expired') : t('expires {time}', { time: detailTime(expireAt) }))
     }
     if (reason) parts.push(reason)
 
@@ -274,19 +274,19 @@ export function creditRowsOf(entry: UsageEntry, now = Date.now()): CreditRow[] {
       name,
       view,
       grantAt !== null && grantAt > 0
-        ? t('领取 {time}', { time: formatTime(grantAt) })
+        ? t('Claimed {time}', { time: formatTime(grantAt) })
         : startAt !== null && startAt > 0
-          ? t('生效 {time}', { time: formatTime(startAt) })
+          ? t('Starts {time}', { time: formatTime(startAt) })
           : '',
       expireAt !== null && expireAt > 0
         ? (expired
-          ? t('已过期（{time}）', { time: formatTime(expireAt) })
-          : t('到期 {time}', { time: formatTime(expireAt) }))
+          ? t('Expired ({time})', { time: formatTime(expireAt) })
+          : t('Expires {time}', { time: formatTime(expireAt) }))
         : '',
-      daily ? t('每日重置（额度按周期回满，不是作废）') : '',
+      daily ? t('Resets daily (the quota refills each cycle; it is not voided)') : '',
       reason,
-      percent === null && remain !== null ? t('上游未给总量，画不出剩余比例') : '',
-      used !== null && total !== null ? t('已用 {used} / 共 {total}', { used: numberText(used), total: numberText(total) }) : '',
+      percent === null && remain !== null ? t('The upstream gave no total, so the remaining ratio cannot be drawn') : '',
+      used !== null && total !== null ? t('Used {used} / {total}', { used: numberText(used), total: numberText(total) }) : '',
     ].filter(Boolean).join(' · ')
     return {
       name, view, tone, percent, window: parts.length ? parts.join(' · ') : null, title, spent, amount: null,
@@ -307,7 +307,7 @@ function CreditRowView({ row, now }: { row: CreditRow; now: number }) {
       {row.window ? <div className='usage-pop-window'>{row.window}</div> : null}
       {row.percent !== null ? (
         <Meter value={row.percent} variant={row.tone === 'ok' ? 'success' : row.tone === 'warn' ? 'warning' : 'muted'}
-          className='mt-1.5' trackClassName='h-[3px]' aria-label={t('剩余 {percent}%', { percent: Math.round(row.percent) })} />
+          className='mt-1.5' trackClassName='h-[3px]' aria-label={t('{percent}% left', { percent: Math.round(row.percent) })} />
       ) : null}
     </div>
   )
@@ -348,7 +348,7 @@ export function CreditDetailButton({ rows, now, expiryUnit, subscriptionLine, ag
   const [spentOpen, setSpentOpen] = React.useState(false)
   const liveRows = rows.filter(row => !row.spent)
   const spentRows = rows.filter(row => row.spent)
-  const detailLabel = rows.length > 0 && rows.every(row => row.snapshot) ? t('余额详情') : t('积分明细')
+  const detailLabel = rows.length > 0 && rows.every(row => row.snapshot) ? t('Balance details') : t('Points details')
   const soonRows = liveRows.filter(row => row.expiry !== null)
   const restRows = liveRows.filter(row => row.expiry === null)
   const expiring = creditExpirySummaryOf(soonRows.flatMap(row => row.expiry ? [row.expiry] : []), now)
@@ -420,7 +420,7 @@ export function CreditDetailButton({ rows, now, expiryUnit, subscriptionLine, ag
           {subscriptionLine ? <div className='usage-pop-sub'>{subscriptionLine}</div> : null}
           {aggregate ? <div className='usage-pop-total'>
             <span className='k'>{aggregate.label}</span>
-            <span className='v'>{aggregate.unlimited ? t('不限') : numberText(aggregate.remaining)}
+            <span className='v'>{aggregate.unlimited ? t('Unlimited') : numberText(aggregate.remaining)}
               {!aggregate.unlimited && aggregate.unit ? <> <small>{aggregate.unit}</small></> : null}
             </span>
           </div> : null}
@@ -441,7 +441,7 @@ export function CreditDetailButton({ rows, now, expiryUnit, subscriptionLine, ag
                 type='button'
                 className='usage-pop-spent-head'
                 aria-expanded={spentOpen}
-                title={t('展开或收起（默认收起）')}
+                title={t('Expand or collapse (collapsed by default)')}
                 onClick={() => setSpentOpen(value => !value)}
               >
                 {/* ⚠️ 这个 span 必须**空着**：三角由 CSS 的 border 画
@@ -449,8 +449,8 @@ export function CreditDetailButton({ rows, now, expiryUnit, subscriptionLine, ag
                     里面再塞一个 ▾ 字形就会叠出两个箭头 —— 一个 border 画的、
                     一个字形溢出的（width/height 是 0，字形照样画得出来）。 */}
                 <span className='caret' aria-hidden />
-                <span>{t('已用完 / 已过期')}</span>
-                <span className='n'>{t('{count} 份', { count: spentRows.length })}</span>
+                <span>{t('Used up / Expired')}</span>
+                <span className='n'>{t('{count} packs', { count: spentRows.length })}</span>
               </Button>
               {spentOpen
                 ? spentRows.map((row, index) => (

@@ -107,7 +107,7 @@ pub async fn create_custom_provider(State(state): State<ServerState>, body: Byte
             if let Err(rollback) = custom_providers::remove(&provider_id, store) {
                 logging::log(
                     "[CustomProvider]",
-                    &format!("❌ 回滚新建的提供商 {provider_id} 失败: {rollback}"),
+                    &format!("❌ 回滚新建的提供商 {provider_id} failed: {rollback}"),
                 );
             }
             return crate::server::api::accounts::store_error(error);
@@ -192,7 +192,7 @@ pub async fn update_custom_provider(State(state): State<ServerState>, body: Byte
                 &format!(
                     "🔗 已把 {} 个账号的旧地址覆盖项改回「跟随提供商」: {}",
                     names.len(),
-                    names.join("、")
+                    names.join(", ")
                 ),
             ),
             Ok(_) => {}
@@ -210,7 +210,7 @@ pub async fn update_custom_provider(State(state): State<ServerState>, body: Byte
         .unwrap_or(&id);
     logging::log(
         "[CustomProvider]",
-        &format!("✏️  自定义提供商「{label}」已更新（{changes}）"),
+        &format!("✏️  自定义提供商「{label}」已更新（{changes})"),
     );
     ok_json(json!({ "provider": updated }))
 }
@@ -230,7 +230,7 @@ fn describe_changes(before: Option<&Value>, after: &Value) -> String {
     if changed.is_empty() {
         "无变化".to_string()
     } else {
-        changed.join("、")
+        changed.join(", ")
     }
 }
 
@@ -282,7 +282,7 @@ pub async fn remove_custom_provider(State(state): State<ServerState>, body: Byte
         .iter()
         .filter(|entry| entry.allowed_providers.is_empty())
         .count();
-    let mut note = format!("，连带清除 {accounts_removed} 个账号");
+    let mut note = format!("，连带清除 {accounts_removed} accounts");
     if !stripped.is_empty() {
         // 用 `name || id` 列名：Key 名是可选的（允许空串），空名字只会让日志多一个
         // 「（）」；id 一定能定位到那把 Key
@@ -290,13 +290,13 @@ pub async fn remove_custom_provider(State(state): State<ServerState>, body: Byte
             .iter()
             .map(|entry| {
                 let name = entry.name.trim();
-                if name.is_empty() { entry.id.clone() } else { format!("{}（{}）", name, entry.id) }
+                if name.is_empty() { entry.id.clone() } else { format!("{}（{})", name, entry.id) }
             })
             .collect();
         note.push_str(&format!(
-            "；并从 {} 把 Key 的可用提供商里摘掉这家（{}）",
+            "；并从 {} 把 Key 的可用提供商里摘掉这家（{})",
             stripped.len(),
-            names.join("、"),
+            names.join(", "),
         ));
         if unrestricted > 0 {
             note.push_str(&format!(

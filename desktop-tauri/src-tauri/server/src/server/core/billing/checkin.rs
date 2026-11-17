@@ -373,9 +373,9 @@ pub async fn checkin_for(
             let claim_success = claim.get("success").and_then(Value::as_bool).unwrap_or(false);
             let message = claim.get("msg").and_then(Value::as_str).unwrap_or("");
             if claim_success {
-                logging::log("[Accounts]", &format!("账号 {display}: 签到成功"));
+                logging::log("[Accounts]", &format!("Account {display}: Check-in succeeded"));
             } else {
-                logging::log("[Accounts]", &format!("账号 {display}: WorkBuddy 国际版 {message}"));
+                logging::log("[Accounts]", &format!("Account {display}: WorkBuddy International edition {message}"));
             }
             json!({
                 "id": id,
@@ -465,17 +465,17 @@ fn claim_result(
             let msg = claim.get("msg").and_then(Value::as_str).unwrap_or("");
             if success {
                 if log_success_msg && !msg.is_empty() {
-                    logging::log("[Accounts]", &format!("账号 {display}: 签到成功（{msg}）"));
+                    logging::log("[Accounts]", &format!("Account {display}: 签到成功（{msg})"));
                 } else {
-                    logging::log("[Accounts]", &format!("账号 {display}: 签到成功"));
+                    logging::log("[Accounts]", &format!("Account {display}: Check-in succeeded"));
                 }
             } else {
-                logging::log("[Accounts]", &format!("账号 {display}: 签到未领取（{msg}）"));
+                logging::log("[Accounts]", &format!("Account {display}: 签到未领取（{msg})"));
             }
             json!({ "id": id, "name": name, "claim": claim, "error": Value::Null })
         }
         Err(message) => {
-            logging::verbose("[Accounts]", &format!("账号 {id} 签到失败: {message}"));
+            logging::verbose("[Accounts]", &format!("Account {id} 签到失败: {message}"));
             json!({
                 "id": id,
                 "name": name,
@@ -518,8 +518,8 @@ pub fn checkin_completed_today(claim: &Value) -> bool {
         return true;
     }
     let message = claim.get("msg").and_then(Value::as_str).unwrap_or("");
-    !(message.contains("可能") || message.contains("未能") || message.contains("未见") || message.contains("失败"))
-        && (message.contains("已签到") || message.contains("已领取"))
+    !(message.contains("可能") || message.contains("未能") || message.contains("未见") || message.contains("Failed"))
+        && (message.contains("已签到") || message.contains("Claimed"))
 }
 
 /// 行的 `activity` 段是否携带「活跃上报成功」读数（`report.succeeded`）。
@@ -648,7 +648,7 @@ pub(crate) async fn run_checkin_selected(
                 && !store.mark_checkin(account_id, logging::now_ms()) {
                 logging::verbose(
                     "[Accounts]",
-                    &format!("账号 {account_id} 的签到时间未能落盘（账号可能已被删除）"),
+                    &format!("Account {account_id} 的签到时间未能落盘（账号可能已被删除）"),
                 );
             }
         }
@@ -695,13 +695,13 @@ pub(crate) async fn run_checkin_selected(
     if skipped > 0 {
         logging::log(
             "[Accounts]",
-            &format!("已跳过 {skipped} 个账号（不支持签到/活跃任务或不在签到范围内）"),
+            &format!("Skipped {skipped} 个账号（不支持签到/活跃任务或不在签到范围内）"),
         );
     }
     logging::log(
         "[Accounts]",
         &format!(
-            "签到完成: {succeeded}/{} 个账号成功领取，{active} 个账号完成活跃保活",
+            "Sign-in complete: {succeeded}/{} 个账号成功领取，{active} 个账号完成活跃保活",
             results.len()
         ),
     );
@@ -799,7 +799,7 @@ fn spawn_streak_bonus(store: AccountStore, targets: Vec<Value>) {
                 "[Streak]",
                 &format!(
                     "连登管家完成：{done} 项动作{}",
-                    if failed > 0 { format!("，{failed} 项失败") } else { String::new() }
+                    if failed > 0 { format!(", {failed} 项失败") } else { String::new() }
                 ),
             );
         }

@@ -37,8 +37,8 @@ export function accountSortBalanceOf(value: unknown): AccountSortBalance {
   const hasTotalLeft = Boolean(usage && Object.prototype.hasOwnProperty.call(usage, 'totalLeft'))
   const sources = Array.isArray(usage?.quotaSources) ? usage.quotaSources : []
   const account = sources.map(object).find(source => source?.id === 'account')
-  const rawUnit = text(usage?.unit) || text(account?.unit) || (hasTotalLeft ? '积分' : '')
-  const unit = /^(credits?|积分)$/i.test(rawUnit) ? '积分' : rawUnit
+  const rawUnit = text(usage?.unit) || text(account?.unit) || (hasTotalLeft ? 'Points' : '')
+  const unit = /^(credits?|积分)$/i.test(rawUnit) ? 'Points' : rawUnit
   const valueLeft = hasTotalLeft ? usage?.totalLeft : usage?.available
   const unlimited = Boolean(usage?.unlimited)
   const remaining = !unlimited && typeof valueLeft === 'number' && Number.isFinite(valueLeft) ? valueLeft : null

@@ -73,7 +73,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
     try {
       const status = await fetchPanelStatus()
       if (generation.current !== mine || serverIdentity() !== identity) return
-      if (typeof status.registered !== 'boolean') throw new Error(t('无法读取登录验证设置，请刷新页面重试'))
+      if (typeof status.registered !== 'boolean') throw new Error(t('Could not read sign-in verification settings. Refresh the page and try again.'))
       setSetup(!status.registered)
       setStatusKnown(true)
       setCaptchaConfig(status)
@@ -86,7 +86,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
         setTurnstileReset(value => value + 1)
         return
       }
-      if (status.captchaProvider && status.captchaProvider !== 'altcha') throw new Error(t('无法读取登录验证设置，请刷新页面重试'))
+      if (status.captchaProvider && status.captchaProvider !== 'altcha') throw new Error(t('Could not read sign-in verification settings. Refresh the page and try again.'))
       const payload = await solveCaptcha(ratio => {
         if (generation.current === mine) setProgress(ratio)
       })
@@ -124,11 +124,11 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
     }
 
     if (!username.trim() || !password) {
-      setError(t('请填写账号与密码'))
+      setError(t('Enter the account and password'))
       return
     }
     if (!statusKnown || (captchaState !== 'ready' && captchaState !== 'off')) {
-      setError(t('请完成人机验证后重试'))
+      setError(t('Complete the human verification and try again'))
       return
     }
     setBusy(true)
@@ -180,17 +180,17 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
         <BrandLogo branding={branding} size={48} className='rounded-lg' />
         <h1 className='break-words' style={{ margin: '16px 0 0', fontSize: 23, letterSpacing: '-0.02em' }}>
           {mode === 'key'
-            ? t('需要网关 API Key')
+            ? t('Gateway API key required')
             : setup
-              ? t('创建管理员账号')
-              : t('登录 {name}', { name: branding.displayName })}
+              ? t('Create admin account')
+              : t('Sign in to {name}', { name: branding.displayName })}
         </h1>
         <p style={{ margin: '6px 0 0', fontSize: 12.5, lineHeight: 1.6, color: 'var(--m-text-3)' }}>
           {mode === 'key'
-            ? t('这台网关没有管理员，用一把已启用的 API Key 访问。')
+            ? t('This gateway has no admin account. Access it with an enabled API key.')
             : setup
-              ? t('这台网关还没有管理员。设置一个账号密码，之后用它登录。')
-              : t('输入这台网关的管理员账号与密码。')}
+              ? t('This gateway has no administrator yet. Set an account and password, then use them to sign in.')
+              : t('Enter this gateway\'s administrator account and password.')}
         </p>
       </div>
 
@@ -216,10 +216,10 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
           </span>
           <div className='m-grow' style={{ minWidth: 0 }}>
             <div className='m-t1' style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {server?.name || baseLabel(server?.base || '') || t('未选择服务器')}
+              {server?.name || baseLabel(server?.base || '') || t('No server selected')}
             </div>
             <div className='m-t2 m-mono' style={{ fontSize: 11.5 }}>
-              {server?.base ? baseLabel(server.base) : t('点此添加服务器')}
+              {server?.base ? baseLabel(server.base) : t('Tap to add a server')}
             </div>
           </div>
           {packaged ? (
@@ -241,20 +241,20 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
         ) : (
           <>
             <Field
-              label={t('账号')}
+              label={t('Accounts')}
               value={username}
               onChange={setUsername}
-              placeholder={t('管理员账号')}
+              placeholder={t('Admin account')}
               autoComplete='username'
               autoCapitalize='off'
               autoCorrect='off'
               spellCheck={false}
             />
             <Field
-              label={t('密码')}
+              label={t('Password')}
               value={password}
               onChange={setPassword}
-              placeholder={setup ? t('设置密码（至少 8 位）') : t('密码')}
+              placeholder={setup ? t('Set a password (at least 8 characters)') : t('Password')}
               type='password'
               autoComplete={setup ? 'new-password' : 'current-password'}
             />
@@ -266,15 +266,15 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
               <Verification className='w-full justify-start whitespace-normal text-left'
                 state={captchaState === 'ready' ? 'verified' : captchaState === 'solving' ? 'verifying' : captchaState === 'failed' ? 'error' : 'idle'}
                 disabled={captchaState !== 'failed'} onClick={() => void runCaptcha()}>
-                {captchaState === 'ready' ? t('人机验证已完成')
-                  : captchaState === 'solving' ? t('正在完成人机验证…')
-                    : captchaState === 'failed' ? t('人机验证失败')
-                      : captchaState === 'off' ? t('这台网关未启用机器人校验') : t('人机验证')}
+                {captchaState === 'ready' ? t('Human verification complete')
+                  : captchaState === 'solving' ? t('Completing human verification…')
+                    : captchaState === 'failed' ? t('Human verification failed')
+                      : captchaState === 'off' ? t('This gateway does not require bot verification') : t('Human verification')}
               </Verification>
               {captchaState === 'solving' && progress > 0 ? (
-                <UiProgress value={Math.round(progress * 100)} aria-label={t('人机验证')} />
+                <UiProgress value={Math.round(progress * 100)} aria-label={t('Human verification')} />
               ) : null}
-              {captchaState === 'failed' ? <Button size='touch-sm' variant='outline' onClick={() => void runCaptcha()}>{t('重试')}</Button> : null}
+              {captchaState === 'failed' ? <Button size='touch-sm' variant='outline' onClick={() => void runCaptcha()}>{t('Retry')}</Button> : null}
               </>}
             </div>
           </>
@@ -289,7 +289,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
           disabled={submitDisabled}
           onClick={() => void submit()}
         >
-          {busy ? t('验证中…') : mode === 'key' ? t('保存并继续') : setup ? t('创建并进入') : t('登录')}
+          {busy ? t('Verifying…') : mode === 'key' ? t('Save and continue') : setup ? t('Create & enter') : t('Sign in')}
         </Button>
 
         {/*
@@ -312,7 +312,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
               fontSize: 12.5,
             }}
           >
-            {t('换一台服务器')}
+            {t('Switch server')}
           </Button>
         ) : null}
       </div>
@@ -326,7 +326,7 @@ export function LoginPage({ mode, onDone }: { mode: 'login' | 'key'; onDone?: ()
           color: 'var(--m-text-3)',
         }}
       >
-        {t('凭证只保存在这台手机上，按服务器分别存放')}
+        {t('Credentials are stored only on this phone, separately for each server')}
       </div>
     </AppFrame>
   )

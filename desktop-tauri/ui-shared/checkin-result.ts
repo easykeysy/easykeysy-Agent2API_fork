@@ -17,13 +17,13 @@ export function accountCheckinStatus(account: CheckinAccount): AccountCheckinSta
 
 export function checkinStatusLabel(status: AccountCheckinStatus): string {
   switch (status) {
-    case 'done': return '已签'
-    case 'confirming': return '待确认'
-    case 'inactive': return '暂无活动'
-    case 'ineligible': return '不适用'
-    case 'captcha': return '需人工处理'
-    case 'failed': return '失败'
-    default: return '待签'
+    case 'done': return 'Checked in'
+    case 'confirming': return 'Pending confirmation'
+    case 'inactive': return 'No active campaign'
+    case 'ineligible': return 'Not applicable'
+    case 'captcha': return 'Manual action required'
+    case 'failed': return 'Failed'
+    default: return 'Not checked in'
   }
 }
 
@@ -40,10 +40,10 @@ export function checkinStatusTone(status: AccountCheckinStatus): 'ok' | 'warn' |
 }
 
 export function checkinActionLabel(account: CheckinAccount): string {
-  if (account.dailyCheckin?.queryOnly) return '查询结果'
+  if (account.dailyCheckin?.queryOnly) return 'Check result'
   const status = accountCheckinStatus(account)
-  if (status === 'inactive' || status === 'ineligible') return '重新查询'
-  return account.checkedInToday ? '重签' : '签到'
+  if (status === 'inactive' || status === 'ineligible') return 'Check again'
+  return account.checkedInToday ? 'Check in again' : 'Check in'
 }
 
 /** 套餐旧状态未声明 status；新的普通签到状态不套用“份套餐”的单位。 */

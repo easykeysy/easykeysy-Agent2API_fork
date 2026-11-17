@@ -66,14 +66,14 @@ export function PlanRow({ row, disabled, onReport }: {
     setError('')
     try {
       const bridge = shared().wbZcodeClaim
-      if (!bridge?.preview) throw new Error(t('当前环境不支持领取（桥接方法缺失）'))
+      if (!bridge?.preview) throw new Error(t('Claiming is not supported in this environment (bridge method missing)'))
       const result = await bridge.preview(row.id) as PreviewResult
       if (!mounted.current) return
-      if (!Array.isArray(result?.plans)) throw new Error(t('后端未返回活动福利数据'))
+      if (!Array.isArray(result?.plans)) throw new Error(t('The gateway returned no campaign reward data'))
       setPreview(result)
       setResults(current => Object.fromEntries(Object.entries(current)
         .filter(([, receipt]) => receipt.ok || receipt.failure === 'already_claimed')))
-      setError(planQueryErrors(result).join('；'))
+      setError(planQueryErrors(result).join('; '))
       void loadCenter()
     } catch (cause) {
       if (mounted.current) { setPreview(null); setError(errorMessage(cause)) }
@@ -87,7 +87,7 @@ export function PlanRow({ row, disabled, onReport }: {
     if (lock.current || claimable.length === 0) return true
     const bridge = shared().wbZcodeClaim
     if (!bridge?.claim) {
-      setError(t('当前环境不支持领取（桥接方法缺失）'))
+      setError(t('Claiming is not supported in this environment (bridge method missing)'))
       return false
     }
     lock.current = true
@@ -109,14 +109,14 @@ export function PlanRow({ row, disabled, onReport }: {
           ...receipt, claimedAt: taken ? receipt.claimedAt || Date.now() : receipt.claimedAt,
         } }))
         if (!result) {
-          setError(t('领取结果待确认，请稍后查询；不会重复提交领取'))
+          setError(t('The claim is awaiting confirmation. Query again later; no duplicate claim will be submitted.'))
           return false
         }
         if (taken) {
           void loadCenter()
           void shared().wbApp?.refresh?.()
         } else {
-          setError(result.message || result.failureLabel || t('活动领取未成功，请重新查询后再试'))
+          setError(result.message || result.failureLabel || t('The reward was not claimed. Query again before retrying.'))
         }
       }
       return true
@@ -138,12 +138,12 @@ export function PlanRow({ row, disabled, onReport }: {
       busy: Boolean(busy), query, claimAll })
   })
 
-  const description = busy === 'query' ? t('查询中…') : busy === 'claim' ? t('领取中…')
-    : claimable.length > 0 ? t('可领取 {n} 项', { n: claimable.length })
-      : uncertain ? t('状态待确认')
-        : claimed > 0 ? t('今天已领 {n} 份', { n: claimed })
-        : preview ? t('当前没有可领取的套餐')
-          : row.claimAt ? t('今天未领 · 上次领取 {time}', { time: formatShort(row.claimAt) }) : t('今天未领')
+  const description = busy === 'query' ? t('Checking…') : busy === 'claim' ? t('Claiming…')
+    : claimable.length > 0 ? t('Claimable {n} items', { n: claimable.length })
+      : uncertain ? t('Status unconfirmed')
+        : claimed > 0 ? t('Claimed {n} today', { n: claimed })
+        : preview ? t('No plans available right now')
+          : row.claimAt ? t('Not claimed today · Last claimed {time}', { time: formatShort(row.claimAt) }) : t('Not claimed today')
   return <>
     <Item className='gap-3'>
       <ItemMedia><ProviderLogo id={row.provider || 'zcode'} label='ZCode' /></ItemMedia>
@@ -153,11 +153,11 @@ export function PlanRow({ row, disabled, onReport }: {
       </ItemContent>
       <ItemActions>
         <Button size='sm' variant='outline' disabled={disabled || Boolean(busy)} onClick={() => void query()}>
-          {busy === 'query' ? t('查询中…') : t('查询套餐')}
+          {busy === 'query' ? t('Checking…') : t('Check plan')}
         </Button>
         <Button size='sm' variant={claimed > 0 ? 'outline' : 'default'} disabled={disabled || Boolean(busy)}
           onClick={() => window.wbZcodePlans?.open?.({ id: row.id, name: row.name })}>
-          {claimed > 0 ? t('套餐明细') : t('去领取')}
+          {claimed > 0 ? t('Plan details') : t('Claim now')}
         </Button>
       </ItemActions>
     </Item>

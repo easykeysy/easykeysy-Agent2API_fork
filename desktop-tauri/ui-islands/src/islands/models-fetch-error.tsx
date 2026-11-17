@@ -13,8 +13,8 @@ function responseOf(message: string): { status?: string; body: string; upstream:
 export function ModelsFetchError({ message }: { message: string }) {
   const { status, body, upstream } = responseOf(message)
   const bytes = new TextEncoder().encode(body).length
-  const title = status ? t('{status}：模型获取失败', { status }) : t('模型获取失败')
-  const label = upstream ? t('上游原始响应') : t('错误详情')
+  const title = status ? t('{status}: Failed to fetch models', { status }) : t('Failed to fetch models')
+  const label = upstream ? t('Raw upstream response') : t('Error details')
 
   return (
     <div className='flex min-w-0 flex-col gap-3'>
@@ -25,15 +25,15 @@ export function ModelsFetchError({ message }: { message: string }) {
       <div className='min-w-0 overflow-hidden rounded-sm border border-border bg-surface-2'>
         <div className='flex items-center gap-2 border-b border-hairline py-[7px] pl-3 pr-2.5'>
           <span className='text-[11.5px] font-semibold text-subtle'>{label}</span>
-          <span className='font-mono text-[10.5px] text-muted-foreground'>{t('{n} 字节', { n: bytes })}</span>
+          <span className='font-mono text-[10.5px] text-muted-foreground'>{t('{n} bytes', { n: bytes })}</span>
           <Button variant='outline' size='xs' className='ml-auto h-[22px] text-[11px]'
             data-copy={body} disabled={!body}>
-            {t('复制')}
+            {t('Copy')}
           </Button>
         </div>
         <pre role='region' aria-label={label} tabIndex={0}
           className='m-0 max-h-[210px] overflow-auto whitespace-pre-wrap px-3 py-[11px] font-mono text-[11.5px] leading-[1.7] text-subtle [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:shadow-focus'>
-          {body || (upstream ? t('（上游这一次返回了空正文）') : '—')}
+          {body || (upstream ? t('(Upstream returned an empty body this time)') : '—')}
         </pre>
       </div>
     </div>

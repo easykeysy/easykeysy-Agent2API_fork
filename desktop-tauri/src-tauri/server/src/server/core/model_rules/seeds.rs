@@ -179,7 +179,7 @@ pub fn seed_hidden_disabled(
         return None;
     }
     Some(format!(
-        "🧩 {label}可见性规则: 默认关闭 {} 个不可见模型 [{}]",
+        "🧩 {label}可见性规则: Off by default {} 个不可见模型 [{}]",
         disabled.len(),
         disabled.join(", ")
     ))

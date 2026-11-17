@@ -34,8 +34,8 @@ pub async fn put_captcha(State(state): State<ServerState>, body: Bytes) -> Respo
         &format!(
             "机器人校验：{}，桌面端{}、网页端{}",
             settings.provider,
-            if desktop { "开启" } else { "关闭" },
-            if web { "开启" } else { "关闭" },
+            if desktop { "开启" } else { "Close" },
+            if web { "开启" } else { "Close" },
         ),
     );
     ok_json(settings.management_json(&config, state.local_panel))

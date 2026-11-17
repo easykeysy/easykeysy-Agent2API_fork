@@ -254,13 +254,13 @@ fn build_client_with(
 
     builder
         .build()
-        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))
+        .map_err(|error| format!("Create HTTP 客户端失败: {error}"))
 }
 
 fn transport_proxy(proxy: &ResolvedProxy) -> Result<reqwest::Proxy, String> {
     let proxy = crate::server::core::proxies::chain::endpoint(proxy)?;
     if proxy.port.is_none_or(|port| port == 0) {
-        return Err(format!("代理端口非法（{}）", describe_proxy(&proxy)));
+        return Err(format!("代理端口非法（{})", describe_proxy(&proxy)));
     }
     reqwest::Proxy::all(build_proxy_url(&proxy)).map_err(|_| "代理地址无效".to_string())
 }
@@ -283,7 +283,7 @@ fn build_system_proxy_client(timeouts: &TimeoutSettings) -> Result<reqwest::Clie
     // 因此保持默认开启（`system-proxy` feature，见 server/Cargo.toml 的说明）
     base_builder(timeouts)
         .build()
-        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))
+        .map_err(|error| format!("Create HTTP 客户端失败: {error}"))
 }
 
 /// **不自动跟随跳转**、也不进缓存的 Client（每次调用新建一个）。
@@ -671,7 +671,7 @@ pub fn describe_error_detail(error: &reqwest::Error) -> String {
         current = source.source();
     }
     if parts.is_empty() {
-        return "未知错误".to_string();
+        return "Unknown error".to_string();
     }
     parts.join(" → ")
 }

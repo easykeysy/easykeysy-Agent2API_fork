@@ -88,8 +88,8 @@ pub(crate) fn migrate(store: &AccountStore) -> bool {
         logging::log(
             "[Models]",
             &format!(
-                "🧹 已清理 Trae 历史模型 ID 的 -solo / -solo-max 后缀（目录缓存 {cache_changed} 条、\
-                 规则 {rules_changed} 条、助手方案 {profiles_changed} 条、会话 {sessions_changed} 条、\
+                "🧹 已清理 Trae 历史模型 ID — see the -solo / -solo-max 后缀（目录缓存 {cache_changed} 条、\
+                 Rules {rules_changed} 条、助手方案 {profiles_changed} 条、会话 {sessions_changed} 条、\
                  账号限额 {accounts_changed} 个、运行中目录 {memory_changed} 条）"
             ),
         );

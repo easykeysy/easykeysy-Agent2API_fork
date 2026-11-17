@@ -77,11 +77,11 @@ export function typeValueOf(value: string): AccountType {
  * 对不上「这是刚才那一档」。Agent / Web 是客户端自己的叫法（专名），不进词典。
  */
 function typeLabelOf(type: AccountType): string {
-  if (type === TYPE_ALL) return t('全部')
+  if (type === TYPE_ALL) return t('All')
   if (type === TYPE_WEB) return 'Web'
-  if (type === TYPE_PRESET) return t('API 模板')
-  if (type === TYPE_CUSTOM) return t('已建 API')
-  if (type === TYPE_IMPORT) return t('导入')
+  if (type === TYPE_PRESET) return t('API templates')
+  if (type === TYPE_CUSTOM) return t('Configured APIs')
+  if (type === TYPE_IMPORT) return t('Import')
   return 'Agent'
 }
 
@@ -149,14 +149,14 @@ function providerCards(accountType: AccountType): CardItem[] {
   // 注册名（「AutoClaw 国内版」这类）过一遍词典：卡片名与弹窗标题都由它出，
   // 不查表的话非中文界面会在这里印中文
   const labelOf = (id: string, fallback: string): string => {
-    if (id === 'minimax-code') return t('MiniMax Code 国内版')
-    if (id === 'minimax-code-global') return t('MiniMax Code 国际版')
+    if (id === 'minimax-code') return t('MiniMax Code (China)')
+    if (id === 'minimax-code-global') return t('MiniMax Code (Global)')
     // 千问办公两版已由「提供商增强」插件实现，名字与插件注册表的 meta 逐字一致
     // （`千问办公 国内版` / `千问办公 国际版`）。这里仍然要覆盖一次：插件给的
     // label 是中文源串，只有走 t() 才会被词典翻成其余五种语言。
-    if (id === 'qwenwork') return t('千问办公 国内版')
-    if (id === 'qwenwork-intl') return t('千问办公 国际版')
-    if (id === 'qwenwork-enterprise') return t('QwenWork 千问办公企业版')
+    if (id === 'qwenwork') return t('QwenWork (China)')
+    if (id === 'qwenwork-intl') return t('QwenWork (International)')
+    if (id === 'qwenwork-enterprise') return t('QwenWork (Enterprise)')
     return id === WORKBUDDY_PROVIDER ? WORKBUDDY_ENTRY_LABEL : t(shared().wbProviders?.labelOf?.(id) || fallback)
   }
   // 摘要为空**不再兜底放 WorkBuddy 一张**（2026-10 改）：
@@ -211,9 +211,9 @@ function Logo({ item }: { item: CardItem }): React.ReactElement {
 }
 
 function cardMeta(item: CardItem): string {
-  if (item.preset) return t('使用模板新建提供商')
-  if (item.custom) return item.count ? t('{n} 个账号，点击添加', { n: item.count }) : t('点击添加账号')
-  return item.count ? t('{n} 个账号', { n: item.count }) : t('还没有账号')
+  if (item.preset) return t('Create a provider from this template')
+  if (item.custom) return item.count ? t('{n} accounts, click to add', { n: item.count }) : t('Click to add an account')
+  return item.count ? t('{n} accounts', { n: item.count }) : t('No accounts yet')
 }
 
 function ProviderCard({ item, onPick }: { item: CardItem; onPick: (id: string) => void }): React.ReactElement {
@@ -250,8 +250,8 @@ function NewProviderCard({ onPick }: { onPick: (id: string) => void }): React.Re
     >
       <span className='add-provider-logo is-new'>＋</span>
       <span className='add-provider-info'>
-        <span className='add-provider-name'>{t('新建自定义提供商')}</span>
-        <span className='add-provider-meta'>{t('接入一个兼容上游')}</span>
+        <span className='add-provider-name'>{t('New custom provider')}</span>
+        <span className='add-provider-meta'>{t('Connect a compatible upstream')}</span>
       </span>
       <span className='add-provider-go'>›</span>
     </Item>
@@ -320,11 +320,11 @@ export function PickStep({
     // 分段与列表同一块：两者是同一个问题的两面（「给什么形态的上游加账号」→
     // 「给哪一家加」），分两块带边框会让人以为是两个独立步骤。
     // 分组名走 AddGroup 的 label（挂在方框外面），框内第一行是分段 + 搜索。
-    <AddGroup label={t('选择提供商')}>
+    <AddGroup label={t('Select provider')}>
       {/* 分段与搜索同一行：左边选形态，右边是这一屏的过滤器 */}
       <div className='add-pick-row' style={importing ? { display: 'none' } : undefined}>
         <SegmentedControl
-          aria-label={t('账号类型')}
+          aria-label={t('Account type')}
           className={DIALOG_SEG_CLASS}
           options={[
             // 默认落在「全部」：搜索一次跨全部分类，不必先猜自己该进哪一段
@@ -346,9 +346,9 @@ export function PickStep({
             <InputGroupInput
               id='add-provider-search'
               type='search'
-              placeholder={t('搜索提供商…')}
+              placeholder={t('Search providers…')}
               autoComplete='off'
-              aria-label={t('搜索提供商')}
+              aria-label={t('Search providers')}
               value={search}
               onChange={event => onSearchChange(event.currentTarget.value)}
             />
@@ -359,14 +359,14 @@ export function PickStep({
       {otherHitCount > 0 ? (
         <Alert className='flex items-center gap-3'>
           <span>
-            {t('当前分类里没有「{keyword}」，其它分类有 {n} 个匹配', {
+            {t('No match for "{keyword}" in this category; {n} found in other categories.', {
               keyword: search.trim(),
               n: otherHitCount,
             })}
           </span>
           <Button size='sm' variant='outline' type='button' className='add-provider-hint-go'
             onClick={() => onAccountTypeChange(TYPE_ALL)}>
-            {t('看全部匹配')}
+            {t('See all matches')}
           </Button>
         </Alert>
       ) : null}
@@ -377,7 +377,7 @@ export function PickStep({
         className='add-provider-grid'
         id='add-provider-grid'
         role='listbox'
-        aria-label={t('选择要添加账号的提供商')}
+        aria-label={t('Select the provider to add an account for')}
         style={importing ? { display: 'none' } : undefined}
       >
         {shownGroups.map(group => (
@@ -390,12 +390,12 @@ export function PickStep({
                 {group.items.length ? (
                   // 复用语料里现成的「{count} 家」（插件页的包内家数）：同一个读数
                   // 在两处必须是同一句话，新造一条键只会多一份要翻译的空值
-                  <span className='add-provider-band-stat'>{t('{count} 家', { count: group.items.length })}</span>
+                  <span className='add-provider-band-stat'>{t('{count} providers', { count: group.items.length })}</span>
                 ) : null}
                 <span className='add-provider-band-fill' />
                 <Button size='xs' variant='ghost' type='button' className='add-provider-band-only'
                   onClick={() => onAccountTypeChange(group.type)}>
-                  {t('只看这一类')}
+                  {t('Only this category')}
                 </Button>
               </div>
             ) : null}
@@ -404,7 +404,7 @@ export function PickStep({
           </React.Fragment>
         ))}
         {!hit.length && keyword ? (
-          <Empty className='add-provider-empty'>{t('没有匹配「{keyword}」的提供商', { keyword: search.trim() })}</Empty>
+          <Empty className='add-provider-empty'>{t('No providers match "{keyword}"', { keyword: search.trim() })}</Empty>
         ) : null}
         {/* 一个都没有、也没在搜索、也没有「新建自定义提供商」= 还没装插件包。这是
             **正常状态**（本版本的转发与账号实现都在插件里），所以文案要指路而不是
@@ -413,13 +413,13 @@ export function PickStep({
         {!hit.length && !newCard && !keyword
           && (effectiveType === TYPE_PROXY || effectiveType === TYPE_ALL) ? (
             <Empty className='add-provider-empty'>
-              <p className='mb-2'>{t('请安装并启用对应的提供商插件；列表为空时请刷新后重试。')}</p>
+              <p className='mb-2'>{t('Install and enable the corresponding provider plugin. If the list is empty, refresh and try again.')}</p>
               <Button size='default' variant='ghost'
                 type='button'
                 className='text-primary underline underline-offset-2'
                 onClick={() => shared().wbApp?.showPage?.('plugins')}
               >
-                {t('去安装提供商插件包')}
+                {t('Install a provider plugin pack')}
               </Button>
             </Empty>
           ) : null}

@@ -124,7 +124,7 @@ pub fn chat_from_responses(body: &Value) -> Result<Value, ConvertError> {
             logging::verbose(
                 "[Responses]",
                 &format!(
-                    "自由文本（custom）工具已降级为 function：{}",
+                    "自由文本（custom）工具已降级为 function: {}",
                     downgraded.join(", ")
                 ),
             );
@@ -133,7 +133,7 @@ pub fn chat_from_responses(body: &Value) -> Result<Value, ConvertError> {
             logging::verbose(
                 "[Responses]",
                 &format!(
-                    "工具声明 {} 条（含命名空间展开）→ 已转发 {} 条",
+                    "工具声明 {} 条（含命名空间展开）→ 已转发 {} rows",
                     plan.declarations.len(),
                     converted.len()
                 ),

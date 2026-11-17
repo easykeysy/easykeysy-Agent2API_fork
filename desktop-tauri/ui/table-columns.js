@@ -69,7 +69,7 @@
   const GRIP_CLASS = 'col-grip';
   /** 末列的把手（往内让 4px，见模块头的「把手的定位与末列」） */
   const GRIP_END_CLASS = 'col-grip-end';
-  const gripHtml = end => `<span class="${GRIP_CLASS}${end ? ` ${GRIP_END_CLASS}` : ''}" title="${wbI18n.t('拖动调整列宽（双击还原）')}"></span>`;
+  const gripHtml = end => `<span class="${GRIP_CLASS}${end ? ` ${GRIP_END_CLASS}` : ''}" title="${wbI18n.t('Drag to resize the column (double-click to reset)')}"></span>`;
 
   /**
    * 六张表的登记：columns 的顺序就是列顺序。
@@ -545,7 +545,7 @@
    *
    * 这一条是**兜底**：渲染方那侧仍可以在表头重建后调 `repaint(id)`（幂等），
    * 但漏调不再等于「这张表永远拖不动」—— 那正是模型管理页与请求日志行为不一致的
-   * 一部分成因（请求日志踩过同一个坑，当时是靠渲染方补一次调用绕过的）。
+   * one of the causes (the request log has stepped on同一个坑，当时是靠渲染方补Once调用绕过的）。
    */
   function awaitRoot(table) {
     if (typeof MutationObserver !== 'function') return;

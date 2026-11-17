@@ -19,28 +19,28 @@ import { SearchableSelect } from '../../../ui-shared/searchable-select'
 
 /** 签到记录采用服务端分页；筛选变化时回到第一页。 */
 const RANGES = [
-  { value: 'all', label: '全部' },
-  { value: 'today', label: '今天' },
-  { value: '7', label: '7 天' },
-  { value: '30', label: '30 天' },
-  { value: 'month', label: '本月' },
+  { value: 'all', label: 'All' },
+  { value: 'today', label: 'Today' },
+  { value: '7', label: '7 days' },
+  { value: '30', label: '30 days' },
+  { value: 'month', label: 'This month' },
 ]
 
 const OUTCOME_OPTIONS = [
-  { value: '', label: '全部结果' },
-  { value: 'success', label: '成功领取' },
-  { value: 'already', label: '今日已领' },
-  { value: 'pending', label: t('未领取') },
-  { value: 'captcha', label: t('需要人工验证') },
-  { value: 'failed', label: '失败' },
+  { value: '', label: 'All outcomes' },
+  { value: 'success', label: 'Claimed' },
+  { value: 'already', label: 'claimed today' },
+  { value: 'pending', label: t('Not claimed') },
+  { value: 'captcha', label: t('Human verification required') },
+  { value: 'failed', label: 'Failed' },
 ]
 
 /** 签到类型三档（后端按 source 归组：手动 / 定时 / 定时补签） */
 const KIND_OPTIONS = [
-  { value: '', label: t('全部类型') },
-  { value: 'manual', label: t('手动签到') },
-  { value: 'schedule', label: t('定时签到') },
-  { value: 'makeup', label: t('定时补签') },
+  { value: '', label: t('All types') },
+  { value: 'manual', label: t('Manual check-in') },
+  { value: 'schedule', label: t('Scheduled check-in') },
+  { value: 'makeup', label: t('Scheduled catch-up') },
 ]
 
 /** 时间档位 → 毫秒下界（含今天在内的 N 个自然日；all = 不限）。 */
@@ -59,7 +59,7 @@ function rangeStart(value: string): number | null {
 function detailText(row: RecordRow): string {
   if (row.message) return row.message
   if (row.error) return row.error
-  if (row.keptActive) return '保活成功'
+  if (row.keptActive) return 'Keep-alive succeeded'
   return '—'
 }
 
@@ -69,10 +69,10 @@ function RecordCell({ row, column }: { row: RecordRow; column: RecordColumn & { 
   const classes = [`ta-${column.align}`, `ck-record-${column.key}`]
   switch (column.key) {
     case 'time':
-      title = t('本次签到结果的记录时间：{time}（本机时区）', { time: formatTime(row.ts) })
+      title = t('Time this check-in result was recorded: {time} (local time zone)', { time: formatTime(row.ts) })
       content = <>
         <span>{formatShort(row.ts)}</span>
-        {row.date ? <span className="ck-record-date" title={t('签到日期按北京时间计算')}>{row.date}</span> : null}
+        {row.date ? <span className="ck-record-date" title={t('The check-in date uses Beijing time')}>{row.date}</span> : null}
       </>
       break
     case 'account':
@@ -83,7 +83,7 @@ function RecordCell({ row, column }: { row: RecordRow; column: RecordColumn & { 
       content = row.provider || '—'
       break
     case 'source':
-      title = t('来源说明中的时刻是定时条目的名称或基准时刻，不是本次执行时间')
+      title = t('The time in the source description is the schedule name or base time, not the time of this run')
       content = <>
         <span>{SOURCE_LABEL[row.source ?? ''] ?? row.source ?? '—'}</span>
         {row.reason ? <span className="ck-record-reason">{row.reason}</span> : null}
@@ -152,7 +152,7 @@ export function RecordsTab(): React.ReactElement {
       }
     }
     return [
-      { value: '', label: t('全部提供商') },
+      { value: '', label: t('All providers') },
       ...[...options].map(([value, label]) => ({ value, label })),
     ]
   })()
@@ -198,7 +198,7 @@ export function RecordsTab(): React.ReactElement {
               size="sm"
               variant="destructive"
               onClick={async () => {
-                if (!await confirmDialog('确定清空全部签到记录？清空后无法恢复。')) return
+                if (!await confirmDialog('Clear all sign-in records? Once cleared, they cannot be recovered.')) return
                 void clearRecords(true)
               }}
             >
@@ -212,16 +212,16 @@ export function RecordsTab(): React.ReactElement {
             options={RANGES}
             value={range}
             onValueChange={changeRange}
-            aria-label="时间范围"
+            aria-label="Time range"
           />
           <SearchableSelect value={query.provider} options={providerOptions}
-            onValueChange={provider => apply({ provider })} aria-label={t('提供商')}
-            className='max-w-[240px]' searchPlaceholder={t('搜索提供商')}
-            displayValue={providerOptions.find(option => option.value === query.provider)?.label || t('全部提供商')} />
+            onValueChange={provider => apply({ provider })} aria-label={t('Provider')}
+            className='max-w-[240px]' searchPlaceholder={t('Search providers')}
+            displayValue={providerOptions.find(option => option.value === query.provider)?.label || t('All providers')} />
           <Select value={query.kind} onValueChange={value => apply({ kind: String(value ?? '') })}>
-            <SelectTrigger aria-label={t('签到类型')}>
+            <SelectTrigger aria-label={t('Check-in type')}>
               <SelectValue>
-                {KIND_OPTIONS.find(option => option.value === query.kind)?.label || t('全部类型')}
+                {KIND_OPTIONS.find(option => option.value === query.kind)?.label || t('All types')}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -229,8 +229,8 @@ export function RecordsTab(): React.ReactElement {
             </SelectContent>
           </Select>
           <Select value={query.outcome} onValueChange={value => apply({ outcome: String(value ?? '') })}>
-            <SelectTrigger aria-label='签到结果'>
-              <SelectValue>{OUTCOME_OPTIONS.find(option => option.value === query.outcome)?.label || '全部结果'}</SelectValue>
+            <SelectTrigger aria-label='Sign-in result'>
+              <SelectValue>{OUTCOME_OPTIONS.find(option => option.value === query.outcome)?.label || 'All outcomes'}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {OUTCOME_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
@@ -239,7 +239,7 @@ export function RecordsTab(): React.ReactElement {
           <Input
             type="search"
             className="ck-input-search"
-            placeholder="搜索账号 / 说明"
+            placeholder="Search accounts / Note"
             value={keyword}
             onChange={event => setKeyword(event.currentTarget.value)}
             onKeyDown={event => {

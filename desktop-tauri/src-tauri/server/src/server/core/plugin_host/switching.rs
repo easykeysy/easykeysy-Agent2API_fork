@@ -55,13 +55,13 @@ impl ChangeScope {
             if !matches!(started, Ok(Some(ref host)) if host.ready()) {
                 let reason = runtime::host_for_pack(&pack.id).and_then(|host| host.status().last_error)
                     .unwrap_or_else(|| "启动失败或加载超时，请检查插件日志".to_string());
-                failures.push(format!("{}：{reason}", pack.id));
+                failures.push(format!("{}: {reason}", pack.id));
                 if let Err(error) = runtime::shutdown_packs(std::slice::from_ref(&pack.id)).await {
                     failures.push(error);
                 }
             }
         }
-        if failures.is_empty() { Ok(()) } else { Err(failures.join("；")) }
+        if failures.is_empty() { Ok(()) } else { Err(failures.join("; ")) }
     }
 
     pub fn refresh_catalogs(&self) {

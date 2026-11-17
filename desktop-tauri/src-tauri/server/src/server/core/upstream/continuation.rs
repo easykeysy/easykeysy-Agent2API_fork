@@ -1062,7 +1062,7 @@ mod truncation_criteria {
     #[test]
     fn complete_answers_are_not_flagged() {
         for text in [
-            "答案是 42。",
+            "答案是 42.",
             "Totals: 3 items, 2 shipped, 1 returned.",
             "```rust\nfn main() {}\n```",
             "配置在 `~/.qoder-cn/settings.json`，改完重启即可",
@@ -1116,7 +1116,7 @@ mod truncation_criteria {
         // 这条不是疏漏，是分工：拒答在转发层由 `refusal` 门控拦下（它看的是
         // 上游声明的 finish 集合），能走到续写的都是门控放过的那批 —— 本模块
         // 不该再拿 finish 名字做第二套判断，否则两处对同一条流各有结论。
-        assert!(looks_truncated(&parts("", "思考", Some("content_filter"))));
+        assert!(looks_truncated(&parts("", "Reasoning", Some("content_filter"))));
     }
 
     /// 判据 4：代码围栏数量为奇数。
@@ -1137,7 +1137,7 @@ mod truncation_criteria {
     #[test]
     fn bracket_checks_end_with_an_open_group_not_with_a_stray_closer() {
         assert!(!looks_truncated(&parts("先跑 (npm test) 再提交", "", None)), "配对完整：写完了");
-        assert!(looks_truncated(&parts("返回 {a: [1, 2}", "", None)), "仍未闭合必须抓到");
+        assert!(looks_truncated(&parts("Back {a: [1, 2}", "", None)), "仍未闭合必须抓到");
         assert!(looks_truncated(&parts("调用 compute(a, b", "", None)));
         // 落单闭合符：整篇是「写完的一句中文」，只是括号不成对
         assert!(
@@ -1202,7 +1202,7 @@ mod truncation_criteria {
     fn the_verdict_reads_the_stitched_answer_not_the_last_round() {
         let first = parts("示例代码：\n```python\ndef solve():\n    return 42\n", "", Some("stop"));
         assert!(looks_truncated(&first), "第一轮留着没闭合的围栏：该续");
-        let second = parts("```\n上面的函数返回 42。", "", Some("stop"));
+        let second = parts("```\n上面的函数返回 42.", "", Some("stop"));
         assert!(
             looks_truncated(&second),
             "本轮单独看仍是半截（这正是旧判据多点一次火的地方）"
@@ -1263,7 +1263,7 @@ mod truncation_criteria {
     /// 正文为空时不造空的 assistant 回合，只追指令（换成思考专用那条）。
     #[test]
     fn an_empty_partial_does_not_create_an_empty_assistant_turn() {
-        let mut body = json!({"messages": [{"role": "user", "content": "继续"}]});
+        let mut body = json!({"messages": [{"role": "user", "content": "Continue"}]});
         assert!(append_continuation(&mut body, "   ", true));
         let messages = body["messages"].as_array().cloned().unwrap_or_default();
         assert_eq!(2, messages.len(), "空正文不该占一条 assistant");
@@ -1289,9 +1289,9 @@ mod truncation_criteria {
         assert_eq!(Some("length".to_string()), parts.finish);
         assert!(!parts.has_tool_calls);
         // `reasoning` 这个键名也有上游在用（聚合侧两个键都读）
-        let alt = json!({"choices": [{"message": {"content": "", "reasoning": "思考"}}]});
+        let alt = json!({"choices": [{"message": {"content": "", "reasoning": "Reasoning"}}]});
         assert_eq!(
-            "思考",
+            "Reasoning",
             parts_of_completion(&alt).unwrap().reasoning,
             "reasoning_content 缺席时要退回 reasoning"
         );
@@ -1310,10 +1310,10 @@ mod truncation_criteria {
         let mut acc = TurnAccumulator::default();
         assert!(!acc.push_frame(&frame(json!({"choices": [{"delta": {"content": "前半"}}]}))));
         assert!(!acc.push_frame(&frame(json!({"choices": [{"delta": {"content": "，后半"}}]}))));
-        assert!(!acc.push_frame(&frame(json!({"choices": [{"delta": {"reasoning_content": "思考"}}]}))));
+        assert!(!acc.push_frame(&frame(json!({"choices": [{"delta": {"reasoning_content": "Reasoning"}}]}))));
         assert!(!acc.push_frame(&frame(json!({"choices": [{"delta": {"tool_calls": [{"index": 0}]}}]}))));
         assert_eq!("前半，后半", acc.parts().text, "逐帧拼接");
-        assert_eq!("思考", acc.parts().reasoning);
+        assert_eq!("Reasoning", acc.parts().reasoning);
         assert!(acc.parts().has_tool_calls);
         assert!(!acc.saw_error());
         // 终帧：返回 true（调用侧据此压住不发）

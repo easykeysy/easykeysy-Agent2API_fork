@@ -20,12 +20,12 @@ export function RoutingGroupDialog({ group, reserved, onSave, onClose }: {
     onClose()
   }
   return <Dialog open onOpenChange={open => { if (!open) onClose() }}><DialogContent className='w-[min(600px,calc(100vw-40px))]'>
-    <DialogHeader><RouteIcon name='route' /><DialogTitle>{t('编辑路由组')}</DialogTitle></DialogHeader>
+    <DialogHeader><RouteIcon name='route' /><DialogTitle>{t('Edit route group')}</DialogTitle></DialogHeader>
     <DialogBody>
-      <p className='routing-config-note'>{t('把不同提供商、不同模型组合成一个入口。客户端使用对外模型 ID 发起请求。')}</p>
+      <p className='routing-config-note'>{t('Combine models from different providers into one entry. Clients request its public model ID.')}</p>
       <RoutingGroupForm value={fields} onChange={setFields} />
       {error ? <p className='routing-config-error' role='alert'>{error}</p> : null}
-    </DialogBody><DialogFooter><Button variant='outline' onClick={onClose}>{t('取消')}</Button><Button onClick={save}>{t('应用到草稿')}</Button></DialogFooter>
+    </DialogBody><DialogFooter><Button variant='outline' onClick={onClose}>{t('Cancel')}</Button><Button onClick={save}>{t('Apply to draft')}</Button></DialogFooter>
   </DialogContent></Dialog>
 }
 
@@ -43,11 +43,11 @@ export function RoutingMemberDialog({ choices, members, accounts, lastUsed, onAd
     onClose()
   }
   return <Dialog open onOpenChange={open => { if (!open) onClose() }}><DialogContent className='routing-create-dialog'>
-    <DialogHeader><DialogTitle>{t('添加参与模型')}</DialogTitle></DialogHeader><DialogBody>
-      <p className='routing-config-note'>{t('可以跨提供商、跨模型多选。同一提供商也可以加入不同模型。')}</p>
+    <DialogHeader><DialogTitle>{t('Add participating models')}</DialogTitle></DialogHeader><DialogBody>
+      <p className='routing-config-note'>{t('Select multiple models across providers. Different models from the same provider can also be included.')}</p>
       <RoutingModelPicker choices={options} accounts={accounts} lastUsed={lastUsed} selected={selected} onChange={setSelected} limit={limit} />
-      <p className='routing-config-note'>{t('仅列出真实目录中的对话模型，不自动更改模型映射。')}</p>
-    </DialogBody><DialogFooter><Button variant='outline' onClick={onClose}>{t('取消')}</Button><Button disabled={!picked.length || picked.length > limit} onClick={add}>{t('添加')} · {picked.length}</Button></DialogFooter>
+      <p className='routing-config-note'>{t('Only chat models from the actual catalog are listed. Model mappings remain unchanged.')}</p>
+    </DialogBody><DialogFooter><Button variant='outline' onClick={onClose}>{t('Cancel')}</Button><Button disabled={!picked.length || picked.length > limit} onClick={add}>{t('Add')} · {picked.length}</Button></DialogFooter>
   </DialogContent></Dialog>
 }
 
@@ -63,17 +63,17 @@ export function RoutingMemberAccounts({ member, accounts, onSave, onClose }: {
     return next
   })
   return <Dialog open onOpenChange={open => { if (!open) onClose() }}><DialogContent className='w-[min(680px,calc(100vw-40px))]'>
-    <DialogHeader><DialogTitle>{t('参与账号')} · {member.model}</DialogTitle></DialogHeader><DialogBody>
-      <p className='text-sm text-muted-foreground'>{t('只影响这个路由成员，不改变账号启用状态，也不影响其他模型。新增账号需要手动加入。')}</p>
+    <DialogHeader><DialogTitle>{t('Participating accounts')} · {member.model}</DialogTitle></DialogHeader><DialogBody>
+      <p className='text-sm text-muted-foreground'>{t('Only affects this member, not account enablement or other models. New accounts must be added manually.')}</p>
       <div className='routing-model-picker'>{order.map(id => {
         const account = available.find(item => item.id === id), on = selected.includes(id), index = selected.indexOf(id)
         return <div className='routing-group-picker-row' key={id}>
-          <div><b>{account ? displayNameOf(account) : t('账号已移除')}</b><small>{account?.enabled === false ? t('账号已禁用') : on ? t('参与本路由') : t('未参与本路由')}</small></div>
-          <Button variant='ghost' size='icon' disabled={!on || index === 0} aria-label={t('提高优先级')} onClick={() => move(id, -1)}><RouteIcon name='arrowUp' /></Button>
-          <Button variant='ghost' size='icon' disabled={!on || index === selected.length - 1} aria-label={t('降低优先级')} onClick={() => move(id, 1)}><RouteIcon name='arrowDown' /></Button>
-          <Button variant={on ? 'ghost' : 'outline'} size='sm' disabled={!account && !on} onClick={() => setSelected(current => on ? current.filter(value => value !== id) : [...current, id])}>{on ? t('移出本路由') : t('加入路由')}</Button>
+          <div><b>{account ? displayNameOf(account) : t('Account removed')}</b><small>{account?.enabled === false ? t('Account disabled') : on ? t('Included in this route') : t('Not in this route')}</small></div>
+          <Button variant='ghost' size='icon' disabled={!on || index === 0} aria-label={t('Raise priority')} onClick={() => move(id, -1)}><RouteIcon name='arrowUp' /></Button>
+          <Button variant='ghost' size='icon' disabled={!on || index === selected.length - 1} aria-label={t('Lower priority')} onClick={() => move(id, 1)}><RouteIcon name='arrowDown' /></Button>
+          <Button variant={on ? 'ghost' : 'outline'} size='sm' disabled={!account && !on} onClick={() => setSelected(current => on ? current.filter(value => value !== id) : [...current, id])}>{on ? t('Remove from this route') : t('Add to route')}</Button>
         </div>
-      })}{!order.length ? <Empty>{t('该提供商没有账号，请先到账号页添加。')}</Empty> : null}</div>
-    </DialogBody><DialogFooter><Button variant='outline' onClick={onClose}>{t('取消')}</Button><Button onClick={() => { onSave(selected); onClose() }}>{t('应用到草稿')}</Button></DialogFooter>
+      })}{!order.length ? <Empty>{t('This provider has no accounts. Add one on the Accounts page first.')}</Empty> : null}</div>
+    </DialogBody><DialogFooter><Button variant='outline' onClick={onClose}>{t('Cancel')}</Button><Button onClick={() => { onSave(selected); onClose() }}>{t('Apply to draft')}</Button></DialogFooter>
   </DialogContent></Dialog>
 }

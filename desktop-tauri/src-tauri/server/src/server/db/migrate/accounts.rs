@@ -20,7 +20,7 @@ use crate::server::logging;
 const ACCOUNTS_FILE_NAME: &str = "accounts.json";
 
 /// 迁移项的可读名（`LegacyOutcome.label` 与「待迁移项清单」共用同一个字面量）。
-pub(super) const LABEL: &str = "账号";
+pub(super) const LABEL: &str = "Accounts";
 
 /// 旧文件的位置（不在原处时 `None`）。
 ///
@@ -90,7 +90,7 @@ pub(super) fn import_accounts(conn: &Connection, dir: &Path) -> Option<LegacyOut
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 账号迁移失败：无法读取 {}（{error}）", path.display()),
+                &format!("❌ 账号迁移失败：无法读取 {}（{error})", path.display()),
             );
             return None;
         }
@@ -100,7 +100,7 @@ pub(super) fn import_accounts(conn: &Connection, dir: &Path) -> Option<LegacyOut
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 账号迁移失败：{} 不是合法 JSON（{error}）", path.display()),
+                &format!("❌ 账号迁移失败：{} 不是合法 JSON（{error})", path.display()),
             );
             return None;
         }
@@ -138,7 +138,7 @@ pub(super) fn import_accounts(conn: &Connection, dir: &Path) -> Option<LegacyOut
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 账号迁移失败：写入数据库失败（{error}）"),
+                &format!("❌ 账号迁移失败：写入数据库失败（{error})"),
             );
             return None;
         }

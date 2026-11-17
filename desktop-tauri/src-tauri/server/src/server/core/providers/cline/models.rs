@@ -177,7 +177,7 @@ mod tests {
             assert_eq!(
                 Some(pool.kind()),
                 kind_from_id(pool.provider_id()),
-                "kind 与 provider id 必须互查一致"
+                "kind and provider id 必须互查一致"
             );
         }
         assert_eq!(None, Pool::from_provider_id("cline"));

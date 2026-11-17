@@ -36,7 +36,7 @@ pub fn allowed(url: &url::Url, region: Region) -> bool {
 pub async fn start(app: &AppHandle, region: Region, mode: &str, proxy: Option<Value>) -> Result<Value, String> {
     if mode == "external" {
         return Err(
-            "MonkeyCode 网页登录需要桌面内嵌窗口；系统浏览器登录后请使用「填写凭证」粘贴 session。"
+            "MonkeyCode 网页登录需要桌面内嵌窗口；系统浏览器登录后请使用「填写凭证」粘贴 session."
                 .into(),
         );
     }
@@ -55,7 +55,7 @@ pub async fn start(app: &AppHandle, region: Region, mode: &str, proxy: Option<Va
             app,
             region.provider_id(),
             auth_url,
-            &format!("登录 MonkeyCode {}账号", region.label()),
+            &format!("Sign in MonkeyCode {}Accounts", region.label()),
             flow,
         )
         .await

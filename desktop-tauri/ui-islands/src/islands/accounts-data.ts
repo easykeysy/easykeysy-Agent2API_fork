@@ -39,7 +39,7 @@ export {
 /* ─── 弹窗 ─────────────────────────────────── */
 
 export function openSettingsDialog(id: string): void {
-  if (!findAccount(id)) { toast(t('账号不存在，请刷新后重试'), 'err'); return }
+  if (!findAccount(id)) { toast(t('Account not found; refresh and try again'), 'err'); return }
   patch({ dialog: { kind: 'settings', id } })
 }
 
@@ -49,7 +49,7 @@ export function closeDialog(): void {
 
 export function openBatchDialog(ids: string[], action = 'enable'): void {
   const selected = (Array.isArray(ids) ? ids : []).filter(id => findAccount(id))
-  if (!selected.length) { toast(t('请先勾选要操作的账号'), 'err'); return }
+  if (!selected.length) { toast(t('Select the accounts to act on first'), 'err'); return }
   patch({ dialog: { kind: 'batch', ids: selected, action } })
 }
 
@@ -164,11 +164,11 @@ export function startConnectionsPolling(): void {
 export async function setAccountEnabled(id: string, enabled: boolean): Promise<void> {
   try {
     await updateAccountConfirmed(id, { enabled })
-    toast(enabled ? t('✅ 已启用') : t('✅ 已禁用'))
+    toast(enabled ? t('✅ Enabled') : t('✅ Disabled'))
     try { await refreshSavedAccounts() }
-    catch (error) { toast(t('账号已保存，但列表刷新失败：{error}', { error: errorMessage(error) }), 'err') }
+    catch (error) { toast(t('The account was saved, but the list failed to refresh: {error}', { error: errorMessage(error) }), 'err') }
   } catch (error) {
-    toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Operation failed: {message}', { message: errorMessage(error) }), 'err')
     // 失败时把开关拨回去：界面上不能留一个「已改」的假象
     void shared().wbApp?.refresh?.()
   }
@@ -188,11 +188,11 @@ export async function reorderQueue(ids: string[], note?: string): Promise<boolea
   if (!ids.length) return false
   try {
     await shared().workbuddyDesktop?.reorderAccounts?.(ids)
-    toast(note ? t('✅ 已保存：{note}', { note }) : t('✅ 顺序已保存'))
+    toast(note ? t('✅ Saved: {note}', { note }) : t('✅ Order saved'))
     await shared().wbApp?.refresh?.()
     return true
   } catch (error) {
-    toast(t('顺序未保存：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Order not saved: {message}', { message: errorMessage(error) }), 'err')
     void shared().wbApp?.refresh?.()
     return false
   }
@@ -206,24 +206,24 @@ export async function setGroupEnabled(ids: string[], enabled: boolean): Promise<
   if (!ids.length) return
   try {
     const bridge = shared().workbuddyDesktop
-    if (!bridge?.batchAccounts) throw new Error(t('批量操作接口不可用，请重新打开页面'))
+    if (!bridge?.batchAccounts) throw new Error(t('Bulk operation service is unavailable; reopen the page'))
     const payload = { action: enabled ? 'enable' : 'disable', ids }
     const data = confirmBatchResult(await bridge.batchAccounts(payload), payload)
     const count = data.ok?.length || 0
     const changed = data.ok?.filter(item => item.changes?.length).length || 0
     const failed = data.failed?.length || 0
     if (failed || data.skipped?.length) {
-      toast(t('{verb}完成：成功 {ok} 个，未变更 {unchanged} 个，跳过 {skip} 个，失败 {fail} 个', {
-        verb: enabled ? t('启用') : t('禁用'), ok: changed, unchanged: count - changed,
+      toast(t('{verb} completed: {ok} changed, {unchanged} unchanged, {skip} skipped, {fail} failed', {
+        verb: enabled ? t('enabled') : t('Disable'), ok: changed, unchanged: count - changed,
         skip: data.skipped?.length || 0, fail: failed,
       }), failed ? 'err' : 'ok')
     } else {
-      toast(enabled ? t('✅ 已启用 {n} 个账号', { n: count }) : t('✅ 已禁用 {n} 个账号', { n: count }))
+      toast(enabled ? t('✅ Enabled {n} accounts', { n: count }) : t('✅ Disabled {n} accounts', { n: count }))
     }
     try { await refreshSavedAccounts() }
-    catch (error) { toast(t('批量操作已保存，但列表刷新失败：{error}', { error: errorMessage(error) }), 'err') }
+    catch (error) { toast(t('Bulk changes were saved, but the list failed to refresh: {error}', { error: errorMessage(error) }), 'err') }
   } catch (error) {
-    toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Operation failed: {message}', { message: errorMessage(error) }), 'err')
     void shared().wbApp?.refresh?.()
   }
 }
@@ -232,10 +232,10 @@ export async function setGroupEnabled(ids: string[], enabled: boolean): Promise<
 export async function clearLimits(id: string, model?: string): Promise<void> {
   try {
     await shared().workbuddyDesktop?.clearRateLimits?.(id, model || null)
-    toast(model ? t('✅ 已清除 {model} 的限流标记', { model }) : t('✅ 已清除该账号全部限流标记'))
+    toast(model ? t('✅ Rate-limit flag cleared for {model}', { model }) : t('✅ Cleared all rate-limit flags for this account'))
     await shared().wbApp?.refresh?.()
   } catch (error) {
-    toast(t('清除失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Clear failed: {message}', { message: errorMessage(error) }), 'err')
   }
 }
 
@@ -274,7 +274,7 @@ export async function applyProxyPick(id: string, value: string | null, fallback:
   if (poolId) {
     const item = (proxyPoolSnapshot() || []).find(entry => entry.id === poolId)
     if (item && item.enabled === false) {
-      toast(t('「{name}」已在「网络代理」页禁用，请先启用它或换一条', {
+      toast(t('"{name}" is disabled on the "Network proxy" page. Enable it first or pick another one.', {
         name: item.name || poolId,
       }), 'err')
       return
@@ -283,13 +283,13 @@ export async function applyProxyPick(id: string, value: string | null, fallback:
   try {
     const proxy = poolId ? { source: 'pool', proxyId: poolId } : null
     await updateAccountConfirmed(id, { proxy })
-    toast(`✅ ${t('代理已更新')}`)
+    toast(`✅ ${t('Proxy updated')}`)
   } catch (error) {
-    toast(t('保存失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Save failed: {message}', { message: errorMessage(error) }), 'err')
   } finally {
     // 成败都重拉：成功让这格显示落库后的值，失败把下拉拨回原值
     try { await refreshSavedAccounts() }
-    catch (error) { toast(t('刷新账号列表失败：{message}', { message: errorMessage(error) }), 'err') }
+    catch (error) { toast(t('Failed to refresh accounts: {message}', { message: errorMessage(error) }), 'err') }
   }
 }
 

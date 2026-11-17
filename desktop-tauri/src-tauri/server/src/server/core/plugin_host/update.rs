@@ -329,7 +329,7 @@ pub(super) async fn release_for_channels(
     let list: Vec<&Value> = if listed {
         document
             .as_array()
-            .ok_or_else(|| UpdateError::new("插件 Release 列表格式错误"))?
+            .ok_or_else(|| UpdateError::new("Plugins Release 列表格式错误"))?
             .iter()
             .collect()
     } else {
@@ -389,7 +389,7 @@ async fn query_releases(
     }
     if !response.status.is_success() {
         return Err(UpdateError::new(format!(
-            "查询插件更新失败：GitHub 返回 HTTP {}",
+            "查询插件更新失败：GitHub Back HTTP {}",
             response.status.as_u16()
         )));
     }
@@ -452,7 +452,7 @@ pub async fn download(
         };
         if response.status().as_u16() != 200 {
             last_error = format!(
-                "下载插件包失败：{}返回 HTTP {}",
+                "下载插件包失败：{}Back HTTP {}",
                 candidate.label(),
                 response.status().as_u16()
             );

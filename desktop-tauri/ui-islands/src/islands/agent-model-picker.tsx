@@ -32,16 +32,16 @@ export function AgentModelPicker({ catalog, selected, onChange, disabled, locked
   const available = matches.filter(model => !picked.has(model.id) && !protectedIds.has(model.id))
   const selectVisible = () => onChange([...selected, ...available.slice(0, remaining).map(model => model.id)])
   const clear = () => onChange(selected.filter(id => protectedIds.has(id)))
-  return <div className='agent-model-picker' role='group' aria-label={t('选择模型')}>
+  return <div className='agent-model-picker' role='group' aria-label={t('Select models')}>
     <div className='agent-model-picker-bar'>
       <InputGroup className='agent-model-picker-search'>
-        <InputGroupInput type='search' autoComplete='off' value={search} disabled={disabled} aria-label={t('搜索模型')}
-          placeholder={t('搜索模型 ID / 展示名…')} onChange={event => setSearch(event.currentTarget.value)} />
+        <InputGroupInput type='search' autoComplete='off' value={search} disabled={disabled} aria-label={t('Search models')}
+          placeholder={t('Search model ID or display name…')} onChange={event => setSearch(event.currentTarget.value)} />
         <InputGroupAddon aria-hidden='true'>⌕</InputGroupAddon>
       </InputGroup>
-      <span className='agent-model-picker-count'>{t('已选择 {count} / {total} 个', { count: picked.size, total: catalog.length })}</span>
-      <Button variant='link' size='xs' disabled={disabled || !remaining || !available.length} onClick={selectVisible}>{t('全选搜索结果')}</Button>
-      <Button variant='link' size='xs' disabled={disabled || !selected.some(id => !protectedIds.has(id))} onClick={clear}>{t('清空选择')}</Button>
+      <span className='agent-model-picker-count'>{t('Selected {count} / {total}', { count: picked.size, total: catalog.length })}</span>
+      <Button variant='link' size='xs' disabled={disabled || !remaining || !available.length} onClick={selectVisible}>{t('Select all search results')}</Button>
+      <Button variant='link' size='xs' disabled={disabled || !selected.some(id => !protectedIds.has(id))} onClick={clear}>{t('Clear selection')}</Button>
     </div>
     <div className='agent-model-picker-list'>
       {matches.map(model => {
@@ -54,9 +54,9 @@ export function AgentModelPicker({ catalog, selected, onChange, disabled, locked
           {model.name && model.name !== model.id && <code className='agent-model-picker-id'>{model.id}</code>}
         </label>
       })}
-      {!matches.length && <Empty>{t(query ? '没有匹配的模型' : '没有可添加的模型')}</Empty>}
+      {!matches.length && <Empty>{t(query ? 'No matching models' : 'No models available to add')}</Empty>}
     </div>
-    {!remaining && <p className='text-xs text-subtle'>{t('最多选择 {n} 个模型', { n: AGENT_MODEL_LIMIT })}</p>}
+    {!remaining && <p className='text-xs text-subtle'>{t('Select up to {n} models', { n: AGENT_MODEL_LIMIT })}</p>}
   </div>
 }
 
@@ -65,7 +65,7 @@ export function SearchableModelSelect({ label, value, options, onChange, disable
 }) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
-  const text = options.find(option => option.value === value)?.label || value || t('请选择模型')
+  const text = options.find(option => option.value === value)?.label || value || t('Select a model')
   const query = search.trim().toLowerCase()
   const matches = options.filter(option => `${option.value} ${option.label}`.toLowerCase().includes(query))
   return <Popover open={open && !disabled} onOpenChange={open => { setOpen(open); if (open) setSearch('') }}>
@@ -74,15 +74,15 @@ export function SearchableModelSelect({ label, value, options, onChange, disable
       <span className='min-w-0 truncate'>{text}</span><span aria-hidden='true'>⌄</span>
     </PopoverTrigger>
     <PopoverContent className='agent-model-select-popover' sideOffset={4}>
-      <Input type='search' autoFocus autoComplete='off' disabled={disabled} value={search} placeholder={t('搜索模型')}
-        aria-label={t('搜索模型')} onChange={event => setSearch(event.currentTarget.value)} />
+      <Input type='search' autoFocus autoComplete='off' disabled={disabled} value={search} placeholder={t('Search models')}
+        aria-label={t('Search models')} onChange={event => setSearch(event.currentTarget.value)} />
       <div className='agent-model-select-options'>
         {matches.map(option => <Button key={option.value} variant='ghost' className='h-auto w-full justify-start whitespace-normal text-left font-normal'
           aria-pressed={value === option.value} disabled={disabled} onClick={() => { onChange(option.value); setOpen(false) }}>
           <span className='min-w-0 flex-1 break-all'>{option.label}</span>
-          {value === option.value && <Badge variant='brand' shape='tag'>{t('已选择')}</Badge>}
+          {value === option.value && <Badge variant='brand' shape='tag'>{t('Selected')}</Badge>}
         </Button>)}
-        {!matches.length && <Empty>{t('没有匹配的模型')}</Empty>}
+        {!matches.length && <Empty>{t('No matching models')}</Empty>}
       </div>
     </PopoverContent>
   </Popover>

@@ -58,7 +58,7 @@ impl GatewayCallbacks for TestCallbacks {
                 "id": account,
                 "provider": "demo",
                 "secret": { "token": "demo-token", "expires_at": i64::MAX },
-                "public": { "name": "测试账号" },
+                "public": { "name": "Test accounts" },
             }))
         })
     }
@@ -152,7 +152,7 @@ async fn boot() -> (tempfile::TempDir, Arc<Host>, Vec<proto::ProviderInfo>) {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn host_starts_and_lists_providers() {
     let (_dir, host, providers) = boot().await;
     assert!(!providers.is_empty(), "握手应当返回至少一家 provider");
@@ -176,7 +176,7 @@ async fn host_starts_and_lists_providers() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn build_chat_request_goes_through_rpc() {
     let (_dir, host, providers) = boot().await;
     let demo = providers.iter().find(|p| p.id.0 == "demo").expect("demo 存在");
@@ -216,7 +216,7 @@ async fn build_chat_request_goes_through_rpc() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn classify_error_goes_through_rpc() {
     let (_dir, host, providers) = boot().await;
     let demo = providers.iter().find(|p| p.id.0 == "demo").expect("demo 存在");
@@ -228,7 +228,7 @@ async fn classify_error_goes_through_rpc() {
     );
 
     let quota = adapter
-        .classify_error_async(429, &serde_json::json!({ "error": { "message": "限额" } }))
+        .classify_error_async(429, &serde_json::json!({ "error": { "message": "Limit" } }))
         .await;
     assert!(
         matches!(quota, UpstreamErrorClass::QuotaLimited { .. }),
@@ -247,7 +247,7 @@ async fn classify_error_goes_through_rpc() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn reasoning_patch_goes_through_rpc() {
     let (_dir, host, providers) = boot().await;
     let demo = providers.iter().find(|p| p.id.0 == "demo").expect("demo 存在");
@@ -284,7 +284,7 @@ async fn reasoning_patch_goes_through_rpc() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn refusal_markers_come_from_handshake() {
     let (_dir, host, providers) = boot().await;
     let demo = providers.iter().find(|p| p.id.0 == "demo").expect("demo 存在");
@@ -306,7 +306,7 @@ async fn refusal_markers_come_from_handshake() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn ensure_token_reads_the_account_through_callbacks() {
     let (_dir, host, providers) = boot().await;
     let demo = providers.iter().find(|p| p.id.0 == "demo").expect("demo 存在");
@@ -333,7 +333,7 @@ async fn ensure_token_reads_the_account_through_callbacks() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn missing_account_reports_not_found() {
     let (_dir, host, providers) = boot().await;
     let demo = providers.iter().find(|p| p.id.0 == "demo").expect("demo 存在");
@@ -410,7 +410,7 @@ fn upstream_headers(upstream: &str) -> axum::http::HeaderMap {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn conversation_streams_head_and_chunks() {
     let (upstream, _server) = fake_upstream(
         "data: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}\n\ndata: [DONE]\n\n",
@@ -463,7 +463,7 @@ async fn conversation_streams_head_and_chunks() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn conversation_non_stream_aggregates_on_the_gateway() {
     let (upstream, _server) = fake_upstream(
         "data: {\"choices\":[{\"delta\":{\"content\":\"你\"},\"index\":0}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"好\"},\"index\":0}]}\n\ndata: [DONE]\n\n",
@@ -502,7 +502,7 @@ async fn conversation_non_stream_aggregates_on_the_gateway() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn conversation_http_200_body_is_forwarded_without_hanging() {
     let (upstream, _server) = fake_upstream(
         "{\"error\":{\"message\":\"rate limited\",\"code\":429}}",
@@ -551,7 +551,7 @@ async fn conversation_http_200_body_is_forwarded_without_hanging() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
+#[ignore = "Needed AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的插件二进制"]
 async fn dropping_the_stream_aborts_the_plugin_call() {
     use futures::StreamExt;
 

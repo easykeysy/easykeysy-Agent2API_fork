@@ -28,13 +28,13 @@ function CredentialInput({ id, label, optional, placeholder, value, onChange, di
 }) {
   const [visible, setVisible] = React.useState(false)
   return <div className='compact-login-field'>
-    <div className='compact-login-label'><Label htmlFor={id}>{label}{optional ? <span>{t('可选')}</span> : null}</Label>{children}</div>
+    <div className='compact-login-label'><Label htmlFor={id}>{label}{optional ? <span>{t('Optional')}</span> : null}</Label>{children}</div>
     <InputGroup>
       <InputGroupInput id={id} type={visible ? 'text' : 'password'} value={value} disabled={disabled}
         maxLength={maxLength} placeholder={placeholder} autoComplete='new-password' spellCheck={false}
         onChange={event => onChange(event.currentTarget.value)} />
       <InputGroupAddon align='inline-end'><InputGroupButton size='icon-xs' disabled={disabled}
-        aria-label={visible ? t('隐藏凭证') : t('显示凭证')} onClick={() => setVisible(previous => !previous)}>
+        aria-label={visible ? t('Hide credentials') : t('Show credentials')} onClick={() => setVisible(previous => !previous)}>
         <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z' /><circle cx='12' cy='12' r='3' /></svg>
       </InputGroupButton></InputGroupAddon>
     </InputGroup>
@@ -42,10 +42,10 @@ function CredentialInput({ id, label, optional, placeholder, value, onChange, di
 }
 
 function proxyLabel(draft: ProxyDraft): string {
-  if (draft.mode === 'none') return t('直连')
-  if (draft.mode === 'pool') return t('已保存的代理')
-  if (draft.mode === 'custom') return draft.host ? `${draft.host}:${draft.port}` : t('手动代理')
-  return t('请选择代理')
+  if (draft.mode === 'none') return t('Direct')
+  if (draft.mode === 'pool') return t('Saved proxy')
+  if (draft.mode === 'custom') return draft.host ? `${draft.host}:${draft.port}` : t('Manual proxy')
+  return t('Select a proxy')
 }
 
 export function DeepseekAccountBlock({ active, footerHost, onClose }: {
@@ -62,7 +62,7 @@ export function DeepseekAccountBlock({ active, footerHost, onClose }: {
   const [error, setError] = React.useState('')
   const [guideOpen, setGuideOpen] = React.useState(false)
   const [proxyOpen, setProxyOpen] = React.useState(false)
-  const [view, setView] = React.useState<WebLoginView>({ label: t('打开网页登录'), hint: '', disabled: false, waiting: false })
+  const [view, setView] = React.useState<WebLoginView>({ label: t('Open web login'), hint: '', disabled: false, waiting: false })
   const controller = React.useRef<WebLoginController | null>(null)
   const alive = React.useRef(false)
   const savingRef = React.useRef(false)
@@ -75,11 +75,11 @@ export function DeepseekAccountBlock({ active, footerHost, onClose }: {
     alive.current = true
     controller.current = shared().wbWebLogin?.create({
       provider: 'deepseek-web', buttonId: `${id}-start`, cancelId: `${id}-cancel`, hintId: `${id}-hint`,
-      busyText: t('等待登录完成…'), onStateChange: setView,
-      texts: () => ({ button: t('打开网页登录'), hint: '' }),
+      busyText: t('Waiting for sign-in…'), onStateChange: setView,
+      texts: () => ({ button: t('Open web login'), hint: '' }),
       start: async () => {
         const current = snapshot.current
-        if (!runtimeProviderOf('deepseek-web')) throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
+        if (!runtimeProviderOf('deepseek-web')) throw new Error(t('This provider is no longer in the runtime catalog. Return to the list and select again.'))
         try {
           return await startLogin('deepseek-web', '', 'embedded', false, {
             methodIndex: 1, inputs: current.name.trim() ? { name: current.name.trim() } : {}, proxy: readProxyDraft(current.proxy),
@@ -92,9 +92,9 @@ export function DeepseekAccountBlock({ active, footerHost, onClose }: {
       onSuccess: async raw => {
         const result = normalizeLoginResult(raw)
         if (!result.ok || result.canceled || !(result.account?.id || result.session?.accountUid || result.session?.accountId)) {
-          throw new Error(t('登录桥未返回已完成的账号或会话，请重试'))
+          throw new Error(t('The sign-in bridge did not return a completed account or session. Try again.'))
         }
-        await afterAdd(addedLabelOf(result.account), t('DeepSeek 网页'))
+        await afterAdd(addedLabelOf(result.account), t('DeepSeek Web'))
         if (result.warning) toast(result.warning, 'warn')
       },
     }) || null
@@ -118,7 +118,7 @@ export function DeepseekAccountBlock({ active, footerHost, onClose }: {
   async function addToken(): Promise<void> {
     if (!tokenValid || locked || savingRef.current) return
     try {
-      if (!runtimeProviderOf('deepseek-web')) throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
+      if (!runtimeProviderOf('deepseek-web')) throw new Error(t('This provider is no longer in the runtime catalog. Return to the list and select again.'))
       const selectedProxy = readProxyDraft(proxy)
       savingRef.current = true
       setSaving(true)
@@ -126,9 +126,9 @@ export function DeepseekAccountBlock({ active, footerHost, onClose }: {
       const result = normalizeLoginResult(await postAccount({
         provider: 'deepseek-web', accessToken: token.trim(), cookie: cookie.trim(), name: name.trim() || undefined, proxy: selectedProxy,
       }))
-      if (!result.account?.id) throw new Error(t('登录桥未返回已完成的账号或会话，请重试'))
+      if (!result.account?.id) throw new Error(t('The sign-in bridge did not return a completed account or session. Try again.'))
       if (alive.current) { setToken(''); setCookie('') }
-      await afterAdd(addedLabelOf(result.account), t('DeepSeek 网页'))
+      await afterAdd(addedLabelOf(result.account), t('DeepSeek Web'))
       if (result.warning) toast(result.warning, 'warn')
     } catch (failure) {
       if (alive.current) setError(describeError(failure))
@@ -143,7 +143,7 @@ export function DeepseekAccountBlock({ active, footerHost, onClose }: {
     setError('')
     try {
       readProxyDraft(proxy)
-      if (!controller.current) throw new Error(t('共享登录桥不可用，请重新打开面板'))
+      if (!controller.current) throw new Error(t('The shared sign-in bridge is unavailable. Reopen the panel.'))
       controller.current.start()
     } catch (failure) { setError(describeError(failure)) }
   }
@@ -156,51 +156,51 @@ export function DeepseekAccountBlock({ active, footerHost, onClose }: {
   }
 
   const footer = <>
-    <span className='compact-login-security'><LockIcon />{t('凭证仅发送至当前网关')}</span>
+    <span className='compact-login-security'><LockIcon />{t('Credentials sent only to this gateway')}</span>
     <div className='compact-login-actions'>
       <Button id={`${id}-cancel`} variant='outline' disabled={saving} onClick={() => {
         if (view.waiting) controller.current?.cancel()
         else onClose()
-      }}>{view.waiting ? t('取消等待') : t('取消')}</Button>
+      }}>{view.waiting ? t('Cancel sign-in') : t('Cancel')}</Button>
       {method === 'web' ? <Button id={`${id}-start`} disabled={locked} onClick={start}>
         {view.waiting ? <Spinner /> : <GlobeIcon />}{view.label}
       </Button> : <Button disabled={locked || !tokenValid} onClick={() => void addToken()}>
-        {saving ? <Spinner /> : null}{saving ? t('添加中…') : t('添加账号')}
+        {saving ? <Spinner /> : null}{saving ? t('Adding…') : t('Add account')}
       </Button>}
     </div>
   </>
 
   return <div className='compact-account-login' hidden={!active}>
     {desktop ? <SegmentedControl className='compact-login-methods' value={method} disabled={locked}
-      aria-label={t('添加方式')} options={[
-        { value: 'web', label: <>{t('网页登录')}<span className='compact-login-recommend'>{t('推荐')}</span></> },
-        { value: 'token', label: t('粘贴令牌') },
+      aria-label={t('Add method')} options={[
+        { value: 'web', label: <>{t('Web login')}<span className='compact-login-recommend'>{t('Recommended')}</span></> },
+        { value: 'token', label: t('Paste token') },
       ]} onValueChange={changeMethod} /> : null}
     {method === 'web' ? <div className='compact-login-description'>
-      {view.waiting ? <p role='status'>{t('等待你在官方页面完成登录，成功后自动添加账号。')}</p>
-        : <p>{t('在 DeepSeek 官网完成登录，自动加入账号列表。')}<br /><span>{t('无需手动复制令牌，验证码在官方页面完成。')}</span></p>}
+      {view.waiting ? <p role='status'>{t('Waiting for you to sign in on the official page. Your account will be added automatically on success.')}</p>
+        : <p>{t('Sign in on the official DeepSeek website to add your account automatically.')}<br /><span>{t('No token copying needed. Complete verification on the official page.')}</span></p>}
     </div> : <>
-      <CredentialInput id={`${id}-token`} label={t('网页访问令牌')} placeholder={t('粘贴 userToken.value')}
+      <CredentialInput id={`${id}-token`} label={t('Web access token')} placeholder={t('Paste userToken.value')}
         value={token} onChange={setToken} disabled={locked} maxLength={16384}>
         <Button variant='link' size='xs' onClick={() => setGuideOpen(previous => !previous)} aria-expanded={guideOpen}>
-          {t('如何获取')}
+          {t('How to get it')}
         </Button>
       </CredentialInput>
-      <p className='compact-login-hint'>{t('使用网页令牌，不是收费 API Key。')}</p>
-      {guideOpen ? <p className='compact-login-guide'>{t('登录 chat.deepseek.com 后，打开开发者工具 → Application → Local Storage，复制 userToken 的 value。')}</p> : null}
-      {token.trim().startsWith('sk-') ? <p className='compact-login-error'>{t('请使用网页访问令牌，不要填写 sk- 开头的 API Key。')}</p> : null}
-      <CredentialInput id={`${id}-cookie`} label='Cookie' optional placeholder={t('需要时填写完整 Cookie')}
+      <p className='compact-login-hint'>{t('Use a web session token, not a paid API key.')}</p>
+      {guideOpen ? <p className='compact-login-guide'>{t('Sign in at chat.deepseek.com, open Developer Tools → Application → Local Storage, and copy the value field of userToken.')}</p> : null}
+      {token.trim().startsWith('sk-') ? <p className='compact-login-error'>{t('Use a web access token, not an API key starting with sk-.')}</p> : null}
+      <CredentialInput id={`${id}-cookie`} label='Cookie' optional placeholder={t('Paste the complete Cookie if needed')}
         value={cookie} onChange={setCookie} disabled={locked} maxLength={32768} />
-      {!desktop ? <p className='compact-login-hint'>{t('浏览器面板无法读取其他站点的登录态，请使用本人网页账号的令牌。')}</p> : null}
+      {!desktop ? <p className='compact-login-hint'>{t('The browser panel cannot read sign-in sessions from other sites. Use the token from your own web account.')}</p> : null}
     </>}
     <div className='compact-login-field'>
-      <Label htmlFor={`${id}-name`}>{t('备注名')}<span>{t('可选')}</span></Label>
+      <Label htmlFor={`${id}-name`}>{t('Label')}<span>{t('Optional')}</span></Label>
       <Input id={`${id}-name`} value={name} disabled={locked} maxLength={100}
-        placeholder={t('留空使用账号默认名称')} onChange={event => setName(event.currentTarget.value)} />
+        placeholder={t('Leave blank to use the default account name')} onChange={event => setName(event.currentTarget.value)} />
     </div>
     <Collapsible open={proxyOpen} onOpenChange={setProxyOpen} className='compact-login-proxy'>
       <CollapsibleTrigger className='compact-login-proxy-trigger' disabled={locked}>
-        <span>{t('出网代理')}</span><span className='compact-login-proxy-summary'>{proxyLabel(proxy)}</span><ChevronIcon />
+        <span>{t('Outbound proxy')}</span><span className='compact-login-proxy-summary'>{proxyLabel(proxy)}</span><ChevronIcon />
       </CollapsibleTrigger>
       <CollapsibleContent><div className='compact-login-proxy-body' inert={locked}>
         <ProxyForm draft={proxy} onChange={setProxy} idPrefix={`${id}-proxy`} />

@@ -42,8 +42,8 @@ export function useRouteGroups(onSaved: () => void, onRemoved: () => void) {
   const reload = async () => {
     const id = refs.current.selected, draft = refs.current.drafts[id]
     if (refs.current.busy || refs.current.loading) return
-    if (draft && groupDirty(draft) && !await confirmDialog(t('重新读取会丢弃当前范围的未保存草稿，其他范围的草稿保留。'), {
-      title: t('重新读取配置'), confirmText: t('重新读取'),
+    if (draft && groupDirty(draft) && !await confirmDialog(t('Reloading discards the unsaved draft for this scope. Drafts in other scopes are kept.'), {
+      title: t('Reload configuration'), confirmText: t('Reload'),
     })) return
     refs.current.loading = true; setLoading(true); setError('')
     try {
@@ -72,20 +72,20 @@ export function useRouteGroups(onSaved: () => void, onRemoved: () => void) {
     const draft = refs.current.drafts[refs.current.selected]
     if (!draft || refs.current.busy || refs.current.loading || !groupDirty(draft)) return
     if (!draft.group.members.some(member => member.included && member.accounts.length)
-      && !await confirmDialog(t('此入口没有参与路由的账号。保存后请求将明确失败，不会回退全局或自动恢复参与名单。'), {
-        title: t('保存空路由'), confirmText: t('仍然保存'), destructive: true,
+      && !await confirmDialog(t('No accounts participate in this entry. After saving, requests fail explicitly, without global fallback or restoring the list automatically.'), {
+        title: t('Save empty route'), confirmText: t('Save anyway'), destructive: true,
       })) return
     refs.current.busy = true; setBusy(true); setError('')
     try {
       apply(await bridge().saveRoutingGroup({ id: draft.group.id, group: draft.group, revision: draft.revision }), draft.group.id)
-      notify(t('路由配置已保存，仅影响后续选路')); void host().wbApp?.refresh?.(); onSaved()
+      notify(t('Routing configuration saved; applies to subsequent routing only')); void host().wbApp?.refresh?.(); onSaved()
     } catch (failure) { setError(errorMessage(failure)) }
     finally { refs.current.busy = false; setBusy(false) }
   }
   const remove = async () => {
     const draft = refs.current.drafts[refs.current.selected]
-    if (!draft || refs.current.busy || refs.current.loading || !await confirmDialog(t('删除后此入口将不再接受请求。不会删除成员模型、提供商或账号。'), {
-      title: t('删除路由组'), confirmText: t('删除'), destructive: true,
+    if (!draft || refs.current.busy || refs.current.loading || !await confirmDialog(t('Deleting this entry stops it accepting requests. Member models, providers and accounts are not deleted.'), {
+      title: t('Delete route group'), confirmText: t('Delete'), destructive: true,
     })) return
     refs.current.busy = true; setBusy(true); setError('')
     try {

@@ -218,7 +218,7 @@ impl ToolNames {
         }
         if self.alias(&identity).is_some_and(Option::is_none) {
             return Err(format!(
-                "工具名称「{}」对应多个声明，请保留原始工具名和 namespace 字段",
+                "工具名称「{}」对应多个声明，请保留原始工具名和 namespace field",
                 identity.name,
             ));
         }

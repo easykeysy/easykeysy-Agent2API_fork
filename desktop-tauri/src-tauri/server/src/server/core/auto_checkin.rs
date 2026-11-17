@@ -391,11 +391,11 @@ pub fn normalize_time(value: Option<&Value>) -> Result<String, AutoCheckinConfig
         .and_then(|(head, tail)| Some((head.parse::<u32>().ok()?, tail.parse::<u32>().ok()?)));
     let Some((hour, minute)) = parsed else {
         return Err(AutoCheckinConfigError::new(
-            "时间格式应为 HH:MM（例如 00:01）",
+            "时间格式应为 HH:MM（例如 00:01)",
         ));
     };
     if hour > 23 || minute > 59 {
-        return Err(AutoCheckinConfigError::new("时间超出范围（00:00 - 23:59）"));
+        return Err(AutoCheckinConfigError::new("时间超出范围（00:00 - 23:59)"));
     }
     Ok(format!("{hour:02}:{minute:02}"))
 }
@@ -574,7 +574,7 @@ impl AutoCheckin {
             write_state(json!({ "enabled": on }));
             logging::log(
                 "[Checkin]",
-                &format!("定时签到总开关已{}", if on { "开启" } else { "关闭" }),
+                &format!("定时签到总开关已{}", if on { "开启" } else { "Close" }),
             );
         }
         if has_time || has_providers || has_times {
@@ -606,9 +606,9 @@ impl AutoCheckin {
                         .iter()
                         .map(|id| provider_label(id))
                         .collect::<Vec<_>>()
-                        .join("、");
+                        .join(", ");
                     return Err(AutoCheckinConfigError::new(format!(
-                        "至少勾选一家签到提供商（{names}）"
+                        "至少勾选一家签到提供商（{names})"
                     )));
                 }
                 entry.insert("providers".to_string(), Value::Array(picked));
@@ -668,7 +668,7 @@ impl AutoCheckin {
     /// 立即执行一次（界面上的「立即签到」按钮走这里，与定时触发同一条路径）。
     /// 正在执行中返回 None —— 路由层翻成「签到正在执行中，请稍候」。
     pub async fn run_now(&self) -> Option<Value> {
-        self.fire("手动触发").await
+        self.fire("Manual").await
     }
 
     /// 立即执行**某条定时条目**（定时签到页每条的「立即执行」按钮）。
@@ -681,7 +681,7 @@ impl AutoCheckin {
             .into_iter()
             .find(|entry| entry.id == id)?;
         let reason = format!(
-            "手动触发（{}）",
+            "手动触发（{})",
             checkin_schedules::display_label(&schedule)
         );
         self.fire_for(&reason, Some(id), "manual").await

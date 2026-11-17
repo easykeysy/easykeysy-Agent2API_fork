@@ -40,7 +40,7 @@ export function useRoutingEditor(onSaved: () => void) {
     try {
       const workspace = await bridge().getRoutingWorkspace(model || undefined)
       if (id !== sequence.current) return
-      if (!workspace.revision) throw new Error(t('路由配置版本不可用，请更新网关后重试'))
+      if (!workspace.revision) throw new Error(t('Configuration version unavailable. Update the gateway and try again.'))
       const profile = editableProfile(workspace)
       const independent = mode === 'custom' ? true : mode === 'inherit' ? false : (!model || workspace.customized)
       setDrafts(current => ({ ...current, [model]: { workspace, mode: independent ? 'custom' : 'inherit', profile,
@@ -90,13 +90,13 @@ export function useRoutingEditor(onSaved: () => void) {
     setBusy(true); setError('')
     try {
       const workspace = await bridge().saveRoutingProfile({ model: scope || null, profile: draft.mode === 'inherit' ? null : draft.profile, revision: draft.revision })
-      if (!workspace?.revision) throw new Error(t('保存响应不完整，请刷新当前配置确认结果'))
+      if (!workspace?.revision) throw new Error(t('The save response is incomplete. Reload the current configuration to confirm the result.'))
       const profile = editableProfile(workspace), independent = !scope || workspace.customized
       setDrafts(current => ({ ...current, [scope]: { workspace, mode: independent ? 'custom' : 'inherit', profile,
         baseline: independent ? clone(profile) : null, revision: workspace.revision! } }))
       adoptAccountSorting(workspace.sorting)
       if (!scope) void host().wbApp?.refresh?.()
-      notify(t('路由配置已保存，仅影响后续选路'))
+      notify(t('Routing configuration saved; applies to subsequent routing only'))
       onSaved()
     } catch (failure) { setError(errorMessage(failure)) }
     finally { refs.current.busy = false; setBusy(false) }
@@ -110,7 +110,7 @@ export function useRoutingEditor(onSaved: () => void) {
     setBusy(true); setError('')
     try {
       const workspace = await bridge().saveRoutingProfile({ model: target, profile: null, revision: draft.revision })
-      if (!workspace?.revision) throw new Error(t('保存响应不完整，请刷新当前配置确认结果'))
+      if (!workspace?.revision) throw new Error(t('The save response is incomplete. Reload the current configuration to confirm the result.'))
       setDrafts(current => {
         const next = { ...current }
         delete next[target]
@@ -120,7 +120,7 @@ export function useRoutingEditor(onSaved: () => void) {
         return next
       })
       adoptAccountSorting(workspace.sorting)
-      notify(t('已删除独立配置，改为跟随全局'))
+      notify(t('Independent config deleted; now following the global configuration'))
       onSaved()
     } catch (failure) { setError(errorMessage(failure)); return false }
     finally { refs.current.busy = false; setBusy(false) }
@@ -135,7 +135,7 @@ export function useRoutingEditor(onSaved: () => void) {
     setBusy(true); setError('')
     try {
       const workspace = await bridge().getRoutingWorkspace(target)
-      if (!workspace.revision) throw new Error(t('路由配置版本不可用，请更新网关后重试'))
+      if (!workspace.revision) throw new Error(t('Configuration version unavailable. Update the gateway and try again.'))
       const profile = editableProfile(workspace)
       // 新独立配置沿用当前生效的参与方式；没有显式配置时默认全部自动参与。
       if (!profile.providerScope) profile.providerScope = 'all'
@@ -152,13 +152,13 @@ export function useRoutingEditor(onSaved: () => void) {
         }
       }
       const saved = await bridge().saveRoutingProfile({ model: target, profile, revision: workspace.revision })
-      if (!saved?.revision) throw new Error(t('保存响应不完整，请刷新当前配置确认结果'))
+      if (!saved?.revision) throw new Error(t('The save response is incomplete. Reload the current configuration to confirm the result.'))
       const nextProfile = editableProfile(saved)
       setDrafts(current => ({ ...current, [target]: { workspace: saved, mode: 'custom', profile: nextProfile,
         baseline: clone(nextProfile), revision: saved.revision! } }))
       setScope(target)
       adoptAccountSorting(saved.sorting)
-      notify(t('路由配置已保存，仅影响后续选路'))
+      notify(t('Routing configuration saved; applies to subsequent routing only'))
       onSaved()
       return true
     } catch (failure) { setError(errorMessage(failure)); return false }

@@ -25,30 +25,30 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<!--
-	  App Transport Security（ATS）。
+	  App Transport Security(ATS).
 
-	  ── 为什么要放开明文 http ─────────────────────────────────────
-	  网关跑在局域网里、通常没有证书，App 里填的地址是
-	  `http://192.168.x.x:3065` 这种形态。iOS 默认会拦掉所有明文连接，
-	  在 WKWebView 里只表现为 fetch 失败，界面上完全看不出原因。
+	  ── Why open up plaintext http─────────────────────────────────────
+	  The gateway runs on a LAN and usually has no certificate; the address entered in the app is
+	  `http://192.168.x.x:3065` this form. iOS blocks all plaintext connections by default,
+	  On WKWebView in it only appears as a fetch failure, and the UI shows no reason at all.
 
-	  ── 为什么两个键都要开 ───────────────────────────────────────
-	  · NSAllowsArbitraryLoads         —— 覆盖 URLSession 一侧（原生插件、
-	    以及 WebView 内部走 URLSession 的那些请求）。
-	  · NSAllowsArbitraryLoadsInWebContent —— 覆盖 WKWebView 里的页面请求。
-	    注意它一旦出现，系统就会**忽略** NSAllowsArbitraryLoads（Apple
-	    文档明确写了这个优先级），所以两个都写，才能保证原生与 Web 两条
-	    链路都放行。
-	  · NSAllowsLocalNetworking —— iOS 17 起 ATS 默认连「IP 地址」都拦，
-	    这一项放行私有网段与 .local 域名。网关地址是用户自己填的，可能落在
-	    10.x / 172.16-31.x / 192.168.x / 100.64.x（tailscale），无法枚举，
-	    所以只能整体放开。
+	  ── Why both keys need to be enabled───────────────────────────────────────
+	  · NSAllowsArbitraryLoads         —— overwrite URLSession one side (native plugins,
+	    as well as the requests that go through URLSession inside the WebView).
+	  · NSAllowsArbitraryLoadsInWebContent —— overwrite WKWebView page requests in it.
+	    Be aware that once it appears, the system **ignores** NSAllowsArbitraryLoads (Apple",
+	    the documentation states this priority explicitly), so write both to guarantee the native and web paths both
+	    All links are let through.
+	  · NSAllowsLocalNetworking —— iOS 17 onward, ATS blocks even "IP addresses" by default,
+	    This entry allows private network segments and .local domains. The gateway address is entered by the user, and may fall into",
+	    10.x / 172.16-31.x / 192.168.x / 100.64.x(tailscale), not enumerable,
+	    so it can only be opened up as a whole.
 
-	  ── 风险面 ───────────────────────────────────────────────────
-	  与 Android 的 network_security_config 同一取舍：明文只影响「链路」，
-	  面板仍然要求管理员登录；风险是同一局域网内可嗅探到密码与令牌。想消除
-	  它就给网关配 TLS，然后在 App 里填 https 地址（代码走同一条路径）。
-	  提交 App Store 时这几项需要在审核备注里说明用途（局域网设备管理）。
+	  ── The risk surface───────────────────────────────────────────────────
+	  and Android — see the network_security_config The same trade-off: plaintext only affects the "link",
+	  The panel still requires an admin login; the risk is that passwords and tokens can be sniffed within the same LAN. To eliminate
+	  It just configures TLS for the gateway, then enter the https address in the app (the code takes the same path).",
+	  These items need their purpose (LAN device management) explained in the review notes when submitting to the App Store.",
 	-->
 	<key>NSAppTransportSecurity</key>
 	<dict>
@@ -60,11 +60,11 @@
 		<true/>
 	</dict>
 	<!--
-	  访问局域网设备需要用户授权（iOS 14+）。缺这一项时，第一次连网关会
-	  直接失败且没有任何提示，用户完全不知道该去哪开权限。
+	  Accessing LAN devices requires user permission (iOS 14+). Without this entry, the first time you connect to the gateway it",
+	  It fails outright with no hint, and the user has no idea where to enable the permission.
 	-->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>用于连接你在局域网里运行的 Agent2API 网关。</string>
+	<string>Used to connect to the Agent2API gateway you run on your LAN.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>

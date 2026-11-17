@@ -116,9 +116,9 @@ fn social_restore_script() -> String {
 /// KukuAI 短信自动流程脚本：自动填手机号、点发码、等验证码、自动填码登录。
 ///
 /// ── 登录态交回不由脚本做 ─────────────────────────────────────
-/// passport 登录成功后跳转 `success.html`，`BDUSS` 是 **HttpOnly** Cookie，
+/// passport 登录成功后跳转 `success.html`, `BDUSS` Yes **HttpOnly** Cookie, 
 /// `document.cookie` 读不到 —— 交回由壳侧在 `run_embedded` 的等待循环里
-/// 检测 `success.html` 跳转后读 WebView2 的 Cookie 存储完成
+/// 检测 `success.html` 跳转后读 WebView2 — see the Cookie 存储完成
 /// （`cookies()` 含 HttpOnly，见 [`submit_kuku_login`]）。脚本只负责
 /// 「替用户点」：手机号由 `start_kuku_sms` 带进来，验证码由
 /// `submit_kuku_sms_code` 经 `window.eval("window.__kukuSmsCode='…'")`
@@ -132,7 +132,7 @@ fn social_restore_script() -> String {
 /// ── React 受控输入 ─────────────────────────────────────────
 /// passport 表单是 React 受控组件，直接 `el.value = x` 不会进 React 状态，
 /// 必须走原生 value setter + `input` 事件（页面结构用的是 `TANGRAM__PSP_4`
-/// 前缀，实测 `loginMerge.html` 与通用 passport 弹窗同一套 DOM，
+/// 前缀，实测 `loginMerge.html` 与通用 passport 弹窗同一套 DOM, 
 /// 见 asar 对读与 2026-10-07 浏览器实测）。
 fn kuku_sms_script(phone: &str) -> String {
     format!(
@@ -149,7 +149,7 @@ fn kuku_sms_script(phone: &str) -> String {
   // ── 宽容选择器（不写死 TANGRAM__PSP_4 前缀）──────────────────
   // 组件实例编号随页面版本浮动（PSP_4 只是 loginMerge.html 当前值），只有
   // `__smsPhone` 这类**后缀**是模板层稳定的。实测（2026-10-07）手机号框
-  // name 是 username、动态密码框 name 是 password，与账密表单重名 ——
+  // name Yes username、动态密码框 name Yes password，与账密表单重名 ——
   // 所以**不按 name 匹配**，一律走 id 后缀。
   function q(sel) {{ return document.querySelector(sel); }}
   function findAll(sel) {{ return Array.prototype.slice.call(document.querySelectorAll(sel)); }}
@@ -157,11 +157,11 @@ fn kuku_sms_script(phone: &str) -> String {
   function codeInput() {{ return q('[id$="__smsVerifyCode"]'); }}
   function sendBtn() {{
     return findAll('button, a').find(function (n) {{
-      return /发送动态密码|获取验证码/.test(n.textContent || '');
+      return /发送动态密码|Get code/.test(n.textContent || '');
     }});
   }}
   function submitBtn() {{ return q('[id$="__smsSubmit"]'); }}
-  // ── 状态上报（壳侧监视任务读 document.title 判定，见 start_kuku_sms）──
+  // ── 状态上报（壳侧监视任务读 document.title 判定，见 start_kuku_sms)──
   // eval 拿不到页面变量（fire-and-forget），title 是壳能同步读的通道。
   // 中间态（READY/FILLED/CLICKED）让监视任务与前端能看出脚本走没走。
   var T_READY = 'WB_KUKU_READY';          // 脚本已启动（页面加载完成）
@@ -263,7 +263,7 @@ fn kuku_sms_script(phone: &str) -> String {
           setTimeout(function () {{ window.__kukuSubmitting = false; }}, 8000);
         }}
       }}
-      // 不做次数上限：脚本随窗口存活，登录完成（壳读到 Cookie 后任务 Done）
+      // 不做次数上限：脚本随窗口存活，登录完成（壳读到 Cookie 后任务 Done)
       // 或窗口销毁才停 —— 用户拖很久才填码 / 手动补图形验证码时仍然要活着。
     }} catch (e) {{}}
   }}, 500);
@@ -273,13 +273,13 @@ fn kuku_sms_script(phone: &str) -> String {
     )
 }
 
-/// KukuAI 短信自动流程的发起：打开登录窗口（注入自动脚本）后**立即返回**，
+/// KukuAI 短信自动流程的发起：打开登录窗口（注入自动脚本）后**立即返回**, 
 /// 窗口在后台轮询 —— 验证码由 [`submit_kuku_sms_code`] 在用户收码后写入。
 ///
 /// ── 为什么不在这里等完成 ────────────────────────────────────
 /// 短信登录是「发码 → 收码 → 输码」两步交互，发码后窗口必须继续等用户输码；
 /// 发起命令一等到完成，前端就永远等不到 verify 那一步了。因此这里
-/// **spawn 后台等待循环**（复用 `run_embedded`：等 `/wait` Done / 失败 / 超时
+/// **spawn 后台等待循环**（复用 `run_embedded`：等 `/wait` Done / failed / Timeout
 /// 后自行关窗），命令本身立刻返回。
 pub async fn start_kuku_sms(app: &AppHandle, phone: &str, proxy: Option<Value>) -> Result<serde_json::Value, String> {
     if current_login(app).is_some() {
@@ -319,7 +319,7 @@ pub async fn start_kuku_sms(app: &AppHandle, phone: &str, proxy: Option<Value>) 
 
     // 后台并行两条：
     //   1. run_embedded —— 窗口全程隐藏，脚本自动发码 / 等码 / 登录，
-    //      完成后（Done / 失败 / 超时）自己关窗并清状态；
+    //      完成后（Done / failed / 超时）自己关窗并清状态；
     //   2. 窗口监视 —— 只负责「需要人工介入时亮窗」：
     //      - 脚本上报「需要图形验证码」（页面出现验证码输入框）→ 立即亮窗，
     //        用户填完图形验证码后短信发出，脚本继续自动走；
@@ -333,7 +333,7 @@ pub async fn start_kuku_sms(app: &AppHandle, phone: &str, proxy: Option<Value>) 
     let monitor_label = login_window_label(&login_state_for_task);
     tauri::async_runtime::spawn(async move {
         let monitor = async {
-            // 每 1 秒读一次窗口标题（脚本经 document.title 上报状态）。
+            // Every 1 秒读一次窗口标题（脚本经 document.title 上报状态）。
             // 三级兜底，不让用户干等：
             //   - 10 秒内窗口没有任何脚本状态 → 页面没加载 / 脚本没启动，
             //     立即亮窗（用户能看到真实页面）；
@@ -399,7 +399,7 @@ pub async fn start_kuku_sms(app: &AppHandle, phone: &str, proxy: Option<Value>) 
             &app_for_task,
             "kuku",
             &auth_url,
-            "登录 KukuAI 账号",
+            "Sign in KukuAI Accounts",
             &login_state_for_task,
             false,
             Some(&phone_for_task),
@@ -445,7 +445,7 @@ pub async fn submit_kuku_sms_code(
     };
     let code = code.trim().to_string();
     if code.len() != 6 || !code.chars().all(|ch| ch.is_ascii_digit()) {
-        return Err("请填写 6 位数字验证码".to_string());
+        return Err("Enter the 6-digit code".to_string());
     }
     // 等登录完成（与 run_embedded 的等待循环同一出口：/wait 三态）
     let deadline = tokio::time::Instant::now() + LOGIN_TIMEOUT;
@@ -488,7 +488,7 @@ pub async fn submit_kuku_sms_code(
                 .max_by_key(|item| item.get("addedAt").and_then(serde_json::Value::as_i64).unwrap_or(0))
                 .cloned()
         })
-        .unwrap_or_else(|| serde_json::json!({ "provider": "kuku", "name": "KukuAI 账号" }));
+        .unwrap_or_else(|| serde_json::json!({ "provider": "kuku", "name": "KukuAI Accounts" }));
     Ok(json!({ "account": account, "list": list }))
 }
 
@@ -497,7 +497,7 @@ pub async fn submit_kuku_sms_code(
 ///
 /// **第三方身份提供方（Google / GitHub / X）不在这张表里**：它们是可选入口，
 /// 只有勾选「恢复第三方入口」时才额外放行，见 [`SOCIAL_IDENTITY_HOSTS`]
-/// 与 [`host_allowed`]。
+/// and [`host_allowed`].
 const WORKBUDDY_ALLOWED_HOSTS: &[&str] = &[
     "copilot.tencent.com",
     "staging-copilot.tencent.com",
@@ -519,14 +519,14 @@ const WORKBUDDY_ALLOWED_HOSTS: &[&str] = &[
 /// ── 为什么必须放行 ────────────────────────────────────────
 /// 恢复出来的按钮点击后**不在 iframe 内跳转**：登录页的 `handleAuthLogin` 做的是
 /// `window.parent.location.href = url`（顶层跳转，实测）。也就是整个登录窗口会
-/// 走去 Google / GitHub，登录完成后再经 Keycloak broker 回调跳回 workbuddy.ai。
-/// 这些域名不在白名单里就会被 `host_allowed` 静默拦下，症状是「点了 Google 登录
+/// 走去 Google / GitHub，登录完成后再经 Keycloak broker 回调跳回 workbuddy.ai.
+/// 这些域名不在白名单里就会被 `host_allowed` 静默拦下，症状是「点了 Google Sign in
 /// 窗口一片空白」——正是 `allowed_hosts` 注释里警告过的那类难查故障。
 ///
 /// ── 名单怎么来的 ──────────────────────────────────────────
 /// 实测点击 Google 登录后的落点是 `accounts.google.com`（授权页），GitHub 同理
 /// 走 `github.com`。其余条目是两家登录链路上的常规跳转与静态资源域
-/// （Google 的 gstatic 承载登录页资源，GitHub 的 githubusercontent 承载头像等），
+/// （Google — see the gstatic 承载登录页资源，GitHub — see the githubusercontent 承载头像等），
 /// 少了它们会出现「页面能到、但资源加载不全」的半残状态。
 const SOCIAL_IDENTITY_HOSTS: &[&str] = &[
     "accounts.google.com",
@@ -547,12 +547,12 @@ const SOCIAL_IDENTITY_HOSTS: &[&str] = &[
 /// ── 为什么不是「只有 xiaohuanxiong.com」──────────────────────
 /// 登录页本身在 `https://xiaohuanxiong.com/code/authorize`，但它把验证码 / 滑块
 /// 之类的交互托管在第三方（阿里云、腾讯、百度都有），跳过去再跳回来是正常路径。
-/// 所以这份清单**逐字取自原项目的 `LOGIN_ALLOWED_HOSTS`**（`desktop/main.cjs`）——
+/// 所以这份清单**逐字取自原项目的 `LOGIN_ALLOWED_HOSTS`**（`desktop/main.cjs`)——
 /// 那是同一条登录链路上经过实际使用验证的白名单，不是猜的；凭「同域就够」的
 /// 判断砍成一个域名，会让「验证码加载不出来、登录窗口停在白屏」变成一个
 /// 只有用户能碰到的新故障。
 ///
-/// `RACCOON_MAIN_SITE_URL` 指向别处（测试环境）时这份清单**不跟着变**：
+/// `RACCOON_MAIN_SITE_URL` 指向别处（测试环境）时这份清单**不跟着变**: 
 /// 一处能改导航白名单的配置项等于没有白名单，测试环境请改这里并重新编译。
 const RACCOON_ALLOWED_HOSTS: &[&str] = &[
     "xiaohuanxiong.com",
@@ -570,23 +570,23 @@ const RACCOON_CALLBACK_SCHEME: &str = "office-raccoon";
 const RACCOON_CALLBACK_HOST: &str = "auth";
 const RACCOON_CALLBACK_PATH: &str = "/callback";
 
-/// Qoder 与 CatPaw 登录窗口允许导航的域名：**不限制**。
+/// Qoder and CatPaw 登录窗口允许导航的域名：**No restrictions**.
 ///
 /// ── 为什么这两家不设域名白名单 ───────────────────────────────
 /// 两家都会跳出自己的域，且跳转主机不可穷举：
 ///   - Qoder 的登录入口按用户选择跳到第三方身份提供方（Google / GitHub），
 ///     授权页本身在 `qoder.com`，完整 SSO 链路的跳转主机列不全；
 ///   - CatPaw 走美团 passport（`passport.meituan.com` → `settoken` →
-///     `catpaw.meituan.com` 的 `login-callback`），沿途还会跳微信 / 支付宝
+///     `catpaw.meituan.com` — see the `login-callback`），沿途还会跳微信 / Alipay
 ///     这类扫码登录，第三方名单同样没有尽头。
 ///
-/// 而 `on_navigation` 返回 false 是**静默拦下**：漏一个主机就表现为「窗口打开
+/// 而 `on_navigation` Back false Yes**静默拦下**：漏一个主机就表现为「窗口打开
 /// 但一片空白」或「点了登录没反应」这种极难排查的故障 —— CatPaw 首次接入时
 /// 正是因为漏了这一分支、落进默认分支拿到 WorkBuddy 的白名单而白屏。
 ///
 /// 放行的代价在这两家可以接受：两者的凭证都换不出「别人手里的东西」——
 /// Qoder 的授权码要靠只在网关进程内的 PKCE verifier 才能兑换（见
-/// `providers::qoder::oauth`）；CatPaw 的 token 由上游直接 POST 到本机网关的
+/// `providers::qoder::oauth`）；CatPaw — see the token 由上游直接 POST 到本机网关的
 /// loopback 端口，且回调要过一次性 state 逐字校验（见 `core::login::catpaw`）。
 /// 且窗口用的是独立临时数据目录（`login_profile`），不携带本机任何登录态。
 ///
@@ -600,10 +600,10 @@ const RACCOON_CALLBACK_PATH: &str = "/callback";
 /// **顶层导航到 `http://localhost:<登记端口>/auth/callback-zai|google`**
 /// （z.ai 的白名单只认官方客户端那四个端口）。
 /// 那个 loopback 地址一旦被白名单拦下，症状是「用户明明登录成功、插件却永远
-/// 等不到授权码」—— 与 [`is_login_callback`] 注释里警告过的那类静默故障同形，
+/// 等不到授权码」—— and [`is_login_callback`] 注释里警告过的那类静默故障同形，
 /// 而这次连回调识别都救不了它：回调本身就是一次普通 HTTP 导航，
 /// 没有任何「非本机协议」的特征可供识别，只能在白名单这一层放行。
-/// （那个端口由**插件**绑定并收下回调，壳侧不参与 —— 见插件
+/// （那个端口由**Plugins**绑定并收下回调，壳侧不参与 —— 见插件
 /// `autoclaw/callback_server.rs`。因此它必须被放行到这里。）
 fn allowed_hosts(provider: &str) -> Option<&'static [&'static str]> {
     match provider {
@@ -615,24 +615,24 @@ fn allowed_hosts(provider: &str) -> Option<&'static [&'static str]> {
         //
         // Cline 尤其要注意：它的授权页在 `authkit.cline.bot`，而确认动作可能被
         // 身份提供方接管（WorkOS AuthKit 会按账号配置跳到 Google / GitHub / SSO
-        // 等不可穷举的主机）—— 与 Qoder 同一情形，白名单列不全。
+        // 等不可穷举的主机）—— and Qoder 同一情形，白名单列不全。
         //
         // AutoClaw 的两个地区**都列出来**：国内版目前走不到这条链（它没有
         // 网页登录），但一起列上是有意的 —— 只列国际版的话，哪天国内版也接上
         // OAuth 就会落进默认分支拿到 WorkBuddy 的白名单，而那个故障极难查。
-        // Accio 的两个地区也都不设限：登录站点（www.accio.com / www.accio-ai.com）
+        // Accio 的两个地区也都不设限：登录站点（www.accio.com / www.accio-ai.com)
         // 可能把用户交给不可穷举的身份提供方（Google / 阿里账号 / 手机验证码链路），
-        // 与 Qoder / AutoClaw 同一情形。
+        // and Qoder / AutoClaw 同一情形。
         //
         // ZCode 的两个地区同样不设限：授权页在 `zcode.z.ai`，而它按用户选择的
-        // 登录方式（Z.ai 账号 / Google / 国内版手机号或邮箱）继续跳到各自的身份
+        // 登录方式（Z.ai Account / Google / 国内版手机号或邮箱）继续跳到各自的身份
         // 提供方，主机不可穷举。**必须显式列出** —— 落进默认分支会拿到 WorkBuddy
         // 的白名单，症状正是上面警告的那种：窗口一片空白，而日志上什么也看不出。
         // 两个地区都列：它们共用同一个授权域，任缺一个都会在将来复用时踩到。
         //
-        // CodeArts 同样不设限：授权页在 `codearts.huaweicloud.com/portal/authorize`，
+        // CodeArts 同样不设限：授权页在 `codearts.huaweicloud.com/portal/authorize`, 
         // 它会按用户选的登录方式继续跳华为云账号（`account.huaweicloud.com`）、
-        // IAM 委托、扫码等不可穷举的主机；最后还要回到**网关自己的** loopback 端口
+        // IAM 委托、扫码等不可穷举的主机；最后还要回到**网关自己的** loopback Port
         // 拿授权码（portal 只认我们给的 port，回调路径由它拼死，见
         // `providers::codearts::oauth::authorize_url`）。那条 loopback 导航一旦被
         // 白名单拦下，症状就是上面警告过的那种：用户在官方页面明明登录成功，
@@ -642,9 +642,9 @@ fn allowed_hosts(provider: &str) -> Option<&'static [&'static str]> {
         // 那张表**既没有** `trae.cn`（授权页）**也没有** `127.0.0.1`（回调），
         // 症状正是本文件上面警告的那种 —— 窗口一片空白，日志什么也看不出。
         //
-        // Antigravity 同样不设限：授权页在 `accounts.google.com`，而 Google 账号
+        // Antigravity 同样不设限：授权页在 `accounts.google.com`，而 Google Accounts
         // 可能继续跳不可穷举的身份链路（二次验证 / 组织 SSO 等）；更要紧的是
-        // 回调落在**网关自己的** loopback 端口
+        // 回调落在**网关自己的** loopback Port
         // （`http://localhost:{网关端口}/oauth-callback`，见
         // `providers::antigravity::oauth`）。那条 loopback 导航一旦被白名单拦下，
         // 症状就是上面警告过的那种静默故障：用户明明授权成功，网关却永远等不到码
@@ -652,7 +652,7 @@ fn allowed_hosts(provider: &str) -> Option<&'static [&'static str]> {
         //
         // OfficeAce 同样不设限：授权页在 `auth.huaweicloud.com`，它会按用户选的
         // 登录方式继续跳华为云账号 / 扫码等不可穷举的主机（与 CodeArts 同一情形）。
-        // **不用回本机** —— 授权码由网关**轮询云端**取回（`/v1/claw/auth/code`，
+        // **不用回本机** —— 授权码由网关**轮询云端**取回（`/v1/claw/auth/code`, 
         // 见 `providers::officeace::oauth` 的模块头），所以这里没有 CodeArts 那种
         // loopback 回调要放行；但「不设限」仍是必须显式写出的选择（落进默认分支
         // 会拿到 WorkBuddy 的白名单 → 窗口白屏）。
@@ -674,13 +674,13 @@ fn allowed_hosts(provider: &str) -> Option<&'static [&'static str]> {
         // LobsterAI 不设限，而且这一条**必须是 None**：它的授权页完成后会
         // **302 回本机**（`http://127.0.0.1:<网关端口>/auth/callback`），那次
         // 导航一旦被白名单拦下，症状就是用户明明授权成功、网关永远等不到码，
-        // 而日志里什么都看不出（与 CodeArts / Trae 的 loopback 回调同一情形）。
+        // 而日志里什么都看不出（与 CodeArts / Trae — see the loopback 回调同一情形）。
         // 授权页本身在 `lobsterai.youdao.com`，沿途还可能有微信登录的第三方主机。
         // 千问办公两版的授权页在 `qwenwork.cn` / `.ai`（它会 302 到站点自己的
         // 标准登录页 `/biz/signin`，沿途主机不可穷举）；2026-11-03 起它还有一条
         // **本机回环回调**（`http://127.0.0.1:<插件端口>/callback`，见插件
-        // `providers/qoder/authorize.rs`）—— 那条导航被拦下的症状同样是
-        // 「授权成功但永远收不到码」。与 Qoder 同组，必须是 None。
+        // `providers/qoder/authorize.rs`)—— 那条导航被拦下的症状同样是
+        // 「授权成功但永远收不到码」。与 Qoder 同组，必须是 None.
         "catpaw" | "qoder" | "qoder-intl" | "qwenwork" | "qwenwork-intl" | "cline-free"
         | "cline-pass" | "autoclaw"
         | "autoclaw-intl" | "accio" | "accio-cn" | "zcode" | "zcode-intl" | "codearts" | "trae"
@@ -701,7 +701,7 @@ fn allowed_hosts(provider: &str) -> Option<&'static [&'static str]> {
 /// 和「拦下回调」在 WebView2 眼里是同一个动作，日志里看不出区别，
 /// 最终表现为「用户登录成功了但网关一直没拿到 code」。
 ///
-/// `social_restore` 勾选时对 WorkBuddy 国际版额外放行 [`SOCIAL_IDENTITY_HOSTS`]：
+/// `social_restore` 勾选时对 WorkBuddy 国际版额外放行 [`SOCIAL_IDENTITY_HOSTS`]: 
 /// 恢复出来的 Google / GitHub 按钮做的是顶层跳转，不放行就会白屏（理由见该常量）。
 fn host_allowed(url: &url::Url, provider: &str, social_restore: bool) -> bool {
     if provider == "deepseek-web" {
@@ -717,7 +717,7 @@ fn host_allowed(url: &url::Url, provider: &str, social_restore: bool) -> bool {
         "about" | "data" => true,
         "https" | "http" => {
             let Some(allowed) = allowed_hosts(provider) else {
-                // 不限制主机（Qoder：身份提供方不可穷举，理由见 allowed_hosts）
+                // 不限制主机（Qoder：身份提供方不可穷举，理由见 allowed_hosts)
                 return true;
             };
             let Some(host) = url.host_str() else {
@@ -729,7 +729,7 @@ fn host_allowed(url: &url::Url, provider: &str, social_restore: bool) -> bool {
                     .any(|item| host == *item || host.ends_with(&format!(".{item}")))
             };
             // `social_restore` 到这里已经是**最终答案**（调用方把「WorkBuddy
-            // 系 + 国际版 + 用户勾选」三件事合成一个布尔值传进来，见
+            // 系 + International edition + 用户勾选」三件事合成一个布尔值传进来，见
             // `run_embedded` 的调用点），这里不再重复判 provider —— 重复判的
             // 后果是拆家后国际版（`workbuddy-intl`）被挡住，Google / GitHub
             // 按钮点下去白屏。
@@ -742,21 +742,21 @@ fn host_allowed(url: &url::Url, provider: &str, social_restore: bool) -> bool {
     }
 }
 
-/// 这个 URL 是不是本 provider 的登录回调（逐项比对 scheme/host/path）。
+/// ThisURL 是不是本 provider 的登录回调（逐项比对 scheme/host/path）。
 ///
 /// host 不区分大小写：自定义协议在 `url` crate 里走 opaque host 解析，不像
 /// http(s) 那样被规范化成小写，`office-raccoon://AUTH/callback` 会原样保留。
 /// 这里只是**识别**（后端 `raccoon::oauth::parse_callback_code` 才是最终校验，
 /// 它有一模一样的口径）；两边都宽一点，避免同一个 URL 在壳与后端得到不同结论。
 ///
-/// **只有小浣熊与 OrcaTerm 走自定义协议回调**：workbuddy 的凭证由后端轮询上游
+/// **只有小浣熊与 OrcaTerm 走自定义协议回调**: workbuddy 的凭证由后端轮询上游
 /// 取回，Qoder 走设备授权轮询（见 `providers::qoder::oauth`），两家都没有自定义
 /// 协议回调 —— 别把「没有回调」误写成「什么都算回调」。
 ///
 /// ── OrcaTerm 为什么也算（本轮修正）───────────────────────────
 /// 它的授权页是官方桌面端那条链，回调固定为
 /// `orcaterm://oauth_callback?session_id=…`（见
-/// `providers/orcaterm/login.rs` 模块头）。那个 URL 里的 `session_id` 是
+/// `providers/orcaterm/login.rs` 模块头）。那个 URL, they appear as `session_id` Yes
 /// **我们自己生成的一次性凭据**，后端据此换令牌 —— 壳侧必须把它截下来
 /// （放行给系统 = 本机没装官方客户端时是一个错误页，登录永远收不了尾）。
 fn is_login_callback(url: &url::Url, provider: &str) -> bool {
@@ -781,7 +781,7 @@ fn is_login_callback(url: &url::Url, provider: &str) -> bool {
 ///
 /// ── 为什么 Cline 只列「网页登录」这一条路 ─────────────────────
 /// 它的设备授权登录走的就是这条 IPC（壳侧把授权页开出来、后端轮询换令牌），
-/// 与 Qoder 的设备授权同形；手工填凭证与导入桌面端登录态都不经过这里
+/// and Qoder 的设备授权同形；手工填凭证与导入桌面端登录态都不经过这里
 /// （那两条走 `POST /api/accounts`）。
 fn normalize_provider(provider: &str) -> Result<&'static str, String> {
     if let Some(region) = crate::server::core::providers::monkeycode::Region::from_provider_id(provider.trim()) {
@@ -800,7 +800,7 @@ fn normalize_provider(provider: &str) -> Result<&'static str, String> {
         // 壳侧只透传 provider id，地区由后端按 id 反查（与 ZCode 同款）。
         "qoder" => Ok("qoder"),
         "qoder-intl" => Ok("qoder-intl"),
-        // 千问办公两版：**与 Qoder 同一套设备授权协议**（授权地址由插件按站点
+        // 千问办公两版：** and  Qoder 同一套设备授权协议**（授权地址由插件按站点
         // 现拼、轮询设备令牌取凭据，见 `providers::qoder::oauth`），所以同样是
         // 壳侧只透传 provider id、站点由插件按 id 反查。**这一条不能少** ——
         // 少了两版的「网页登录」点下去就是「不支持网页登录的提供商：qwenwork」。
@@ -811,44 +811,44 @@ fn normalize_provider(provider: &str) -> Result<&'static str, String> {
         "cline-pass" => Ok("cline-pass"),
         "autoclaw" | "autoclaw-intl" => Ok("autoclaw-intl"),
         // Accio 两个地区：授权地址由后端适配器拼（PKCE），壳侧只负责开窗口与
-        // 轮询 —— 与 workbuddy / Qoder 同一条路。地区由 **provider 本身**决定
+        // 轮询 —— and workbuddy / Qoder 同一条路。地区由 **provider 本身**决定
         // （两家 provider），壳侧不做归一。
         "accio" => Ok("accio"),
         "accio-cn" => Ok("accio-cn"),
         // ZCode 两个地区：授权地址由**后端**问上游拿（`/oauth/cli/init`），
-        // 壳侧只负责开窗口与轮询 —— 与 Qoder / Cline 的设备授权同一条路。
+        // 壳侧只负责开窗口与轮询 —— and Qoder / Cline 的设备授权同一条路。
         //
         // 这一家特别注意：它的授权页**没有任何回调落到本机**
         // （见 `providers::zcode::oauth` 的模块头），授权结果由 ZCode 服务端
         // 记录。而本文件的等待机制本来就只看后端 `/api/session/login/wait`
-        // 的轮询结果（见 `poll_once` 与 `run_embedded` 的等待循环），不依赖
+        // 的轮询结果（见 `poll_once` and `run_embedded` 的等待循环），不依赖
         // 窗口捕获到回调 —— 因此这条链路天然适配：窗口最后停在 `zcode://`
         // 上打不开，也**不影响**登录判定。
         "zcode" => Ok("zcode"),
         "zcode-intl" => Ok("zcode-intl"),
-        // CodeArts（华为云码道）：授权地址由**后端适配器**现拼（PKCE + 回调 URL，
+        // CodeArts（华为云码道）：授权地址由**后端适配器**现拼（PKCE + 回调 URL, 
         // 见 `providers::codearts::oauth::authorize_url`），壳侧只负责开窗口与
-        // 轮询 —— 与 ZCode 同一条路。它的回调由 portal 拼成
+        // 轮询 —— and ZCode 同一条路。它的回调由 portal 拼成
         // `http://127.0.0.1:<网关端口>/oauth/callback` 落回网关自己，所以窗口
         // **必须允许**导航到本机端口（见下面 allowed_hosts 的同一条）。
         "codearts" => Ok("codearts"),
         // LobsterAI（网易有道「有道龙虾」）：授权地址由**后端适配器**现拼
-        // （门户的 hash 路由 + `redirect_uri` 指向网关自己那个 loopback 端口，
+        // （门户的 hash Routing + `redirect_uri` 指向网关自己那个 loopback 端口，
         // 见 `providers::lobsterai::oauth::build_authorize_url`），壳侧只负责
-        // 开窗口与轮询 —— 与 CodeArts 同一条路。它的回调落在
+        // 开窗口与轮询 —— and CodeArts 同一条路。它的回调落在
         // `http://127.0.0.1:<网关端口>/auth/callback`（**裸路径**，理由见
         // `http.rs` 那条路由的注释），所以窗口**必须允许**导航到本机端口，
         // 见下面 allowed_hosts 的同一条。
         "lobsterai" => Ok("lobsterai"),
         // Trae（SOLO CN）：授权地址由**后端**问上游 guidance 拼（PKCE + 回调 URL），
-        // 壳侧只负责开窗口与轮询 —— 与 ZCode 同一条路。特别地，它的回调落在
-        // `http://127.0.0.1:<随机端口>/authorize`（网关自己监听的那台 loopback，
+        // 壳侧只负责开窗口与轮询 —— and ZCode 同一条路。特别地，它的回调落在
+        // `http://127.0.0.1:<随机端口>/authorize`（网关自己监听的那台 loopback, 
         // 上游把这个地址按正则逐字校验），所以窗口**必须允许**导航到本机端口，
         // 否则用户点完授权、回调请求根本发不出去（见下面 allowed_hosts 的同一条）。
         "trae" => Ok("trae"),
         // Antigravity：授权地址由**后端适配器**本地拼（Google OAuth 授权码，
         // 见 `providers::antigravity::oauth::build_authorize_url`），壳侧只负责
-        // 开窗口与轮询 —— 与 CodeArts 同一条路。回调落在
+        // 开窗口与轮询 —— and CodeArts 同一条路。回调落在
         // `http://localhost:{网关端口}/oauth-callback`（网关自己登记给 Google 的
         // redirect_uri），所以窗口**必须允许**导航到本机端口（见下面
         // allowed_hosts 的同一条），否则用户授权成功后网关永远等不到码。
@@ -862,22 +862,22 @@ fn normalize_provider(provider: &str) -> Result<&'static str, String> {
         "kuku" => Ok("kuku"),
         // OfficeAce（华为云果办 / OfficeClaw）：授权地址由**后端适配器**现拼
         // （先向云端要 state，见 `providers::officeace::oauth`），壳侧只负责开窗口
-        // 与轮询 —— 与 ZCode / CodeArts 同一条路。它的授权码由网关**轮询云端**
+        // 与轮询 —— and ZCode / CodeArts 同一条路。它的授权码由网关**轮询云端**
         // 取回（云端回调页不往本机跳），所以窗口最后停在云端页上也不影响登录判定。
         "officeace" => Ok("officeace"),
         // OrcaTerm（腾讯云遨驰终端）：地址由**后端适配器**返回（官方 OAuth 授权页，
         // 它会 302 到微信二维码），壳侧负责开窗口并把回调
         // `orcaterm://oauth_callback?session_id=…` 交回网关换令牌
-        // （见 `start_orcaterm` 与 `providers/orcaterm/login.rs` 的模块头）。
+        // （见 `start_orcaterm` and `providers/orcaterm/login.rs` 的模块头）。
         "orcaterm" => Ok("orcaterm"),
         // AtomCode（AtomGit / GitCode）：授权地址由**后端适配器**向代理现取
-        // （`providers::atomcode::oauth`），壳侧只负责开窗口与轮询 —— 与
+        // （`providers::atomcode::oauth`），壳侧只负责开窗口与轮询 ——  and 
         // ZCode / OfficeAce 同一条路。它的授权回调由代理自己在
         // `acs.atomgit.com/callback` 终结、**永远不回到本机**，授权结果由网关
         // 轮询代理判定（`auth/check` → `auth/token`），所以窗口最后停在代理页上
         // 也不影响登录判定，壳侧既不用捕获自定义协议也不用转交回调。
         //
-        // **这一条不能少**：前端（`add-account-configs.ts` 的 ATOMCODE）早就把
+        // **这一条不能少**：前端（`add-account-configs.ts` — see the ATOMCODE）早就把
         // 「网页登录」按钮画出来了，缺了它点下去就是
         // 「登录失败：不支持网页登录的提供商：atomcode」。
         "atomcode" => Ok("atomcode"),
@@ -889,21 +889,21 @@ fn normalize_provider(provider: &str) -> Result<&'static str, String> {
 ///
 /// ── 为什么这条与另外五家的形态都不一样 ───────────────────────
 /// 那五家的授权地址要么由后端问上游拿（workbuddy / CatPaw / Qoder / Cline），
-/// 要么本地拼（小浣熊），壳侧统一做「POST /start → 拿 authUrl → 开窗口」。
+/// 要么本地拼（小浣熊），壳侧统一做「POST /start → GetauthUrl → 开窗口」。
 /// AutoClaw 国际版多出一个**必须在浏览器里完成的强制风控验证码**（阿里云
 /// 浏览器端 SDK，见 `providers::autoclaw::oauth` 的模块头），而主窗口就是
 /// 那个浏览器环境 —— 于是顺序被倒过来：**前端先跑验证码、带着参数调网关拿
-/// 授权地址，再把地址交给壳开窗口**。
+/// 授权地址，再把地址交给壳开窗口**.
 ///
 /// 因此壳侧这条命令的入参是 `state` + `authUrl`（而不是让壳自己去
-/// `/login/start`）—— 那两个值前端已经拿到了，再让壳问一次等于把同一次登录
+/// `/login/start`)—— 那两个值前端已经拿到了，再让壳问一次等于把同一次登录
 /// 发起两遍（网关侧会登记两个任务，而回调只认其中一个）。
 ///
 /// ── 回调不需要壳侧识别 ──────────────────────────────────────
-/// 授权码由浏览器**直接 302 到本机网关的 loopback 端口**
+/// 授权码由浏览器**直接 302 到本机网关的 loopback Port**
 /// （`navigate_uri` 就是网关自己的地址），因此壳侧既不用捕获自定义协议、
-/// 也不用转交回调 —— 与 CatPaw 那条同一形态（见 `core::login::catpaw`）。
-/// 这也意味着 `mode = "external"`（系统浏览器）**同样可用**：
+/// 也不用转交回调 —— and CatPaw 那条同一形态（见 `core::login::catpaw`）。
+/// 这也意味着 `mode = "external"`（系统浏览器）**同样可用**: 
 /// 回调落在本机网关，与浏览器在哪无关。
 pub async fn start_autoclaw_oauth(
     app: &AppHandle,
@@ -941,12 +941,12 @@ pub async fn start_autoclaw_oauth(
     } else {
         // social_restore 传 false：那项能力只属于 WorkBuddy 的登录页。
         // provider 传 "autoclaw-intl"：它决定白名单（这家不设限，见 allowed_hosts
-        // 的 AutoClaw 段 —— 回调落在 loopback，设限会把回调一起拦掉）。
+        // — see the AutoClaw 段 —— 回调落在 loopback，设限会把回调一起拦掉）。
         run_embedded(
             app,
             "autoclaw-intl",
             &auth_url,
-            "登录 AutoClaw 国际版账号",
+            "Sign in AutoClaw 国际版账号",
             &state,
             false,
             None,
@@ -993,7 +993,7 @@ fn emit_login_state(app: &AppHandle, state: LoginState) {
     let _ = app.emit("login:state", state);
 }
 
-/// 一次 `/wait` 的结果分类。
+/// Once `/wait` 的结果分类。
 ///
 /// ── 为什么要把「任务失败」与「本地网关暂时读不到」分开 ────────
 /// 原来的实现把两者都当成「打印一行、继续轮询」，于是**任何**失败都要等到
@@ -1048,7 +1048,7 @@ async fn poll_once(state: &str) -> PollOutcome {
 /// 判断一条等待期错误是不是「任务已被后端清理」（取消 / 过期）。
 /// 这两种情况下后端把任务从表里删掉了，`/wait` 回 404「登录任务不存在或已过期」。
 fn task_gone(message: &str) -> bool {
-    message.contains("登录任务不存在") || message.contains("已过期")
+    message.contains("登录任务不存在") || message.contains("Expired")
 }
 
 /// 通知后端中止轮询；用于用户关窗/点取消
@@ -1069,7 +1069,7 @@ pub async fn cancel(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// 新 options 只在 methodIndex 存在时启用动态协议；旧 Rust 签名和各家专用支路保留。
+/// New options 只在 methodIndex 存在时启用动态协议；旧 Rust 签名和各家专用支路保留。
 pub async fn start_with_options(
     app: &AppHandle,
     edition: String,
@@ -1135,7 +1135,7 @@ pub async fn start_with_options(
         "socialRestore": social_restore, "options": options,
     });
     // HTTP 新契约带完整 options，同时兼容当前 API 的平铺读取。缺省字段不补
-    // null（inputs 缺省是 {}，proxy 的显式 null 则必须保留为直连）。
+    // null（inputs 缺省是 {}, proxy 的显式 null 则必须保留为直连）。
     for key in ["methodIndex", "inputs", "proxy"] {
         if let Some(value) = options.get(key) { request[key] = value.clone(); }
     }
@@ -1193,7 +1193,7 @@ pub async fn start_with_options(
     result
 }
 
-/// 只推送公开进度，不把授权 URL、options.inputs 或回调正文放进事件/日志。
+/// 只推送公开进度，不把授权 URL, options.inputs 或回调正文放进事件/日志。
 fn emit_login_progress(app: &AppHandle, flow: &str, started: &Value, instructions: &str, hint: Option<&str>) {
     let Some(active) = current_login(app).filter(|active| active.state == flow) else { return; };
     let manual_callback = started.get("manualCallback").and_then(Value::as_bool) == Some(true);
@@ -1226,7 +1226,7 @@ struct DynamicNavigation {
     loopback_pages: Vec<(String, u16)>,
 }
 
-/// `127.0.0.1:1234` / `localhost:1234` / `[::1]:1234` → (host, port)。
+/// `127.0.0.1:1234` / `localhost:1234` / `[::1]:1234` → (host, port).
 fn loopback_page(value: &str) -> Option<(String, u16)> {
     let text = value.trim().to_ascii_lowercase();
     for host in ["127.0.0.1", "localhost", "[::1]"] {
@@ -1358,7 +1358,7 @@ async fn run_dynamic_login(
             let built = WebviewWindowBuilder::new(app, login_window_label(flow), WebviewUrl::External(auth))
                 .data_directory(profile.as_ref().ok_or("登录环境不可用")?.path().to_path_buf())
                 .general_autofill_enabled(false)
-                .title(format!("登录 {} 账号", crate::server::core::providers::label_of(provider)))
+                .title(format!("Sign in {} Accounts", crate::server::core::providers::label_of(provider)))
                 .inner_size(1100.0, 820.0).min_inner_size(760.0, 560.0).center()
                 .on_navigation(move |url| {
                     if nav_policy.is_callback(url) {
@@ -1429,7 +1429,7 @@ async fn run_dynamic_login(
             PollOutcome::Done(payload) => break Ok(json!({ "ok": true, "payload": payload, "external": mode == "external" })),
             PollOutcome::Failed(error) => break Err(error),
             PollOutcome::Unreachable(error) if task_gone(&error) => break Ok(json!({ "ok": false, "canceled": true })),
-            // 不记录 transport error 原文：它可能含带令牌的 URL。
+            // 不记录 transport error 原文：它可能含带令牌的 URL.
             PollOutcome::Unreachable(_) => {}
         }
         tokio::time::sleep(interval).await;
@@ -1451,7 +1451,7 @@ pub(crate) async fn start_provider_login(provider: &str, proxy: Option<Value>) -
 /// 那条链的行为必须逐字保持。
 ///
 /// `social_restore`：是否恢复 WorkBuddy 登录页的 Google / GitHub / X 入口
-/// （见 [`social_restore_script`]）。界面默认不勾选，故缺省 false。
+/// （见 [`social_restore_script`]）。界面默认不勾选，故缺省 false.
 pub async fn start(
     app: &AppHandle,
     edition: String,
@@ -1488,7 +1488,7 @@ pub async fn start(
         return start_orcaterm(app, &mode, proxy).await;
     }
     // CatPaw：授权地址要问一次上游 `login-config`，且 token 由上游**推**到本网关
-    // 的 loopback 回调上（见 core::login::catpaw）。同样没有 edition 维度。
+    // — see the loopback 回调上（见 core::login::catpaw）。同样没有 edition 维度。
     if provider == "catpaw" {
         return start_catpaw(app, &mode, proxy).await;
     }
@@ -1503,7 +1503,7 @@ pub async fn start(
     // 这里再算一遍 edition 就是多余的一处状态（还会与 provider 冲突时说不清谁算数）。
     let edition_id = match provider {
         // Qoder 两家 provider 各自固定地区（界面上是两张卡片，没有地区下拉），
-        // 归属已经在 provider id 里 —— 与 ZCode 同款，不再读 edition 形参。
+        // 归属已经在 provider id 里 —— and ZCode 同款，不再读 edition 形参。
         "qoder" => "cn",
         "qoder-intl" => "intl",
         // 千问办公两版同理（两张卡片、没有地区下拉）
@@ -1524,10 +1524,10 @@ pub async fn start(
             if edition == "intl" { "intl" } else { "cn" }
         }
     };
-    let edition_label = if edition_id == "intl" { "国际版" } else { "国内版" };
+    let edition_label = if edition_id == "intl" { "International edition" } else { "China edition" };
     // 系统浏览器模式对 workbuddy / qoder / cline 都开放：三家的判定都在后端
     // （轮询上游 auth/token、轮询设备令牌、轮询设备授权），浏览器在哪登录都行。
-    // 小浣熊**只有内嵌窗口**能收回调（自定义协议深链要靠系统注册，见模块头），
+    // Raccoon**只有内嵌窗口**能收回调（自定义协议深链要靠系统注册，见模块头），
     // 给它这个选项只会制造一个永远等不到回调的卡死。
     let use_external = mode == "external" && provider != "raccoon";
 
@@ -1579,18 +1579,18 @@ pub async fn start(
     // 而实际打开的是别家的页面，用户第一眼就会以为是点错了按钮。
     let provider_label = match provider {
         // Qoder 两家品牌名自带地区（两张卡片、无地区下拉），标题不拼后缀
-        "qoder" => "Qoder 中国版",
-        "qoder-intl" => "Qoder 国际版",
-        "qwenwork" => "千问办公 国内版",
-        "qwenwork-intl" => "千问办公 国际版",
+        "qoder" => "Qoder China edition",
+        "qoder-intl" => "Qoder International edition",
+        "qwenwork" => "QwenWork (China)",
+        "qwenwork-intl" => "QwenWork (International)",
         "cline-free" => "Cline Free",
         "cline-pass" => "Cline Pass",
         "catpaw" => "CatPaw",
-        "raccoon" => "小浣熊",
+        "raccoon" => "Raccoon",
         // ZCode 两家各自点名，且品牌名里**已经带了地区** —— 因此下面拼标题时
-        // 要跳过 edition 后缀，否则会得到「登录 ZCode 国内版 国内版账号」
-        "zcode" => "ZCode 国内版",
-        "zcode-intl" => "ZCode 国际版",
+        // 要跳过 edition 后缀，否则会得到「登录 ZCode China edition 国内版账号」
+        "zcode" => "ZCode China edition",
+        "zcode-intl" => "ZCode International edition",
         // CodeArts 只有一家（region 固定在 cn-north-4 且必须与 token 签发地
         // 一致，不是用户可选项，见 `providers::codearts` 的模块头），
         // 品牌名里不需要地区
@@ -1598,12 +1598,12 @@ pub async fn start(
         // Trae 只有一家（国内 SOLO 通道；国际版是另一套协议、另立 provider id），
         // 品牌名里不需要地区
         "trae" => "Trae",
-        // Antigravity（Google 的 AI IDE）只有一家，没有地区之分
+        // Antigravity（Google — see the AI IDE）只有一家，没有地区之分
         // （本仓 `providers::antigravity` 的模块头：端点全球统一）
         "antigravity" => "Antigravity",
         // OfficeAce 只有一家（自助 OAuth 一条链，没有地区/版本概念），品牌名里
         // 不需要地区
-        "officeace" => "OfficeAce 果办",
+        "officeace" => "OfficeAce",
         "lobsterai" => "LobsterAI",
         // AtomCode 只有一家（AtomGit / GitCode 的编码 Agent，没有地区/版本概念），
         // 品牌名里不需要地区
@@ -1619,17 +1619,17 @@ pub async fn start(
         | "qoder-intl" | "qwenwork" | "qwenwork-intl" | "antigravity" | "officeace" | "lobsterai"
         | "atomcode"
     ) {
-        format!("登录 {provider_label} 账号")
+        format!("Sign in {provider_label} Accounts")
     } else {
-        format!("登录 {provider_label} {edition_label}账号")
+        format!("Sign in {provider_label} {edition_label}Accounts")
     };
-    // 第三方入口恢复只对**国际版 WorkBuddy** 有意义，在这里就把条件算完整，
+    // 第三方入口恢复只对**International edition WorkBuddy** 有意义，在这里就把条件算完整，
     // 传给 run_embedded 的就是「这次登录要不要恢复入口」的最终答案：
     //   ① 只有 workbuddy 的登录链有这个概念（小浣熊 / CatPaw / Qoder 另有分流）；
-    //   ② 只有国际版登录页被上游隐藏了入口 —— 国内版登录页是微信 / 手机号 /
-    //      邮箱 / SSO，既没有 Google / GitHub 按钮，也没有那段隐藏样式（实测），
+    //   ② 只有国际版登录页被上游隐藏了入口 —— 国内版登录页是微信 / Phone number /
+    //      Email / SSO，既没有 Google / GitHub 按钮，也没有那段隐藏样式（实测），
     //      对它放行 google.com 之类的域名属于没有必要的放宽。
-    // 判据取**地区**而不是某个 id：拆家后国际版是 `workbuddy-intl`，
+    // 判据取**Region**而不是某个 id：拆家后国际版是 `workbuddy-intl`, 
     // 写单 id 会让它的登录页不再恢复第三方入口（症状是 Google / GitHub 按钮
     // 点了白屏 —— 与国内版没有那两个按钮是两回事）。
     let intl_workbuddy = {
@@ -1698,20 +1698,20 @@ async fn start_raccoon(app: &AppHandle, proxy: Option<Value>) -> Result<serde_js
     result
 }
 
-/// KukuAI 网页登录：**百度通行证官方登录页 + 壳侧读 Cookie 存储交回**。
+/// KukuAI 网页登录：**百度通行证官方登录页 + 壳侧读 Cookie 存储交回**.
 ///
 /// 与其它家网页登录的差别（见 `providers/kuku/login.rs` 的模块头）：
 /// passport 登录成功后的跳转不携带授权码（凭证在 `.baidu.com` 域 Cookie 里），
 /// 因此不走「导航拦截 → 提交回调 URL」那条链，而是由壳侧在窗口跳转
-/// `success.html` 后读 WebView2 的 Cookie 存储（`BDUSS` 是 HttpOnly，
+/// `success.html` 后读 WebView2 — see the Cookie 存储（`BDUSS` Yes HttpOnly, 
 /// 页面脚本读不到）POST 网关的 `POST /api/session/login/kuku/complete`
 /// （见 `run_embedded` 的等待循环与 `submit_kuku_login`）。
 ///
 /// 前端已不提供网页登录入口（短信流程的隐藏窗口覆盖了同一页面），此函数
 /// 作为防御性保留（`start` 命令仍可能被老版本调用）。
 async fn start_kuku(app: &AppHandle, mode: &str, proxy: Option<Value>) -> Result<serde_json::Value, String> {
-    // 登录态由壳侧读登录窗口的 Cookie 存储交回（见 `submit_kuku_login`）——
-    // 系统浏览器里壳读不到，登录完成网关等不到 Cookie。因此 external 模式
+    // 登录态由壳侧读登录窗口的 Cookie 存储交回（见 `submit_kuku_login`)——
+    // 系统浏览器里壳读不到，登录完成网关等不到 Cookie。因此 external Mode
     // 直接拒绝，不静默退回内嵌（用户点了 external 却弹出内嵌窗口，是
     // 「按钮与行为对不上」）。
     if mode == "external" {
@@ -1753,7 +1753,7 @@ async fn start_kuku(app: &AppHandle, mode: &str, proxy: Option<Value>) -> Result
         },
     );
 
-    let result = run_embedded(app, "kuku", &auth_url, "登录 KukuAI 账号", &login_state, false, None, false).await;
+    let result = run_embedded(app, "kuku", &auth_url, "Sign in KukuAI Accounts", &login_state, false, None, false).await;
     if result.as_ref().map(|value| value.get("ok").and_then(serde_json::Value::as_bool)) != Ok(Some(true)) {
         let _ = gateway::call("POST", "/api/session/login/cancel", Some(&json!({ "state": login_state }))).await;
     }
@@ -1761,19 +1761,19 @@ async fn start_kuku(app: &AppHandle, mode: &str, proxy: Option<Value>) -> Result
     result
 }
 
-/// OrcaTerm 网页登录：**官方 OAuth 授权页 + 微信扫码 + 后端换令牌**。
+/// OrcaTerm 网页登录：**Official OAuth 授权页 + 微信扫码 + 后端换令牌**.
 ///
 /// 窗口打开的是 `orcaterm.com/oauth/authorize?...&session_id=<uuid>` —— 实测该
-/// 页面**直接 302 到微信二维码**（appid `wx56e5199ef872dc22`，OrcaTerm 自己的
+/// 页面**直接 302 到微信二维码**（appid `wx56e5199ef872dc22`, OrcaTerm 自己的
 /// 开放平台应用），用户扫完上游把浏览器重定向到
 /// `orcaterm://oauth_callback?session_id=…`，壳侧把那一跳截下来交给后端换令牌
 /// （见 `providers/orcaterm/login.rs` 的模块头，那里也记录了「为什么不走
 /// Web 控制台的 `ot_session`」）。
 ///
-/// 与 raccoon 同一形态（回调 URL → 后端换码 → 落账号）。回调是自定义协议
+/// and raccoon 同一形态（回调 URL → 后端换码 → 落账号）。回调是自定义协议
 /// `orcaterm://oauth_callback`，必须由**我们自己的窗口**拦下，因此只支持
-/// 内嵌窗口：系统浏览器里那一跳会被交给系统处理（装了官方 OrcaTerm 客户端
-/// 时被它接走，没装则是一个错误页），网关永远等不到 `session_id`。
+/// 内嵌窗口：系统浏览器里那一跳会被交给系统处理（装了官方 OrcaTerm Client
+/// 时被它接走，没装则是一个错误页），网关永远等不到 `session_id`.
 async fn start_orcaterm(app: &AppHandle, mode: &str, proxy: Option<Value>) -> Result<serde_json::Value, String> {
     if mode == "external" {
         return Err(
@@ -1818,7 +1818,7 @@ async fn start_orcaterm(app: &AppHandle, mode: &str, proxy: Option<Value>) -> Re
         app,
         "orcaterm",
         &auth_url,
-        "登录 OrcaTerm 账号",
+        "Sign in OrcaTerm Accounts",
         &login_state,
         false,
         None,
@@ -1832,16 +1832,16 @@ async fn start_orcaterm(app: &AppHandle, mode: &str, proxy: Option<Value>) -> Re
     result
 }
 
-/// CatPaw 网页登录：**passport 登录页 + 上游回调打到网关自己的 loopback 端口**。
+/// CatPaw 网页登录：**passport 登录页 + 上游回调打到网关自己的 loopback Port**.
 ///
-/// 与另两家的差别（见 `core::login::catpaw` 的模块头）：token 是**上游推给
-/// 我们**的 —— 美团 passport 的 `login-callback` 页面把 `{token, state}` 表单
+/// 与另两家的差别（见 `core::login::catpaw` 的模块头）：token Yes**上游推给
+/// 我们**的 —— 美团 passport — see the `login-callback` 页面把 `{token, state}` 表单
 /// POST 到授权 URL 里给的 `redirect`，而那个地址就是本网关的
 /// `127.0.0.1:<port>/api/session/login/catpaw-callback`。因此这里只需要
 /// 「开窗口 → 轮询 /wait」，不需要壳侧做任何回调识别或转交。
 ///
 /// `mode`：内嵌窗口与系统浏览器都支持（回调打回本机网关，与浏览器在哪无关），
-/// 与 Qoder 同理；小浣熊那种「只有内嵌能收回调」的约束在这家不成立。
+/// and Qoder 同理；小浣熊那种「只有内嵌能收回调」的约束在这家不成立。
 async fn start_catpaw(
     app: &AppHandle,
     mode: &str,
@@ -1887,7 +1887,7 @@ async fn start_catpaw(
         open_external(app, &auth_url, "CatPaw 官方登录页", &login_state).await
     } else {
         // social_restore 传 false：与小浣熊同理，这项能力只属于 WorkBuddy 的登录页。
-        run_embedded(app, "catpaw", &auth_url, "登录 CatPaw 账号", &login_state, false, None, false).await
+        run_embedded(app, "catpaw", &auth_url, "Sign in CatPaw Accounts", &login_state, false, None, false).await
     };
     if result.as_ref().map(|value| value.get("ok").and_then(serde_json::Value::as_bool)) != Ok(Some(true)) {
         let _ = gateway::call("POST", "/api/session/login/cancel", Some(&json!({ "state": login_state }))).await;
@@ -1996,11 +1996,11 @@ pub(crate) async fn run_cookie_login_with_proxy(
 /// `provider` 决定白名单与回调识别（小浣熊要捕获 `office-raccoon://` 深链）；
 /// `title` 由调用方给出（两家窗口标题不同）。
 ///
-/// `social_restore` 是**已经算好的结论**（调用方已按 provider 与版本收窄，见 `start`）：
+/// `social_restore` Yes**已经算好的结论**（调用方已按 provider 与版本收窄，见 `start`）：
 /// 为 true 时注入 [`social_restore_script`] 并放行第三方域名 —— 两项必须成对生效：
 /// 只注入不放行，点了 Google 登录会因导航被拦而白屏。
 ///
-/// `kuku_phone`：**KukuAI 短信自动流程**的手机号（`Some` 时注入
+/// `kuku_phone`: **KukuAI 短信自动流程**的手机号（`Some` 时注入
 /// [`kuku_sms_script`]：脚本自动填号发码、等验证码、自动登录 —— 验证码由
 /// `submit_kuku_sms_code` 经 `window.eval` 写入页面变量；登录态由壳侧在
 /// 等待循环里读 Cookie 存储交回，见 [`submit_kuku_login`]）。
@@ -2035,7 +2035,7 @@ async fn run_embedded_with_proxy(
 ) -> Result<serde_json::Value, String> {
     let window_label = login_window_label(login_state);
     // ── 每次登录一个独立环境（修复：第二次添加账号会看到上一个账号的登录态）──
-    // 每次登录用**全新**的临时数据目录：WebView2 的 Cookie / localStorage / 缓存
+    // 每次登录用**全新**的临时数据目录：WebView2 — see the Cookie / localStorage / 缓存
     // 都按数据目录存放，共用默认目录就等于共用登录态 —— 添加第二个账号时官方
     // 登录页会把上一个账号直接放行过去，用户根本没有机会换成另一个账号。
     // 目录在窗口关闭后删除（见 login_profile.rs）。
@@ -2061,10 +2061,10 @@ async fn run_embedded_with_proxy(
     // KukuAI 主站方案的 Cookie 检测节拍：
     //   - **导航事件**（on_navigation）计数变化 → 下一拍立即读 cookie
     //     （用户登录时必然经过导航：跳 passport、回跳主站）；
-    //   - 每 4 拍（8 秒）兜底读一次（用户登录后长时间不导航也不漏）；
+    //   - Every 4 拍（8 秒）兜底读一次（用户登录后长时间不导航也不漏）；
     //   - 首次发现 BDUSS 后再等 4 秒才交回：登录瞬间影子 cookie
     //     （BDUSS_BFESS 等）可能尚未刷新完，立刻交回会带着旧影子值被判
-    //     「未登录」（userreport errno=-6，2026-10-07 真实踩过）。
+    //     「未登录」（userreport errno=-6, 2026-10-07 真实踩过）。
     let mut kuku_check_tick: u32 = 0;
     let kuku_nav_counter = Arc::new(std::sync::atomic::AtomicU64::new(0));
     let mut kuku_last_nav: u64 = 0;
@@ -2107,7 +2107,7 @@ async fn run_embedded_with_proxy(
     // 恢复第三方登录入口：登录页按上游开关把 Google / GitHub / X 隐藏了，
     // 注入脚本持续摘掉那段样式（理由与边界见 social_restore_script）。
     //
-    // 用 for_all_frames：目标样式在**内层 iframe** 的 head 里，只注入主 frame
+    // 用 for_all_frames：目标样式在**内层 iframe** — see the head 里，只注入主 frame
     // 够不着它。脚本自身再按 hostname 限一次，避免跳去 accounts.google.com
     // 之后还在那边空转。
     //
@@ -2135,7 +2135,7 @@ async fn run_embedded_with_proxy(
         // ── 为什么回调必须先于白名单判定 ────────────────────────
         // `host_allowed` 对自定义协议一律 false，先判白名单就会把回调当成
         // 「非法导航」拦掉 —— 拦掉的动作与「捕获回调」在 WebView2 眼里完全相同，
-        // 症状是用户明明登录成功、网关却永远等不到 code。
+        // 症状是用户明明登录成功、网关却永远等不到 code.
         //
         // ── AutoClaw 的回调为什么不在这里拦（拆家后）─────────────────
         // 它的回调落在 z.ai 登记的那四个端口上，**由插件自己绑定并收下**
@@ -2144,7 +2144,7 @@ async fn run_embedded_with_proxy(
         // 白名单判定 —— 四个登记端口对 autoclaw 不设限（见 `allowed_hosts`）。
         .on_navigation(move |url| {
             if is_login_callback(url, provider) {
-                // 返回 false 即阻止这次导航（否则 WebView2 会把它交给系统：
+                // Back false 即阻止这次导航（否则 WebView2 会把它交给系统：
                 // 本机没注册 office-raccoon:// 时是一个错误页）。
                 // 回调处理是网络动作，而本回调是同步的，因此 spawn 出去做。
                 if !seen_for_nav.swap(true, Ordering::SeqCst) {
@@ -2157,7 +2157,7 @@ async fn run_embedded_with_proxy(
                 return false;
             }
             // KukuAI 主站登录：每次导航（含跳 passport、登录后回跳主站）
-            // 计数 +1，等待循环据此立即读一次 Cookie 存储做登录检测。
+            // Counts +1，等待循环据此立即读一次 Cookie 存储做登录检测。
             if provider == "kuku" {
                 nav_counter_for_nav.fetch_add(1, Ordering::SeqCst);
             }
@@ -2166,7 +2166,7 @@ async fn run_embedded_with_proxy(
         // 弹出窗口（window.open）也是回调的可能入口：有的登录页在拿到授权码后会用
         // `window.open('office-raccoon://…')` 而不是直接改 location —— 那样它就只
         // 走 NewWindowRequested，导航拦截根本看不到，用户会看到「登录成功了但网关
-        // 没反应」。这里同样**先判回调再统一拒绝**：
+        // 没反应」。这里同样**先判回调再统一拒绝**: 
         //   - 是我们的回调 → 拦下并提交（去重标志共用，见上）；
         //   - 其余一律 Deny —— 这与不注册本回调时的默认行为**完全一致**
         //     （wry 在没有 handler 时对每个 NewWindowRequested 都 SetHandled(true)），
@@ -2237,14 +2237,14 @@ async fn run_embedded_with_proxy(
         // KukuAI（主站登录方案，见 `providers/kuku/login.rs` 的模块头）：
         // 用户在内嵌窗口的 `kuku.baidu.com` 里正常登录，壳侧以 **Cookie 存储
         // 里出现 BDUSS** 作为成功判据（读 cookie 走独立线程 + 超时，见
-        // `read_window_cookies`；Windows 上同步调 cookies() 会死锁）。
+        // `read_window_cookies`; Windows 上同步调 cookies() 会死锁）。
         // 触发时机：导航事件（登录必然经过导航：跳 passport、回跳主站）
         // 之后立即读一次；另有每 4 拍（8 秒）兜底，防止「登录后长时间
         // 不导航」漏掉。首次发现 BDUSS 后再等 4 秒交回（等影子 cookie
         // BDUSS_BFESS 刷新完，见上面 `kuku_bduss_seen_at` 的说明）。
         //
         // 交回后的「会话激活」（换发 genflowpro 作用域 STOKEN）在后端做
-        // （`providers/kuku/engine.rs`）—— 那一步要调官方客户端引擎算签名，
+        // （`providers/kuku/engine.rs`)—— 那一步要调官方客户端引擎算签名，
         // 浏览器页面里做不了，壳侧不再做任何等待门。
         if provider == "kuku" {
             kuku_check_tick += 1;
@@ -2265,7 +2265,7 @@ async fn run_embedded_with_proxy(
                     Ok(cookies) => {
                         let (header, has_bduss) = kuku_cookie_header(&cookies);
                         eprintln!(
-                            "[login] KukuAI Cookie 检测：共 {} 条，BDUSS {}（头长 {}）",
+                            "[login] KukuAI Cookie 检测：共 {} 条，BDUSS {}（头长 {})",
                             cookies.len(),
                             if has_bduss { "已出现" } else { "未出现" },
                             header.len()
@@ -2317,7 +2317,7 @@ async fn run_embedded_with_proxy(
         // OrcaTerm（官方桌面端 OAuth 链，见 `providers/orcaterm/login.rs` 的
         // 模块头）：**不需要这里做任何检测** —— 回调
         // （`orcaterm://oauth_callback?session_id=…`）由 `on_navigation` /
-        // `on_new_window` 拦下并交给后端换令牌，成功与否统一走 `/wait`。
+        // `on_new_window` 拦下并交给后端换令牌，成功与否统一走 `/wait`.
         // 初版那套「读窗口 cookie 找 ot_session」已删除：那条 Cookie 在
         // SPA 内扫码登录时根本不会被写出（见模块头的实测对照）。
         if provider == "deepseek-web" && !deepseek_submitted {
@@ -2349,7 +2349,7 @@ async fn run_embedded_with_proxy(
                     submit_callback(login_state, &cookie).await;
                 }
                 Ok(None) => {}
-                Err(error) => eprintln!("[login] 豆包工作 Cookie 读取失败：{error}"),
+                Err(error) => eprintln!("[login] Doubao Work Cookie Failed to load: {error}"),
             }
         }
         match poll_once(login_state).await {
@@ -2395,9 +2395,9 @@ async fn submit_callback(login_state: &str, callback_url: &str) {
 
 /// 读登录窗口的 WebView2 Cookie 存储（含 HttpOnly）。
 ///
-/// ── 为什么必须独立线程 + 超时 ────────────────────────────────
+/// ── 为什么必须独立线程 + Timeout ────────────────────────────────
 /// Windows 上 `cookies()` 内部要等 WebView2 异步完成回调：在主线程/同步
-/// 命令里直接调会与消息循环互相等待而**死锁**（tauri 文档的 Known issues，
+/// 命令里直接调会与消息循环互相等待而**死锁**（tauri 文档的 Known issues, 
 /// 现象正是「窗口停住、永不收尾」）。这里挪到 `spawn_blocking` 独立线程，
 /// 再包一层 3 秒超时兜底 —— 读不到就当失败，绝不卡死调用方。
 pub(crate) async fn read_window_cookies(
@@ -2414,7 +2414,7 @@ pub(crate) async fn read_window_cookies(
     );
     let nested = tokio::time::timeout(Duration::from_secs(10), handle).await;
     // 三层 Result 逐层展开：Elapsed（超时）→ JoinError（任务失败）→
-    // tauri::Error（cookies() 本身），最后拿到 Vec<Cookie>。
+    // tauri::Error（cookies() 本身），最后拿到 Vec<Cookie>.
     let inner = match nested {
         Ok(result) => result,
         Err(_) => return Err("读取登录窗口 Cookie 超时（WebView2 未响应）".to_string()),
@@ -2425,11 +2425,11 @@ pub(crate) async fn read_window_cookies(
     };
     match joined {
         Ok(list) => Ok(list),
-        Err(error) => Err(format!("读取登录窗口 Cookie 失败: {error}")),
+        Err(error) => Err(format!("读取登录窗口 Cookie failed: {error}")),
     }
 }
 
-/// 把窗口里的百度域 Cookie 拼成 Cookie 头，返回 `(头串, 是否含 BDUSS)`。
+/// 把窗口里的百度域 Cookie 拼成 Cookie 头，返回 `(头串, 是否含 BDUSS)`.
 ///
 /// 交回**全部百度域 Cookie**（不只 BDUSS/STOKEN）：上游 userreport 校验的是
 /// 完整浏览器会话，缺 BAIDUID / BAIDUID_BFESS 会被判「未登录」
@@ -2471,7 +2471,7 @@ fn kuku_log_bduss_candidates(cookies: &[tauri::webview::Cookie<'static>]) {
             let value = cookie.value();
             let prefix: String = value.chars().take(20).collect();
             eprintln!(
-                "[login] KukuAI BDUSS 候选：domain={:?} path={:?} 长度={} 前缀={prefix}…",
+                "[login] KukuAI BDUSS 候选：domain={:?} path={:?} 长度={} Prefix={prefix}…",
                 cookie.domain().unwrap_or(""),
                 cookie.path().unwrap_or(""),
                 value.len()
@@ -2480,7 +2480,7 @@ fn kuku_log_bduss_candidates(cookies: &[tauri::webview::Cookie<'static>]) {
     }
 }
 
-/// KukuAI 登录态交回：用户在主站窗口里登录成功后，读 WebView2 的 Cookie
+/// KukuAI 登录态交回：用户在主站窗口里登录成功后，读 WebView2 — see the Cookie
 /// 存储（含 HttpOnly —— 页面脚本 `document.cookie` 读不到 BDUSS），把完整
 /// 百度域会话拼成 Cookie 头 POST 网关收尾（见 `read_window_cookies` 的说明）。
 async fn submit_kuku_login(
@@ -2507,8 +2507,8 @@ async fn submit_kuku_login(
 /// 不含查询串，但没有理由留着两份行为不一致的实现。
 ///
 /// ── 为什么不用 `cmd /C start`（曾经的实现，两个真实故障的来源）──
-/// 登录 URL 形如 `https://.../login?platform=workbuddy&state=<uuid>`，
-/// 而 `cmd` 把 `&` 当**命令分隔符**：实际执行变成
+/// Sign in URL 形如 `https://.../login?platform=workbuddy&state=<uuid>`, 
+/// 而 `cmd` 把 `&` When**命令分隔符**：实际执行变成
 ///   ① `start "" https://.../login?platform=workbuddy`
 ///   ② `state=<uuid>`（一条不存在的命令）
 /// 后果有两个，且都很难从现象反推：
@@ -2554,17 +2554,17 @@ pub fn open_in_browser(url: &str) -> Result<(), String> {
         )
     };
     if result as isize <= 32 {
-        return Err(format!("打开系统浏览器失败（ShellExecute 返回 {result:?}）"));
+        return Err(format!("打开系统浏览器失败（ShellExecute Back {result:?})"));
     }
     Ok(())
 }
 
-/// 非 Windows 平台的等价实现（本项目的打包目标只有 Windows，
+/// 非 Windows 平台的等价实现（本项目的打包目标只有 Windows, 
 /// 保留分支是为了 `cargo check` 在其它平台也能过）
 #[cfg(not(windows))]
 pub fn open_in_browser(url: &str) -> Result<(), String> {
     let opener = if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
-    // URL 作为独立 argv 传入，不经过 shell，`&` 不会被解释
+    // URL 作为独立 argv 传入，不经过 shell, `&` 不会被解释
     std::process::Command::new(opener)
         .arg(url)
         .stdout(std::process::Stdio::null())

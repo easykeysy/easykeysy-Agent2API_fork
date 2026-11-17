@@ -87,7 +87,7 @@ pub(super) fn validate(
             if !value.as_str().is_some_and(|value| values.contains(&value)) {
                 return Err(GatewayError::bad_request(format!(
                     "{field} 必须是 {}",
-                    values.join(" 或 ")
+                    values.join(" or ")
                 )));
             }
         }
@@ -106,7 +106,7 @@ pub(super) fn validate(
         });
         if !valid {
             return Err(GatewayError::bad_request(
-                "size 必须是 auto 或 WIDTHxHEIGHT，边长不得超过 8192",
+                "size 必须是 auto or WIDTHxHEIGHT，边长不得超过 8192",
             ));
         }
     }
@@ -147,12 +147,12 @@ pub(super) fn validate(
         .any(|key| payload.get(*key).is_some_and(|value| !value.is_null()))
     {
         return Err(GatewayError::bad_request(
-            "当前参考图编辑通道不支持 mask 或 input_fidelity，请在 prompt 中描述修改范围",
+            "当前参考图编辑通道不支持 mask or input_fidelity，请在 prompt 中描述修改范围",
         ));
     }
     if payload.get("image").is_some() || (!editing && payload.get("images").is_some()) {
         return Err(GatewayError::bad_request(
-            "参考图请通过 /v1/images/edits 上传 image 文件或 JSON images[].image_url",
+            "参考图请通过 /v1/images/edits Upload image 文件或 JSON images[].image_url",
         ));
     }
     if editing
@@ -229,7 +229,7 @@ fn resolve_model(
     if !key_scope::allows_model(scope, &requested) {
         return Err(GatewayError::with_status(
             404,
-            format!("模型 '{requested}' 不在这把网关 Key 的可用模型列表里"),
+            format!("Model '{requested}' 不在这把网关 Key 的可用模型列表里"),
         )
         .with_code("model_not_found"));
     }
@@ -239,7 +239,7 @@ fn resolve_model(
         .any(|provider| key_scope::allows_provider(scope, provider))
     {
         return Err(GatewayError::bad_request(format!(
-            "模型 '{requested}' 没有获准使用的{}通道，请从 GET /v1/models 选择对应能力的模型并更新插件", operation.label()
+            "Model '{requested}' 没有获准使用的{}通道，请从 GET /v1/models 选择对应能力的模型并更新插件", operation.label()
         )).with_code(if operation == image_models::ImageOperation::Edit {
             "image_editing_not_supported"
         } else { "image_generation_not_supported" }));

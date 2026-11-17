@@ -91,13 +91,13 @@ pub fn configure(patch: &Value) -> Result<Value, String> {
             return Err("times 必须是时刻数组".to_string());
         };
         if items.len() > MAX_TIMES {
-            return Err(format!("时刻最多 {MAX_TIMES} 条"));
+            return Err(format!("时刻最多 {MAX_TIMES} rows"));
         }
         let mut times: Vec<String> = Vec::new();
         for item in items {
             let Some(time) = normalize_time(Some(item)) else {
                 return Err(format!(
-                    "非法时刻「{}」（应为 HH:MM，00:00 - 23:59）",
+                    "非法时刻「{}」（应为 HH:MM, 00:00 - 23:59)",
                     item.as_str().unwrap_or("?")
                 ));
             };
@@ -220,7 +220,7 @@ pub async fn run_once(store: &AccountStore, reason: &str, plan_time: Option<&str
     let Some(_guard) = acquire() else {
         return RunOutcome::Busy;
     };
-    logging::log("[Travel]", &format!("⏰ 猫猫旅行巡检开始（{reason}）"));
+    logging::log("[Travel]", &format!("⏰ 猫猫旅行巡检开始（{reason})"));
     let summary = match adapter
         .admin_action(store, "", &definition.action, &Value::Null)
         .await
@@ -265,7 +265,7 @@ pub async fn run_once(store: &AccountStore, reason: &str, plan_time: Option<&str
     let credit = summary.get("credit").and_then(Value::as_i64).unwrap_or(0);
     logging::log(
         "[Travel]",
-        &format!("猫猫旅行巡检完成：{action_count} 个动作（+{credit}c）"),
+        &format!("猫猫旅行巡检完成：{action_count} 个动作（+{credit}c)"),
     );
     RunOutcome::Completed(summary)
 }
@@ -368,7 +368,7 @@ pub fn spawn(store: AccountStore) {
             };
             let _ = run_once(
                 &store,
-                &format!("到点触发（{plan_time}）"),
+                &format!("到点触发（{plan_time})"),
                 Some(&plan_time),
             )
             .await;

@@ -36,7 +36,7 @@ export function safeText(value: unknown, max = 800): string {
 export function diagnosticText(value: unknown, t: Translate, max = 800): string {
   const raw = typeof value === 'string' ? value : ''
   if (/首条消息非 system，已注入系统消息：|出站归一：|["'](?:messages|input|output|prompt|content|requestBody|responseBody|system_prompt)["']\s*:/i.test(raw)) {
-    return t('原始报文或对话正文已省略')
+    return t('Raw payload or conversation content omitted')
   }
   return safeText(raw, max)
 }
@@ -59,14 +59,14 @@ export function strings(value: unknown): string[] {
 }
 
 export function expectObject(value: unknown, name: string, t: Translate): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(t('读取响应不完整：{name}', { name }))
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(t('Incomplete response: {name}', { name }))
   return value as Record<string, unknown>
 }
 
 export function expectRows(source: Record<string, unknown>, key: string, name: string, t: Translate): Record<string, unknown>[] {
   const value = source[key]
   if (!Array.isArray(value) || value.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
-    throw new Error(t('读取响应不完整：{name}', { name }))
+    throw new Error(t('Incomplete response: {name}', { name }))
   }
   return value as Record<string, unknown>[]
 }
@@ -74,21 +74,21 @@ export function expectRows(source: Record<string, unknown>, key: string, name: s
 export function enumArg(args: ToolArgs, key: string, allowed: readonly string[], fallback: string, t: Translate): string {
   if (args[key] === undefined) return fallback
   const value = text(args[key])
-  if (!allowed.includes(value)) throw new Error(t('参数 {name} 只能是：{values}', { name: key, values: allowed.join(' / ') }))
+  if (!allowed.includes(value)) throw new Error(t('Parameter {name} must be one of: {values}', { name: key, values: allowed.join(' / ') }))
   return value
 }
 
 export function stringArg(args: ToolArgs, key: string, t: Translate, max = 256): string {
   if (args[key] === undefined) return ''
   if (typeof args[key] !== 'string' || (args[key] as string).trim().length > max) {
-    throw new Error(t('参数 {name} 必须是不超过 {max} 个字符的字符串', { name: key, max }))
+    throw new Error(t('Parameter {name} must be a string of at most {max} characters', { name: key, max }))
   }
   return (args[key] as string).trim()
 }
 
 export function booleanArg(args: ToolArgs, key: string, t: Translate): boolean | undefined {
   if (args[key] === undefined) return undefined
-  if (typeof args[key] !== 'boolean') throw new Error(t('参数 {name} 必须是布尔值', { name: key }))
+  if (typeof args[key] !== 'boolean') throw new Error(t('Parameter {name} must be a boolean', { name: key }))
   return args[key] as boolean
 }
 
@@ -97,7 +97,7 @@ export function pageArgs(args: ToolArgs, t: Translate): { offset: number; limit:
     if (args[key] === undefined) return fallback
     const value = number(args[key])
     if (value === null || !Number.isSafeInteger(value) || value < min) {
-      throw new Error(t('参数 {name} 必须是不小于 {min} 的整数', { name: key, min }))
+      throw new Error(t('Parameter {name} must be an integer greater than or equal to {min}', { name: key, min }))
     }
     return value
   }
@@ -124,13 +124,13 @@ export function page<T>(items: T[], offset: number, limit: number, total = items
 }
 
 export const PAGE_PARAMS = {
-  offset: { type: 'integer', minimum: 0, description: '起点（从 0 开始）；翻页时传上一页的 nextOffset' },
+  offset: { type: 'integer', minimum: 0, description: 'The starting point (from 0); when paging, pass the previous page\'s nextOffset' },
   limit: { type: 'integer', minimum: 1, maximum: PAGE_MAX, description: `每页条数（默认 ${PAGE_DEFAULT}，最多 ${PAGE_MAX}）；较长结果可能缩小本页，请按返回的 nextOffset 翻页` },
 }
 
 export const TIME_PARAMS = {
-  start: { type: 'number', description: '开始时间，Unix 毫秒时间戳（包含）；不填 = 不限' },
-  end: { type: 'number', description: '结束时间，Unix 毫秒时间戳（不包含）；不填 = 本次查询时刻。翻页沿用响应中的 end，避免新日志挤动分页' },
+  start: { type: 'number', description: 'Start time, Unix millisecond timestamp (inclusive); leave blank= Unlimited' },
+  end: { type: 'number', description: 'End time, Unix millisecond timestamp (exclusive); leave blank= The time of this query. When paging, reuse the end from the response, to avoid new log entries shifting the pages' },
 }
 
 export function timeQuery(args: ToolArgs, t: Translate): QueryParams {
@@ -138,11 +138,11 @@ export function timeQuery(args: ToolArgs, t: Translate): QueryParams {
   for (const key of ['start', 'end']) {
     if (args[key] === undefined) continue
     const value = number(args[key])
-    if (value === null || value < 0 || !Number.isSafeInteger(value)) throw new Error(t('参数 {name} 必须是毫秒时间戳', { name: key }))
+    if (value === null || value < 0 || !Number.isSafeInteger(value)) throw new Error(t('Parameter {name} must be a millisecond timestamp', { name: key }))
     out[key] = value
   }
   if (out.end === undefined) out.end = Date.now() + 1
-  if (typeof out.start === 'number' && out.start >= Number(out.end)) throw new Error(t('开始时间必须早于结束时间'))
+  if (typeof out.start === 'number' && out.start >= Number(out.end)) throw new Error(t('The start time must be earlier than the end time'))
   return out
 }
 
@@ -157,22 +157,22 @@ export function accountName(account: Record<string, unknown>): string {
 export function accountsOf(value: unknown, t: Translate) {
   const snapshot = expectObject(value, 'accounts', t)
   const accounts = expectRows(snapshot, 'accounts', 'accounts', t).slice()
-  if (accounts.some(account => !text(account.id))) throw new Error(t('读取响应不完整：{name}', { name: 'accounts.id' }))
+  if (accounts.some(account => !text(account.id))) throw new Error(t('Incomplete response: {name}', { name: 'accounts.id' }))
   accounts.sort((a, b) => (number(a.priority) ?? 0) - (number(b.priority) ?? 0))
   return { snapshot, accounts }
 }
 
 export function findAccount(accounts: Record<string, unknown>[], ref: string, provider: string, t: Translate) {
-  if (!ref) throw new Error(t('没给账号名'))
+  if (!ref) throw new Error(t('No account name given'))
   const scoped = provider ? accounts.filter(account => text(account.provider).toLowerCase() === provider.toLowerCase()) : accounts
   const byId = scoped.find(account => text(account.id) === ref)
   if (byId) return byId
   const named = scoped.filter(account => accountName(account) === ref)
   const matches = named.length ? named : scoped.filter(account => accountName(account).toLowerCase().includes(ref.toLowerCase()))
   if (matches.length === 1) return matches[0]
-  if (!matches.length) throw new Error(t('没有找到账号「{name}」', { name: safeText(ref) }))
-  throw new Error(t('账号「{name}」匹配到多条记录，请使用账号 ID：{ids}', {
-    name: safeText(ref), ids: matches.slice(0, 6).map(account => safeText(account.id)).join('、'),
+  if (!matches.length) throw new Error(t('No account found named "{name}"', { name: safeText(ref) }))
+  throw new Error(t('Account "{name}" matches multiple records. Use an account ID: {ids}', {
+    name: safeText(ref), ids: matches.slice(0, 6).map(account => safeText(account.id)).join(', '),
   }))
 }
 

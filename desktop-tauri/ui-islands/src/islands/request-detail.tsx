@@ -75,10 +75,10 @@ import type { ReplayRow, RouteDecision } from './routing-types'
 type TabKey = 'detail' | 'route' | 'preview' | 'raw'
 
 const TAB_OPTIONS: readonly SegmentedControlOption<TabKey>[] = [
-  { value: 'detail', label: t('请求详情') },
-  { value: 'route', label: t('路由回放') },
-  { value: 'preview', label: t('预览对话') },
-  { value: 'raw', label: t('原始报文') },
+  { value: 'detail', label: t('Request details') },
+  { value: 'route', label: t('Routing replay') },
+  { value: 'preview', label: t('Conversation preview') },
+  { value: 'raw', label: t('Raw payload') },
 ]
 /** 默认标签恒为「请求详情」（旧实现同此；`route` / `raw` 到达前根本不在选项里） */
 const DEFAULT_TAB: TabKey = 'detail'
@@ -197,7 +197,7 @@ function shared(): SharedWindow {
 /** 后端桥：拿不到就抛（旧实现是模块加载时取一次 workbuddyDesktop，取不到即抛） */
 function api() {
   const bridge = shared().workbuddyDesktop
-  if (!bridge) throw new Error(t('后端桥不可用'))
+  if (!bridge) throw new Error(t('Backend bridge unavailable'))
   return bridge
 }
 
@@ -224,9 +224,9 @@ function fmtDuration(ms: unknown): string {
   const rounded = Math.round(Number(ms) || 0)
   if (rounded < 1000) return `${rounded}ms`
   const seconds = Math.floor(rounded / 1000)
-  if (seconds >= 60) return t('{m}分{s}秒', { m: Math.floor(seconds / 60), s: seconds % 60 })
+  if (seconds >= 60) return t('{m}m {s}s', { m: Math.floor(seconds / 60), s: seconds % 60 })
   const millis = rounded % 1000
-  return millis > 0 ? t('{s}秒{ms}ms', { s: seconds, ms: millis }) : t('{n}秒', { n: seconds })
+  return millis > 0 ? t('{s}s {ms}ms', { s: seconds, ms: millis }) : t('{n}s', { n: seconds })
 }
 
 /** 首响：没有值（null / 0 / 旧数据）显示「-」，不走 fmtDuration 避免假 0ms */
@@ -237,7 +237,7 @@ function fmtFirstResponse(ms: unknown): string {
 }
 
 /** 生成速度（tok/s）的悬停说明（与列表 SPEED_TIP 同一份文案，改口径时一起改） */
-const SPEED_TIP = t('生成速度：输出 token ÷ 流式段用时（总用时 − 首响）；流式段不足总用时一半时按总用时计')
+const SPEED_TIP = t('Generation speed: output tokens ÷ streaming time (total duration − TTFB); falls back to total duration when the streaming window is under half the request')
 
 /**
  * 生成速度（tok/s）：输出 token ÷ 流式段用时（总用时 − 首响）。
@@ -269,7 +269,7 @@ function fmtTokens(value: unknown): string {
 /** 进行中行的「已用时」：取整秒，不足 1 秒也显示 1 秒（列表同款） */
 function fmtElapsed(ts: RequestRow['ts']): string {
   const elapsed = Math.max(0, Date.now() - (Number(ts) || 0))
-  return t('{n}秒', { n: Math.max(1, Math.floor(elapsed / 1000)) })
+  return t('{n}s', { n: Math.max(1, Math.floor(elapsed / 1000)) })
 }
 
 /** 成功口径与后端 RequestEntry::is_success 对齐：2xx 且没有错误摘要 */
@@ -330,9 +330,9 @@ function StatusCell({ row }: { row: RequestRow }) {
     // .req-live-dot（1.2s 脉动 + reduced-motion 降级），组件库的 BadgeDot 是静态圆点
     if (!phase?.badgeHtml) {
       return (
-        <Badge variant='info' shape='tag' title={t('请求正在转发中，用时列显示的是已用时')}>
+        <Badge variant='info' shape='tag' title={t('The request is being forwarded; the duration column shows elapsed time')}>
           <StatusDot pulse className='size-[5px] bg-current' />
-          {t('进行中')}
+          {t('In progress')}
         </Badge>
       )
     }
@@ -351,10 +351,10 @@ function StatusCell({ row }: { row: RequestRow }) {
   const status = Number(row.status) || 0
   const ok = isOk(row)
   // 2xx 却带错误摘要（流式请求在响应体阶段失败）单看数字会以为成功，给 title 说明
-  const title = !ok && status >= 200 && status < 300 ? t('HTTP {status}，但响应体阶段出错', { status }) : ''
+  const title = !ok && status >= 200 && status < 300 ? t('HTTP {status}, but the response body phase failed', { status }) : ''
   return (
     <Badge variant={ok ? 'success' : 'destructive'} shape='tag' title={title || undefined}>
-      {status || t('失败')}
+      {status || t('Failed')}
     </Badge>
   )
 }
@@ -378,8 +378,8 @@ function ModelCell({ row }: { row: RequestRow }) {
   const downText = tag(client, clientLevel)
   return (
     <span className='flex flex-col gap-0.5'>
-      <span title={t('转发到上游的模型：{model}', { model: upText })}>⬆️ {upText}</span>
-      <span className='text-muted-foreground' title={t('下游请求的模型：{model}', { model: downText })}>⬇️ {downText}</span>
+      <span title={t('Model forwarded to the upstream: {model}', { model: upText })}>⬆️ {upText}</span>
+      <span className='text-muted-foreground' title={t('Model requested downstream: {model}', { model: downText })}>⬇️ {downText}</span>
     </span>
   )
 }
@@ -391,12 +391,12 @@ function attemptResult(item: AttemptDetail): React.ReactNode {
   const error = item?.error ? String(item.error) : ''
   if (error) {
     const text = hasStatus
-      ? t('失败（{status}）：{error}', { status: String(status), error })
-      : t('失败：{error}', { error })
+      ? t('Failed ({status}): {error}', { status: String(status), error })
+      : t('Failed: {error}', { error })
     return <span className='break-words text-destructive'>{text}</span>
   }
-  if (hasStatus) return <span className='text-success'>{t('成功（{status}）', { status: String(status) })}</span>
-  return <span className='text-muted-foreground'>{t('无结果记录')}</span>
+  if (hasStatus) return <span className='text-success'>{t('Success ({status})', { status: String(status) })}</span>
+  return <span className='text-muted-foreground'>{t('No result recorded')}</span>
 }
 
 /**
@@ -412,7 +412,7 @@ function AttemptsTable({ row }: { row: RequestRow }) {
     <Table className='text-[11.5px]'>
       <TableHeader>
         <TableRow className={NO_HOVER}>
-          {[t('轮次'), t('提供商'), t('账号'), t('结果'), t('体积'), t('内部重试'), t('提示')].map(label => (
+          {[t('Round'), t('Provider'), t('Accounts'), t('Result'), t('Size'), t('Internal retry'), t('Notice')].map(label => (
             <TableHead key={label} className={ATTEMPT_HEAD}>{label}</TableHead>
           ))}
         </TableRow>
@@ -424,10 +424,10 @@ function AttemptsTable({ row }: { row: RequestRow }) {
             const delayMs = Number(retry?.delayMs)
             const delay = Number.isFinite(delayMs) && delayMs > 0
               ? (delayMs >= 1000
-                  ? t('，{n}秒后重试', { n: Math.round(delayMs / 1000) })
-                  : t('，{n}毫秒后重试', { n: Math.round(delayMs) }))
+                  ? t(', retry in {n}s', { n: Math.round(delayMs / 1000) })
+                  : t(', retry in {n}ms', { n: Math.round(delayMs) }))
               : ''
-            return `${String(retry?.reason || t('未知原因'))}${delay}`
+            return `${String(retry?.reason || t('Unknown reason'))}${delay}`
           }).join('\n')
           const notice = String(item?.notice ?? '').trim()
           // 体积：上游那两道墙都按请求体字节判（413 / PARSE_REQUEST_DATA_EXCEPTION），
@@ -440,13 +440,13 @@ function AttemptsTable({ row }: { row: RequestRow }) {
                 : `${bodyRaw} B`
             : '—'
           const bodyTitle = Number.isFinite(bodyRaw) && bodyRaw > 0
-            ? t('实际发给上游 {bytes} 字节', { bytes: bodyRaw.toLocaleString() })
+            ? t('{bytes} bytes actually sent upstream', { bytes: bodyRaw.toLocaleString() })
             : undefined
           return (
             <TableRow key={index} className={NO_HOVER}>
               <TableCell className={ATTEMPT_CELL}>{index + 1}</TableCell>
               <TableCell className={ATTEMPT_CELL}>
-                {providerName(item) || (item?.provider ? String(item.provider) : t('未知'))}
+                {providerName(item) || (item?.provider ? String(item.provider) : t('Unknown'))}
               </TableCell>
               <TableCell className={ATTEMPT_CELL}>{item?.account ? String(item.account) : '—'}</TableCell>
               <TableCell className={ATTEMPT_CELL}>{attemptResult(item)}</TableCell>
@@ -454,7 +454,7 @@ function AttemptsTable({ row }: { row: RequestRow }) {
                 {bodyText}
               </TableCell>
               <TableCell className={`${ATTEMPT_CELL} whitespace-nowrap`} title={retryTitle || undefined}>
-                {retries.length ? t('↻ {n} 次', { n: retries.length }) : '-'}
+                {retries.length ? t('↻ {n} times', { n: retries.length }) : '-'}
               </TableCell>
               <TableCell className={ATTEMPT_CELL}>{notice || '—'}</TableCell>
             </TableRow>
@@ -463,7 +463,7 @@ function AttemptsTable({ row }: { row: RequestRow }) {
         {details.length < attempts ? (
           <TableRow className={NO_HOVER}>
             <TableCell colSpan={7} className={`${ATTEMPT_CELL} text-muted-foreground`}>
-              {t('另有 {missing} 次尝试未记录明细（只保留最早的 {kept} 条）', {
+              {t('{missing} more attempts have no details recorded (only the earliest {kept} are kept)', {
                 missing: attempts - details.length, kept: details.length,
               })}
             </TableCell>
@@ -490,7 +490,7 @@ export function RequestRoutePane({ row }: { row: RequestRow & { route: RouteDeci
         accountId={String(row.accountId || '')} accountName={String(row.accountName || '')} />
       <Button variant='outline' size='sm' onClick={() => {
         void window.wbRoutingPanel?.openReplay(row as unknown as ReplayRow)
-      }}>{t('在路由页查看')}</Button>
+      }}>{t('View on the Routing page')}</Button>
     </div>
   )
 }
@@ -500,66 +500,66 @@ export function RequestRoutePane({ row }: { row: RequestRow & { route: RouteDeci
 export function RequestDetailPane({ row }: { row: RequestRow | null }) {
   // 列表在点开前恰好刷新过：行对象按 id 反查不到。详情标签只吃 row，
   // 没有可显示的数据 —— 说清原因让用户关掉重开，比一片空字段诚实
-  if (!row) return <Empty text={t('列表数据已刷新，请重试（关闭后重新打开这条详情）')} />
+  if (!row) return <Empty text={t('List data has been refreshed; please try again (close and reopen this detail)')} />
   const account = String(row.accountName ?? '').trim()
   const speed = fmtTokensPerSecond(row)
   return (
     // 值列基色打在 table 上靠继承（继承永远输给元素上的直接声明），格内的错误红 / 成功绿不会被压住
     <Table className='text-[12.5px] text-subtle [&_tr:last-child>td]:border-b-0 [&_tr:last-child>th]:border-b-0'>
       <TableBody>
-        <Field label={t('时间')}>{fmtTime(row.ts)}</Field>
-        <Field label={t('状态')}><StatusCell row={row} /></Field>
-        <Field label={t('耗时')}>
+        <Field label={t('Time')}>{fmtTime(row.ts)}</Field>
+        <Field label={t('Status')}><StatusCell row={row} /></Field>
+        <Field label={t('Duration')}>
           {/* 进行中显示已用时：首响还没发生，不写假数字（与列表同款） */}
           {isRunning(row) ? (
             <>
               {fmtElapsed(row.ts)}
-              <span className='text-[11.5px] text-muted-foreground'>{t('（请求仍在转发中）')}</span>
+              <span className='text-[11.5px] text-muted-foreground'>{t('(request is still being forwarded)')}</span>
             </>
           ) : (
-            t('{duration} / 首帧 {first}', {
+            t('{duration} / TTFB {first}', {
               duration: fmtDuration(row.durationMs), first: fmtFirstResponse(row.firstResponseMs),
             })
           )}
         </Field>
-        <Field label={t('重试次数')}>{String(Number(row.attempts) || 1)}</Field>
+        <Field label={t('Retries')}>{String(Number(row.attempts) || 1)}</Field>
         <Field label='API Key'>{requestApiKeyLabel(row, t)}</Field>
-        <Field label={t('来源客户端')}><ClientIdentificationDetail entry={row} api={clientIdentificationApi} t={t} /></Field>
-        <Field label={t('模型')}><ModelCell row={row} /></Field>
-        {visionDetail(row.route) ? <Field label={t('图片兼容')}><VisionRequestDetail route={row.route} t={t} /></Field> : null}
-        <Field label={t('提供商')}>
+        <Field label={t('The source client')}><ClientIdentificationDetail entry={row} api={clientIdentificationApi} t={t} /></Field>
+        <Field label={t('Model')}><ModelCell row={row} /></Field>
+        {visionDetail(row.route) ? <Field label={t('Image compatibility')}><VisionRequestDetail route={row.route} t={t} /></Field> : null}
+        <Field label={t('Provider')}>
           {providerName(row) || '—'}
-          {account ? <span className='text-[11.5px] text-muted-foreground'>{t('（账号：{account}）', { account })}</span> : null}
+          {account ? <span className='text-[11.5px] text-muted-foreground'>{t('(Account: {account})', { account })}</span> : null}
         </Field>
-        <Field label={t('令牌')}>
-          {t('输入 {input} · 输出 {output} · 总计 {total} · 缓存读 {cache}', {
+        <Field label={t('Tokens')}>
+          {t('Input {input} · Output {output} · Total {total} · Cache reads {cache}', {
             input: fmtTokens(row.promptTokens),
             output: fmtTokens(row.completionTokens),
             total: fmtTokens(row.totalTokens),
             cache: fmtTokens(row.cacheReadTokens),
           })}
         </Field>
-        <Field label={t('速度')}><span title={SPEED_TIP}>{isRunning(row) ? '—' : speed || '—'}</span></Field>
+        <Field label={t('Speed')}><span title={SPEED_TIP}>{isRunning(row) ? '—' : speed || '—'}</span></Field>
         {/* 测试发起的请求**按需多一行**：它是这一条明细的性质（走的是真实转发链路、但不进报表），
             正常转发的行不必为此多读一行「正常转发」 —— 那种字段每个租户都有时等于没有 */}
         {row.isTest ? (
-          <Field label={t('来源')}>
+          <Field label={t('Source')}>
             <Badge variant='brand' shape='tag'
-              title={t('面板内发起的模型调用，消耗额度并记录 Key，不计入生产报表')}>
+              title={t('Model call started from the panel; uses quota and records the API Key, but is excluded from production reports')}>
               {requestClientLabel(row, t)}
             </Badge>
           </Field>
         ) : null}
-        <Field label={t('错误')}>
+        <Field label={t('Error')}>
           {row.error ? (
             <div className='flex items-center gap-2'>
               <span className='max-h-40 min-w-0 flex-1 overflow-auto whitespace-pre-wrap text-destructive [overflow-wrap:anywhere]'>{String(row.error)}</span>
-              <Button variant='outline' size='xs' data-copy={String(row.error)}>{t('复制')}</Button>
+              <Button variant='outline' size='xs' data-copy={String(row.error)}>{t('Copy')}</Button>
             </div>
           ) : '—'}
         </Field>
-        <Field label={t('尝试明细')}><AttemptsTable row={row} /></Field>
-        <Field label={t('敏感词')}>
+        <Field label={t('Attempt details')}><AttemptsTable row={row} /></Field>
+        <Field label={t('Sensitive words')}>
           {/* 命中标签（与列表「敏」标签同一套紫，这里展开写词与次数） */}
           {Array.isArray(row.sensitiveHits) && row.sensitiveHits.length ? (
             <span className='inline-flex flex-wrap gap-1.5'>
@@ -575,7 +575,7 @@ export function RequestDetailPane({ row }: { row: RequestRow | null }) {
     </Table>
   )
 }
-/* ─── 弹窗本体 ───────────────────────────────── */
+/* ─── The dialog body───────────────────────────────── */
 
 type RequestDetailProps = {
   id: string
@@ -616,7 +616,7 @@ function RequestDetail({ id, row, token, onClose }: RequestDetailProps) {
     } catch (error) {
       if (isStale()) return
       setRaw('gone')
-      console.warn('读取原始正文失败（预览对话显示空态）:', errorMessage(error))
+      console.warn('Failed to read the raw body (preview chat shows the empty state):', errorMessage(error))
     }
   }
 
@@ -633,14 +633,14 @@ function RequestDetail({ id, row, token, onClose }: RequestDetailProps) {
       }
       setDebug({ data })
       setHint(data.truncated
-        ? t('这条报文由旧版本截断保存，缺失内容无法恢复')
-        : t('内容按原样保存，请求头中的凭据字段已替换为 [redacted]'))
+        ? t('This payload was truncated by an older version; missing content cannot be recovered')
+        : t('Content is saved as-is; credential fields in the request headers have been replaced with [redacted]'))
     } catch (error) {
       if (isStale()) return
       setDebug('gone')
       // 开关只影响之后的新请求，当前记录缺失的正文无法补录。
-      setHint(t('开启调试模式后仅记录新请求，历史对话无法补录；关闭不会删除已有记录。'))
-      console.warn('读取调试报文失败（原始报文标签隐藏）:', errorMessage(error))
+      setHint(t('Debug mode records only new requests; past conversations cannot be recovered. Turning it off does not delete existing records.'))
+      console.warn('Failed to read the debug payload (the raw-payload tab is hidden):', errorMessage(error))
     }
   }
 
@@ -687,9 +687,9 @@ function RequestDetail({ id, row, token, onClose }: RequestDetailProps) {
     if (!ask) return
     // 危险操作走自绘确认弹窗（原生 confirm 在 Tauri WebView 里不弹窗，见 app.js）
     const ok = await ask({
-      title: t('终止请求'),
-      html: t('确定终止这条正在转发的请求？<br>上游连接会立即断开，明细将记为「请求已被手动终止」。'),
-      okText: t('终止'),
+      title: t('Abort request'),
+      html: t('Abort this request that is being forwarded?<br>The upstream connection will be closed immediately and the detail will be recorded as "Request manually aborted".'),
+      okText: t('Abort'),
       okClass: 'danger',
     })
     if (!ok) return
@@ -700,11 +700,11 @@ function RequestDetail({ id, row, token, onClose }: RequestDetailProps) {
       await api().terminateStatsRequest(id)
       if (!aliveRef.current) return
       setTerminate('accepted')
-      setHint(t('已受理终止：上游连接已断开，列表稍后刷新为「请求已被手动终止」'))
+      setHint(t('Abort accepted: the upstream connection is closed; the list will refresh to "Request manually aborted" shortly'))
     } catch (error) {
       if (!aliveRef.current) return
       setTerminate('idle')
-      setHint(t('终止失败：{error}', { error: errorMessage(error) }))
+      setHint(t('Abort failed: {error}', { error: errorMessage(error) }))
     }
   }
 
@@ -722,12 +722,12 @@ function RequestDetail({ id, row, token, onClose }: RequestDetailProps) {
       {/* 旧实现是 .modal-wide（min(920px, 100%)），这里覆盖 DialogContent 的默认宽度 */}
       <DialogContent className='w-[min(920px,calc(100vw-48px))]'>
         <DialogHeader>
-          <DialogTitle>{t('请求详情')}</DialogTitle>
+          <DialogTitle>{t('Request details')}</DialogTitle>
         </DialogHeader>
         <DialogBody ref={bodyRef} className='gap-3'>
           <div className='flex flex-wrap items-center gap-2'>
             <SegmentedControl options={tabOptions} value={active} onValueChange={switchTab}
-              aria-label={t('详情内容')} className='self-start' />
+              aria-label={t('Detail content')} className='self-start' />
             <RequestDebugSwitch />
           </div>
           {/* 四个 pane 常驻（用 hidden 切显示，不卸载）：切换标签时 pane 的 DOM 与展开态
@@ -750,11 +750,11 @@ function RequestDetail({ id, row, token, onClose }: RequestDetailProps) {
           {/* 终止只在行仍进行中时出现（旧实现用 hidden 切，这里条件渲染） */}
           {isRunning(row) ? (
             <Button variant='destructive' disabled={terminate !== 'idle'}
-              onClick={() => { void handleTerminate() }} title={t('断开上游连接，明细记为「请求已被手动终止」')}>
-              {t('终止请求')}
+              onClick={() => { void handleTerminate() }} title={t('Disconnects the upstream connection and records the detail as "Request manually aborted"')}>
+              {t('Abort request')}
             </Button>
           ) : null}
-          <Button variant='outline' onClick={onClose}>{t('关闭')}</Button>
+          <Button variant='outline' onClick={onClose}>{t('Close')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

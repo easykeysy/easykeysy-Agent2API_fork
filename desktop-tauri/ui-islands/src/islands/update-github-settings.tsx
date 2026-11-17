@@ -8,22 +8,22 @@ import { GithubAccessSettingsPanel } from './update-github-access'
 import { t } from '../i18n'
 
 function tokenStatus(token: UpdateTokenStatus | null): { badge: React.ReactNode; hint: string } {
-  if (!token) return { badge: <Badge shape='tag' variant='outline'>{t('读取中')}</Badge>, hint: '' }
+  if (!token) return { badge: <Badge shape='tag' variant='outline'>{t('Loading')}</Badge>, hint: '' }
   if (token.error) return {
-    badge: <Badge shape='tag' variant='destructive' title={token.error}>{t('无法解密')}</Badge>,
-    hint: t('重新粘贴保存一次即可自愈'),
+    badge: <Badge shape='tag' variant='destructive' title={token.error}>{t('Cannot decrypt')}</Badge>,
+    hint: t('Paste and save it again to recover'),
   }
   if (token.filled && token.origin === 'stored') return {
-    badge: <Badge shape='tag' variant='success'>{t('已填写')}</Badge>,
-    hint: t('已加密存储在本地，不显示具体值；粘贴新令牌可覆盖'),
+    badge: <Badge shape='tag' variant='success'>{t('Saved')}</Badge>,
+    hint: t('Stored encrypted locally and never displayed; paste a new Token to overwrite it'),
   }
   if (token.filled) return {
-    badge: <Badge shape='tag' variant='secondary'>{t('环境变量')}</Badge>,
-    hint: t('已配置 GITHUB_TOKEN 环境变量，界面保存的令牌优先于它'),
+    badge: <Badge shape='tag' variant='secondary'>{t('Environment variable')}</Badge>,
+    hint: t('The GITHUB_TOKEN environment variable is set; a Token saved in the UI takes precedence over it'),
   }
   return {
-    badge: <Badge shape='tag' variant='outline'>{t('未填写')}</Badge>,
-    hint: t('填写后检查限额 60 → 5000 次/小时（创建令牌无需勾选任何权限）'),
+    badge: <Badge shape='tag' variant='outline'>{t('Not set')}</Badge>,
+    hint: t('Fill it in to raise the check rate limit from 60 to 5000 requests/hour (no scopes needed to create the Token)'),
   }
 }
 
@@ -47,7 +47,7 @@ export function GithubUpdateSettings({ plugin = false, pane }: {
     })
     void shared().workbuddyDesktop?.getUpdateToken().then(value => {
       if (alive) setToken(value ?? null)
-    }).catch(error => toast(t('读取设置失败：{error}', { error: errorMessage(error) }), 'err'))
+    }).catch(error => toast(t('Could not load settings: {error}', { error: errorMessage(error) }), 'err'))
     return () => { alive = false }
   }, [])
 
@@ -76,15 +76,15 @@ export function GithubUpdateSettings({ plugin = false, pane }: {
     setBusy(true)
     try {
       const result = await shared().workbuddyDesktop?.setUpdateToken({ token: clear ? null : value })
-      if (!result) throw new Error(t('请求失败'))
+      if (!result) throw new Error(t('Request failed'))
       setToken(result)
       setDraft('')
-      if (result.saved === false) toast(t('令牌已生效，但写入磁盘失败（重启后会丢失）'), 'err')
+      if (result.saved === false) toast(t('The token is active but could not be written to disk (it will be lost on restart)'), 'err')
       else toast(clear
-        ? t('✅ 已清除界面保存的 GitHub 令牌（环境变量若配置过则继续生效）')
-        : t('✅ GitHub 令牌已保存（加密存储，界面不再显示）'))
+        ? t('✅ Removed the saved GitHub token (an environment variable, if set, still applies)')
+        : t('✅ GitHub token saved (stored encrypted, never shown again)'))
     } catch (error) {
-      toast(t('保存失败：{error}', { error: errorMessage(error) }), 'err')
+      toast(t('Save failed: {error}', { error: errorMessage(error) }), 'err')
     } finally { setBusy(false) }
   }
 
@@ -94,20 +94,20 @@ export function GithubUpdateSettings({ plugin = false, pane }: {
     <>
       <div hidden={pane !== 'network'}>
         <div className='settings-dlg-pane-head'>
-          <h3>{t('网络')}</h3>
-          {plugin ? <p>{t('与软件更新共用出网代理和 GitHub 凭证，修改任意一处都会同步生效。')}</p> : null}
+          <h3>{t('Network')}</h3>
+          {plugin ? <p>{t('Shares the egress proxy and GitHub credentials with software updates. Changes in either place take effect in both.')}</p> : null}
         </div>
         <div className='settings-dlg-fields'>
           <GithubAccessSettingsPanel />
           <div className='h-px bg-hairline' />
           <div>
-            <div className='text-[13px] font-semibold text-foreground'>{t('出网代理')}</div>
+            <div className='text-[13px] font-semibold text-foreground'>{t('Outbound proxy')}</div>
             <div className='mt-1.5'>
               <Select value={pick.current} disabled={proxyBusy}
                 onValueChange={value => void handlePick(String(value))}>
                 <SelectTrigger className={cn('w-full', pick.broken && 'border-destructive-bd')}
-                  title={pick.title} aria-label={t('更新出网代理')}>
-                  <SelectValue className='min-w-0 truncate'>{pick.selected?.label || t('直连')}</SelectValue>
+                  title={pick.title} aria-label={t('Outbound proxy for updates')}>
+                  <SelectValue className='min-w-0 truncate'>{pick.selected?.label || t('Direct')}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {pick.items.map(item => (
@@ -121,8 +121,8 @@ export function GithubUpdateSettings({ plugin = false, pane }: {
       </div>
       <div hidden={pane !== 'token'}>
         <div className='settings-dlg-pane-head'>
-          <h3>{t('GitHub 令牌')}</h3>
-          {plugin ? <p>{t('与软件更新共用出网代理和 GitHub 凭证，修改任意一处都会同步生效。')}</p> : null}
+          <h3>{t('GitHub Token')}</h3>
+          {plugin ? <p>{t('Shares the egress proxy and GitHub credentials with software updates. Changes in either place take effect in both.')}</p> : null}
         </div>
         <div className='settings-dlg-fields'>
           <div className='flex flex-wrap items-center gap-2'>
@@ -130,24 +130,24 @@ export function GithubUpdateSettings({ plugin = false, pane }: {
           </div>
           <div className='flex flex-wrap items-center gap-2'>
             <Input type='password' className='min-w-0 flex-1' autoComplete='new-password' spellCheck={false}
-              aria-label={t('GitHub 令牌')}
+              aria-label={t('GitHub Token')}
               placeholder={token?.filled && token.origin !== 'env'
-                ? t('已填写（粘贴新令牌可覆盖）') : t('粘贴 GitHub 令牌（ghp_… / github_pat_…）')}
+                ? t('Filled in (paste a new token to replace it)') : t('Paste a GitHub token (ghp_… / github_pat_…)')}
               value={draft} onChange={event => setDraft(event.currentTarget.value)}
               onKeyDown={event => {
                 if (event.key === 'Enter') { event.preventDefault(); void saveToken() }
               }} />
-            <Button size='sm' disabled={busy || !draft.trim()} onClick={() => void saveToken()}>{t('保存')}</Button>
+            <Button size='sm' disabled={busy || !draft.trim()} onClick={() => void saveToken()}>{t('Save')}</Button>
             {stored ? <Button variant='outline' size='sm' disabled={busy} onClick={() => void saveToken(true)}>
-              {t('清除')}
+              {t('Clear')}
             </Button> : null}
           </div>
           <div>
             <Button variant='outline' size='sm'
-              title={t('在默认浏览器中打开 GitHub 的令牌创建页（备注已预设，无需勾选任何权限，直接点 Generate token）')}
+              title={t('Open GitHub\'s Token creation page in your default browser (the note is prefilled, no scopes need to be selected—just click Generate token)')}
               onClick={() => void openExternal('https://github.com/settings/tokens/new?description='
-                + encodeURIComponent('Agent2API 更新检查'))}>
-              {t('打开 GitHub 令牌页面')}
+                + encodeURIComponent('Agent2API Update check'))}>
+              {t('Open GitHub Token page')}
             </Button>
           </div>
         </div>

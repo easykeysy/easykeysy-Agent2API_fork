@@ -66,14 +66,14 @@
         verify: '/api/session/login/sms/verify',
         ticketKey: 'deviceId',
         phoneRe: /^1[2-9]\d{9}$/,
-        sentHint: wbI18n.t('验证码已发送。收到后填入下方并点「登录并添加」'),
+        sentHint: wbI18n.t('Code sent. Enter it below and click "Sign in and add"'),
       },
       loomy: {
         send: '/api/session/login/loomy/sms/send',
         verify: '/api/session/login/loomy/sms/verify',
         ticketKey: 'msgid',
         phoneRe: /^1[3-9]\d{9}$/,
-        sentHint: wbI18n.t('验证码已发送。收到后填入下方并点「登录并添加」'),
+        sentHint: wbI18n.t('Code sent. Enter it below and click "Sign in and add"'),
       },
       // Tabbit 国内站：发码时上游返回 `{uuid}`，登录必须带同一个 uuid。
       // 国际站没有短信登录（上游灰度 403），因此这条只挂在 `tabbit` 上。
@@ -85,10 +85,10 @@
         ticketKey: 'uuid',
         phoneRe: /^1[2-9]\d{9}$/,
         captchaPage: true,
-        sentHint: wbI18n.t('验证码已发送。收到后填入下方并点「登录并添加」'),
+        sentHint: wbI18n.t('Code sent. Enter it below and click "Sign in and add"'),
       },
       // KukuAI：百度通行证的发码要在官方页面里点（风控签名只有页面能生成），
-      // 因此发码/登录都由**壳开的登录窗口**代做 —— send/verify 两个路径只是
+      // So the code is sent /登录都由**壳开的登录窗口**代做 —— send/verify 两个路径只是
       // 为了触发桥接层（endsWith('/send') / '/verify' 判定），桥里按 provider
       // 分派到壳命令 login_kuku_sms_send / login_kuku_sms_verify（见 bridge.rs
       // 的 kuku 分支）。`ticketKey: 'state'` 让发码返回的 state 留在闭包里，
@@ -98,7 +98,7 @@
         verify: '/api/session/login/kuku/sms/verify',
         ticketKey: 'state',
         phoneRe: /^1[2-9]\d{9}$/,
-        sentHint: wbI18n.t('验证码已发送，请查看手机短信。填入下方并点「登录并添加」即完成登录'),
+        sentHint: wbI18n.t('Code sent; check your SMS. Enter it below and click "Sign in and add" to finish signing in'),
       },
     };
     // 未登记的家按 provider id 推导端点，**不要退回 AutoClaw**：
@@ -109,7 +109,7 @@
       verify: `/api/session/login/${prefix}/sms/verify`,
       ticketKey: prefix === 'tabbit' ? 'uuid' : 'deviceId',
       phoneRe: /^1[2-9]\d{9}$/,
-      sentHint: wbI18n.t('验证码已发送。收到后填入下方并点「登录并添加」'),
+      sentHint: wbI18n.t('Code sent. Enter it below and click "Sign in and add"'),
     };
     const PHONE_RE = profile.phoneRe;
 
@@ -151,17 +151,17 @@
       window.workbuddyDesktop.onKukuSmsStatus(payload => {
         const status = payload && payload.status;
         const textByStatus = {
-          opening: wbI18n.t('正在打开百度登录页…'),
-          filling: wbI18n.t('已填写手机号，正在发送验证码…'),
-          sending: wbI18n.t('已点发送，等待短信…'),
-          sent: wbI18n.t('验证码已发送，请查看手机短信'),
-          captcha: wbI18n.t('需要图形验证码：登录窗口已弹出，请填写后继续'),
-          timeout: wbI18n.t('发送未确认：登录窗口已弹出，请在弹出的窗口中手动完成登录'),
+          opening: wbI18n.t('Opening the Baidu sign-in page…'),
+          filling: wbI18n.t('Phone number entered; sending the code…'),
+          sending: wbI18n.t('Sent; waiting for the SMS…'),
+          sent: wbI18n.t('Code sent; check your SMS'),
+          captcha: wbI18n.t('Captcha required: the sign-in window has opened; fill it in to continue'),
+          timeout: wbI18n.t('Send unconfirmed: the sign-in window has opened; complete the sign-in manually in that window'),
         };
         const text = textByStatus[status];
         if (!text) return;
         setHint(text);
-        if (status === 'sent') window.wbApp.toast(wbI18n.t('验证码已发送，请查看手机短信'));
+        if (status === 'sent') window.wbApp.toast(wbI18n.t('Code sent; check your SMS'));
         if (status === 'captcha' || status === 'timeout') window.wbApp.toast(text, 'err');
       });
     }
@@ -182,7 +182,7 @@
     const describeError = error => {
       if (error instanceof Error && error.message) return error.message;
       const text = String(error ?? '').trim();
-      return text || wbI18n.t('未知错误');
+      return text || wbI18n.t('Unknown error');
     };
 
     /**
@@ -204,7 +204,7 @@
       }
       const internals = window.__TAURI_INTERNALS__;
       if (!internals || typeof internals.invoke !== 'function') {
-        return Promise.reject(new Error(wbI18n.t('桌面运行时不可用（Tauri 未初始化）')));
+        return Promise.reject(new Error(wbI18n.t('Desktop runtime unavailable (Tauri not initialized)')));
       }
       return internals.invoke('api_request', {
         request: { method: 'POST', path, body: payload },
@@ -217,7 +217,7 @@
     /**
      * 手机号 / 验证码的本地校验（与后端同一条规则，先在界面上挡一次）。
      *
-     * ── 为什么只有国内那一条规则（国际版分支已删）───────────────
+     * ── Why only that one for mainland China一条规则（国际版分branch deleted)───────────────
      * 这条链路现在只服务 AutoClaw **国内版**（`1[2-9]` 开头的 11 位大陆号）：
      * 国际版的手机验证码入口已从添加账号弹窗移除，它的登录方式只有
      * Zai / Google 网页登录（见 add-provider-forms.js 里那一家的配置）。
@@ -259,7 +259,7 @@
       const button = $(`${prefix}-sms-send`);
       if (!button) return;
       button.disabled = false;
-      button.textContent = wbI18n.t('获取验证码');
+      button.textContent = wbI18n.t('Get code');
     }
 
     /**
@@ -283,7 +283,7 @@
           return;
         }
         button.disabled = true;
-        button.textContent = wbI18n.t('{seconds}s 后重发', { seconds: cooldownLeft });
+        button.textContent = wbI18n.t('Resend in {seconds}s', { seconds: cooldownLeft });
         cooldownLeft -= 1;
       };
       paint();
@@ -299,14 +299,14 @@
      * 这条路断了，别在这里把整次登录判死。
      */
     const openVerifyPage = url => {
-      if (!url) return Promise.reject(new Error(wbI18n.t('上游没有给出验证页面地址')));
+      if (!url) return Promise.reject(new Error(wbI18n.t('The provider did not return a verification page address')));
       const bridge = window.workbuddyDesktop;
       if (typeof bridge?.openVerifyPage === 'function') {
         const opened = bridge.openVerifyPage(url);
         return Promise.resolve(opened);
       }
       const opened = window.open(url, '_blank');
-      if (!opened) return Promise.reject(new Error(wbI18n.t('浏览器拦截了弹窗')));
+      if (!opened) return Promise.reject(new Error(wbI18n.t('The browser blocked the pop-up')));
       try { opened.opener = null; } catch { /* 跨域时改不了，忽略 */ }
       return Promise.resolve();
     };
@@ -332,17 +332,17 @@
       if (!url) {
         // 上游说要验证却没给地址（或被拒收）：保留 pending，用户再点一次就是
         // 重新发码，可能拿到一个新的 requestCode。
-        if (button) { button.disabled = false; button.textContent = wbI18n.t('获取验证码'); }
-        setHint(wbI18n.t('上游要求人机验证，但没有给出验证页面地址，请稍后重试'), true);
+        if (button) { button.disabled = false; button.textContent = wbI18n.t('Get code'); }
+        setHint(wbI18n.t('The provider requires human verification but returned no verification page address. Please try again later'), true);
         return;
       }
-      const message = String(data?.captcha?.message || wbI18n.t('需要进行人机验证'));
-      if (button) { button.disabled = false; button.textContent = wbI18n.t('已完成验证，继续发送'); }
-      setHint(wbI18n.t('{message}：请在打开的页面完成滑块，完成后回到这里点「已完成验证，继续发送」', { message }));
+      const message = String(data?.captcha?.message || wbI18n.t('Human verification required'));
+      if (button) { button.disabled = false; button.textContent = wbI18n.t('Verification done, send again'); }
+      setHint(wbI18n.t('{message}: complete the slider in the page that just opened, then come back here and click "Verification done, send again"', { message }));
       try {
         await openVerifyPage(url);
       } catch {
-        setHint(wbI18n.t('{message}：请手动打开验证页面 {url}，完成后回到这里点「已完成验证，继续发送」', { message, url }), true);
+        setHint(wbI18n.t('{message}: open the verification page {url} manually, then come back here and click "Verification done, send again"', { message, url }), true);
       }
     }
 
@@ -353,7 +353,7 @@
       const resuming = captchaPending;
       if (!resuming && cooldownLeft > 0) return;
       const phone = phoneOf();
-      if (!PHONE_RE.test(phone)) { window.wbApp.toast(wbI18n.t('请填写 11 位大陆手机号'), 'err'); return; }
+      if (!PHONE_RE.test(phone)) { window.wbApp.toast(wbI18n.t('Please enter an 11-digit mainland China mobile number",'), 'err'); return; }
       const button = $(`${prefix}-sms-send`);
       try {
         if (!resuming || !proxySelected) {
@@ -367,7 +367,7 @@
       busy = true;
       config.onBusyChange?.(true);
       captchaPending = false;
-      if (button) { button.disabled = true; button.textContent = wbI18n.t('发送中…'); }
+      if (button) { button.disabled = true; button.textContent = wbI18n.t('Sending…'); }
       setHint('');
       try {
         // provider 照带：后端按它分派（AutoClaw 两地区 / Loomy 各一条链路），
@@ -391,14 +391,14 @@
         // 放进模块级状态 —— 它只在这两次点击之间有意义，放进模块级会在用户
         // 切换提供商后串味。
         ticket = data?.[profile.ticketKey] || '';
-        window.wbApp.toast(wbI18n.t('验证码已发送，请查看短信'));
+        window.wbApp.toast(wbI18n.t('Code sent; check your messages'));
         setHint(profile.sentHint);
         // 成功也进冷却：官方口径（见 RESEND_COOLDOWN_SECONDS 的说明）
         startCooldown();
       } catch (error) {
         const reason = describeError(error);
-        setHint(wbI18n.t('发送失败：{message}', { message: reason }), true);
-        window.wbApp.toast(wbI18n.t('发送失败：{message}', { message: reason }), 'err');
+        setHint(wbI18n.t('Send failed: {message}', { message: reason }), true);
+        window.wbApp.toast(wbI18n.t('Send failed: {message}', { message: reason }), 'err');
         // ── 为什么失败也要倒计时 ───────────────────────────────────
         // 「过于频繁」（上游码 630101）正是最该冷却的一种失败：不打冷却的话
         // 用户会继续点，每次都稳定失败且可能延长服务端的限制窗口。
@@ -416,12 +416,12 @@
       if (busy) return;
       const phone = phoneOf();
       const code = codeOf();
-      if (!PHONE_RE.test(phone)) { window.wbApp.toast(wbI18n.t('请填写 11 位大陆手机号'), 'err'); return; }
-      if (!CODE_RE.test(code)) { window.wbApp.toast(wbI18n.t('请填写 6 位数字验证码'), 'err'); return; }
+      if (!PHONE_RE.test(phone)) { window.wbApp.toast(wbI18n.t('Please enter an 11-digit mainland China mobile number",'), 'err'); return; }
+      if (!CODE_RE.test(code)) { window.wbApp.toast(wbI18n.t('Enter the 6-digit code'), 'err'); return; }
       const button = $(`${prefix}-sms-submit`);
       busy = true;
       config.onBusyChange?.(true);
-      if (button) { button.disabled = true; button.textContent = wbI18n.t('登录中…'); }
+      if (button) { button.disabled = true; button.textContent = wbI18n.t('Signing in…'); }
       setHint('');
       try {
         const payload = { phone, code, provider: prefix };
@@ -440,12 +440,12 @@
         await config.onSuccess?.(data);
       } catch (error) {
         const reason = describeError(error);
-        setHint(wbI18n.t('登录失败：{message}', { message: reason }), true);
-        window.wbApp.toast(wbI18n.t('登录失败：{message}', { message: reason }), 'err');
+        setHint(wbI18n.t('Sign-in failed: {message}', { message: reason }), true);
+        window.wbApp.toast(wbI18n.t('Sign-in failed: {message}', { message: reason }), 'err');
       } finally {
         busy = false;
         config.onBusyChange?.(false);
-        if (button) { button.disabled = false; button.textContent = wbI18n.t('登录并添加'); }
+        if (button) { button.disabled = false; button.textContent = wbI18n.t('Sign in and add'); }
       }
     }
 

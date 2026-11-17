@@ -51,12 +51,12 @@ export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 /** 模式的展示文案。**写成字面量**（不放进常量表再 t(常量)）：
  *  i18n 扫描器只认 t 的字面量首参，间接调用提不到键。 */
 function modeLabel(mode: PermissionMode): string {
-  return mode === 'full' ? t('完全访问') : t('变更前确认')
+  return mode === 'full' ? t('Full access') : t('Confirm before changes')
 }
 
 /** 等级展示：内部存的是小写，界面统一显示成首字母大写（Max / High…） */
 function levelLabel(level: string | null): string {
-  if (!level) return t('跟随模型')
+  if (!level) return t('Follow the model')
   return level === 'xhigh' ? 'xHigh' : level.charAt(0).toUpperCase() + level.slice(1)
 }
 
@@ -109,8 +109,8 @@ export function AssistantComposer(props: Props) {
   const disabled = busy || awaiting
   const canSend = !disabled && modelAvailable && (Boolean(draft.trim()) || images.length > 0 || files.length > 0)
   const selected = selectedModel(models, model)
-  const displayModel = model || t('选择模型…')
-  const displayLevel = model && modelsReady && !modelAvailable ? t('不可用') : levelLabel(reasoning)
+  const displayModel = model || t('Choose a model…')
+  const displayLevel = model && modelsReady && !modelAvailable ? t('Unavailable') : levelLabel(reasoning)
   /** 有图但当前模型不收 —— 只提示，不拦（用户可能就是想试试，网关会回明确错误） */
   const imageWarning = images.length > 0 && !modelSupportsImages
 
@@ -176,8 +176,8 @@ export function AssistantComposer(props: Props) {
           <div className='asst-atts'>
             {images.map((url, index) => (
               <div className='asst-att' key={index}>
-                <img className='asst-att-img' src={url} alt={t('图片 {n}', { n: index + 1 })} />
-                <Button size='icon-2xs' variant='outline' type='button' className='asst-att-x rounded-full' title={t('移除')} aria-label={t('移除')}
+                <img className='asst-att-img' src={url} alt={t('Image {n}', { n: index + 1 })} />
+                <Button size='icon-2xs' variant='outline' type='button' className='asst-att-x rounded-full' title={t('Remove')} aria-label={t('Remove')}
                   onClick={() => onRemoveImage(index)}>✕</Button>
               </div>
             ))}
@@ -191,7 +191,7 @@ export function AssistantComposer(props: Props) {
                 <FileIcon size={15} />
                 <span className='asst-file-name'>{file.name}</span>
                 <span className='asst-file-size'>{formatFileSize(file.size)}</span>
-                <Button size='icon-2xs' variant='ghost' type='button' className='asst-file-x rounded-full' title={t('移除')} aria-label={t('移除')}
+                <Button size='icon-2xs' variant='ghost' type='button' className='asst-file-x rounded-full' title={t('Remove')} aria-label={t('Remove')}
                   onClick={() => onRemoveFile(index)}>✕</Button>
               </div>
             ))}
@@ -205,8 +205,8 @@ export function AssistantComposer(props: Props) {
           value={draft}
           disabled={disabled}
           placeholder={disabled
-            ? t('等这一轮跑完…')
-            : t('发消息或做任务…（Enter 发送，Shift+Enter 换行，可粘贴图片或 JSON 文件）')}
+            ? t('Waiting for this turn to finish…')
+            : t('Send a message or task… (Enter to send, Shift+Enter for a new line; images and JSON files can be pasted)')}
           onChange={event => onDraftChange(event.currentTarget.value)}
           onPaste={onPaste}
           onKeyDown={event => {
@@ -220,14 +220,14 @@ export function AssistantComposer(props: Props) {
         {imageWarning && (
           <div className='asst-composer-warn'>
             <ImageIcon size={13} />
-            {imageToolsEnabled ? t('参考图会交给图片编辑工具，当前对话模型不会读取图片。') : t('当前模型没有声明图片能力，图可能发不上去。')}
+            {imageToolsEnabled ? t('Reference images are sent to the image editing tool; the current chat model will not read them.') : t('The current model has not declared image capability; the image may not go through.')}
           </div>
         )}
 
         {files.length > 0 && (
           <div className='asst-composer-warn'>
             <FileIcon size={13} />
-            {t('JSON 文件会以文本发送给当前对话模型，其中的凭证也会保存在这条会话里。')}
+            {t('JSON files are sent to the current chat model as text, and credentials in them are also saved in this conversation.')}
           </div>
         )}
 
@@ -244,8 +244,8 @@ export function AssistantComposer(props: Props) {
               event.currentTarget.value = ''
             }}
           />
-          <Button size='icon-sm' variant='outline' type='button' className='asst-round rounded-full' title={t('添加图片或 JSON 文件（也可粘贴或拖入）')}
-            aria-label={t('添加图片或文件')} onClick={() => fileRef.current?.click()}>
+          <Button size='icon-sm' variant='outline' type='button' className='asst-round rounded-full' title={t('Add images or JSON files (or paste/drop)')}
+            aria-label={t('Add image or file')} onClick={() => fileRef.current?.click()}>
             <PlusIcon size={17} />
           </Button>
 
@@ -272,14 +272,14 @@ export function AssistantComposer(props: Props) {
                   <span className='asst-mo-text'>
                     <b>{modeLabel(value)}</b>
                     <small>{value === 'full'
-                      ? t('改动类工具直接执行，不再询问')
-                      : t('改动类工具先列清单，等你点「执行」')}</small>
+                      ? t('Change-type tools execute directly, without asking anymore')
+                      : t('Change-type tools list the items first, and wait for you to click "Execute"')}</small>
                   </span>
                 </RadioGroupItem>
               ))}
               </RadioGroup>
               <p className='asst-pop-note'>
-                {t('只跳过确认，不扩大工具权限；每次执行仍会记录在对话里。')}
+                {t('only skips the confirmation; it does not expand tool permissions; each execution is still logged in the conversation.')}
               </p>
             </PopoverContent>
           </Popover>
@@ -302,12 +302,12 @@ export function AssistantComposer(props: Props) {
                 <>
                   <Button size='default' variant='ghost' type='button' className='asst-pick-row' onClick={() => { setPane('model'); onRefreshModels() }}>
                     <span className='asst-pr-ico'><LayersIcon size={14} /></span>
-                    <span className='asst-pr-k'>{t('模型')}</span>
+                    <span className='asst-pr-k'>{t('Model')}</span>
                     <span className='asst-pr-v'><span className='mono'>{displayModel}</span><MiniChevronIcon size={11} /></span>
                   </Button>
                   <Button size='default' variant='ghost' type='button' className='asst-pick-row' onClick={() => setPane('reason')}>
                     <span className='asst-pr-ico'><SlidersIcon size={14} /></span>
-                    <span className='asst-pr-k'>{t('推理等级')}</span>
+                    <span className='asst-pr-k'>{t('Reasoning level')}</span>
                     <span className='asst-pr-v'><span>{levelLabel(reasoning)}</span><MiniChevronIcon size={11} /></span>
                   </Button>
                 </>
@@ -319,18 +319,18 @@ export function AssistantComposer(props: Props) {
                     <Button size='default' variant='ghost' type='button' className='asst-back' onClick={() => setPane('root')}>
                       <ChevronIcon size={11} className='flip' />
                     </Button>
-                    <span>{t('模型')}</span>
+                    <span>{t('Model')}</span>
                     <Button size='default' variant='ghost' type='button' className='asst-back ml-auto' disabled={modelsLoading}
-                      title={t('刷新列表')} aria-label={t('刷新列表')} onClick={onRefreshModels}>↻</Button>
+                      title={t('Refresh list')} aria-label={t('Refresh listColumnTable')} onClick={onRefreshModels}>↻</Button>
                   </div>
                   <InputGroup className='mb-1.5'>
-                    <InputGroupInput autoFocus value={keyword} placeholder={t('搜索模型…')}
+                    <InputGroupInput autoFocus value={keyword} placeholder={t('Search models…')}
                       onChange={event => setKeyword(event.currentTarget.value)} />
                     <InputGroupAddon><SearchIcon size={13} /></InputGroupAddon>
                   </InputGroup>
                   <div className='asst-sub-list'>
                     {filteredModels.length === 0 && <Empty className='asst-sub-empty'>
-                      {modelsLoading ? t('正在读取可用模型…') : keyword.trim() ? t('没有匹配的模型') : t('没有可用的模型')}
+                      {modelsLoading ? t('Loading available models…') : keyword.trim() ? t('No matching models') : t('No models available')}
                     </Empty>}
                     {filteredModels.map(item => (
                       <Button aria-pressed={item.name === selected?.name} size='default' variant='ghost'
@@ -354,8 +354,8 @@ export function AssistantComposer(props: Props) {
                     <Button size='default' variant='ghost' type='button' className='asst-back' onClick={() => setPane('root')}>
                       <ChevronIcon size={11} className='flip' />
                     </Button>
-                    <span>{t('推理等级')}</span>
-                    <small>{t('模型不支持时会自动忽略')}</small>
+                    <span>{t('Reasoning level')}</span>
+                    <small>{t('they are automatically ignored when the model does not support them')}</small>
                   </div>
                   <div className='asst-sub-list'>
                     <Button aria-pressed={!reasoning} size='default' variant='ghost'
@@ -363,7 +363,7 @@ export function AssistantComposer(props: Props) {
                       className={cn('h-auto w-full justify-start whitespace-normal text-left asst-sub-item', !reasoning && 'selected')}
                       onClick={() => { onPickReasoning(null); setPickerOpen(false) }}
                     >
-                      <span>{t('跟随模型')}</span>
+                      <span>{t('Follow the model')}</span>
                       <span className='asst-sub-tail'>{!reasoning && <CheckIcon size={12} />}</span>
                     </Button>
                     {REASONING_LEVELS.map(level => (
@@ -384,11 +384,11 @@ export function AssistantComposer(props: Props) {
           </Popover>
 
           {busy ? (
-            <Button size='icon' variant='destructive' type='button' className='asst-send stop rounded-full' title={t('停止')} aria-label={t('停止')} onClick={onStop}>
+            <Button size='icon' variant='destructive' type='button' className='asst-send stop rounded-full' title={t('Stop')} aria-label={t('Stop')} onClick={onStop}>
               <StopIcon size={13} />
             </Button>
           ) : (
-            <Button size='icon' variant='default' type='button' className='asst-send rounded-full' title={t('发送')} aria-label={t('发送')}
+            <Button size='icon' variant='default' type='button' className='asst-send rounded-full' title={t('Send')} aria-label={t('Send')}
               disabled={!canSend} onClick={onSend}>
               <SendIcon size={16} />
             </Button>

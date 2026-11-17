@@ -108,7 +108,7 @@ impl DecodeError {
     /// 给日志用的一句话原因（用户可见，要能照着做）
     pub(crate) fn describe(self) -> &'static str {
         match self {
-            Self::Key => "账号加密密钥不可用或与库不匹配（account.key 缺失 / 被换过）",
+            Self::Key => "账号加密密钥不可用或与库不匹配（account.key Missing / 被换过）",
             Self::Json => "记录内容不是合法 JSON",
             Self::Shape => "记录不是一条账号（缺少 id 等必需字段）",
         }
@@ -189,7 +189,7 @@ fn warn_undecodable(context: &str, errors: &[DecodeError]) {
             context,
             kind.describe(),
             &format!(
-                "{context}：{count} 条账号记录读不出来，已跳过 —— {}。\
+                "{context}: {count} 条账号记录读不出来，已跳过 —— {}.\
                  数据仍在库里，修好之后重新读取即可恢复（不需要重新导入）。",
                 kind.describe()
             ),
@@ -254,7 +254,7 @@ pub(crate) fn load_by_id(conn: &Connection, id: &str) -> rusqlite::Result<Option
             Err(error) => Err(rusqlite::Error::FromSqlConversionFailure(
                 0,
                 rusqlite::types::Type::Text,
-                format!("账号 {id} 读不出来：{}", error.describe()).into(),
+                format!("Account {id} 读不出来：{}", error.describe()).into(),
             )),
         };
     }

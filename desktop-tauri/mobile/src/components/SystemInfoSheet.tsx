@@ -71,11 +71,11 @@ type GatewayInfo = {
 
 /** 运行形态 → 展示文案（与桌面端 system-info-pane 同一份取值表） */
 const DEPLOYMENT_LABEL: Record<string, string> = {
-  desktop: t('桌面端'),
-  'windows-service': t('Windows 服务'),
-  docker: t('Docker 容器'),
-  systemd: t('systemd 服务'),
-  foreground: t('前台运行'),
+  desktop: t('Desktop app'),
+  'windows-service': t('Windows service'),
+  docker: t('Docker container'),
+  systemd: t('systemd service'),
+  foreground: t('Foreground process'),
 }
 
 const OS_LABEL: Record<string, string> = {
@@ -122,9 +122,9 @@ function formatUptime(seconds: number | null | undefined): string {
   const days = Math.floor(total / 86400)
   const hours = Math.floor((total % 86400) / 3600)
   const minutes = Math.floor((total % 3600) / 60)
-  if (days > 0) return t('{d} 天 {h} 小时', { d: days, h: hours })
-  if (hours > 0) return t('{h} 小时 {m} 分钟', { h: hours, m: minutes })
-  return t('{m} 分钟', { m: minutes })
+  if (days > 0) return t('{d}d {h}h', { d: days, h: hours })
+  if (hours > 0) return t('{h}h {m}m', { h: hours, m: minutes })
+  return t('{m}m', { m: minutes })
 }
 
 /** 一行「键 —— 值」 */
@@ -191,47 +191,47 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
   const osFull = formatOs(runtime.os, runtime.osVersion)
   // 原生壳里「本机版本」是包版本；PWA / 浏览器里是构建期注入的界面版本
   const platform = nativePlatform()
-  const localLabel = isPackaged() ? t('本机应用版本') : t('本机界面版本')
+  const localLabel = isPackaged() ? t('Local app version') : t('Local UI version')
   const formLabel =
-    platform === 'android' ? t('Android 应用（APK）') : platform === 'ios' ? t('iOS 应用') : t('浏览器 / PWA')
+    platform === 'android' ? t('Android app (APK)') : platform === 'ios' ? t('iOS app') : t('Browser / PWA')
 
   const copyAll = () => {
     const lines = [
-      `[${t('本机')}]`,
+      `[${t('This device')}]`,
       `${localLabel}: ${APP_VERSION}`,
       `platform: ${platform === 'android' ? 'android-apk' : platform === 'ios' ? 'ios-ipa' : 'browser'}`,
       '',
-      `[${t('网关')}]`,
-      `${t('版本')}: ${text(app.version)}`,
-      `${t('更新通道')}: ${app.channel === 'both' ? t('正式版与 beta 版') : app.channel === 'beta' ? t('仅 beta 版') : t('仅正式版')}`,
-      `${t('运行形态')}: ${deploymentLabel}`,
-      `${t('操作系统')}: ${osFull} (${text(runtime.arch)})`,
-      `${t('监听地址')}: ${text(deployment.host)}:${text(deployment.port)}`,
-      `${t('已运行')}: ${formatUptime(runtime.uptimeSeconds)}`,
-      `${t('数据目录')}: ${text(deployment.configDir)}`,
-      `${t('日志文件')}: ${text(deployment.logFile)}`,
-      `${t('账号')}: ${text(stats.enabledAccounts)} / ${text(stats.accounts)}`,
-      `${t('模型')}: ${text(stats.models)}`,
-      `${t('网关 Key 数量')}: ${text(security.apiKeyCount)}`,
+      `[${t('Gateway')}]`,
+      `${t('Version')}: ${text(app.version)}`,
+      `${t('Update channel')}: ${app.channel === 'both' ? t('Stable and beta') : app.channel === 'beta' ? t('Beta only') : t('Stable only')}`,
+      `${t('Deployment')}: ${deploymentLabel}`,
+      `${t('Operating system')}: ${osFull} (${text(runtime.arch)})`,
+      `${t('Listen address')}: ${text(deployment.host)}:${text(deployment.port)}`,
+      `${t('Uptime')}: ${formatUptime(runtime.uptimeSeconds)}`,
+      `${t('Data directory')}: ${text(deployment.configDir)}`,
+      `${t('Log file')}: ${text(deployment.logFile)}`,
+      `${t('Accounts')}: ${text(stats.enabledAccounts)} / ${text(stats.accounts)}`,
+      `${t('Model')}: ${text(stats.models)}`,
+      `${t('Gateway key count')}: ${text(security.apiKeyCount)}`,
     ]
-    void copyWithToast(lines.join('\n'), t('版本信息'))
+    void copyWithToast(lines.join('\n'), t('Version info'))
   }
 
   return (
     <Sheet open={open} onOpenChange={next => { if (!next) onClose() }}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>{t('版本信息')}</SheetTitle>
+          <SheetTitle>{t('Version info')}</SheetTitle>
         </SheetHeader>
         <SheetBody>
           {/* 本机：与网关无关的那一半 */}
           <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--m-text-3)', padding: '2px 2px 6px' }}>
-            {t('本机')}
+            {t('This device')}
           </div>
           <Card className='m-card'>
             <Row label={localLabel} value={`v${APP_VERSION}`} mono />
             <Row
-              label={t('运行形态')}
+              label={t('Deployment')}
               value={formLabel}
             />
           </Card>
@@ -239,34 +239,34 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
 
           {/* 网关：连的那台服务器的读数 */}
           <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--m-text-3)', padding: '14px 2px 6px' }}>
-            {t('网关')}
+            {t('Gateway')}
           </div>
           {error ? (
             <Card className='m-card' style={{ padding: '12px 14px', color: 'var(--m-danger)', fontSize: 12.5, lineHeight: 1.6 }}>
-              {t('读取网关信息失败：{message}', { message: error })}
+              {t('Failed to read gateway info: {message}', { message: error })}
             </Card>
           ) : (
             <Card className='m-card'>
-              <Row label={t('软件版本')} value={text(app.version)} mono />
-              <Row label={t('更新通道')} value={app.channel === 'both' ? t('正式版与 beta 版') : app.channel === 'beta' ? t('仅 beta 版') : t('仅正式版')} />
-              <Row label={t('运行形态')} value={deploymentLabel} />
+              <Row label={t('Software version')} value={text(app.version)} mono />
+              <Row label={t('Update channel')} value={app.channel === 'both' ? t('Stable and beta') : app.channel === 'beta' ? t('Beta only') : t('Stable only')} />
+              <Row label={t('Deployment')} value={deploymentLabel} />
               <Row
-                label={t('操作系统')}
+                label={t('Operating system')}
                 value={`${osFull} · ${text(runtime.arch)}`}
               />
               <Row
-                label={t('监听地址')}
+                label={t('Listen address')}
                 value={`${text(deployment.host)}:${text(deployment.port)}`}
                 mono
               />
-              <Row label={t('已运行')} value={formatUptime(runtime.uptimeSeconds)} />
+              <Row label={t('Uptime')} value={formatUptime(runtime.uptimeSeconds)} />
               <Row
-                label={t('账号')}
-                value={`${text(stats.enabledAccounts)} / ${text(stats.accounts)} ${t('启用')}`}
+                label={t('Accounts')}
+                value={`${text(stats.enabledAccounts)} / ${text(stats.accounts)} ${t('enabled')}`}
                 mono
               />
-              <Row label={t('模型')} value={text(stats.models)} mono />
-              <Row label={t('网关 Key 数量')} value={text(security.apiKeyCount)} mono />
+              <Row label={t('Model')} value={text(stats.models)} mono />
+              <Row label={t('Gateway key count')} value={text(security.apiKeyCount)} mono />
             </Card>
           )}
 
@@ -274,21 +274,21 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
           {deployment.configDir || deployment.logFile ? (
             <>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--m-text-3)', padding: '14px 2px 6px' }}>
-                {t('位置')}
+                {t('Location')}
               </div>
               <Card className='m-card'>
                 {deployment.configDir ? (
-                  <Row label={t('数据目录')} value={text(deployment.configDir)} mono />
+                  <Row label={t('Data directory')} value={text(deployment.configDir)} mono />
                 ) : null}
                 {deployment.dbFile ? (
                   <Row
-                    label={t('数据库文件')}
-                    value={`${text(deployment.dbFile)}（${formatBytes(deployment.dbBytes)}）`}
+                    label={t('Database file')}
+                    value={`${text(deployment.dbFile)}（${formatBytes(deployment.dbBytes)})`}
                     mono
                   />
                 ) : null}
                 {deployment.logFile ? (
-                  <Row label={t('日志文件')} value={text(deployment.logFile)} mono />
+                  <Row label={t('Log file')} value={text(deployment.logFile)} mono />
                 ) : null}
               </Card>
             </>
@@ -305,26 +305,26 @@ export function SystemInfoSheet({ open, onClose }: { open: boolean; onClose: () 
               <Icon name='info' />
             </span>
             <div className='m-grow'>
-              <div className='m-t1'>{t('隐藏用户名')}</div>
+              <div className='m-t1'>{t('Hide username')}</div>
               <div className='m-t2'>
-                {t('把路径里的主目录显示成 ~，截图分享时不暴露用户名')}
+                {t('Shows the home directory in paths as ~ so screenshots do not reveal your username')}
               </div>
             </div>
             <Badge tone={hideUsername ? 'ok' : 'mute'}>
-              {hideUsername ? t('已隐藏') : t('显示')}
+              {hideUsername ? t('Hidden') : t('Shown')}
             </Badge>
           </Button>
 
           {loading ? (
             <div style={{ fontSize: 12, color: 'var(--m-text-3)', padding: '10px 2px' }}>
-              {t('读取中…')}
+              {t('Loading…')}
             </div>
           ) : null}
         </SheetBody>
         <SheetFooter>
           <Button size='touch' variant='default' type='button' className='m-btn w-full' onClick={copyAll}>
             <Icon name='copy' />
-            {t('复制全部信息')}
+            {t('Copy all info')}
           </Button>
         </SheetFooter>
       </SheetContent>

@@ -17,7 +17,7 @@ pub fn save_sorting(state: &ServerState, body: &Bytes) -> Response {
         Err(error) => return errors::management_error(400, error.message),
     };
     let Some(provider) = payload.get("provider").and_then(Value::as_str) else {
-        return errors::management_error(400, "缺少 provider 字段");
+        return errors::management_error(400, "缺少 provider field");
     };
     if !crate::server::core::providers::is_known_provider_id(provider)
         && !crate::server::core::custom_providers::is_custom_provider_id(provider)

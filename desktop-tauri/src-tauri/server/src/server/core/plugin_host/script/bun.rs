@@ -101,14 +101,14 @@ pub async fn ensure() -> Result<PathBuf, String> {
         return Ok(path);
     }
     let (target, checksum) = asset()?;
-    super::operations::stage("runtime", "正在下载 Bun 运行时");
+    super::operations::stage("runtime", "Downloading the Bun runtime");
     let url =
         format!("https://github.com/oven-sh/bun/releases/download/bun-v{VERSION}/{target}.zip");
     let bytes = super::download::bytes(&url, 200 * 1024 * 1024, Some(checksum)).await?;
     let destination = path.clone();
     tokio::task::spawn_blocking(move || extract(&bytes, target, &destination))
         .await
-        .map_err(|error| format!("安装 Bun 任务中断：{error}"))??;
+        .map_err(|error| format!("Install Bun 任务中断：{error}"))??;
     validate(&path).await?;
     Ok(path)
 }
@@ -184,7 +184,7 @@ async fn probe(path: &Path) -> Result<(), String> {
             Err(diagnostic(
                 "Bun 启动检查未完成",
                 path,
-                &format!("{error}；{}", report.description()),
+                &format!("{error}; {}", report.description()),
                 "读取运行时输出或等待进程退出时发生错误。",
                 &stdout,
                 &stderr,
@@ -242,7 +242,7 @@ fn diagnostic(
     stdout: &[u8],
     stderr: &[u8],
 ) -> String {
-    let target = asset().map(|(target, _)| target).unwrap_or("未知");
+    let target = asset().map(|(target, _)| target).unwrap_or("Unknown");
     let mut lines = vec![
         title.to_string(),
         format!(
@@ -265,7 +265,7 @@ fn diagnostic(
     ] {
         let text = output_summary(bytes);
         lines.push(format!(
-            "{label}：\n{}",
+            "{label}: \n{}",
             if text.is_empty() {
                 "（无输出）"
             } else {

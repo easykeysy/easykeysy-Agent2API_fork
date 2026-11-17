@@ -4,9 +4,9 @@ import { providerOf } from './accounts-domain'
 import type { AccountRecord } from './accounts-shared'
 
 export const routingCollapsedSections = [
-  { key: 'excluded', label: t('未参与本路由') },
-  { key: 'disabled', label: t('账号全部禁用') },
-  { key: 'empty', label: t('还没有账号') },
+  { key: 'excluded', label: t('Not in this route') },
+  { key: 'disabled', label: t('All accounts disabled') },
+  { key: 'empty', label: t('No accounts yet') },
 ] as const
 
 type CollapsedSection = typeof routingCollapsedSections[number]['key']

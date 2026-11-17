@@ -73,8 +73,8 @@ impl Region {
     /// 界面与日志里的名字
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Global => "国际版",
-            Self::Cn => "国内版",
+            Self::Global => "International edition",
+            Self::Cn => "China edition",
         }
     }
 }

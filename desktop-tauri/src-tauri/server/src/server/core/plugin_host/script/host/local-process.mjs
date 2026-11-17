@@ -9,7 +9,7 @@ export function proxyAddress(proxy) {
   if (!proxy) return ""
   const protocol = proxy.protocol || "http"
   if (!["http", "https", "socks5", "socks5h"].includes(protocol) || !proxy.host || !Number.isInteger(proxy.port)
-    || proxy.port < 1 || proxy.port > 65535) throw new Error("ACP 代理配置无效，请重新选择代理。")
+    || proxy.port < 1 || proxy.port > 65535) throw new Error("The ACP proxy configuration is invalid. Select the proxy again.")
   const host = proxy.host.includes(":") && !proxy.host.startsWith("[") ? `[${proxy.host}]` : proxy.host
   const url = new URL(`${protocol}://${host}:${proxy.port}`)
   if (proxy.username) url.username = proxy.username
@@ -20,7 +20,7 @@ export function proxyAddress(proxy) {
 export function checkLocalProxy(provider, context) {
   const address = proxyAddress(context.proxy)
   if (provider.localProxy !== undefined && provider.localProxy !== address) {
-    throw new Error("ACP 的本机进程仍使用原来的代理。请先在插件页停用再启用 ACP 插件，再使用新的代理。")
+    throw new Error("The local ACP processes still use the previous proxy. Disable and re-enable the ACP plugin on the Plugins page before using a different proxy.")
   }
   provider.localProxy = address
 }

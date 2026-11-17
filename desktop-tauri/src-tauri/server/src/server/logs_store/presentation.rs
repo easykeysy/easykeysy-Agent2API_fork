@@ -130,14 +130,14 @@ pub fn prepare(mut entry: LogEntry) -> LogEntry {
     }
     let summary = if http_request.is_some() {
         if tags.contains(&"Billing") {
-            "计费接口请求"
+            "Billing API request"
         } else {
-            "上游接口请求"
+            "Upstream API request"
         }
     } else if text.contains("出站归一：") {
-        "出站参数归一"
+        "Outbound parameter normalization"
     } else if text.starts_with("首条消息非 system，已注入系统消息：") {
-        "补充系统消息"
+        "System message added"
     } else {
         text
     };

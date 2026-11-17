@@ -240,7 +240,7 @@ fn efforts(levels: &[String]) -> Map<String, Value> {
 /// 模型条目：沿用文件里同名条目的未知字段（`compat` 之类），本页认识的字段以方案为准。
 fn model_entry(model: &Model, existing: Option<&Value>) -> Result<Value, String> {
     if model.id.trim().is_empty() {
-        return Err("模型 ID 不能为空".into());
+        return Err("Model ID 不能为空".into());
     }
     let id = model.id.trim().to_string();
     let mut entry = existing
@@ -283,7 +283,7 @@ pub fn write(
     warnings: &mut Vec<String>,
 ) -> Result<Vec<Change>, String> {
     let api = api_of(&profile.protocol)
-        .ok_or("DSH 只支持 OpenAI Chat Completions、OpenAI Responses 与 Anthropic Messages")?;
+        .ok_or("DSH 只支持 OpenAI Chat Completions, OpenAI Responses and Anthropic Messages")?;
     let base = profile.base_url.trim().trim_end_matches('/');
     if base.is_empty() {
         return Err("请填写 DSH 的接口基址".into());
@@ -334,7 +334,7 @@ pub fn write(
             // 导入来的条目沿用它自己的引用名，本页新写的用派生名，便于断开时清理。
             let reference = if profile.auth_mode == "preserve" && !existing_ref.is_empty() {
                 if let Some(current) = references(path)?.get(&existing_ref).and_then(Value::as_str) {
-                    if current != key { return Err("此 DSH 密钥引用可能由其他配置共用；修改密钥时请选择 API Key 认证方式".into()); }
+                    if current != key { return Err("此 DSH 密钥引用可能由其他配置共用；修改密钥时请选择 API Key Authentication method".into()); }
                 }
                 existing_ref.clone()
             } else if super::super::dsh_paths::is_patch(path) {
@@ -411,7 +411,7 @@ fn supported(store: &Value, path: &Path, strict: bool) -> Result<(), String> {
         Some(1) => {}
         Some(version) => {
             return Err(format!(
-                "{} 的 version 是 {version}，本页只认 DSH 的 version 1 布局",
+                "{} — see the version Yes {version}，本页只认 DSH — see the version 1 布局",
                 path.display()
             ))
         }
@@ -425,7 +425,7 @@ fn supported(store: &Value, path: &Path, strict: bool) -> Result<(), String> {
     for key in store.as_object().map(Map::keys).into_iter().flatten() {
         if strict && !matches!(key.as_str(), "version" | "refs" | "records") {
             return Err(format!(
-                "{} 含有未知顶层字段 {key}，DSH 自身也会拒绝读取，请先处理",
+                "{} 含有未知顶层字段 {key}, DSH 自身也会拒绝读取，请先处理",
                 path.display()
             ));
         }

@@ -141,9 +141,9 @@ const PROXY_DIRECT = 'direct'
 
 /** 模型行的「来源」徽章（与模型表同一套口径；自定义家的 source 是空串，见 ManageModel） */
 const SOURCE_LABEL: Record<string, string> = {
-  remote: t('远程目录'),
-  builtin: t('内置清单'),
-  manual: t('手动登记'),
+  remote: t('Remote catalog'),
+  builtin: t('Built-in catalog'),
+  manual: t('Manual'),
 }
 
 /* ─── 纯函数工具 ─────────────────────────────── */
@@ -171,7 +171,7 @@ function usableAccounts(provider: string): AccountRecord[] {
 function accountLabel(account: AccountRecord): string {
   const email = String(account.email || '').trim()
   if (email && providerFeatures(account.provider).emailAsName) return email
-  return displayNameOf(account) || email || t('未命名账号')
+  return displayNameOf(account) || email || t('Unnamed account')
 }
 
 /** 关联 id：优先 `crypto.randomUUID`（WebView2 与 localhost 都是安全上下文），退化到自拼的 v4 形态 */
@@ -196,10 +196,10 @@ function newTestId(): string {
  */
 export function testBlockReason(provider: string, model: ManageModel): string {
   if (model.kind === 'image') {
-    return t('图片生成模型请通过 /v1/images/generations 调用，暂不支持对话测试')
+    return t('Use /v1/images/generations for image models; chat testing is not supported yet')
   }
   if (!usableAccounts(provider).length) {
-    return t('该提供商没有可用账号（要在账号页启用一个、且凭证完整），一行都发不出去')
+    return t('This provider has no usable accounts (enable one on the Accounts page with complete credentials), so not a single request can be sent')
   }
   return ''
 }
@@ -253,7 +253,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   const [stream, setStream] = React.useState(true)
   const keyState = useModelApiKeys(async () => {
     const load = bridge().workbuddyDesktop?.getModelApiKeys
-    if (!load) throw new Error(t('当前环境不支持读取 API Key'))
+    if (!load) throw new Error(t('This environment cannot load API keys'))
     return load()
   })
   const { value: apiKeyId, ready: keySelectionReady, select: setApiKeyId } = useRememberedModelApiKey('model-test', gatewayBase)
@@ -286,11 +286,11 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     void (async () => {
       try {
         const getPool = bridge().workbuddyDesktop?.getProxyPool
-        if (typeof getPool !== 'function') throw new Error(t('当前环境不支持代理池'))
+        if (typeof getPool !== 'function') throw new Error(t('Proxy pool is not supported in this environment'))
         const data = await getPool()
         if (!alive) return
         if (!data || typeof data !== 'object' || !Array.isArray(data.items)) {
-          throw new Error(t('代理池响应异常'))
+          throw new Error(t('Invalid proxy pool response'))
         }
         setPool(data.items)
         setPoolError('')
@@ -311,7 +311,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
       void bridge().workbuddyDesktop?.terminateStatsRequest?.(slot.testId)?.catch(() => {})
     }
     setSlots([])
-    if (inflight.length && !quiet) toast(t('已中止在途测试（{n} 个账号）', { n: inflight.length }))
+    if (inflight.length && !quiet) toast(t('Aborted in-flight tests ({n} accounts)', { n: inflight.length }))
   }, [])
 
   // 弹窗被卸掉（用户关掉参数层 / 模型行在目录刷新后消失）时补一刀：已经放弃的在途请求不该继续
@@ -338,10 +338,10 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     }
     try {
       const key = selectedKeyRef.current
-      if (!key) throw new Error(t('请先选择一把 API Key'))
+      if (!key) throw new Error(t('Select an API Key first'))
       const result = await bridge().workbuddyDesktop?.testModel(body, key.key)
       if (!result) {
-        settle({ state: 'done', transport: t('桥接调用返回空（本机网关没有响应这次测试）') })
+        settle({ state: 'done', transport: t('Bridge call returned empty (the local gateway didn\'t respond to this test)') })
         return
       }
       settle({ state: 'done', result })
@@ -353,16 +353,16 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   /** 发起一轮：勾了几个账号就并发发几次（一个账号一条请求，互不影响） */
   function run(): void {
     if (!keySelectionReady || !keyState.ready || !selectedKey) {
-      toast(t('请先选择一把 API Key'), 'err')
+      toast(t('Select an API Key first'), 'err')
       return
     }
     if (!keyAllowed) {
-      toast(t('所选 API Key 无权调用此模型或提供商'), 'err')
+      toast(t('The selected API Key cannot access this model or provider'), 'err')
       return
     }
     const chosen = usable.filter(account => picked.includes(account.id))
     if (!chosen.length) {
-      toast(t('至少选一个测试账号'), 'err')
+      toast(t('Select at least one test account'), 'err')
       return
     }
     const runId = seq.current + 1
@@ -395,15 +395,15 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     return (
       <Dialog open onOpenChange={next => { if (!next) onClose() }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t('测试模型')}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('Test model')}</DialogTitle></DialogHeader>
           <DialogBody>
             <p className='text-sm leading-[1.7] text-subtle'>
-              {t('这一行已不在当前清单里（模型被移除、或目录刷新后上游不再提供它）。关闭后刷新列表再试。')}
+              {t('This row is no longer in the current catalog (the model was removed, or upstream no longer offers it after a catalog refresh). Close this dialog, refresh the list, and try again.')}
             </p>
           </DialogBody>
           <DialogFooter>
             <div className='mr-auto' />
-            <Button variant='outline' onClick={onClose}>{t('关闭')}</Button>
+            <Button variant='outline' onClick={onClose}>{t('Close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -428,26 +428,26 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
   const levelOptions = reasoningLevels(getSnapshot().data, model)
     .filter(level => level !== 'off' && level !== 'none')
   const followLabel = defaultClosed
-    ? t('跟随映射（该行未启用，本次不注入）')
-    : boundLevel ? t('跟随映射（当前 {level}）', { level: boundLevel }) : t('跟随映射（未绑定等级）')
+    ? t('Follow mapping (row disabled; not injected this time)')
+    : boundLevel ? t('Follow mapping (currently {level})', { level: boundLevel }) : t('Follow mapping (no level bound)')
   /** 目标行 ⓘ 的口径：多数行没有别名 / 未绑等级，一句「以本名直发」就够 —— 说明悬停才见 */
   const targetTip = [
-    t('以模型本名直发'),
+    t('Sent under the model\'s own name'),
     aliases.length
-      ? t('另有 {n} 条别名映射（{aliases}），别名不参与本次', { n: aliases.length, aliases: aliases.join(t('、')) })
+      ? t('There are also {n} alias mappings ({aliases}); aliases aren\'t used in this test', { n: aliases.length, aliases: aliases.join(t(', ')) })
       : '',
     defaultClosed
-      ? t('该行当前未启用：测试照常按本名直发（「先测通、再决定要不要启用」正是这颗按钮的用法），但本行的思考等级绑定不参与本次，生产路由也要等绑定打开后才会放行')
+      ? t('This row is currently disabled: the test still sends the model under its own name (“test it first, then decide whether to enable it” is exactly what this button is for), but this row\'s reasoning level binding is not used this time, and production routing won\'t be allowed through until the binding is turned on')
       : boundLevel
-        ? t('映射已绑定思考等级 {level}，可用时会优先覆盖本次指定的等级', { level: boundLevel })
-        : t('映射上未绑定思考等级，「跟随映射」等于这次不注入'),
-  ].filter(Boolean).join(t('；')) + t('。')
+        ? t('This mapping binds reasoning level {level}; when supported, it overrides the level specified for this test', { level: boundLevel })
+        : t('No reasoning level is bound to this mapping, so “Follow mapping” means nothing is injected this time'),
+  ].filter(Boolean).join(t('; ')) + t('.')
 
   const protocols = bridge().wbProviders?.PROTOCOL_OPTIONS || FALLBACK_PROTOCOLS
   const protocolLabel = protocols.find(item => item.value === protocol)?.label || protocol
   const proxyItems: Array<{ value: string; label: string; disabled?: boolean }> = [
-    { value: '', label: t('跟随账号配置') },
-    { value: PROXY_DIRECT, label: t('直连（不使用代理）') },
+    { value: '', label: t('Follow account setting') },
+    { value: PROXY_DIRECT, label: t('Direct connection (no proxy)') },
     // 已禁用的池条目置灰：它不能代表一次可用的代理出口。
     ...(pool ?? []).map(item => ({
       value: `${POOL_VALUE_PREFIX}${item.id}`,
@@ -456,21 +456,21 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     })),
   ]
   if (pool === null) {
-    proxyItems.push({ value: '__hint_pool__', label: t('正在读取代理列表…'), disabled: true })
+    proxyItems.push({ value: '__hint_pool__', label: t('Loading proxy list…'), disabled: true })
   } else if (!pool.length) {
     proxyItems.push({
       value: '__hint_pool__',
-      label: poolError ? t('代理列表读取失败') : t('还没有代理（去「网络代理」页添加）'),
+      label: poolError ? t('Failed to load the proxy list') : t('No proxies yet (add one on the Network proxy page)'),
       disabled: true,
     })
   }
-  const proxyLabel = proxyItems.find(item => item.value === proxy)?.label || t('跟随账号配置')
+  const proxyLabel = proxyItems.find(item => item.value === proxy)?.label || t('Follow account setting')
 
   const accountOptions = usable.map(account => ({
     value: account.id,
     // 「限额中」按**这个模型**判（限额是按模型记的：一个账号可能对 A 模型限额、对 B 模型正常）
     label: `#${positions.get(account.id)?.position || 0} ${accountLabel(account)}`
-      + (isRateLimited(account, target.id) ? t(' · 限额中') : ''),
+      + (isRateLimited(account, target.id) ? t(' · Rate-limited') : ''),
   }))
 
   function slotBlock(slot: Slot): React.ReactNode {
@@ -496,8 +496,8 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
           {/* 单账号时这行只是复述下面那块本身，省掉 */}
           {slots.length > 1 ? (
             <p className='text-xs text-subtle'>
-              {t('正在测 ')}<b className='text-foreground'>{slots.length}</b>{t(' 个账号')}
-              {done ? <>{t('，已完成 ')}<b className='text-foreground'>{done}</b></> : null}{t('。')}
+              {t('Testing ')}<b className='text-foreground'>{slots.length}</b>{t(' accounts')}
+              {done ? <>{t(', completed ')}<b className='text-foreground'>{done}</b></> : null}{t('.')}
             </p>
           ) : null}
           {slots.map(slot => slotBlock(slot))}
@@ -510,14 +510,14 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
         {/* 单账号同上：结果块的徽章与指标已经说明一切；非 0 的读数才上色，注意力给问题 */}
         {slots.length > 1 ? (
           <p className='text-xs text-subtle'>
-            <b className={okCount ? 'text-success' : 'text-foreground'}>{okCount}</b>{t(' 成功 ·')}
-            <b className={slots.length - okCount ? 'text-destructive' : 'text-foreground'}> {slots.length - okCount}</b>{t(' 失败')}
+            <b className={okCount ? 'text-success' : 'text-foreground'}>{okCount}</b>{t(' succeeded ·')}
+            <b className={slots.length - okCount ? 'text-destructive' : 'text-foreground'}> {slots.length - okCount}</b>{t(' failed')}
           </p>
         ) : null}
         {slots.map(slot => slotBlock(slot))}
         {okCount === 0 ? (
           <NoteBlock>
-            {t('两边原因不一样时各自处理。如果')}<b className='text-foreground'>{t('同一条错误出现在所有账号上')}</b>{t('，通常就不是账号问题了：先确认这个模型还在上游目录里（「获取模型」刷一次），再看默认绑定指向的上游模型对不对。')}
+            {t('Handle each cause separately when they differ. If ')}<b className='text-foreground'>{t('the same error appears on all accounts')}</b>{t(', it\'s usually not an account problem: first confirm this model is still in the upstream catalog (run “Fetch models” once), then check whether the default binding points to the right upstream model.')}
           </NoteBlock>
         ) : null}
       </>
@@ -530,7 +530,7 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
     <Dialog open onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('测试模型')}{modelTag}</DialogTitle>
+          <DialogTitle>{t('Test model')}{modelTag}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           {/* 目标行：测的是哪一条（与「模型能力」弹窗的预览行同一用意）；发送口径收进行尾 ⓘ，不再常驻一段 */}
@@ -539,10 +539,10 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
               title={model.id}>{model.id}</span>
             <Badge shape='tag' variant='brand'>{providerLabelOf(provider)}</Badge>
             <Badge shape='tag' variant='outline'>
-              {customSource.isCustom(provider) ? t('自定义家') : (SOURCE_LABEL[model.source] || t('来源未知'))}
+              {customSource.isCustom(provider) ? t('Custom provider') : (SOURCE_LABEL[model.source] || t('Unknown source'))}
             </Badge>
             <Tooltip>
-              <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('本次测试的发送口径')} />}>?</TooltipTrigger>
+              <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('What this test sends')} />}>?</TooltipTrigger>
               <TooltipContent>{targetTip}</TooltipContent>
             </Tooltip>
           </div>
@@ -550,20 +550,20 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
           <ModelApiKeyField {...keyState} value={apiKeyId} onChange={setApiKeyId} id='model-test-api-key'
             disabled={!keySelectionReady} rememberSelection
             onRefresh={() => { void keyState.refresh().catch(() => {}) }} t={t} />
-          {selectedKey && !keyAllowed ? <p role='status' className='text-xs text-destructive'>{t('所选 API Key 无权调用此模型或提供商')}</p> : null}
+          {selectedKey && !keyAllowed ? <p role='status' className='text-xs text-destructive'>{t('The selected API Key cannot access this model or provider')}</p> : null}
 
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='model-test-system'>{t('系统提示词')}</Label>
+            <Label htmlFor='model-test-system'>{t('System prompt')}</Label>
             <Textarea id='model-test-system' rows={2} maxLength={MAX_PROMPT_CHARS}
-              placeholder={t('留空则不携带；设置页的提示词模式照常生效')}
+              placeholder={t('Leave empty to omit it; the prompt mode on the Settings page still applies')}
               value={systemPrompt}
               onChange={event => setSystemPrompt(event.currentTarget.value)} />
           </div>
 
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='model-test-prompt'>{t('用户提示词')}</Label>
+            <Label htmlFor='model-test-prompt'>{t('User prompt')}</Label>
             <Textarea id='model-test-prompt' rows={2} maxLength={MAX_PROMPT_CHARS}
-              placeholder={t('留空用默认问候「你好」')}
+              placeholder={t('Leave empty to use the default greeting “Hello”')}
               value={prompt}
               onChange={event => setPrompt(event.currentTarget.value)} />
           </div>
@@ -571,10 +571,10 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
           <div className='grid grid-cols-2 gap-4'>
             <div className='flex flex-col gap-1.5'>
               <div className='flex items-center gap-1.5'>
-                <Label htmlFor='model-test-protocol'>{t('对话协议')}</Label>
+                <Label htmlFor='model-test-protocol'>{t('Chat protocols')}</Label>
                 <Tooltip>
-                  <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('对话协议的说明')} />}>?</TooltipTrigger>
-                  <TooltipContent>{t('按所选网关对话协议组装请求并校验响应转换（Chat Completions / Responses / Anthropic Messages）。')}</TooltipContent>
+                  <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('About chat protocol')} />}>?</TooltipTrigger>
+                  <TooltipContent>{t('Build the request and verify response translation using the selected gateway protocol (Chat Completions / Responses / Anthropic Messages).')}</TooltipContent>
                 </Tooltip>
               </div>
               <Select value={protocol} onValueChange={next => setProtocol(String(next))}>
@@ -590,10 +590,10 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
             </div>
             <div className='flex flex-col gap-1.5'>
               <div className='flex items-center gap-1.5'>
-                <Label htmlFor='model-test-proxy'>{t('测试节点')}</Label>
+                <Label htmlFor='model-test-proxy'>{t('Test node')}</Label>
                 <Tooltip>
-                  <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('测试节点的说明')} />}>?</TooltipTrigger>
-                  <TooltipContent>{t('仅本次测试临时生效，不修改账号保存的代理配置。可选「网络代理」页里的节点或强制直连。')}</TooltipContent>
+                  <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('About test node')} />}>?</TooltipTrigger>
+                  <TooltipContent>{t('Applies to this test only without changing the account\'s saved proxy setting. Choose a node from the Network Proxies page or force a direct connection.')}</TooltipContent>
                 </Tooltip>
               </div>
               <Select value={proxy} onValueChange={next => setProxy(String(next))}>
@@ -611,25 +611,25 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
 
           <div className='grid grid-cols-2 gap-4'>
             <div className='flex flex-col gap-1.5'>
-              <Label htmlFor='model-test-reasoning'>{t('思考等级')}</Label>
+              <Label htmlFor='model-test-reasoning'>{t('Reasoning level')}</Label>
               <Select value={reasoning} onValueChange={next => setReasoning(String(next))}>
                 <SelectTrigger id='model-test-reasoning' className='w-full'>
-                  <SelectValue>{reasoning ? t('{level}（本次指定）', { level: reasoning }) : followLabel}</SelectValue>
+                  <SelectValue>{reasoning ? t('{level} (specified for this test)', { level: reasoning }) : followLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value=''>{followLabel}</SelectItem>
                   {levelOptions.map(level => (
-                    <SelectItem key={level} value={level}>{t('{level}（本次指定）', { level })}</SelectItem>
+                    <SelectItem key={level} value={level}>{t('{level} (specified for this test)', { level })}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className='flex flex-col gap-1.5'>
               <div className='flex items-center gap-1.5'>
-                <Label htmlFor='model-test-stream'>{t('流式请求')}</Label>
+                <Label htmlFor='model-test-stream'>{t('Streaming request')}</Label>
                 <Tooltip>
-                  <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('流式请求的说明')} />}>?</TooltipTrigger>
-                  <TooltipContent>{t('默认开，与真实请求一致：可同时验证 SSE 链路与首字延迟。')}</TooltipContent>
+                  <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('About streaming requests')} />}>?</TooltipTrigger>
+                  <TooltipContent>{t('On by default, matching real requests: verifies both the SSE path and time to first token.')}</TooltipContent>
                 </Tooltip>
               </div>
               <Switch id='model-test-stream' checked={stream}
@@ -639,48 +639,48 @@ export function ModelTestDialog({ target, onClose }: { target: ModelTestTarget; 
 
           <div className='flex flex-col gap-1.5'>
             <div className='flex items-center gap-2'>
-              <Label htmlFor='model-test-accounts'>{t('测试账号')}</Label>
+              <Label htmlFor='model-test-accounts'>{t('Test accounts')}</Label>
               <Tooltip>
-                <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('测试账号的说明')} />}>?</TooltipTrigger>
-                <TooltipContent>{t('勾几个就并行测几次；默认选队列里最靠前的一个。')}</TooltipContent>
+                <TooltipTrigger render={<span className='tip-q' tabIndex={0} aria-label={t('About test accounts')} />}>?</TooltipTrigger>
+                <TooltipContent>{t('Each account you check is tested in parallel; the first one in the queue is selected by default.')}</TooltipContent>
               </Tooltip>
               <Button variant='ghost' size='xs' className='ml-auto'
                 disabled={!usable.length || picked.length === usable.length}
                 onClick={() => setPicked(usable.map(account => account.id))}>
-                {t('全选（{n}）', { n: usable.length })}
+                {t('Select all ({n})', { n: usable.length })}
               </Button>
             </div>
             <MultiSelect id='model-test-accounts' value={picked} onValueChange={setPicked}
-              options={accountOptions} placeholder={t('选一个账号（至少一个）')}
-              searchPlaceholder={t('搜索账号…')}
-              emptyHint={t('这家没有可用账号（要在账号页启用一个、且凭证完整）')} />
+              options={accountOptions} placeholder={t('Select an account (at least one)')}
+              searchPlaceholder={t('Search accounts…')}
+              emptyHint={t('This provider has no usable accounts (enable one on the Accounts page with complete credentials)')} />
           </div>
 
-          <NoteBlock plain>{t('真实链路 · 消耗少量额度 · 日志带「测试」标记，不计报表')}</NoteBlock>
+          <NoteBlock plain>{t('Real path · uses a small amount of quota · logs are tagged “Test” and excluded from reports')}</NoteBlock>
         </DialogBody>
         <DialogFooter className='justify-end'>
-          <Button variant='outline' onClick={onClose}>{t('关闭')}</Button>
-          <Button variant='default' disabled={!picked.length || !usable.length || !keySelectionReady || !keyState.ready || !keyAllowed} onClick={run}>{t('开始测试')}</Button>
+          <Button variant='outline' onClick={onClose}>{t('Close')}</Button>
+          <Button variant='default' disabled={!picked.length || !usable.length || !keySelectionReady || !keyState.ready || !keyAllowed} onClick={run}>{t('Start test')}</Button>
         </DialogFooter>
 
         {/* ── 结果层：叠在参数层之上的一层（位置与 overlayForceRender 的理由见模块头）── */}
         <Dialog open={slots.length > 0} onOpenChange={next => { if (!next) closeResults() }}>
           <DialogContent overlayForceRender className='w-[min(680px,calc(100vw-48px))]'>
             <DialogHeader>
-              <DialogTitle>{running ? t('测试中…') : t('测试结果')}{modelTag}</DialogTitle>
+              <DialogTitle>{running ? t('Testing…') : t('Test result')}{modelTag}</DialogTitle>
             </DialogHeader>
             <DialogBody>{results()}</DialogBody>
             <DialogFooter className='justify-end'>
               {running ? (
                 <>
-                  <span className='mr-auto text-xs text-subtle'>{t('关闭即中止')}</span>
-                  <Button variant='outline' onClick={() => abort()}>{t('中止测试')}</Button>
-                  <Button variant='default' disabled>{t('测试中…')}</Button>
+                  <span className='mr-auto text-xs text-subtle'>{t('Closing aborts')}</span>
+                  <Button variant='outline' onClick={() => abort()}>{t('Abort test')}</Button>
+                  <Button variant='default' disabled>{t('Testing…')}</Button>
                 </>
               ) : (
                 <>
-                  <Button variant='outline' onClick={closeResults}>{t('关闭')}</Button>
-                  <Button variant='default' onClick={run}>{t('再测一次')}</Button>
+                  <Button variant='outline' onClick={closeResults}>{t('Close')}</Button>
+                  <Button variant='default' onClick={run}>{t('Test again')}</Button>
                 </>
               )}
             </DialogFooter>

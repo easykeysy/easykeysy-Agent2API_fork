@@ -19,22 +19,22 @@ function escapeHtml(value: string): string {
  * 文案（含悬停说明）在模块求值时走 t()：岛加载晚于 head 里的 i18n 词典注入，拿得到译文。
  */
 const PHASES: Record<string, { label: string; cls: string }> = {
-  connecting: { label: t('连接中'), cls: 'phase-connecting' },
-  waiting: { label: t('等待响应'), cls: 'phase-waiting' },
-  streaming: { label: t('响应中'), cls: 'phase-streaming' },
-  retrying: { label: t('重试中'), cls: 'phase-retrying' },
-  queued: { label: t('排队中'), cls: 'phase-queued' },
+  connecting: { label: t('Connecting'), cls: 'phase-connecting' },
+  waiting: { label: t('Awaiting response'), cls: 'phase-waiting' },
+  streaming: { label: t('Streaming'), cls: 'phase-streaming' },
+  retrying: { label: t('Retrying'), cls: 'phase-retrying' },
+  queued: { label: t('Queued'), cls: 'phase-queued' },
 }
-const PHASE_FALLBACK_LABEL = t('进行中')
+const PHASE_FALLBACK_LABEL = t('In progress')
 const PHASE_FALLBACK_CLS = 'running'
 /** 每个阶段的悬停说明：徽章只有四个字，落点要说清「这一步在干什么」 */
 const PHASE_TITLES: Record<string, string> = {
-  connecting: t('请求已受理，正在选路、取凭证、建立上游连接'),
-  waiting: t('上游请求已发出，正在等第一个字节到达（模型的思考时间也在这段）'),
-  streaming: t('首帧已到，上游内容正在下发'),
-  retrying: t('本轮尝试失败，正在退避等待或切换到下一个账号'),
-  queued: t('上游模型繁忙，请求已排进上游队列；网关正按上游建议的时长等待后重发（不是登录态或额度问题）'),
-  '': t('请求正在转发中，用时列显示的是已用时'),
+  connecting: t('Request accepted; selecting a route, fetching credentials, and establishing the upstream connection'),
+  waiting: t('Upstream request sent, waiting for the first byte to arrive (model thinking time is included here)'),
+  streaming: t('First byte received; upstream content is streaming in'),
+  retrying: t('This attempt failed; backing off or switching to the next account'),
+  queued: t('Upstream model is busy; the request is queued upstream and the Gateway will resend it after the wait suggested by the upstream (not a login-session or quota problem)'),
+  '': t('The request is being forwarded; the duration column shows elapsed time'),
 }
 
 /** 行对象里那个阶段字面量，非法值一律按「没有阶段」处理（不猜） */
@@ -61,8 +61,8 @@ export function phaseElapsedText(ms: unknown): string {
   const value = Number(ms)
   if (!Number.isFinite(value) || value < 0) return ''
   const seconds = Math.max(1, Math.floor(value / 1000))
-  if (seconds < 60) return t('{n}秒', { n: seconds })
-  return t('{m}分{s}秒', { m: Math.floor(seconds / 60), s: seconds % 60 })
+  if (seconds < 60) return t('{n}s', { n: seconds })
+  return t('{m}m {s}s', { m: Math.floor(seconds / 60), s: seconds % 60 })
 }
 
 /**
@@ -96,7 +96,7 @@ export function phaseElapsedLineHtml(entry: unknown): string {
   const text = phaseElapsedText(phaseElapsedMsOf(entry))
   if (!text) return ''
   const label = phaseLabelOf(entry)
-  const tip = t('进入「{phase}」阶段已持续 {time}', { phase: label, time: text })
+  const tip = t('In "{phase}" phase for {time}', { phase: label, time: text })
   return `<span class="req-phase-elapsed" title="${escapeHtml(tip)}">`
     + `${escapeHtml(text)}</span>`
 }

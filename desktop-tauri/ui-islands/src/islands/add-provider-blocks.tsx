@@ -78,7 +78,7 @@ import { t } from '../i18n'
 
 /** 小浣熊手填段里那个「登录态文件在哪」的链接点了要显示的路径 */
 const RACCOON_AUTH_PATH = t(
-  '登录态文件路径：~/.box-agent/config/auth.json（Windows：C:\\Users\\<你的用户名>\\.box-agent\\config\\auth.json）')
+  'Login-state file path:~/.box-agent/config/auth.json(Windows: C:\\Users\\<user>\\AppData\\Roaming\\workbuddy\\)\\Users\\<Your username>\\.box-agent\\config\\auth.json)')
 
 /* ─── 手填字段 ─────────────────────────────── */
 
@@ -94,12 +94,12 @@ function expandJsonField(field: FieldSpec, value: string, payload: Record<string
   try {
     parsed = JSON.parse(value)
   } catch (error) {
-    toast(t('{name} 不是合法 JSON：{reason}', { name: field.label, reason: describeError(error) }), 'err')
+    toast(t('{name} is not valid JSON: {reason}', { name: field.label, reason: describeError(error) }), 'err')
     return false
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     // JSON 示例里含花括号，不能直接进键（会被 t() 的 {形参} 替换吃掉），作为形参值传入
-    toast(t('{name}要粘一个 JSON 对象（形如 {sample}）', {
+    toast(t('{name} requires a JSON object (like {sample})', {
       name: field.label,
       sample: '{"codearts_provider_credential":{…}}',
     }), 'err')
@@ -145,7 +145,7 @@ function ManualSection({
     for (const field of config.fields) {
       const value = readField(fieldIdOf(config, field))
       if (!field.optional && !value) {
-        toast(t('请填写 {label}', { label: field.label }), 'err')
+        toast(t('Enter {label}', { label: field.label }), 'err')
         return
       }
       if (!value) continue
@@ -158,7 +158,7 @@ function ManualSection({
     try {
       payload.proxy = proxy.read()
     } catch (error) {
-      toast(t('添加失败：{reason}', { reason: describeError(error) }), 'err')
+      toast(t('Add failed: {reason}', { reason: describeError(error) }), 'err')
       return
     }
     await runAdd(setBusy, async () => {
@@ -169,7 +169,7 @@ function ManualSection({
         setHint('')
         await afterAdd(addedLabelOf(data?.account), config.label)
       } catch (error) {
-        toast(t('添加失败：{reason}', { reason: describeError(error) }), 'err')
+        toast(t('Add failed: {reason}', { reason: describeError(error) }), 'err')
       }
     })
   }
@@ -190,7 +190,7 @@ function ManualSection({
       {config.fields.map(field => {
         const id = fieldIdOf(config, field)
         // 必填只在标签上标出（弹窗不是 <form>，原生 required 不生效），真正的拦截在 submit
-        const marker = field.optional ? '' : t('（必填）')
+        const marker = field.optional ? '' : t(' (Required)')
         return (
           <div key={id} className={`field-row${field.rows ? ' stack' : ''}`}>
             <Label htmlFor={id}>
@@ -212,7 +212,7 @@ function ManualSection({
         )
       })}
       {uaEditable ? <div className='field-row'>
-        <Label htmlFor={userAgentId}>{t('User-Agent（可选）')}</Label>
+        <Label htmlFor={userAgentId}>{t('User-Agent (optional)')}</Label>
         <UserAgentInput id={userAgentId} value={userAgent} onChange={onUserAgent}
           presets={uaPresets} disabled={busy} />
       </div> : null}
@@ -220,7 +220,7 @@ function ManualSection({
       <AddFoot host={footerHost} active={visible}
         note={<span className='detail' id={`${prefix}-add-hint`}>{hint}</span>}>
         <Button id={`${prefix}-add-button`} onClick={() => { void submit() }} disabled={busy}>
-          {busy ? t('添加中…') : addButtonTextOf(config)}
+          {busy ? t('Adding…') : addButtonTextOf(config)}
         </Button>
       </AddFoot>
     </AddGroup>
@@ -252,13 +252,13 @@ function DesktopSection({
         await afterAdd(data?.account?.name || '', config.label)
       } catch (error) {
         // 读不到客户端登录态时后端给 400 + 明确原因，原样透出即可
-        toast(t('导入失败：{reason}', { reason: describeError(error) }), 'err')
+        toast(t('Import failed: {reason}', { reason: describeError(error) }), 'err')
       }
     })
   }
 
   return (
-    <AddGroup label={t('从本机导入桌面端登录态')} hidden={!visible}>
+    <AddGroup label={t('Import desktop login state from this machine')} hidden={!visible}>
       <p>{config.desktopNote}</p>
       <AddFoot host={footerHost} active={visible}>
         <Button
@@ -267,7 +267,7 @@ function DesktopSection({
           onClick={() => { void submit() }}
           disabled={busy}
         >
-          {busy ? t('导入中…') : t('从本机导入桌面端登录态')}
+          {busy ? t('Importing…') : t('Import desktop login state from this machine')}
         </Button>
       </AddFoot>
     </AddGroup>
@@ -314,27 +314,27 @@ function GuestSection({
         })) as { account?: AccountRecord } | null
         await afterAdd(data?.account?.name || '', config.label)
       } catch (error) {
-        toast(t('添加失败：{reason}', { reason: describeError(error) }), 'err')
+        toast(t('Add failed: {reason}', { reason: describeError(error) }), 'err')
       }
     })
   }
 
   return (
-    <AddGroup label={t('访客模式')} hidden={!visible}>
+    <AddGroup label={t('Guest mode')} hidden={!visible}>
       {guest.noteHtml ? <Note html={guest.noteHtml} /> : null}
       <div className='form-field'>
-        <Label htmlFor={nameId}>{t('备注名')}</Label>
+        <Label htmlFor={nameId}>{t('Label')}</Label>
         <Input
           id={nameId}
           type='text'
           maxLength={MAX_NAME_LENGTH}
-          placeholder={guest.namePlaceholder || t('可选')}
+          placeholder={guest.namePlaceholder || t('Optional')}
           {...draftProps(nameId)}
         />
       </div>
       <AddFoot host={footerHost} active={visible}>
         <Button id={`${config.provider}-guest-button`} onClick={() => { void submit() }} disabled={busy}>
-          {busy ? guest.busyText || t('正在添加…') : guest.button}
+          {busy ? guest.busyText || t('Adding…') : guest.button}
         </Button>
       </AddFoot>
     </AddGroup>
@@ -424,8 +424,8 @@ function WebLoginSection({
         // 任务载荷里的警告（如 KukuAI「账号未通过上游复核」）：账号已入库，
         // 但要让用户立刻知道可能需要换一个百度账号，而不是等刷新模型才发现。
         const warning = (result as { warning?: string } | null)?.warning
-        if (warning) toast(t('账号已添加，但请留意：{warning}', { warning }), 'err')
-        else toast(t('✅ {label}账号已添加', { label: config.label }))
+        if (warning) toast(t('Account added, but note: {warning}', { warning }), 'err')
+        else toast(t('✅ {label} account added', { label: config.label }))
       },
     }) ?? null
     return () => { controllerRef.current?.dispose(); controllerRef.current = null }
@@ -438,13 +438,13 @@ function WebLoginSection({
 
   if (!web) return null
   return (
-    <AddGroup label={t('网页登录')} hidden={!visible}>
+    <AddGroup label={t('Web login')} hidden={!visible}>
       <Note html={web.noteHtml} />
       {web.modes?.length && !isWeb ? (
         <div className='flex flex-col gap-2.5 border-l-2 border-border pl-[11px]'>
-          <span className='text-[12.5px] text-subtle'>{t('打开方式')}</span>
+          <span className='text-[12.5px] text-subtle'>{t('Open with')}</span>
           <SegmentedControl
-            aria-label={t('{label} 网页登录的打开方式', { label: config.label })}
+            aria-label={t('How to open {label} web login', { label: config.label })}
             options={web.modes}
             value={mode}
             onValueChange={onModeChange}
@@ -454,7 +454,7 @@ function WebLoginSection({
       {/* 网页登录由共享登录桥建号，UA 只能在建号成功后补写（见 onSuccess）——
           但输入框放在这里，用户不必为了填 UA 换一种添加方式 */}
       {uaEditable ? <div className='field-row'>
-        <Label htmlFor={`${prefix}-web-user-agent`}>{t('User-Agent（可选）')}</Label>
+        <Label htmlFor={`${prefix}-web-user-agent`}>{t('User-Agent (optional)')}</Label>
         <UserAgentInput id={`${prefix}-web-user-agent`} value={userAgent}
           onChange={onUserAgent} presets={uaPresets} disabled={loginView.waiting} />
       </div> : null}
@@ -469,7 +469,7 @@ function WebLoginSection({
           hidden={!loginView.waiting}
           onClick={() => controllerRef.current?.cancel()}
         >
-          {t('取消等待')}
+          {t('Cancel sign-in')}
         </Button>
       </AddFoot>
     </AddGroup>
@@ -514,31 +514,31 @@ function SmsSection({
 
   if (!sms) return null
   return (
-    <AddGroup label={t('手机验证码登录')} hidden={!visible}>
+    <AddGroup label={t('SMS code login')} hidden={!visible}>
       <Note
         html={sms.noteHtml}
-        text={t('用 AutoClaw 账号绑定的手机号登录：点击「获取验证码」，收到短信后填入下方并登录。验证码由本机直接提交给官方接口，界面不显示 token。')}
+        text={t('Sign in with the phone number bound to your AutoClaw account: click "Get code", then enter the SMS code below and sign in. The code is submitted from this machine directly to the official API; no token is shown in the UI.')}
       />
       <div className='sms-form'>
         {/* 第 1 行：手机号与发码合成一格。按钮内嵌在输入框尾部（组件库的
             InputGroup，就是为「输入框带一个动作」准备的），不再自己占一行 */}
         <div className='sms-field'>
           <Label className='lb' htmlFor={`${prefix}-sms-phone`}>
-            {t('手机号')}<i className='req'>*</i>
+            {t('Phone number')}<i className='req'>*</i>
           </Label>
           <InputGroup>
             <InputGroupInput
               id={`${prefix}-sms-phone`}
               type='text'
               maxLength={11}
-              placeholder={t('11 位大陆手机号')}
+              placeholder={t('111-digit mainland China mobile number')}
               {...draftProps(`${prefix}-sms-phone`)}
             />
             <InputGroupAddon align='inline-end'>
               {/* 引擎在 create() 时就绑上这一颗的 click（文案与禁用态也归它管）。
                   ghost + 主色字：不描边框，也不在 30px 高的输入框里再嵌一个盒子 */}
               <InputGroupButton id={`${prefix}-sms-send`} className='text-primary-fg'>
-                {t('获取验证码')}
+                {t('Get code')}
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
@@ -547,7 +547,7 @@ function SmsSection({
         {/* 第 2 行：验证码只占 118px（6 个数字），右边并上同样是短字段的备注名 */}
         <div className='sms-field'>
           <Label className='lb' htmlFor={`${prefix}-sms-code`}>
-            {t('验证码')}<i className='req'>*</i>
+            {t('Verification code')}<i className='req'>*</i>
           </Label>
           <div className='sms-pair'>
             {/* 验证码**不进草稿**：引擎在登录成功后会把它清掉（codeNode.value = ''），
@@ -557,14 +557,14 @@ function SmsSection({
               className='sms-code'
               type='text'
               maxLength={6}
-              placeholder={t('6 位数字')}
+              placeholder={t('6 digits')}
             />
-            <Label className='lb-inline' htmlFor={`${prefix}-sms-name`}>{t('备注名')}</Label>
+            <Label className='lb-inline' htmlFor={`${prefix}-sms-name`}>{t('Label')}</Label>
             <Input
               id={`${prefix}-sms-name`}
               className='sms-name'
               type='text'
-              placeholder={t('可选，留空则用脱敏手机号')}
+              placeholder={t('Optional; defaults to the masked phone number')}
               {...draftProps(`${prefix}-sms-name`)}
             />
           </div>
@@ -572,7 +572,7 @@ function SmsSection({
 
         <AddFoot host={footerHost} active={visible}
           note={<span className='detail sms-hint' id={`${prefix}-sms-hint`} />}>
-          <Button id={`${prefix}-sms-submit`}>{t('登录并添加')}</Button>
+          <Button id={`${prefix}-sms-submit`}>{t('Sign in and add')}</Button>
         </AddFoot>
       </div>
     </AddGroup>
@@ -633,13 +633,13 @@ function OauthSection({
 
   if (!oauth) return null
   return (
-    <AddGroup label={oauth.title || t('网页登录')} hidden={!visible}>
+    <AddGroup label={oauth.title || t('Web login')} hidden={!visible}>
       <Note html={oauth.noteHtml} />
       {oauth.modes?.length && !isWeb ? (
         <div className='flex flex-col gap-2.5 border-l-2 border-border pl-[11px]'>
-          <span className='text-[12.5px] text-subtle'>{t('打开方式')}</span>
+          <span className='text-[12.5px] text-subtle'>{t('Open with')}</sOpen with')}</span>
           <SegmentedControl
-            aria-label={t('{label} 网页登录的打开方式', { label: config.label })}
+            aria-label={t('How to open {label} web login', { label: config.label })}
             options={oauth.modes}
             value={mode}
             onValueChange={onModeChange}
@@ -652,11 +652,11 @@ function OauthSection({
             点击处理**不在这里**：autoclaw-oauth.js 的 create() 会自己给这三颗绑
             click（旧实现同一分工），这里再绑一次会让 start() 被调两遍 —— 也正因如此
             它们必须常驻在 DOM 里（见 add-account-kit 的 AddFoot 说明） */}
-        <Button id={`${prefix}-oauth-zai`}>{t('使用 Zai 账号登录')}</Button>
-        <Button id={`${prefix}-oauth-google`} variant='outline'>{t('使用 Google 账号登录')}</Button>
+        <Button id={`${prefix}-oauth-zai`}>{t('Sign in with Zai')}</Button>
+        <Button id={`${prefix}-oauth-google`} variant='outline'>{t('Sign in with Google')}</Button>
         {/* 取消按钮的显隐由 autoclaw-oauth.js 的 paintCancel 管（同样是 hidden 属性） */}
         <Button id={`${prefix}-oauth-cancel`} variant='outline' hidden>
-          {t('取消')}
+          {t('Cancel')}
         </Button>
       </AddFoot>
     </AddGroup>
@@ -704,9 +704,9 @@ export function ProviderBlock({
   return (
     <div className='add-provider-block' hidden={!active}>
       {config.regionOptions?.length ? (
-        <AddGroup label={t('地区')}>
+        <AddGroup label={t('Region')}>
           <SegmentedControl
-            aria-label={t('{label} 账号地区', { label: config.label })}
+            aria-label={t('{label} account region', { label: config.label })}
             className={DIALOG_SEG_CLASS}
             options={config.regionOptions}
             value={region}
@@ -715,9 +715,9 @@ export function ProviderBlock({
         </AddGroup>
       ) : null}
 
-      <AddGroup label={t('添加方式')} hidden={hideMethodPicker}>
+      <AddGroup label={t('Add method')} hidden={hideMethodPicker}>
         <SegmentedControl
-          aria-label={t('{label} 账号的添加方式', { label: config.label })}
+          aria-label={t('How to add a {label} account', { label: config.label })}
           className={DIALOG_SEG_CLASS}
           options={methodOptions}
           value={effective}

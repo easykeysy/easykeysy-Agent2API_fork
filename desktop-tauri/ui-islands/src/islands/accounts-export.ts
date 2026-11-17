@@ -5,49 +5,49 @@ let exporting = false
 
 export async function exportAccountFiles(selection: AccountExportSelection): Promise<void> {
   if (exporting) {
-    toast(t('账号正在导出，请稍候'))
+    toast(t('Accounts are being exported. Please wait.'))
     return
   }
   const bridge = shared().workbuddyDesktop
   if (!bridge?.exportAccountFiles) {
-    toast(t('当前客户端不支持逐账号导出，请更新客户端'), 'err')
+    toast(t('This client does not support individual account exports. Please update it.'), 'err')
     return
   }
   exporting = true
   try {
     const confirm = shared().wbConfirm?.ask
-    const html = t('导出文件包含登录凭证，可直接用于登录。请妥善保管，不要外传或上传到公共位置。')
-      + (selection.provider ? `<br><br>${t('本组每个账号会分别保存为一个 JSON 文件，包含被筛选隐藏的账号。')}` : '')
+    const html = t('Exported files contain credentials that can be used to sign in. Keep them safe; do not share them or upload them to a public location.')
+      + (selection.provider ? `<br><br>${t('Each account in this group will be saved as a separate JSON file, including accounts hidden by filters.')}` : '')
       + (selection.provider && bridge.platform === 'web'
-        ? `<br><br>${t('网页端会逐个下载文件；浏览器提示时请允许本网站下载多个文件。')}` : '')
+        ? `<br><br>${t('The web panel downloads files individually. If prompted, allow this site to download multiple files.')}` : '')
     const accepted = confirm
       ? await confirm({
-          title: selection.provider ? t('导出本组账号') : t('导出账号'),
+          title: selection.provider ? t('Export accounts in this group') : t('Export Accounts'),
           html,
-          okText: t('导出'),
+          okText: t('Export'),
         })
-      : window.confirm(t('导出文件包含登录凭证，可直接用于登录。请妥善保管，不要外传或上传到公共位置。'))
+      : window.confirm(t('Exported files contain credentials that can be used to sign in. Keep them safe; do not share them or upload them to a public location.'))
     if (!accepted) return
     const result = await bridge.exportAccountFiles(selection)
     if (result?.canceled) return
-    if (!result) throw new Error(t('导出未返回结果'))
+    if (!result) throw new Error(t('The export returned no result.'))
     const count = result.count || 0
     const failed = result.failed || []
     if (failed.length) {
       const first = failed[0]
-      const detail = [first.name || first.id, first.error].filter(Boolean).join('：')
-      toast(t('已导出 {count} 个账号文件，{failed} 个未导出：{reason}', {
+      const detail = [first.name || first.id, first.error].filter(Boolean).join(': ')
+      toast(t('Exported {count} account files; {failed} could not be exported: {reason}', {
         count, failed: failed.length, reason: detail,
       }), 'err')
     } else if (count) {
       toast(result.downloadStarted
-        ? t('已发起 {count} 个账号文件的下载，请在浏览器下载列表确认', { count })
-        : t('✅ 已导出 {count} 个账号文件', { count }), 'ok')
+        ? t('Started downloads for {count} account files. Check your browser\'s downloads to confirm.', { count })
+        : t('✅ Exported {count} account files', { count }), 'ok')
     } else {
-      toast(t('没有可导出的账号'))
+      toast(t('No accounts to export'))
     }
   } catch (error) {
-    toast(t('账号导出失败：{reason}', { reason: errorMessage(error) }), 'err')
+    toast(t('Account export failed: {reason}', { reason: errorMessage(error) }), 'err')
   } finally {
     exporting = false
   }

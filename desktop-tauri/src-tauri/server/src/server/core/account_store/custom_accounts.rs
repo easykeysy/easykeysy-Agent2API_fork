@@ -120,7 +120,7 @@ impl AccountStore {
         let provider_id = provider_id.trim();
         if !provider_id.starts_with(custom_providers::ID_PREFIX) {
             return Err(AccountStoreError::bad_request(format!(
-                "不是自定义提供商 id: {provider_id}"
+                "Not a custom provider id: {provider_id}"
             )));
         }
         let Some(object) = payload.as_object() else {
@@ -187,7 +187,7 @@ impl AccountStore {
                     .map_err(|error| AccountStoreError::new(error, 500))?;
                 if self.with_conn(&_guard, |conn| sql::load_by_id(conn, &id))?.is_some() {
                     return Err(AccountStoreError::new(
-                        format!("账号 id「{id}」已被占用，请重试或检查已有记录"),
+                        format!("Account id「{id}」已被占用，请重试或检查已有记录"),
                         409,
                     ));
                 }
@@ -215,7 +215,7 @@ impl AccountStore {
             .unwrap_or_else(|| {
                 let tail = token_tail_of(&api_key);
                 if !tail.is_empty() {
-                    format!("账号 {tail}")
+                    format!("Account {tail}")
                 } else if no_auth {
                     let label = custom_providers::label_of(provider_id)
                         .filter(|value| !value.is_empty())
@@ -349,9 +349,9 @@ impl AccountStore {
         logging::log(
             "[Accounts]",
             &format!(
-                "{} 自定义账号{}: {}（{}）",
+                "{} 自定义账号{}: {}（{})",
                 if existing.is_some() { "🔄" } else { "✅" },
-                if existing.is_some() { "已更新" } else { "已添加" },
+                if existing.is_some() { "已更新" } else { "Added" },
                 record_name,
                 custom_providers::label_of(provider_id)
                     .unwrap_or_else(|| provider_id.to_string()),
@@ -499,7 +499,7 @@ impl AccountStore {
         self.with_conn(&_guard, |conn| sql::update_in_place(conn, &record))?;
         logging::log(
             "[Accounts]",
-            &format!("🌐 自定义账号上游地址已更新: {name}（{change}）"),
+            &format!("🌐 自定义账号上游地址已更新: {name}（{change})"),
         );
         Ok(vec![change])
     }
@@ -650,10 +650,10 @@ impl AccountStore {
         if next_no_auth != before_no_auth {
             if next_no_auth {
                 record.set("noAuth", Value::Bool(true));
-                changes.push("无需鉴权 → 已开启（转发不发鉴权头）".to_string());
+                changes.push("No authentication → 已开启（转发不发鉴权头）".to_string());
             } else {
                 record.remove("noAuth");
-                changes.push("无需鉴权 → 已关闭".to_string());
+                changes.push("No authentication → Disabled".to_string());
             }
         }
         if next_api_key != before_key {
@@ -663,7 +663,7 @@ impl AccountStore {
             changes.push(if next_api_key.is_empty() {
                 "API Key → 已清除".to_string()
             } else {
-                format!("API Key → 已更新（尾号 {tail}）")
+                format!("API Key → 已更新（尾号 {tail})")
             });
         }
         if changes.is_empty() {
@@ -675,7 +675,7 @@ impl AccountStore {
         self.with_conn(&_guard, |conn| sql::update_in_place(conn, &record))?;
         logging::log(
             "[Accounts]",
-            &format!("🔑 自定义账号凭证已更新: {name}（{}）", changes.join("，")),
+            &format!("🔑 自定义账号凭证已更新: {name}（{})", changes.join(", ")),
         );
         Ok(changes)
     }
@@ -727,7 +727,7 @@ impl AccountStore {
         let provider = record.provider();
         if !provider.starts_with(custom_providers::ID_PREFIX) {
             return Err(AccountStoreError::bad_request(
-                "只有自定义提供商的账号有余额查询配置（balanceQuery）",
+                "只有自定义提供商的账号有余额查询配置（balanceQuery)",
             ));
         }
         // 方案是「这一家的哪条查询链路」的事实来源：没有方案的家没有可配的
@@ -759,7 +759,7 @@ impl AccountStore {
         self.with_conn(&_guard, |conn| sql::update_in_place(conn, &record))?;
         logging::log(
             "[Accounts]",
-            &format!("🔎 自定义账号余额查询配置已更新: {name}（{}）", changes.join("，")),
+            &format!("🔎 自定义账号余额查询配置已更新: {name}（{})", changes.join(", ")),
         );
         Ok(changes)
     }
@@ -861,12 +861,12 @@ pub const BALANCE_QUERY_FIELDS: &[&str] = &["userId", "accessToken", "username",
 /// 字段的界面/日志名（变更说明与错误文案用；键名对用户没有意义）
 fn balance_query_field_label(key: &str) -> &'static str {
     match key {
-        "userId" => "用户 ID",
-        "accessToken" => "访问令牌",
-        "username" => "账号",
-        "password" => "密码",
+        "userId" => "User ID",
+        "accessToken" => "Access token",
+        "username" => "Accounts",
+        "password" => "Password",
         "token" => "控制台令牌",
-        _ => "查询凭证",
+        _ => "Query credentials",
     }
 }
 
@@ -936,9 +936,9 @@ fn describe_balance_query_changes(
         }
         let label = balance_query_field_label(key);
         changes.push(match (old.is_empty(), new.is_empty()) {
-            (true, false) => format!("查询凭证 → {label} 已配置"),
-            (false, true) => format!("查询凭证 → {label} 已清除"),
-            _ => format!("查询凭证 → {label} 已更新"),
+            (true, false) => format!("Query credentials → {label} Configured"),
+            (false, true) => format!("Query credentials → {label} 已清除"),
+            _ => format!("Query credentials → {label} 已更新"),
         });
     }
     changes

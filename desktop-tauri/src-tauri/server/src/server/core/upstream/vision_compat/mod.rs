@@ -223,7 +223,7 @@ async fn reroute(service: &UpstreamService, ctx: &ProviderContext<'_>, original:
     detail["imageCount"] = content::collect(ctx.body)?.len().into();
     if destinations.is_empty() {
         return Err(GatewayError::with_status(503, format!("当前路由及指定目标中没有符合权限和路由配置的可用视觉模型；未改用辅助识图{}",
-            errors.first().map(|error| format!("：{error}")).unwrap_or_default())).with_code("vision_target_unavailable"));
+            errors.first().map(|error| format!(": {error}")).unwrap_or_default())).with_code("vision_target_unavailable"));
     }
     let mut last_error = None;
     for destination in destinations {

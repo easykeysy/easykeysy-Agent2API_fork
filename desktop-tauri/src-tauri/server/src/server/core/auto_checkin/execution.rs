@@ -169,7 +169,7 @@ impl AutoCheckin {
         if let Some(id) = schedule_id {
             checkin_schedules::mark_fired(id, Some(&today));
         }
-        logging::log("[Checkin]", &format!("⏰ 定时签到开始（{reason}）"));
+        logging::log("[Checkin]", &format!("⏰ 定时签到开始（{reason})"));
 
         let outcome = match checkin::run_checkin_selected(
             &self.store,
@@ -261,17 +261,17 @@ impl AutoCheckin {
             &format!(
                 "定时签到完成: {succeeded}/{total} 个账号成功领取{}{}{}",
                 if skipped > 0 {
-                    format!("，跳过 {skipped} 个")
+                    format!("，跳过 {skipped} total")
                 } else {
                     String::new()
                 },
                 if failures.is_empty() {
                     String::new()
                 } else {
-                    format!("，失败 {} 个", failures.len())
+                    format!("，失败 {} total", failures.len())
                 },
                 if active > 0 {
-                    format!("，活跃保活 {active} 个")
+                    format!("，活跃保活 {active} total")
                 } else {
                     String::new()
                 },

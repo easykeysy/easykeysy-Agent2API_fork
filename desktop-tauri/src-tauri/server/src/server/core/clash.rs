@@ -24,7 +24,7 @@ pub const CLASH_MIXED_UID: &str = "__mixed__";
 
 /// Clash 配置未找到时的原因文案
 /// （与「用户机器上没装 Clash Verge」时 Node 版的文案逐字一致）
-pub const CLASH_UNAVAILABLE: &str = "未找到 Clash Verge 配置";
+pub const CLASH_UNAVAILABLE: &str = "未找到 Clash Verge Profile";
 
 /// Clash Verge 的应用目录名（Windows 下 `%APPDATA%\<这个名字>`）
 const CLASH_APP_ID: &str = "io.github.clash-verge-rev.clash-verge-rev";
@@ -179,7 +179,7 @@ pub fn read_clash_verge_config() -> ClashSnapshot {
         return ClashSnapshot::unavailable(CLASH_UNAVAILABLE, None);
     };
     let Some(verge) = read_yaml(&dir.join("verge.yaml")) else {
-        return ClashSnapshot::unavailable("verge.yaml 解析失败", Some(dir));
+        return ClashSnapshot::unavailable("verge.yaml Resolve failed", Some(dir));
     };
 
     // 手动配置的监听器：每一项形如

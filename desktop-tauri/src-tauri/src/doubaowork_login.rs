@@ -19,7 +19,7 @@ pub fn allowed(url: &url::Url) -> bool {
 
 pub async fn start(app: &AppHandle, mode: &str, proxy: Option<Value>) -> Result<Value, String> {
     if mode == "external" {
-        return Err("豆包工作网页登录只支持内嵌窗口；系统浏览器登录后请粘贴完整 Cookie。".into());
+        return Err("豆包工作网页登录只支持内嵌窗口；系统浏览器登录后请粘贴完整 Cookie.".into());
     }
     let started = crate::login::start_provider_login("doubaowork", proxy).await?;
     let flow = started["state"]
@@ -54,9 +54,9 @@ pub async fn cookie(window: &WebviewWindow) -> Result<Option<String>, String> {
         tokio::task::spawn_blocking(move || owned.cookies()),
     )
     .await
-    .map_err(|_| "读取豆包工作登录窗口 Cookie 超时")?
+    .map_err(|_| "读取豆包工作登录窗口 Cookie Timeout")?
     .map_err(|_| "读取豆包工作 Cookie 的后台任务失败")?
-    .map_err(|_| "读取豆包工作登录窗口 Cookie 失败")?;
+    .map_err(|_| "读取豆包工作登录窗口 Cookie failed")?;
     let now = chrono::Utc::now().timestamp();
     let rows: Vec<Value> = cookies.into_iter().filter_map(|cookie| {
         let domain = cookie.domain()?.trim_start_matches('.');

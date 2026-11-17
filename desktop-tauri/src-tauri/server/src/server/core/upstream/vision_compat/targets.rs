@@ -45,12 +45,12 @@ pub(super) fn resolve(service: &UpstreamService, ctx: &ProviderContext<'_>, targ
 fn resolve_in_route(service: &UpstreamService, ctx: &ProviderContext<'_>, mut target: VisionTarget,
     request_model: &str, needs: &RequestNeeds, routing: &RequestRouting) -> Result<Destination, GatewayError> {
     if !key_scope::allows_provider(ctx.key_scope, &target.provider) {
-        return Err(GatewayError::with_status(403, "当前网关 Key 不允许所选视觉提供商").with_code("vision_target_forbidden"));
+        return Err(GatewayError::with_status(403, "The current gateway Key 不允许所选视觉提供商").with_code("vision_target_forbidden"));
     }
     let permission_model = routing.group.as_ref().map(|group| group.model.as_str()).unwrap_or(request_model);
     if !key_scope::allows_model(ctx.key_scope, permission_model)
         || !key_scope::allows_model(ctx.key_scope, &target.model) {
-        return Err(GatewayError::with_status(403, "当前网关 Key 不允许所选视觉模型").with_code("vision_target_forbidden"));
+        return Err(GatewayError::with_status(403, "The current gateway Key 不允许所选视觉模型").with_code("vision_target_forbidden"));
     }
     if !compatible(&target, needs) {
         return Err(GatewayError::bad_request("所选视觉模型未确认支持本次请求需要的图片、工具或视频能力，请检查模型管理")

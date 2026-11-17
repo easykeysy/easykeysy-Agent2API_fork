@@ -23,16 +23,16 @@ pub(super) fn name(entry: &Entry) -> String {
 pub(super) fn entry_event(entry: &Entry, boot_id: &str) -> Event {
     let status = &entry.startup;
     let summary = match status.phase {
-        Phase::Ready => "插件已就绪",
-        Phase::Timeout => "插件启动超时",
-        Phase::Blocked => "插件暂不可用，等待运行环境恢复",
-        _ => "插件启动失败",
+        Phase::Ready => "Plugin ready",
+        Phase::Timeout => "Plugin startup timed out",
+        Phase::Blocked => "Plugin unavailable while the runtime recovers",
+        _ => "Plugin failed to start",
     };
     let duration = status.updated_at.saturating_sub(status.started_at.unwrap_or(status.updated_at)).max(0);
     let name = name(entry);
     Event {
         level: if status.phase.failed() { "error" } else if status.phase == Phase::Blocked { "warn" } else { "info" },
-        message: format!("{name}：{summary}"),
+        message: format!("{name}: {summary}"),
         data: json!({
             "source": "plugin", "action": "plugin.startup", "summary": summary,
             "pluginId": entry.id, "pluginName": name, "packageName": entry.package_name,
@@ -59,7 +59,7 @@ pub(super) fn summary_event(entries: &[&Entry], boot_id: &str, attempt: u64) -> 
         },
         data: json!({
             "source": "plugin", "action": "plugin.startup.summary",
-            "summary": if failed == 0 && blocked == 0 { "插件启动完成" } else { "插件启动存在异常" },
+            "summary": if failed == 0 && blocked == 0 { "插件启动完成" } else { "Some plugins could not start" },
             "readyCount": ready, "failedCount": failed, "blockedCount": blocked,
             "durationMs": duration, "bootId": boot_id, "attempt": attempt,
             "plugins": entries.iter().map(|entry| json!({

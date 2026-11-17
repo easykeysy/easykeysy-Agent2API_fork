@@ -32,14 +32,14 @@ function object(value: unknown): Record<string, unknown> | null {
 
 function unitOf(value: unknown): string {
   const unit = typeof value === 'string' ? value.trim() : ''
-  return isCreditUnit(unit) ? '积分' : unit
+  return isCreditUnit(unit) ? 'Points' : unit
 }
 
 export function creditExpiryUnitOf(value: unknown): string {
   const data = object(value)
   if (!data) return ''
   // WorkBuddy 的 totalLeft 契约使用积分；其他缺单位的读数不作猜测。
-  return unitOf(data.unit) || (Object.prototype.hasOwnProperty.call(data, 'totalLeft') ? '积分' : '')
+  return unitOf(data.unit) || (Object.prototype.hasOwnProperty.call(data, 'totalLeft') ? 'Points' : '')
 }
 
 export function expiringCreditOf(pack: Record<string, unknown>, defaultUnit: string, now = Date.now()): ExpiringCredit | null {
@@ -93,20 +93,20 @@ export function creditExpirySummaryOf(packs: ExpiringCredit[], now = Date.now())
 }
 
 function amountNumber(value: number, t: Translate, format: Format): string {
-  return value > 0 && value < 0.01 ? t('不足 {n}', { n: format(0.01) }) : format(value)
+  return value > 0 && value < 0.01 ? t('Less than {n}', { n: format(0.01) }) : format(value)
 }
 
 function amountsText(amounts: CreditExpiryAmount[], t: Translate, format: Format): string {
   return amounts.map(amount => {
-    if (!amount.unit) return t('{count} 份单位未知', { count: amount.count })
-    if (amount.unit === '%') return t('{count} 份仅提供比例', { count: amount.count })
+    if (!amount.unit) return t('{count} packs with unknown units', { count: amount.count })
+    if (amount.unit === '%') return t('{count} packs with percentage-only readings', { count: amount.count })
     const unit = usageUnitLabel(amount.unit, t)
-    if (amount.sum === null) return t('{unit}余量未知（{count} 份）', { unit, count: amount.count })
+    if (amount.sum === null) return t('Remaining {unit} unknown ({count} packs)', { unit, count: amount.count })
     const value = `${amountNumber(amount.sum, t, format)} ${unit}`
     return amount.unknownCount > 0
-      ? t('{amount}，另 {count} 份余量未知', { amount: value, count: amount.unknownCount })
+      ? t('{amount}, plus {count} packs with unknown remaining amounts', { amount: value, count: amount.unknownCount })
       : value
-  }).join('；')
+  }).join('; ')
 }
 
 export function creditExpiryText(summary: CreditExpirySummary, t: Translate, format: Format, displayUnit = ''): {
@@ -118,20 +118,20 @@ export function creditExpiryText(summary: CreditExpirySummary, t: Translate, for
 } {
   if (!summary.count) return { badge: '', group: '', summary: '', today: '', detail: '' }
   const single = summary.amounts.length === 1 ? summary.amounts[0] : null
-  const compact = isCreditUnit(displayUnit) && single?.unit === '积分' && single.unknownCount === 0 && single.sum !== null
+  const compact = isCreditUnit(displayUnit) && single?.unit === 'Points' && single.unknownCount === 0 && single.sum !== null
     ? amountNumber(single.sum, t, format) : null
-  const main = t('7 天内到期 {amount}（{count} 份）', {
+  const main = t('Expiring within 7 days: {amount} ({count} packs)', {
     amount: amountsText(summary.amounts, t, format), count: summary.count,
   })
-  const today = summary.todayCount > 0 ? t('今天到期 {amount}（{count} 份）', {
+  const today = summary.todayCount > 0 ? t('Expiring today: {amount} ({count} packs)', {
     amount: amountsText(summary.todayAmounts, t, format), count: summary.todayCount,
   }) : ''
   return {
-    badge: compact === null ? t('7天 {count}份', { count: summary.count }) : t('7天 {n}', { n: compact }),
-    group: compact === null ? t('即将到期 {count} 份', { count: summary.count }) : t('即将过期 {n}', { n: compact }),
+    badge: compact === null ? t('{count} packs in 7d', { count: summary.count }) : t('{n} in 7d', { n: compact }),
+    group: compact === null ? t('{count} packs expiring soon', { count: summary.count }) : t('{n} expiring soon', { n: compact }),
     summary: main,
     today,
-    detail: [main, today].filter(Boolean).join('；'),
+    detail: [main, today].filter(Boolean).join('; '),
   }
 }
 
@@ -142,12 +142,12 @@ export function creditExpiryLabel(expireAt: number, t: Translate, now = Date.now
   const today = new Date(now)
   if (target.getFullYear() === today.getFullYear() && target.getMonth() === today.getMonth()
     && target.getDate() === today.getDate()) {
-    if (left < 60_000) return t('不到 1 分钟到期')
+    if (left < 60_000) return t('Expires in under 1 min')
     const hours = Math.floor(left / 3_600_000)
-    return hours < 1 ? t('{minutes} 分钟后到期', { minutes: Math.floor(left / 60_000) })
-      : t('{hours} 小时后到期', { hours })
+    return hours < 1 ? t('Expires in {minutes} min', { minutes: Math.floor(left / 60_000) })
+      : t('Expires in {hours} h', { hours })
   }
   const dayOf = (date: Date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
   const days = Math.round((dayOf(target) - dayOf(today)) / 86_400_000)
-  return days === 1 ? t('明天到期') : t('{days} 天后到期', { days })
+  return days === 1 ? t('Expires tomorrow') : t('Expires in {days} days', { days })
 }

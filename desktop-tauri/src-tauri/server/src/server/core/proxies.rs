@@ -80,7 +80,7 @@ pub(crate) fn normalize_credential(value: Option<&Value>) -> Result<String, Stri
     match value {
         None | Some(Value::Null) => Ok(String::new()),
         Some(Value::String(text)) if text.chars().count() <= MAX_USER_LENGTH => Ok(text.clone()),
-        Some(Value::String(_)) => Err("代理账号和密码不能超过 200 个字符".to_string()),
+        Some(Value::String(_)) => Err("Proxy usernames and passwords must not exceed 200 characters".to_string()),
         _ => Err("代理账号和密码必须是文本".to_string()),
     }
 }
@@ -91,10 +91,10 @@ pub(crate) fn normalize_host(host: &str) -> Result<String, String> {
     let bare = host.strip_prefix('[').and_then(|value| value.strip_suffix(']')).unwrap_or(host);
     if let Ok(address) = bare.parse::<std::net::IpAddr>() { return Ok(address.to_string()); }
     if host.len() > MAX_HOST_LENGTH || host.chars().any(|ch| ch.is_whitespace() || ch.is_control() || ":/@?#\\[]%".contains(ch)) {
-        return Err("代理主机只能填写域名或 IP 地址，不能包含协议、端口或路径".to_string());
+        return Err("Enter only a domain or IP address, without a protocol, port or path".to_string());
     }
     url::Host::parse(host).map(|value| value.to_string())
-        .map_err(|_| "代理主机地址无效".to_string())
+        .map_err(|_| "Invalid proxy host".to_string())
 }
 
 /// 归一账号代理配置（来自 API 的原始输入）。
@@ -135,7 +135,7 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
     };
     if source.is_empty() {
         return Err(ProxyConfigError::new(
-            "代理配置缺少 source（clash / custom / pool / rotate）",
+            "代理配置缺少 source（clash / custom / pool / rotate)",
         ));
     }
 
@@ -171,7 +171,7 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
         }
         if ids.is_empty() {
             return Err(ProxyConfigError::new(
-                "轮询至少要选择一条代理（或改选「全部」）",
+                "Select at least one proxy to rotate (or switch back to \"All\")",
             ));
         }
         return Ok(Some(json!({
@@ -209,14 +209,14 @@ pub fn normalize_account_proxy(input: &Value) -> Result<Option<Value>, ProxyConf
         if cleaned.is_empty() { "http".to_string() } else { cleaned }
     };
     if protocol != "http" && protocol != "socks5" {
-        return Err(ProxyConfigError::new("代理协议只支持 http 或 socks5"));
+        return Err(ProxyConfigError::new("代理协议只支持 http or socks5"));
     }
     let host = normalize_host(object.get("host").and_then(Value::as_str).unwrap_or(""))
         .map_err(ProxyConfigError::new)?;
     let non_direct = normalize_non_direct(object.get("nonDirect"))
         .map_err(ProxyConfigError::new)?;
     let Some(port) = valid_port(object.get("port")) else {
-        return Err(ProxyConfigError::new("代理端口必须是 1-65535 的整数"));
+        return Err(ProxyConfigError::new("Proxy port must be an integer from 1 to 65535"));
     };
     let label = clean_string(object.get("label"), MAX_LABEL_LENGTH);
     // label 缺失时按 `协议://主机:端口` 生成，前端直接展示这个串
@@ -295,7 +295,7 @@ impl ResolvedProxy {
             return Err("代理配置缺少主机地址".to_string());
         }
         let Some(port) = valid_port(value.get("port")) else {
-            return Err("代理端口必须是 1-65535 的整数".to_string());
+            return Err("Proxy port must be an integer from 1 to 65535".to_string());
         };
         let protocol = {
             let protocol = text("protocol");
@@ -528,7 +528,7 @@ pub fn resolve_account_proxy(config: Option<&Value>) -> Option<ProxyResolution> 
     let snapshot = crate::server::core::clash::clash_snapshot();
     if !snapshot.available {
         let detail = snapshot.error.as_ref()
-            .map(|error| format!("（{error}）"))
+            .map(|error| format!("（{error})"))
             .unwrap_or_default();
         return Some(ProxyResolution::Failed(format!("Clash Verge 配置不可用{detail}")));
     }
@@ -549,7 +549,7 @@ pub fn resolve_account_proxy(config: Option<&Value>) -> Option<ProxyResolution> 
                 "Clash Verge 监听器「{}」已禁用", listener.name
             )));
         }
-        (listener.port, format!("{}（:{}）", listener.name, listener.port))
+        (listener.port, format!("{}（:{})", listener.name, listener.port))
     };
     Some(ProxyResolution::Resolved(ResolvedProxy {
         source: "clash".to_string(),
@@ -605,7 +605,7 @@ pub fn describe_account_proxy(config: Option<&Value>) -> Value {
         return json!({
             "source": "direct",
             "config": { "source": "direct" },
-            "label": "直连",
+            "label": "Direct",
             "error": Value::Null,
         });
     }
@@ -623,7 +623,7 @@ pub fn describe_account_proxy(config: Option<&Value>) -> Value {
     match &resolution {
         ProxyResolution::Failed(message) => json!({
             "source": source,
-            "label": "解析失败",
+            "label": "Resolve failed",
             "error": message,
             "config": config,
         }),

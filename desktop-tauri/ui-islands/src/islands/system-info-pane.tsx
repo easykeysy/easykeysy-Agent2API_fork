@@ -48,11 +48,11 @@ type Group = { title: string; rows: Array<[string, React.ReactNode]> }
 
 /** 运行形态 → 展示文案（后端 `deployment` 的取值集合） */
 const DEPLOYMENT_LABEL: Record<string, string> = {
-  desktop: t('桌面端'),
-  'windows-service': t('Windows 服务'),
-  docker: t('Docker 容器'),
-  systemd: t('systemd 服务'),
-  foreground: t('前台运行'),
+  desktop: t('Desktop app'),
+  'windows-service': t('Windows service'),
+  docker: t('Docker container'),
+  systemd: t('systemd service'),
+  foreground: t('Foreground process'),
 }
 
 /** 系统标识 → 展示文案 */
@@ -64,11 +64,11 @@ const OS_LABEL: Record<string, string> = {
 
 /** 安装包形态 → 展示文案 */
 const INSTALLER_LABEL: Record<string, string> = {
-  nsis: t('Windows 安装包（NSIS）'),
-  dmg: 'macOS 安装包（dmg）',
-  deb: t('Linux 安装包（deb）'),
+  nsis: t('Windows installer (NSIS)'),
+  dmg: 'macOS Install package (dmg)',
+  deb: t('Linux package (deb)'),
   appimage: 'AppImage',
-  server: t('服务端压缩包'),
+  server: t('Server archive'),
 }
 
 function updateSupportLabel(deployment: NonNullable<SystemInfo['deployment']>): string {
@@ -80,8 +80,8 @@ function updateSupportLabel(deployment: NonNullable<SystemInfo['deployment']>): 
 /** 当前界面形态（前端补充，后端不知道用户在哪个窗口里） */
 function interfaceLabel(): string {
   const platform = shared().workbuddyDesktop?.platform
-  if (platform === 'web') return t('浏览器面板')
-  return t('应用窗口')
+  if (platform === 'web') return t('Browser panel')
+  return t('App window')
 }
 
 /**
@@ -107,10 +107,10 @@ function formatUptime(seconds: number | null | undefined): string {
   const days = Math.floor(total / 86400)
   const hours = Math.floor((total % 86400) / 3600)
   const minutes = Math.floor((total % 3600) / 60)
-  if (days > 0) return t('{d} 天 {h} 小时', { d: days, h: hours })
-  if (hours > 0) return t('{h} 小时 {m} 分钟', { h: hours, m: minutes })
-  if (minutes > 0) return t('{m} 分钟', { m: minutes })
-  return t('不到 1 分钟')
+  if (days > 0) return t('{d}d {h}h', { d: days, h: hours })
+  if (hours > 0) return t('{h}h {m}m', { h: hours, m: minutes })
+  if (minutes > 0) return t('{m}m', { m: minutes })
+  return t('under a minute')
 }
 
 /** 时间戳（毫秒）→ 本地时间串；0 / 非法给「—」 */
@@ -125,8 +125,8 @@ function formatTime(ms: number | null | undefined): string {
 
 /** 布尔开关 → 「开 / 关」；未知给「—」 */
 function onOff(value: boolean | null | undefined): string {
-  if (value === true) return t('开')
-  if (value === false) return t('关')
+  if (value === true) return t('On')
+  if (value === false) return t('Off')
   return '—'
 }
 
@@ -176,14 +176,14 @@ function getSnapshot(): State {
 async function load(): Promise<void> {
   const api = shared().workbuddyDesktop
   if (!api?.getSystemInfo) {
-    publish({ status: 'unavailable', error: t('当前环境不支持读取版本信息（桥接方法缺失）') })
+    publish({ status: 'unavailable', error: t('This environment cannot read version info (bridge method missing)') })
     return
   }
   if (snapshot.status !== 'ready') publish({ status: 'loading' })
   try {
     const info = await api.getSystemInfo({ hideUsername: snapshot.hideUsername })
     if (!info) {
-      publish({ status: 'unavailable', error: t('后端没有返回版本信息') })
+      publish({ status: 'unavailable', error: t('The backend returned no version info') })
       return
     }
     publish({ status: 'ready', info, error: '' })
@@ -225,66 +225,66 @@ function toPlainText(info: SystemInfo): string {
     lines.push('')
   }
 
-  section(t('版本'), [
-    [t('软件版本'), text(app.version)],
-    [t('开源许可'), text(app.license)],
-    [t('源代码'), text(app.sourceUrl)],
-    [t('版权声明'), text(app.copyright)],
-    [t('更新通道'), app.channel === 'both' ? t('正式版与 beta 版') : app.channel === 'beta' ? t('仅 beta 版') : t('仅正式版')],
-    [t('数据库 schema'), text(app.schemaVersion)],
-    [t('库中 schema'), text(app.dbSchemaVersion)],
+  section(t('Version'), [
+    [t('Software version'), text(app.version)],
+    [t('Open-source license'), text(app.license)],
+    [t('Source code'), text(app.sourceUrl)],
+    [t('Copyright notice'), text(app.copyright)],
+    [t('Update channel'), app.channel === 'both' ? t('Stable and beta') : app.channel === 'beta' ? t('Beta only') : t('Stable only')],
+    [t('Database schema'), text(app.schemaVersion)],
+    [t('Schema in database'), text(app.dbSchemaVersion)],
   ])
-  section(t('环境'), [
-    [t('运行形态'), DEPLOYMENT_LABEL[String(runtime.deployment)] || text(runtime.deployment)],
-    [t('当前界面'), interfaceLabel()],
-    [t('操作系统'), formatOs(runtime.os, runtime.osVersion)],
-    [t('架构'), text(runtime.arch)],
-    [t('WebView / 浏览器内核'), text(runtime.webviewVersion)],
-    [t('进程 PID'), text(runtime.pid)],
-    [t('启动时间'), formatTime(runtime.startedAt)],
-    [t('已运行'), formatUptime(runtime.uptimeSeconds)],
-    [t('开发构建'), onOff(runtime.debugBuild)],
+  section(t('Environment'), [
+    [t('Deployment'), DEPLOYMENT_LABEL[String(runtime.deployment)] || text(runtime.deployment)],
+    [t('Current interface'), interfaceLabel()],
+    [t('Operating system'), formatOs(runtime.os, runtime.osVersion)],
+    [t('Architecture'), text(runtime.arch)],
+    [t('WebView / browser engine'), text(runtime.webviewVersion)],
+    [t('Process PID'), text(runtime.pid)],
+    [t('Started at'), formatTime(runtime.startedAt)],
+    [t('Uptime'), formatUptime(runtime.uptimeSeconds)],
+    [t('Debug build'), onOff(runtime.debugBuild)],
   ])
-  section(t('位置与端口'), [
-    [t('监听地址'), `${text(deployment.host)}:${text(deployment.port)}`],
-    [t('面板端口'), text(deployment.panelPort)],
-    [t('托管网页界面'), onOff(deployment.uiHosted)],
-    [t('数据目录'), text(deployment.configDir)],
-    [t('数据库文件'), `${text(deployment.dbFile)}（${formatBytes(Number(deployment.dbBytes) || 0)}）`],
-    [t('日志文件'), text(deployment.logFile)],
-    [t('程序路径'), text(deployment.exePath)],
-    [t('安装包形态'), INSTALLER_LABEL[String(deployment.installerKind)] || text(deployment.installerKind)],
-    [t('面板自动安装'), updateSupportLabel(deployment)],
+  section(t('Location and ports'), [
+    [t('Listen address'), `${text(deployment.host)}:${text(deployment.port)}`],
+    [t('Panel port'), text(deployment.panelPort)],
+    [t('Serves web UI'), onOff(deployment.uiHosted)],
+    [t('Data directory'), text(deployment.configDir)],
+    [t('Database file'), `${text(deployment.dbFile)}（${formatBytes(Number(deployment.dbBytes) || 0)}）`],
+    [t('Log file'), text(deployment.logFile)],
+    [t('Executable path'), text(deployment.exePath)],
+    [t('Installer kind'), INSTALLER_LABEL[String(deployment.installerKind)] || text(deployment.installerKind)],
+    [t('Automatic installation from panel'), updateSupportLabel(deployment)],
   ])
-  section(t('安全'), [
-    [t('管理员已注册'), onOff(security.adminRegistered)],
-    [t('面板登录'), onOff(security.panelAuth)],
-    [t('网关 Key 数量'), text(security.apiKeyCount)],
-    [t('/v1 拒绝无 Key 请求'), onOff(security.v1FailClosed)],
-    [t('未注册闸门'), onOff(security.panelGate)],
-    [t('允许无 Key 裸跑'), onOff(security.allowNoKey)],
-    [t('GitHub 令牌'), security.githubTokenFilled ? t('已填写') : t('未填写')],
-    [t('更新出网线路'), security.updateProxy ? t('已指定出口') : t('直连')],
+  section(t('Security'), [
+    [t('Admin registered'), onOff(security.adminRegistered)],
+    [t('Panel login'), onOff(security.panelAuth)],
+    [t('Gateway key count'), text(security.apiKeyCount)],
+    [t('/v1 rejects keyless requests'), onOff(security.v1FailClosed)],
+    [t('Unregistered gate'), onOff(security.panelGate)],
+    [t('Allow running without keys'), onOff(security.allowNoKey)],
+    [t('GitHub Token'), security.githubTokenFilled ? t('Saved') : t('Not set')],
+    [t('Update egress route'), security.updateProxy ? t('Pinned egress') : t('Direct')],
   ])
-  section(t('开关'), [
-    [t('调试模式'), onOff(features.debugMode)],
-    [t('指纹脱敏'), onOff(features.sanitizeFingerprints)],
-    [t('跨域访问'), onOff(features.cors)],
-    [t('开发者角色兼容'), onOff(features.developerRoleCompat)],
-    [t('第三方模型回答完自动折叠过程'), onOff(features.thirdPartyReasoningCollapse)],
-    [t('保活换行丢弃'), onOff(features.keepaliveStrip)],
-    [t('自动续写'), onOff(features.autoContinue)],
-    [t('models.dev 元数据'), onOff(features.modelsDev)],
-    [t('登录人机验证'), onOff(features.captchaEnabled)],
+  section(t('Toggles'), [
+    [t('Debug mode'), onOff(features.debugMode)],
+    [t('Fingerprint sanitizing'), onOff(features.sanitizeFingerprints)],
+    [t('CORS'), onOff(features.cors)],
+    [t('Developer role compat'), onOff(features.developerRoleCompat)],
+    [t('Collapse third-party model work after the answer'), onOff(features.thirdPartyReasoningCollapse)],
+    [t('Strip keepalive newlines'), onOff(features.keepaliveStrip)],
+    [t('Auto continuation'), onOff(features.autoContinue)],
+    [t('models.dev metadata'), onOff(features.modelsDev)],
+    [t('Login CAPTCHA'), onOff(features.captchaEnabled)],
   ])
-  section(t('计数'), [
-    [t('账号'), `${text(stats.enabledAccounts)} / ${text(stats.accounts)} ${t('启用')}`],
-    [t('限流中账号'), text(stats.limitedAccounts)],
-    [t('模型'), text(stats.models)],
-    [t('在途请求'), text(stats.inFlight)],
-    [t('累计请求'), formatCount(stats.requests)],
-    [t('事件日志'), formatCount(stats.logs)],
-    [t('待迁移旧数据'), onOff(stats.upgradePending)],
+  section(t('Counts'), [
+    [t('Accounts'), `${text(stats.enabledAccounts)} / ${text(stats.accounts)} ${t('enabled')}`],
+    [t('Rate-limited accounts'), text(stats.limitedAccounts)],
+    [t('Model'), text(stats.models)],
+    [t('In-flight requests'), text(stats.inFlight)],
+    [t('Total requests'), formatCount(stats.requests)],
+    [t('Event logs'), formatCount(stats.logs)],
+    [t('Legacy data pending migration'), onOff(stats.upgradePending)],
   ])
   return lines.join('\n').trimEnd()
 }
@@ -293,13 +293,13 @@ function toPlainText(info: SystemInfo): string {
 async function copyPlainText(): Promise<void> {
   const info = snapshot.info
   if (!info) {
-    toast(t('还没有读到版本信息'), 'err')
+    toast(t('Version info has not been loaded yet'), 'err')
     return
   }
   const payload = toPlainText(info)
   try {
     await navigator.clipboard.writeText(payload)
-    toast(t('已复制全部版本信息'))
+    toast(t('Copied all version info'))
     return
   } catch {
     /* 落到下面的兜底 */
@@ -313,10 +313,10 @@ async function copyPlainText(): Promise<void> {
     area.select()
     const ok = document.execCommand('copy')
     area.remove()
-    if (ok) toast(t('已复制全部版本信息'))
-    else toast(t('复制失败，请手动选择复制'), 'err')
+    if (ok) toast(t('Copied all version info'))
+    else toast(t('Copy failed, please select and copy manually'), 'err')
   } catch {
-    toast(t('复制失败，请手动选择复制'), 'err')
+    toast(t('Copy failed, please select and copy manually'), 'err')
   }
 }
 
@@ -374,102 +374,102 @@ function SystemInfoPanel() {
 
   const groups: Group[] = [
     {
-      title: t('版本'),
+      title: t('Version'),
       rows: [
-        [t('软件版本'), <span className='sysinfo-mono'>{text(app.version)}</span>],
-        [t('开源许可'), text(app.license || 'AGPL-3.0-only')],
-        [t('更新通道'), app.channel === 'both'
-          ? <Badge variant='warning' shape='tag'>{t('正式版与 beta 版')}</Badge>
+        [t('Software version'), <span className='sysinfo-mono'>{text(app.version)}</span>],
+        [t('Open-source license'), text(app.license || 'AGPL-3.0-only')],
+        [t('Update channel'), app.channel === 'both'
+          ? <Badge variant='warning' shape='tag'>{t('Stable and beta')}</Badge>
           : app.channel === 'beta'
-            ? <Badge variant='warning' shape='tag'>{t('仅 beta 版')}</Badge>
-            : <Badge variant='outline' shape='tag'>{t('仅正式版')}</Badge>],
-        [t('数据库 schema'), (
+            ? <Badge variant='warning' shape='tag'>{t('Beta only')}</Badge>
+            : <Badge variant='outline' shape='tag'>{t('Stable only')}</Badge>],
+        [t('Database schema'), (
           <span className='sysinfo-mono'>
             {text(app.schemaVersion)}
             {app.dbSchemaVersion != null ? ` / ${app.dbSchemaVersion}` : ''}
             {schemaMismatch
-              ? <Badge variant='destructive' shape='tag' className='ml-2'>{t('不一致')}</Badge>
+              ? <Badge variant='destructive' shape='tag' className='ml-2'>{t('Mismatch')}</Badge>
               : null}
           </span>
         )],
       ],
     },
     {
-      title: t('环境'),
+      title: t('Environment'),
       rows: [
-        [t('运行形态'), <Badge variant='brand'>{deploymentLabel}</Badge>],
-        [t('当前界面'), text(interfaceLabel())],
-        [t('操作系统'), osFull],
-        [t('架构'), <span className='sysinfo-mono'>{text(runtime.arch)}</span>],
-        [t('WebView / 浏览器内核'), <span className='sysinfo-mono'>{text(runtime.webviewVersion)}</span>],
-        [t('进程 PID'), <span className='sysinfo-mono'>{text(runtime.pid)}</span>],
-        [t('启动时间'), <span className='sysinfo-mono'>{formatTime(runtime.startedAt)}</span>],
-        [t('已运行'), formatUptime(runtime.uptimeSeconds)],
-        [t('开发构建'), onOff(runtime.debugBuild)],
-        [t('详细日志'), onOff(runtime.verbose)],
+        [t('Deployment'), <Badge variant='brand'>{deploymentLabel}</Badge>],
+        [t('Current interface'), text(interfaceLabel())],
+        [t('Operating system'), osFull],
+        [t('Architecture'), <span className='sysinfo-mono'>{text(runtime.arch)}</span>],
+        [t('WebView / browser engine'), <span className='sysinfo-mono'>{text(runtime.webviewVersion)}</span>],
+        [t('Process PID'), <span className='sysinfo-mono'>{text(runtime.pid)}</span>],
+        [t('Started at'), <span className='sysinfo-mono'>{formatTime(runtime.startedAt)}</span>],
+        [t('Uptime'), formatUptime(runtime.uptimeSeconds)],
+        [t('Debug build'), onOff(runtime.debugBuild)],
+        [t('Verbose logs'), onOff(runtime.verbose)],
       ],
     },
     {
-      title: t('位置与端口'),
+      title: t('Location and ports'),
       rows: [
-        [t('监听地址'), <span className='sysinfo-mono'>{`${text(deployment.host)}:${text(deployment.port)}`}</span>],
-        [t('面板端口'), <span className='sysinfo-mono'>{text(deployment.panelPort)}</span>],
-        [t('托管网页界面'), onOff(deployment.uiHosted)],
-        [t('数据目录'), <span className='sysinfo-mono'>{text(deployment.configDir)}</span>],
-        [t('数据库文件'), (
+        [t('Listen address'), <span className='sysinfo-mono'>{`${text(deployment.host)}:${text(deployment.port)}`}</span>],
+        [t('Panel port'), <span className='sysinfo-mono'>{text(deployment.panelPort)}</span>],
+        [t('Serves web UI'), onOff(deployment.uiHosted)],
+        [t('Data directory'), <span className='sysinfo-mono'>{text(deployment.configDir)}</span>],
+        [t('Database file'), (
           <span className='sysinfo-mono'>
             {text(deployment.dbFile)}
             <span className='sysinfo-dim'>{`（${formatBytes(Number(deployment.dbBytes) || 0)}）`}</span>
             {deployment.dbAvailable === false
-              ? <Badge variant='destructive' shape='tag' className='ml-2'>{t('不可用')}</Badge>
+              ? <Badge variant='destructive' shape='tag' className='ml-2'>{t('Unavailable')}</Badge>
               : null}
           </span>
         )],
-        [t('日志文件'), <span className='sysinfo-mono'>{text(deployment.logFile)}</span>],
-        [t('程序路径'), <span className='sysinfo-mono'>{text(deployment.exePath)}</span>],
-        [t('安装包形态'), INSTALLER_LABEL[String(deployment.installerKind)] || text(deployment.installerKind)],
-        [t('面板自动安装'), updateSupportLabel(deployment)],
+        [t('Log file'), <span className='sysinfo-mono'>{text(deployment.logFile)}</span>],
+        [t('Executable path'), <span className='sysinfo-mono'>{text(deployment.exePath)}</span>],
+        [t('Installer kind'), INSTALLER_LABEL[String(deployment.installerKind)] || text(deployment.installerKind)],
+        [t('Automatic installation from panel'), updateSupportLabel(deployment)],
       ],
     },
     {
-      title: t('安全'),
+      title: t('Security'),
       rows: [
-        [t('管理员已注册'), onOff(security.adminRegistered)],
-        [t('面板登录'), onOff(security.panelAuth)],
-        [t('网关 Key 数量'), <span className='sysinfo-mono'>{text(security.apiKeyCount)}</span>],
-        [t('/v1 拒绝无 Key 请求'), onOff(security.v1FailClosed)],
-        [t('未注册闸门'), onOff(security.panelGate)],
-        [t('允许无 Key 裸跑'), onOff(security.allowNoKey)],
-        [t('GitHub 令牌'), security.githubTokenFilled ? t('已填写') : t('未填写')],
-        [t('更新出网线路'), security.updateProxy ? t('已指定出口') : t('直连')],
+        [t('Admin registered'), onOff(security.adminRegistered)],
+        [t('Panel login'), onOff(security.panelAuth)],
+        [t('Gateway key count'), <span className='sysinfo-mono'>{text(security.apiKeyCount)}</span>],
+        [t('/v1 rejects keyless requests'), onOff(security.v1FailClosed)],
+        [t('Unregistered gate'), onOff(security.panelGate)],
+        [t('Allow running without keys'), onOff(security.allowNoKey)],
+        [t('GitHub Token'), security.githubTokenFilled ? t('Saved') : t('Not set')],
+        [t('Update egress route'), security.updateProxy ? t('Pinned egress') : t('Direct')],
       ],
     },
     {
-      title: t('开关'),
+      title: t('Toggles'),
       rows: [
-        [t('调试模式'), onOff(features.debugMode)],
-        [t('指纹脱敏'), onOff(features.sanitizeFingerprints)],
-        [t('跨域访问'), onOff(features.cors)],
-        [t('开发者角色兼容'), onOff(features.developerRoleCompat)],
-        [t('第三方模型回答完自动折叠过程'), onOff(features.thirdPartyReasoningCollapse)],
-        [t('保活换行丢弃'), onOff(features.keepaliveStrip)],
-        [t('自动续写'), features.autoContinue
-          ? t('开（最多 {n} 轮）', { n: text(features.autoContinueMaxRounds) })
-          : t('关')],
-        [t('models.dev 元数据'), onOff(features.modelsDev)],
-        [t('登录人机验证'), onOff(features.captchaEnabled)],
+        [t('Debug mode'), onOff(features.debugMode)],
+        [t('Fingerprint sanitizing'), onOff(features.sanitizeFingerprints)],
+        [t('CORS'), onOff(features.cors)],
+        [t('Developer role compat'), onOff(features.developerRoleCompat)],
+        [t('Collapse third-party model work after the answer'), onOff(features.thirdPartyReasoningCollapse)],
+        [t('Strip keepalive newlines'), onOff(features.keepaliveStrip)],
+        [t('Auto continuation'), features.autoContinue
+          ? t('On (up to {n} rounds)', { n: text(features.autoContinueMaxRounds) })
+          : t('Off')],
+        [t('models.dev metadata'), onOff(features.modelsDev)],
+        [t('Login CAPTCHA'), onOff(features.captchaEnabled)],
       ],
     },
     {
-      title: t('计数'),
+      title: t('Counts'),
       rows: [
-        [t('账号'), <span className='sysinfo-mono'>{`${text(stats.enabledAccounts)} / ${text(stats.accounts)}`}</span>],
-        [t('限流中账号'), <span className='sysinfo-mono'>{text(stats.limitedAccounts)}</span>],
-        [t('模型'), <span className='sysinfo-mono'>{text(stats.models)}</span>],
-        [t('在途请求'), <span className='sysinfo-mono'>{text(stats.inFlight)}</span>],
-        [t('累计请求'), <span className='sysinfo-mono'>{formatCount(stats.requests)}</span>],
-        [t('事件日志'), <span className='sysinfo-mono'>{formatCount(stats.logs)}</span>],
-        [t('待迁移旧数据'), onOff(stats.upgradePending)],
+        [t('Accounts'), <span className='sysinfo-mono'>{`${text(stats.enabledAccounts)} / ${text(stats.accounts)}`}</span>],
+        [t('Rate-limited accounts'), <span className='sysinfo-mono'>{text(stats.limitedAccounts)}</span>],
+        [t('Model'), <span className='sysinfo-mono'>{text(stats.models)}</span>],
+        [t('In-flight requests'), <span className='sysinfo-mono'>{text(stats.inFlight)}</span>],
+        [t('Total requests'), <span className='sysinfo-mono'>{formatCount(stats.requests)}</span>],
+        [t('Event logs'), <span className='sysinfo-mono'>{formatCount(stats.logs)}</span>],
+        [t('Legacy data pending migration'), onOff(stats.upgradePending)],
       ],
     },
   ]
@@ -480,13 +480,13 @@ function SystemInfoPanel() {
           最该被一眼看到的就是「他跑在什么环境」。 */}
       <Card render={<section />} className='panel'>
         <CardHeader className='panel-head'>
-          <h2>{t('版本信息')}</h2>
+          <h2>{t('Version info')}</h2>
           <div className='head-actions'>
             <Button variant='outline' onClick={() => void load()} disabled={state.status === 'loading'}>
-              {state.status === 'loading' ? t('读取中…') : t('刷新')}
+              {state.status === 'loading' ? t('Loading…') : t('Refresh')}
             </Button>
             <Button variant='default' onClick={() => void copyPlainText()} disabled={!info}>
-              {t('复制全部信息')}
+              {t('Copy all info')}
             </Button>
           </div>
         </CardHeader>
@@ -501,7 +501,7 @@ function SystemInfoPanel() {
             </span>
           </div>
           <div className='detail'>
-            {t('出问题时把这一页截图，或点「复制全部信息」把文本贴进反馈，一般就能定位到大致原因。')}
+            {t('When something goes wrong, screenshot this page or use "Copy all info" and paste the text into your report — that is usually enough to narrow down the cause.')}
           </div>
 
           <div className='mt-3 flex flex-wrap items-center gap-2 text-[12px] text-subtle'>
@@ -511,31 +511,31 @@ function SystemInfoPanel() {
             )}>AGPL-3.0</Button>
             <Button variant='outline' size='xs' onClick={() => void openExternal(
               app.sourceUrl || 'https://github.com/aimod-cc/Agent2API',
-            )}>{t('源代码')}</Button>
+            )}>{t('Source code')}</Button>
             <ThirdPartyLicensesButton t={t} openExternal={openExternal} />
           </div>
           <p className='mt-1.5 text-[12px] text-subtle'>
-            {t('本软件不提供任何担保，可按 AGPL-3.0 修改与分发；通过网络提供修改版服务时须向用户提供对应源码。')}
+            {t('This software comes without warranty and may be modified and distributed under AGPL-3.0. Modified network services must offer their Corresponding Source to users.')}
           </p>
 
           {/* 路径里的用户名可以隐藏：截图会发到公开的地方，这是给用户的选择 */}
           <div className='sysinfo-toggle'>
             <div className='sysinfo-toggle-text'>
-              <span>{t('隐藏用户名')}</span>
+              <span>{t('Hide username')}</span>
               <span className='hint'>
-                {t('把路径里的主目录（如 C:\\Users\\你的用户名）显示成 ~，截图分享时不暴露用户名。只影响本页显示与复制，不改任何文件。')}
+                {t('Replace the home directory in the path (e.g. C:\\Users\\<user>\\) with\\Users\\your username) is shown as~, does not expose the username in screenshot sharing. Only affects the display and copy on this page; does not modify any file.')}
               </span>
             </div>
             <Switch
               checked={state.hideUsername}
               onCheckedChange={toggleHideUsername}
-              aria-label={t('隐藏用户名')}
+              aria-label={t('Hide username')}
             />
           </div>
 
           {state.error ? (
             <div className='detail' style={{ color: 'var(--danger)' }}>
-              {t('读取失败：{message}', { message: state.error })}
+              {t('Failed to read: {message}', { message: state.error })}
             </div>
           ) : null}
         </CardContent>

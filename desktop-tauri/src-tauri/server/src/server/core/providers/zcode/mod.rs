@@ -75,8 +75,8 @@ pub fn plan_of(account: &serde_json::Value) -> &'static str {
 /// 会让恰恰最需要这条通道的用户以为与己无关。
 pub fn plan_label(plan: &str) -> &'static str {
     match plan {
-        PLAN_START => "套餐池（Start Plan）",
-        _ => "编码套餐（Coding Plan）",
+        PLAN_START => "Plan pool (Start Plan)",
+        _ => "Coding Plan",
     }
 }
 

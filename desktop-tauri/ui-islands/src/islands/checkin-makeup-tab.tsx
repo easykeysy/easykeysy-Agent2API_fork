@@ -22,16 +22,16 @@ function MakeupGroup({ group, entry, options, paused }: {
     .filter(Boolean).map(row => checkinRangeText(row!.time, row!.timeEnd)))]
   return <Collapsible open={open} onOpenChange={setOpen} className='ck-schedule-group ck-makeup-group'>
     <div className='ck-schedule-group-head'><strong className='font-mono tabular-nums'>{group.time}</strong>
-      <Badge variant='outline' shape='tag'>{paused ? t('已暂停') : t('补签检查')}</Badge>
+      <Badge variant='outline' shape='tag'>{paused ? t('Paused') : t('Catch-up check')}</Badge>
     </div>
-    <div className='ck-schedule-group-meta'><span>{t('{n} 个平台', { n: group.rows.length })}</span>
-      <span>{t('每天补查一次')}</span>
+    <div className='ck-schedule-group-meta'><span>{t('{n} platforms', { n: group.rows.length })}</span>
+      <span>{t('One catch-up check daily')}</span>
     </div>
-    <div className='ck-makeup-group-providers'>{group.rows.slice(0, 3).map(row => t(row.label)).join('、')}
+    <div className='ck-makeup-group-providers'>{group.rows.slice(0, 3).map(row => t(row.label)).join(', ')}
       {group.rows.length > 3 ? ` · +${group.rows.length - 3}` : ''}
     </div>
-    <div className='ck-schedule-group-foot'><span>{t('对应主签到：{times}', { times: mainTimes.join(' / ') })}</span>
-      <CollapsibleTrigger render={<Button variant='link' size='xs' />}>{open ? t('收起平台') : t('查看平台')}</CollapsibleTrigger>
+    <div className='ck-schedule-group-foot'><span>{t('Linked main check-in: {times}', { times: mainTimes.join(' / ') })}</span>
+      <CollapsibleTrigger render={<Button variant='link' size='xs' />}>{open ? t('Hide platforms') : t('View platforms')}</CollapsibleTrigger>
     </div>
     <CollapsibleContent className='ck-schedule-group-details'>
       {group.rows.map(row => <div className='ck-schedule-group-detail' key={row.id}>
@@ -55,27 +55,27 @@ function MakeupPlan({ entry, options, masterOn, defaultRetryTime, onEdit }: {
   return <Card render={<section />} className='ck-schedule-plan'>
     <CardHeader className='ck-schedule-plan-head'>
       <div className='ck-schedule-plan-name'><h3>{name}</h3>
-        <Badge variant={enabled ? 'success' : 'outline'} shape='tag'>{enabled ? t('补签已开启') : t('补签已关闭')}</Badge>
-        {paused && enabled ? <Badge variant='outline' shape='tag'>{t('随签到计划暂停')}</Badge> : null}
-        <p>{t('对应签到计划 · 沿用 {n} 个平台范围，只补未签到账号', { n: entry.providers.length })}</p>
+        <Badge variant={enabled ? 'success' : 'outline'} shape='tag'>{enabled ? t('Catch-up enabled') : t('Catch-up disabled')}</Badge>
+        {paused && enabled ? <Badge variant='outline' shape='tag'>{t('Paused with the check-in schedule')}</Badge> : null}
+        <p>{t('Linked schedule · Same {n} platforms, only accounts not checked in', { n: entry.providers.length })}</p>
       </div>
       <div className='ck-schedule-plan-actions'>
-        <Switch checked={enabled} disabled={store.saving} aria-label={t('{name}定时补签开关', { name })}
+        <Switch checked={enabled} disabled={store.saving} aria-label={t('Scheduled catch-up for {name}', { name })}
           onCheckedChange={next => void saveScheduleEntry(schedulePayload(entry, { retryTime: next ? defaultRetryTime : '' }), { closeEditor: false, silent: true })} />
-        <Button size='sm' variant='outline' disabled={store.saving} onClick={onEdit}>{t('设置补签')}</Button>
+        <Button size='sm' variant='outline' disabled={store.saving} onClick={onEdit}>{t('Configure catch-up')}</Button>
       </div>
     </CardHeader>
     <CardContent className='ck-schedule-plan-content grid gap-3'>
       <div className='ck-makeup-rule'>
-        <span>{t('主签到区间结束后等待 {n} 分钟', { n: Math.max(1, entry.retryGapMinutes) })}</span>
-        {enabled ? <span>{t('补签不早于 {time}', { time: entry.retryTime })}</span> : null}
-        <Badge variant='outline' shape='tag'>{t('已签到自动跳过')}</Badge>
+        <span>{t('Wait {n} minutes after the main check-in window ends', { n: Math.max(1, entry.retryGapMinutes) })}</span>
+        {enabled ? <span>{t('Catch-up no earlier than {time}', { time: entry.retryTime })}</span> : null}
+        <Badge variant='outline' shape='tag'>{t('Checked-in accounts are skipped')}</Badge>
       </div>
       {enabled ? <div className='ck-schedule-time-groups'>
         {groups.map(group => <MakeupGroup key={group.time} group={group} entry={entry} options={options} paused={paused} />)}
-      </div> : <p className='ck-schedule-hint'>{t('补签已关闭，不影响主签到；开启后会自动生成各平台的补签安排。')}</p>}
+      </div> : <p className='ck-schedule-hint'>{t('Catch-up is off; main check-ins are unaffected. Enabling it generates catch-up times for each platform.')}</p>}
     </CardContent>
-    <CardFooter className='ck-schedule-plan-footer'><span>{t('实际时间由网关计算，晚窗口的平台会顺延补签；只处理当天未签到账号。')}</span></CardFooter>
+    <CardFooter className='ck-schedule-plan-footer'><span>{t('The gateway calculates the actual times. Later windows delay catch-up, which only handles accounts not checked in today.')}</span></CardFooter>
   </Card>
 }
 
@@ -95,26 +95,26 @@ function ActivityRetryPlan({ entry, masterOn, onEdit }: {
   return <Card render={<section />} className='ck-activity-retry'>
     <CardHeader className='ck-schedule-plan-head'>
       <div className='ck-schedule-plan-name'><h3>{scheduleName(entry)}</h3>
-        <Badge variant={active ? 'brand' : 'outline'} shape='tag'>{!enabled ? t('重试关闭') : active ? t('重试开启') : t('重试已暂停')}</Badge>
-        <p>{enabled ? t('间隔 {gap} 分钟 · 每账号每天最多重试 {limit} 次', { gap: entry.retryGapMinutes, limit: entry.retryLimit })
-          : t('不自动重试等待中的活动')}</p>
+        <Badge variant={active ? 'brand' : 'outline'} shape='tag'>{!enabled ? t('Retries disabled') : active ? t('Retries enabled') : t('Retries paused')}</Badge>
+        <p>{enabled ? t('Every {gap} minutes · Up to {limit} retries per account per day', { gap: entry.retryGapMinutes, limit: entry.retryLimit })
+          : t('Waiting campaigns are not retried automatically')}</p>
       </div>
-      <Button size='sm' variant='ghost' disabled={store.saving} onClick={onEdit}>{t('调整重试')}</Button>
+      <Button size='sm' variant='ghost' disabled={store.saving} onClick={onEdit}>{t('Adjust retries')}</Button>
     </CardHeader>
     <CardContent className='grid gap-3'>
-      {!enabled ? <p className='ck-schedule-hint'>{t('活动窗口重试已关闭，等待窗口或活动下发的账号不会自动再试。')}</p> : <>
+      {!enabled ? <p className='ck-schedule-hint'>{t('Window retry is off; accounts waiting for a window or campaign are not retried automatically.')}</p> : <>
         {count > 0 ? <div className='ck-activity-retry-notice' role='status'>
-          <Badge variant='warning' shape='tag'>{t('{n} 个账号等待窗口或活动', { n: count })}</Badge>
-          <span>{t('只重试这些账号，不会重签整个计划。具体原因见签到记录。')}</span>
-          <Button size='xs' variant='link' onClick={() => goCheckinTab('records')}>{t('查看签到记录')}</Button>
+          <Badge variant='warning' shape='tag'>{t('{n} accounts waiting for a window or campaign', { n: count })}</Badge>
+          <span>{t('Only these accounts are retried, not the whole schedule. See the records for details.')}</span>
+          <Button size='xs' variant='link' onClick={() => goCheckinTab('records')}>{t('View check-in records')}</Button>
         </div> : null}
         {exhausted > 0 ? <div className='ck-activity-retry-notice' role='status'>
-          <Badge variant='outline' shape='tag'>{t('{n} 个账号今天的重试次数已用完', { n: exhausted })}</Badge>
-          <span>{t('今天不再自动重试，明天自动重置。要现在再试一次，用签到计划里的「立即执行」。')}</span>
-          <Button size='xs' variant='link' onClick={() => goCheckinTab('records')}>{t('查看签到记录')}</Button>
+          <Badge variant='outline' shape='tag'>{t('{n} accounts have used up today’s retry limit', { n: exhausted })}</Badge>
+          <span>{t('These accounts are not retried again today; the counter resets tomorrow. To try once more right now, use “Run now” in the check-in schedule.')}</span>
+          <Button size='xs' variant='link' onClick={() => goCheckinTab('records')}>{t('View check-in records')}</Button>
         </div> : null}
         {count === 0 && exhausted === 0
-          ? <p className='ck-schedule-hint'>{t('当前没有等待窗口或活动下发的账号。')}</p> : null}
+          ? <p className='ck-schedule-hint'>{t('No accounts are waiting for a window or campaign.')}</p> : null}
       </>}
     </CardContent>
   </Card>
@@ -128,21 +128,21 @@ export function MakeupTab({ center }: { center: CheckinCenter }): React.ReactEle
   const entry = editing ? entries.find(item => item.id === editing.id) : undefined
   const close = () => setEditing(null)
   return <div className='ck-schedule-main'>
-    <CheckinScheduleHeading title={t('定时补签')} description={t('补签单独设置，只检查今天还没有签到的账号。')}
-      action={<Button size='sm' variant='outline' onClick={() => goCheckinTab('schedule')}>{t('管理定时签到')}</Button>} />
+    <CheckinScheduleHeading title={t('Scheduled catch-up')} description={t('Configure catch-up separately; only checks accounts not checked in today.')}
+      action={<Button size='sm' variant='outline' onClick={() => goCheckinTab('schedule')}>{t('Manage scheduled check-ins')}</Button>} />
     <CheckinScheduleMaster auto={auto} />
-    <div className='ck-schedule-section-heading'><h3>{t('补签计划')}</h3>
-      <span>{t('每个签到计划对应一组补签设置')}</span>
+    <div className='ck-schedule-section-heading'><h3>{t('Catch-up schedules')}</h3>
+      <span>{t('Each check-in schedule has its own catch-up settings')}</span>
     </div>
-    <div className='ck-schedule-editor-note'>{t('定时签到和定时补签分开管理。补签沿用对应签到计划的平台范围，不重复领取已完成的账号。')}</div>
+    <div className='ck-schedule-editor-note'>{t('Scheduled check-ins and catch-up are managed separately. Catch-up uses the linked schedule\'s platforms and skips completed accounts.')}</div>
     {entries.map(entry => <MakeupPlan key={entry.id} entry={entry} options={options} masterOn={auto.enabled}
       defaultRetryTime={auto.defaultRetryTime || '00:10'} onEdit={() => setEditing({ id: entry.id, kind: 'makeup' })} />)}
     {!entries.length ? <Empty className='ck-schedule-empty'>
-      <p>{t('先创建签到计划，再为它设置定时补签。')}</p>
-      <Button size='sm' variant='outline' onClick={() => goCheckinTab('schedule')}>{t('管理定时签到')}</Button>
+      <p>{t('Create a check-in schedule first, then configure its scheduled catch-up.')}</p>
+      <Button size='sm' variant='outline' onClick={() => goCheckinTab('schedule')}>{t('Manage scheduled check-ins')}</Button>
     </Empty> : null}
     {entries.length ? <>
-      <CheckinScheduleHeading title={t('活动窗口重试')} description={t('与定时补签不同，仅处理窗口未开或活动暂未下发。')} />
+      <CheckinScheduleHeading title={t('Campaign-window retries')} description={t('Unlike scheduled catch-up, only handles windows not yet open or campaigns not yet issued.')} />
       {entries.map(entry => <ActivityRetryPlan key={entry.id} entry={entry} masterOn={auto.enabled}
         onEdit={() => setEditing({ id: entry.id, kind: 'retry' })} />)}
     </> : null}

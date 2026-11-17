@@ -32,29 +32,29 @@ function RequiredUpdate() {
   if (!active || (updating && onUpdatePage)) return null
   return <Dialog open onOpenChange={() => {}}>
     <DialogContent showCloseButton={false}>
-      <DialogHeader><DialogTitle>{t('需要强制更新')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Required update')}</DialogTitle></DialogHeader>
       <DialogBody>
         <Alert variant='warning'>{required.message}</Alert>
-        <p>{t('当前版本 {current}，最低可用版本 {minimum}。', { current: policy?.currentVersion || '', minimum: required.minimumVersion })}</p>
-        <p className='text-xs text-muted-foreground'>{t('更新前无法继续调用模型；账号、配置和历史记录不会被删除。')}</p>
+        <p>{t('Current version: {current}. Minimum supported version: {minimum}.', { current: policy?.currentVersion || '', minimum: required.minimumVersion })}</p>
+        <p className='text-xs text-muted-foreground'>{t('Model requests are unavailable until you update. Accounts, settings and history will be preserved.')}</p>
         {error ? <Alert variant='destructive'>{error}</Alert> : null}
       </DialogBody>
       <DialogFooter>
         <Button variant='outline' disabled={busy} onClick={() => {
           shared().wbApp?.showPage?.('settings'); shared().wbSettingsPanel?.showCategory?.('about'); setUpdating(true)
-        }}>{t('更新设置')}</Button>
+        }}>{t('Update settings')}</Button>
         <Button disabled={busy} onClick={async () => {
           setBusy(true); setError('')
           try {
             const info = await shared().workbuddyDesktop?.checkUpdate()
-            if (!info) throw new Error(t('无法读取更新信息'))
+            if (!info) throw new Error(t('Unable to read update information'))
             if (!info.forceUpdate?.required) { setPolicy(info); return }
-            if (!window.wbUpdatePanel?.openAndDownload) throw new Error(t('软件版本检查设置不可用'))
+            if (!window.wbUpdatePanel?.openAndDownload) throw new Error(t('Software update check settings are unavailable.'))
             shared().wbApp?.showPage?.('settings'); shared().wbSettingsPanel?.showCategory?.('about'); setUpdating(true)
             await window.wbUpdatePanel.openAndDownload(info)
           } catch (failure) { setError(failure instanceof Error ? failure.message : String(failure)) }
           finally { setBusy(false) }
-        }}>{t('立即更新')}</Button>
+        }}>{t('Update now')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

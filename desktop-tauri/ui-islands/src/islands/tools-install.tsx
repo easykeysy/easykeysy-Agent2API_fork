@@ -14,25 +14,25 @@ import {
 type Mode = 'skill' | 'mcp'
 
 function targetLabel(target: InstallTarget): string {
-  if (!target.detected) return t('未检测到')
-  return target.installed ? t('已安装') : t('已检测到')
+  if (!target.detected) return t('Not detected')
+  return target.installed ? t('Installed') : t('Detected')
 }
 
 function KeyPicker({ keys, value, onChange }: { keys: ApiKeyOption[]; value: string; onChange: (value: string) => void }) {
   const selected = keys.find(key => key.id === value)
-  const label = selected ? `${selected.name}（${selected.masked}）` : keys.length ? t('请选择 API Key') : t('没有可用的网关 Key')
+  const label = selected ? `${selected.name}（${selected.masked}）` : keys.length ? t('Select an API Key') : t('No available gateway Key')
   return <Field>
-    <FieldLabel>{t('调用用的 API Key')}</FieldLabel>
+    <FieldLabel>{t('API Key for invocation')}</FieldLabel>
     <Select value={value} onValueChange={next => { if (typeof next === 'string') onChange(next) }}>
       <SelectTrigger className='w-full' disabled={!keys.length}><SelectValue>{label}</SelectValue></SelectTrigger>
       <SelectContent>{keys.map(key => <SelectItem key={key.id} value={key.id}>{key.name}（{key.masked}）</SelectItem>)}</SelectContent>
     </Select>
-    <FieldDescription>{t('Key 明文只会写入所选客户端的本机配置文件。')}</FieldDescription>
+    <FieldDescription>{t('The plaintext Key is only written into the local configuration files of the selected clients.')}</FieldDescription>
   </Field>
 }
 
 function TargetList({ targets, selected, onToggle }: { targets: InstallTarget[]; selected: string[]; onToggle: (key: string) => void }) {
-  if (!targets.length) return <Empty>{t('当前没有可用的安装目标')}</Empty>
+  if (!targets.length) return <Empty>{t('No install targets available')}</Empty>
   return <div className='flex max-h-[320px] flex-col gap-1 overflow-auto rounded-md border border-border p-2'>
     {targets.map(target => <label key={target.key} className='flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-nav-hover'>
       <Checkbox checked={selected.includes(target.key)} disabled={target.supported === false} onCheckedChange={() => onToggle(target.key)} />
@@ -89,9 +89,9 @@ export function ToolInstallDialog({ service, mode, onClose, onDone }: {
   const toggleAll = () => setSelected(allSelected ? [] : availableTargets.map(target => target.key))
 
   const submit = async () => {
-    if (!selected.length) { setError(t('请至少选择一个目标')); return }
-    if (!keyId) { setError(t('请先选择 API Key')); return }
-    if (imageService && mcpMode === 'bridge' && !outputDirectory.trim()) { setError(t('请选择图片输出目录')); return }
+    if (!selected.length) { setError(t('Select at least one target')); return }
+    if (!keyId) { setError(t('Select an API Key first')); return }
+    if (imageService && mcpMode === 'bridge' && !outputDirectory.trim()) { setError(t('Select an image output directory')); return }
     setBusy(true); setError(''); setResults(null)
     try {
       const response = mode === 'skill'
@@ -102,11 +102,11 @@ export function ToolInstallDialog({ service, mode, onClose, onDone }: {
       const { ok, failed } = outcomesMessage(response.results || [])
       setResults(response.results || [])
       if (ok > 0) {
-        toast(mode === 'skill' ? t('已安装到 {count} 个客户端', { count: ok }) : t('已写入 {count} 个客户端配置', { count: ok }), 'ok')
+        toast(mode === 'skill' ? t('Installed to {count} clients', { count: ok }) : t('Wrote configuration for {count} clients', { count: ok }), 'ok')
         onDone()
         if (!failed.length) onClose()
       }
-      if (failed.length) setError(failed.map(item => `${item.label}：${item.error || t('写入失败')}`).join('\n'))
+      if (failed.length) setError(failed.map(item => `${item.label}：${item.error || t('Write failed')}`).join('\n'))
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
     } finally {
@@ -116,70 +116,70 @@ export function ToolInstallDialog({ service, mode, onClose, onDone }: {
 
   const serviceLabel = SERVICE_NAME[service.id] || service.id
   const title = mode === 'skill'
-    ? t('安装 {name}', { name: serviceLabel })
-    : t('{name} 接入客户端', { name: serviceLabel })
+    ? t('Install {name}', { name: serviceLabel })
+    : t('Connect {name} to clients', { name: serviceLabel })
 
   return <Dialog open onOpenChange={(open, details) => { if (!open) { if (busy) details.cancel(); else onClose() } }}>
     <DialogContent className='max-w-2xl'>
       <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
       <DialogBody className='flex flex-col gap-3'>
         <p className='text-xs text-subtle'>{mode === 'skill'
-          ? t('选择安装目标、运行时与调用用的 API Key。Skill 包与密钥只写入所选客户端的本机目录。')
-          : t('选择要写入 MCP 配置的客户端。配置只动本服务那一项，客户端原有的其它 MCP 服务保持不变。')}</p>
-        {loading ? <div className='flex items-center gap-2 py-6 text-sm text-subtle'><Spinner />{t('正在加载安装目标…')}</div> : <>
+          ? t('Select install targets, runtime and the API Key for invocation. The Skill package and key are written only into the selected clients\' local directories.')
+          : t('Select the clients to write the MCP configuration into. Only this service\'s entry is changed; other MCP servers stay untouched.')}</p>
+        {loading ? <div className='flex items-center gap-2 py-6 text-sm text-subtle'><Spinner />{t('Loading install targets…')}</div> : <>
           <div className='flex items-center gap-2'>
-            <span className='text-sm font-medium'>{t('安装目标')}</span>
-            <span className='text-xs text-subtle'>{t('已选择 {count} / {total} 个', { count: selected.length, total: targets.length })}</span>
-            <Button variant='ghost' size='sm' className='ml-auto' onClick={toggleAll}>{allSelected ? t('取消全选') : t('全选')}</Button>
+            <span className='text-sm font-medium'>{t('Install targets')}</span>
+            <span className='text-xs text-subtle'>{t('Selected {count} / {total}', { count: selected.length, total: targets.length })}</span>
+            <Button variant='ghost' size='sm' className='ml-auto' onClick={toggleAll}>{allSelected ? t('Deselect all') : t('Select all')}</Button>
           </div>
           <TargetList targets={targets} selected={selected} onToggle={toggle} />
-          {mode === 'mcp' && selected.includes('dsh') && <Alert>{t('DSH 使用 Agent 页当前选择的配置目标。写入后请在 DSH 中确认工具是否出现，必要时重启对应客户端。')}</Alert>}
+          {mode === 'mcp' && selected.includes('dsh') && <Alert>{t('DSH uses the configuration target selected on the Agent page. After writing, check that the tools appear in DSH and restart the corresponding client if needed.')}</Alert>}
           {mode === 'skill' && <Field>
-            <FieldLabel>{t('运行时')}</FieldLabel>
-            <SegmentedControl value={variant} onValueChange={value => { if (typeof value === 'string') setVariant(value) }} aria-label={t('运行时')} options={[
+            <FieldLabel>{t('Runtime')}</FieldLabel>
+            <SegmentedControl value={variant} onValueChange={value => { if (typeof value === 'string') setVariant(value) }} aria-label={t('Runtime')} options={[
               { value: 'node', label: 'Node.js' }, { value: 'python', label: 'Python' },
             ]} />
-            <FieldDescription>{t('Node.js 无需额外依赖，推荐使用；Python 需要本机有 python。')}</FieldDescription>
+            <FieldDescription>{t('Node.js needs no extra dependencies and is recommended; Python requires python on this machine.')}</FieldDescription>
           </Field>}
           {mode === 'mcp' && (service.id === 'vision' || imageService) && <Field>
-            <FieldLabel>{t('接入方式')}</FieldLabel>
-            <SegmentedControl value={mcpMode} onValueChange={value => { if (value === 'bridge' || value === 'http') setMcpMode(value) }} aria-label={t('接入方式')} options={[
-              { value: 'bridge', label: t('本地桥接') }, { value: 'http', label: t('远程 HTTP') },
+            <FieldLabel>{t('Connection mode')}</FieldLabel>
+            <SegmentedControl value={mcpMode} onValueChange={value => { if (value === 'bridge' || value === 'http') setMcpMode(value) }} aria-label={t('Connection mode')} options={[
+              { value: 'bridge', label: t('Local bridge') }, { value: 'http', label: t('Remote HTTP') },
             ]} />
             <FieldDescription>{imageService
-              ? t('本地桥接需要 Node.js 18 或更新版本，自动读取授权目录的参考图并保存生成结果；HTTP 接入只返回下载地址。')
+              ? t('The local bridge requires Node.js 18 or newer. It reads references from authorized directories and saves generated images. HTTP mode only returns download URLs.')
               : mcpMode === 'bridge'
-                ? t('本地桥接会在本机运行一个 node 脚本，支持直接传本地图片路径，推荐在桌面端使用。')
-                : t('远程 HTTP 只接受图片 URL 或 data URI，不需要本机安装 node。')}</FieldDescription>
+                ? t('The local bridge runs a Node script on this machine and supports local image paths; recommended on desktop.')
+                : t('Remote HTTP only accepts image URLs or data URIs; no local Node.js is required.')}</FieldDescription>
           </Field>}
           {imageService && mcpMode === 'bridge' ? <>
             <Field>
-              <FieldLabel>{t('图片输出目录')}</FieldLabel>
-              <div className='flex gap-2'><Input value={outputDirectory} onChange={event => setOutputDirectory(event.currentTarget.value)} placeholder={t('选择已有目录，图片只会写入此目录及其子目录')} />
+              <FieldLabel>{t('Image output directory')}</FieldLabel>
+              <div className='flex gap-2'><Input value={outputDirectory} onChange={event => setOutputDirectory(event.currentTarget.value)} placeholder={t('Select an existing directory; images are saved only there or in its subdirectories')} />
                 <Button variant='outline' onClick={() => {
                   const bridge = (window as unknown as { workbuddyDesktop?: { pickFolder?: (initial?: string) => Promise<{ path?: string }> } }).workbuddyDesktop
                   void bridge?.pickFolder?.(outputDirectory).then(result => { if (result.path) setOutputDirectory(result.path) })
                     .catch(failure => setError(failure instanceof Error ? failure.message : String(failure)))
-                }}>{t('选择目录')}</Button></div>
+                }}>{t('Choose directory')}</Button></div>
             </Field>
             <Field>
-              <FieldLabel>{t('参考图允许读取的目录')}</FieldLabel>
+              <FieldLabel>{t('Allowed reference directories')}</FieldLabel>
               <Textarea value={referenceDirectories} rows={3} onChange={event => setReferenceDirectories(event.currentTarget.value)} />
-              <FieldDescription>{t('可选，每行一个已有绝对目录。输出目录默认允许读取；其他位置的文件不会读取或上传。')}</FieldDescription>
+              <FieldDescription>{t('Optional: one existing absolute directory per line. The output directory is readable by default; files elsewhere are not read or uploaded.')}</FieldDescription>
             </Field>
-            <Alert>{t('只保存新文件，不覆盖已有不同内容。目录权限写入客户端配置，更新配置时需要重新确认。')}</Alert>
+            <Alert>{t('Only new files are saved; different existing content is never overwritten. Directory permissions are written to the client configuration and must be confirmed again when updating it.')}</Alert>
           </> : null}
           <KeyPicker keys={keys} value={keyId} onChange={setKeyId} />
-          {imageService ? <Alert>{t('客户端调用超时设为 120 秒；后台生成超时由服务配置控制，未完成时通过任务编号查询。')}</Alert>
-            : service.timeout_seconds ? <Alert>{t('将按服务的工具执行超时（{seconds} 秒）同步写入客户端配置。', { seconds: service.timeout_seconds })}</Alert> : null}
-          {results && <Alert variant='success'>{t('已完成 {count} 个目标', { count: results.filter(item => item.ok).length })}</Alert>}
+          {imageService ? <Alert>{t('Client calls time out after 120 seconds. The service controls the generation deadline; query unfinished jobs by their ID.')}</Alert>
+            : service.timeout_seconds ? <Alert>{t('The service\'s tool execution timeout ({seconds}s) will be written into the client configuration.', { seconds: service.timeout_seconds })}</Alert> : null}
+          {results && <Alert variant='success'>{t('Completed {count} targets', { count: results.filter(item => item.ok).length })}</Alert>}
           {error && <Alert variant='destructive' className='whitespace-pre-wrap'>{error}</Alert>}
         </>}
       </DialogBody>
       <DialogFooter>
-        <Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
+        <Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
         <Button disabled={busy || loading || !selected.length || !keyId} onClick={() => void submit()}>
-          {busy ? <Spinner /> : null}{mode === 'skill' ? t('安装') : t('写入配置')}
+          {busy ? <Spinner /> : null}{mode === 'skill' ? t('Install') : t('Write configuration')}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -212,7 +212,7 @@ export function ToolUninstallDialog({ service, mode, onClose, onDone }: {
   const toggle = (key: string) => setSelected(current => current.includes(key) ? current.filter(item => item !== key) : [...current, key])
 
   const submit = async () => {
-    if (!selected.length) { setError(t('请至少选择一个目标')); return }
+    if (!selected.length) { setError(t('Select at least one target')); return }
     setBusy(true); setError('')
     try {
       const response = mode === 'skill'
@@ -220,11 +220,11 @@ export function ToolUninstallDialog({ service, mode, onClose, onDone }: {
         : await uninstallMcp({ service_id: service.id, clients: selected })
       const { ok, failed } = outcomesMessage(response.results || [])
       if (ok > 0) {
-        toast(t('已处理 {count} 个目标', { count: ok }), 'ok')
+        toast(t('Processed {count} targets', { count: ok }), 'ok')
         onDone()
         if (!failed.length) onClose()
       }
-      if (failed.length) setError(failed.map(item => `${item.label}：${item.error || t('卸载失败')}`).join('\n'))
+      if (failed.length) setError(failed.map(item => `${item.label}：${item.error || t('Uninstall failed')}`).join('\n'))
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
     } finally {
@@ -234,16 +234,16 @@ export function ToolUninstallDialog({ service, mode, onClose, onDone }: {
 
   return <Dialog open onOpenChange={(open, details) => { if (!open) { if (busy) details.cancel(); else onClose() } }}>
     <DialogContent className='max-w-xl'>
-      <DialogHeader><DialogTitle>{t('移除 {name} 配置', { name: SERVICE_NAME[service.id] || service.id })}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Remove {name} configuration', { name: SERVICE_NAME[service.id] || service.id })}</DialogTitle></DialogHeader>
       <DialogBody className='flex flex-col gap-3'>
-        <p className='text-xs text-subtle'>{t('选择要从中移除的客户端，未勾选的客户端保持不变。')}</p>
-        {loading ? <div className='flex items-center gap-2 py-6 text-sm text-subtle'><Spinner />{t('正在加载安装目标…')}</div>
+        <p className='text-xs text-subtle'>{t('Select the clients to remove it from; unselected clients are left unchanged.')}</p>
+        {loading ? <div className='flex items-center gap-2 py-6 text-sm text-subtle'><Spinner />{t('Loading install targets…')}</div>
           : targets.length ? <TargetList targets={targets} selected={selected} onToggle={toggle} /> : <Empty>{t('当前没有已安装/已配置的目标')}</Empty>}
         {error && <Alert variant='destructive' className='whitespace-pre-wrap'>{error}</Alert>}
       </DialogBody>
       <DialogFooter>
-        <Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
-        <Button variant='destructive' disabled={busy || !selected.length} onClick={() => void submit()}>{t('卸载')}</Button>
+        <Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
+        <Button variant='destructive' disabled={busy || !selected.length} onClick={() => void submit()}>{t('Uninstall')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

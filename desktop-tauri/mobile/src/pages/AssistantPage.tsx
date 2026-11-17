@@ -63,10 +63,10 @@ type QuickAsk = {
 }
 
 const QUICK_ASKS: QuickAsk[] = [
-  { label: t('各账号余额还剩多少？'), icon: 'wallet' },
-  { label: t('哪些模型在多家重复了？'), icon: 'model' },
-  { label: t('今天用了多少 Token？'), icon: 'chart' },
-  { label: t('现在有哪些账号被限流？'), icon: 'alert' },
+  { label: t('How much balance is left on each account?'), icon: 'wallet' },
+  { label: t('Which models are duplicated across providers?'), icon: 'model' },
+  { label: t('How many tokens did I use today?'), icon: 'chart' },
+  { label: t('Which accounts are rate limited right now?'), icon: 'alert' },
 ]
 
 export function AssistantPage() {
@@ -120,7 +120,7 @@ export function AssistantPage() {
       }
     })
     saveQueueRef.current = pending.catch(failure => {
-      if (mountedRef.current && serverIdentity() === identity) store.toast(t('这条会话没能存进历史：{message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'err')
+      if (mountedRef.current && serverIdentity() === identity) store.toast(t('This conversation could not be saved to history: {message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'err')
     })
     return pending
   }
@@ -172,8 +172,8 @@ export function AssistantPage() {
   const effectiveModel = model || defaultModel || ''
   const currentOption = selectedModel(models, effectiveModel)
   const modelWarning = modelsError
-    ? t('读取模型清单失败：{message}', { message: modelsError })
-    : !modelsReady ? t('正在读取可用模型…')
+    ? t('Failed to read the model catalog: {message}', { message: modelsError })
+    : !modelsReady ? t('Loading available models…')
     : effectiveModel && !currentOption ? unavailableModelMessage(effectiveModel) : ''
 
   /** 发一条消息（`text` 为空时取输入框） */
@@ -196,11 +196,11 @@ export function AssistantPage() {
       const key = keys.find(key => key.id === config?.apiKeyId)
       if (!key) {
         setKeyPickerOpen(true)
-        store.toast(t('请先选择一把 API Key'), 'err')
+        store.toast(t('Select an API Key first'), 'err')
         return
       }
       if (!modelApiKeyAllows(key, effectiveModel)) {
-        store.toast(t('所选 API Key 无权调用此模型或提供商'), 'err')
+        store.toast(t('The selected API Key cannot access this model or provider'), 'err')
         return
       }
       requestKey = key
@@ -213,7 +213,7 @@ export function AssistantPage() {
       requestModel = option.name
     } catch (failure) {
       if (!(failure instanceof DOMException && failure.name === 'AbortError') && sessionRef.current === session && serverIdentity() === identity) {
-        store.toast(t('读取模型清单失败：{message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'err')
+        store.toast(t('Failed to read the model catalog: {message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'err')
       }
       return
     } finally {
@@ -298,26 +298,26 @@ export function AssistantPage() {
         for (const call of pendingCalls) {
           if (!mountedRef.current || sessionRef.current !== session || serverIdentity() !== identity) break
           if (controller.signal.aborted) {
-            messages = [...messages, { role: 'tool', toolCallId: call.id, content: '用户已停止，未执行这次操作。' }]
+            messages = [...messages, { role: 'tool', toolCallId: call.id, content: 'The user stopped; this action was not executed.' }]
             continue
           }
           const tool = toolById(call.name)
           let result: string
           let resultImages: ImageAsset[] | undefined
           try {
-            if (!tool) throw new Error(t('未知的工具：{name}', { name: call.name }))
-            if (enabledToolsRef.current[tool.id] !== true) throw new Error(t('工具「{name}」未获授权，未执行。', { name: tool.label }))
+            if (!tool) throw new Error(t('Unknown tool: {name}', { name: call.name }))
+            if (enabledToolsRef.current[tool.id] !== true) throw new Error(t('Tool "{name}" is not authorized and was not executed.', { name: tool.label }))
             const args = parseArgs(call.arguments)
             const refreshingBalance = tool.id === 'list_account_balance' && args.refresh === true
             if ((tool.kind !== 'read' || refreshingBalance) && modeRef.current !== 'full') {
               const plan = tool.plan?.(args)
-              const description = [plan?.lead || t('将执行 {label}。', { label: tool.label }),
-                plan?.table ? plan.table.rows.map(row => row.join('：')).join('\n') : JSON.stringify(args, null, 2),
-                plan?.note, refreshingBalance ? t('实时余额查询会请求上游，并可能触发已配置的自动禁用规则。')
-                  : tool.kind === 'run' ? t('这会真实发起上游请求并消耗额度') : t('确认后立即生效'),
+              const description = [plan?.lead || t('About to run {label}.', { label: tool.label }),
+                plan?.table ? plan.table.rows.map(row => row.join(': ')).join('\n') : JSON.stringify(args, null, 2),
+                plan?.note, refreshingBalance ? t('Live balance checks send requests to upstream providers and may trigger the configured automatic account-disable rules.')
+                  : tool.kind === 'run' ? t('This sends a real upstream request and spends quota') : t('Takes effect right after confirmation'),
               ].filter(Boolean).join('\n')
-              if (!await confirmDialog(description, { title: tool.label, confirmText: t('执行') })) {
-                messages = [...messages, { role: 'tool', toolCallId: call.id, content: '用户取消了这次操作，未执行。' }]
+              if (!await confirmDialog(description, { title: tool.label, confirmText: t('Run') })) {
+                messages = [...messages, { role: 'tool', toolCallId: call.id, content: 'The user cancelled this action; it was not executed.' }]
                 continue
               }
             }
@@ -345,7 +345,7 @@ export function AssistantPage() {
         }
         await persist(session, messages, requestModel, identity).catch(() => {})
         if (controller.signal.aborted || !mountedRef.current) break
-        if (round === 5) patch({ error: t('工具调用已达本轮上限，已停止继续执行。') })
+        if (round === 5) patch({ error: t('This turn reached the tool-call limit; further execution has stopped.') })
       }
 
       if (sessionRef.current !== session || serverIdentity() !== identity) return
@@ -356,14 +356,14 @@ export function AssistantPage() {
           if (!mountedRef.current || serverIdentity() !== identity) return
           if (sessionRef.current === session) { titleRef.current = saved.title; setTitle(saved.title) }
           setSessions(previous => previous.map(item => item.id === saved.id ? saved : item))
-        }).catch(failure => { if (mountedRef.current && serverIdentity() === identity) store.toast(t('标题总结失败：{message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'warn') })
+        }).catch(failure => { if (mountedRef.current && serverIdentity() === identity) store.toast(t('Title generation failed: {message}', { message: failure instanceof Error ? failure.message : String(failure) }), 'warn') })
       }
       // 流正常结束但一个字都没有：多半是上游只回了 tool_calls 或空响应
       setBubbles(prev =>
         prev.map(item => {
           if (item.id !== replyId) return item
           if (item.text.trim() || item.images?.length) return { ...item, streaming: false }
-          return { ...item, streaming: false, error: t('模型没有返回内容') }
+          return { ...item, streaming: false, error: t('The model returned no content') }
         }),
       )
     } catch (failure) {
@@ -380,7 +380,7 @@ export function AssistantPage() {
             ? failure.message
             : String(failure),
       })
-      if (aborted) store.toast(t('已停止生成'))
+      if (aborted) store.toast(t('Generation stopped'))
     } finally {
       if (abortRef.current === controller) abortRef.current = null
       if (mountedRef.current) {
@@ -481,9 +481,9 @@ export function AssistantPage() {
         className='m-assistant-head'
         style={{ display: 'flex', alignItems: 'center', gap: 9, flex: 'none' }}
       >
-        <Button variant='ghost' size='icon-sm' aria-label={t('历史对话')} onClick={() => setHistoryOpen(true)}><Icon name='log' /></Button>
+        <Button variant='ghost' size='icon-sm' aria-label={t('Conversation history')} onClick={() => setHistoryOpen(true)}><Icon name='log' /></Button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <b style={{ fontSize: 15 }}>{title || t('新对话')}</b>
+          <b style={{ fontSize: 15 }}>{title || t('New chat')}</b>
           <Button size='default' variant='ghost'
             type='button'
             disabled={busy || checkingModel}
@@ -502,20 +502,20 @@ export function AssistantPage() {
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {effectiveModel ? ellipsisMiddle(effectiveModel, 32) : t('选择对话模型')}
-              {effectiveModel && modelsReady && !currentOption ? ` · ${t('不可用')}` : ''}
+              {effectiveModel ? ellipsisMiddle(effectiveModel, 32) : t('Choose chat model')}
+              {effectiveModel && modelsReady && !currentOption ? ` · ${t('Unavailable')}` : ''}
             </span>
             <Icon name='chev' style={{ width: 11, height: 11, flex: 'none', transform: 'rotate(90deg)' }} />
           </Button>
           <Button variant='ghost' size='xs' className='max-w-full truncate p-0 text-xs text-muted-foreground' disabled={busy || checkingModel || savingKey}
             onClick={() => { setKeyPickerOpen(true); void keyState.refresh().catch(() => {}) }}>
-            {selectedKey ? modelApiKeyLabel(selectedKey) : t('选择 API Key…')}
+            {selectedKey ? modelApiKeyLabel(selectedKey) : t('Select API Key…')}
           </Button>
         </div>
         <Button size='icon-touch' variant='outline'
           type='button'
           className='m-icon-btn'
-          aria-label={t('清空')}
+          aria-label={t('Clear')}
           onClick={clear}
           disabled={!bubbles.length || busy || checkingModel}
         >
@@ -540,7 +540,7 @@ export function AssistantPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <Avatar />
             <div style={bubbleStyle(false)}>
-              {t('有什么可以帮你？可以问配置、查余额、让我改模型设置。')}
+              {t('How can I help? Ask about configuration, check balances, or have me change model settings.')}
             </div>
           </div>
         ) : null}
@@ -551,7 +551,7 @@ export function AssistantPage() {
               <div key={bubble.id} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <div className='flex max-w-[82%] min-w-0 flex-col items-end'>
                 <div style={{ ...bubbleStyle(true), maxWidth: '100%', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {bubble.attachments?.map((url, index) => <img key={index} src={url} alt={t('图片 {n}', { n: index + 1 })} style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, marginBottom: 6 }} />)}
+                  {bubble.attachments?.map((url, index) => <img key={index} src={url} alt={t('Image {n}', { n: index + 1 })} style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, marginBottom: 6 }} />)}
                   {bubble.files?.length ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                     {bubble.files.map((file, index) => <span key={`${file.name}-${index}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%', padding: '3px 7px', borderRadius: 6, border: '1px solid var(--m-line-strong)', background: 'var(--m-surface-2)', fontSize: 11.5, color: 'var(--m-text-2)' }}>
                       <span style={{ maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--m-text)' }}>{file.name}</span>
@@ -572,7 +572,7 @@ export function AssistantPage() {
               <div style={{ maxWidth: '82%', minWidth: 0 }}>
                 <div className='mb-1 break-all text-xs font-medium text-muted-foreground'>{bubble.model || effectiveModel}</div>
                 <div style={{ ...bubbleStyle(false), maxWidth: '100%', wordBreak: 'break-word' }}>
-                  {bubble.text ? <MarkdownLite text={bubble.text} /> : bubble.streaming ? t('正在思考…') : null}
+                  {bubble.text ? <MarkdownLite text={bubble.text} /> : bubble.streaming ? t('Thinking…') : null}
                   {bubble.streaming ? (
                     <span
                       aria-hidden='true'
@@ -607,7 +607,7 @@ export function AssistantPage() {
                       color: 'var(--m-text-3)',
                     }}
                   >
-                    <span>{t('已调用')}</span>
+                    <span>{t('Called')}</span>
                     {bubble.tools.map((label, index) => (
                       <span
                         key={`${label}-${index}`}
@@ -669,21 +669,21 @@ export function AssistantPage() {
       >
         {attachments.length ? <div style={{ display: 'flex', gap: 6, paddingBottom: 8 }}>
           {attachments.map((url, index) => <Button key={index} variant='ghost' disabled={checkingModel} onClick={() => setAttachments(current => current.filter((_, i) => i !== index))}
-            aria-label={t('移除图片 {n}', { n: index + 1 })} style={{ padding: 0, height: 56 }}>
-            <img src={url} alt={t('图片 {n}', { n: index + 1 })} style={{ height: 50, maxWidth: 70, objectFit: 'cover', borderRadius: 6 }} />
+            aria-label={t('Remove image {n}', { n: index + 1 })} style={{ padding: 0, height: 56 }}>
+            <img src={url} alt={t('Image {n}', { n: index + 1 })} style={{ height: 50, maxWidth: 70, objectFit: 'cover', borderRadius: 6 }} />
           </Button>)}
         </div> : null}
         {textFiles.length ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingBottom: 8 }}>
           {textFiles.map((file, index) => <Button key={`${file.name}-${index}`} variant='ghost' disabled={checkingModel}
             onClick={() => setTextFiles(current => current.filter((_, i) => i !== index))}
-            aria-label={t('移除文件「{name}」', { name: file.name })}
+            aria-label={t('Remove file "{name}"', { name: file.name })}
             style={{ display: 'flex', alignItems: 'center', gap: 5, height: 30, padding: '0 8px', borderRadius: 8, border: '1px solid var(--m-line-strong)', background: 'var(--m-surface-2)', fontSize: 11.5, color: 'var(--m-text-2)' }}>
             <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--m-text)' }}>{file.name}</span>
             <span style={{ color: 'var(--m-text-3)', flex: 'none' }}>{formatFileSize(file.size)}</span>
             <span style={{ color: 'var(--m-text-3)', flex: 'none' }}>✕</span>
           </Button>)}
         </div> : null}
-        {textFiles.length ? <div style={{ paddingBottom: 8, fontSize: 10.5, color: 'var(--m-warn)', lineHeight: 1.5 }}>{t('JSON 文件会以文本发送给当前对话模型，其中的凭证也会保存在这条会话里。')}</div> : null}
+        {textFiles.length ? <div style={{ paddingBottom: 8, fontSize: 10.5, color: 'var(--m-warn)', lineHeight: 1.5 }}>{t('JSON files are sent to the current chat model as text, and credentials in them are also saved in this conversation.')}</div> : null}
         <input ref={fileRef} type='file' hidden multiple accept='image/png,image/jpeg,image/webp,.json,.info,application/json' onChange={event => {
           const files = event.currentTarget.files
           if (files) void addAttachments(files)
@@ -700,7 +700,7 @@ export function AssistantPage() {
             border: '1px solid var(--m-line-strong)',
           }}
         >
-          <Button variant='ghost' size='icon-touch' aria-label={t('添加图片或文件')} disabled={busy || readingAttachments || checkingModel} onClick={() => fileRef.current?.click()}><Icon name='plus' /></Button>
+          <Button variant='ghost' size='icon-touch' aria-label={t('Add image or file')} disabled={busy || readingAttachments || checkingModel} onClick={() => fileRef.current?.click()}><Icon name='plus' /></Button>
           <Textarea
             ref={inputRef}
             disabled={checkingModel}
@@ -718,7 +718,7 @@ export function AssistantPage() {
                 void send()
               }
             }}
-            placeholder={t('问点什么…')}
+            placeholder={t('Ask something…')}
             rows={1}
             style={{
               flex: 1,
@@ -737,7 +737,7 @@ export function AssistantPage() {
           />
           <Button size='default' variant='ghost'
             type='button'
-            aria-label={busy ? t('停止') : t('发送')}
+            aria-label={busy ? t('Stop') : t('Send')}
             disabled={readingAttachments || checkingModel || (!busy && (!modelsReady || !currentOption || (!draft.trim() && !attachments.length && !textFiles.length)))}
             onClick={() => (busy ? stop() : void send())}
             style={{
@@ -762,13 +762,13 @@ export function AssistantPage() {
         </div>
         {modelWarning ? <p role='status' className='mb-2 text-[11.5px] leading-[1.6] text-subtle'>{modelWarning}</p> : null}
         <div style={{ textAlign: 'center', fontSize: 10.5, color: 'var(--m-text-3)', marginTop: 7 }}>
-          {busy ? t('正在生成，点右侧按钮可停止') : t('对话由网关转发到上游模型，用量计入请求日志')}
+          {busy ? t('Generating — tap the button on the right to stop') : t('Chat is relayed to the upstream model by the gateway; usage is recorded in the request log')}
         </div>
       </div>
 
       <AssistantHistory open={historyOpen} onClose={() => setHistoryOpen(false)} sessions={sessions} activeId={sessionRef.current} busy={busy || historyBusy || checkingModel}
         onOpen={id => void openSession(id)} onNew={clear} onSettings={() => setTitleSettingsOpen(true)}
-        onDelete={id => { void confirmDialog(t('删除这条对话？'), { title: t('删除这条对话') }).then(async confirmed => {
+        onDelete={id => { void confirmDialog(t('Delete this conversation?'), { title: t('Delete this conversation') }).then(async confirmed => {
           if (!confirmed || busy || historyBusy) return
           setHistoryBusy(true)
           try { await saveQueueRef.current; await deleteAssistantSession(id); setSessions(previous => previous.filter(item => item.id !== id)); if (sessionRef.current === id) clear() }
@@ -781,7 +781,7 @@ export function AssistantPage() {
         }} />
       <Sheet open={keyPickerOpen} onOpenChange={setKeyPickerOpen}>
         <SheetContent side='bottom'>
-          <SheetHeader><SheetTitle>{t('选择 API Key')}</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{t('Select API Key')}</SheetTitle></SheetHeader>
           <SheetBody>
             <ModelApiKeyField {...keyState} value={config?.apiKeyId ?? null} disabled={!config || busy || savingKey} rememberSelection
               onRefresh={() => { void keyState.refresh().catch(() => {}) }} t={t}

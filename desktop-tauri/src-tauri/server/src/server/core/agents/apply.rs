@@ -134,7 +134,7 @@ fn verify_bytes(changes: &[Change]) -> Result<(), String> {
         if files::target(&change.path)? != change.target
             || files::read(&change.target)? != change.after
         {
-            return Err(format!("写入后校验 {} 失败", change.path.display()));
+            return Err(format!("写入后校验 {} failed", change.path.display()));
         }
     }
     Ok(())
@@ -222,7 +222,7 @@ fn rollback(changes: &[Change]) -> Result<(), String> {
         let result = match &change.before {
             Some(bytes) => files::write_atomic(&change.target, bytes),
             None => std::fs::remove_file(&change.target)
-                .map_err(|e| format!("移除 {} 失败: {e}", change.path.display())),
+                .map_err(|e| format!("Remove {} failed: {e}", change.path.display())),
         };
         if let Err(error) = result {
             errors.push(error);
@@ -231,7 +231,7 @@ fn rollback(changes: &[Change]) -> Result<(), String> {
     if errors.is_empty() {
         Ok(())
     } else {
-        Err(errors.join("；"))
+        Err(errors.join("; "))
     }
 }
 

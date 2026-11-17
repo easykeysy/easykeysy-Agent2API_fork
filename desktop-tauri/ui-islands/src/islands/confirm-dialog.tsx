@@ -64,13 +64,13 @@ type ConfirmDialogProps = {
 
 function ConfirmDialog({ options, onSettle }: ConfirmDialogProps) {
   const {
-    title = '确认操作',
+    title = 'Confirm the action',
     html = '',
     text = '',
-    okText = '确定',
+    okText = 'Confirm',
     okClass = 'primary',
     bodyClass = 'danger-zone',
-    cancelText = '取消',
+    cancelText = 'Cancel',
   } = options
 
   // 焦点要落在「取消」上：不可恢复的操作，敲回车不该等于同意。

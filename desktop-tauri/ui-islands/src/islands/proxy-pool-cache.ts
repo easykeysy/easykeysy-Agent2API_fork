@@ -103,7 +103,7 @@ export async function proxyPoolOptions(options: { force?: boolean } = {}): Promi
       try {
         const data = await shared().workbuddyDesktop?.getProxyPool?.()
         if (!data || typeof data !== 'object' || !Array.isArray(data.items)) {
-          throw new Error(t('代理池响应异常（{type}）', { type: typeof data }))
+          throw new Error(t('Unexpected proxy pool response ({type})', { type: typeof data }))
         }
         // 校验过 items 是数组，这里把它收窄成必填 —— 下游不必再判一次
         return { items: data.items }
@@ -141,7 +141,7 @@ export function ensureProxyPoolOptions(): void {
     // 桥没挂上（加载失败等）：本页面会话内不再尝试，并告警一次
     if (!bridgeWarned) {
       bridgeWarned = true
-      console.warn('[accounts] 桥未提供 getProxyPool：代理列的「已保存的代理」选项不可用')
+      console.warn('[accounts] The bridge does not provide getProxyPool: the "Saved proxy" option in the proxy column is unavailable')
     }
     retryAt = Infinity
     return

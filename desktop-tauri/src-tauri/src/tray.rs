@@ -27,7 +27,7 @@ const MENU_QUIT: &str = "tray-quit";
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, MENU_SHOW, "显示主窗口", true, None::<&str>)?;
     let check_update_item =
-        MenuItem::with_id(app, MENU_CHECK_UPDATE, "检查更新", true, None::<&str>)?;
+        MenuItem::with_id(app, MENU_CHECK_UPDATE, "Check for updates", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let quit_item = MenuItem::with_id(app, MENU_QUIT, "退出", true, None::<&str>)?;
     let menu = Menu::with_items(

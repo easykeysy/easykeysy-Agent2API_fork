@@ -27,7 +27,7 @@ function testSucceeded<Result extends { success?: boolean; status?: unknown }>(r
 }
 
 function testFailure(result?: { error?: string; status?: unknown } | null): string {
-  return result?.error || (result?.status ? `HTTP ${String(result.status)}` : t('连接失败'))
+  return result?.error || (result?.status ? `HTTP ${String(result.status)}` : t('Connection failed'))
 }
 
 export type ProxyPayload =
@@ -80,25 +80,25 @@ export function draftOfProxy(proxy: AccountRecord['proxy']): ProxyDraft {
 /** 草稿 → 接口 payload；非法输入抛出「面向用户」的错误（消息直接进 toast / 弹窗状态行） */
 export function readProxyDraft(draft: ProxyDraft): ProxyPayload {
   if (draft.mode === 'none') return null
-  if (draft.mode === 'retired') throw new Error(t('原代理来源已下线，请选择已保存的代理、自定义地址或直连'))
+  if (draft.mode === 'retired') throw new Error(t('The previous proxy source has been discontinued. Choose a saved proxy, a custom address or a direct connection.'))
   if (draft.mode === 'clash') {
-    if (!draft.listenerUid) throw new Error(t('请先选择 Clash Verge 出口'))
+    if (!draft.listenerUid) throw new Error(t('Select a Clash Verge exit first'))
     return { source: 'clash', listenerUid: draft.listenerUid }
   }
   if (draft.mode === 'pool') {
-    if (!draft.proxyId) throw new Error(t('请先选择已保存的代理'))
+    if (!draft.proxyId) throw new Error(t('Select a saved proxy first'))
     return { source: 'pool', proxyId: draft.proxyId }
   }
   if (draft.mode === 'rotate') {
     // 「全部」不写 proxyIds：池里以后新增的出口自动进轮询（后端归一也是这个形状）
     if (draft.rotateAll) return { source: 'rotate', all: true }
-    if (!draft.rotateIds.length) throw new Error(t('轮询至少要选择一条代理（或改选「全部」）'))
+    if (!draft.rotateIds.length) throw new Error(t('Select at least one proxy to rotate (or switch back to "All")'))
     return { source: 'rotate', all: false, proxyIds: [...draft.rotateIds] }
   }
   const host = draft.host.trim()
   const port = Number(draft.port)
-  if (!host) throw new Error(t('请填写代理主机地址'))
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(t('代理端口必须是 1-65535 的整数'))
+  if (!host) throw new Error(t('Enter the proxy host address'))
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(t('Proxy port must be an integer from 1 to 65535'))
   return {
     source: 'custom',
     protocol: draft.protocol === 'socks5' ? 'socks5' : 'http',
@@ -111,7 +111,7 @@ export function readProxyDraft(draft: ProxyDraft): ProxyPayload {
 }
 
 function clashOptionLabel(option: NonNullable<ClashProxySnapshot['options']>[number]): string {
-  return `${option.name || option.uid} :${option.port}${option.profileActive === false ? t('（其他订阅，可能未生效）') : ''}${option.enabled === false ? t('（已在 Clash 中禁用）') : ''}`
+  return `${option.name || option.uid} :${option.port}${option.profileActive === false ? t(' (other subscription, may not be active)') : ''}${option.enabled === false ? t(' (disabled in Clash)') : ''}`
 }
 
 export function ProxyForm({
@@ -158,7 +158,7 @@ export function ProxyForm({
   const loadClash = React.useCallback((): void => {
     setClashError('')
     void Promise.resolve(shared().workbuddyDesktop?.getProxies?.()).then(data => {
-      if (!data?.clash || !Array.isArray(data.clash.options)) throw new Error(t('代理列表响应异常'))
+      if (!data?.clash || !Array.isArray(data.clash.options)) throw new Error(t('Unexpected proxy list response'))
       setClash(data.clash)
     }).catch(error => {
       setClash({ available: false, options: [] })
@@ -232,12 +232,12 @@ export function ProxyForm({
     if (draft.mode === 'rotate') {
       const ids = rotateCandidateIds()
       if (!ids.length) {
-        toast(t('轮询至少要选择一条代理（或改选「全部」）'), 'err')
+        toast(t('Select at least one proxy to rotate (or switch back to "All")'), 'err')
         return
       }
       const targets = ids.slice(0, ROTATE_TEST_LIMIT)
       setTesting(true)
-      setTestResult(t('正在连接上游…'))
+      setTestResult(t('Connecting to upstream…'))
       let ok = 0
       const failures: string[] = []
       for (const id of targets) {
@@ -251,11 +251,11 @@ export function ProxyForm({
         }
       }
       const rest = ids.length - targets.length
-      const summary = t('✅ {ok}/{total} 个出口可用', { ok, total: targets.length })
-        + (rest > 0 ? t('（只测了前 {limit} 个，还有 {rest} 个未测）', { limit: ROTATE_TEST_LIMIT, rest }) : '')
+      const summary = t('✅ {ok}/{total} exits available', { ok, total: targets.length })
+        + (rest > 0 ? t(' (only the first {limit} were tested; {rest} left untested)', { limit: ROTATE_TEST_LIMIT, rest }) : '')
       setTestResult(
         <span className={failures.length ? 'text-destructive' : 'text-success'}>
-          {summary}{failures.length ? `　${esc(failures.join(t('；')))}` : ''}
+          {summary}{failures.length ? `　${esc(failures.join(t('; ')))}` : ''}
         </span>,
       )
       setTesting(false)
@@ -265,18 +265,18 @@ export function ProxyForm({
     // 「上次测试」，与代理页那一颗按钮同一个动作）—— 未选条目时给出提示
     if (draft.mode === 'pool') {
       if (!draft.proxyId) {
-        toast(t('请先选择已保存的代理'), 'err')
+        toast(t('Select a saved proxy first'), 'err')
         return
       }
       setTesting(true)
-      setTestResult(t('正在连接上游…'))
+      setTestResult(t('Connecting to upstream…'))
       try {
         const data = await shared().workbuddyDesktop?.testProxyPoolItem?.(draft.proxyId)
         setTestResult(testSucceeded(data)
           ? (
               <span className='text-success'>
-                {t('✅ 出口可用')}
-                {data.ip ? t('　出口 IP {ip}', { ip: esc(data.ip) }) : ''}
+                {t('✅ Exit available')}
+                {data.ip ? t(' Exit IP {ip}', { ip: esc(data.ip) }) : ''}
                 {data.durationMs !== undefined && data.durationMs !== '' ? `　${esc(String(data.durationMs))}ms` : ''}
               </span>
             )
@@ -296,15 +296,15 @@ export function ProxyForm({
       return
     }
     setTesting(true)
-    setTestResult(t('正在连接上游…'))
+    setTestResult(t('Connecting to upstream…'))
     try {
       const data = await shared().workbuddyDesktop?.testProxy?.({ proxy })
       if (testSucceeded(data)) {
         setTestResult(
           <span className='text-success'>
-            {t('✅ 出口可用')}
+            {t('✅ Exit available')}
             {data.status !== undefined && data.status !== '' ? `　HTTP ${esc(String(data.status))}` : ''}
-            {data.ip ? t('　出口 IP {ip}', { ip: esc(data.ip) }) : ''}
+            {data.ip ? t(' Exit IP {ip}', { ip: esc(data.ip) }) : ''}
             {data.durationMs !== undefined && data.durationMs !== '' ? `　${esc(String(data.durationMs))}ms` : ''}
           </span>,
         )
@@ -320,42 +320,42 @@ export function ProxyForm({
 
   return (
     <div className='acct-proxy-form flex flex-col'>
-      {draft.mode === 'retired' ? <p className='mb-3 text-xs text-destructive'>{t('原代理来源已下线，请选择已保存的代理、自定义地址或直连')}</p> : null}
+      {draft.mode === 'retired' ? <p className='mb-3 text-xs text-destructive'>{t('The previous proxy source has been discontinued. Choose a saved proxy, a custom address or a direct connection.')}</p> : null}
       {/* 出网方式：档位一行。走组件库的分段控件（与添加账号弹窗同一档尺寸）——
           这里原先拿 RadioGroup 拼了一套自己的观感，跟别处的分段对不上。 */}
       <SegmentedControl<ProxyDraft['mode']>
-        aria-label={t('代理方式')}
+        aria-label={t('Proxy mode')}
         className={DIALOG_SEG_CLASS}
         value={draft.mode}
         onValueChange={value => set({ mode: value })}
         options={[
-          { value: 'none', label: t('无代理（直连）') },
-          { value: 'pool', label: t('已保存的代理') },
+          { value: 'none', label: t('No proxy (direct)') },
+          { value: 'pool', label: t('Saved proxy') },
           // 轮询档只对 OpenCode Zen 出现（见 allowRotate 的说明）
           ...(allowRotate ? [{
             value: 'rotate' as const,
-            label: t('轮询（换 IP）'),
-            title: t('逐请求轮换出口（换 IP）：OpenCode Zen 免费档按 IP 限流，单个 IP 的额度用完会对它一律 429'),
+            label: t('Rotate (change IP)'),
+            title: t('Rotates the exit per request (changing the IP): the OpenCode Zen free tier limits by IP — once an IP runs out of quota, requests from it all get 429'),
           }] : []),
           // Clash Verge 档已下线：只有现存配置还停在它上面时才补出这一项，
           // 让用户能看见当前值、并有机会改成别的（补出来就没法切走了）
           ...(draft.mode === 'clash' ? [{ value: 'clash' as const, label: 'Clash Verge' }] : []),
-          { value: 'custom', label: t('自定义') },
+          { value: 'custom', label: t('Custom') },
         ]}
       />
 
       {allowSystemImport ? <div className='mt-3 flex flex-col items-start gap-1.5'>
         <Button variant='outline' size='sm' disabled={readingSystem} onClick={() => void importSystemProxy()}>
-          {readingSystem ? t('正在读取…') : t('填入系统代理')}
+          {readingSystem ? t('Loading…') : t('Fill from system proxy')}
         </Button>
-        <p className='detail'>{t('读取网关电脑当前的 HTTPS 系统代理，填入自定义地址；后续系统设置变化不会自动同步。')}</p>
+        <p className='detail'>{t('Copies the gateway machine\'s current HTTPS system proxy into the custom fields. Later system changes are not synced automatically.')}</p>
         {systemError ? <p className='text-xs text-destructive' role='alert'>{systemError}</p> : null}
       </div> : null}
 
       {draft.mode === 'pool' ? (
         <div className='mt-3'>
           <Field orientation='horizontal' className='field-row'>
-            <FieldLabel htmlFor={`${idPrefix}-pool-exit`}>{t('代理')}</FieldLabel>
+            <FieldLabel htmlFor={`${idPrefix}-pool-exit`}>{t('Proxy')}</FieldLabel>
             {/* value 恒为字符串（空串 = 还没选）：受控值从 undefined 切到字符串会被 Base UI
                 当成「非受控 → 受控」的切换，所以不给 undefined */}
             <Select value={draft.proxyId} disabled={!pool?.length}
@@ -364,7 +364,7 @@ export function ProxyForm({
                 <SelectValue>
                   {pool?.find(item => item.id === draft.proxyId)
                     ? poolItemLabel(pool.find(item => item.id === draft.proxyId)!)
-                    : draft.proxyId ? t('当前代理不可用，请重新选择') : (pool === null ? t('正在读取…') : pool.length ? t('请选择代理') : t('还没有保存的代理'))}
+                    : draft.proxyId ? t('The current proxy is unavailable. Choose another proxy.') : (pool === null ? t('Loading…') : pool.length ? t('Select a proxy') : t('No saved proxies yet'))}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -378,16 +378,16 @@ export function ProxyForm({
                 ))}
               </SelectContent>
             </Select>
-            <Button variant='outline' size='sm' onClick={() => loadPool(true)}>{t('重新读取')}</Button>
+            <Button variant='outline' size='sm' onClick={() => loadPool(true)}>{t('Reload')}</Button>
           </Field>
           <div className='detail mt-1.5'>
             {poolError
-              ? t('读取失败：{error}', { error: poolError })
+              ? t('Failed to load: {error}', { error: poolError })
               : pool === null
-                ? t('正在读取代理列表…')
+                ? t('Loading proxy list…')
                 : pool.length
-                  ? t('地址与端口由「网络代理」页管理：那边改一次、测一次，所有引用它的账号一起生效')
-                  : t('「网络代理」页还没有出口 —— 去那里添加手动地址或同步 Clash Verge 的端点')}
+                  ? t('Address and port are managed on the Network proxy page: change and test them once there, and every account referencing them updates together')
+                  : t('No proxies are saved yet. Add a manual address or sync Clash Verge endpoints on the Network proxy page.')}
           </div>
         </div>
       ) : null}
@@ -402,18 +402,18 @@ export function ProxyForm({
               （实测叠字）—— 所以用普通 flex 行，文案跟在复选框后面自然排 */}
           <div className='flex flex-wrap items-center gap-x-2.5 gap-y-1'>
             <Checkbox id={`${idPrefix}-rotate-all`} checked={draft.rotateAll}
-              aria-label={t('轮询全部代理节点')}
+              aria-label={t('Rotate across all proxy nodes')}
               onCheckedChange={value => set({ rotateAll: value === true })} />
             <Label htmlFor={`${idPrefix}-rotate-all`} className='cursor-pointer text-xs text-subtle'>
-              {t('全部代理节点（推荐）')}
+              {t('All proxy nodes (recommended)')}
             </Label>
             <span className='detail'>
-              {t('「网络代理」页里每个启用的出口轮流使用；之后新加的出口自动加入')}
+              {t('Every enabled exit on the Network proxy page is used in turn; exits added later join automatically')}
             </span>
           </div>
           {!draft.rotateAll ? (
             <Field orientation='horizontal' className='field-row mt-2.5'>
-              <FieldLabel htmlFor={`${idPrefix}-rotate-exits`}>{t('轮询的代理')}</FieldLabel>
+              <FieldLabel htmlFor={`${idPrefix}-rotate-exits`}>{t('Proxies to rotate')}</FieldLabel>
               <MultiSelect id={`${idPrefix}-rotate-exits`}
                 value={draft.rotateIds}
                 onValueChange={values => set({ rotateIds: values.map(String) })}
@@ -424,50 +424,50 @@ export function ProxyForm({
                   label: poolItemLabel(item),
                   disabled: item.enabled === false,
                 }))}
-                placeholder={t('选择要轮询的代理（可多选）')}
-                aria-label={t('轮询的代理')} />
-              <Button variant='outline' size='sm' onClick={() => loadPool(true)}>{t('重新读取')}</Button>
+                placeholder={t('Select proxies to rotate (multiple)')}
+                aria-label={t('Proxies to rotate')} />
+              <Button variant='outline' size='sm' onClick={() => loadPool(true)}>{t('Reload')}</Button>
             </Field>
           ) : null}
           <div className='detail mt-1.5'>
             {poolError
-              ? t('读取失败：{error}', { error: poolError })
+              ? t('Failed to load: {error}', { error: poolError })
               : pool === null
-                ? t('正在读取代理列表…')
+                ? t('Loading proxy list…')
                 : pool.length
-                  ? t('每条请求换一个出口（按顺序轮流），上游看到的 IP 因此是变化的；出口的地址与端口由「网络代理」页管理')
-                  : t('「网络代理」页还没有出口 —— 去那里添加手动地址或同步 Clash Verge 的端点')}
+                  ? t('Each request moves to the next exit in turn, so the upstream sees a changing IP; exit addresses and ports are managed on the Network proxy page')
+                  : t('No proxies are saved yet. Add a manual address or sync Clash Verge endpoints on the Network proxy page.')}
           </div>
         </div>
       ) : null}
 
       {draft.mode === 'clash' ? <div className='mt-3'>
         <Field orientation='horizontal' className='field-row'>
-          <FieldLabel htmlFor={`${idPrefix}-clash-exit`}>{t('出口')}</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-clash-exit`}>{t('Exit')}</FieldLabel>
           <Select value={draft.listenerUid} disabled={!options.length} onValueChange={value => set({ listenerUid: String(value) })}>
             <SelectTrigger id={`${idPrefix}-clash-exit`} className='min-w-[220px]'>
               <SelectValue>{options.find(option => option.uid === draft.listenerUid)
                 ? clashOptionLabel(options.find(option => option.uid === draft.listenerUid)!)
-                : draft.listenerUid ? t('当前代理不可用，请重新选择') : t('请选择出口')}</SelectValue>
+                : draft.listenerUid ? t('The current proxy is unavailable. Choose another proxy.') : t('Select an exit')}</SelectValue>
             </SelectTrigger>
             <SelectContent>{options.filter(option => option.uid).map(option => <SelectItem key={option.uid} value={String(option.uid)} disabled={option.enabled === false}>
               {clashOptionLabel(option)}
             </SelectItem>)}</SelectContent>
           </Select>
-          <Button variant='outline' size='sm' onClick={loadClash}>{t('重新读取')}</Button>
+          <Button variant='outline' size='sm' onClick={loadClash}>{t('Reload')}</Button>
         </Field>
-        <p className='detail mt-1.5'>{clashError ? t('读取失败：{error}', { error: clashError })
-          : clash === null ? t('正在读取 Clash Verge 配置…')
-            : clash.available === false ? t('不可用：{error}', { error: clash.error || t('未检测到 Clash Verge 配置') })
-              : t('读取自 {dir}；端口由 Clash Verge 管理，这里实时同步', { dir: clash.dir || 'Clash Verge' })}</p>
-        <p className='detail mt-1.5'>{t('既有 Clash Verge 直接引用继续可用；也可在「网络代理」页同步端点，再改选「已保存的代理」。')}</p>
+        <p className='detail mt-1.5'>{clashError ? t('Failed to load: {error}', { error: clashError })
+          : clash === null ? t('Reading Clash Verge config…')
+            : clash.available === false ? t('Unavailable: {error}', { error: clash.error || t('No Clash Verge config detected') })
+              : t('Read from {dir}; the port is managed by Clash Verge and syncs live here', { dir: clash.dir || 'Clash Verge' })}</p>
+        <p className='detail mt-1.5'>{t('Existing direct Clash Verge references remain available. You can also sync endpoints on the Network proxy page and switch to Saved proxies.')}</p>
       </div> : null}
 
       {draft.mode === 'custom' ? (
         <div className='mt-3'>
           <FieldGroup orientation='horizontal' className='field-row'>
             <Field className='contents'>
-              <FieldLabel htmlFor={`${idPrefix}-protocol`}>{t('协议')}</FieldLabel>
+              <FieldLabel htmlFor={`${idPrefix}-protocol`}>{t('Protocol')}</FieldLabel>
               <Select value={draft.protocol} onValueChange={value => set({ protocol: value as 'http' | 'socks5' })}>
                 <SelectTrigger id={`${idPrefix}-protocol`} className='min-w-[110px]'>
                   <SelectValue>{draft.protocol === 'socks5' ? 'SOCKS5' : 'HTTP'}</SelectValue>
@@ -479,38 +479,38 @@ export function ProxyForm({
               </Select>
             </Field>
             <Field className='contents'>
-              <FieldLabel htmlFor={`${idPrefix}-host`} className='ml-2'>{t('主机')}</FieldLabel>
+              <FieldLabel htmlFor={`${idPrefix}-host`} className='ml-2'>{t('Host')}</FieldLabel>
               <Input id={`${idPrefix}-host`} className='min-w-[140px]' placeholder='127.0.0.1'
                 value={draft.host} onChange={event => set({ host: event.currentTarget.value })} />
             </Field>
             <Field className='contents'>
-              <FieldLabel htmlFor={`${idPrefix}-port`}>{t('端口')}</FieldLabel>
+              <FieldLabel htmlFor={`${idPrefix}-port`}>{t('Port')}</FieldLabel>
               <Input id={`${idPrefix}-port`} type='number' min={1} max={65535} className='max-w-[110px]'
                 placeholder='7890' value={draft.port} onChange={event => set({ port: event.currentTarget.value })} />
             </Field>
           </FieldGroup>
           <FieldGroup orientation='horizontal' className='field-row mt-2.5'>
             <Field className='contents'>
-              <FieldLabel htmlFor={`${idPrefix}-user`}>{t('用户名')}</FieldLabel>
-              <Input id={`${idPrefix}-user`} placeholder={t('可选')} autoComplete='off'
+              <FieldLabel htmlFor={`${idPrefix}-user`}>{t('Username')}</FieldLabel>
+              <Input id={`${idPrefix}-user`} placeholder={t('Optional')} autoComplete='off'
                 value={draft.username} onChange={event => set({ username: event.currentTarget.value })} />
             </Field>
             <Field className='contents'>
-              <FieldLabel htmlFor={`${idPrefix}-pass`}>{t('密码')}</FieldLabel>
-              <Input id={`${idPrefix}-pass`} type='password' placeholder={t('可选')} autoComplete='new-password'
+              <FieldLabel htmlFor={`${idPrefix}-pass`}>{t('Password')}</FieldLabel>
+              <Input id={`${idPrefix}-pass`} type='password' placeholder={t('Optional')} autoComplete='new-password'
                 value={draft.password} onChange={event => set({ password: event.currentTarget.value })} />
             </Field>
           </FieldGroup>
           <Label className='mt-3 flex cursor-pointer items-center gap-2 text-xs font-normal'>
-            <Checkbox checked={draft.nonDirect === true} onCheckedChange={value => set({ nonDirect: value })} />{t('非直连代理')}
+            <Checkbox checked={draft.nonDirect === true} onCheckedChange={value => set({ nonDirect: value })} />{t('Chain through system proxy')}
           </Label>
-          <p className='detail mt-1.5'>{t('非直连会先经过网关所在设备的系统代理，再连接到此代理；系统代理不可用时不会改走直连。')}</p>
+          <p className='detail mt-1.5'>{t('Connect through the gateway device\'s system proxy first, then through this proxy. If the system proxy is unavailable, requests will not fall back to a direct connection.')}</p>
         </div>
       ) : null}
 
       <FieldGroup orientation='horizontal' className='field-row mt-3'>
         <Button variant='outline' size='sm' disabled={testing} onClick={() => void test()}>
-          {testing ? t('测试中…') : t('测试出口')}
+          {testing ? t('Testing…') : t('Test exit')}
         </Button>
         <span className='detail'>{testedSelection === selection ? testResult : null}</span>
       </FieldGroup>

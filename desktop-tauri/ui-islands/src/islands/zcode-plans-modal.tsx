@@ -39,9 +39,9 @@ const STATE_VARIANT: Record<string, 'success' | 'warning' | 'outline' | 'ghost'>
 /** 权益的周期 → 给人看的一小段（与后端 `period_label` 同一套措辞） */
 function periodLabel(period: unknown): string {
   const value = String(period || '').trim().toLowerCase()
-  if (value === 'daily') return t('每日')
-  if (value === 'weekly') return t('每周')
-  if (value === 'monthly') return t('每月')
+  if (value === 'daily') return t('Daily')
+  if (value === 'weekly') return t('Weekly')
+  if (value === 'monthly') return t('Monthly')
   return ''
 }
 
@@ -74,9 +74,9 @@ function remainText(seconds: unknown): string {
   if (diff <= 0) return ''
   const days = Math.floor(diff / 86_400_000)
   const hours = Math.floor((diff % 86_400_000) / 3_600_000)
-  if (days >= 1) return t('剩 {days} 天', { days })
-  if (hours >= 1) return t('剩 {hours} 小时', { hours })
-  return t('剩 {minutes} 分钟', { minutes: Math.max(1, Math.floor(diff / 60_000)) })
+  if (days >= 1) return t('{days} days left', { days })
+  if (hours >= 1) return t('{hours} hours left', { hours })
+  return t('{minutes} minutes left', { minutes: Math.max(1, Math.floor(diff / 60_000)) })
 }
 
 /** `到期 11-09 09:00（剩 2 天）` —— 没有相对读数时不硬塞一对空括号 */
@@ -84,8 +84,8 @@ function expireText(seconds: unknown): string {
   if (!seconds) return ''
   const remain = remainText(seconds)
   return remain
-    ? t('到期 {time}（{remain}）', { time: stampText(seconds), remain })
-    : t('到期 {time}', { time: stampText(seconds) })
+    ? t('Expires {time}({remain})', { time: stampText(seconds), remain })
+    : t('Expires {time}', { time: stampText(seconds) })
 }
 
 /** 权益 → 一行可读串（`GLM-5.3-Flash 1亿 token（每日）`） */
@@ -96,12 +96,12 @@ function entitlementText(item: Entitlement): string {
   const period = periodLabel(item.period)
   const body = [String(item.showName || '').trim(), amount].filter(Boolean).join(' ')
   if (!body) return ''
-  return period ? t('{body}（{period}）', { body, period }) : body
+  return period ? t('{body} ({period})', { body, period }) : body
 }
 
 /** 一份套餐的权益行（没有可读权益时返回空串，调用处据此省略那一行） */
 function entitlementLine(plan: { entitlements?: Entitlement[] }): string {
-  return (plan.entitlements || []).map(entitlementText).filter(Boolean).join(t('、'))
+  return (plan.entitlements || []).map(entitlementText).filter(Boolean).join(t(', '))
 }
 
 /** 一份套餐的时间窗（`开始 → 到期`；只有一个时只说那一个） */
@@ -109,8 +109,8 @@ function windowText(plan: { startsAt?: number | null; endsAt?: number | null }):
   const start = stampText(plan.startsAt)
   const end = stampText(plan.endsAt)
   if (start && end) return `${start} → ${end}`
-  if (end) return t('到期 {time}', { time: end })
-  if (start) return t('开始 {time}', { time: start })
+  if (end) return t('Expires {time}', { time: end })
+  if (start) return t('Starts {time}', { time: start })
   return ''
 }
 
@@ -127,8 +127,8 @@ function effectiveText(seconds: number): string {
     Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()) / 86_400_000,
   )
   const diff = dayIndex(date) - dayIndex(new Date())
-  if (diff === 0) return t('今天 {time}', { time })
-  if (diff === 1) return t('明天 {time}', { time })
+  if (diff === 0) return t('today {time}', { time })
+  if (diff === 1) return t('tomorrow {time}', { time })
   return stampText(seconds)
 }
 
@@ -152,13 +152,13 @@ function planTimeText(plan: {
   const pending = Number(plan.pendingUntil)
   if (Number.isFinite(pending) && pending > 0) {
     const text = effectiveText(pending)
-    if (text) parts.push(t('待生效 {time}', { time: text }))
+    if (text) parts.push(t('Effective from {time}', { time: text }))
   }
   const end = stampText(plan.endsAt)
-  if (end) parts.push(t('到期 {time}', { time: end }))
+  if (end) parts.push(t('Expires {time}', { time: end }))
   if (parts.length === 0) {
     const start = stampText(plan.startsAt)
-    if (start) parts.push(t('开始 {time}', { time: start }))
+    if (start) parts.push(t('Starts {time}', { time: start }))
   }
   return parts.join(' · ')
 }
@@ -225,7 +225,7 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
   /** 探测一次可领取清单（打开时、失败重试、领取成功后各一次） */
   const loadPreview = React.useCallback(async () => {
     if (!bridge?.preview) {
-      setPreview({ status: 'error', message: t('当前环境不支持领取（桥接方法缺失）') })
+      setPreview({ status: 'error', message: t('Claiming is not supported in this environment (bridge method missing)') })
       return
     }
     const request = ++previewRequest.current
@@ -310,7 +310,7 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
       <DialogContent showCloseButton={claimPhase !== 'submitting'} className='w-[min(520px,calc(100vw-48px))]'>
         <DialogHeader className='items-start'>
           <div className='min-w-0'>
-            <DialogTitle>{t('ZCode 套餐明细')}</DialogTitle>
+            <DialogTitle>{t('ZCode Plan details')}</DialogTitle>
             <div className='mt-1 truncate text-[11.5px] text-muted-foreground'>{name}</div>
           </div>
         </DialogHeader>
@@ -322,27 +322,27 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
           */}
           <section>
             <div className='mb-2 flex items-center gap-2'>
-              <h3 className='m-0 text-[12.5px] font-semibold'>{t('本期活动')}</h3>
-              <Badge variant='outline' shape='tag'>{t('官方限时活动')}</Badge>
+              <h3 className='m-0 text-[12.5px] font-semibold'>{t('Current events')}</h3>
+              <Badge variant='outline' shape='tag'>{t('Official limited-time event')}</Badge>
               <Button variant='ghost' size='xs' className='ml-auto'
                 disabled={preview.status === 'loading' || Boolean(claiming) || verifyingChannel}
-                onClick={() => void loadPreview()}>{t('刷新')}</Button>
+                onClick={() => void loadPreview()}>{t('Refresh')}</Button>
             </div>
             {preview.status === 'loading' ? (
               <div className='flex items-center gap-2 py-2 text-[12.5px] text-muted-foreground'>
-                <Spinner className='size-3' />{t('正在查询本期活动…')}
+                <Spinner className='size-3' />{t('Checking current events…')}
               </div>
             ) : preview.status === 'error' ? (
               <div className='py-1 text-[12.5px] text-destructive'>
-                {t('探测失败：{message}', { message: preview.message })}
+                {t('Probe failed: {message}', { message: preview.message })}
                 <Button variant='outline' size='xs' className='ml-2'
-                  onClick={() => void loadPreview()}>{t('重试')}</Button>
+                  onClick={() => void loadPreview()}>{t('Retry')}</Button>
               </div>
             ) : activityPlans.length === 0 ? (
               <p className='py-1 text-[12.5px] text-muted-foreground'>
                 {queryErrors.length
-                  ? t('部分来源查询失败，暂不能确认本期活动或领取状态')
-                  : t('当前未发现本期活动，不代表账号不符合资格')}
+                  ? t('Some sources could not be queried, so current events or claim status cannot be confirmed yet.')
+                  : t('No current events were found. This does not mean the account is ineligible.')}
               </p>
             ) : (
               <div className='flex flex-col gap-2'>
@@ -354,8 +354,8 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
                   const state = planClaimState(plan, locallySettled ? [planId] : plan.claimState ? [] : stored)
                   const taken = state === 'claimed'
                   const rejected = !taken && (result?.failure === 'ineligible' || state === 'ineligible')
-                  const statusLabel = taken ? t('已领取') : rejected ? t('当前不符合资格')
-                    : state === 'unknown' ? t('状态待确认') : t('可领取')
+                  const statusLabel = taken ? t('Claimed') : rejected ? t('Currently ineligible')
+                    : state === 'unknown' ? t('Status unconfirmed') : t('Claimable')
                   const entitlements = entitlementLine(plan)
                   const owned = plan.ownedPlan
                   const window_ = windowText(plan)
@@ -364,8 +364,8 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
                     ? result.message || result.failureLabel : plan.claimMessage
                   // 时间行：待生效 / 活动窗口 / 到期各一段，用一行的距离说完
                   const times = [
-                    owned?.pendingUntil ? t('待生效 {time}', { time: effectiveText(owned.pendingUntil) }) : '',
-                    window_ ? t('活动期至 {time}', { time: window_ }) : '',
+                    owned?.pendingUntil ? t('Effective from {time}', { time: effectiveText(owned.pendingUntil) }) : '',
+                    window_ ? t('The event period runs until {time}', { time: window_ }) : '',
                     expireText(expiresAt),
                   ].filter(Boolean).join(' · ')
                   return (
@@ -373,7 +373,7 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
                       <div className='flex items-center gap-3'>
                         <div className='min-w-0 flex-1'>
                           <div className='flex flex-wrap items-center gap-2'>
-                            <span className='truncate text-[13px] font-medium'>{plan.name || planId || t('套餐')}</span>
+                            <span className='truncate text-[13px] font-medium'>{plan.name || planId || t('Plan')}</span>
                             <Badge variant={taken ? 'success' : rejected ? 'warning' : 'outline'} shape='tag'>{statusLabel}</Badge>
                             {owned?.state && owned.state !== 'unknown' ? (
                               <Badge variant={STATE_VARIANT[owned.state] || 'outline'} shape='tag'>
@@ -395,8 +395,8 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
                             className={cn('shrink-0', claiming === planId && 'pointer-events-none')}
                             disabled={claiming !== '' || verifyingChannel || !planId}
                             onClick={() => void claim(planId)}>
-                            {claiming === planId ? t('领取中…')
-                              : state === 'unknown' || rejected ? t('尝试领取') : t('领取')}
+                            {claiming === planId ? t('Claiming…')
+                              : state === 'unknown' || rejected ? t('Try claiming') : t('Claim')}
                           </Button>
                         ) : null}
                       </div>
@@ -409,7 +409,7 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
 
           <section>
             <div className='mb-2 flex items-center gap-2'>
-              <h3 className='m-0 text-[12.5px] font-semibold'>{t('我的套餐')}</h3>
+              <h3 className='m-0 text-[12.5px] font-semibold'>{t('My plans')}</h3>
               {/*
                 可用读数只在**真读到额度**时显示。没有桶时 `availableView` 是
                 「无额度」，挂在下面那些套餐旁边会被读成「这份套餐没额度」——
@@ -426,13 +426,13 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
                 <Badge variant='outline' shape='tag'>
                   {String(data.walletsFrom || '') === 'monitor'
                     ? String(data.availableView)
-                    : t('可用 {value}', { value: String(data.availableView) })}
+                    : t('Available {value}', { value: String(data.availableView) })}
                 </Badge>
               ) : null}
               <Button variant='ghost' size='xs' className='ml-auto' disabled={inflight}
-                title={t('重新读取该账号的余额与套餐（走余额查询那条链）')}
+                title={t('Re-read this account\'s balance and plans (goes through the balance query chain)')}
                 onClick={() => void refreshUsageAfterCheckin(id)}>
-                {inflight ? t('查询中…') : t('查询余额')}
+                {inflight ? t('Checking…') : t('Query balance')}
               </Button>
             </div>
             {ownedPlans.length > 0 ? (
@@ -451,13 +451,13 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
                     <div key={plan.userPlanId || planId || plan.name}
                       className='rounded-md border border-border bg-surface px-3.5 py-3'>
                       <div className='flex flex-wrap items-center gap-2'>
-                        <span className='truncate text-[13px] font-medium'>{plan.name || planId || t('套餐')}</span>
+                        <span className='truncate text-[13px] font-medium'>{plan.name || planId || t('Plan')}</span>
                         <Badge variant={STATE_VARIANT[state] || 'outline'} shape='tag'>
                           {zcodePlanStateLabel(state)}
                         </Badge>
                         {claimedAt > 0 ? (
                           <span className='ml-auto text-[11.5px] text-muted-foreground'>
-                            {t('本地领取于 {time}', { time: stampText(claimedAt / 1000) })}
+                            {t('Claimed locally at {time}', { time: stampText(claimedAt / 1000) })}
                           </span>
                         ) : null}
                       </div>
@@ -472,10 +472,10 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
             ) : (
               <p className='m-0 py-1 text-[12.5px] text-muted-foreground'>
                 {entry === undefined
-                  ? t('还没有余额读数（已自动查询一次，稍候；也可以点右上角「查询余额」重读）')
+                  ? t('No balance reading yet (one query has been started automatically, please wait; you can also click "Check balance" at the top right)')
                   : data && data.source && data.source !== SOURCE_BILLING
-                    ? t('这个账号的余额走窗口限额通道（只配了编码套餐 API Key）：只有每 N 小时的剩余比例，读不到套餐清单')
-                    : t('读数里没有套餐清单（免费账号、或套餐的上游状态还没刷新；可点右上角「查询余额」重读）')}
+                    ? t('This account reads its balance through the window-limit channel (only a Coding Plan API Key is configured): it only has the remaining percentage of each N-hour window, not the plan list')
+                    : t('The reading contains no plan list (free account, or the upstream plan state is not refreshed yet; click "Check balance" at the top right to re-read)')}
               </p>
             )}
           </section>
@@ -495,44 +495,44 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
                 aria-hidden='true'>
                 <path d='M4.5 2.5 8 6l-3.5 3.5' />
               </svg>
-              {t('数据来源与判定说明')}
+              {t('Data sources and judgment notes')}
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className='mt-2 flex flex-col gap-1.5 pl-[18px] text-[11.5px] leading-relaxed text-muted-foreground'>
                 <p className='m-0'>
-                  {t('活动目录合并账号预览、营销活动与匿名探测。已领取仅依据领取记录或账号名下套餐；状态待确认时可尝试领取，资格以上游返回为准。')}
+                  {t('The event catalog combines account previews, marketing events, and anonymous discovery. Claimed status requires a claim record or an account-owned plan. If the status is unconfirmed, you can try claiming; eligibility is determined by the upstream response.')}
                 </p>
                 <p className='m-0'>
-                  {t('后台只读取状态，不会自动弹出验证码；验证结果一次性使用，短时间内过期。')}
+                  {t('The background only reads status and never opens verification automatically. Each token is single-use and expires shortly.')}
                 </p>
                 {preview.status === 'ready' && queryErrors.length > 0 ? (
                   <p className='m-0'>
-                    {t('部分来源查询失败，已保留其他结果：{message}', { message: queryErrors.join('；') })}
+                    {t('Some sources could not be queried; other results were retained: {message}', { message: queryErrors.join('; ') })}
                   </p>
                 ) : null}
                 {receiptError ? (
                   <p className='m-0'>
-                    {t('套餐已领取，但营销回执未完成，不会重复领取：{message}', { message: receiptError })}
+                    {t('The plan has been claimed, but the marketing receipt is incomplete; it will not be claimed again: {message}', { message: receiptError })}
                   </p>
                 ) : null}
                 {preview.status === 'ready' && preview.result.activationError ? (
                   <p className='m-0'>
-                    {t('激活事件补报失败，可能影响领取资格：{message}', { message: preview.result.activationError })}
+                    {t('Failed to backfill activation events; this may affect claim eligibility: {message}', { message: preview.result.activationError })}
                   </p>
                 ) : null}
                 {claimed.length > 0 ? (
                   <p className='m-0'>
-                    {t('今天（北京时间）在这台机器上领过：{plans}', { plans: claimed.join(t('、')) })}
+                    {t('Claimed on this machine today (Beijing time): {plans}', { plans: claimed.join(t(', ')) })}
                   </p>
                 ) : null}
                 {unconfirmed.length > 0 ? (
                   <p className='m-0'>
-                    {t('本地台账里今天还领过这些，但上面的读数里还没有：{plans}（读数刷新可能有延迟）', {
+                    {t('Also claimed today according to the local record, but not in the readings above yet: {plans} (the reading may take a while to refresh)', {
                       plans: unconfirmed.map(planId => {
                         const at = Number(ledger[planId]) || 0
                         const time = at > 0 ? stampText(at / 1000) : ''
-                        return time ? t('{plan}（{time} 领取）', { plan: planId, time }) : planId
-                      }).join(t('、')),
+                        return time ? t('{plan} (claimed {time})', { plan: planId, time }) : planId
+                      }).join(t(', ')),
                     })}
                   </p>
                 ) : null}
@@ -543,13 +543,13 @@ function PlansModal({ options, onClose }: { options: OpenOptions; onClose: () =>
         <DialogFooter>
           <span className='min-w-0 text-[11.5px] text-muted-foreground'>
             {claimed.length > 0
-              ? t('今天（北京时间）已领取 {n} 份', { n: claimed.length })
-              : t('本期活动按套餐分别展示，领取资格以上游返回为准')}
+              ? t('Claimed today (Beijing time): {n} items', { n: claimed.length })
+              : t('Current events are listed by plan. Eligibility is determined by the upstream response.')}
           </span>
           <div className='mr-auto' />
           {claiming ? <Button variant='outline' disabled={claimPhase === 'submitting'}
-            onClick={() => claimController.current?.abort()}>{t('取消验证')}</Button> : null}
-          <Button variant='outline' disabled={claimPhase === 'submitting'} onClick={close}>{t('关闭')}</Button>
+            onClick={() => claimController.current?.abort()}>{t('Cancel verification')}</Button> : null}
+          <Button variant='outline' disabled={claimPhase === 'submitting'} onClick={close}>{t('Close')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -10,11 +10,13 @@ pub(crate) use presentation::prepare as prepare_entry;
 pub use presentation::{category_for_tag, LogGroup, LogView};
 
 use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use chrono::{Duration as ChronoDuration, Local, TimeZone};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -46,17 +48,17 @@ pub(crate) fn level_capacity(total: usize, level: &str) -> usize {
 pub const DEBUG_RETENTION_DAYS: i64 = 3;
 pub const LEVELS: [&str; 4] = ["debug", "info", "warn", "error"];
 pub const CATEGORIES: [(&str, &str); 11] = [
-    ("server", "服务"),
-    ("auth", "登录"),
-    ("account", "账号"),
-    ("model", "模型"),
-    ("upstream", "上游"),
-    ("desensitize", "脱敏"),
-    ("config", "配置"),
-    ("checkin", "自动签到"),
-    ("maintenance", "凭证自动维护"),
-    ("update", "软件版本检查"),
-    ("plugin", "插件"),
+    ("server", "Service"),
+    ("auth", "Sign in"),
+    ("account", "Accounts"),
+    ("model", "Model"),
+    ("upstream", "Upstream"),
+    ("desensitize", "Redaction"),
+    ("config", "Profile"),
+    ("checkin", "Auto check-in"),
+    ("maintenance", "Credential auto-maintenance"),
+    ("update", "Software update check"),
+    ("plugin", "Plugins"),
 ];
 
 const MAX_MESSAGE_LENGTH: usize = 1000;
@@ -226,6 +228,23 @@ pub struct LogStore {
     /// 全局统计（级别 / 分类条数）。日志页与导航角标都读它；没有新日志时
     /// 直接复用，避免每秒重扫整表。
     stats_cache: Mutex<Option<(u64, Stats)>>,
+    /// fork: destination for event lines written to the file (`{logs_dir}/events.jsonl`).
+    /// `None` = the original DB backend (non-Linux / no ramdisk / test environments).
+    events_file: Option<PathBuf>,
+    /// Generation number of the file contents: +1 on every file write; the in-memory mirror uses it to decide whether to reload.
+    file_gen: AtomicU64,
+    /// Id allocator in file mode (seed = the larger of the DB high-water mark and the file's max id).
+    next_id: AtomicU64,
+    /// In-memory mirror of the file contents (the in-memory SQLite `logs` table). Query / stats / folding
+    /// all reuse the `sql` layer — no second filtering implementation gets written.
+    mirror: Mutex<Option<Mirror>>,
+}
+
+/// In-memory mirror of the file contents. `gen` is the generation number at load time; if it differs
+/// from `LogStore::file_gen`, the file has changed (written / cleared by this process) and must be reloaded before the next read.
+struct Mirror {
+    conn: Connection,
+    gen: u64,
 }
 
 struct CachedQuery {
@@ -250,6 +269,52 @@ impl LogStore {
             inner: Mutex::new(()),
             query_cache: Mutex::new(VecDeque::new()),
             stats_cache: Mutex::new(None),
+            events_file: None,
+            file_gen: AtomicU64::new(0),
+            next_id: AtomicU64::new(1),
+            mirror: Mutex::new(None),
+        }
+    }
+
+    /// fork: the file backend for event lines (selected by
+    /// `logging::init_store` on Linux + `/mnt/ramdisk`; without a ramdisk, [`with_db`]'s DB backend is still used).
+    ///
+    /// ── Why the rows are not in the DB ────────────────────────────────────
+    /// Logs are "high-frequency writes, disposable, fast-growing" data — not the same lifetime as the main DB's accounts / config.
+    /// `events.jsonl` lands in `{logs_dir}` (the ramdisk by default) and is wiped on restart —
+    /// which is exactly what the "logs leave `agent2api.db`" step means.
+    ///
+    /// ── Why queries were not rewritten ──────────────────────────────
+    /// The read path loads the file into the in-memory SQLite `logs` table (reused while the generation number is unchanged), then still calls
+    /// the `sql` layer: `Query` filtering, `presentation` folding, and `Stats` semantics are all
+    /// shared with the DB backend's single implementation, so they cannot drift.
+    ///
+    /// ── Startup migration ────────────────────────────────────────────
+    /// When the DB already holds legacy log rows (written before the rework), migrate all of them into the file first, then delete them from the DB;
+    /// if the migration fails they stay in the DB (a temporarily fat `.db` beats lost logs).
+    pub fn with_events_file(
+        db: Option<Db>,
+        events_file: PathBuf,
+        get_retention_days: impl Fn() -> i64 + Send + Sync + 'static,
+    ) -> Self {
+        let migrated_max = migrate_rows_to_file(&db, &events_file);
+        let stored_next = db
+            .as_ref()
+            .and_then(|db| db.with(sql::peek_next_id))
+            .and_then(Result::ok)
+            .unwrap_or(1);
+        let next = stored_next.max(migrated_max.saturating_add(1)).max(1);
+        Self {
+            db,
+            file_path: events_file.clone(),
+            get_retention_days: Arc::new(get_retention_days),
+            inner: Mutex::new(()),
+            query_cache: Mutex::new(VecDeque::new()),
+            stats_cache: Mutex::new(None),
+            events_file: Some(events_file),
+            file_gen: AtomicU64::new(0),
+            next_id: AtomicU64::new(next),
+            mirror: Mutex::new(None),
         }
     }
 
@@ -299,6 +364,179 @@ impl LogStore {
         }
     }
 
+    /// fork: the unified read-path entry — the DB backend goes through [`with_conn`], the file backend through the in-memory mirror.
+    fn with_source<T>(
+        &self,
+        guard: &MutexGuard<'_, ()>,
+        action: impl FnOnce(&Connection) -> rusqlite::Result<T>,
+    ) -> Option<T> {
+        let Some(path) = self.events_file.as_ref() else {
+            return self.with_conn(guard, action);
+        };
+        let mut slot = self
+            .mirror
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(mirror) = self.ensure_mirror(&mut slot, path) else {
+            eprintln!("[Logs] event-log read failed ({})", path.display());
+            return None;
+        };
+        match action(&mirror.conn) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                eprintln!("[Logs] event-log query failed: {error}");
+                None
+            }
+        }
+    }
+
+    fn ensure_mirror<'a>(&self, slot: &'a mut Option<Mirror>, path: &Path) -> Option<&'a Mirror> {
+        let gen = self.file_gen.load(Ordering::Relaxed);
+        let stale = slot.as_ref().map_or(true, |mirror| mirror.gen != gen);
+        if stale {
+            match build_mirror(path) {
+                Some(conn) => *slot = Some(Mirror { conn, gen }),
+                None => return None,
+            }
+        }
+        slot.as_ref()
+    }
+
+    /// File backend: append one line. Failures only print to the console (a failing log write must not itself spam).
+    fn file_append(&self, record: &LogEntry) -> bool {
+        if !append_entries(self.events_file.as_deref().unwrap_or(Path::new("")), &[record.clone()]) {
+            return false;
+        }
+        self.file_gen.fetch_add(1, Ordering::Relaxed);
+        true
+    }
+
+    /// File backend: write the whole in-memory mirror back (atomic replacement).
+    fn file_dump(&self, conn: &Connection, path: &Path) -> bool {
+        let Ok(entries) = sql::select_all_asc(conn) else {
+            return false;
+        };
+        let mut text = String::new();
+        for entry in &entries {
+            if let Ok(line) = serde_json::to_string(entry) {
+                text.push_str(&line);
+                text.push('\n');
+            }
+        }
+        let tmp = path.with_extension("jsonl.tmp");
+        if std::fs::write(&tmp, text).is_err() {
+            eprintln!("[Logs] event-log rewrite failed ({})", tmp.display());
+            return false;
+        }
+        if std::fs::rename(&tmp, path).is_err() {
+            let _ = std::fs::remove_file(&tmp);
+            return false;
+        }
+        true
+    }
+
+    /// File backend: trim by retention period / tiered capacity (once every `MAINTENANCE_EVERY` rows).
+    fn file_trim(
+        &self,
+        _guard: &MutexGuard<'_, ()>,
+        level: &str,
+        keep_id: u64,
+        cutoff: i64,
+        debug_cutoff: i64,
+    ) {
+        let Some(path) = self.events_file.clone() else {
+            return;
+        };
+        let mut slot = self
+            .mirror
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(mirror) = self.ensure_mirror(&mut slot, &path) else {
+            return;
+        };
+        let conn = &mirror.conn;
+        let capacity = retention_capacity();
+        let _ = sql::delete_expired(conn, cutoff, Some(keep_id));
+        let _ = sql::delete_expired_debug(conn, debug_cutoff, Some(keep_id));
+        let _ = sql::trim_level_capacity(conn, level, capacity);
+        let _ = sql::trim_total_capacity(conn, capacity);
+        self.file_dump(conn, &path);
+    }
+
+    /// File backend: explicit trim (startup / retention-period change).
+    fn file_prune(&self, _guard: &MutexGuard<'_, ()>) -> usize {
+        let Some(path) = self.events_file.clone() else {
+            return 0;
+        };
+        let cutoff = self.retention_cutoff_ms();
+        let debug_cutoff = self.debug_cutoff_ms();
+        let capacity = retention_capacity();
+        let mut slot = self
+            .mirror
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(mirror) = self.ensure_mirror(&mut slot, &path) else {
+            return 0;
+        };
+        let conn = &mirror.conn;
+        let before = sql::count_all(conn).unwrap_or(0);
+        let _ = sql::delete_expired(conn, cutoff, None);
+        let _ = sql::delete_expired_debug(conn, debug_cutoff, None);
+        let _ = sql::trim_to_capacity(conn, capacity);
+        let after = sql::count_all(conn).unwrap_or(before);
+        if after != before {
+            self.file_dump(conn, &path);
+        }
+        before.saturating_sub(after)
+    }
+
+    /// File backend: delete by filter (first filter out the ids precisely, then delete, then write back).
+    fn file_clear_where(&self, _guard: &MutexGuard<'_, ()>, plan: &sql::FilterPlan) -> usize {
+        let Some(path) = self.events_file.clone() else {
+            return 0;
+        };
+        let mut slot = self
+            .mirror
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(mirror) = self.ensure_mirror(&mut slot, &path) else {
+            return 0;
+        };
+        let conn = &mirror.conn;
+        let ids: Vec<u64> = match sql::select_matching_desc(conn, plan) {
+            Ok(entries) => entries.iter().map(|entry| entry.id).collect(),
+            Err(error) => {
+                eprintln!("[Logs] log filter failed: {error}");
+                return 0;
+            }
+        };
+        let removed = sql::delete_by_ids(conn, &ids).unwrap_or(0);
+        if removed > 0 {
+            self.file_dump(conn, &path);
+        }
+        removed
+    }
+
+    /// File backend: clear everything (resets the id high-water mark too, matching the DB backend's semantics).
+    fn file_clear(&self, _guard: &MutexGuard<'_, ()>) -> bool {
+        let Some(path) = self.events_file.as_ref() else {
+            return false;
+        };
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if std::fs::write(path, b"").is_err() {
+            eprintln!("[Logs] event-log clear failed ({})", path.display());
+            return false;
+        }
+        self.file_gen.fetch_add(1, Ordering::Relaxed);
+        self.next_id.store(1, Ordering::Relaxed);
+        if let Some(db) = self.db.as_ref() {
+            let _ = db.with_mut(|conn| sql::reset_next_id(conn));
+        }
+        true
+    }
+
     pub(crate) fn retention_cutoff_ms(&self) -> i64 {
         let days = (self.get_retention_days)()
             .clamp(config::RETENTION_MIN_DAYS, config::RETENTION_MAX_DAYS);
@@ -314,8 +552,10 @@ impl LogStore {
         let guard = self.guard();
         let cutoff = self.retention_cutoff_ms();
         let debug_cutoff = self.debug_cutoff_ms();
-        let removed = self
-            .with_conn_mut(&guard, |conn| {
+        let removed = if self.events_file.is_some() {
+            self.file_prune(&guard)
+        } else {
+            self.with_conn_mut(&guard, |conn| {
                 let tx = conn.transaction()?;
                 let removed = sql::delete_expired(&tx, cutoff, None)?
                     + sql::delete_expired_debug(&tx, debug_cutoff, None)?
@@ -323,7 +563,8 @@ impl LogStore {
                 tx.commit()?;
                 Ok(removed)
             })
-            .unwrap_or(0);
+            .unwrap_or(0)
+        };
         // 显式裁剪（启动 / 改保留期 / 手动清空）之后重置批次计数：下一次写入
         // 不必再从头攒 64 条才检查一次。即便这次没有删行，保留期上限本身可能
         // 已经变了（`Stats.max` 读的是配置），缓存也要失效。
@@ -346,6 +587,29 @@ impl LogStore {
         let data = normalize_data(entry.data);
         // 保留期 / 容量裁剪按批做，见 `MAINTENANCE_EVERY` 的说明。
         let trim_now = should_trim_now();
+        // fork: file backend — rows go only into `events.jsonl`, the DB is no longer written (legacy rows
+        // in the DB were migrated away in `with_events_file`). Ids come from the in-memory counter: the seed considers
+        // both the DB high-water mark and the file's max id, so after a ramdisk wipe ids stay monotonic and never regress.
+        if self.events_file.is_some() {
+            let record = presentation::prepare(LogEntry {
+                id: self.next_id.fetch_add(1, Ordering::Relaxed),
+                ts,
+                level,
+                category,
+                message,
+                data,
+            });
+            if !self.file_append(&record) {
+                return None;
+            }
+            if trim_now {
+                let cutoff = self.retention_cutoff_ms();
+                let debug_cutoff = self.debug_cutoff_ms();
+                self.file_trim(&guard, &record.level, record.id, cutoff, debug_cutoff);
+            }
+            bump_cache_epoch();
+            return Some(record);
+        }
         let result = self.with_conn_mut(&guard, |conn| {
             let tx = conn.transaction()?;
             let id = sql::allocate_next_id(&tx)?;
@@ -393,7 +657,7 @@ impl LogStore {
             by_level: empty_level_map(),
             last_id: 0,
         };
-        let computed = self.with_conn(&guard, |conn| -> rusqlite::Result<QueryResult> {
+        let computed = self.with_source(&guard, |conn| -> rusqlite::Result<QueryResult> {
             let total = sql::count_all(conn)?;
             let last_id = sql::max_id(conn)?;
             let filtered = sql::select_matching_desc(conn, &plan)?;
@@ -466,19 +730,23 @@ impl LogStore {
         let removed = {
             let guard = self.guard();
             let plan = sql::FilterPlan::of(query);
-            self.with_conn_mut(&guard, |conn| {
-                let tx = conn.transaction()?;
-                // 分类 / 级别在 SQL 里只做了「超集」过滤（旧插件日志读取时会
-                // 改判），所以删除仍要经过 Rust 侧 matches 精确筛一遍。
-                let ids: Vec<u64> = sql::select_matching_desc(&tx, &plan)?
-                    .iter()
-                    .map(|entry| entry.id)
-                    .collect();
-                let removed = sql::delete_by_ids(&tx, &ids)?;
-                tx.commit()?;
-                Ok(removed)
-            })
-            .unwrap_or(0)
+            if self.events_file.is_some() {
+                self.file_clear_where(&guard, &plan)
+            } else {
+                self.with_conn_mut(&guard, |conn| {
+                    let tx = conn.transaction()?;
+                    // Category / level are only "superset"-filtered in SQL (legacy plugin logs get
+                    // reclassified on read), so deletion still goes through a precise matches pass on the Rust side.
+                    let ids: Vec<u64> = sql::select_matching_desc(&tx, &plan)?
+                        .iter()
+                        .map(|entry| entry.id)
+                        .collect();
+                    let removed = sql::delete_by_ids(&tx, &ids)?;
+                    tx.commit()?;
+                    Ok(removed)
+                })
+                .unwrap_or(0)
+            }
         };
         if removed > 0 {
             bump_cache_epoch();
@@ -500,7 +768,7 @@ impl LogStore {
                 }
             }
         }
-        let loaded = self.with_conn(&guard, sql::stats_snapshot);
+        let loaded = self.with_source(&guard, sql::stats_snapshot);
         let (total, last_id, buckets) = match loaded {
             Some(value) => value,
             _ => {
@@ -542,14 +810,17 @@ impl LogStore {
     pub fn clear(&self) -> Stats {
         {
             let guard = self.guard();
-            let changed = self
-                .with_conn_mut(&guard, |conn| {
+            let changed = if self.events_file.is_some() {
+                self.file_clear(&guard)
+            } else {
+                self.with_conn_mut(&guard, |conn| {
                     let tx = conn.transaction()?;
                     sql::delete_all(&tx)?;
                     sql::reset_next_id(&tx)?;
                     tx.commit()
                 })
-                .is_some();
+                .is_some()
+            };
             if changed {
                 APPENDS_SINCE_TRIM.store(0, Ordering::Relaxed);
                 bump_cache_epoch();
@@ -561,7 +832,7 @@ impl LogStore {
     pub fn to_jsonl(&self) -> String {
         let guard = self.guard();
         let entries = self
-            .with_conn(&guard, sql::select_all_asc)
+            .with_source(&guard, sql::select_all_asc)
             .unwrap_or_default();
         render_jsonl(&entries)
     }
@@ -570,7 +841,7 @@ impl LogStore {
         let guard = self.guard();
         let plan = sql::FilterPlan::of(query);
         let mut entries = self
-            .with_conn(&guard, |conn| sql::select_matching_desc(conn, &plan))
+            .with_source(&guard, |conn| sql::select_matching_desc(conn, &plan))
             .unwrap_or_default();
         entries.reverse();
         render_jsonl(&entries)
@@ -579,7 +850,7 @@ impl LogStore {
     #[allow(dead_code)]
     pub fn len(&self) -> usize {
         let guard = self.guard();
-        self.with_conn(&guard, sql::count_all).unwrap_or(0)
+        self.with_source(&guard, sql::count_all).unwrap_or(0)
     }
 
     #[allow(dead_code)]
@@ -635,4 +906,116 @@ pub struct NewEntry<'a> {
     pub message: &'a str,
     pub data: Option<&'a Value>,
     pub ts: Option<i64>,
+}
+
+/// File → in-memory mirror (minimal DDL for the `logs` table, columns aligned with `db::schema`).
+///
+/// No indexes: the mirror serves a single query at a time, the row cap is the log capacity (a few thousand rows), and a full scan
+/// is more direct than maintaining indexes. Blank / corrupt lines are skipped — the log read path must not blow up over one bad line.
+fn build_mirror(path: &Path) -> Option<Connection> {
+    let conn = Connection::open_in_memory().ok()?;
+    conn.execute_batch(
+        "CREATE TABLE logs (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, level TEXT NOT NULL, \
+         category TEXT NOT NULL, message TEXT NOT NULL, data TEXT);",
+    )
+    .ok()?;
+    for entry in read_entries(path) {
+        let _ = sql::insert(&conn, &entry);
+    }
+    Some(conn)
+}
+
+/// All entries in the file (lines that fail to parse are skipped).
+fn read_entries(path: &Path) -> Vec<LogEntry> {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    text.lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() {
+                return None;
+            }
+            serde_json::from_str::<LogEntry>(line).ok()
+        })
+        .collect()
+}
+
+fn max_file_id(path: &Path) -> u64 {
+    read_entries(path)
+        .iter()
+        .map(|entry| entry.id)
+        .max()
+        .unwrap_or(0)
+}
+
+/// Append a batch of entries; create the directory if missing. Returns false on failure (the caller does not delete the source data).
+fn append_entries(path: &Path, entries: &[LogEntry]) -> bool {
+    if path.as_os_str().is_empty() {
+        return false;
+    }
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    else {
+        eprintln!("[Logs] event-log file could not be opened ({})", path.display());
+        return false;
+    };
+    for entry in entries {
+        let Ok(line) = serde_json::to_string(entry) else {
+            continue;
+        };
+        if writeln!(file, "{line}").is_err() {
+            eprintln!("[Logs] event-log append failed");
+            return false;
+        }
+    }
+    true
+}
+
+/// Startup migration: move the DB's legacy log rows into the file, then delete them from the DB.
+///
+/// Returns the max id in the file after the move (used to seed the in-memory counter).
+/// If the file cannot be written, the DB rows are **not** deleted — a temporarily fat `.db` beats lost logs.
+fn migrate_rows_to_file(db: &Option<Db>, path: &Path) -> u64 {
+    let Some(db) = db else {
+        return max_file_id(path);
+    };
+    let rows = db
+        .with(sql::select_all_asc)
+        .and_then(Result::ok)
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return max_file_id(path);
+    }
+    let existing: std::collections::HashSet<u64> = read_entries(path)
+        .iter()
+        .map(|entry| entry.id)
+        .collect();
+    let fresh: Vec<LogEntry> = rows
+        .into_iter()
+        .filter(|entry| !existing.contains(&entry.id))
+        .collect();
+    let max = fresh
+        .iter()
+        .map(|entry| entry.id)
+        .max()
+        .unwrap_or(0)
+        .max(max_file_id(path));
+    if !fresh.is_empty() && !append_entries(path, &fresh) {
+        return max_file_id(path);
+    }
+    let cleared = db.with_mut(|conn| -> rusqlite::Result<usize> {
+        let removed = sql::delete_all(conn)?;
+        sql::raise_next_id(conn, max.saturating_add(1))?;
+        Ok(removed)
+    });
+    if let Some(Err(error)) = cleared {
+        eprintln!("[Logs] legacy log-row cleanup failed: {error}");
+    }
+    max
 }

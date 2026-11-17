@@ -19,10 +19,10 @@ export function DuplicateProviderDialog({
     <Dialog open onOpenChange={open => { if (!open) onClose() }}>
       <DialogContent overlayForceRender className='w-[min(560px,calc(100vw-48px))]'>
         <DialogHeader>
-          <DialogTitle>{t('该地址已有提供商')}</DialogTitle>
+          <DialogTitle>{t('A provider already uses this address')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
-          <p className='mb-3 text-sm text-subtle'>{t('相同协议和地址的提供商已经存在。可以继续新建独立提供商，或明确选择已有提供商添加账号。')}</p>
+          <p className='mb-3 text-sm text-subtle'>{t('A provider with the same protocol and address already exists. Create a separate provider, or select an existing one to add an account.')}</p>
           <div className='space-y-2'>
             {providers.map(provider => (
               <Item key={provider.id} variant='outline'>
@@ -31,15 +31,15 @@ export function DuplicateProviderDialog({
                   <ItemDescription>{provider.baseUrl}</ItemDescription>
                 </ItemContent>
                 <Button variant='outline' onClick={() => onExisting(provider)}>
-                  {t('添加到此提供商')}
+                  {t('Add to this provider')}
                 </Button>
               </Item>
             ))}
           </div>
         </DialogBody>
         <DialogFooter>
-          <Button variant='outline' onClick={onClose}>{t('取消')}</Button>
-          <Button onClick={onCreate}>{t('继续新建独立提供商')}</Button>
+          <Button variant='outline' onClick={onClose}>{t('Cancel')}</Button>
+          <Button onClick={onCreate}>{t('Create a separate provider')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

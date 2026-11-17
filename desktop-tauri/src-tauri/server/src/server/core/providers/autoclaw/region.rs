@@ -69,8 +69,8 @@ impl Region {
     /// 展示名（界面上跟在 `AutoClaw` 后面的那一段）
     pub fn label(self) -> &'static str {
         match self {
-            Self::Cn => "国内版",
-            Self::Intl => "国际版",
+            Self::Cn => "China edition",
+            Self::Intl => "International edition",
         }
     }
 }

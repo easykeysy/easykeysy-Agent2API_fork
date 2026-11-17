@@ -33,7 +33,7 @@ pub async fn get_trace(State(state): State<ServerState>, Query(params): Query<Ha
 pub async fn get_trace_request(State(state): State<ServerState>, Query(params): Query<HashMap<String, String>>) -> Response {
     let id = params.get("id").map(|value| value.trim()).filter(|value| !value.is_empty()).unwrap_or("").to_string();
     let ts = params.get("ts").and_then(|value| value.parse::<i64>().ok());
-    if id.is_empty() || id.len() > 256 { return errors::management_error(400, "请求 ID 不能为空且不能超过 256 字符") }
+    if id.is_empty() || id.len() > 256 { return errors::management_error(400, "Requests ID 不能为空且不能超过 256 字符") }
     let stats = state.request_stats();
     match tokio::task::spawn_blocking(move || stats.routing_trace_request(&id, ts)).await {
         Ok(Some(mut value)) => {

@@ -24,7 +24,7 @@ async fn run(state: &ServerState, account: &str, activate: bool) -> Result<Value
     ).await {
         Ok(Ok(value)) => value,
         Ok(Err(error)) if error.status_code == 501 => {
-            return Err(GatewayError::with_status(501, "果办套餐接口不可用，请更新主程序和提供商插件"));
+            return Err(GatewayError::with_status(501, "The OfficeAce plan API is unavailable. Update the main application and the provider plugin."));
         }
         Ok(Err(error)) => return Err(error),
         Err(_) if activate => return Ok(json!({

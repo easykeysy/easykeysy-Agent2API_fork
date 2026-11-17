@@ -60,7 +60,7 @@ pub async fn put_routing(State(_state): State<ServerState>, body: Bytes) -> Resp
         if !known.contains(&text) {
             return errors::management_error(
                 400,
-                format!("未知的路由策略「{text}」（只支持 {}）", known.join(" / ")),
+                format!("未知的路由策略「{text}」（只支持 {})", known.join(" / ")),
             );
         }
         patch.strategy = Some(config::RouteStrategy::from_id(text));
@@ -78,7 +78,7 @@ pub async fn put_routing(State(_state): State<ServerState>, body: Bytes) -> Resp
         if !known.contains(&text) {
             return errors::management_error(
                 400,
-                format!("未知的会话粘性档位「{text}」（只支持 {}）", known.join(" / ")),
+                format!("未知的会话粘性档位「{text}」（只支持 {})", known.join(" / ")),
             );
         }
         patch.sticky = Some(config::StickyMode::from_id(text));

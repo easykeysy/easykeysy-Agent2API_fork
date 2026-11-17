@@ -391,7 +391,7 @@ fn checked_login_inputs(
         if matches!(prompt.kind, LoginPromptType::Select) {
             let supplied = object.get(&prompt.key).and_then(Value::as_str);
             if supplied.is_none() || (prompt.optional && value.is_empty()) {
-                if !prompt.optional { return Err(GatewayError::bad_request(format!("请选择 {}", prompt.label))); }
+                if !prompt.optional { return Err(GatewayError::bad_request(format!("Select an option {}", prompt.label))); }
             } else if !prompt.options.iter().any(|option| option.value == value) {
                 return Err(GatewayError::bad_request(format!("{}的选项无效", prompt.label)));
             }
@@ -423,7 +423,7 @@ fn checked_login_proxy(
         return Ok(Some(LoginProxySelection { config, resolved: Value::Null }));
     }
     if crate::server::core::proxies::is_rotate_config(&config) {
-        return Err(GatewayError::bad_request("登录代理不支持轮询出网，请选择一条已保存的代理"));
+        return Err(GatewayError::bad_request("Sign-in does not support rotating proxies. Select one saved proxy."));
     }
     let Some(resolution) = resolve_account_proxy(Some(&config)) else {
         return Err(GatewayError::bad_request("所选登录代理未能解析，已拒绝回退默认出口"));
@@ -711,7 +711,7 @@ async fn start_plugin_web_login(
             ),
         );
     } else {
-        logging::log("[Login]", &format!("发起{label}网页登录（等待浏览器回调…）"));
+        logging::log("[Login]", &format!("发起{label}网页登录（等待浏览器回调…)"));
         // 没有轮询 consumer 的回调型任务也要超时并清理提供商侧 session。
         let login = state.login().clone();
         let flow = start.flow.clone();
@@ -1049,7 +1049,7 @@ fn autoclaw_region_of(
                 .join(" / ");
             Err(management_error(
                 400,
-                format!("未知的登录地区「{raw}」（只支持 {known}）"),
+                format!("未知的登录地区「{raw}」（只支持 {known})"),
             ))
         }
     }
@@ -1161,7 +1161,7 @@ pub async fn login_sms_verify(State(state): State<ServerState>, body: Bytes) -> 
                 .public
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("AutoClaw 账号");
+                .unwrap_or("AutoClaw Accounts");
             logging::log(
                 "[Login]",
                 &format!("✅ AutoClaw {}登录成功: {label}", region.label()),
@@ -1272,7 +1272,7 @@ pub async fn login_loomy_sms_verify(State(state): State<ServerState>, body: Byte
                 .public
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("Loomy 账号");
+                .unwrap_or("Loomy Accounts");
             logging::log("[Login]", &format!("✅ Loomy 登录成功: {label}"));
             let list = state.store().list_visible_accounts();
             let account = list
@@ -1413,7 +1413,7 @@ async fn tabbit_sms_verify_inner(state: &ServerState, payload: &Value) -> Respon
                 .public
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("Tabbit 账号");
+                .unwrap_or("Tabbit Accounts");
             logging::log("[Login]", &format!("✅ Tabbit 登录成功: {label}"));
             let list = state.store().list_visible_accounts();
             let account = list
@@ -1541,7 +1541,7 @@ fn oauth_vendor_of(payload: &Value) -> Result<&'static str, Response> {
         "google" => Ok("google"),
         _ => Err(management_error(
             400,
-            format!("未知的登录方式「{raw}」（只支持 zai / google）"),
+            format!("未知的登录方式「{raw}」（只支持 zai / google)"),
         )),
     }
 }
@@ -1687,7 +1687,7 @@ pub async fn login_oauth_start(State(state): State<ServerState>, body: Bytes) ->
     logging::log(
         "[Login]",
         &format!(
-            "发起 AutoClaw {} {}网页登录（插件侧回调，轮询 {}ms）",
+            "发起 AutoClaw {} {}网页登录（插件侧回调，轮询 {}ms)",
             region.label(),
             vendor,
             interval

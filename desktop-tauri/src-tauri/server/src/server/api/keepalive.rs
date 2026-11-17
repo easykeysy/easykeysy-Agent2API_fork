@@ -64,7 +64,7 @@ pub async fn put_keepalive_strip(State(_state): State<ServerState>, body: Bytes)
         return errors::management_error(400, format!("缺少 {key}"));
     };
     let Some(enabled) = value.as_bool() else {
-        return errors::management_error(400, format!("{key} 必须是 true 或 false"));
+        return errors::management_error(400, format!("{key} 必须是 true or false"));
     };
     if !config::set_strip_newline_keepalive(enabled) {
         logging::log("[Config]", "⚠️  保活换行开关写入配置失败，本次运行内仍生效");

@@ -12,7 +12,7 @@ export type ModelApiKey = {
 
 export function parseModelApiKeys(raw: unknown): ModelApiKey[] {
   const payload = raw && typeof raw === 'object' ? raw as { keys?: unknown } : {}
-  if (!Array.isArray(payload.keys)) throw new Error('API Key 列表响应不完整')
+  if (!Array.isArray(payload.keys)) throw new Error('API Key The list response is incomplete')
   return payload.keys.flatMap(value => {
     if (!value || typeof value !== 'object') return []
     const entry = value as Record<string, unknown>
@@ -55,24 +55,24 @@ export type RequestIdentity = {
 type Translate = (text: string) => string
 
 export function requestClientLabel(entry: RequestIdentity, t: Translate): string {
-  if (entry.clientEvidence?.method === 'missing') return t('未提供客户端标识')
-  if (entry.client === 'other' && entry.clientEvidence?.candidate) return `${entry.clientEvidence.candidate} · ${t('待确认')}`
+  if (entry.clientEvidence?.method === 'missing') return t('No client identifier provided')
+  if (entry.client === 'other' && entry.clientEvidence?.candidate) return `${entry.clientEvidence.candidate} · ${t('Pending confirmation')}`
   switch (entry.client) {
-    case 'model_test': return t('模型测试')
-    case 'assistant': return t('模型对话')
-    case 'assistant_images': return t('助手图片工具')
-    case 'assistant_title': return t('助手标题总结')
-    case 'image-generation': return `${t('图片生成')} MCP`
-    case 'checkin_keepalive': return t('日活保活')
-    case 'other': return entry.clientEvidence ? t('未知客户端') : t('其它')
-    default: return entry.clientLabel || entry.clientEvidence?.clientName || entry.client || (entry.isTest ? t('模型测试') : t('未记录客户端'))
+    case 'model_test': return t('Model test')
+    case 'assistant': return t('Model chat')
+    case 'assistant_images': return t('Assistant image tools')
+    case 'assistant_title': return t('Assistant title summary')
+    case 'image-generation': return `${t('Image generation')} MCP`
+    case 'checkin_keepalive': return t('Daily activity keepalive')
+    case 'other': return entry.clientEvidence ? t('Unknown client') : t('Other')
+    default: return entry.clientLabel || entry.clientEvidence?.clientName || entry.client || (entry.isTest ? t('Model test') : t('Unrecorded client'))
   }
 }
 
 export function requestApiKeyLabel(entry: RequestIdentity, t: Translate): string {
-  if (entry.apiKeySource === 'key') return entry.apiKeyName || entry.apiKeyId || t('未命名')
-  if (entry.apiKeySource === 'env') return t('环境变量 Key')
-  if (entry.apiKeySource === 'none') return t('免鉴权调用')
+  if (entry.apiKeySource === 'key') return entry.apiKeyName || entry.apiKeyId || t('Untitled')
+  if (entry.apiKeySource === 'env') return t('Environment variable key')
+  if (entry.apiKeySource === 'none') return t('Unauthenticated calls')
   if (entry.isTest) return requestClientLabel(entry, t)
-  return t('历史未记录 Key')
+  return t('Key not recorded in history')
 }

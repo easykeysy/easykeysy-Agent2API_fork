@@ -40,17 +40,17 @@ type CampaignBridge = {
 const api: CampaignApi = {
   query(id) {
     const bridge = (window as unknown as { workbuddyDesktop?: CampaignBridge }).workbuddyDesktop
-    if (!bridge?.getCampaignRewards) return Promise.reject(new Error(t('活动福利接口不可用，请更新网关后重试')))
+    if (!bridge?.getCampaignRewards) return Promise.reject(new Error(t('The campaign rewards API is unavailable. Update the gateway and try again.')))
     return Promise.resolve(bridge.getCampaignRewards(id))
   },
   claim(id, campaignId) {
     const bridge = (window as unknown as { workbuddyDesktop?: CampaignBridge }).workbuddyDesktop
-    if (!bridge?.claimCampaignReward) return Promise.reject(new Error(t('活动福利接口不可用，请更新网关后重试')))
+    if (!bridge?.claimCampaignReward) return Promise.reject(new Error(t('The campaign rewards API is unavailable. Update the gateway and try again.')))
     return bridge.claimCampaignReward(id, campaignId)
   },
   redeem(id, code) {
     const bridge = (window as unknown as { workbuddyDesktop?: CampaignBridge }).workbuddyDesktop
-    if (!bridge?.redeemCampaignBenefit) return Promise.reject(new Error(t('活动福利接口不可用，请更新网关后重试')))
+    if (!bridge?.redeemCampaignBenefit) return Promise.reject(new Error(t('The campaign rewards API is unavailable. Update the gateway and try again.')))
     return bridge.redeemCampaignBenefit(id, code)
   },
 }
@@ -107,35 +107,35 @@ function CampaignRow({ row, disabled, onReport }: {
   const topText = top
     ? [
       typeof top.amount === 'number' && Number.isFinite(top.amount) ? `${top.amount} ${top.unit || 'Credits'}` : '',
-      top.endsAt ? t('截止 {time}', { time: formatShort(top.endsAt) }) : '',
+      top.endsAt ? t('Due: {time}', { time: formatShort(top.endsAt) }) : '',
     ].filter(Boolean).join(' · ')
     : ''
   const description = !row.available
-    ? t('凭证不可用')
+    ? t('Credentials unavailable')
     : !data
-      ? t('尚未查询活动')
+      ? t('Events have not been queried yet')
       : claimable > 0
-        ? topText || t('可领取 {n} 项', { n: claimable })
+        ? topText || t('Claimable {n} items', { n: claimable })
         : claimed > 0
-          ? topText || t('今天已领')
-          : t('该账号当前没有可领取的限时活动')
+          ? topText || t('Already claimed today')
+          : t('No limited-time rewards are currently available for this account')
 
   return (
     <CheckinRow
       provider={row.provider || 'qoder'}
       name={row.name || row.id}
       description={description}
-      summary={claimed > 0 ? <Badge variant='success' shape='tag'>{t('今天已领')}</Badge> : null}
+      summary={claimed > 0 ? <Badge variant='success' shape='tag'>{t('Already claimed today')}</Badge> : null}
       note={!expanded || !data ? state.error || state.message || undefined : undefined}
       actions={!data ? (
         <Button size='sm' variant='outline' disabled={disabled || Boolean(busy) || !row.available}
           onClick={() => void state.query()}>
-          {busy === 'query' ? t('查询中…') : t('查询活动')}
+          {busy === 'query' ? t('Checking…') : t('Query campaigns')}
         </Button>
       ) : claimable === 1 ? (
         <Button size='sm' disabled={disabled || Boolean(busy) || !row.available}
           onClick={() => { if (top) void state.claim(top) }}>
-          {busy ? t('领取中…') : t('领取')}
+          {busy ? t('Claiming…') : t('Claim')}
         </Button>
       ) : null}
       expandable={Boolean(data)}
@@ -158,7 +158,7 @@ function GroupLabel({ title, count, hint }: {
   return (
     <div className='flex items-baseline gap-2 px-3.5 pb-1 pt-3'>
       <span className='text-[11px] font-semibold tracking-[0.08em] text-muted-foreground'>{title}</span>
-      <span className='text-[11.5px] text-muted-foreground'>{t('{n} 个账号', { n: count })}</span>
+      <span className='text-[11.5px] text-muted-foreground'>{t('{n} accounts', { n: count })}</span>
       {hint ? <span className='ml-auto text-[11.5px] text-muted-foreground'>{hint}</span> : null}
     </div>
   )
@@ -167,9 +167,9 @@ function GroupLabel({ title, count, hint }: {
 /* ─── 卡片 ─────────────────────────────────────── */
 
 const FILTERS = [
-  { value: 'all', label: '全部' },
-  { value: 'pending', label: '未领取' },
-  { value: 'claimed', label: '已领取' },
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Not claimed' },
+  { value: 'claimed', label: 'Claimed' },
 ] as const
 
 type Filter = (typeof FILTERS)[number]['value']
@@ -280,7 +280,7 @@ export function PlansSection({ campaigns, plans, providerId = '', filter: outerF
         else if (row.claimable > 0 && !await row.claimAll()) break
       }
     } catch (cause) {
-      toast(t('领取失败：{error}', { error: errorMessage(cause) }), 'err')
+      toast(t('Claim failed: {error}', { error: errorMessage(cause) }), 'err')
     } finally {
       patch({ plansBatch: null })
     }
@@ -308,7 +308,7 @@ export function PlansSection({ campaigns, plans, providerId = '', filter: outerF
   const body = <>
     {campaigns.length > 0 ? (
       <div className='pb-1' hidden={campaignRows.length === 0}>
-        <GroupLabel title={t('限时活动')} count={campaignRows.length} />
+        <GroupLabel title={t('Limited-time event')} count={campaignRows.length} />
         <ItemGroup>
           {campaigns.map(row => (
             <div key={row.id} hidden={!campaignRows.some(item => item.id === row.id)}>
@@ -321,8 +321,8 @@ export function PlansSection({ campaigns, plans, providerId = '', filter: outerF
 
     {plans.length > 0 ? (
       <div className={cn('pt-1 pb-1', campaignRows.length > 0 && 'border-t border-hairline')} hidden={planRows.length === 0}>
-        <GroupLabel title={t('体验套餐')} count={planRows.length}
-          hint={t('活动期内每天可再领一份 · 领取需完成滑块验证')} />
+        <GroupLabel title={t('Trial plan')} count={planRows.length}
+          hint={t('can claim one more every day within the event period· Claiming requires completing the slider verification')} />
         <ItemGroup>
           {plans.map(row => (
             <div key={row.id} hidden={!planRows.some(item => item.id === row.id)}>
@@ -336,10 +336,10 @@ export function PlansSection({ campaigns, plans, providerId = '', filter: outerF
     {campaignRows.length === 0 && planRows.length === 0 ? (
       <Empty className='py-6'>
         {filter === 'claimed'
-          ? t('今天还没有账号领到过，切到「全部」看看还能领什么。')
+          ? t('No account has claimed anything yet today; switch to "All" to see what can still be claimed.')
           : filter === 'pending'
-            ? t('都领到了，暂无待领的账号。')
-            : t('没有支持活动福利的账号，请添加账号并更新提供商插件。')}
+            ? t('Everything has been claimed; there are no accounts waiting to be claimed.')
+            : t('No accounts support campaign rewards. Add an account and update the provider plugin.')}
       </Empty>
     ) : null}
   </>
@@ -349,18 +349,18 @@ export function PlansSection({ campaigns, plans, providerId = '', filter: outerF
   return (
     <Card render={<section />} className='panel'>
       <CardHeader className='border-b-0 pb-1'>
-        <CardTitle>{t('活动福利')}</CardTitle>
+        <CardTitle>{t('Event rewards')}</CardTitle>
         <span className='text-[11.5px] text-muted-foreground'>
-          {t('限时活动与体验套餐 · 今天已领 {n} 份', { n: claimedTotal })}
+          {t('Limited-time events and trial plans· Claimed {n} today', { n: claimedTotal })}
         </span>
         <CardAction>
           {/* 用 outline 而不是 ghost：它旁边就是筛选器，没有边框会被读成一段说明文字 */}
           <Button size='sm' variant='outline' disabled={busy || visibleKeys.length === 0}
-            onClick={() => setOwnToken(token => token + 1)}>{store.plansBatch === 'query' ? t('查询中…') : t('全部查询')}</Button>
+            onClick={() => setOwnToken(token => token + 1)}>{store.plansBatch === 'query' ? t('Checking…') : t('Query all')}</Button>
           <Button size='sm' variant='outline' disabled={busy || claimableTotal === 0}
-            onClick={() => setOwnClaimToken(token => token + 1)}>{store.plansBatch === 'claim' ? t('领取中…') : t('全部领取')}</Button>
+            onClick={() => setOwnClaimToken(token => token + 1)}>{store.plansBatch === 'claim' ? t('Claiming…') : t('Claim all')}</Button>
           <SegmentedControl
-            aria-label={t('按领取状态筛选')}
+            aria-label={t('Filter by claim state')}
             options={options}
             value={filter}
             onValueChange={value => setFilter(value as Filter)}
@@ -371,7 +371,7 @@ export function PlansSection({ campaigns, plans, providerId = '', filter: outerF
       {body}
 
       <CardFooter>
-        {t('资格、额度与有效期以官方返回为准 · 领取不会购买或订阅套餐')}
+        {t('Eligibility, quota and validity period are decided by the official response· Claiming does not purchase or subscribe to plans')}
       </CardFooter>
     </Card>
   )

@@ -164,7 +164,7 @@ fn run_service() -> Result<(), String> {
     // 不报 pending 会被当成「启动超时」直接杀进程（1053）。
     status_handle
         .set_service_status(status(ServiceState::StartPending, 1, START_HINT))
-        .map_err(|error| format!("上报 StartPending 失败：{error}"))?;
+        .map_err(|error| format!("Report StartPending Failed: {error}"))?;
 
     let start = START_FN
         .lock()
@@ -202,7 +202,7 @@ fn run_service() -> Result<(), String> {
 
     status_handle
         .set_service_status(status(ServiceState::Running, 0, Duration::default()))
-        .map_err(|error| format!("上报 Running 失败：{error}"))?;
+        .map_err(|error| format!("Report Running Failed: {error}"))?;
     agent2api_server::server::core::update::windows_service::notify_ready();
 
     // 等网关收尾（收到 STOP 后走优雅停机）

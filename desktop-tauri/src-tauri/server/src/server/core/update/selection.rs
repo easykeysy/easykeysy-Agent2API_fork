@@ -150,7 +150,7 @@ async fn attempt(
             }
             let state = if matches!(status.as_u16(), 400 | 403 | 404 | 405) { "unsupported" } else { "failed" };
             candidate.observe(state, started.elapsed().as_millis() as u64, false);
-            return Err(Failure::Retry(UpdateError::new(format!("{}返回 HTTP {}", candidate.label(), status.as_u16()))));
+            return Err(Failure::Retry(UpdateError::new(format!("{}Back HTTP {}", candidate.label(), status.as_u16()))));
         }
         if response.content_length().is_some_and(|size| size > MAX_JSON_BYTES as u64) {
             return Err(Failure::Retry(UpdateError::new("更新源返回的内容过大")));

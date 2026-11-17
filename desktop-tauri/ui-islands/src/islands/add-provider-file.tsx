@@ -64,11 +64,11 @@ export function FileImportSection({
           if (prefix.trimStart().startsWith('{')) {
             const parsed: unknown = JSON.parse(await file.text())
             if (!isAccountExport(parsed)) {
-              throw new Error(t('请选择客户端凭证文件，或本软件导出的单账号 JSON 文件'))
+              throw new Error(t('Select a client credential file or an individual account JSON file exported by this application.'))
             }
             Object.assign(payload, accountFilePayload(parsed, config.provider, remark))
           } else {
-            payload.authFileB64 = base64BodyOf(await readFileAsDataUrl(file, t('文件读取失败')))
+            payload.authFileB64 = base64BodyOf(await readFileAsDataUrl(file, t('Failed to read the file')))
           }
         } else {
           const text = await file.text()
@@ -78,11 +78,11 @@ export function FileImportSection({
           try {
             parsed = JSON.parse(text)
           } catch {
-            toast(t('选择的文件不是合法 JSON'), 'err')
+            toast(t('The selected file is not valid JSON'), 'err')
             return
           }
           if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            toast(t('不是有效的凭证文件：内容要是一个 JSON 对象'), 'err')
+            toast(t('Not a valid credential file: the content must be a JSON object'), 'err')
             return
           }
           if (isAccountExport(parsed)) {
@@ -103,22 +103,22 @@ export function FileImportSection({
       } catch (error) {
         // 文件本身的问题（缺字段 / 密文解不开 / 凭证无效）后端都给 400 + 带文件名的
         // 原因，原样透出即可
-        toast(t('导入失败：{reason}', { reason: describeError(error) }), 'err')
+        toast(t('Import failed: {reason}', { reason: describeError(error) }), 'err')
       }
     })
   }
 
   return (
-    <AddGroup label={t('导入凭证文件')} hidden={!visible}>
+    <AddGroup label={t('Import credential file')} hidden={!visible}>
       <Note text={spec.note} />
-      <p className='detail'>{t('也支持本软件导出的单账号 JSON 文件，保留账号凭证与附加信息。')}</p>
+      <p className='detail'>{t('Individual account JSON files exported by this application are also supported, preserving credentials and additional account data.')}</p>
       <Field orientation='horizontal' className='field-row'>
-        <FieldLabel className='lb-inline' htmlFor={nameId}>{t('备注名')}</FieldLabel>
+        <FieldLabel className='lb-inline' htmlFor={nameId}>{t('Label')}</FieldLabel>
         <Input
           id={nameId}
           type='text'
           maxLength={MAX_NAME_LENGTH}
-          placeholder={t('可选，留空则用文件里的昵称')}
+          placeholder={t('Optional; leave empty to use the nickname from the file')}
           {...draftProps(nameId)}
         />
       </Field>
@@ -140,7 +140,7 @@ export function FileImportSection({
       />
       <AddFoot host={footerHost} active={visible} note={<span className='detail'>{hint}</span>}>
         <Button onClick={() => fileInput.current?.click()} disabled={busy}>
-          {busy ? t('导入中…') : t('选择凭证文件导入')}
+          {busy ? t('Importing…') : t('Import from credential file')}
         </Button>
       </AddFoot>
     </AddGroup>

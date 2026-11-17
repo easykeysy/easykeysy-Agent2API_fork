@@ -112,7 +112,7 @@ impl UpdateManager {
     /// 用户只提交目标版本；下载地址、文件名与校验来源均取已核对的发布信息。
     pub fn start_systemd_update(&self, wanted: &str) -> Result<Value, UpdateError> {
         if crate::server::core::system_info::deployment() != "systemd" {
-            return Err(UpdateError::with_status(400, "当前运行形态不是 systemd 服务"));
+            return Err(UpdateError::with_status(400, "当前运行形态不是 systemd service"));
         }
         if let Some(reason) = unavailable_reason() {
             return Err(UpdateError::with_status(400, format!("systemd 一键更新不可用：{reason}")));

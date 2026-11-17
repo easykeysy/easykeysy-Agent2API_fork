@@ -1,8 +1,8 @@
 {
   "id": "/m.html",
-  "name": "Agent2API 手机端",
+  "name": "Agent2API Mobile",
   "short_name": "Agent2API",
-  "description": "多提供商本地 AI 网关的手机面板",
+  "description": "Phone panel for the multi-provider local AI gateway",
   "start_url": "/m.html",
   "scope": "/",
   "display": "standalone",
@@ -36,20 +36,20 @@
   ],
   "shortcuts": [
     {
-      "name": "签到中心",
-      "short_name": "签到",
+      "name": "Check-in center",
+      "short_name": "Check in",
       "url": "/m.html#checkin",
       "icons": [{ "src": "/assets/app-icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "账号",
-      "short_name": "账号",
+      "name": "Accounts",
+      "short_name": "Accounts",
       "url": "/m.html#accounts",
       "icons": [{ "src": "/assets/app-icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "请求日志",
-      "short_name": "日志",
+      "name": "Request logs",
+      "short_name": "Logs",
       "url": "/m.html#requests",
       "icons": [{ "src": "/assets/app-icon-192.png", "sizes": "192x192" }]
     }

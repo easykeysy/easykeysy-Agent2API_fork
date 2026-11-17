@@ -23,7 +23,7 @@ export function metadata(provider) {
       refresh_uses_account: true, usage: typeof auth.usage === "function", checkin: typeof auth.checkin === "function",
       web_login: methods.some(method => method.type === "oauth"), sse_model_rewrite: true, supports_default_model: false,
     },
-    login_methods: methods.filter(method => method.type === "oauth").map(method => ({ kind: "browser", button: method.label || "登录", hint: null })),
+    login_methods: methods.filter(method => method.type === "oauth").map(method => ({ kind: "browser", button: method.label || "Sign in", hint: null })),
     default_models: provider.records, needs_proxy: false, refusal_finishes: [], refusal_markers: [], admin_panels: [],
     account_features: {
       usage: typeof auth.usage === "function", identifier: isLocalProvider(provider) ? [] : ["uid", "email"],
@@ -31,10 +31,10 @@ export function metadata(provider) {
       email_as_name: !isLocalProvider(provider), default_limiters: [], concurrency_default: provider.concurrencyDefault || null,
     },
     checkin: typeof auth.checkin === "function" ? {
-      description: provider.originalID === "wps-lingxi" ? "每日签到及一次性任务；可能消耗智点、发送对话并创建及解散群聊"
-        : provider.originalID === "codar" ? "滚动 24 小时签到；按插件返回的时间等待下一次领取，不以自然日重复领取"
-          : provider.originalID === "agnes-code" ? "触发会话活跃并观测积分变化；未观测到新发放时不会标为已签到"
-            : "签到及插件附带任务；可能消耗额度，具体行为由插件决定",
+      description: provider.originalID === "wps-lingxi" ? "Daily check-in and one-time tasks; may spend credits, send chats, and create and disband group chats"
+        : provider.originalID === "codar" ? "Rolling 24-hour check-in. Wait for the next time reported by the plugin instead of claiming again at midnight."
+          : provider.originalID === "agnes-code" ? "Activates the session and checks for a points increase. No newly observed grant means it is not marked as checked in."
+            : "Check-in and bundled plugin tasks; may spend credits. The plugin determines the actions.",
       modes: ["checkin"], onboarding: false, plans: false, growth: false, ui_hooks: [],
     } : null,
   }
@@ -149,12 +149,12 @@ async function refreshModelCatalog(provider, auth, context) {
   context.signal.throwIfAborted()
   if (revision !== provider.catalogRevision) throw new Error("Provider options changed during model refresh")
   if (!models || typeof models !== "object" || Array.isArray(models)
-    || Object.entries(models).some(([id, model]) => !id.trim() || !model || typeof model !== "object" || Array.isArray(model))) throw new Error("插件返回的模型目录格式无效")
+    || Object.entries(models).some(([id, model]) => !id.trim() || !model || typeof model !== "object" || Array.isArray(model))) throw new Error("The model catalog returned by the plugin is malformed")
   const fellBack = models[Symbol.for("magpie.fellBack")] === true
     || models === info.models && context.network.tried && !context.network.anyOk
     || isLocalProvider(provider) && !provider.localCatalog
   if (fellBack) return { refreshed: false, count: Object.keys(providerInfo(provider).models).length,
-    message: "在线目录未能确认，保留插件的现有模型清单" }
+    message: "The online catalog could not be confirmed; the plugin's existing model list is kept" }
   const original = models
   models = normalizeModels(provider, normalizeLocalModels(provider, models))
   const at = Date.now()
@@ -188,7 +188,7 @@ export async function modelForRequest(provider, id) {
     catalog = provider.catalogs.get(account)
   }
   const models = catalog?.models ?? provider.seedModels ?? provider.models
-  if (catalog?.confirmed && !Object.hasOwn(models, id)) throw Object.assign(new Error("当前账号未提供所选模型"), { code: "account_model_unavailable" })
+  if (catalog?.confirmed && !Object.hasOwn(models, id)) throw Object.assign(new Error("The current account does not offer the selected model"), { code: "account_model_unavailable" })
   return structuredClone(models[id] ?? { id, api: { id, url: provider.config.api || sdkDefault(provider.config.npm), npm: provider.config.npm } })
 }
 

@@ -49,7 +49,7 @@ export function RoutingConfigPanel({ editor, scope, now, accountControl, refresh
   }), [mutate])
   const drag = useRoutingDrag(!disabled && !globalBlocked && !modelFilter.loading && draft?.mode !== 'inherit' && !search.trim(), `${scope}:${modelFilter.model}:${search}`, drop)
   if (!draft) return <div className='routing-config-loading'>
-    <Empty>{editor.loading ? <Spinner /> : editor.error || t('选择作用范围后配置路由')}</Empty>
+    <Empty>{editor.loading ? <Spinner /> : editor.error || t('Select a scope to configure routing')}</Empty>
   </div>
   const workspace = live.workspace && live.workspace.updatedAt >= draft.workspace.updatedAt ? live.workspace : draft.workspace
   const inherited = draft.mode === 'inherit'
@@ -105,20 +105,20 @@ export function RoutingConfigPanel({ editor, scope, now, accountControl, refresh
     if (target) reorderRoute(next.accountOrder[provider], id, target, direction > 0)
   })
   const removeAll = async () => {
-    if (!await confirmDialog(t('只移出本路由，账号状态和其他路由不变；保存后此入口将没有可用路由。'), {
-      title: t('全部移出本路由'), confirmText: t('全部移出'),
+    if (!await confirmDialog(t('Remove only from this route. Accounts and other routes stay unchanged. After saving, this entry has no available route.'), {
+      title: t('Remove all from this route'), confirmText: t('Remove all'),
     })) return
     mutate(next => { next.providerScope = 'selected'; next.providers = allProviders; next.disabledProviders = [...allProviders] })
   }
   const save = async () => {
-    if (!globalAccounts && !participants.length && !await confirmDialog(t('此入口没有参与路由的账号。保存后请求将明确失败，不会回退全局或自动恢复参与名单。'), {
-      title: t('保存空路由'), confirmText: t('仍然保存'), destructive: true,
+    if (!globalAccounts && !participants.length && !await confirmDialog(t('No accounts participate in this entry. After saving, requests fail explicitly, without global fallback or restoring the list automatically.'), {
+      title: t('Save empty route'), confirmText: t('Save anyway'), destructive: true,
     })) return
     await editor.save()
   }
   const removeIndependent = async () => {
-    if (!await confirmDialog(t('删除后这个模型会重新跟随全局配置，已保存的独立设置和当前未保存修改都会被移除。'), {
-      title: t('删除独立配置'), confirmText: t('删除'), destructive: true,
+    if (!await confirmDialog(t('Deleting it makes this model follow the global configuration again. Saved independent settings and any unsaved changes will be removed.'), {
+      title: t('Delete independent config'), confirmText: t('Delete'), destructive: true,
     })) return
     await editor.remove()
   }
@@ -136,28 +136,28 @@ export function RoutingConfigPanel({ editor, scope, now, accountControl, refresh
     }} onAccount={onAccount} onSort={() => onSort(id)} onEnableGroup={globalAccounts ? on => enableGroup(id, on) : undefined} />
   const groups = <section className='routing-groups-column'>
     <div className='routing-column-head'><RouteIcon name='accounts' size={14} /><b>{t('账号组')}</b><span>{globalAccounts
-      ? t('{n} 个账号启用', { n: displayedAccounts.filter(account => account.enabled !== false).length })
-      : t('{n} 项参与', { n: displayedParticipating.length })}</span>
+      ? t('{n} accounts enabled', { n: displayedAccounts.filter(account => account.enabled !== false).length })
+      : t('{n} participating', { n: displayedParticipating.length })}</span>
       <div className='right'><Button variant='ghost' size='sm' disabled={!expandable.length || Boolean(query)} onClick={() => setOpened(current => ({ ...current, ...Object.fromEntries(expandable.map(id => [id, !allOpen])) }))}>
-        {allOpen ? t('折叠全部') : t('展开全部')}</Button>
-        <RoutingActions label={globalAccounts ? t('账号启停操作') : t('路由参与操作')} actions={globalAccounts ? [
-          { label: t('启用当前列表账号'), disabled: locked || !displayedAccounts.some(account => account.enabled === false),
+        {allOpen ? t('Collapse all') : t('Expand all')}</Button>
+        <RoutingActions label={globalAccounts ? t('Account enable/disable actions') : t('Route participation actions')} actions={globalAccounts ? [
+          { label: t('Enable accounts in this list'), disabled: locked || !displayedAccounts.some(account => account.enabled === false),
             onClick: () => void accountControl.setEnabled(displayedAccounts.map(account => account.id), true, true) },
-          { label: t('禁用当前列表账号'), disabled: locked || !displayedAccounts.some(account => account.enabled !== false),
+          { label: t('Disable accounts in this list'), disabled: locked || !displayedAccounts.some(account => account.enabled !== false),
             onClick: () => void accountControl.setEnabled(displayedAccounts.map(account => account.id), false, true) },
-        ] : [{ label: t('全部移出'), disabled: locked || !participating.length, onClick: () => void removeAll() }]} />
+        ] : [{ label: t('Remove all'), disabled: locked || !participating.length, onClick: () => void removeAll() }]} />
       </div>
     </div>
-    <InputGroup className='routing-config-search'><InputGroupInput value={search} placeholder={t('搜索提供商或账号')} aria-label={t('搜索提供商或账号')}
+    <InputGroup className='routing-config-search'><InputGroupInput value={search} placeholder={t('Search providers or accounts')} aria-label={t('Search providers or accounts')}
       onChange={event => setSearch(event.currentTarget.value)} /><InputGroupAddon><RouteIcon name='search' size={14} /></InputGroupAddon></InputGroup>
-    <p className='routing-groups-hint'>{t('拖动把手或按 Alt + 方向键调整顺序，更多操作在右侧菜单。')}</p>
+    <p className='routing-groups-hint'>{t('Drag a handle or use Alt + arrow keys to reorder. More actions are in the menu on the right.')}</p>
     <RoutingRefreshError error={live.error} onRetry={live.refresh} />
     <div className='routing-config-listcol' data-route-scroll aria-busy={modelFilter.loading}>
-      {modelFilter.loading ? <Empty><Spinner />{t('加载中…')}</Empty> : modelFilter.error ? <Empty>
-        <p className='routing-config-error' role='alert'>{modelFilter.error}</p><Button variant='outline' size='sm' onClick={modelFilter.retry}>{t('重试')}</Button>
+      {modelFilter.loading ? <Empty><Spinner />{t('Loading…')}</Empty> : modelFilter.error ? <Empty>
+        <p className='routing-config-error' role='alert'>{modelFilter.error}</p><Button variant='outline' size='sm' onClick={modelFilter.retry}>{t('Retry')}</Button>
       </Empty> : <>
         <div className='routing-config-participants' data-route-list>{visible.map(renderProvider)}</div>
-        {!globalAccounts && !participating.length && displayedProviders.length ? <Empty>{t('此入口没有参与路由的提供商，保存后请求将明确失败。')}</Empty> : null}
+        {!globalAccounts && !participating.length && displayedProviders.length ? <Empty>{t('This entry has no participating providers. Requests will fail explicitly after saving.')}</Empty> : null}
         {routingCollapsedSections.map(({ key, label }) => {
           const ids = sections[key].filter(matches)
           return ids.length ? <Collapsible key={key} open={Boolean(sectionOpen[key]) || Boolean(query)}
@@ -166,50 +166,50 @@ export function RoutingConfigPanel({ editor, scope, now, accountControl, refresh
             <CollapsibleContent data-route-list>{ids.map(renderProvider)}</CollapsibleContent>
           </Collapsible> : null
         })}
-        {query && displayedProviders.length && !displayedProviders.some(matches) ? <Empty>{t('没有匹配的提供商或账号')}</Empty> : null}
-        {!displayedProviders.length ? <Empty><span>{modelFilter.model ? t('当前模型没有对应的账号，请先添加账号或检查模型绑定。') : t('还没有账号，先在账号页添加；有账号的提供商才会出现在这里')}</span>
-          <Button variant='link' onClick={() => host().wbApp?.showPage('accounts')}>{t('去账号页添加')}</Button></Empty> : null}
+        {query && displayedProviders.length && !displayedProviders.some(matches) ? <Empty>{t('No matching providers or accounts')}</Empty> : null}
+        {!displayedProviders.length ? <Empty><span>{modelFilter.model ? t('No accounts are associated with this model. Add an account or check its model bindings.') : t('No accounts yet. Add one on the Accounts page; only providers with accounts appear here.')}</span>
+          <Button variant='link' onClick={() => host().wbApp?.showPage('accounts')}>{t('Add on the Accounts page')}</Button></Empty> : null}
       </>}
     </div>
   </section>
   return <>
-    <RoutingCanvasLayout title={scope ? t('模型路由') : t('全局默认')} groups={groups} globalAccounts={globalAccounts}
-      note={scope ? t('仅影响此路由的后续请求') : t('账号启停与账号页同步，立即影响所有路由；策略与排序需保存。')}>
+    <RoutingCanvasLayout title={scope ? t('Model routes') : t('Global defaults')} groups={groups} globalAccounts={globalAccounts}
+      note={scope ? t('Only affects subsequent requests to this route') : t('Account status stays in sync with Accounts and applies immediately to all routes. Save policy and order changes separately.')}>
       <div className='routing-config-card' data-route-source data-route-running={activity.running > 0 ? '' : undefined}>
         <div className='routing-config-card-scroll'>
-          <header className='routing-config-head'><div><span className='routing-config-eyebrow'>{inherited ? t('继承全局') : scope ? t('独立配置') : t('默认规则')}</span><h2>{scope || t('全局默认')}</h2></div>
-            <RoutingActions label={t('路由配置操作')} actions={[
-              { label: t('全局保护设置'), icon: 'shield', disabled: editor.busy, onClick: () => onProtection(workspace) },
-              ...(scope && workspace.customized ? [{ label: t('删除独立配置'), destructive: true, disabled, onClick: () => void removeIndependent() }] : []),
+          <header className='routing-config-head'><div><span className='routing-config-eyebrow'>{inherited ? t('Inherit global') : scope ? t('Independent configuration') : t('Default rules')}</span><h2>{scope || t('Global defaults')}</h2></div>
+            <RoutingActions label={t('Route configuration actions')} actions={[
+              { label: t('Global protection settings'), icon: 'shield', disabled: editor.busy, onClick: () => onProtection(workspace) },
+              ...(scope && workspace.customized ? [{ label: t('Delete independent config'), destructive: true, disabled, onClick: () => void removeIndependent() }] : []),
             ]} />
           </header>
-          {globalAccounts && !workspace.globalAccountControl ? <div className='routing-inherited-note' role='alert'>{t('当前网关尚不支持全局账号启停，请更新网关后重新读取。')}</div> : null}
-          {globalAccounts && legacy ? <div className='routing-inherited-note'><p>{t('检测到旧版全局参与设置，请先确认转换，再管理账号启停。')}</p>
-            <Button variant='outline' disabled={disabled} onClick={() => setLegacyDialog(legacy)}>{t('转换旧版设置')}</Button></div> : null}
-          {inherited ? <div className='routing-inherited-note'><p>{t('没有独立配置的模型沿用全局路由。')}</p><Button variant='outline' disabled={disabled} onClick={() => void editor.create(scope)}>{t('创建独立配置')}</Button></div> : null}
+          {globalAccounts && !workspace.globalAccountControl ? <div className='routing-inherited-note' role='alert'>{t('This gateway does not yet support global account controls. Update the gateway and reload.')}</div> : null}
+          {globalAccounts && legacy ? <div className='routing-inherited-note'><p>{t('Legacy global participation settings were found. Confirm their conversion before managing account status.')}</p>
+            <Button variant='outline' disabled={disabled} onClick={() => setLegacyDialog(legacy)}>{t('Convert legacy settings')}</Button></div> : null}
+          {inherited ? <div className='routing-inherited-note'><p>{t('Models without independent configurations use the global route.')}</p><Button variant='outline' disabled={disabled} onClick={() => void editor.create(scope)}>{t('Create independent configuration')}</Button></div> : null}
           <div className='routing-config-rules'>
-            <div className='routing-rule-field'><Label>{t('路由策略')}</Label><RoutingSelect label={t('路由策略')} value={profile.strategy || '__inherit'} disabled={locked}
-              options={[...(scope ? [['__inherit', t('继承全局：{value}', { value: strategyLabel(workspace.globalSettings?.routingStrategy) })] as [string, string]] : []),
-                ['order', t('顺序优先')], ['rotate', t('负载均衡')], ['provider', t('家内轮询')]]}
+            <div className='routing-rule-field'><Label>{t('Routing strategy')}</Label><RoutingSelect label={t('Routing strategy')} value={profile.strategy || '__inherit'} disabled={locked}
+              options={[...(scope ? [['__inherit', t('Inherit global: {value}', { value: strategyLabel(workspace.globalSettings?.routingStrategy) })] as [string, string]] : []),
+                ['order', t('Strict order')], ['rotate', t('Load balancing')], ['provider', t('Per-provider rotation')]]}
               onChange={value => mutate(next => { next.strategy = value === '__inherit' ? undefined : value })} /></div>
-            <div className='routing-rule-field'><Label>{t('会话粘滞')}</Label><RoutingSelect label={t('会话粘滞')} value={profile.sticky || '__inherit'} disabled={locked}
-              options={[...(scope ? [['__inherit', t('继承全局：{value}', { value: stickyLabel(workspace.globalSettings?.routingSticky) })] as [string, string]] : []),
-                ['auto', t('自动')], ['session', t('会话内')], ['turn', t('每轮')], ['off', t('关闭')]]}
+            <div className='routing-rule-field'><Label>{t('Session bindings')}</Label><RoutingSelect label={t('Session bindings')} value={profile.sticky || '__inherit'} disabled={locked}
+              options={[...(scope ? [['__inherit', t('Inherit global: {value}', { value: stickyLabel(workspace.globalSettings?.routingSticky) })] as [string, string]] : []),
+                ['auto', t('Auto')], ['session', t('In-session')], ['turn', t('Per turn')], ['off', t('Close')]]}
               onChange={value => mutate(next => { next.sticky = value === '__inherit' ? undefined : value })} /></div>
-            {!globalAccounts ? <div className='routing-rule-field routing-rule-wide'><Label>{t('参与方式')}</Label><RoutingSelect label={t('参与方式')} value={profile.providerScope || 'all'} disabled={locked}
-              options={[['all', t('全部自动参与')], ['selected', t('仅加入的参与')]]} onChange={value => mutate(next => {
+            {!globalAccounts ? <div className='routing-rule-field routing-rule-wide'><Label>{t('Participation')}</Label><RoutingSelect label={t('Participation')} value={profile.providerScope || 'all'} disabled={locked}
+              options={[['all', t('All providers automatically')], ['selected', t('Only added providers')]]} onChange={value => mutate(next => {
                 next.providerScope = value === 'all' ? 'all' : 'selected'; next.providers = allProviders; next.disabledProviders = excluded
               })} /></div> : null}
           </div>
-          {!globalAccounts ? <p className='routing-config-note'>{profile.providerScope === 'all' ? t('新增提供商自动参与；移出本路由的不会自动加回。') : t('只有加入的提供商参与，新增提供商需要手动加入。')}</p> : null}
+          {!globalAccounts ? <p className='routing-config-note'>{profile.providerScope === 'all' ? t('New providers join automatically. Removed providers are not automatically re-added.') : t('Only added providers participate. New providers must be added manually.')}</p> : null}
           {!scope ? <RoutingModelFilter value={modelFilter.model} models={workspace.models} lastUsed={workspace.modelLastUsed} disabled={disabled} onChange={modelFilter.setModel} /> : null}
           <div className='routing-protection-summary'><RouteIcon name='shield' size={14} /><span>{t('全局保护设置')}</span>
-            <Badge variant='ghost' shape='tag'>{[workspace.settings.routingFailoverBackoff && t('失败退避'), workspace.settings.routingSink && t('限流垫底'), workspace.settings.routingBreakerEnabled && t('熔断保护')].filter(Boolean).join(' · ') || t('关闭')}</Badge>
-            <Button variant='link' size='sm' disabled={editor.busy} onClick={() => onProtection(workspace)}>{t('设置')}</Button>
+            <Badge variant='ghost' shape='tag'>{[workspace.settings.routingFailoverBackoff && t('Failure backoff'), workspace.settings.routingSink && t('Rate-limit demotion'), workspace.settings.routingBreakerEnabled && t('Circuit breaker')].filter(Boolean).join(' · ') || t('Close')}</Badge>
+            <Button variant='link' size='sm' disabled={editor.busy} onClick={() => onProtection(workspace)}>{t('Settings')}</Button>
           </div>
         </div>
         <RoutingDraftFooter dirty={dirty} inherited={inherited} busy={editor.busy} disabled={disabled || globalBlocked}
-          error={[editor.error, globalAccounts && accountControl.error].filter(Boolean).join('；')} onDiscard={editor.discard} onSave={() => void save()} />
+          error={[editor.error, globalAccounts && accountControl.error].filter(Boolean).join('; ')} onDiscard={editor.discard} onSave={() => void save()} />
       </div>
     </RoutingCanvasLayout>
     <RoutingDragOverlay state={drag.state} />

@@ -47,6 +47,10 @@ impl RequestStats {
                 sql::delete_matching(&tx, &plan)?
             };
             tx.commit()?;
+            // fork: body files sit outside the transaction; sweep the ledger once to clear the batch just deleted.
+            if let Ok(ids) = sql::raw_ids(conn) {
+                super::raw_file::sweep(&std::collections::HashSet::from_iter(ids));
+            }
             Ok(ClearResult {
                 deleted,
                 raw: raw.requests,
@@ -145,7 +149,7 @@ impl RequestStats {
             // 状态会多卡一会儿；复位后的并发压缩请求与日志写入互不阻塞
             vacuum.mark_finished();
             if ok {
-                logging::log("[Stats]", "数据库压缩完成（checkpoint + VACUUM + checkpoint）");
+                logging::log("[Stats]", "数据库压缩完成（checkpoint + VACUUM + checkpoint)");
             } else {
                 logging::log("[Stats]", "⚠️ 数据库压缩未完成：数据库不可用或压缩失败");
             }

@@ -24,7 +24,7 @@ type Host = {
 const host = () => window as unknown as Host
 function bridge() {
   const bridge = host().workbuddyDesktop
-  if (!bridge?.getMaintenance) throw new Error(t('维护接口不可用，请更新网关并重新打开页面'))
+  if (!bridge?.getMaintenance) throw new Error(t('The maintenance API is unavailable. Update the gateway and reopen this page.'))
   return bridge
 }
 const api: MaintenanceApi = {

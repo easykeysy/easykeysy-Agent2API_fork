@@ -14,7 +14,7 @@ pub fn read(path: &Path, value: &Value) -> Result<Vec<Profile>, String> {
     let text = files::text(env.as_deref())?;
     let mut profile = Profile::new(
         "gemini-current",
-        "Gemini CLI 当前配置",
+        "Gemini CLI Current configuration",
         "gemini",
         &env_value(&text, "GOOGLE_GEMINI_BASE_URL").unwrap_or_default(),
     );
@@ -76,7 +76,7 @@ pub fn write(
     let rendered = merge_env(&original, &updates)?;
     change.after = Some(rendered.into_bytes());
     warnings.push(
-        "同时修改 settings.json 与 .env；已有 shell 环境变量或项目 .env 可能覆盖此配置。".into(),
+        "同时修改 settings.json and .env；已有 shell 环境变量或项目 .env 可能覆盖此配置。".into(),
     );
     Ok(vec![change])
 }

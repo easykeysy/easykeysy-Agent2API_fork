@@ -105,7 +105,7 @@ pub async fn aggregate_frame_stream(
         Ok(result) => result,
         Err(_elapsed) => Err(GatewayError::with_status(
             502,
-            format!("非流式响应超时({}秒)", budget.as_secs()),
+            format!("Non-Streaming Timeout({}seconds)", budget.as_secs()),
         )),
     }
 }
@@ -347,7 +347,7 @@ impl CompletionAccumulator {
             crate::server::logging::verbose(
                 "[Model]",
                 &format!(
-                    "⚠️ 上游只回了思考、正文为空（model={} finish={} 思考 {} 字）：\
+                    "⚠️ 上游只回了思考、正文为空（model={} finish={} Reasoning {} 字）：\
                      多为输出额度被思考吃光，可调高 max_tokens 或降低思考档位",
                     self.model,
                     if self.finish.is_empty() { "-" } else { &self.finish },
@@ -490,7 +490,7 @@ mod tests {
     fn feed(acc: &mut CompletionAccumulator, line: &str) {
         let telemetry = RequestTelemetry::new();
         acc.consume_line(line, &telemetry)
-            .unwrap_or_else(|error| panic!("consume_line 失败：{error}"));
+            .unwrap_or_else(|error| panic!("consume_line Failed: {error}"));
     }
 
     /// 上游把思考放在 `delta.reasoning`（Cline 免费池实测的写法，配
@@ -523,7 +523,7 @@ mod tests {
         assert_eq!(message["content"], "");
     }
 
-    /// `reasoning_content` 与 `reasoning` 都累加、互不排斥（与 cline-proxy
+    /// `reasoning_content` and `reasoning` 都累加、互不排斥（与 cline-proxy
     /// 逐字同口径）：上游在不同分片里换字段时不会丢内容。
     #[test]
     fn both_reasoning_fields_accumulate() {

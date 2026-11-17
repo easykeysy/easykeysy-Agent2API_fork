@@ -37,7 +37,7 @@ async fn read(
     expected_sha256: Option<&str>,
 ) -> Result<Vec<u8>, String> {
     if !response.status().is_success() {
-        return Err(format!("下载失败：HTTP {}", response.status().as_u16()));
+        return Err(format!("Download failed:HTTP {}", response.status().as_u16()));
     }
     if response
         .content_length()

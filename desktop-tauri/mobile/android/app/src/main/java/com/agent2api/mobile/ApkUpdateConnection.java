@@ -19,19 +19,19 @@ final class ApkUpdateConnection {
         AtomicBoolean cancelled, Set<HttpURLConnection> connections) throws Exception {
         URL origin = new URL(startUrl);
         if (!"https".equals(origin.getProtocol()) || origin.getUserInfo() != null) {
-            throw new Exception("安装包下载必须使用无凭证的 HTTPS 地址");
+            throw new Exception("Installer downloads must use a credential-free HTTPS address");
         }
         if (!isGithubAsset(origin) && hash.isEmpty()) {
-            throw new Exception("加速下载缺少 GitHub 官方校验值");
+            throw new Exception("Accelerated download is missing the official GitHub verification value");
         }
         URL target = origin;
         for (int hop = 0; hop < 5; hop++) {
-            if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new Exception("已取消下载");
+            if (cancelled.get() || Thread.currentThread().isInterrupted()) throw new Exception("Download cancelled");
             boolean sameOrigin = target.getHost().equalsIgnoreCase(origin.getHost())
                 && port(target) == port(origin);
             if (!"https".equals(target.getProtocol()) || target.getUserInfo() != null
                 || (!sameOrigin && !isGithubAsset(target))) {
-                throw new Exception("下载源重定向到未允许的地址");
+                throw new Exception("The download source redirected to a disallowed address");
             }
             HttpURLConnection connection = (HttpURLConnection) target.openConnection();
             connections.add(connection);
@@ -47,7 +47,7 @@ final class ApkUpdateConnection {
                 int status = connection.getResponseCode();
                 if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
                     String location = connection.getHeaderField("Location");
-                    if (location == null || location.isEmpty()) throw new Exception("重定向缺少 Location");
+                    if (location == null || location.isEmpty()) throw new Exception("The redirect is missing a Location");
                     target = new URL(target, location);
                     close(connection, connections);
                     continue;
@@ -59,7 +59,7 @@ final class ApkUpdateConnection {
                 throw error;
             }
         }
-        throw new Exception("重定向次数过多");
+        throw new Exception("Too many redirects");
     }
 
     static boolean rateLimited(HttpURLConnection connection, String original) throws Exception {
@@ -74,7 +74,7 @@ final class ApkUpdateConnection {
 
     static int remaining(long deadline) throws Exception {
         long remaining = deadline - SystemClock.elapsedRealtime();
-        if (remaining <= 0) throw new Exception("连接下载源超时");
+        if (remaining <= 0) throw new Exception("Timed out connecting to the download source");
         return (int) Math.min(8_000, remaining);
     }
 

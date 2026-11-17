@@ -8,18 +8,18 @@ function monkeycodeForm(provider: string, label: string, siteNote: string): Prov
     desktop: false,
     webLogin: {
       desktopOnly: true,
-      noteHtml: t('在所选站点的 MonkeyCode 官方页面完成登录和验证码，成功后自动读取登录态并加入账号列表，无需手动复制 Cookie。'),
-      button: t('打开网页登录'),
-      hint: t('内嵌窗口打开；完成后自动加入列表，关窗即取消等待'),
-      busyText: t('等待 MonkeyCode 登录完成…'),
-      webHint: t('MonkeyCode 自动网页登录仅限桌面端；浏览器面板请登录对应官网后粘贴 session。'),
+      noteHtml: t('Complete sign-in and verification on the official MonkeyCode page for the selected region. Your session is captured and the account is added automatically; no need to copy cookies.'),
+      button: t('Open web login'),
+      hint: t('Opens in the embedded window; added to the list when done; closing it cancels the wait'),
+      busyText: t('Waiting for MonkeyCode sign-in…'),
+      webHint: t('Automatic MonkeyCode web sign-in requires the desktop app. In the browser panel, sign in to the corresponding official site and paste your session.'),
     },
-    manualTitle: t('粘贴 session cookie'),
-    manualNoteHtml: t('粘贴网页登录态 cookie <code>monkeycode_ai_session</code> 的值（在浏览器里复制整段 Cookie 直接粘贴也行，网关会自己剥出值）。<br>{siteNote}<br>MonkeyCode <b>没有续期接口</b>：session 有效期约 30 天（硬限制），过期后重新登录网页、再粘贴一次即可。', { siteNote }),
+    manualTitle: t('Paste session cookie'),
+    manualNoteHtml: t('Paste the value of the web session cookie <code>monkeycode_ai_session</code> (copying the whole Cookie in the browser and pasting it directly also works; the gateway extracts the value itself).<br>{siteNote}<br>MonkeyCode <b>has no renewal API</b>: the session is valid for about 30 days (a hard limit); once it expires, sign in to the web page again and paste it one more time.', { siteNote }),
     fields: [
-      { key: 'session', label: 'session', rows: 3, placeholder: t('monkeycode_ai_session 的值（也可直接粘贴整段 Cookie）') },
-      { key: 'imageId', label: t('任务镜像 id'), optional: true, placeholder: t('可选：发起对话必需，留空则由网关从该账号已有任务里自动发现，发现不到时之后手动补') },
-      { key: 'name', label: t('备注名'), optional: true, placeholder: t('可选，留空则用上游返回的账号名或账号 id') },
+      { key: 'session', label: 'session', rows: 3, placeholder: t('The value of monkeycode_ai_session (you can also paste the whole Cookie)') },
+      { key: 'imageId', label: t('Task image id'), optional: true, placeholder: t('Optional; required to start a conversation. If blank, the gateway discovers it automatically from this account\'s existing tasks; if it cannot find one, fill it in manually later.') },
+      { key: 'name', label: t('Label'), optional: true, placeholder: t('Optional; defaults to the account name or account id returned by upstream') },
     ],
   }
 }
@@ -27,11 +27,11 @@ function monkeycodeForm(provider: string, label: string, siteNote: string): Prov
 export const MONKEYCODE = monkeycodeForm(
   'monkeycode',
   t('MonkeyCode'),
-  t('这里填国内站（monkeycode-ai.com）的账号：请粘贴国内站的 session。国际站（monkeycode-ai.net）是另一家 provider、另一套账号，两边的凭证不通用。'),
+  t('This is for the China site (monkeycode-ai.com) account: paste the China site\'s session. The international site (monkeycode-ai.net) is another provider with its own account; credentials are not interchangeable between the two.'),
 )
 
 export const MONKEYCODE_INTL = monkeycodeForm(
   'monkeycode-intl',
-  t('MonkeyCode 国际版'),
-  t('这里填国际站（monkeycode-ai.net）的账号：请粘贴国际站的 session。国内站（monkeycode-ai.com）是另一家 provider、另一套账号，两边的凭证不通用。'),
+  t('MonkeyCode International edition'),
+  t('This is for the international site (monkeycode-ai.net) account: paste the international site\'s session. The China site (monkeycode-ai.com) is another provider with its own account; credentials are not interchangeable between the two.'),
 )

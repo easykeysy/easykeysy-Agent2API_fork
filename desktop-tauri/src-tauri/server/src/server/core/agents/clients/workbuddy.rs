@@ -101,7 +101,7 @@ pub fn write(value: &mut Value, profile: &Profile, warnings: &mut Vec<String>) -
             && old.and_then(|v| v.get("vendor")).and_then(Value::as_str) != Some("Agent2API")
         {
             warnings.push(format!(
-                "模型 ID {} 已存在，确认后将用当前配置覆盖该条目；如需保留，请返回编辑并改用其他模型 ID。",
+                "Model ID {} 已存在，确认后将用当前配置覆盖该条目；如需保留，请返回编辑并改用其他模型 ID.",
                 model.id
             ));
         }

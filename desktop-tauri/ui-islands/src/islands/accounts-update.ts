@@ -92,7 +92,7 @@ export function accountPatchConfirmed(account: AccountRecord, patch: Record<stri
 
 export async function updateAccountConfirmed(id: string, patch: Record<string, unknown>): Promise<AccountRecord> {
   const bridge = shared().workbuddyDesktop
-  if (!bridge?.updateAccount) throw new Error(t('账号更新接口不可用，请重新打开页面'))
+  if (!bridge?.updateAccount) throw new Error(t('Account updates are unavailable. Reopen the page.'))
   const previous = shared().wbApp?.getState?.()?.accounts?.accounts?.find(account => account.id === id)
   const data = await bridge.updateAccount(id, patch)
   const changed = data?.changes?.length
@@ -109,7 +109,7 @@ export async function updateAccountConfirmed(id: string, patch: Record<string, u
   const account = data?.account
   if (!account || account.id !== id || (previous && account.provider !== previous.provider)
     || !accountPatchConfirmed(account, patch)) {
-    throw new Error(t('账号更新结果未确认，请刷新后核对设置'))
+    throw new Error(t('The account update could not be confirmed. Refresh and check the settings.'))
   }
   return account
 }
@@ -127,7 +127,7 @@ function batchPatch(payload: BatchAccountsPayload): Record<string, unknown> {
 
 export function confirmBatchResult(data: BatchAccountsResult | null | undefined, payload: BatchAccountsPayload): BatchAccountsResult {
   if (!data || !Array.isArray(payload.action === 'remove' ? data.removed : data.ok)) {
-    throw new Error(t('批量操作未返回结果，请刷新后确认状态'))
+    throw new Error(t('No result returned for the bulk operation; refresh to confirm the state'))
   }
   const accepted = payload.action === 'remove' ? data.removed || [] : data.ok || []
   const ids = new Set(payload.ids)
@@ -138,10 +138,10 @@ export function confirmBatchResult(data: BatchAccountsResult | null | undefined,
     seen.add(item.id)
     return false
   }) || seen.size !== ids.size) {
-    throw new Error(t('批量操作结果不完整，请刷新后核对所选账号'))
+    throw new Error(t('The bulk operation returned incomplete results. Refresh and check the selected accounts.'))
   }
   const accounts = data.list?.accounts
-  if (!Array.isArray(accounts)) throw new Error(t('批量操作结果不完整，请刷新后核对所选账号'))
+  if (!Array.isArray(accounts)) throw new Error(t('The bulk operation returned incomplete results. Refresh and check the selected accounts.'))
   const patch = batchPatch(payload)
   if (accepted.some(item => {
     const account = accounts.find(account => account.id === item.id)
@@ -158,7 +158,7 @@ export function confirmBatchResult(data: BatchAccountsResult | null | undefined,
       case 'clear': return groups.length !== 0
       default: return true
     }
-  })) throw new Error(t('批量操作结果未确认，请刷新后核对设置'))
+  })) throw new Error(t('The bulk changes could not be confirmed. Refresh and check the settings.'))
   if (payload.action === 'proxy' || payload.action === 'remove') {
     const changed = payload.action === 'remove' ? data.removed || [] : (data.ok || []).filter(item => item.changes?.length)
     invalidateUsageTasks(changed.map(item => item.id!).filter(Boolean))
@@ -168,8 +168,8 @@ export function confirmBatchResult(data: BatchAccountsResult | null | undefined,
 
 export async function refreshSavedAccounts(): Promise<void> {
   const app = shared().wbApp
-  if (!app?.refresh) throw new Error(t('账号列表刷新接口不可用，请重新打开页面'))
+  if (!app?.refresh) throw new Error(t('Account list refresh is unavailable. Reopen the page.'))
   if (await app.refresh() !== true) {
-    throw new Error(app.getRefreshStatus?.().error || t('账号列表刷新失败'))
+    throw new Error(app.getRefreshStatus?.().error || t('Failed to refresh the account list.'))
   }
 }

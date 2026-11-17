@@ -86,13 +86,13 @@ pub fn vision_config() -> Option<Value> {
 
 pub fn save_vision_config(config: VisionConfig) -> Result<Value, String> {
     if config.provider.is_empty() || config.upstream_model.is_empty() {
-        return Err("请选择提供商与上游模型".into());
+        return Err("Select a provider and an upstream model".into());
     }
     if !is_reasoning_level(&config.reasoning) {
         return Err("思考等级无效".into());
     }
     if config.api_key_id.is_empty() {
-        return Err("请选择内部调用 API Key".into());
+        return Err("Select the internal API Key".into());
     }
     let available = api_keys::list()
         .into_iter()

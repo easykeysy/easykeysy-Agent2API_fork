@@ -14,11 +14,11 @@ export function scriptOperationMatches(operation: ScriptOperation, item: ScriptP
 
 export function ScriptOperationProgress({ operation, t }: { operation: ScriptOperation; t: PluginTranslate }) {
   if (!operation.active) return null
-  const stage = operation.stage === 'runtime' ? t('正在下载 Bun 运行时')
-    : operation.stage === 'package' ? t('正在下载脚本插件')
-    : operation.stage === 'waiting' ? t('等待脚本插件的在途请求和登录完成')
-    : operation.stage === 'restoring' ? t('正在恢复原有脚本插件')
-    : t('正在加载脚本插件')
+  const stage = operation.stage === 'runtime' ? t('Downloading the Bun runtime')
+    : operation.stage === 'package' ? t('Downloading script plugin')
+    : operation.stage === 'waiting' ? t('Waiting for active script requests and sign-ins to finish')
+    : operation.stage === 'restoring' ? t('Restoring previous script plugins')
+    : t('Loading script plugins')
   return <div className='space-y-2 border-t border-hairline pt-3' aria-live='polite'>
     <div className='flex flex-wrap items-center justify-between gap-2 text-xs'>
       <span className='text-subtle'>{stage}</span>
@@ -31,7 +31,7 @@ export function ScriptOperationProgress({ operation, t }: { operation: ScriptOpe
 }
 
 export function ScriptOperationCard({ operation, t }: { operation: ScriptOperation; t: PluginTranslate }) {
-  const name = operation.target?.name || operation.target?.source || t('Magpie 插件')
+  const name = operation.target?.name || operation.target?.source || t('Magpie plugins')
   return <Card render={<article />} data-plugin-card='' aria-label={name} className='flex h-full flex-col gap-3 p-4'>
     <div className='flex items-start gap-3.5'>
       <PluginArtwork kind='script' />

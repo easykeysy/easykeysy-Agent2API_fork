@@ -17,7 +17,7 @@ pub fn read(def: &ClientDef, value: &Value) -> Result<Vec<Profile>, String> {
         let name = value
             .pointer("/model/displayName")
             .and_then(Value::as_str)
-            .unwrap_or("Cursor 当前模型");
+            .unwrap_or("Cursor Current model");
         let mut profile = Profile::new("cursor-current", name, "native", "");
         profile.model = id.into();
         profile.native.settings = json!({ "model": value.get("model") });

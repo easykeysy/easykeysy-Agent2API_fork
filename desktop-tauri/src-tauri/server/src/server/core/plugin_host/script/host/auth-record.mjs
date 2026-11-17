@@ -20,7 +20,7 @@ export function publicAccount(auth) {
     expiresAt: Number.isFinite(auth?.expires) && auth.expires > 0 ? auth.expires : undefined,
     longLived: auth?.type === "api" || indirect || (!auth?.expires && !!auth?.refresh),
     needsRelogin: auth?.agent2apiSignIn === "expired" || auth?.agent2apiAuthRemoved === true,
-    needsReloginReason: auth?.agent2apiSignIn === "expired" || auth?.agent2apiAuthRemoved === true ? "插件确认登录已过期，请重新登录" : "",
+    needsReloginReason: auth?.agent2apiSignIn === "expired" || auth?.agent2apiAuthRemoved === true ? "The plugin confirms the login has expired; please log in again" : "",
   }
 }
 

@@ -40,13 +40,13 @@ const WIDTH_INTL: Record<string, string> = {
 }
 const WIDTH_CUSTOM: Record<string, string> = { pick: 'w-[8%]', model: 'w-[74%]', state: 'w-[18%]' }
 const HEAD_LABEL: Record<string, string> = {
-  pick: '', provider: t('提供商'), source: t('模型来源'), state: t('状态'), count: t('模型数'),
-  note: t('说明'), updated: t('更新日期'), model: t('上游模型'), op: t('操作'),
+  pick: '', provider: t('Provider'), source: t('Model source'), state: t('Status'), count: t('Models'),
+  note: t('Note'), updated: t('Updated'), model: t('Upstream model'), op: t('Actions'),
 }
 const KIND: Record<string, { variant: NonNullable<BadgeProps['variant']>; label: string }> = {
-  refreshed: { variant: 'brand', label: t('已刷新') },
-  failed: { variant: 'destructive', label: t('失败') },
-  skipped: { variant: 'outline', label: t('跳过') },
+  refreshed: { variant: 'brand', label: t('Refreshed') },
+  failed: { variant: 'destructive', label: t('Failed') },
+  skipped: { variant: 'outline', label: t('Skipped') },
 }
 
 function norm(id: string) {
@@ -95,11 +95,11 @@ export function ModelsFetchTable({
   }
 
   function customBody() {
-    if (status === 'idle') return stateRow(t('点右侧「获取模型」从上游拉取这家的模型清单'))
-    if (status === 'loading') return stateRow(t('正在获取…'))
+    if (status === 'idle') return stateRow(t('Click “Fetch models” on the right to pull this provider\'s model catalog from upstream'))
+    if (status === 'loading') return stateRow(t('Fetching…'))
     if (!shown.length) return stateRow(upstream.length
-      ? t('没有匹配「{keyword}」的模型', { keyword: needle })
-      : t('上游没有返回任何模型'))
+      ? t('No models match “{keyword}”', { keyword: needle })
+      : t('Upstream returned no models'))
     return shown.map(id => {
       const added = managed.has(norm(id))
       return (
@@ -112,9 +112,9 @@ export function ModelsFetchTable({
           <TableCell>{nameCell(id)}</TableCell>
           <TableCell>
             {added ? (
-              <Badge variant='brand' title={t('这个模型已经在这家的清单里，不重复导入')}>{t('已添加')}</Badge>
+              <Badge variant='brand' title={t('This model is already in this provider\'s catalog; it won\'t be imported again')}>{t('Added')}</Badge>
             ) : (
-              <Badge variant='outline' title={t('勾上它，导入后即进入这家的清单')}>{t('未添加')}</Badge>
+              <Badge variant='outline' title={t('Check it to add it to this provider\'s catalog on import')}>{t('Not added')}</Badge>
             )}
           </TableCell>
         </TableRow>
@@ -126,15 +126,15 @@ export function ModelsFetchTable({
     const fetching = busy && busyRow === row.provider
     return (
       <Button variant='outline' size='sm' className='w-full' disabled={busy}
-        title={t('只刷新这一家的模型清单')} onClick={() => onFetchRow(row)}>
-        {fetching ? t('获取中…') : row.item ? t('重新获取') : t('获取')}
+        title={t('Refresh only this provider\'s model catalog')} onClick={() => onFetchRow(row)}>
+        {fetching ? t('Fetching…') : row.item ? t('Fetch again') : t('Fetch')}
       </Button>
     )
   }
 
   function intlBody() {
-    if (status === 'loading') return stateRow(t('正在获取…'))
-    if (!rows.length) return stateRow(t('还没有可刷新的提供商：先在账号页添加一个账号'))
+    if (status === 'loading') return stateRow(t('Fetching…'))
+    if (!rows.length) return stateRow(t('No providers to refresh yet: add an account on the Accounts page first'))
     return rows.map(row => {
       const item = row.item
       if (!item) {
@@ -143,7 +143,7 @@ export function ModelsFetchTable({
           <TableRow key={row.provider}>
             <TableCell>{nameCell(row.label)}</TableCell>
             <TableCell>{sourceCell(row.provider)}</TableCell>
-            <TableCell><Badge variant='outline'>{t('待获取')}</Badge></TableCell>
+            <TableCell><Badge variant='outline'>{t('Not fetched')}</Badge></TableCell>
             <TableCell>{rateCell('—')}</TableCell>
             <TableCell>{rateCell('—')}</TableCell>
             <TableCell>{rateCell(at || '—')}</TableCell>
@@ -152,18 +152,18 @@ export function ModelsFetchTable({
         )
       }
       const kind = KIND[String(item.status)]
-        ?? { variant: 'outline' as const, label: String(item.status || t('未知')) }
+        ?? { variant: 'outline' as const, label: String(item.status || t('Unknown')) }
       const count = Number(item.count)
       const note = item.status === 'refreshed'
-        ? t('远程目录已更新，「来源」列会显示为「远程」')
-        : item.message || (item.fixed ? t('这家用固定模型清单，无可刷新') : t('本次没有取到新内容'))
+        ? t('Remote catalog updated; the “Source” column will show “Remote”')
+        : item.message || (item.fixed ? t('This provider uses a fixed model catalog; nothing to refresh') : t('No new content this time'))
       const at = formatTime(Number(item.refreshedAt) || 0)
       return (
         <TableRow key={row.provider}>
           <TableCell>{nameCell(row.label)}</TableCell>
           <TableCell>{sourceCell(row.provider, item.accountId)}</TableCell>
           <TableCell><Badge variant={kind.variant}>{kind.label}</Badge></TableCell>
-          <TableCell>{rateCell(count ? t('{n} 个', { n: count }) : '—')}</TableCell>
+          <TableCell>{rateCell(count ? t('{n}', { n: count }) : '—')}</TableCell>
           <TableCell>
             <span className='text-[11.5px] leading-[1.5] text-muted-foreground [overflow-wrap:anywhere]'>{t(note)}</span>
           </TableCell>

@@ -41,7 +41,7 @@ use temp::TempRestoreDb;
 
 /// 导出文件的第一行。导入端只认带这个前缀的文件 —— 用户的其它 SQL
 /// （手写、别处导出）即便语法正确也拒绝，避免「恢复成了半份陌生数据」。
-pub const BACKUP_SQL_HEADER: &str = "-- Agent2API SQLite 导出";
+pub const BACKUP_SQL_HEADER: &str = "-- Agent2API SQLite Export";
 
 /// 文件头里记录「导出时账号加密密钥指纹」的注释行前缀（值在冒号之后）。
 /// 放在 `BACKUP_SQL_HEADER` 之后，是**注释行**，不影响「以头部前缀开头」的判定。
@@ -370,10 +370,10 @@ fn snapshot_to_memory(db: &Db) -> Result<Connection, String> {
 /// SQLite Backup 的收尾：`step(-1)` 必须以 Done 结束，Busy/Locked/More 都是
 /// 「没拷完」—— 当成功返回会留下半截库，比直接报错严重得多。
 fn complete_backup(backup: &Backup<'_, '_>, context: &str) -> Result<(), String> {
-    let result = backup.step(-1).map_err(|e| format!("{context}失败: {e}"))?;
+    let result = backup.step(-1).map_err(|e| format!("{context}Failed: {e}"))?;
     match result {
         StepResult::Done => Ok(()),
-        other => Err(format!("{context}未完成: SQLite Backup 返回 {other:?}")),
+        other => Err(format!("{context}Not finished: SQLite Backup Back {other:?}")),
     }
 }
 
@@ -407,7 +407,7 @@ fn dump_sql_into(
              WHERE sql NOT NULL AND type IN ('table','index','trigger','view')
              ORDER BY type='table' DESC, name",
         )
-        .map_err(|e| format!("读取 schema 失败: {e}"))?;
+        .map_err(|e| format!("读取 schema failed: {e}"))?;
     let mut tables = Vec::new();
     let mut triggers = Vec::new();
     let rows = stmt
@@ -418,9 +418,9 @@ fn dump_sql_into(
                 row.get::<_, String>(2)?,
             ))
         })
-        .map_err(|e| format!("读取 schema 失败: {e}"))?;
+        .map_err(|e| format!("读取 schema failed: {e}"))?;
     for row in rows {
-        let (obj_type, name, sql) = row.map_err(|e| format!("读取 schema 失败: {e}"))?;
+        let (obj_type, name, sql) = row.map_err(|e| format!("读取 schema failed: {e}"))?;
         if name.starts_with("sqlite_") {
             continue;
         }
@@ -437,7 +437,7 @@ fn dump_sql_into(
 
     writer
         .write_all(output.as_bytes())
-        .map_err(|error| format!("写入备份 SQL 失败: {error}"))?;
+        .map_err(|error| format!("写入备份 SQL failed: {error}"))?;
     output.clear();
     for table in &tables {
         if skip_tables.contains(&table.as_str()) {
@@ -456,7 +456,7 @@ fn dump_sql_into(
     output.push_str("COMMIT;\nPRAGMA foreign_keys=ON;\n");
     writer
         .write_all(output.as_bytes())
-        .map_err(|error| format!("写入备份 SQL 失败: {error}"))
+        .map_err(|error| format!("写入备份 SQL failed: {error}"))
 }
 
 /// 文件头那行账号密钥指纹注释（含结尾换行）。
@@ -486,22 +486,22 @@ fn dump_table_rows(conn: &Connection, table: &str, writer: &mut impl Write) -> R
 
     let mut stmt = conn
         .prepare(&format!("SELECT {quoted_columns} FROM {quoted_table}"))
-        .map_err(|e| format!("读取表 {table} 失败: {e}"))?;
+        .map_err(|e| format!("读取表 {table} failed: {e}"))?;
     let mut rows = stmt
         .query([])
-        .map_err(|e| format!("读取表 {table} 失败: {e}"))?;
+        .map_err(|e| format!("读取表 {table} failed: {e}"))?;
 
     let mut pending_rows = 0usize;
     let mut batch = String::new();
     while let Some(row) = rows
         .next()
-        .map_err(|e| format!("读取表 {table} 失败: {e}"))?
+        .map_err(|e| format!("读取表 {table} failed: {e}"))?
     {
         let mut values = Vec::with_capacity(columns.len());
         for idx in 0..columns.len() {
             let value = row
                 .get_ref(idx)
-                .map_err(|e| format!("读取表 {table} 失败: {e}"))?;
+                .map_err(|e| format!("读取表 {table} failed: {e}"))?;
             values.push(format_sql_value(value)?);
         }
 

@@ -109,7 +109,7 @@ pub(crate) fn sync_installed_update_channel(version: &str) -> bool {
     if changed {
         crate::server::logging::log(
             "[Update]",
-            &format!("检测到已安装 beta 版 v{version}，已开启 beta 更新关注；之后手动关闭会保留"),
+            &format!("检测到已安装 Beta release v{version}，已开启 beta 更新关注；之后手动关闭会保留"),
         );
     }
     if !saved {
@@ -130,7 +130,7 @@ pub fn set_update_channels(
         beta: patch.beta.unwrap_or(previous.beta),
     };
     if !next.stable && !next.beta {
-        return Err("至少需要关注正式版或 beta 版中的一个通道".to_string());
+        return Err("Follow at least one channel: stable or beta.".to_string());
     }
     let saved = update(|config| {
         if let Some(stable) = patch.stable {

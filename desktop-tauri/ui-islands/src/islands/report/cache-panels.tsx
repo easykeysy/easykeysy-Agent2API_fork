@@ -5,11 +5,11 @@ import { CacheTrendChart } from './report-recharts'
 import { amount, sumUsage } from './usage-data'
 import { t } from '../../i18n'
 
-const TIP_CACHE = t('命中率 = 缓存读取 Token / 输入 Token（promptTokens）。窗口越短越贴近「此刻」：上游把缓存读取与输入分开上报时，该比值合法地可能超过 100%，此处不夹取值、如实展示。')
+const TIP_CACHE = t('Hit rate = cache-read tokens / input tokens (promptTokens). The shorter the window, the closer it is to "right now": when an upstream reports cache reads separately from input, this ratio can legitimately exceed 100%; it is shown as-is, without clamping.')
 
 export function CacheWindows({ summary, loading }: { summary: StatsSummary | null; loading: React.ReactNode }) {
   return <Card render={<section />} className='report-card report-cache-windows'>
-    <CardHeader className='report-card-header'><CardTitle>{t('缓存命中率')}</CardTitle><span className='tip-q' data-tip={TIP_CACHE} /></CardHeader>
+    <CardHeader className='report-card-header'><CardTitle>{t('Cache hit rate')}</CardTitle><span className='tip-q' data-tip={TIP_CACHE} /></CardHeader>
     <CardContent className='report-cache-window-content'>
       <MetricGrid className='report-cache-window-grid' id='report-cache-rates'>
         {summary ? cacheRateCells(summary.cacheRates).map(cell => <MetricCard className='report-cache-window' key={cell.key}>
@@ -28,13 +28,13 @@ export function CacheTrendPanel({ summary, loading, colors }: { summary: StatsSu
   const cached = amount(totals.cacheReadTokens)
   const hasRequests = hours.every(hour => typeof hour.requests === 'number')
   const cells = [
-    { label: t('最近整点命中率'), value: latest?.inputTokens ? formatPercent(latest.rate) : '—' },
-    { label: t('24 小时整体命中率'), value: input ? formatPercent(cached / input) : '—' },
-    { label: t('24 小时总用量'), value: `${formatTokens(totals.totalTokens)} Token` },
-    { label: t('24 小时请求数'), value: hasRequests ? formatInt(totals.requests) : '—' },
+    { label: t('Latest hourly hit rate'), value: latest?.inputTokens ? formatPercent(latest.rate) : '—' },
+    { label: t('24-hour overall hit rate'), value: input ? formatPercent(cached / input) : '—' },
+    { label: t('24-hour total usage'), value: `${formatTokens(totals.totalTokens)} Token` },
+    { label: t('24-hour requests'), value: hasRequests ? formatInt(totals.requests) : '—' },
   ]
   return <Card render={<section />} className='report-card report-cache-card'>
-    <CardHeader className='report-card-header'><CardTitle>{t('近 24 小时缓存命中率趋势')}</CardTitle>
+    <CardHeader className='report-card-header'><CardTitle>{t('Last 24 hours: cache hit rate trend')}</CardTitle>
       <span className='tip-q' data-tip={TIP_CACHE} /><span className='report-card-meta ml-auto'>{t('按本地整点统计')}</span>
     </CardHeader>
     <CardContent className='report-card-content'>
@@ -42,10 +42,10 @@ export function CacheTrendPanel({ summary, loading, colors }: { summary: StatsSu
       <div className='chart-wrap' id='report-cache-trend'>{summary ? <CacheTrendChart series={hours} colors={colors} /> : loading}</div>
       <div className='report-chart-footer'>
         <div className='report-cache-legend'>
-          <span><i className='report-rate-swatch' />{t('缓存命中率')} · {t('左轴')}</span>
-          <span><i className='report-token-swatch' />{t('总 Token')} · {t('右轴')}</span>
+          <span><i className='report-rate-swatch' />{t('Cache hit rate')} · {t('Left axis')}</span>
+          <span><i className='report-token-swatch' />{t('Total tokens')} · {t('Right axis')}</span>
         </div>
-        <span>{t('悬停查看完整读数与分项')}</span>
+        <span>{t('Hover for full readings and a breakdown')}</span>
       </div>
     </CardContent>
   </Card>

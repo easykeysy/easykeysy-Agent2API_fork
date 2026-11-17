@@ -28,8 +28,8 @@ export function groupsOf(account: AccountRecord | null | undefined, legacy: Limi
 export function sourcesOf(account: AccountRecord | null | undefined): QuotaSource[] {
   const sources = account ? snapshot.quotaSources?.[account.id] : undefined
   return Array.isArray(sources) ? sources.slice() : [
-    { id: 'account', label: t('账号主额度'), provider: String(account?.provider || '') },
-    { id: 'local', label: t('本地用量保护'), provider: String(account?.provider || ''), localOnly: true },
+    { id: 'account', label: t('Account primary quota'), provider: String(account?.provider || '') },
+    { id: 'local', label: t('Local usage protection'), provider: String(account?.provider || ''), localOnly: true },
   ]
 }
 
@@ -54,9 +54,9 @@ export function limiterHit(account: AccountRecord | null | undefined, metric?: '
 }
 
 export function sourceLabel(source: QuotaSource | null | undefined, id = source?.id || 'account'): string {
-  if (id === 'local') return t('本地用量保护')
-  if (id === 'account' || !id) return isCreditUnit(source?.unit || '') ? t('总积分') : t('账号主额度')
-  return source?.label ? t(source.label) : t('账号主额度')
+  if (id === 'local') return t('Local usage protection')
+  if (id === 'account' || !id) return isCreditUnit(source?.unit || '') ? t('Total points') : t('Account primary quota')
+  return source?.label ? t(source.label) : t('Account primary quota')
 }
 
 export function sourceIdentity(source: QuotaSource): QuotaSource {
@@ -78,23 +78,23 @@ export function conditionText(condition: LimiterCondition, account?: AccountReco
   const id = condition.sourceId || (condition.metric === 'tokens' || condition.metric === 'requests' ? 'local' : 'account')
   const current = sourcesOf(account).find(source => source.id === id)
   const source = sourceLabel(current || condition.source, id)
-  const models = condition.models.length ? condition.models.join('、') : t('全部模型')
+  const models = condition.models.length ? condition.models.join(', ') : t('All models')
   const metric = metricLabel(condition.metric)
   const sign = condition.comparison === 'lt' ? '<' : condition.comparison === 'lte' ? '≤' : '≥'
   const unit = condition.metric.endsWith('percent') ? '%' : condition.metric === 'tokens' ? 'Token'
-    : condition.metric === 'requests' ? t('次') : usageUnitLabel(current?.unit || condition.source?.unit || '', t)
+    : condition.metric === 'requests' ? t('times') : usageUnitLabel(current?.unit || condition.source?.unit || '', t)
   const quota = condition.metric === 'tokens' ? tokenCount(condition.threshold) : String(condition.threshold)
   return `${source} · ${models} · ${metric} ${sign} ${quota} ${unit}`.trim()
 }
 
 export function metricLabel(metric: LimiterCondition['metric']): string {
   switch (metric) {
-    case 'remaining': return t('剩余额度')
-    case 'remaining_percent': return t('剩余比例')
-    case 'used': return t('已用额度')
-    case 'used_percent': return t('已用比例')
-    case 'tokens': return t('本地 Token 消耗')
-    case 'requests': return t('本地请求次数')
+    case 'remaining': return t('Remaining quota')
+    case 'remaining_percent': return t('Remaining percentage')
+    case 'used': return t('Used quota')
+    case 'used_percent': return t('Used percentage')
+    case 'tokens': return t('Local token usage')
+    case 'requests': return t('Local request count')
   }
 }
 
@@ -109,18 +109,18 @@ export function readingText(reading: LimiterReading | undefined, condition: Limi
   const unit = usageUnitLabel(source?.unit || condition.source?.unit || '', t)
   const format = (value: number) => condition.metric === 'tokens' ? `${tokenCount(value)} Token`
     : condition.metric.endsWith('percent') ? `${Number(value.toFixed(2))}%`
-    : `${Number(value.toFixed(2))} ${condition.metric === 'requests' ? t('次') : unit}`.trim()
+    : `${Number(value.toFixed(2))} ${condition.metric === 'requests' ? t('times') : unit}`.trim()
   const models = Object.entries(reading.modelValues || {})
   return models.length ? models.map(([model, value]) => `${model}：${format(value)}`).join(' · ') : format(reading.value)
 }
 
 function readingReason(reason: string | undefined): string {
   switch (reason) {
-    case '此额度不属于账号当前使用的通道': return t('此额度不属于账号当前使用的通道')
-    case '套餐尚未生效或已经到期': return t('套餐尚未生效或已经到期')
-    case '上游额度无上限': return t('上游额度无上限')
-    case '统计周期尚未开始或已经结束': return t('统计周期尚未开始或已经结束')
-    default: return t('暂无读数')
+    case 'This quota does not belong to the account’s current channel': return t('This quota does not belong to the account’s current channel')
+    case 'The plan is not active yet or has expired': return t('The plan is not active yet or has expired')
+    case 'The upstream quota is unlimited': return t('The upstream quota is unlimited')
+    case 'The counting period has not started or has ended': return t('The counting period has not started or has ended')
+    default: return t('No reading available')
   }
 }
 
@@ -130,6 +130,6 @@ export function expressionText(conditions: LimiterCondition[], account?: Account
     if (index === 0 || condition.join === 'or') terms.push([])
     terms[terms.length - 1].push(conditionText(condition, account))
   })
-  return terms.map(term => term.length > 1 ? `（${term.join(` ${t('与')} `)}）` : term[0])
-    .join(` ${t('或')} `)
+  return terms.map(term => term.length > 1 ? `（${term.join(` ${t(' and ')} `)}）` : term[0])
+    .join(` ${t('OR')} `)
 }

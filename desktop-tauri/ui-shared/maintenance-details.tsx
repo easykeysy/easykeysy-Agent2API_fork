@@ -68,83 +68,83 @@ export function MaintenanceDetailDialog({ detail, loading, error, busy, onReload
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   const current = Math.min(page, pageCount)
   const shown = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
-  const emptyText = detail?.status === 'running' ? t('维护正在执行，完成后会显示逐项结果')
-    : detail?.status === 'interrupted' ? t('该次执行未完成，没有完整明细')
-      : t('本轮没有符合条件的项目')
+  const emptyText = detail?.status === 'running' ? t('Maintenance is running. Item results will appear when it finishes.')
+    : detail?.status === 'interrupted' ? t('This run did not finish; complete details are unavailable')
+      : t('No matching items in this run')
 
   return <Dialog open onOpenChange={open => { if (!open) onClose() }}>
     <DialogContent className='flex h-[min(720px,calc(100vh-48px))] w-[min(1000px,calc(100vw-32px))] flex-col'>
       <DialogHeader className='shrink-0 flex-col items-start gap-1'>
-        <DialogTitle>{detail ? `${maintenanceLabel(detail.taskId)} · ${stamp(detail.startedAt)}` : t('执行明细')}</DialogTitle>
+        <DialogTitle>{detail ? `${maintenanceLabel(detail.taskId)} · ${stamp(detail.startedAt)}` : t('Run details')}</DialogTitle>
         <DialogDescription className='text-xs leading-relaxed text-muted-foreground'>
           {detail
-            ? <>{stalled ? null : <>{t('本轮共 {n} 项', { n: detail.total })} · </>}{sourceLabel(detail.source)}{detail.durationMs != null ? <> · {duration(detail.durationMs)}</> : null}</>
-            : t('正在读取维护记录…')}
+            ? <>{stalled ? null : <>{t('{n} items in this run', { n: detail.total })} · </>}{sourceLabel(detail.source)}{detail.durationMs != null ? <> · {duration(detail.durationMs)}</> : null}</>
+            : t('Loading maintenance records…')}
         </DialogDescription>
       </DialogHeader>
       <DialogBody className='flex min-h-0 flex-1 flex-col gap-3.5'>
         {error ? <Alert variant='destructive' className='flex items-center gap-2'>
           {error}
-          <Button size='sm' variant='outline' className='ml-auto' onClick={onReload}>{t('重新加载')}</Button>
+          <Button size='sm' variant='outline' className='ml-auto' onClick={onReload}>{t('Reload')}</Button>
         </Alert> : null}
-        {loading && !detail ? <Empty><Spinner />{t('正在读取维护记录…')}</Empty> : null}
+        {loading && !detail ? <Empty><Spinner />{t('Loading maintenance records…')}</Empty> : null}
         {detail ? <>
           {detail.error ? <Alert variant='warning'>{maintenanceMessage(detail.error)}</Alert> : null}
           <div className='maintenance-detail-filters'>
             <SegmentedControl
               value={filter}
-              aria-label={t('明细状态筛选')}
+              aria-label={t('Filter item status')}
               onValueChange={value => { setFilter(value); setPage(1) }}
               options={[
-                { value: 'all', label: t('全部'), count: statusCount('all') },
-                { value: 'failed', label: t('失败'), count: statusCount('failed') },
-                { value: 'refreshed', label: t('成功'), count: statusCount('refreshed') },
-                { value: 'skipped', label: t('跳过'), count: statusCount('skipped') },
+                { value: 'all', label: t('All'), count: statusCount('all') },
+                { value: 'failed', label: t('Failed'), count: statusCount('failed') },
+                { value: 'refreshed', label: t('Success'), count: statusCount('refreshed') },
+                { value: 'skipped', label: t('Skipped'), count: statusCount('skipped') },
               ]}
             />
             <SearchableSelect value={provider} onValueChange={value => { setProvider(value); setPage(1) }}
-              aria-label={t('提供商')} className='min-w-[150px] max-w-[260px]' searchPlaceholder={t('搜索提供商')}
-              options={[{ value: '', label: t('全部提供商') }, ...providers.map(([value, label]) => ({ value, label }))]} />
+              aria-label={t('Provider')} className='min-w-[150px] max-w-[260px]' searchPlaceholder={t('Search providers')}
+              options={[{ value: '', label: t('All providers') }, ...providers.map(([value, label]) => ({ value, label }))]} />
           </div>
           {/* 表格区吃掉剩余高度：行少时留白而不是缩窗，行多时在这里滚 */}
           <Table containerClassName='maintenance-detail-scroll min-h-0 flex-1' className='maintenance-detail-table'>
             <TableHeader><TableRow>
-              <TableHead>{t('提供商')}</TableHead>
-              <TableHead>{t('账号')}</TableHead>
-              <TableHead>{t('结果')}</TableHead>
-              <TableHead>{credential ? t('凭证变化') : t('模型目录')}</TableHead>
-              <TableHead>{t('原因 / 说明')}</TableHead>
-              <TableHead className='text-right'>{t('操作')}</TableHead>
+              <TableHead>{t('Provider')}</TableHead>
+              <TableHead>{t('Accounts')}</TableHead>
+              <TableHead>{t('Result')}</TableHead>
+              <TableHead>{credential ? t('Credential changes') : t('Model catalog')}</TableHead>
+              <TableHead>{t('Reason / Notes')}</TableHead>
+              <TableHead className='text-right'>{t('Actions')}</TableHead>
             </TableRow></TableHeader>
             <TableBody>{shown.map(item => <TableRow key={item.id}>
               <TableCell>{item.providerLabel || item.provider || '—'}</TableCell>
-              <TableCell><span title={item.accountId ?? undefined}>{item.accountName || item.accountId || t('未使用账号')}</span></TableCell>
+              <TableCell><span title={item.accountId ?? undefined}>{item.accountName || item.accountId || t('No account used')}</span></TableCell>
               <TableCell><ItemStatus status={item.status} /></TableCell>
               <TableCell>{itemChange(item, detail.taskId)}</TableCell>
               <TableCell className='maintenance-reason'>{itemMessage(item, detail.taskId)}</TableCell>
               <TableCell className='text-right'>
                 <Button size='sm' variant='link' className='hover:no-underline' onClick={() => setSelected(item)}>
-                  {item.status === 'failed' ? t('查看原因') : t('查看详情')}
+                  {item.status === 'failed' ? t('View reason') : t('View details')}
                 </Button>
               </TableCell>
             </TableRow>)}{!shown.length ? <TableRow><TableCell colSpan={6}><Empty>{emptyText}</Empty></TableCell></TableRow> : null}</TableBody>
           </Table>
           {detail.metadata ? <div className='maintenance-metadata'>
-            <span>{t('模型基础信息')} · models.dev</span>
+            <span>{t('Model metadata')} · models.dev</span>
             <ItemStatus status={detail.metadata.status} />
-            <span>{detail.metadata.status === 'refreshed' ? t('已更新 {n} 条', { n: detail.metadata.count ?? 0 }) : itemMessage(detail.metadata, 'modelRefresh')}</span>
+            <span>{detail.metadata.status === 'refreshed' ? t('Updated {n} entries', { n: detail.metadata.count ?? 0 }) : itemMessage(detail.metadata, 'modelRefresh')}</span>
           </div> : null}
           <div className='maintenance-detail-footer'>
-            <span>{t('重试生成新记录，不覆盖本次结果')}</span>
+            <span>{t('Retries create a new record without overwriting this result')}</span>
             {rows.length > PAGE_SIZE ? <Pager className='maintenance-push' page={current} pageCount={pageCount} onPageChange={setPage} /> : null}
           </div>
         </> : null}
       </DialogBody>
       <DialogFooter className='shrink-0 flex-wrap'>
         {detail && !stalled && hasFailures(detail)
-          ? <Button variant='outline' className='mr-auto' disabled={busy} onClick={() => onRetry(detail.id)}>{t('仅重试失败项')}</Button>
+          ? <Button variant='outline' className='mr-auto' disabled={busy} onClick={() => onRetry(detail.id)}>{t('Retry failed items only')}</Button>
           : null}
-        <Button variant='ghost' onClick={onClose}>{t('关闭')}</Button>
+        <Button variant='ghost' onClick={onClose}>{t('Close')}</Button>
       </DialogFooter>
       {selected && detail ? <MaintenanceItemDialog item={selected} detail={detail} busy={busy}
         onClose={() => setSelected(null)} onRetry={itemId => onRetry(detail.id, itemId)} onAccount={onAccount} /> : null}
@@ -163,14 +163,14 @@ export function MaintenanceItemDialog({ item, detail, busy, onClose, onRetry, on
 }) {
   const credential = detail.taskId === 'credentialMaintenance'
   const facts: Array<[string, React.ReactNode]> = [
-    [t('执行时间'), stamp(detail.startedAt)],
-    [t('触发方式'), sourceLabel(detail.source)],
-    [t('账号'), item.accountName || item.accountId || t('未使用账号')],
-    [t('耗时'), duration(item.durationMs)],
+    [t('Run time'), stamp(detail.startedAt)],
+    [t('Trigger'), sourceLabel(detail.source)],
+    [t('Accounts'), item.accountName || item.accountId || t('No account used')],
+    [t('Duration'), duration(item.durationMs)],
     ...(credential
-      ? [[t('刷新前有效期'), stamp(item.expiresBefore)], [t('刷新后有效期'), stamp(item.expiresAfter)]] as Array<[string, React.ReactNode]>
-      : [[t('模型目录'), itemChange(item, 'modelRefresh')], [t('目录最近更新时间'), stamp(item.refreshedAt)]] as Array<[string, React.ReactNode]>),
-    ...(item.retryAt ? [[t('建议重试时间'), stamp(item.retryAt)]] as Array<[string, React.ReactNode]> : []),
+      ? [[t('Expiry before renewal'), stamp(item.expiresBefore)], [t('Expiry after renewal'), stamp(item.expiresAfter)]] as Array<[string, React.ReactNode]>
+      : [[t('Model catalog'), itemChange(item, 'modelRefresh')], [t('Last catalog update'), stamp(item.refreshedAt)]] as Array<[string, React.ReactNode]>),
+    ...(item.retryAt ? [[t('Suggested retry time'), stamp(item.retryAt)]] as Array<[string, React.ReactNode]> : []),
   ]
   return <Dialog open onOpenChange={open => { if (!open) onClose() }}>
     {/* overlayForceRender：这一层是从明细弹窗里打开的（嵌套层），
@@ -178,13 +178,13 @@ export function MaintenanceItemDialog({ item, detail, busy, onClose, onRetry, on
     <DialogContent className='w-[min(560px,calc(100vw-32px))]' overlayForceRender>
       <DialogHeader className='flex-col items-start gap-1'>
         <DialogTitle>{item.providerLabel || item.provider} · {maintenanceLabel(detail.taskId)}</DialogTitle>
-        <DialogDescription className='text-xs leading-relaxed text-muted-foreground'>{t('执行时的结果快照，不随账号后续变化而改变')}</DialogDescription>
+        <DialogDescription className='text-xs leading-relaxed text-muted-foreground'>{t('A snapshot of this run, unchanged by later account updates')}</DialogDescription>
       </DialogHeader>
       <DialogBody className='gap-3.5'>
         <div className='flex flex-col gap-1.5'>
           <span className='maintenance-status'>
             <ItemStatus status={item.status} />
-            {item.fixed ? <><span className='maintenance-sep'>·</span>{t('固定模型清单')}</> : null}
+            {item.fixed ? <><span className='maintenance-sep'>·</span>{t('Fixed model list')}</> : null}
           </span>
           <p className='m-0 text-[13px] leading-relaxed'>{itemMessage(item, detail.taskId)}</p>
         </div>
@@ -194,12 +194,12 @@ export function MaintenanceItemDialog({ item, detail, busy, onClose, onRetry, on
             <dd>{value}</dd>
           </div>)}
         </dl>
-        <p className='maintenance-muted'>{t('仅记录状态与结果，不展示密钥或令牌。')}</p>
+        <p className='maintenance-muted'>{t('Only status and results are recorded; keys and tokens are not shown.')}</p>
       </DialogBody>
       <DialogFooter className='flex-wrap'>
-        {item.accountId && onAccount ? <Button variant='outline' className='mr-auto' onClick={() => { onAccount(item.accountId!); onClose() }}>{t('去账号页处理')}</Button> : null}
-        <Button variant='ghost' onClick={onClose}>{t('关闭')}</Button>
-        {item.status === 'failed' ? <Button disabled={busy} onClick={() => { onRetry(item.id); onClose() }}>{t('仅重试这一项')}</Button> : null}
+        {item.accountId && onAccount ? <Button variant='outline' className='mr-auto' onClick={() => { onAccount(item.accountId!); onClose() }}>{t('Open account')}</Button> : null}
+        <Button variant='ghost' onClick={onClose}>{t('Close')}</Button>
+        {item.status === 'failed' ? <Button disabled={busy} onClick={() => { onRetry(item.id); onClose() }}>{t('Retry this item only')}</Button> : null}
       </DialogFooter>
     </DialogContent>
   </Dialog>

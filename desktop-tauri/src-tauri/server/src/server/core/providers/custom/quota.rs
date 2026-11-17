@@ -24,20 +24,20 @@ pub(super) fn sources(provider: &str, scheme: Scheme, report: &Value) -> Vec<Val
                 if id.is_empty() { continue; }
                 let name = text(pool, "name");
                 let models = pool.get("model_ids").and_then(Value::as_array).cloned().unwrap_or_default();
-                for (key, label) in [("window_5h", "5 小时"), ("window_7d", "7 天")] {
+                for (key, label) in [("window_5h", "5 hours"), ("window_7d", "7 days")] {
                     let Some(window) = pool.get(key).filter(|value| value.is_object()) else { continue };
                     let remaining = number_of(window.get("remaining"));
                     let total = number_of(window.get("limit"));
                     let used = number_of(window.get("used"));
                     sources.push(json!({ "id": format!("pool:{id}:{key}"), "provider": provider,
                         "label": format!("{name} · {label}"), "planId": plan, "planName": plan,
-                        "models": models, "unit": "积分", "remaining": remaining, "total": total,
+                        "models": models, "unit": "Points", "remaining": remaining, "total": total,
                         "used": used, "resetsAt": unix_to_ms(window.get("reset_at")).unwrap_or(0) }));
                 }
                 if let Some(remaining) = number_of(pool.get("grant_balance")) {
                     sources.push(json!({ "id": format!("pool:{id}:grant"), "provider": provider,
                         "label": format!("{name} · 活动返赠"), "models": models,
-                        "planId": plan, "planName": plan, "unit": "积分", "remaining": remaining }));
+                        "planId": plan, "planName": plan, "unit": "Points", "remaining": remaining }));
                 }
             }
         }

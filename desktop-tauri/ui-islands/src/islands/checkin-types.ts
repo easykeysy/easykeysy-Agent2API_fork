@@ -8,37 +8,37 @@ export { CHECKIN_SECTION_OPTIONS, modesOf } from '../../../ui-shared/checkin'
 
 /** 档位 → 按钮文案（`checkin` 是兜底档，不是插件申报值） */
 export const MODE_LABEL: Record<string, string> = {
-  checkin: '签到',
-  keepalive: '保活',
-  claim: '领取',
-  full: '保活 + 领取',
+  checkin: 'Check in',
+  keepalive: 'Keep-alive',
+  claim: 'Claim',
+  full: 'Keep-alive + Claim',
 }
 
 /** 档位 → 悬停说明 */
 export const MODE_TITLE: Record<string, string> = {
-  checkin: '走这一家的每日签到接口',
-  keepalive: '用免费模型与网页会话维持账号活跃 · 不领取奖励',
-  claim: '只领取当天的奖励 · 不做保活',
-  full: '保活并领取奖励',
+  checkin: 'Go through this provider\'s daily sign-in endpoint',
+  keepalive: 'Keep the account active with free models and a web-app conversation · no rewards claimed',
+  claim: 'Only claim that day\'s reward· Do not keep alive',
+  full: 'Keep alive and collect the reward',
 }
 
 /** 签到来源 → 展示名 */
 export const SOURCE_LABEL: Record<string, string> = {
-  schedule: '定时',
-  makeup: '补签',
-  startup: '补签',
-  manual: '手动',
-  single: '单签',
-  activity: '活动',
+  schedule: 'Scheduled',
+  makeup: 'Catch-up',
+  startup: 'Catch-up',
+  manual: 'Manual',
+  single: 'Single',
+  activity: 'Campaign',
 }
 
 /** 结果 → 展示名与色调 */
 export const OUTCOME_VIEW: Record<string, { label: string; variant: 'success' | 'brand' | 'warning' | 'destructive' | 'outline' }> = {
-  success: { label: '成功领取', variant: 'success' },
-  already: { label: '今日已领', variant: 'brand' },
-  pending: { label: '未领取', variant: 'warning' },
-  captcha: { label: '需要人工验证', variant: 'warning' },
-  failed: { label: '失败', variant: 'destructive' },
+  success: { label: 'Claimed', variant: 'success' },
+  already: { label: 'claimed today', variant: 'brand' },
+  pending: { label: 'Not claimed', variant: 'warning' },
+  captcha: { label: 'Human verification required', variant: 'warning' },
+  failed: { label: 'Failed', variant: 'destructive' },
 }
 
 /** 毫秒时间戳 → 本地可读时间；缺失 / 非法给 `—` */

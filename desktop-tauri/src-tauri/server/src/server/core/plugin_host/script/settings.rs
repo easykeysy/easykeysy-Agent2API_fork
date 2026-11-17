@@ -13,7 +13,7 @@ pub async fn configure(payload: Value) -> Result<Value, String> {
     let next = after.packages.iter_mut().find(|package| package.id == id).ok_or("脚本插件不存在")?;
     if let Some(options) = payload.get("options") {
         if !options.is_object() || serde_json::to_vec(options).map_err(|_| "插件参数无法编码")?.len() > 256 * 1024 {
-            return Err("插件参数必须是不超过 256 KiB 的 JSON 对象".into());
+            return Err("插件参数必须是不超过 256 KiB — see the JSON 对象".into());
         }
         next.options = options.clone();
     }

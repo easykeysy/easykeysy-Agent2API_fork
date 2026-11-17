@@ -32,17 +32,17 @@ export function RequestDebugSwitch() {
   return (
     <div className='ml-auto flex min-h-[30px] flex-wrap items-center justify-end gap-2'>
       <label className='inline-flex items-center gap-2 whitespace-nowrap text-[12px] text-subtle' title={NOTES.debug}>
-        <span>{t('调试模式')}</span>
+        <span>{t('Debug mode')}</span>
         <Switch checked={debug.on} disabled={loading || debug.status !== 'ready' || busy !== null}
-          aria-label={t('调试模式')} aria-busy={loading || saving}
+          aria-label={t('Debug mode')} aria-busy={loading || saving}
           onCheckedChange={next => void saveDebug(next)} />
       </label>
       {loading || saving ? <Spinner className='size-3.5 text-muted-foreground'
-        aria-label={loading ? t('正在读取…') : t('保存中…')} /> : null}
+        aria-label={loading ? t('Loading…') : t('Saving…')} /> : null}
       {unavailable ? <>
         <span className='text-[11.5px] text-destructive' role='status'
-          title={t('未能读取调试模式设置，请稍后重试')}>{t('读取失败')}</span>
-        <Button variant='ghost' size='xs' disabled={busy !== null} onClick={() => void refresh()}>{t('重试')}</Button>
+          title={t('Could not read the debug mode settings. Please try again later.')}>{t('Read failed')}</span>
+        <Button variant='ghost' size='xs' disabled={busy !== null} onClick={() => void refresh()}>{t('Retry')}</Button>
       </> : null}
     </div>
   )
@@ -60,10 +60,10 @@ function jsonText(value: unknown): string {
 }
 
 const DEBUG_SEGS = [
-  { label: t('请求头'), pick: (data: DebugTraffic) => jsonText(data.requestHeaders) },
-  { label: t('请求体'), pick: (data: DebugTraffic) => jsonText(data.requestBody) },
-  { label: t('响应头'), pick: (data: DebugTraffic) => jsonText(data.responseHeaders) },
-  { label: t('响应体'), pick: (data: DebugTraffic) => data.responseBody ? String(data.responseBody) : '' },
+  { label: t('Request headers'), pick: (data: DebugTraffic) => jsonText(data.requestHeaders) },
+  { label: t('Request body'), pick: (data: DebugTraffic) => jsonText(data.requestBody) },
+  { label: t('Response headers'), pick: (data: DebugTraffic) => jsonText(data.responseHeaders) },
+  { label: t('Response body'), pick: (data: DebugTraffic) => data.responseBody ? String(data.responseBody) : '' },
 ]
 
 export function hasDebugTraffic(data: DebugTraffic): boolean {
@@ -81,17 +81,17 @@ export function RequestEmpty({ text, loading = false }: { text: string; loading?
 }
 
 export function PreviewPane({ state }: { state: RawState }) {
-  if (!state) return <RequestEmpty text={t('正在读取…')} loading />
+  if (!state) return <RequestEmpty text={t('Loading…')} loading />
   const body = state === 'gone' ? null : state.body
   const bridge = window as unknown as {
     wbConversationPreview?: { render?: (request: unknown, response: unknown) => string }
   }
   const html = body ? bridge.wbConversationPreview?.render?.(body.requestBody, body.responseBody) || '' : ''
-  if (!html) return <RequestEmpty text={t('无报文原文（未开启「调试模式」，或已被清理）')} />
+  if (!html) return <RequestEmpty text={t('No raw payload (debug mode was off, or it has been cleared)')} />
   return (
     <div>
       {state !== 'gone' && state.truncated && (
-        <div className='mb-2 text-[11.5px] text-warning'>{t('旧版本保存的正文可能已截断，无法恢复缺失内容')}</div>
+        <div className='mb-2 text-[11.5px] text-warning'>{t('The body saved by an older version may be truncated; missing content cannot be recovered')}</div>
       )}
       <HtmlContent html={html} />
     </div>
@@ -102,8 +102,8 @@ export function RawPane({ data }: { data: DebugTraffic }) {
   const status = data.status === null || data.status === undefined ? '-' : String(data.status)
   const meta = [
     data.url ? `URL: ${data.url}` : '',
-    data.provider ? t('提供商: {provider}', { provider: String(data.provider) }) : '',
-    t('上游状态码: {status}', { status }),
+    data.provider ? t('Provider: {provider}', { provider: String(data.provider) }) : '',
+    t('Upstream status code: {status}', { status }),
   ].filter(Boolean)
   return (
     <div className='flex flex-col gap-4'>
@@ -118,14 +118,14 @@ export function RawPane({ data }: { data: DebugTraffic }) {
           <div key={seg.label} className='flex min-w-0 flex-col gap-1.5'>
             <div className='flex items-center gap-2'>
               <h3 className='text-[11.5px] font-semibold tracking-[.02em] text-muted-foreground'>{seg.label}</h3>
-              {text && <Button variant='outline' size='xs' className='ml-auto' data-copy={text}>{t('复制')}</Button>}
+              {text && <Button variant='outline' size='xs' className='ml-auto' data-copy={text}>{t('Copy')}</Button>}
             </div>
             {text ? (
               <pre tabIndex={0} aria-label={seg.label}
                 className='m-0 max-h-80 overflow-auto rounded-md border border-border bg-surface-2 p-[10px_12px] font-mono text-[11.5px] leading-[1.6] whitespace-pre-wrap text-subtle [overflow-wrap:anywhere]'>
                 {text}
               </pre>
-            ) : <RequestEmpty text={t('这条请求没有保存这一段报文')} />}
+            ) : <RequestEmpty text={t('This request did not save this payload section')} />}
           </div>
         )
       })}

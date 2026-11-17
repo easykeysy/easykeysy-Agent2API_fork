@@ -349,9 +349,9 @@ pub fn normalize_rules(
         let threshold = fields
             .get("threshold")
             .and_then(Value::as_f64)
-            .ok_or_else(|| "限制阈值必须是大于 0 的数字".to_string())?;
+            .ok_or_else(|| "The limit threshold must be a number greater than 0".to_string())?;
         if !threshold.is_finite() || threshold <= 0.0 {
-            return Err("限制阈值必须是大于 0 的数字".to_string());
+            return Err("The limit threshold must be a number greater than 0".to_string());
         }
         // reset 缺省 = fixed（前端旧草稿不带这个键也能存）；只认两值，不猜
         let reset = match fields.get("reset").and_then(Value::as_str) {
@@ -365,7 +365,7 @@ pub fn normalize_rules(
             })?;
             if !(MIN_TOKEN_PERIOD_SECONDS..=MAX_TOKEN_PERIOD_SECONDS).contains(&period) {
                 return Err(format!(
-                    "Token 重置周期必须是 {} ~ {} 秒（30 分钟 ~ 24 小时）",
+                    "Token 重置周期必须是 {} ~ {} 秒（30 minutes ~ 24 小时）",
                     MIN_TOKEN_PERIOD_SECONDS, MAX_TOKEN_PERIOD_SECONDS
                 ));
             }
@@ -514,11 +514,11 @@ pub fn token_disable_hit(
 /// 与前端的 `formatIntervalSeconds` 同一口径。
 pub fn describe_period(seconds: i64) -> String {
     if seconds > 0 && seconds % 3600 == 0 {
-        format!("{} 小时", seconds / 3600)
+        format!("{} hours", seconds / 3600)
     } else if seconds > 0 && seconds % 60 == 0 {
-        format!("{} 分钟", seconds / 60)
+        format!("{} minutes", seconds / 60)
     } else {
-        format!("{seconds} 秒")
+        format!("{seconds} seconds")
     }
 }
 
@@ -526,17 +526,17 @@ pub fn describe_period(seconds: i64) -> String {
 /// （`100.0` → `100`），与余额列的数字口径一致。
 pub fn describe_rule(rule: &LimiterRule) -> String {
     let action = match rule.action {
-        LimiterAction::Skip => "跳过",
-        LimiterAction::Disable => "禁用",
+        LimiterAction::Skip => "Skipped",
+        LimiterAction::Disable => "Disable",
     };
     match rule.kind {
-        LimiterKind::Balance => format!("余额 < {} 时{action}", rule.threshold),
+        LimiterKind::Balance => format!("Balance < {} 时{action}", rule.threshold),
         // 自然日不带周期：「每日」本身就是窗口说明
         LimiterKind::Token if rule.reset == LimiterReset::Daily => {
-            format!("每日消耗 ≥ {} Token 时{action}", rule.threshold)
+            format!("Daily usage ≥ {} tokens{action}", rule.threshold)
         }
         LimiterKind::Token => format!(
-            "每{}消耗 ≥ {} Token 时{action}",
+            "Every{}消耗 ≥ {} tokens{action}",
             describe_period(rule.period),
             rule.threshold
         ),
@@ -546,7 +546,7 @@ pub fn describe_rule(rule: &LimiterRule) -> String {
 /// 规则列表 → 变更提示的一句话。
 pub fn describe_rules(rules: &[LimiterRule]) -> String {
     if rules.is_empty() {
-        return "限制器 → 无规则（不限制）".to_string();
+        return "Limiter → 无规则（不限制）".to_string();
     }
     let (enabled, disabled): (Vec<&LimiterRule>, Vec<&LimiterRule>) =
         rules.iter().partition(|rule| rule.enabled);
@@ -554,7 +554,7 @@ pub fn describe_rules(rules: &[LimiterRule]) -> String {
     if !disabled.is_empty() {
         parts.push(format!("{} 条已停用", disabled.len()));
     }
-    format!("限制器 → {}", parts.join("；"))
+    format!("Limiter → {}", parts.join("; "))
 }
 
 // ─── Token 周期消耗的内存事实表 ──────────────────────────────

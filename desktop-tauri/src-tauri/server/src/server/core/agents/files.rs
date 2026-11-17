@@ -27,7 +27,7 @@ pub fn read_limited(path: &Path, limit: u64) -> Result<Option<Vec<u8>>, String> 
             }
             fs::read(path)
                 .map(Some)
-                .map_err(|e| format!("读取 {} 失败: {e}", path.display()))
+                .map_err(|e| format!("读取 {} failed: {e}", path.display()))
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             if fs::symlink_metadata(path).is_ok() {
@@ -35,7 +35,7 @@ pub fn read_limited(path: &Path, limit: u64) -> Result<Option<Vec<u8>>, String> 
             }
             Ok(None)
         }
-        Err(e) => Err(format!("读取 {} 失败: {e}", path.display())),
+        Err(e) => Err(format!("读取 {} failed: {e}", path.display())),
     }
 }
 
@@ -125,7 +125,7 @@ pub fn stage(path: &Path, bytes: &[u8]) -> Result<PathBuf, String> {
 }
 
 pub fn replace(temp: &Path, target: &Path) -> Result<(), String> {
-    fs::rename(temp, target).map_err(|e| format!("替换 {} 失败: {e}", target.display()))?;
+    fs::rename(temp, target).map_err(|e| format!("Replace {} failed: {e}", target.display()))?;
     #[cfg(unix)]
     {
         if let Some(parent) = target.parent() {

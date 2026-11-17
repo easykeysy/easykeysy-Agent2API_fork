@@ -50,8 +50,8 @@ export async function fetchAssistantConfig(): Promise<AssistantConfig> {
   const identity = serverIdentity()
   const scope = apiBase()
   const payload = await apiCall<{ config?: AssistantConfig }>('/api/assistant/config')
-  if (serverIdentity() !== identity) throw new DOMException('服务器已切换', 'AbortError')
-  if (!payload.config) throw new Error(t('配置响应不完整'))
+  if (serverIdentity() !== identity) throw new DOMException('The server has switched', 'AbortError')
+  if (!payload.config) throw new Error(t('Incomplete config response'))
   const apiKeyId = typeof payload.config.apiKeyId === 'string' && payload.config.apiKeyId.trim() ? payload.config.apiKeyId.trim()
     : readModelApiKeySelection(scope, 'assistant')
   if (apiKeyId) rememberModelApiKeySelection(scope, 'assistant', apiKeyId)
@@ -87,7 +87,7 @@ export async function streamAssistantChat(options: {
   const identity = serverIdentity()
   const target = resolveUrl('/api/assistant/chat')
   const send = async (): Promise<Response> => {
-    if (serverIdentity() !== identity) throw new DOMException('服务器已切换', 'AbortError')
+    if (serverIdentity() !== identity) throw new DOMException('The server has switched', 'AbortError')
     return fetch(target, {
       method: 'POST',
       headers: { ...authHeaders(), 'x-api-key': options.apiKey, Authorization: `Bearer ${options.apiKey}`, 'Content-Type': 'application/json', Accept: 'text/event-stream' },
@@ -115,7 +115,7 @@ export async function streamAssistantChat(options: {
       /* 非 JSON 错误体：原样用文本 */
     }
     if (response.status === 404 && message === 'Not found: POST /api/assistant/chat') {
-      throw new ApiError(t('这一版网关还没有 AI 助手接口（HTTP 404），请升级网关后重试。'), 404)
+      throw new ApiError(t('This gateway version does not have the AI assistant API (HTTP 404). Upgrade the gateway and try again.'), 404)
     }
     throw new ApiError(message || `HTTP ${response.status}`, response.status)
   }
@@ -123,7 +123,7 @@ export async function streamAssistantChat(options: {
   await readAssistantStream(response, {
     onEvent: options.onEvent,
     signal: options.signal,
-    incompleteMessage: t('模型响应未完整结束，请重试；未执行其中的工具调用。'),
+    incompleteMessage: t('The model response did not finish completely. Please retry; none of its tool calls were executed.'),
   })
 }
 
@@ -191,7 +191,7 @@ export async function saveAssistantConfig(config: AssistantConfig): Promise<Assi
   const scope = apiBase()
   rememberModelApiKeySelection(scope, 'assistant', config.apiKeyId)
   const data = await apiCall<{ config: AssistantConfig }>('/api/assistant/config', { method: 'PUT', body: { config } })
-  if (serverIdentity() !== identity) throw new DOMException('服务器已切换', 'AbortError')
+  if (serverIdentity() !== identity) throw new DOMException('The server has switched', 'AbortError')
   rememberModelApiKeySelection(scope, 'assistant', data.config.apiKeyId)
   return data.config
 }

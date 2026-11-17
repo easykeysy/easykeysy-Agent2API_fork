@@ -57,12 +57,12 @@ export function localeOptions(): readonly LocaleOption[] {
   const api = typeof window !== 'undefined' ? window.wbI18n : undefined
   if (api && Array.isArray(api.LOCALES)) return api.LOCALES
   return [
-    { code: 'zh-Hans', label: '简体中文', nameKey: '简体中文' },
-    { code: 'zh-Hant', label: '繁體中文', nameKey: '繁体中文' },
-    { code: 'en', label: 'English', nameKey: '英语' },
-    { code: 'ja', label: '日本語', nameKey: '日语' },
-    { code: 'ko', label: '한국어', nameKey: '韩语' },
-    { code: 'pt-BR', label: 'Português (BR)', nameKey: '葡萄牙语（巴西）' },
+    { code: 'zh-Hans', label: 'Simplified Chinese', nameKey: 'Simplified Chinese' },
+    { code: 'zh-Hant', label: 'Traditional Chinese', nameKey: 'Traditional Chinese' },
+    { code: 'en', label: 'English', nameKey: 'English' },
+    { code: 'ja', label: 'Japanese', nameKey: 'Japanese' },
+    { code: 'ko', label: 'Korean', nameKey: 'Korean' },
+    { code: 'pt-BR', label: 'Português (BR)', nameKey: 'Portuguese (Brazil)' },
   ]
 }
 

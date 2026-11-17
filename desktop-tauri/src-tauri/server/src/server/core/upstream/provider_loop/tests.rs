@@ -47,30 +47,30 @@ async fn mock_upstream(
 // ── ZCode 的响应判定与错误分类（测试随实现搬到插件）────────────────────────
 //
 // 这里原有五条用例钉的是 ZCode 适配器的两件事：
-//   · `is_error_response`：HTTP 200 + `application/json` 是**业务拒绝**而不是
+//   · `is_error_response`: HTTP 200 + `application/json` Yes**业务拒绝**而不是
 //     SSE 正文（`1005 exceed quota limit` 走 200 回来），网关必须先读错误体；
-//   · `classify_error`：401 → TokenExpired、429 / 业务码 1005 → QuotaLimited。
+//   · `classify_error`: 401 → TokenExpired, 429 / 业务码 1005 → QuotaLimited.
 //
 // 这两条判据都跟着 ZCode 的实现搬到 `agent2api-providers` 了，因此用例也一起
 // 搬走 —— 留在网关只会编译不过（`ZCODE_ADAPTER` 已不存在）。插件侧的同名用例
-// 在 `zcode::mod` 的 `classify` 附近。
+// On `zcode::mod` — see the `classify` 附近。
 //
-// 顺带说明**为什么这段注释留着**：`provider_loop` 的「HTTP 200 也可能是错误」
+// 顺带说明**为什么这段注释留着**: `provider_loop` 的「HTTP 200 也可能是错误」
 // 与「401/429 各自的动作」这两条**编排层**语义没有变，下面几条用例
 // （会话式路径的限额记账）仍在验证它们。
 
-// ── 会话式路径的限额记账（`mark_conversation_limited`）──────────────────────
+// ── 会话式路径的限额记账（`mark_conversation_limited`)──────────────────────
 //
-// 这四条钉的是同一处缺陷：改造前该分支内联调用 `rotate::mark_account_limited`，
+// 这四条钉的是同一处缺陷：改造前该分支内联调用 `rotate::mark_account_limited`, 
 // `reset_at` 实参写死 `None` ⇒ 适配器算好的恢复时刻被丢在函数参数上，存储层落到
 // 「缺失即 10 分钟」的兜底冷却（`account_store::store_admin::mark_rate_limited`）。
-// 症状不是报错，而是**同一个已耗尽的账号按兜底常量的节拍被反复重新撞**：CodeArts
+// 症状不是报错，而是**同一个已耗尽的账号按兜底常量的节拍被反复重新撞**: CodeArts
 // 的福利日池要到第二天零点才有额度，生产实测两小时内白撞 8 次（每次 0.2–0.3 秒、
 // 被拒不计费、整条请求仍 200 —— 只看响应看不出来）。
 //
-// 因此在改前的代码上第 1、4 条必红；第 2、3 条是「修复没有过头」的对照组。
+// 因此在改前的代码上第 1, 4 条必红；第 2, 3 条是「修复没有过头」的对照组。
 
-/// 一份临时库 + 挂在其上的 [`UpstreamService`] + 里面唯一那条账号的 id。
+/// 一份临时库 + 挂在其上的 [`UpstreamService`] + 里面唯一那条账号的 id.
 ///
 /// 不发任何网络请求：记账与读回都只碰存储层，与转发选路用的是同一份读写口径。
 fn temp_service() -> (tempfile::TempDir, UpstreamService, String) {
@@ -116,11 +116,11 @@ fn stateful_quota_bookkeeping_keeps_the_adapter_reset_at() {
     mark_conversation_limited(&service, &id, &group, &class, "上游返回 403: insufficient quota");
     for name in &group {
         let stored = rotate::account_limit_reset_at(&service, &id, name);
-        assert_eq!(stored, reset_at, "{name} 的 resetAt 应当是适配器给的恢复时刻");
+        assert_eq!(stored, reset_at, "{name} — see the resetAt 应当是适配器给的恢复时刻");
         let minutes = (stored - now) / 60_000;
         assert!(
             (stored - (now + 10 * 60 * 1000)).abs() > 60_000,
-            "{name} 落到了 10 分钟兜底冷却：{minutes} 分钟"
+            "{name} 落到了 10 分钟兜底冷却：{minutes} minutes"
         );
     }
     // 同一份分类里的另两个字段也照原样落地（写死 None 的那版同样丢掉过它们吗 ——
@@ -137,7 +137,7 @@ fn stateful_quota_bookkeeping_keeps_the_adapter_reset_at() {
 fn stateful_quota_bookkeeping_falls_back_when_adapter_gives_no_reset_at() {
     let (_dir, service, id) = temp_service();
     let now = logging::now_ms();
-    // 429 是分钟级限流，CodeArts 的 classify 那边就给 None（给它零点会把一个只是
+    // 429 是分钟级限流，CodeArts — see the classify 那边就给 None（给它零点会把一个只是
     // 暂时繁忙的账号打死一整天）—— 兜底冷却是它应得的行为，修复不许把它抹掉。
     // 文案取无日期形态：解析兜底（`parse_quota_reset_at`）也救不出时刻。
     let message = "上游返回 429: too many requests";
@@ -152,7 +152,7 @@ fn stateful_quota_bookkeeping_falls_back_when_adapter_gives_no_reset_at() {
     let seconds = (stored - now) / 1000;
     assert!(
         stored > now + 9 * 60 * 1000 && stored <= now + 11 * 60 * 1000,
-        "无恢复时刻时应落 10 分钟兜底，实际 {seconds} 秒"
+        "无恢复时刻时应落 10 分钟兜底，实际 {seconds} seconds"
     );
 }
 
@@ -225,12 +225,12 @@ fn that_one_argument_is_the_divider_between_a_day_and_ten_minutes() {
     let before_minutes = (before - now) / 60_000;
     assert!(
         before_minutes >= 9 && before_minutes <= 11,
-        "改前落的是存储层兜底冷却（10 分钟），实际 {before_minutes} 分钟"
+        "改前落的是存储层兜底冷却（10 分钟），实际 {before_minutes} minutes"
     );
     // 分水岭本身：同一份分类结果，两种写法差出 2 小时以上 —— 白撞节拍就是从这里来的
     assert!(
         after - before > 2 * 60 * 60 * 1000,
-        "透传与写死 None 的差距应当是「一整天 vs 10 分钟」量级，实际差 {} 分钟",
+        "透传与写死 None 的差距应当是「一整天 vs 10 分钟」量级，实际差 {} minutes",
         (after - before) / 60_000
     );
 }
@@ -240,13 +240,13 @@ const APIG_TOO_LARGE_BODY: &str = r#"{"error_msg":"Request entity too large","er
 fn fatal(status: u16) -> UpstreamErrorClass {
     UpstreamErrorClass::Fatal {
         status,
-        message: format!("上游返回 {status}"),
+        message: format!("Upstream returned {status}"),
         upstream_code: None,
     }
 }
 
 /// 413 说的是「这份字节太大」，重发一遍没有任何会变的量 ⇒ 不消耗原地重发预算。
-/// 改造前它落到兜底那一档，三次 ×5 秒间隔 + 每次约 13 秒往返 = 客户端的 60 秒
+/// 改造前它落到兜底那一档，三次 ×5 秒间隔 + 每次约 13 秒往返 = 客户端的 60 seconds
 /// 等待墙先到，面板只剩「408 客户端在响应完成前断开」，真因（413）埋在明细里。
 #[test]
 fn a_payload_size_rejection_gets_no_in_place_retry() {
@@ -312,15 +312,15 @@ async fn a_real_413_response_is_sent_once_and_handed_back() {
     );
     assert!(
         matches!(failure.class, UpstreamErrorClass::Fatal { status: 413, .. }),
-        "状态码 413 要原样带回，不该被折成别的失败"
+        "Status code 413 要原样带回，不该被折成别的失败"
     );
 }
 
 #[test]
 fn a_deterministic_404_skips_the_in_place_resend() {
     // issue #255 的形状：OfficeAce 对目录里有、套餐里没有的名字回
-    // `404 {"code":null,"message":"Invalid model."}`，旧判据把它当普通 Fatal，
-    // 原地重发 3 次 × 5 秒才换号——客户端白等 15 秒，换来的还是同一个 404。
+    // `404 {"code":null,"message":"Invalid model."}`，旧判据把它当普通 Fatal, 
+    // 原地重发 3 times × 5 秒才换号——客户端白等 15 秒，换来的还是同一个 404.
     let not_found = UpstreamErrorClass::Fatal {
         status: 404,
         upstream_code: None,

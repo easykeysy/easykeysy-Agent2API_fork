@@ -116,7 +116,7 @@ impl ChatFromChatglmStream {
                 Err(error) => {
                     crate::server::logging::verbose(
                         "[ChatGLM]",
-                        &format!("上游 SSE 载荷不是合法 JSON（已忽略）：{error}"),
+                        &format!("Upstream SSE 载荷不是合法 JSON（已忽略）：{error}"),
                     );
                 }
             }
@@ -613,7 +613,7 @@ mod tests {
     #[test]
     fn finish_snapshot_only_emits_the_missing_tail() {
         let mut machine = ChatFromChatglmStream::new("m");
-        for text in ["前", "半"] {
+        for text in ["before", "半"] {
             machine.push(&sse(&format!(
                 r#"{{"status":"init","parts":[{{"logic_id":"s","status":"init","content":[{{"type":"text","text":"{text}"}}]}}]}}"#
             )));

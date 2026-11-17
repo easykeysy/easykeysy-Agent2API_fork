@@ -3,13 +3,13 @@ import type { AgentClient, AgentModel, AgentOperation, AgentProfile } from './ag
 import { modelLevels } from './agent-model-config'
 
 export function protocolLabel(value: string): string {
-  return { anthropic: 'Anthropic Messages', responses: 'OpenAI Responses', openai_chat: 'OpenAI Chat Completions', gemini: 'Gemini API', native: t('客户端原生配置') }[value] || value
+  return { anthropic: 'Anthropic Messages', responses: 'OpenAI Responses', openai_chat: 'OpenAI Chat Completions', gemini: 'Gemini API', native: t('Native client configuration') }[value] || value
 }
 export function kindLabel(value: string): string {
-  return { gateway: t('本网关'), official: t('官方直连'), relay: t('第三方中转'), local: t('本机服务') }[value] || value
+  return { gateway: t('This gateway'), official: t('Official direct'), relay: t('Third-party relay'), local: t('Local service') }[value] || value
 }
 export function detectionLabel(client: AgentClient): string {
-  return { missing: t('未检测到'), uninitialized: t('尚未初始化'), read_error: t('读取失败'), unsupported: t('仅可读取'), ready: t('配置可读写') }[client.detectionState]
+  return { missing: t('Not detected'), uninitialized: t('Not initialized'), read_error: t('Read failed'), unsupported: t('Read-only'), ready: t('Configuration readable and writable') }[client.detectionState]
 }
 export function defaultOperation(client: AgentClient): AgentOperation { return client.configMode === 'single' ? 'default' : 'apply' }
 export function blankModel(): AgentModel { return { id: '', name: '', reasoningLevels: [], effort: '' } }
@@ -38,29 +38,29 @@ export function syncClaudeTiers(tiers: AgentProfile['claudeModels'], previous: s
 }
 
 export function validateDraft(client: AgentClient, profile: AgentProfile): string {
-  if (!profile.name.trim()) return t('请填写配置名称')
-  if (!client.protocols.includes(profile.protocol)) return t('这个客户端不支持所选协议')
+  if (!profile.name.trim()) return t('Enter a configuration name')
+  if (!client.protocols.includes(profile.protocol)) return t('This client does not support the selected protocol')
   const inherited = !profile.baseUrl && profile.authMode === 'preserve' && Boolean(profile.sourceId)
   if (!inherited) {
-    try { const url = new URL(profile.baseUrl); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash) return t('请填写有效的 http 或 https 地址') }
-    catch { return t('请填写有效的 http 或 https 地址') }
+    try { const url = new URL(profile.baseUrl); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash) return t('Enter a valid HTTP or HTTPS URL') }
+    catch { return t('Enter a valid HTTP or HTTPS URL') }
   }
-  if (profile.authMode === 'key' && !profile.apiKey && !profile.hasApiKey) return t('请填写 API Key')
-  if (profile.authMode === 'env' && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(profile.envKey)) return t('请填写有效的环境变量名')
+  if (profile.authMode === 'key' && !profile.apiKey && !profile.hasApiKey) return t('Enter an API key')
+  if (profile.authMode === 'env' && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(profile.envKey)) return t('Enter a valid environment variable name')
   if (client.supportsModels && !(['codex', 'claude-code'].includes(client.id) && inherited && !profile.models.length)) {
-    if (!profile.models.length) return t('请至少添加一个模型')
-    if (profile.models.length > 200) return t('最多选择 {n} 个模型', { n: 200 })
+    if (!profile.models.length) return t('Add at least one model')
+    if (profile.models.length > 200) return t('Select up to {n} models', { n: 200 })
     const ids = new Set<string>()
     for (const model of profile.models) {
-      if (!model.id.trim() || ids.has(model.id.trim())) return t('模型 ID 不能为空或重复')
+      if (!model.id.trim() || ids.has(model.id.trim())) return t('Model IDs cannot be empty or duplicated')
       ids.add(model.id.trim())
-      if (model.effort && model.effort !== 'default' && !modelLevels(client, model.reasoningLevels, profile.protocol).includes(model.effort)) return t('模型或客户端不支持所选思考等级')
-      if (['zed', 'kimi-code', 'crush'].includes(client.id) && !model.contextWindow) return t('这个客户端需要填写模型上下文窗口')
-      if (client.id === 'crush' && (model.maxOutputTokens == null || model.supportsImages == null || model.supportsReasoning == null)) return t('Crush 需要明确填写输出上限、图片与思考能力')
-      if ([model.contextWindow, model.maxOutputTokens].some(value => value != null && (!Number.isInteger(value) || value < 1 || value > 100_000_000))) return t('Token 上限必须是 1 到 1 亿之间的整数')
+      if (model.effort && model.effort !== 'default' && !modelLevels(client, model.reasoningLevels, profile.protocol).includes(model.effort)) return t('The model or client does not support the selected reasoning level')
+      if (['zed', 'kimi-code', 'crush'].includes(client.id) && !model.contextWindow) return t('This client requires the model\'s context window')
+      if (client.id === 'crush' && (model.maxOutputTokens == null || model.supportsImages == null || model.supportsReasoning == null)) return t('Crush requires explicit output limits, image support, and reasoning support')
+      if ([model.contextWindow, model.maxOutputTokens].some(value => value != null && (!Number.isInteger(value) || value < 1 || value > 100_000_000))) return t('Token limits must be integers between 1 and 100 million')
     }
-    if (client.supportsDefault && !profile.models.some(model => model.id === profile.model)) return t('默认模型必须来自模型列表')
-  } else if (client.supportsDefault && !profile.model && !inherited) return t('请填写模型 ID')
+    if (client.supportsDefault && !profile.models.some(model => model.id === profile.model)) return t('The default model must be in the model list')
+  } else if (client.supportsDefault && !profile.model && !inherited) return t('Enter a model ID')
   return ''
 }
 

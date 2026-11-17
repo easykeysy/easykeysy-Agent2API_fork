@@ -61,15 +61,15 @@ export function DanglingMappings() {
     const key = bindingKeyOf(alias, target, item.provider || '')
     if (confirming.current || getSnapshot().pending.has(REMOVE_ALL_KEY) || getSnapshot().pending.has(key)) return
     const ok = await shared().wbConfirm?.ask?.({
-      title: t('删除未挂载的映射'),
-      html: t('确定删除映射「<strong>{alias} → {target}</strong>」？它指向的上游模型已不在清单里。', {
+      title: t('Delete unattached mapping'),
+      html: t('Delete the mapping “<strong>{alias} → {target}</strong>”? The upstream model it points to is no longer in the catalog.', {
         alias: esc(alias), target: esc(target),
       }),
-      okText: t('删除'),
+      okText: t('Delete'),
       okClass: 'danger',
     })
     if (!ok || confirming.current || getSnapshot().pending.has(REMOVE_ALL_KEY)) return
-    void runRowAction(key, () => writeRemoveMapping(item.provider || '', alias, target), t('映射已删除'))
+    void runRowAction(key, () => writeRemoveMapping(item.provider || '', alias, target), t('Mapping deleted'))
   }
 
   async function removeAll(): Promise<void> {
@@ -81,9 +81,9 @@ export function DanglingMappings() {
     setConfirmingAll(true)
     try {
       const ok = await shared().wbConfirm?.ask?.({
-        title: t('删除全部未挂载映射'),
-        html: t('确定删除此区域列出的全部 {n} 条未挂载映射？此操作不可撤销，不会删除正常挂载的映射或模型。', { n: selected.length }),
-        okText: t('全部删除'),
+        title: t('Delete all unattached mappings'),
+        html: t('Delete all {n} unattached mappings listed in this section? This cannot be undone. Attached mappings and models will not be deleted.', { n: selected.length }),
+        okText: t('Delete all'),
         okClass: 'danger',
       })
       if (!ok || getSnapshot().pending.size) return
@@ -101,8 +101,8 @@ export function DanglingMappings() {
           }
         }
         toast(failed
-          ? t('未挂载映射：已删除 {removed} 条，失败 {failed} 条。首个失败：{error}', { removed, failed, error: firstError })
-          : t('已删除 {n} 条未挂载映射', { n: removed }), failed ? 'err' : 'ok')
+          ? t('Unattached mappings: {removed} deleted, {failed} failed. First error: {error}', { removed, failed, error: firstError })
+          : t('Deleted {n} unattached mappings', { n: removed }), failed ? 'err' : 'ok')
       })
     } finally {
       confirming.current = false
@@ -111,17 +111,17 @@ export function DanglingMappings() {
   }
 
   return (
-    <section className='models-dangling' aria-label={t('未挂载的模型映射')}>
+    <section className='models-dangling' aria-label={t('Unattached model mappings')}>
       <div className='dg-head'>
-        <span className='dg-title'>{t('未挂载的模型映射')}</span>
+        <span className='dg-title'>{t('Unattached model mappings')}</span>
         <Badge variant='warning' shape='tag'>{items.length}</Badge>
         <Button variant='ghost' size='sm' className='ml-auto shrink-0 text-destructive'
           disabled={confirmingAll || state.pending.size > 0}
-          title={t('删除全部未挂载映射')}
-          onClick={() => void removeAll()}>{removingAll ? t('删除中…') : t('全部删除')}</Button>
+          title={t('Delete all unattached mappings')}
+          onClick={() => void removeAll()}>{removingAll ? t('Deleting…') : t('Delete all')}</Button>
       </div>
       <p className='dg-hint'>
-        {t('这些映射指向的上游模型已不在当前清单里，挂不到任何模型行上：它们不会出现在 /v1/models，用对应别名发请求也会失败。删除后该对外名即可重新使用。')}
+        {t('The upstream models these mappings point to are no longer in the current catalog, so they cannot be attached to any model row: they will not appear in /v1/models, and requests sent with the corresponding alias will fail. Delete one to free up its public name.')}
       </p>
       <ul className='dg-list'>
         {items.map(item => {
@@ -136,28 +136,28 @@ export function DanglingMappings() {
           return (
             <li className='dg-item' key={`${providerId}\u0001${alias}\u0001${target}`}>
               <span className='dg-prov'>
-                {providerId ? providerLabelOf(providerId) : t('全部提供商')}
+                {providerId ? providerLabelOf(providerId) : t('All providers')}
               </span>
               <span className='dg-map'>
-                <code data-copy={alias} title={t('点击复制：{name}', { name: alias })}>{alias}</code>
+                <code data-copy={alias} title={t('Click to copy: {name}', { name: alias })}>{alias}</code>
                 {isDefault ? null : (
                   <>
                     <span className='dg-arrow' aria-hidden='true'> → </span>
-                    <code data-copy={target} title={t('点击复制：{name}', { name: target })}>{target}</code>
+                    <code data-copy={target} title={t('Click to copy: {name}', { name: target })}>{target}</code>
                   </>
                 )}
               </span>
-              {isDefault ? <span className='dg-tag'>{t('默认绑定')}</span> : null}
+              {isDefault ? <span className='dg-tag'>{t('Default binding')}</span> : null}
               {/* 目标是「上游下线」还是「承载它的家当前不在清单里」，指向的改法不同，
                   所以把这两种情形分在 title 里说清（见后端 manage_view 的 carried） */}
               {item.carried === false ? (
-                <span className='dg-state' title={t('上游已经不再提供这个模型（可能已下线或改了 ID）')}>{t('目标已下线')}</span>
+                <span className='dg-state' title={t('The upstream no longer offers this model (it may have been retired or renamed).')}>{t('Target retired')}</span>
               ) : (
-                <span className='dg-state' title={t('这个模型仍在承载它的提供商清单里，但那一家的模型行当前没有出现（例如该家没有可用账号）')}>{t('未接入')}</span>
+                <span className='dg-state' title={t('This model is still in the catalog of the provider that carries it, but that provider has no model row right now (for example, it has no usable account).')}>{t('Not connected')}</span>
               )}
               <Button variant='ghost' size='sm' className='text-destructive' disabled={busy}
-                title={t('删除这条映射')}
-                onClick={() => void remove(item)}>{t('删除')}</Button>
+                title={t('Delete this mapping')}
+                onClick={() => void remove(item)}>{t('Delete')}</Button>
             </li>
           )
         })}

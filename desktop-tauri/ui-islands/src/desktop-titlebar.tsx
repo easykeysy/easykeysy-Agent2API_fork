@@ -37,16 +37,16 @@ function TitleBar({ api }: { api: WindowBridge }) {
     return typeof dispose === 'function' ? dispose as () => void : undefined
   }, [api, sync])
   const isMac = api.platform === 'macos'
-  const title = branding.displayName === 'Agent2API' ? api.title || t('Agent2API · 多提供商本地网关')
+  const title = branding.displayName === 'Agent2API' ? api.title || t('Agent2API · Multi-provider local gateway')
     : `${api.title?.startsWith('[Dev]') ? '[Dev] ' : ''}${branding.displayName}`
   return <WindowTitleBar className={isMac ? 'titlebar is-macos pl-[84px] pr-3.5' : 'titlebar'}>
     <div className='titlebar-brand pointer-events-none flex min-w-0 items-center gap-2 text-[12.5px] font-semibold [&_*]:pointer-events-none'>
       <BrandLogo branding={branding} size={16} /><span className='txt truncate'>{title}</span>
     </div>
     {!isMac && <div className='ml-auto flex h-full shrink-0'>
-      <WindowControl action='minimize' title={t('最小化')} aria-label={t('最小化')} onClick={() => { void api.windowMinimize?.().catch(() => {}) }}><WindowIcon action='minimize' /></WindowControl>
-      <WindowControl action='maximize' title={maximized ? t('还原') : t('最大化')} aria-label={maximized ? t('还原') : t('最大化')} onClick={async () => { try { await api.windowToggleMaximize?.(); await sync() } catch (error) { console.warn('切换窗口大小失败:', error) } }}><WindowIcon action='maximize' maximized={maximized} /></WindowControl>
-      <WindowControl action='close' title={t('关闭')} aria-label={t('关闭')} onClick={() => { void api.windowClose?.().catch(() => {}) }}><WindowIcon action='close' /></WindowControl>
+      <WindowControl action='minimize' title={t('Minimize')} aria-label={t('Minimize')} onClick={() => { void api.windowMinimize?.().catch(() => {}) }}><WindowIcon action='minimize' /></WindowControl>
+      <WindowControl action='maximize' title={maximized ? t('Revert') : t('Maximize')} aria-label={maximized ? t('Revert') : t('Maximize')} onClick={async () => { try { await api.windowToggleMaximize?.(); await sync() } catch (error) { console.warn('Failed to switch the window size:', error) } }}><WindowIcon action='maximize' maximized={maximized} /></WindowControl>
+      <WindowControl action='close' title={t('Close')} aria-label={t('Close')} onClick={() => { void api.windowClose?.().catch(() => {}) }}><WindowIcon action='close' /></WindowControl>
     </div>}
   </WindowTitleBar>
 }
@@ -57,7 +57,7 @@ function mount() {
   const container = document.createElement('div')
   document.body.prepend(container)
   document.body.classList.add('has-titlebar')
-  document.title = bridge.title || t('Agent2API · 多提供商本地网关')
+  document.title = bridge.title || t('Agent2API · Multi-provider local gateway')
   createRoot(container).render(<TitleBar api={bridge} />)
 }
 

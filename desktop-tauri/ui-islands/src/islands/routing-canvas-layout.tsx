@@ -29,16 +29,16 @@ export function RoutingCanvasLayout({ title, children, groups, note, globalAccou
       <p className='routing-canvas-note'><RouteIcon name='info' size={13} /><span>{note}</span></p>
     </section>
     {groups}
-    <div className='routing-canvas-legend'><span><i />{globalAccounts ? t('连线表示账号组中有已启用账号') : t('连线表示参与本路由')}</span>
-      <span><svg width={22} height={8} aria-hidden='true'><path d='M 0 4 H 22' /></svg>{t('流动：有请求在途')}</span>
-      <span>{globalAccounts ? t('账号启停立即生效；路由配置保存后生效') : t('保存后才会影响真实请求')}</span></div>
+    <div className='routing-canvas-legend'><span><i />{globalAccounts ? t('Lines indicate account groups with enabled accounts') : t('Lines indicate participation in this route')}</span>
+      <span><svg width={22} height={8} aria-hidden='true'><path d='M 0 4 H 22' /></svg>{t('Moving: requests in flight')}</span>
+      <span>{globalAccounts ? t('Account status applies immediately; routing settings apply after saving') : t('Changes affect real requests only after saving')}</span></div>
   </div>
 }
 
 export function RoutingRefreshError({ error, onRetry }: { error: string; onRetry(): void }) {
   return error ? <div className='routing-page-error' role='alert'>
-    <RouteIcon name='info' /><span>{t('实时状态暂未更新，当前显示上次读取的结果：{error}', { error })}</span>
-    <Button variant='ghost' size='sm' onClick={onRetry}>{t('重试')}</Button>
+    <RouteIcon name='info' /><span>{t('Live status could not be refreshed. Showing the last retrieved results: {error}', { error })}</span>
+    <Button variant='ghost' size='sm' onClick={onRetry}>{t('Retry')}</Button>
   </div> : null
 }
 
@@ -47,8 +47,8 @@ export function RoutingDraftFooter({ dirty, inherited, busy, disabled, error, on
 }) {
   return <footer className={cn('routing-config-draft', dirty && 'is-dirty')}>
     {error ? <p className='routing-config-error' role='alert'>{error}</p> : null}
-    <span className='routing-draft-state'>{dirty ? t('有未保存的修改') : inherited ? t('继承全局') : t('已保存')}</span>
-    <div className='right'><Button variant='outline' size='sm' disabled={!dirty || disabled} onClick={onDiscard}>{t('撤销修改')}</Button>
-      <Button size='sm' disabled={!dirty || disabled} onClick={onSave}>{busy ? t('保存中…') : t('保存路由')}</Button></div>
+    <span className='routing-draft-state'>{dirty ? t('There are unsaved changes') : inherited ? t('Inherit global') : t('Saved')}</span>
+    <div className='right'><Button variant='outline' size='sm' disabled={!dirty || disabled} onClick={onDiscard}>{t('Discard changes')}</Button>
+      <Button size='sm' disabled={!dirty || disabled} onClick={onSave}>{busy ? t('Saving…') : t('Save route')}</Button></div>
   </footer>
 }

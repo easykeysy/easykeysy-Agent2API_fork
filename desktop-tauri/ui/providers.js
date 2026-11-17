@@ -128,7 +128,7 @@
   function customRequest(method, path, body) {
     const internals = window.__TAURI_INTERNALS__;
     if (!internals || typeof internals.invoke !== 'function') {
-      return Promise.reject(new Error(wbI18n.t('桌面运行时不可用（Tauri 未初始化）')));
+      return Promise.reject(new Error(wbI18n.t('Desktop runtime unavailable (Tauri not initialized)')));
     }
     return internals.invoke('api_request', {
       request: { method, path, body: body === undefined ? null : body },
@@ -164,7 +164,7 @@
           return customItems;
         })
         .catch(error => {
-          console.warn('读取自定义提供商列表失败:', error.message);
+          console.warn('Failed to read the custom provider list:', error.message);
           return customItems;
         })
         .finally(() => { customInflight = null; });
@@ -231,7 +231,7 @@
       const fetched = await fetchProviders();
       return fetched.length ? fetched : all();
     } catch (error) {
-      console.warn('读取提供商列表失败:', error.message);
+      console.warn('Failed to read the provider list:', error.message);
       return all();
     }
   }

@@ -9,7 +9,7 @@ type Bridge = {
 function bridge(): Bridge {
   const value = (window as unknown as { workbuddyDesktop?: Bridge }).workbuddyDesktop
   if (!value?.getClientIdentification || !value.saveClientIdentification || !value.previewClientIdentification) {
-    throw new Error(t('客户端识别入口尚未就绪，请刷新页面后重试'))
+    throw new Error(t('Client identification is not ready. Refresh the page and try again.'))
   }
   return value
 }

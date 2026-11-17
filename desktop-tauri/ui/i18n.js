@@ -49,12 +49,12 @@
    * zh-Hant 由 opencc 生成。
    */
   const LOCALES = [
-    { code: 'zh-Hans', label: '简体中文', nameKey: '简体中文' },
-    { code: 'zh-Hant', label: '繁體中文', nameKey: '繁体中文' },
-    { code: 'en', label: 'English', nameKey: '英语' },
-    { code: 'ja', label: '日本語', nameKey: '日语' },
-    { code: 'ko', label: '한국어', nameKey: '韩语' },
-    { code: 'pt-BR', label: 'Português (Brasil)', nameKey: '巴西葡萄牙语' },
+    { code: 'zh-Hans', label: 'Simplified Chinese', nameKey: 'Simplified Chinese' },
+    { code: 'zh-Hant', label: 'Traditional Chinese', nameKey: 'Traditional Chinese' },
+    { code: 'en', label: 'English', nameKey: 'English' },
+    { code: 'ja', label: 'Japanese', nameKey: 'Japanese' },
+    { code: 'ko', label: 'Korean', nameKey: 'Korean' },
+    { code: 'pt-BR', label: 'Português (Brasil)', nameKey: 'Brazilian Portuguese' },
   ]
 
   /** 属性族 → 就地替换的目标属性（data-i18n-tip 写回 data-tip，供 tooltip.js 用） */

@@ -1014,7 +1014,7 @@ pub async fn fetch_upstream_models(
     let status = response.status().as_u16();
     let text = response.text().await.unwrap_or_default();
     if !response_ok(status) {
-        return Err(format!("上游返回 {status}: {text}"));
+        return Err(format!("Upstream returned {status}: {text}"));
     }
     let payload: Value = serde_json::from_str(&text)
         .map_err(|error| format!("上游响应不是合法 JSON: {error}"))?;
@@ -1059,7 +1059,7 @@ fn validate_model_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
         }
         if id.chars().count() > MAX_MODEL_ID_CHARS {
             return Err(format!(
-                "模型 id 过长（最多 {MAX_MODEL_ID_CHARS} 个字符）"
+                "Model id 过长（最多 {MAX_MODEL_ID_CHARS} 个字符）"
             ));
         }
         let reasoning = validate_reasoning(object.get("reasoning"))?;
@@ -1079,7 +1079,7 @@ fn validate_model_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
                 .is_some_and(|text| text.eq_ignore_ascii_case(id))
         });
         if duplicated {
-            return Err(format!("模型 ID「{id}」已存在，请勿重复登记"));
+            return Err(format!("Model ID「{id}」已存在，请勿重复登记"));
         }
         let mut entry = json!({
             "id": id,
@@ -1114,13 +1114,13 @@ fn validate_mapping_entries(raw: &[Value]) -> Result<Vec<Value>, String> {
             .map(str::trim)
             .unwrap_or("");
         if alias.is_empty() {
-            return Err(format!("mappings 第 {} 项缺少映射名（alias）", position + 1));
+            return Err(format!("mappings 第 {} 项缺少映射名（alias)", position + 1));
         }
         if alias.chars().count() > MAX_ALIAS_CHARS {
             return Err(format!("映射名过长（最多 {MAX_ALIAS_CHARS} 个字符）"));
         }
         if target.is_empty() {
-            return Err(format!("mappings 第 {} 项缺少目标上游模型（target）", position + 1));
+            return Err(format!("mappings 第 {} 项缺少目标上游模型（target)", position + 1));
         }
         if target.chars().count() > MAX_MODEL_ID_CHARS {
             return Err(format!(
@@ -1268,7 +1268,7 @@ pub fn normalize_base_url(raw: &str) -> Result<String, String> {
     }
     let parsed = url::Url::parse(raw).map_err(|error| format!("baseUrl 不是合法的 URL: {error}"))?;
     if !matches!(parsed.scheme(), "http" | "https") {
-        return Err("baseUrl 必须以 http:// 或 https:// 开头".to_string());
+        return Err("baseUrl 必须以 http:// or https:// 开头".to_string());
     }
     Ok(parsed.as_str().trim_end_matches('/').to_string())
 }
@@ -1380,7 +1380,7 @@ fn validate_url_suffix(value: Option<&Value>) -> Result<String, String> {
         return Ok(String::new());
     }
     if !text.starts_with('?') {
-        return Err("urlSuffix 必须是以 ? 开头的查询串（如 ?beta=true）".to_string());
+        return Err("urlSuffix 必须是以 ? 开头的查询串（如 ?beta=true)".to_string());
     }
     if text.chars().any(char::is_whitespace) || text.chars().count() > MAX_URL_SUFFIX_CHARS {
         return Err(format!(
@@ -1398,9 +1398,9 @@ fn validate_headers(value: Option<&Value>) -> Result<Map<String, Value>, String>
     let Some(value) = value else { return Ok(Map::new()) };
     let object = value
         .as_object()
-        .ok_or_else(|| "headers 必须是 JSON 对象（{\"头名\": \"值\"}）".to_string())?;
+        .ok_or_else(|| "headers 必须是 JSON 对象（{\"头名\": \"Value\"})".to_string())?;
     if object.len() > MAX_HEADER_ENTRIES {
-        return Err(format!("headers 最多 {MAX_HEADER_ENTRIES} 条"));
+        return Err(format!("headers 最多 {MAX_HEADER_ENTRIES} rows"));
     }
     let mut out = Map::new();
     for (key, value) in object {
@@ -1435,7 +1435,7 @@ fn validate_tool_type(value: Option<&Value>) -> Result<String, String> {
     if text.eq_ignore_ascii_case(TOOL_TYPE_CUSTOM) {
         return Ok(TOOL_TYPE_CUSTOM.to_string());
     }
-    Err("anthropicToolType 只支持 \"custom\"（留空表示不补 type）".to_string())
+    Err("anthropicToolType 只支持 \"custom\"（留空表示不补 type)".to_string())
 }
 
 /// 客户端形态伪装：空 = 不伪装；`opencode` = 按 OpenCode 官方 CLI 的形状补齐

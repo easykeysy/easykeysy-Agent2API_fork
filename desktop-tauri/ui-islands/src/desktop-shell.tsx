@@ -28,7 +28,7 @@ type HostWindow = {
 const host = () => window as unknown as HostWindow
 let groups: Group[] = []
 let page = 'overview'
-let label = t('报表')
+let label = t('Reports')
 let mode = localStorage.getItem('workbuddy-desktop-theme') || 'system'
 let status: Status[] = []
 let title = ''
@@ -49,18 +49,18 @@ function Navigation() {
         const badgeId = menu.key === 'requests' ? 'nav-count-requests' : menu.key === 'logs' ? 'nav-count-logs' : menu.key === 'settings' ? 'nav-count-update' : ''
         return <NavItem key={menu.key} className={`nav-item ${page === menu.key ? 'active' : ''}`} active={page === menu.key}
           data-page={menu.key} data-icon={menu.icon} icon={<Icon name={menu.icon} />}
-          trailing={badgeId ? <Badge id={badgeId} variant='destructive' shape='tag' className='count min-w-5 px-1.5 py-0 text-[10.5px]' style={{ display: 'none' }}>{menu.key === 'settings' ? t('新') : '0'}</Badge> : undefined}>
+          trailing={badgeId ? <Badge id={badgeId} variant='destructive' shape='tag' className='count min-w-5 px-1.5 py-0 text-[10.5px]' style={{ display: 'none' }}>{menu.key === 'settings' ? t('New') : '0'}</Badge> : undefined}>
           <span className='label'>{t(menu.label)}</span>
         </NavItem>
       })}
-    </React.Fragment>) : <Empty className='nav-empty px-2 py-3 text-[11px]'>{t('侧边栏没有显示任何菜单。到「设置 → 显示 → 侧边栏菜单」里打开需要的项。')}</Empty>}
+    </React.Fragment>) : <Empty className='nav-empty px-2 py-3 text-[11px]'>{t('No menus are shown in the sidebar. Turn on the ones you need under Settings → Display → Sidebar menus.')}</Empty>}
   </>
 }
 
 function ThemeControl() {
   React.useSyncExternalStore(listener => { listeners.add(listener); return () => listeners.delete(listener) }, () => revision)
-  return <SegmentedControl className='w-full' value={mode} aria-label={t('显示模式')} options={[
-    { value: 'system', label: t('跟随系统') }, { value: 'light', label: t('浅色') }, { value: 'dark', label: t('深色') },
+  return <SegmentedControl className='w-full' value={mode} aria-label={t('Theme')} options={[
+    { value: 'system', label: t('System') }, { value: 'light', label: t('Light') }, { value: 'dark', label: t('Dark') },
   ]} onValueChange={value => host().wbApp?.applyTheme(value)} />
 }
 
@@ -92,26 +92,26 @@ function Frame() {
       <div className='brand-logo'><BrandLogo branding={branding} size={32} /></div>
       <div className='brand-text min-w-0'><h1 className='truncate' title={branding.displayName}>{branding.displayName}</h1></div>
     </SidebarHeader>
-    <NavList render={<SidebarContent />} className='nav' id='nav' aria-label={t('主导航')} onClick={event => {
+    <NavList render={<SidebarContent />} className='nav' id='nav' aria-label={t('Main navigation')} onClick={event => {
       const item = (event.target as Element).closest<HTMLElement>('.nav-item[data-page]')
       if (item?.dataset.page) host().wbApp?.showPage(item.dataset.page)
     }}><Navigation /></NavList>
     <SidebarFooter className='sidebar-foot'>
-      <div className='sidebar-status' id='sidebar-status' title={t('本地网关监听状态')} />
+      <div className='sidebar-status' id='sidebar-status' title={t('Local gateway listening status')} />
       <div id='theme-switch'><ThemeControl /></div>
     </SidebarFooter>
   </Sidebar>
   return <AppFrame className='shell' data-navigation-open={open ? 'true' : undefined}>
     {narrow ? <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent side='left' keepMounted showHandle={false} showCloseButton={false}
-        aria-label={t('主导航')} className='w-[min(280px,86vw)] rounded-none border-0 p-0'>
-        <SheetClose render={<Button variant='ghost' size='icon' className='absolute right-2 top-2 z-10' />} aria-label={t('关闭菜单')}>✕</SheetClose>
+        aria-label={t('Main navigation')} className='w-[min(280px,86vw)] rounded-none border-0 p-0'>
+        <SheetClose render={<Button variant='ghost' size='icon' className='absolute right-2 top-2 z-10' />} aria-label={t('Close menu')}>✕</SheetClose>
         {sidebar}
       </SheetContent>
     </Sheet> : sidebar}
     <main className='main'>
       <PageHeader className='topbar'>
-        <Button variant='ghost' size='icon' className='mobile-menu-btn' aria-label={t('切换菜单')} onClick={() => setOpen(!open)}>☰</Button>
+        <Button variant='ghost' size='icon' className='mobile-menu-btn' aria-label={t('Toggle menu')} onClick={() => setOpen(!open)}>☰</Button>
         <div className='crumb min-w-0'><span className='max-w-[200px] truncate' title={branding.displayName}>{branding.displayName}</span><span className='sep'>/</span><span className='cur' id='crumb-page'>{label}</span></div>
         <div className='spacer' />
         <div className='topbar-actions' id='topbar-status' title={title}><TopbarStatus /></div>

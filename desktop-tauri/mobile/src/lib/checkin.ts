@@ -8,7 +8,7 @@ export function checkinSummary(result: CheckinRun, single = false): { text: stri
   if (single && rows.length === 1) return activitySummary(rows[0])
   const failedRows = rows.filter(row => !rowCompleted(row) && !rowPending(row))
   const failed = result.failedCount ?? (Array.isArray(result.failed) ? result.failed.length : result.failed) ?? failedRows.length
-  const text = t('签到完成：{success}/{total} 成功，保活 {active}，失败 {failed}', {
+  const text = t('Check-in finished: {success}/{total} successful, {active} kept active, {failed} failed', {
     success: Number(result.succeeded) || 0,
     total: Number(result.total) || rows.length,
     active: Number(result.active) || 0,
@@ -16,7 +16,7 @@ export function checkinSummary(result: CheckinRun, single = false): { text: stri
   })
   const failures = Array.isArray(result.failed) ? result.failed : failedRows.map(rowMessage).filter(Boolean)
   return {
-    text: failures.length > 0 ? `${text}（${failures.slice(0, 5).join('；')}）` : text,
+    text: failures.length > 0 ? `${text}（${failures.slice(0, 5).join('; ')}）` : text,
     tone: failed > 0 ? 'err' : Number(result.succeeded) > 0 || Number(result.active) > 0 ? 'ok' : 'warn',
   }
 }
@@ -24,17 +24,17 @@ export function checkinSummary(result: CheckinRun, single = false): { text: stri
 export function activitySummary(result: ActivityResult): { text: string; tone: 'ok' | 'err' | 'warn' } {
   const completed = rowCompleted(result)
   return {
-    text: rowMessage(result) || (completed ? t('执行完成') : t('未完成，请查看签到记录')),
+    text: rowMessage(result) || (completed ? t('Execution complete') : t('Not completed. Please check the check-in records.')),
     tone: completed ? 'ok' : rowPending(result) ? 'warn' : 'err',
   }
 }
 
 export function checkinModeLabel(mode: string): string {
   switch (mode) {
-    case 'checkin': return t('签到')
-    case 'keepalive': return t('保活')
-    case 'claim': return t('领取')
-    case 'full': return t('保活 + 领取')
+    case 'checkin': return t('Check in')
+    case 'keepalive': return t('Keep-alive')
+    case 'claim': return t('Claim')
+    case 'full': return t('Keep-alive + Claim')
     default: return mode
   }
 }

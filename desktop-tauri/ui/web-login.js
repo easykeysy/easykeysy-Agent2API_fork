@@ -93,9 +93,9 @@
       const progress = loginActive && loginProvider === config.provider
         ? [...new Set([loginInstructions, loginHint].flatMap(text => text.split(/\r?\n/)).map(line => line.trim()).filter(Boolean))].join('\n') : '';
       publish({
-        label: waiting ? (config.busyText || wbI18n.t('等待登录完成…')) : (texts.button || ''),
+        label: waiting ? (config.busyText || wbI18n.t('Waiting for sign-in…')) : (texts.button || ''),
         hint: loginActive && loginProvider !== config.provider
-          ? wbI18n.t('正在等待{name}登录完成；完成或取消后才能发起新的登录', {
+          ? wbI18n.t('Waiting for {name} sign-in to finish; you can start a new sign-in only after it completes or is canceled', {
             name: providerLabel(loginProvider),
           })
           : (progress || texts.hint || ''),
@@ -122,19 +122,19 @@
           if (result?.canceled) {
             // silent：取消是别处（「取消等待」按钮 / 关闭添加账号弹窗）发起的，
             // 那边已经提示过，这里不再重复 toast
-            if (!result.silent) toast(wbI18n.t('已取消登录等待'));
+            if (!result.silent) toast(wbI18n.t('Pending sign-in canceled'));
             return;
           }
           // 结果归一由共享 UI bridge 负责；这里只守终态，防止空响应或 accepted
           // 被旧控制器的 onSuccess 误报成账号已添加，不改桌面 payload/Web session。
           if (!result || pendingResult(result) || pendingResult(result.payload)) {
-            throw new Error('登录尚未完成，请继续等待网关确认');
+            throw new Error('Login is not finished yet; keep waiting for the gateway\'s confirmation');
           }
-          if (result.ok === false) throw new Error('登录桥没有确认登录完成');
+          if (result.ok === false) throw new Error('The login bridge did not confirm that the login finished');
           flowSettling = true;
           await config.onSuccess(result);
         } catch (error) {
-          toast(wbI18n.t('登录失败：{message}', { message: error.message }), 'err');
+          toast(wbI18n.t('Sign-in failed: {message}', { message: error.message }), 'err');
         } finally {
           starting = false;
           flowSettling = false;
@@ -150,7 +150,7 @@
           return;
         }
         const canceled = await cancelLogin();
-        toast(canceled ? wbI18n.t('已取消登录等待') : wbI18n.t('登录已结束'));
+        toast(canceled ? wbI18n.t('Pending sign-in canceled') : wbI18n.t('Sign-in has ended'));
         await syncShellState();
       },
       dispose() {
@@ -169,7 +169,7 @@
       await window.workbuddyDesktop.cancelLogin();
       return true;
     } catch (error) {
-      toast(wbI18n.t('取消失败：{message}', { message: error.message }), 'err');
+      toast(wbI18n.t('Cancel failed: {message}', { message: error.message }), 'err');
       return false;
     }
   }

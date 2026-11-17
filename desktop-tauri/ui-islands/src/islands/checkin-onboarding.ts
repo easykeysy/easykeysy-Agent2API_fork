@@ -23,7 +23,7 @@ export async function queryOnboarding(id: string, refresh = false): Promise<void
   patchOnboarding(id, { status: 'loading', error: '' })
   try {
     const data = await bridgeApi().getOnboardingTasks?.(id, refresh)
-    if (!data) throw new Error(t('后端未返回新手福利数据'))
+    if (!data) throw new Error(t('The backend did not return starter reward data'))
     patchOnboarding(id, {
       status: 'loaded',
       tasks: normalizeOnboardingTasks(data.tasks),
@@ -65,7 +65,7 @@ export async function claimOnboarding(id: string): Promise<void> {
   patchOnboarding(id, { claiming: true, error: '' })
   try {
     const data = await bridgeApi().claimOnboardingTasks?.(id)
-    if (!data) throw new Error(t('后端未返回新手福利数据'))
+    if (!data) throw new Error(t('The backend did not return starter reward data'))
     const failed = Number(data.failed) || 0
     patchOnboarding(id, {
       claiming: false,
@@ -79,10 +79,10 @@ export async function claimOnboarding(id: string): Promise<void> {
     await loadCenter()
     const message = typeof data.message === 'string' ? data.message.trim() : ''
     toast(message || (failed > 0
-      ? t('新手福利领取失败 {n} 项', { n: failed })
-      : t('✅ 新手福利领取完成')), failed > 0 ? 'err' : 'ok')
+      ? t('Failed to claim {n} starter rewards', { n: failed })
+      : t('✅ Starter rewards claimed')), failed > 0 ? 'err' : 'ok')
   } catch (error) {
     patchOnboarding(id, { claiming: false, status: 'error', error: errorMessage(error) })
-    toast(t('领取失败：{error}', { error: errorMessage(error) }), 'err')
+    toast(t('Claim failed: {error}', { error: errorMessage(error) }), 'err')
   }
 }

@@ -35,8 +35,8 @@ export function ProviderRail({ options, selected, total, onSelect }: {
   return (
     <aside className='ck-provider-rail'>
       <div className='ck-provider-rail-head'>
-        <h3>{t('提供商')}</h3>
-        <span>{t('{n} 家', { n: options.length })}</span>
+        <h3>{t('Provider')}</h3>
+        <span>{t('{n} Family', { n: options.length })}</span>
       </div>
       <NavList className='ck-provider-nav'>
         <NavItem
@@ -45,7 +45,7 @@ export function ProviderRail({ options, selected, total, onSelect }: {
           trailing={<Count done={total.done} total={total.all} />}
           onClick={() => onSelect('')}
         >
-          {t('全部提供商')}
+          {t('All providers')}
         </NavItem>
         {options.map(option => (
           <NavItem
@@ -59,7 +59,7 @@ export function ProviderRail({ options, selected, total, onSelect }: {
           </NavItem>
         ))}
       </NavList>
-      <p className='ck-provider-note'>{t('只列当前任务里有账号的提供商。')}</p>
+      <p className='ck-provider-note'>{t('Only providers with accounts in the current task are listed.')}</p>
     </aside>
   )
 }

@@ -57,11 +57,11 @@ export function loginText(value: unknown): string {
   if (translated !== text) return translated
   return text.split('\n').map(line => {
     const deviceCode = /^在 GitHub 输入设备码 (.+)，核对账号与授权权限。设备码过期后需要重新发起登录。$/.exec(line)
-    if (deviceCode) return t('在 GitHub 输入设备码 {code}，核对账号与授权权限。设备码过期后需要重新发起登录。', { code: deviceCode[1] })
+    if (deviceCode) return t('Enter device code {code} on GitHub and check the account and requested permissions. Start sign-in again if the device code expires.', { code: deviceCode[1] })
     const project = /^Google Cloud Project ID（必填，Standard \/ Enterprise 资格由上游判定）(?:；默认候选来自 (GOOGLE_CLOUD_PROJECT(?:_ID)?)，请明确确认)?$/.exec(line)
     if (project) return project[1]
-      ? t('Google Cloud Project ID（必填，Standard / Enterprise 资格由上游判定）；默认候选来自 {variable}，请明确确认', { variable: project[1] })
-      : t('Google Cloud Project ID（必填，Standard / Enterprise 资格由上游判定）')
+      ? t('Google Cloud Project ID (required; upstream determines Standard / Enterprise eligibility). The default candidate comes from {variable}; confirm it explicitly.', { variable: project[1] })
+      : t('Google Cloud Project ID (required; upstream determines Standard / Enterprise eligibility)')
     return pluginLoginText(line)
   }).join('\n')
 }
@@ -71,16 +71,16 @@ export function parsePrompt(value: unknown): Prompt {
   const key = textOf(prompt?.key)
   if (!prompt || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(key) || UNSAFE_KEYS.has(key)
     || (prompt.type !== 'text' && prompt.type !== 'select')) {
-    throw new Error(t('插件返回了无效的登录字段，请更新插件或联系作者'))
+    throw new Error(t('The plugin returned an invalid sign-in field. Update the plugin or contact its author.'))
   }
   const options: Prompt['options'] = []
   if (prompt.type === 'select') {
-    if (!Array.isArray(prompt.options)) throw new Error(t('插件登录选择字段缺少选项列表'))
+    if (!Array.isArray(prompt.options)) throw new Error(t('The plugin\'s sign-in selection field is missing its option list.'))
     for (const raw of prompt.options) {
       const option = objectOf(raw)
       const value = textOf(option?.value)
       if (!option || !value || options.some(item => item.value === value)) {
-        throw new Error(t('插件登录选择字段包含无效或重复的选项'))
+        throw new Error(t('The plugin\'s sign-in selection field contains invalid or duplicate options.'))
       }
       options.push({ value, label: loginText(textOf(option.label) || value) })
     }
@@ -88,11 +88,11 @@ export function parsePrompt(value: unknown): Prompt {
   const condition = objectOf(prompt.when)
   const when = condition && typeof condition.key === 'string' && (condition.op === 'eq' || condition.op === 'neq') && typeof condition.value === 'string'
     ? { key: condition.key, op: condition.op as 'eq' | 'neq', value: condition.value } : undefined
-  if (prompt.when !== undefined && !when) throw new Error(t('插件返回了无效的登录字段，请更新插件或联系作者'))
+  if (prompt.when !== undefined && !when) throw new Error(t('The plugin returned an invalid sign-in field. Update the plugin or contact its author.'))
   const secret = prompt.secret === true
   const defaultValue = !secret && typeof prompt.default === 'string' ? prompt.default : undefined
   if (defaultValue !== undefined && prompt.type === 'select' && !options.some(option => option.value === defaultValue)) {
-    throw new Error(t('插件返回了无效的登录字段，请更新插件或联系作者'))
+    throw new Error(t('The plugin returned an invalid sign-in field. Update the plugin or contact its author.'))
   }
   return {
     key, type: prompt.type, label: loginText(textOf(prompt.label) || key),
@@ -105,13 +105,13 @@ export function parsePrompt(value: unknown): Prompt {
 export function parseCallbackInput(value: unknown): CallbackInput {
   if (value === undefined || value === 'url') return 'url'
   if (value === 'code') return 'code'
-  throw new Error(t('插件返回了无效的登录方式，请更新插件或联系作者'))
+  throw new Error(t('The plugin returned an invalid sign-in method. Update the plugin or contact its author.'))
 }
 
 export function parseMethods(value: unknown, provider = ''): MethodsState {
   const data = objectOf(value)
   if (!data || !Array.isArray(data.methods)) {
-    throw new Error(t('网关没有返回有效的登录方式列表，无法确认该插件的登录能力'))
+    throw new Error(t('The gateway did not return a valid list of sign-in methods, so this plugin\'s sign-in capabilities cannot be confirmed.'))
   }
   const indexes = new Set<number>()
   const methods = data.methods.map((value): Method => {
@@ -119,29 +119,29 @@ export function parseMethods(value: unknown, provider = ''): MethodsState {
     const index = raw?.methodIndex
     if (!raw || typeof index !== 'number' || !Number.isSafeInteger(index) || index < 0
       || indexes.has(index) || (raw.type !== 'oauth' && raw.type !== 'api') || !Array.isArray(raw.prompts)) {
-      throw new Error(t('插件返回了无效的登录方式，请更新插件或联系作者'))
+      throw new Error(t('The plugin returned an invalid sign-in method. Update the plugin or contact its author.'))
     }
     indexes.add(index)
     const prompts = raw.prompts.map(parsePrompt)
     if (new Set(prompts.map(prompt => prompt.key)).size !== prompts.length) {
-      throw new Error(t('插件登录方式包含重复的输入字段'))
+      throw new Error(t('The plugin\'s sign-in method contains duplicate input fields.'))
     }
     if (prompts.some(prompt => prompt.when && !prompts.some(source => source.key === prompt.when?.key))) {
-      throw new Error(t('插件返回了无效的登录字段，请更新插件或联系作者'))
+      throw new Error(t('The plugin returned an invalid sign-in field. Update the plugin or contact its author.'))
     }
     if ((raw.manualCallback !== undefined && typeof raw.manualCallback !== 'boolean')
       || (raw.localOnly !== undefined && typeof raw.localOnly !== 'boolean')
       || (raw.embeddedOnly !== undefined && typeof raw.embeddedOnly !== 'boolean')
       || (raw.desktopOnly !== undefined && typeof raw.desktopOnly !== 'boolean')
       || (raw.browserMode !== undefined && !['choice', 'external', 'plugin', 'none'].includes(String(raw.browserMode)))) {
-      throw new Error(t('插件返回了无效的登录方式，请更新插件或联系作者'))
+      throw new Error(t('The plugin returned an invalid sign-in method. Update the plugin or contact its author.'))
     }
     const callbackInput = parseCallbackInput(raw.callbackInput)
     const manualCallback = raw.manualCallback === true
     const embeddedOnly = raw.embeddedOnly === true
     if ((callbackInput === 'code' && !manualCallback)
       || (raw.type === 'api' && (raw.localOnly === true || manualCallback || embeddedOnly))) {
-      throw new Error(t('插件返回了无效的登录方式，请更新插件或联系作者'))
+      throw new Error(t('The plugin returned an invalid sign-in method. Update the plugin or contact its author.'))
     }
     const callbackContractMissing = provider === 'copilot-subscription' && index === 1
       && (!manualCallback || callbackInput !== 'code')
@@ -150,27 +150,27 @@ export function parseMethods(value: unknown, provider = ''): MethodsState {
       && (!browserMode || browserMode === 'choice')) browserMode = 'plugin'
     return {
       id: `method:${index}`, methodIndex: index, type: raw.type,
-      label: loginText(textOf(raw.label) || (raw.type === 'oauth' ? t('OAuth 登录') : t('API 凭证'))),
+      label: loginText(textOf(raw.label) || (raw.type === 'oauth' ? t('OAuth sign-in') : t('API credentials'))),
       prompts, dynamicPrompts: raw.dynamicPrompts === true, localOnly: raw.localOnly === true, manualCallback, callbackInput, embeddedOnly,
       desktopOnly: raw.desktopOnly === true, browserMode,
       instructions: loginText(raw.instructions),
       reason: callbackContractMissing
-        ? t('此 Copilot 手动令牌方式未声明回调输入契约，暂不发起；请改用设备码登录或只读本机引用。')
+        ? t('This Copilot manual-token method declares no callback input contract and will not be started. Use device-code sign-in or a read-only local reference instead.')
         : prompts.some(prompt => prompt.type === 'select' && !prompt.options.length)
-          ? t('该登录方式没有可选项，无法提交；请更新插件或联系作者') : undefined,
+          ? t('This sign-in method has no selectable options and cannot be submitted. Update the plugin or contact its author.') : undefined,
     }
   })
   return {
     phase: 'ready', methods, instructions: loginText(data.instructions),
-    reason: methods.length ? '' : t('插件没有声明可用的账号登录方式，请更新插件或联系插件作者'),
+    reason: methods.length ? '' : t('The plugin has not declared any available account sign-in methods. Update the plugin or contact its author.'),
   }
 }
 
 export function methodLabel(method: Method): string {
   if (method.localOnly && method.browserMode === 'none') return method.label
-  if (method.localOnly) return t('{label}（只读本机）', { label: method.label })
-  return method.type === 'oauth' ? t('{label}（OAuth）', { label: method.label })
-    : method.type === 'api' ? t('{label}（API）', { label: method.label }) : method.label
+  if (method.localOnly) return t('{label} (read-only local reference)', { label: method.label })
+  return method.type === 'oauth' ? t('{label} (OAuth)', { label: method.label })
+    : method.type === 'api' ? t('{label} (API)', { label: method.label }) : method.label
 }
 
 export function promptValue(prompt: Prompt, values: Record<string, string>): string {
@@ -193,11 +193,11 @@ export function readInputs(method: Method, values: Record<string, string>): Reco
     const raw = promptValue(prompt, values)
     const value = prompt.secret ? raw : raw.trim()
     if (!value.trim()) {
-      if (!prompt.optional) throw new Error(t('请填写 {label}', { label: prompt.label }))
+      if (!prompt.optional) throw new Error(t('Enter {label}', { label: prompt.label }))
       continue
     }
     if (prompt.type === 'select' && !prompt.options.some(option => option.value === value)) {
-      throw new Error(t('请选择 {label} 的有效选项', { label: prompt.label }))
+      throw new Error(t('Select a valid option for {label}.', { label: prompt.label }))
     }
     inputs[prompt.key] = value
   }

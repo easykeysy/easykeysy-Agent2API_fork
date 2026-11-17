@@ -138,13 +138,13 @@ export function sameRules(left: readonly SanitizeRule[], right: readonly Sanitiz
 export function validateSanitizeRule(rule: SanitizeRule, limits: SanitizeState['limits']): string {
   const length = (text: string) => Array.from(text).length
   if (!rule.name.trim() || length(rule.name.trim()) > limits.maxNameChars) {
-    return t('规则名称不能为空，且最多 {max} 个字符', { max: limits.maxNameChars })
+    return t('The rule name is required and must not exceed {max} characters', { max: limits.maxNameChars })
   }
   if (!rule.pattern.trim() || length(rule.pattern) > limits.maxPatternChars) {
-    return t('匹配内容不能为空，且最多 {max} 个字符', { max: limits.maxPatternChars })
+    return t('The match pattern is required and must not exceed {max} characters', { max: limits.maxPatternChars })
   }
   if (length(rule.replacement) > limits.maxReplacementChars) {
-    return t('替换内容最多 {max} 个字符', { max: limits.maxReplacementChars })
+    return t('Replacement text must not exceed {max} characters', { max: limits.maxReplacementChars })
   }
   return ''
 }

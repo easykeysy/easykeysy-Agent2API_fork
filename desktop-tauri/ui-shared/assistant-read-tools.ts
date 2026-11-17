@@ -21,11 +21,11 @@ export function createAssistantReadTools(api: AssistantReadApi, t: Translate): A
 
 export function assistantReadMeta(t: Translate) {
   return [
-    { id: 'list_accounts', label: t('获取账号列表'), desc: t('读取账号、启用状态、优先级与隐藏原因，支持筛选和分页。') },
-    { id: 'get_account_detail', label: t('获取账号详情'), desc: t('读取凭证状态、限流、并发、代理和限制器的本地快照。') },
-    { id: 'get_routing_queue', label: t('查询路由队列'), desc: t('查看模型候选账号、跳过原因和当前路由策略。') },
-    { id: 'get_usage_report', label: t('查询用量报表'), desc: t('查询生产请求的 Token 用量、成功率、排行和趋势。') },
-    { id: 'list_request_logs', label: t('查询请求日志'), desc: t('查询请求状态、耗时、账号、错误与重试，不读取对话正文。') },
-    { id: 'list_runtime_logs', label: t('查询运行日志'), desc: t('查询凭证、插件和定时任务等运行事件的脱敏摘要。') },
+    { id: 'list_accounts', label: t('List accounts'), desc: t('Reads accounts, enabled states, priorities and reasons for hidden accounts, with filtering and pagination.') },
+    { id: 'get_account_detail', label: t('Get account details'), desc: t('Reads a local snapshot of credentials, rate limits, connections, proxy settings and limiters.') },
+    { id: 'get_routing_queue', label: t('Inspect routing queue'), desc: t('Shows candidate accounts, skip reasons and the current routing strategy for a model.') },
+    { id: 'get_usage_report', label: t('Read usage report'), desc: t('Reads token usage, success rates, rankings and trends for production requests.') },
+    { id: 'list_request_logs', label: t('Read request logs'), desc: t('Reads request status, latency, accounts, errors and retries without reading conversation content.') },
+    { id: 'list_runtime_logs', label: t('Read runtime logs'), desc: t('Reads redacted summaries of runtime events, including credentials, plugins and scheduled tasks.') },
   ]
 }

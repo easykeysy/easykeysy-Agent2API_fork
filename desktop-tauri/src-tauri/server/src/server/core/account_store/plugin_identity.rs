@@ -234,7 +234,7 @@ impl AccountStore {
             None => new_id(provider, identity, account.fields())?,
         };
         if self.with_conn(guard, |conn| sql::load_by_id(conn, &id)).map_err(|error| error.message)?.is_some() {
-            return Err("账号 ID 已被其它账号占用，未覆盖原账号".to_string());
+            return Err("Account ID 已被其它账号占用，未覆盖原账号".to_string());
         }
         Ok((id, None))
     }

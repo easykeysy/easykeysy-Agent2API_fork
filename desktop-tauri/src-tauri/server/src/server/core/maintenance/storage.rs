@@ -97,7 +97,7 @@ impl Recorder {
 
     pub fn finish(mut self, results: Vec<Item>, metadata: Option<Item>) -> Result<Detail, String> {
         self.failure =
-            Some("维护已执行，但完整结果未能保存；请先核对账号状态，不要反复执行".to_string());
+            Some("Maintenance ran, but the complete results could not be saved. Check account status before running it again.".to_string());
         let (refreshed, skipped, failed) = types::summary(&results);
         self.run.finished_at = Some(logging::now_ms());
         self.run.duration_ms = Some(self.clock.elapsed().as_millis().min(i64::MAX as u128) as i64);
@@ -163,7 +163,7 @@ impl Drop for Recorder {
             let message = self
                 .failure
                 .as_deref()
-                .unwrap_or("执行中断，结果可能已部分生效，请先核对账号状态");
+                .unwrap_or("The run was interrupted. Some changes may have taken effect; check the account status first.");
             let _ = db.with(|conn| conn.execute(
                 "UPDATE maintenance_runs SET status='interrupted', finished_at=?2, error=?3 WHERE id=?1 AND status='running'",
                 params![self.run.id, logging::now_ms(), message],
@@ -209,7 +209,7 @@ fn recover_interrupted(conn: &Connection) -> Result<(), String> {
     // 按轮次心跳恢复，不能用同类任务的新租约掩盖旧轮次中断。
     let cutoff = logging::now_ms().saturating_sub(180_000);
     sql(conn.execute(
-        "UPDATE maintenance_runs SET status='interrupted', finished_at=heartbeat_at, error='上次执行中断，没有完整结果；请核对账号状态' WHERE status='running' AND heartbeat_at < ?1",
+        "UPDATE maintenance_runs SET status='interrupted', finished_at=heartbeat_at, error='The previous run was interrupted and has no complete results. Check the account status.' WHERE status='running' AND heartbeat_at < ?1",
         [cutoff],
     ))?;
     Ok(())

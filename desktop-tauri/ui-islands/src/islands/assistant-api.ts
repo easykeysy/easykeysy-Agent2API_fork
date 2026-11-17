@@ -138,7 +138,7 @@ export function requestError(parsed: unknown, status: number, method: string, pa
   const message = describeError(raw, status)
   // 只有路由兜底才表示接口缺失，模型和会话的业务错误也可能是 404。
   if (status === 404 && message === `Not found: ${method} ${path}`) {
-    return new AssistantRequestError(t('这一版网关还没有 AI 助手接口（HTTP 404）：后端还是旧的，重新编译 / 重启客户端后再试。{message}', { message }), status, 'api_not_found')
+    return new AssistantRequestError(t('This gateway build doesn\'t have the AI assistant API yet (HTTP 404): the backend is older. Rebuild or restart the client and try again. {message}', { message }), status, 'api_not_found')
   }
   return new AssistantRequestError(message, status, code)
 }
@@ -148,7 +148,7 @@ export function requestError(parsed: unknown, status: number, method: string, pa
  *  —— 把「连的是哪个地址」拼进去，用户对着侧栏的网关端口一眼就能看出对不对。 */
 function wrapFetchError(error: unknown, base: string): Error {
   const message = error instanceof Error ? error.message : String(error)
-  return new Error(t('连接网关失败（{base}）：{message}', { base, message }))
+  return new Error(t('Failed to reach the gateway ({base}): {message}', { base, message }))
 }
 
 /**
@@ -158,7 +158,7 @@ function wrapFetchError(error: unknown, base: string): Error {
  * 不带体 —— 与原先每个调用点自己拼 headers/body 相比，凭证合并、Content-Type
  * 与重试策略都只有这一处实现。
  *
- * 明确的管理会话失效时重新获取凭证，网页端同时续期；最多重试一次，模型 Key 错误不重试。
+ * 明确的When the admin session expires, re-fetch credentials; on the web side同时续期；最多重试一次，模型 Key 错误不重试。
  */
 export async function requestDirect(
   path: string,

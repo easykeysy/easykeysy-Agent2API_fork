@@ -50,30 +50,30 @@ function ruleMeta(key: GroupSortRule['key']): {
 } {
   if (key === 'credit') {
     return {
-      name: t('积分到期时间'),
-      hint: t('按账号最早到期、且还有剩余的积分包比较'),
+      name: t('Credit expiry'),
+      hint: t('Compares each account by its earliest credit pack that still has balance and has not expired'),
       options: [
-        { value: 'soon', label: t('最快到期优先') },
-        { value: 'late', label: t('最晚到期优先') },
+        { value: 'soon', label: t('Soonest expiry first') },
+        { value: 'late', label: t('Latest expiry first') },
       ],
     }
   }
   if (key === 'balance') {
     return {
-      name: t('可用余额'),
-      hint: t('按账号总可用余额比较，不重复累加积分明细'),
+      name: t('Available balance'),
+      hint: t('Compare total available account balances without adding credit details again'),
       options: [
-        { value: 'high', label: t('余额大优先') },
-        { value: 'low', label: t('余额小优先') },
+        { value: 'high', label: t('Higher balance first') },
+        { value: 'low', label: t('Lower balance first') },
       ],
     }
   }
   return {
-    name: t('账号添加时间'),
-    hint: t('所有提供商都有这个字段'),
+    name: t('Account added time'),
+    hint: t('Every provider has this field'),
     options: [
-      { value: 'new', label: t('最新添加优先') },
-      { value: 'old', label: t('最早添加优先') },
+      { value: 'new', label: t('Newest first') },
+      { value: 'old', label: t('Oldest first') },
     ],
   }
 }
@@ -93,8 +93,8 @@ export function activeGroupSortRules(provider: string, rules: GroupSortRule[], s
 
 export function manualOrderBlockedMessage(rules: GroupSortRule[]): string {
   const names = rules.filter(rule => rule.on).map(rule => ruleMeta(rule.key).name)
-  return names.length ? t('无法拖动：已启用自动消耗规则（{rules}）。请先在「消耗顺序」中关闭这些规则，再手动调整。', { rules: names.join('、') })
-    : t('自动消耗排序已启用，请先关闭规则再手动调整')
+  return names.length ? t('Cannot drag while automatic consumption rules are enabled ({rules}). Turn them off under Consumption order before reordering manually.', { rules: names.join(', ') })
+    : t('Automatic consumption sorting is enabled. Turn off the rules before reordering manually')
 }
 
 /**
@@ -105,9 +105,9 @@ export function groupSortSummary(rules: GroupSortRule[]): string {
   return rules
     .filter(rule => rule.on)
     .map(rule => {
-      if (rule.key === 'credit') return rule.dir === 'soon' ? t('到期 近→远') : t('到期 远→近')
-      if (rule.key === 'balance') return rule.dir === 'high' ? t('余额大优先') : t('余额小优先')
-      return rule.dir === 'new' ? t('添加 新→旧') : t('添加 旧→新')
+      if (rule.key === 'credit') return rule.dir === 'soon' ? t('Expiry near→far') : t('Expiry far→near')
+      if (rule.key === 'balance') return rule.dir === 'high' ? t('Higher balance first') : t('Lower balance first')
+      return rule.dir === 'new' ? t('Added new→old') : t('Added old→new')
     })
     .join(' · ')
 }
@@ -116,16 +116,16 @@ export function groupSortSummary(rules: GroupSortRule[]): string {
 type RuleState = 'ready' | 'no-data' | 'mixed-units' | 'unsupported' | 'upgrade'
 
 function ruleHint(rule: GroupSortRule, state: RuleState): string {
-  if (state === 'upgrade') return t('当前网关不支持余额排序，请先更新网关')
+  if (state === 'upgrade') return t('This gateway does not support balance sorting. Update the gateway first.')
   if (rule.key === 'balance') {
-    if (state === 'unsupported') return t('这一家没有可用余额查询')
-    if (state === 'mixed-units') return t('账号余额单位不一致，暂不按余额排序，继续比较其他规则')
-    if (state === 'no-data') return t('暂无可比较余额；查到同单位的数值后自动生效，比例与无限额度不参与')
+    if (state === 'unsupported') return t('This provider does not support available balance queries')
+    if (state === 'mixed-units') return t('Account balances use different units. Balance sorting is skipped; other rules still apply.')
+    if (state === 'no-data') return t('No comparable balances yet. Sorting applies once numeric balances in the same unit are available; percentages and unlimited quotas are excluded.')
   }
-  if (state === 'unsupported') return t('这一家查不到积分到期时间')
+  if (state === 'unsupported') return t('This provider has no credit expiry data')
   if (state === 'no-data') return rule.on
-    ? t('暂无数据：先查询一次余额，之后会自动按到期排序')
-    : t('暂无数据：先查询一次余额，可按需启用到期排序')
+    ? t('No data yet: query the balance once and expiry sorting takes over automatically')
+    : t('No data yet: query the balance once; enable expiry sorting if needed')
   return ruleMeta(rule.key).hint
 }
 
@@ -164,7 +164,7 @@ function RuleRow({ rule, priority, isLast, state, busy, onChange }: {
       {!blocked ? (
         <Select value={rule.dir} disabled={!rule.on || busy}
           onValueChange={value => onChange({ dir: value } as Partial<GroupSortRule>)}>
-          <SelectTrigger className='h-[26px] w-full text-[11px]' aria-label={t('{name}的方向', { name: meta.name })}>
+          <SelectTrigger className='h-[26px] w-full text-[11px]' aria-label={t('Direction of {name}', { name: meta.name })}>
             <SelectValue>{meta.options.find(item => item.value === rule.dir)?.label || ''}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -175,13 +175,13 @@ function RuleRow({ rule, priority, isLast, state, busy, onChange }: {
         </Select>
       ) : (
         <span className='rounded-xs border border-dashed border-border py-1 text-center text-[10.5px] text-subtle'>
-          {t('不可用')}
+          {t('Unavailable')}
         </span>
       )}
       <span className='flex flex-col gap-px'>
         <Button size='default' variant='ghost' type='button' disabled={priority <= 1 || busy}
           className='h-3 w-4 rounded-[3px] text-subtle hover:bg-nav-hover hover:text-foreground disabled:cursor-default disabled:opacity-30'
-          title={t('提高优先级')} aria-label={t('提高优先级')}
+          title={t('Raise priority')} aria-label={t('Raise priority')}
           onClick={() => onChange({ __move: 'up' } as unknown as Partial<GroupSortRule>)}>
           <svg viewBox='0 0 24 24' width='10' height='10' className='mx-auto block'>
             <path fill='none' stroke='currentColor' strokeWidth='2.4' strokeLinecap='round' strokeLinejoin='round' d='m6 14 6-6 6 6' />
@@ -189,7 +189,7 @@ function RuleRow({ rule, priority, isLast, state, busy, onChange }: {
         </Button>
         <Button size='default' variant='ghost' type='button' disabled={isLast || busy}
           className='h-3 w-4 rounded-[3px] text-subtle hover:bg-nav-hover hover:text-foreground disabled:cursor-default disabled:opacity-30'
-          title={t('降低优先级')} aria-label={t('降低优先级')}
+          title={t('Lower priority')} aria-label={t('Lower priority')}
           onClick={() => onChange({ __move: 'down' } as unknown as Partial<GroupSortRule>)}>
           <svg viewBox='0 0 24 24' width='10' height='10' className='mx-auto block'>
             <path fill='none' stroke='currentColor' strokeWidth='2.4' strokeLinecap='round' strokeLinejoin='round' d='m6 10 6 6 6-6' />
@@ -287,12 +287,12 @@ export function GroupSettingsDialog({ provider, onClose, accounts, sorting, rout
                   {String(label || '?').trim().slice(0, 1).toUpperCase()}
                 </span>}
           </span>
-          <DialogTitle>{t('{name} · 分组设置', { name: t(label) })}</DialogTitle>
+          <DialogTitle>{t('{name} · Group settings', { name: t(label) })}</DialogTitle>
         </DialogHeader>
 
         <DialogBody>
           {routeContext}
-          <GroupSettingSection title={t('消耗顺序')} hint={t('按优先级从上到下比较，勾选的项才参与')}>
+          <GroupSettingSection title={t('Consumption order')} hint={t('Compared top to bottom; only checked rules take part')}>
             {rules.map((rule, index) => (
               <RuleRow
                 key={rule.key}
@@ -307,7 +307,7 @@ export function GroupSettingsDialog({ provider, onClose, accounts, sorting, rout
             {/* 手动顺序：固定末位、不可勾选 —— 它是兜底而不是一条规则 */}
             <div className='grid grid-cols-[16px_15px_minmax(0,1fr)] items-center gap-2 px-1.5 py-1.5'>
               <span className='text-center text-[10.5px] font-bold text-subtle tabular-nums'>{rules.length + 1}</span>
-              <span className='inline-flex items-center justify-center text-subtle' title={t('固定兜底，不受开关影响')}>
+              <span className='inline-flex items-center justify-center text-subtle' title={t('Fixed fallback, not affected by the toggles')}>
                 <svg viewBox='0 0 24 24' width='12' height='12'>
                   <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
                     <rect x='4.5' y='10' width='15' height='10.5' rx='2' />
@@ -316,38 +316,38 @@ export function GroupSettingsDialog({ provider, onClose, accounts, sorting, rout
                 </svg>
               </span>
               <span className='flex min-w-0 flex-col gap-px'>
-                <span className='text-xs font-medium'>{t('组内手动顺序')}</span>
-                <span className='text-[10.5px] text-subtle'>{t('上面所有规则都相同时，保持你拖出来的顺序')}</span>
+                <span className='text-xs font-medium'>{t('Manual order within the group')}</span>
+                <span className='text-[10.5px] text-subtle'>{t('When every rule above ties, keep the order you dragged')}</span>
               </span>
             </div>
             <p className='m-0 mt-2 rounded-xs bg-surface-inset px-2.5 py-2 text-[10.5px] leading-relaxed text-subtle'>
-              {t('当前规则：{rules}。', { rules: summary || t('仅按手动顺序') })}{' '}
-              {manualLocked ? t('已启用自动排序，组内拖动已锁定；关闭全部规则可恢复原手动顺序。') : t('当前可手动调整组内顺序。')}
+              {t('Current rules: {rules}.', { rules: summary || t('Manual order only') })}{' '}
+              {manualLocked ? t('Automatic sorting is enabled and dragging within the group is locked. Turn off all rules to restore the original manual order.') : t('You can currently reorder accounts in this group manually.')}
             </p>
             <p className='m-0 mt-1.5 px-2.5 text-[10.5px] leading-relaxed text-subtle'>
-              {t('上一条规则相同时才比较下一条；想优先按余额消耗，请把可用余额移到第一位。')}
+              {t('Each rule is used only when the preceding rules tie. Move Available balance to the top to prioritize consumption by balance.')}
             </p>
             {balanceEnabled ? <p className='m-0 mt-1.5 px-2.5 text-[10.5px] leading-relaxed text-subtle'>
-              {t('使用最近一次成功查询的总余额，随余额刷新调整；查询失败保留上次读数，不额外增加查询频率。')}{' '}
-              {t('只比较同一家、同单位的数值余额；未知、比例和无限额度不作为零余额，有明确余额的账号优先。')}
+              {t('Uses the total balance from the last successful query and updates as balances refresh. Failed queries retain the previous reading; query frequency is unchanged.')}{' '}
+              {t('Only numeric balances from the same provider and in the same unit are compared. Unknown, percentage and unlimited quotas are not treated as zero; accounts with known balances come first.')}
             </p> : null}
             <p className='m-0 mt-1.5 px-2.5 text-[10.5px] leading-relaxed text-subtle'>
-              {t('账号页与全局路由共用此消耗顺序，网关按最新余额数据选路，不需要保持页面打开。模型独立顺序会覆盖全局。')}
+              {t('Accounts and global routing share this consumption order. The gateway routes using the latest balance data, even when the page is closed. Independent model order overrides the global order.')}
             </p>
             <p className='m-0 mt-1.5 px-2.5 text-[10.5px] leading-relaxed text-subtle'>
-              {t('严格按消耗顺序使用账号需选择「顺序优先」；轮询、会话粘性及账号保护仍按原设置生效。')}
+              {t('Select Priority order to use accounts strictly in consumption order. Rotation, session stickiness and account protection keep their existing settings.')}
             </p>
             <p className='m-0 mt-1.5 px-2.5 text-[10.5px] leading-relaxed text-subtle'>
               {creditSupported
-                ? t('默认仅开启最快到期优先；可用余额和账号添加时间默认关闭。')
-                : t('默认保持手动顺序，可按需开启支持的自动排序规则。')}
+                ? t('Only earliest expiry first is enabled by default. Available balance and account creation time sorting are off.')
+                : t('Manual order is the default. Enable supported automatic sorting rules as needed.')}
             </p>
           </GroupSettingSection>
 
           {/* 后续设置的位置：先把「这里还会有东西」说清楚，加小节时直接替换这一块 */}
-          <GroupSettingSection title={t('更多设置')} hint={t('后续加入')}>
+          <GroupSettingSection title={t('More settings')} hint={t('Coming later')}>
             <div className='flex flex-wrap gap-1.5'>
-              {[t('默认展开 / 收起'), t('新账号落到组首 / 组尾'), t('组内并发上限'), t('余额低于阈值时的提示'), t('本组代理')]
+              {[t('Default expanded / collapsed'), t('New accounts go to the top / bottom'), t('Group concurrency limit'), t('Warn when balance drops below a threshold'), t('Proxy for this group')]
                 .map(item => (
                   <span key={item}
                     className='inline-flex h-[22px] items-center rounded-pill border border-dashed border-border px-2.5 text-[10.5px] text-subtle'>
@@ -361,13 +361,13 @@ export function GroupSettingsDialog({ provider, onClose, accounts, sorting, rout
         <DialogFooter>
           <Button variant='ghost' size='sm' disabled={!customized || busy}
             title={customized
-              ? creditSupported ? t('恢复默认：仅开启最快到期优先') : t('恢复默认：仅按手动顺序')
-              : t('当前已经是默认规则')}
+              ? creditSupported ? t('Restore defaults: earliest expiry first only') : t('Restore defaults: manual order only')
+              : t('This is already the default rule set')}
             onClick={() => void setGroupSortRules(provider, null)}>
-            {t('恢复默认')}
+            {t('Restore Defaults')}
           </Button>
-          <span className='mr-auto text-[10.5px] text-subtle'>{busy ? t('保存中…') : t('改动即时生效')}</span>
-          <Button variant='default' disabled={busy} onClick={onClose}>{t('完成')}</Button>
+          <span className='mr-auto text-[10.5px] text-subtle'>{busy ? t('Saving…') : t('Changes apply immediately')}</span>
+          <Button variant='default' disabled={busy} onClick={onClose}>{t('Done')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

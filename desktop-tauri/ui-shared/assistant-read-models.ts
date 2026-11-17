@@ -53,9 +53,9 @@ function resolveProvider(providers: Provider[], wanted: string, t: Translate): s
   const exact = providers.filter(provider => provider.label.toLowerCase() === key)
   const matches = exact.length ? exact : providers.filter(provider =>
     provider.id.toLowerCase().includes(key) || provider.label.toLowerCase().includes(key))
-  if (!matches.length) throw new Error(t('没有找到提供商「{name}」，请先不填 provider 查询，或用 keyword 搜索', { name: safeText(wanted) }))
-  if (matches.length > 1) throw new Error(t('提供商「{name}」匹配到多家，请使用提供商 ID：{list}', {
-    name: safeText(wanted), list: matches.map(provider => `${safeText(provider.label)} (${provider.id})`).join('、'),
+  if (!matches.length) throw new Error(t('Provider "{name}" was not found. Query without provider first, or search with keyword', { name: safeText(wanted) }))
+  if (matches.length > 1) throw new Error(t('Provider "{name}" matches multiple entries. Use a provider ID: {list}', {
+    name: safeText(wanted), list: matches.map(provider => `${safeText(provider.label)} (${provider.id})`).join(', '),
   }))
   return matches[0].id.toLowerCase()
 }
@@ -96,17 +96,17 @@ function modelPage<T>(rows: T[], offset: number, limit: number) {
 export function createModelListTool(read: () => Promise<AssistantModelView>, t: Translate): AssistantReadTool {
   return {
     id: 'list_models',
-    label: t('获取模型列表'),
+    label: t('List models'),
     kind: 'read',
-    desc: '分页读取内置与自定义提供商的模型清单、展示名、启用状态、映射，以及 capabilities 中的上下文窗口、最大输出 Token、工具调用、图片输入、视频输入和推理能力。回答模型能力、上下文大小或提供商归属前先查询。capabilities 只包含已声明的值：false 是明确不支持，缺失是未知，不能当作 false 或 0；capSources 的 upstream / modelsdev / user 分别表示上游目录 / 社区数据 / 用户配置，不等于运行实测。reasoningLevels 是模型已声明的推理档位，缺失时不要猜测；固定档位、默认档位和能否配置也会随已声明数据返回。图片输入与 supports_image_generation / supports_image_editing 的生图、编辑能力不同。provider 支持 ID、展示名或唯一匹配的名称片段，重名请用 ID；keyword 可同时搜索模型与提供商名称。模型与映射各自分页，hasMore 为 true 时用 nextOffset 继续读取；不要用单页数据推算总量。',
+    desc: 'Paginated read of the built-in and custom providers\' model lists, display names, enabled state, and mappings, plus the context window, max output tokens, tool calling, image input, video input, and reasoning capabilities from capabilities. Query this before answering questions about model capabilities, context size, or provider ownership. capabilities contains only declared values: false means explicitly unsupported; a missing value means unknown and must not be treated as false or 0",; capSources — see the upstream / modelsdev / user  refer respectively to the upstream catalog / community data / user configuration, and are not measured at runtime. reasoningLevels are the reasoning tiers the model has declared; do not guess when they are missing — the fixed tiers, the default tier, and whether the tier is configurable are returned together with the declared data. Image input is different from the generation and editing capabilities in supports_image_generation / supports_image_editing. provider Supported: an ID, a display name, or a unique name fragment; when names collide, use the ID",; keyword You can search both model and provider names. Models and mappings are paginated separately; when hasMore is true, keep reading with nextOffset — do not estimate totals from a single page.",',
     params: {
       type: 'object',
       properties: {
-        provider: { type: 'string', description: '提供商 ID、展示名（含中文）或唯一匹配的名称片段；优先精确匹配，重名需改用 ID；不填 = 全部' },
-        keyword: { type: 'string', description: '按模型 ID、模型名、映射名、提供商 ID 或展示名做子串过滤；不填 = 不过滤' },
-        enabledOnly: { type: 'boolean', description: 'true = 只看已启用的模型或映射' },
-        section: { type: 'string', enum: ['models', 'mappings', 'both'], description: 'models = 模型，mappings = 映射，both = 两段（默认）；两段各自分页' },
-        offset: { type: 'number', description: '本页起点（从 0 开始）；翻页时传上一页的 nextOffset' },
+        provider: { type: 'string', description: 'Provider ID, display name (including Chinese), or a uniquely matching name fragment; prefer exact matches, use the ID when names collide; leave blank",= All' },
+        keyword: { type: 'string', description: 'Per model ID, model name, mapping name, provider ID or display name as a substring filter; if empty= No filter' },
+        enabledOnly: { type: 'boolean', description: 'true = Only show enabled models or mappings' },
+        section: { type: 'string', enum: ['models', 'mappings', 'both'], description: 'models = model, mappings= mapping, both= two segments (default); the two segments paginate separately' },
+        offset: { type: 'number', description: 'The starting point of this page (from 0); when paging, pass the previous page\'s nextOffset' },
         limit: { type: 'number', description: `每页最多条数（默认 ${PAGE_DEFAULT}，上限 ${PAGE_MAX}）；能力信息较多时会缩小本页，请以 nextOffset 为准` },
       },
     },
@@ -149,7 +149,7 @@ export function createModelListTool(read: () => Promise<AssistantModelView>, t: 
         })), offset, limit)
       }
       return result(payload, section === 'mappings'
-        ? t('{n} 条映射', { n: mappings.length }) : t('{n} 个模型', { n: models.length }))
+        ? t('{n} mappings', { n: mappings.length }) : t('{n} models', { n: models.length }))
     },
   }
 }

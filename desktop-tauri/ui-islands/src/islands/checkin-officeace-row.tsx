@@ -15,12 +15,12 @@ type SubscriptionWindow = {
 const api: OfficeaceSubscriptionApi = {
   query(id) {
     const bridge = (window as unknown as SubscriptionWindow).workbuddyDesktop
-    if (!bridge?.getOfficeaceSubscription) return Promise.reject(new Error(t('果办套餐接口不可用，请更新主程序和提供商插件')))
+    if (!bridge?.getOfficeaceSubscription) return Promise.reject(new Error(t('The OfficeAce plan API is unavailable. Update the main application and the provider plugin.')))
     return bridge.getOfficeaceSubscription(id)
   },
   activate(id, confirmAgreements) {
     const bridge = (window as unknown as SubscriptionWindow).workbuddyDesktop
-    if (!bridge?.activateOfficeaceSubscription) return Promise.reject(new Error(t('果办套餐接口不可用，请更新主程序和提供商插件')))
+    if (!bridge?.activateOfficeaceSubscription) return Promise.reject(new Error(t('The OfficeAce plan API is unavailable. Update the main application and the provider plugin.')))
     return bridge.activateOfficeaceSubscription(id, confirmAgreements)
   },
 }

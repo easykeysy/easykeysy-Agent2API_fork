@@ -26,13 +26,13 @@ pub fn message(limits: &[RateLimit]) -> String {
     let now = logging::now_ms();
     let active: Vec<_> = limits.iter().filter(|limit| limit.retry_at > now).collect();
     let Some(first) = active.iter().min_by_key(|limit| limit.retry_at) else {
-        return "上次 GitHub 限流的等待时间已结束，可重新检查".to_string();
+        return "The previous GitHub rate-limit wait has ended. You can check again.".to_string();
     };
     let mut labels = Vec::new();
     for limit in &active {
         if !labels.contains(&limit.label) { labels.push(limit.label.clone()); }
     }
-    let label = labels.join("、");
+    let label = labels.join(", ");
     let seconds = first.retry_at.saturating_sub(now).saturating_add(999) / 1000;
     if first.retry_source == "fallback" {
         format!("GitHub 源「{label}」限流，{seconds} 秒后可重试（上游未提供恢复时间）")
@@ -203,10 +203,10 @@ impl Candidate {
             return Err(UpdateError::rate_limited(vec![limit]));
         }
         let detail: String = detail.chars().filter(|character| !character.is_control()).take(300).collect();
-        let suffix = if detail.is_empty() { String::new() } else { format!("：{detail}") };
+        let suffix = if detail.is_empty() { String::new() } else { format!(": {detail}") };
         self.save_limit(headers, &response_headers, false);
         self.observe("failed", 0, false);
-        Err(UpdateError::with_status(403, format!("{}拒绝访问（HTTP 403）{suffix}", self.label())))
+        Err(UpdateError::with_status(403, format!("{}拒绝访问（HTTP 403){suffix}", self.label())))
     }
 }
 

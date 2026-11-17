@@ -1,5 +1,6 @@
 //! 请求统计存储：`requests` 表（明细）+ `request_daily` 表（按天聚合）+
-//! `request_raw` 表（完整下游正文，预览对话的地基）。
+//! The `request_raw` ledger (the foundation of conversation preview; after the fork the body lives in `{cache_dir}/request-raw/`,
+//! with the ledger keeping only id / ts / size / truncated — see the `raw_file` module header).
 //!
 //! ── 内部分层（拆开是为了每片都保持单一职责、单文件不过长）─────
 //! ```text
@@ -35,8 +36,8 @@
 //!     都超出报表侧读明细的窗口（`SUMMARY_WINDOW_MS`，改造后只剩 24 小时 ——
 //!     命中率四档已在 SQL 侧聚合，不再要求把窗口内的明细读回来），所以这份
 //!     **寿命独立于明细**：明细被手动清理后当天的聚合行仍在，历史曲线不会出现空洞。
-//! `request_raw` 保存完整下游正文，独立成表的理由（大字段不进列表查询）见
-//! `db/schema.rs` 的 V3_SCHEMA。
+//! The `request_raw` ledger is its own table (big fields stay out of list queries — see `db/schema.rs`'s V3_SCHEMA);
+//! after the fork the body itself is written to `{cache_dir}/request-raw/`, and the ledger row only handles counts / pruning / association.
 //! 两个文件变两张表还顺带解决了原来的两个麻烦：**明细与聚合的一致性**（原来是
 //! 两次独立写盘，中间崩溃会留下「明细删了、聚合还在」的错位）现在由**一个事务**
 //! 保证；正文随明细的**同步清理**（淘汰 / 清空时先删正文再删明细）见
@@ -85,6 +86,7 @@ mod routing;
 mod trace;
 mod flow;
 pub use flow::FlowQuery;
+mod raw_file;
 mod retention;
 mod source;
 mod source_report;
@@ -97,6 +99,7 @@ mod sql;
 mod tests;
 
 pub use source::{ApiKeyIdentity, RequestSource};
+
 pub fn request_date_bounds(start: NaiveDate, end: NaiveDate) -> Option<(i64, i64)> {
     let next = end.succ_opt()?;
     Some((clock::local_midnight_ms(start), clock::local_midnight_ms(next)))
@@ -385,12 +388,29 @@ impl RequestStats {
         if request.is_empty() && response.is_empty() {
             return;
         }
-        // 完整正文的落库字节数。
+        // The ledger's size is still booked by body length (for the storage overview / troubleshooting; the body itself no longer enters the DB).
         let size = (request.len() + response.len()) as i64;
         let guard = self.guard();
         let _ = self.with_conn_mut(&guard, |conn| {
+            // fork: the body lands in `{cache_dir}/request-raw/{id}` first, then the ledger row is written to the DB
+            // (the ledger's two bytes columns set to NULL). This happens inside the guard: otherwise a concurrent `sweep`
+            // (the record / prune tick) would delete the new file as an orphan before its ledger row exists.
+            let row = raw_file::RawRow {
+                id: id.to_string(),
+                ts,
+                request_body: request.to_string(),
+                response_body: response.to_string(),
+                truncated: false,
+            };
+            if raw_file::write(&row).is_err() {
+                return Ok(());
+            }
             let tx = conn.transaction()?;
-            sql::upsert_raw(&tx, id, ts, request, response, size)?;
+            let written = sql::upsert_raw(&tx, id, ts, size)?;
+            // The detail row no longer exists (a late write-back after pruning): retract the body just written, avoiding an orphan.
+            if written == 0 {
+                raw_file::remove(id);
+            }
             tx.commit()
         });
     }
@@ -401,6 +421,15 @@ impl RequestStats {
         if id.is_empty() {
             return None;
         }
+        // fork: the body is read from the file first; when the file is missing (ramdisk wiped), fall back to rows the old version left in the DB.
+        if let Some(row) = raw_file::read(id) {
+            return Some(json!({
+                "id": row.id,
+                "requestBody": row.request_body,
+                "responseBody": row.response_body,
+                "truncated": row.truncated,
+            }));
+        }
         let loaded = {
             let guard = self.guard();
             self.with_conn(&guard, |conn| sql::select_raw(conn, id))
@@ -408,6 +437,12 @@ impl RequestStats {
         let Some((raw_id, request_body, response_body, truncated)) = loaded else {
             return None;
         };
+        let request_body = request_body.unwrap_or_default();
+        let response_body = response_body.unwrap_or_default();
+        // Ledger row present, both body columns NULL (a fork row whose file was lost): treat as "not retained".
+        if request_body.is_empty() && response_body.is_empty() {
+            return None;
+        }
         Some(json!({
             "id": raw_id,
             "requestBody": request_body,
@@ -586,7 +621,12 @@ impl RequestStats {
             sql::delete_expired_requests(&tx, bounds.requests_ms)?;
             retention::trim_requests(&tx, bounds.request_count)?;
             daily::delete_daily_before(&tx, &bounds.daily_key)?;
-            tx.commit()
+            tx.commit()?;
+            // fork: sweep body files against the ledger (files belonging to ledger rows removed for expiry / over-count).
+            if let Ok(ids) = sql::raw_ids(conn) {
+                raw_file::sweep(&std::collections::HashSet::from_iter(ids));
+            }
+            Ok(())
         });
         // 显式裁剪（启动 / 改保留期）之后重置节拍：下一次记账从新的一批开始。
         self.maintenance_writes.store(0, Ordering::Relaxed);
@@ -704,7 +744,7 @@ impl RequestStats {
                 &format!(
                     "🔁 已按上游真名重算 {} 天的模型用量（此前按请求名 / 映射别名累计）：{}",
                     changed.len(),
-                    changed.join("、")
+                    changed.join(", ")
                 ),
             ),
             Some(_) => {}

@@ -129,11 +129,11 @@ export function modelsDevStateText(state: ModelsDevView): string {
     ? String(shared().wbApp?.formatTime?.(state.updatedAt) ?? '')
     : ''
   if (!origin && !stamp && !state.count) return STATES.modelsDevEmpty
-  const at = stamp ? t('，{time}', { time: stamp }) : ''
-  const mode = state.enabled ? t('正在联网更新') : t('仅用现有数据、不联网刷新')
-  return t('{count} 条 · 来自{origin}{at} · {mode}', {
+  const at = stamp ? t(', {time}', { time: stamp }) : ''
+  const mode = state.enabled ? t('Updating online') : t('Using existing data only, no online refresh')
+  return t('{count} entries · from {origin}{at} · {mode}', {
     count: Number(state.count).toLocaleString('zh-CN'),
-    origin: origin || t('未知来源'),
+    origin: origin || t('Unknown source'),
     at,
     mode,
   })
@@ -444,7 +444,7 @@ export function shared(): SharedWindow {
 
 export function errorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? '')
-  return message.trim() || t('未知错误')
+  return message.trim() || t('Unknown error')
 }
 
 /** toast 的统一出口（运行期读 wbApp，不在模块顶层解构） */
@@ -462,7 +462,7 @@ export async function openExternal(url: string): Promise<void> {
   try {
     await shared().workbuddyDesktop?.openReleasePage?.(url)
   } catch (error) {
-    toast(t('打开链接失败：{error}', { error: errorMessage(error) }), 'err')
+    toast(t('Failed to open the link: {error}', { error: errorMessage(error) }), 'err')
   }
 }
 
@@ -491,26 +491,26 @@ export async function openExternal(url: string): Promise<void> {
  * 改名会让两者当场失配 —— 用户看到的只是标签，id 是内部契约。
  */
 export const CATEGORIES = [
-  { id: 'account', label: t('账户'), icon: 'accounts' },
-  { id: 'general', label: t('通用'), icon: 'sliders' },
+  { id: 'account', label: t('Account'), icon: 'accounts' },
+  { id: 'general', label: t('General'), icon: 'sliders' },
   // 注：AI 助手的配置（对话模型 / 系统提示词 / 工具勾选）已搬到助手页自己的
   // 「助手设置」抽屉（见 assistant-settings-drawer.tsx）—— 那几项都是聊着聊着
   // 就想改的，留在这里意味着每次调整都要离开对话页再回来。分类不再保留，
   // 老用户 localStorage 里存着的 'assistant' 由 settings-state 的兜底回落到首项。
-  { id: 'display', label: t('显示'), icon: 'display' },
-  { id: 'gateway', label: t('网关'), icon: 'traffic' },
-  { id: 'providers', label: t('提供商'), icon: 'sliders' },
-  { id: 'retry', label: t('重试'), icon: 'refresh' },
-  { id: 'timeout', label: t('超时'), icon: 'timer' },
-  { id: 'security', label: t('安全'), icon: 'shield' },
-  { id: 'data', label: t('数据'), icon: 'database' },
-  { id: 'feedback', label: t('反馈与需求'), icon: 'feedback' },
+  { id: 'display', label: t('Shown'), icon: 'display' },
+  { id: 'gateway', label: t('Gateway'), icon: 'traffic' },
+  { id: 'providers', label: t('Provider'), icon: 'sliders' },
+  { id: 'retry', label: t('Retry'), icon: 'refresh' },
+  { id: 'timeout', label: t('Timeout'), icon: 'timer' },
+  { id: 'security', label: t('Security'), icon: 'shield' },
+  { id: 'data', label: t('Data'), icon: 'database' },
+  { id: 'feedback', label: t('Feedback & Requests'), icon: 'feedback' },
   // 「版本信息」：软件版本 / 运行环境 / 路径 / 开关状态 / 关键计数，可一键
   // 复制成纯文本（面板在 system-info-pane.tsx）。紧挨「反馈与需求」—— 两者
   // 是同一件事的两端：出问题了先来这儿截图，再去那儿提 issue。
   // `system` 是新的内部 id，不与任何既有分类 / localStorage 取值冲突。
-  { id: 'system', label: t('版本信息'), icon: 'info' },
-  { id: 'about', label: t('更新'), icon: 'download' },
+  { id: 'system', label: t('Version info'), icon: 'info' },
+  { id: 'about', label: t('Update'), icon: 'download' },
 ] as const
 
 /**
@@ -557,9 +557,9 @@ export const ZOOM_PERCENTS: number[] = Array.from(
  * 这里用了更书面的一种）。
  */
 export const THEME_MODES = [
-  { value: 'system', label: t('跟随系统') },
-  { value: 'light', label: t('浅色') },
-  { value: 'dark', label: t('深色') },
+  { value: 'system', label: t('System') },
+  { value: 'light', label: t('Light') },
+  { value: 'dark', label: t('Dark') },
 ] as const
 
 /** 显示模式取值（SegmentedControl 的泛型参数要用它，免得在视图里转字面量联合） */
@@ -624,29 +624,29 @@ export const RETRY_FIELDS: NumberField[] = [
   {
     key: 'retryCount',
     id: 'settings-retry-count',
-    label: t('同一账号重试次数'),
-    unit: t('次'),
+    label: t('Same-Account Retries'),
+    unit: t('times'),
     min: 0,
     max: 10,
-    hint: t('在同一个账号上原地重发几次（不含首发；整条请求共用一份，用完后换来的账号只发一次就继续换）。可填 0–10，0 表示失败立即换号。'),
+    hint: t('How many times to resend in place on the same account (not counting the first send; the whole request shares one pool, and once it is used up, any account switched to gets only one send before switching continues). Accepts 0–10; 0 means switch accounts immediately on failure.'),
   },
   {
     key: 'retryCrossProviderCount',
     id: 'settings-retry-cross-provider-count',
-    label: t('切换账号重试次数'),
-    unit: t('次'),
+    label: t('Account-Switch Retries'),
+    unit: t('times'),
     min: 0,
     max: 10,
-    hint: t('失败后最多再换几个账号试（填 N = 最多换 N 个，首发那个不算）。换到同一家名下另一个账号、或换到另一家，都各算一次；换满仍失败就返回错误。可填 0–10，0 表示失败立即报错。'),
+    hint: t('How many more accounts to try on failure (N = switch to at most N accounts; the account that made the first attempt does not count). Switching to another account under the same provider and switching to a different provider each count as one; once the limit is reached and the request still fails, an error is returned. Accepts 0–10; 0 means report the error immediately on failure.'),
   },
   {
     key: 'retryIntervalSeconds',
     id: 'settings-retry-interval',
-    label: t('重试间隔'),
-    unit: t('秒'),
+    label: t('Retry Interval'),
+    unit: t('seconds'),
     min: 0,
     max: 300,
-    hint: t('两次重试之间的等待时间，两项共用，可填 0–300 秒。'),
+    hint: t('Wait time between two retries, shared by both settings. Range: 0–300 seconds.'),
   },
 ]
 
@@ -655,38 +655,38 @@ export const TIMEOUT_FIELDS: NumberField[] = [
   {
     key: 'connectTimeoutSeconds',
     id: 'settings-timeout-connect',
-    label: t('连接中超时'),
-    unit: t('秒'),
+    label: t('Connect Timeout'),
+    unit: t('seconds'),
     min: 1,
     max: 3600,
-    hint: t('建立上游 TCP/TLS 连接或代理隧道的最大等待时间（秒），默认 30 秒，范围 1~3600。'),
+    hint: t('Maximum time to establish the upstream TCP/TLS connection or proxy tunnel (seconds). Default 30 seconds, range 1–3600.'),
   },
   {
     key: 'headersTimeoutSeconds',
     id: 'settings-timeout-headers',
-    label: t('等待响应超时'),
-    unit: t('秒'),
+    label: t('Response Headers Timeout'),
+    unit: t('seconds'),
     min: 1,
     max: 3600,
-    hint: t('请求发出后等待上游响应头的最大时间（秒），默认 300 秒，范围 1~3600。'),
+    hint: t('Maximum time to wait for the upstream\'s response headers after the request is sent (seconds). Default 300 seconds, range 1–3600.'),
   },
   {
     key: 'streamIdleTimeoutSeconds',
     id: 'settings-timeout-stream-idle',
-    label: t('流式响应空闲超时'),
-    unit: t('秒'),
+    label: t('Stream Idle Timeout'),
+    unit: t('seconds'),
     min: 1,
     max: 3600,
-    hint: t('流式响应相邻数据之间允许的最大空闲时间（秒），收到新数据后重新计时，默认 300 秒，范围 1~3600。'),
+    hint: t('Maximum idle time allowed between adjacent chunks of a streaming response (seconds); the timer restarts on each new chunk. Default 300 seconds, range 1–3600.'),
   },
   {
     key: 'bodyTimeoutSeconds',
     id: 'settings-timeout-body',
-    label: t('非流式响应超时'),
-    unit: t('秒'),
+    label: t('Non-Streaming Timeout'),
+    unit: t('seconds'),
     min: 1,
     max: 3600,
-    hint: t('读取完整非流式响应体允许的最大时间（秒），默认 300 秒，范围 1~3600。'),
+    hint: t('Maximum time allowed to read a complete non-streaming response body (seconds). Default 300 seconds, range 1–3600.'),
   },
 ]
 
@@ -695,20 +695,20 @@ export const QUEUE_FIELDS: NumberField[] = [
   {
     key: 'queueMaxWaits',
     id: 'settings-queue-max-waits',
-    label: t('排队等待次数'),
-    unit: t('次'),
+    label: t('Queue Wait Count'),
+    unit: t('times'),
     min: 0,
     max: 10,
-    hint: t('上游模型繁忙时会先排队（回一句「建议 N 秒后再来」）：网关等一会儿再发同一请求，最多等几次。默认 2 次，可填 0–10；填 0 表示不等待，排队直接返回 503 并说明「不是登录态或额度问题」。'),
+    hint: t('Busy upstream models queue first (replying "suggest waiting N seconds"): the gateway waits a while and resends the same request, up to a set number of waits. Default 2; accepts 0–10. 0 means no waiting: a queued response returns 503 directly and states that this is not a sign-in or quota problem.'),
   },
   {
     key: 'queueWaitSeconds',
     id: 'settings-queue-wait-seconds',
-    label: t('排队等待秒数'),
-    unit: t('秒'),
+    label: t('Queue Wait Seconds'),
+    unit: t('seconds'),
     min: 0,
     max: 120,
-    hint: t('每次等待的时长，默认 0 = 跟随上游建议（实测 9~30 秒，上游没给建议时用 15 秒）。可填 0–120 秒强制一个固定时长。'),
+    hint: t('Duration of each wait. Default 0 = follow the upstream\'s suggestion (measured 9–30 seconds; 15 seconds when the upstream gives none). Accepts 0–120 seconds to force a fixed duration.'),
   },
 ]
 
@@ -725,29 +725,29 @@ export const IMAGE_COMPRESS_FIELDS: NumberField[] = [
   {
     key: 'imageCompressMaxEdge',
     id: 'settings-image-compress-max-edge',
-    label: t('长边像素上限'),
-    unit: t('像素'),
+    label: t('Max long-edge pixels'),
+    unit: t('px'),
     min: 256,
     max: 8192,
-    hint: t('图片最长边超过这个值就等比缩小（只缩不放）。默认 2048，可填 256–8192 —— 多数视觉模型在这个量级已经够用，调小更省流量、但细节会丢。'),
+    hint: t('Images whose longest edge exceeds this value are scaled down proportionally (never enlarged). Default 2048, range 256-8192 — most vision models are fine at this size; a smaller value saves bandwidth but loses detail.'),
   },
   {
     key: 'imageCompressQuality',
     id: 'settings-image-compress-quality',
-    label: t('重编码质量'),
+    label: t('Re-encode quality'),
     unit: '',
     min: 40,
     max: 95,
-    hint: t('缩放后重新存成 JPEG 时用的质量。默认 80，可填 40–95；数值越小体积越小、画质越差。'),
+    hint: t('JPEG quality used when re-encoding the scaled image. Default 80, range 40-95; lower means a smaller file and lower quality.'),
   },
   {
     key: 'imageCompressThresholdKb',
     id: 'settings-image-compress-threshold',
-    label: t('触发阈值'),
+    label: t('Trigger threshold'),
     unit: t('KB'),
     min: 0,
     max: 10240,
-    hint: t('解码后小于这个体积的图片保持原样。默认 512KB，可填 0–10240；填 0 表示所有内嵌图片都过一遍。'),
+    hint: t('Images smaller than this size after decoding are kept as-is. Default 512KB, range 0-10240; 0 processes every inline image.'),
   },
 ]
 
@@ -761,9 +761,9 @@ export const RETRY_MAX_CODES = 50
 export type PromptModeOption = { value: string; optionLabel: string; toastLabel: string }
 
 export const PROMPT_MODES: PromptModeOption[] = [
-  { value: 'passthrough', optionLabel: t('透传客户端 system（默认）'), toastLabel: t('透传客户端 system') },
-  { value: 'custom', optionLabel: t('替换为网关提示词'), toastLabel: t('替换为网关提示词') },
-  { value: 'append', optionLabel: t('追加网关提示词'), toastLabel: t('追加网关提示词') },
+  { value: 'passthrough', optionLabel: t('Passthrough client system (default)'), toastLabel: t('Passthrough client system') },
+  { value: 'custom', optionLabel: t('Replace with gateway prompt'), toastLabel: t('Replace with gateway prompt') },
+  { value: 'append', optionLabel: t('Append gateway prompt'), toastLabel: t('Append gateway prompt') },
 ]
 
 /* ─── 校验与归一化 ─────────────────────────── */
@@ -779,11 +779,11 @@ export type ParseResult = { ok: true; value: number } | { ok: false; message: st
 export function parseInteger(raw: unknown, min: number, max: number, noun: string): ParseResult {
   const text = String(raw ?? '').trim()
   // 空串要单独挡：空值过不了下面的正则，但提示语不同（「不能为空」比「必须是整数」更准）
-  if (!text) return { ok: false, message: t('{noun}不能为空（可填 {min}–{max}）', { noun, min, max }) }
-  if (!/^\d+$/.test(text)) return { ok: false, message: t('{noun}必须是整数', { noun }) }
+  if (!text) return { ok: false, message: t('{noun} cannot be empty (allowed range: {min}–{max})', { noun, min, max }) }
+  if (!/^\d+$/.test(text)) return { ok: false, message: t('{noun} must be an integer', { noun }) }
   const value = Number(text)
   if (value < min || value > max) {
-    return { ok: false, message: t('{noun}必须在 {min}–{max} 之间（当前填的是 {text}）', { noun, min, max, text }) }
+    return { ok: false, message: t('{noun} must be between {min} and {max} (currently entered: {text})', { noun, min, max, text }) }
   }
   return { ok: true, value }
 }
@@ -855,109 +855,109 @@ export function formatCount(value: unknown): string {
 
 /** 标题右侧问号（`[data-tip]`）的说明全文：desktop-tooltip.tsx 仍在页面上跑，照旧服务这些元素 */
 export const TIPS = {
-  displayTheme: t('控制界面的深浅色，与左侧边栏底部的三个主题按钮是同一个设置（改哪一处，另一处立刻跟上）。「跟随系统」会随操作系统当前的浅色 / 深色自动切换，并在系统主题变化时即时跟上；选「浅色」或「深色」则把界面固定在该模式，不再随系统变化。窗口标题栏的深浅色会一并同步，不会出现深色界面配一条浅色标题栏的情况。'),
-  displayZoom: t('等比放大或缩小整个界面（文字、控件、间距一起变），效果与浏览器按 Ctrl +/- 相同：80%–130%、5% 一档。窗口本身不缩放，变的是页面内容的显示比例，设置立即生效并记住，下次启动直接按这个比例打开。放得越大可视范围越小，窗口较窄或表格较宽时不建议调得太大。'),
-  displayLanguage: t('界面语言。可选简体中文、繁體中文、English、日本語、한국어、Português (Brasil)，或「跟随系统」（按浏览器 / 系统的语言列表自动选）。切换后整页立即刷新；该偏好只存在本机（localStorage），不影响账号、密钥与转发。'),
-  accountList: t('账号页表格的两项显示偏好，只存在本机（localStorage），不影响账号数据与转发。「积分合计只统计当前筛选出来的账号」：账号页每一家的分组带右侧有一枚「可用合计」，默认按整组求和 —— 不受筛选、搜索影响，被筛掉的账号也计入（余额是资产，禁用也只表示不参与转发，额度仍在账上）。打开这一项后改为只累加当前可见的行：例如筛出 1 个 100 积分的账号，合计就是 100，而不是同组两个账号之和 1,000。分页不参与这个口径 —— 翻页看的是同一份结果的不同屏，合计不随页码变化。「隐藏账号名」与表头「账号」旁边那颗眼睛是同一个开关：打开后账号列的名字整体显示成星号，适合截图分享时遮挡账号。') + ' ' + t('百分比类读数（如 OpenCode Go、Antigravity）不能相加，组头显示的是组内最低剩余比例。'),
-  tray: t('默认关闭窗口不会退出程序，而是把窗口缩到系统托盘，转发继续在后台运行（OpenAI 客户端不受影响）；要彻底退出程序，请在托盘图标上右键选「退出」。关掉这个开关后，点关闭按钮即退出程序、转发随之中断。「开机自动启动」开启后，登录系统时会自动启动本程序（通常直接驻留托盘），不需要手动打开。'),
-  lightweight: t('开启后，关闭窗口会销毁界面并释放 WebView 进程，网关转发、定时签到、余额查询仍在后台继续。ZCode 模型请求免验证时不受影响；上游要求人机验证时，需要重新打开界面，在账号的「套餐明细」中主动完成验证。此开关只在「关闭窗口时最小化到托盘」开启时有意义。'),
-  networkAccess: t('默认仅本机可访问（127.0.0.1）。开启后监听所有 IPv4 网卡（0.0.0.0），访问范围由网络与防火墙决定，不限于局域网，也不会自动开放到公网。开启前必须注册面板管理员；管理接口需要管理员会话或网关 Key，API 调用需要启用的网关 Key，没有时会自动创建一把「默认」Key。「同时开放网页管理面板」默认关闭，开启后可从其他设备的浏览器登录管理；关闭它不影响 API 转发和本机桌面管理。修改任一开关都需要重启应用。'),
-  units: t('控制报表与请求日志里 Token 读数的写法：开启后按中文量级显示（1.2亿 / 8400万），关闭则用 k / M / B 缩写（与上游文档、接口字段的写法一致）。这只影响显示口径，不改变任何统计与存储的数值。'),
-  queue: t('只对「排队制」的上游生效：模型繁忙时上游不报错，只回一句「建议 N 秒后再来」，网关按建议时长等一会儿再发同一请求，等满次数仍排不上才把「排队中」作为错误返回（HTTP 503，文案会说明这不是登录态或额度问题）。等待发生在首个字节之前，吃的是「等待响应超时」那份预算 —— 两项设置一起决定一次请求最多卡多久；排队不会标记账号限额、也不会换账号（换谁都一样在排队）。保存后对下一个请求立即生效，不用重启。'),
-  captchaPool: t('模型请求是否需要验证码由 ZCode 上游配置决定，领取验证与模型请求免验证分别处理。后台只检查配置和库存，不自动运行验证码或弹出拼图；需要验证时，在账号的「套餐明细」中点击「开始验证」。验证令牌一次性使用，短时间内过期，失败或取消后不会自动重试。'),
-  captchaSides: t('两组设置分别用于桌面端托管的网页管理面板与网页端（Docker / 服务端）的浏览器面板。是否可被其他设备访问取决于网络访问与防火墙设置，不限于局域网。两端默认都开启人机验证，建议保持开启。'),
-  timeouts: t('上游请求四个阶段各自的等待上限（秒，1~3600）：①「连接中超时」= 建立 TCP/TLS 连接或代理隧道的最大等待，默认 30 秒；②「等待响应超时」= 请求发出后等上游响应头的最大时间，默认 300 秒 —— 网关请求上游恒带 stream，响应头在 SSE 建立时就到达，与模型思考多久无关；③「流式响应空闲超时」= 流式响应相邻两块数据之间允许的最大空闲，收到新数据即重新计时，默认 300 秒 —— 上游长时间不吐数据即判定连接僵死并断开；④「非流式响应超时」= 读完整份非流式响应体的总预算（一次性计时、不重置），默认 300 秒。四项都是「等待上限」，只要数据还在来，正常的流式回答就一直往下传。保存后对下一个请求立即生效，不用重启。'),
-  retry: t('请求转发到上游失败时（服务器瞬时错误、连接失败，以及 WorkBuddy 的 11-128 敏感词拦截），网关会等一段间隔后再发一次。次数分两档，管的是两件事：①「同一账号重试次数」在同一账号上原地重发几次 —— 一般是提示词被上游拦截、或链路瞬时抖动，等一会儿重发往往就好了；②「切换账号重试次数」这份请求最多再换几个账号试 —— 首发的那个账号不算，每换一个扣一次，不分是不是同一家（换到同一家的下一个账号也算一次），换满还失败就把错误返回给客户端。两项都设为 0 表示失败不重试、直接报错。注意账号级限额（429）不占这里的换号次数 —— 那类失败走「冷却该账号并换下一个账号」的降级，与这里的重试是两条路。另有「指定错误码直接换号」名单（默认 402）：命中名单的上游状态码不在同一账号重发，直接按队列换下一个账号继续试（换号也占「切换账号重试次数」），换满仍失败才把错误返回给客户端。'),
-  routing: t('转发一个请求时按什么顺序挑账号：①「路由策略」决定排队规则 —— 顺序优先是排第 1 的接走所有请求、直到它不能答（限流 / 故障 / 额度尽）才轮到下一位；负载均衡是每条请求换下一位，把负载摊到各个账号上。②「会话粘性」让同一会话（相同的模型 + 相同的开头消息）尽量跟住同一个账号 —— 多轮对话的上下文缓存能复用、少换号少浪费；自动档粘 5 分钟、会话内档粘 6 小时、每轮与关闭都不粘。账号的排队位次（账号表的第一列）在所有策略下都是地基，策略在它之上再排。此外路由还有三层自愈保护：转发失败的账号退避休息一会儿（15 分钟起步翻倍、封顶 1 小时）、被 429 的账号垫底排到队尾 30 分钟、余额不足 / Token 周期用量到顶的账号由限制器拦下 —— 前两层可以在下面按需开关，限制器由账号的「限制器」设置管。'),
-  sanitize: t('指纹脱敏会在转发前按词表顺序改写请求消息中的文本，包括对话内容、思考内容和工具调用参数。默认词表包含客户端模板句与计费表头的精确替换、正则删除规则，可以新增、编辑、删除、启停和调整顺序；替换内容留空表示删除匹配内容。默认应用全部提供商，也可指定多家。改动只作用于发给上游的副本，响应内容不变。编辑后点击「保存设置」，下一次请求生效；清空词表表示不做任何指纹改写，恢复默认只重置词表。'),
-  developerRoleCompat: t('OpenAI 新版 API 用 developer 角色取代 system 承载指令，新版 OpenAI SDK 与部分客户端发的对话里会出现 role 为 developer 的消息；不少 OpenAI 兼容上游（尤其是自定义提供商的透传路径）不认识这个角色，收到就报 400。开启本项后，网关在每次转发前把 developer 角色的消息改写为 system —— 两类角色在 OpenAI 语义上等价（OpenAI 自己的迁移指南也是这么映射的），改写不影响对话内容与语义；对本来就只认 system 的各家内置上游同样无害。默认开启；关掉后 developer 消息会原样发往上游，不认识它的上游会报「角色不存在」一类的错误。'),
-  reasoningCollapse: t('让 Codex 在收到最终答案后收起中间过程。仅为严格识别的 Codex Responses 请求补阶段标记，报表归类和来源声明不影响此判断。正常结束且没有工具调用的非空回答才补 final_answer，工具调用前的说明补 commentary；错误、截断、缺少结束信号或未知结束原因不补最终答案标记。默认关闭，不改变回答文字，也不减少模型思考或用量。'),
-  imageCompress: t('对话里内嵌的 base64 大图（截图、照片）既撑大请求体，也拉高按像素折算的上游计费。开启后，网关在转发前把超过阈值的图等比缩到长边上限、重新存成 JPEG —— 只改发给上游的副本，请求日志里保存的仍是你发来的原图。同一张原图在多轮对话里重复出现时复用上一次的压缩结果，不会每轮重算。http 链接图片、GIF 动图、SVG 一律不动；压完反而更大的图也保留原图。只作用在对话场景，生图与图片编辑不受影响。默认开启；不想要的话把开关关掉即可。'),
-  clineHeaders: t('Cline 上游按请求头判定「调用方是不是 Cline 自家产品」：X-CLIENT-TYPE: cline-sdk 是硬门槛（缺了它免费池模型一律 403），版本号与平台标识让请求更贴近官方客户端的形态。这里列出的是网关默认会发的头：改某一行的值 = 覆盖默认值（也可以新增默认清单之外的自定义头）；把值清空保存 = 这个头不发送；在界面删掉被改过的行 = 回落默认值。改完点「保存」，下一个 Cline 请求立即生效。不懂某一行的含义就不要动它 —— 伪装头的价值在「与官方客户端逐字一致」。'),
-  cors: t('网关面（/v1/*）默认不应答浏览器跨源请求：页面直连会被预检拦下，只报「无法连接 API」。注意来源是 * —— 未配「网关 Key」时任何网页都能借本机网关打上游，故默认关闭；只给自己用的话，让页面与网关同源（本地反代 /v1）更稳妥。面板接口（/api/*）不受影响。'),
-  prompt: t('客户端（Claude Code / Codex 等 CLI）会在 system 提示词里注入几十句固定模板，上游按逐字匹配审核，命中就整单拦截（HTTP 400）。指纹脱敏能改写实测命中过的那几句，但换一个客户端版本就可能冒出新的。这里可以把 system 整段换成网关自己那份：①「透传」= 不动客户端 system（默认，行为与之前完全一致）；②「替换」= 删掉客户端所有 system / developer 消息，换成网关的提示词（客户端项目规范随之消失）；③「追加」= 在开头连续 system 块之后插入一条网关提示词，既有消息逐字不动（客户端规范与网关提示词并用）。那份提示词有两个来源：提示词文件（留空用内置默认），或直接在界面上编辑正文 —— 编辑过就以那份正文为准（优先于文件），清空则回到文件 / 内置默认。另外，透传 / 追加模式下撞了内容拦截（多半是指纹误报）时，网关会自动换一段最小中性提示词重试一次，并把「降级期」开到次日 00:00 —— 期间所有请求直接带中性提示词出门，不再先撞一次 400；这里能看见并提前解除它。上面几项是**默认值**：想给某个提供商单独配，用下面的「按提供商」加一行（带「网关自带」的家默认就列在那里）—— 不同的上游对这些内容的接受程度不一样。'),
-  debug: t('开启后，网关会把每次转发**发给上游的请求**（请求头 + 请求体）与**上游返回的响应**（状态码 + 响应头 + 响应体）完整保存到本地，供请求日志页的「详情」查看。请求头里的 Authorization、Cookie、API Key 等凭据字段一律替换成 [redacted]，不会明文落盘；请求体与响应体按原样保存（可能包含你的对话内容）。报文只保留最近 500 条，超出后丢弃最旧的。这是排障用的临时开关，不需要时建议关闭。'),
-  io: t('导出会把全部账号与自定义提供商定义写入一个 JSON 文件，可以拷到另一台机器上导入后继续使用。导入采用合并策略：同提供商下按业务身份（UID / userId / apiKey 等）去重 —— 已存在的账号只更新凭证，保留本机原有的优先级顺序；新账号追加到转发顺序末尾，不会抢占当前正在使用的账号；自定义提供商定义按 id 合并，本机缺失时自动补建。'),
-  backup: t('将数据库和恢复凭证所需的密钥一起保存为密码加密的 .a2ab 备份，可在 Windows、macOS 或 Linux 上恢复，无需手工复制密钥。恢复时整体替换账号、配置、日志与桌面设置，并使用目标机器的密钥重新加密凭证，不覆盖本机已有钥匙。可取消包含日志以减小文件；旧 .sql 备份仍可导入。恢复前自动保留安全备份，完成后需要重新登录管理面板。'),
-  retention: t('日志与请求日志同时受保留天数和数量上限限制。日志默认 30 天、10000 条，各级别按比例保留；调试详情最多保留 3 天。请求日志默认 99999 天、1000000 条（100 万），超出后从最旧的记录开始清理，并同步删除对应原始正文。按天聚合默认 99999 天，只按天数保留，不受请求日志数量清理影响。天数可填 1–99999，数量可填 1–100000000。调小任一设置并确认后立即清理，且不可恢复。'),
-  storage: t('全部数据（账号、事件日志、请求记录、调试报文、设置）统一保存在配置目录下的 agent2api.db 中，加密密钥单独保存在库外。跨机器备份请使用「整库备份 / 恢复」，不要只复制数据库。更换保存位置请设置环境变量 AGENT2API_PROXY_HOME 后重启程序。'),
-  modelsDev: t('models.dev 是一个开源的模型资料库（社区维护），这里用它补齐「上游没告诉我们」的模型能力：上下文窗口、最大输出、工具调用、图片、视频、是否支持思考，以及这个模型认识哪些思考档位。优先级是：你在「模型能力」里手工改的值 > 上游清单自己声明的值 > models.dev 的值 —— 它只填上游没声明的空位，从不推翻上游已声明的。网关随包内嵌了一份快照，所以离线、首次启动、访问不通时也有数据；开启时会按「模型目录刷新」任务的间隔联网更新（同一轮里一并刷新，也可在这里立即刷新）。关闭只停联网刷新，已经拿到的数据继续用。'),
+  displayTheme: t('Controls the UI\'s light / dark colors; it is the same setting as the three theme buttons at the bottom of the left sidebar (change either one and the other follows immediately). "System" switches automatically with the operating system\'s current light / dark setting and follows changes as they happen; choosing "Light" or "Dark" pins the UI to that mode regardless of the system. The window title bar\'s light / dark color stays in sync too, so you never end up with a dark UI under a light title bar.'),
+  displayZoom: t('Zoom the whole interface proportionally (text, controls, and spacing scale together), equivalent to Ctrl +/- in a browser: 80%–130% in 5% steps. The window itself does not resize — what changes is the page content\'s display scale; the setting applies immediately and is remembered, so the next launch opens at this scale. The larger the scale, the less you can see at once; with a narrow window or wide tables, do not set it too high.'),
+  displayLanguage: t('Interface language. Choices: Simplified Chinese, Traditional Chinese, English, Japanese, Korean, Portugueseês (Brasil), or System (picked automatically from the browser / system language list). Switching reloads the whole page immediately; the preference is stored only on this machine (localStorage) and does not affect accounts, keys, or forwarding.'),
+  accountList: t('Two display preferences for the accounts table. They are stored only on this machine (localStorage) and never affect account data or forwarding. "Only sum accounts visible under the current filter": each provider band on the accounts page shows a "Total available" badge, and by default it sums the whole group — filtering and search do not change it, and accounts filtered out still count (balance is an asset; disabling an account only keeps it out of forwarding, the credit stays). Turn this on to add up only the rows currently visible: filter down to one account with 100 credits and the total reads 100, not 1,000 (the sum of two accounts in that group). Paging does not take part in this rule — pages are just different screens of the same result, so the total does not change as you flip pages. "Hide account names" is the same switch as the eye next to the "Account" column header: when on, names in the account column are shown as asterisks, handy for screenshots.') + ' ' + t('Percentage readings (such as OpenCode Go or Antigravity) cannot be summed; the band shows the group\'s lowest remaining percentage.'),
+  tray: t('By default, closing the window does not quit the app; it shrinks the window to the system tray and forwarding keeps running in the background (OpenAI clients are unaffected). To quit the app completely, right-click the tray icon and choose "Exit". With this switch off, clicking the close button quits the app and forwarding stops with it. With "Launch at startup" on, the app starts automatically when you sign in to the system (usually staying in the tray), so you do not need to open it manually.'),
+  lightweight: t('When enabled, closing the window destroys the interface and releases WebView processes. Forwarding, scheduled check-ins and balance queries continue in the background. ZCode requests exempt from verification are unaffected. If verification is required, reopen the interface and complete it in the account’s Plan details. This setting applies only when closing minimizes the app to the tray.'),
+  networkAccess: t('By default, only this machine can connect (127.0.0.1). Enabling this listens on all IPv4 interfaces (0.0.0.0); access depends on your network and firewall, is not limited to the LAN, and is not automatically opened to the internet. A panel administrator must be registered first. Management endpoints require an admin session or gateway key; API calls require an enabled gateway key, with a default key created automatically if needed. The web management panel is off by default. Enable it to sign in from another device\'s browser; disabling it does not affect API forwarding or local desktop management. Either switch requires an app restart.'),
+  units: t('Controls how token counts read in reports and request logs: on shows Chinese magnitudes (1.2100M / 840010k), off uses k / M / B abbreviations (consistent with upstream docs and API fields). This only changes the display; no statistics or stored numbers are affected.'),
+  queue: t('Applies only to queueing upstreams : when a model is busy the upstream raises no error, it just replies "suggest waiting N seconds"; the gateway waits for the suggested duration and resends the same request, and only when the wait count is exhausted is "queueing" returned as an error (HTTP 503, with text explaining that this is not a sign-in or quota problem). The wait happens before the first byte and comes out of the "Response Headers Timeout" budget — together the two settings determine how long one request can stall at most; queueing does not mark the account as rate-limited and does not switch accounts (everyone is queueing). Takes effect on the next request after saving, no restart needed.'),
+  captchaPool: t('ZCode upstream settings determine whether model requests need verification, independently of plan claims. The background only checks settings and stock; it never runs verification or opens a puzzle automatically. Start required verification in the account’s Plan details. Tokens are single-use, expire shortly, and are not retried automatically after failure or cancellation.'),
+  captchaSides: t('The two groups apply to the web panel hosted by the desktop app and the browser panel hosted by Docker / server. Access from other devices depends on network access and firewall settings and is not limited to the LAN. Human verification is enabled by default for both; keeping it enabled is recommended.'),
+  timeouts: t('The upstream wait limit for each of the four request stages (seconds, 1–3600): (1) "Connect Timeout" = the maximum wait to establish the TCP/TLS connection or proxy tunnel, default 30 seconds; (2) "Response Headers Timeout" = the maximum time to wait for the upstream\'s response headers after the request is sent, default 300 seconds — gateway requests always use stream, and the response headers arrive as soon as the SSE stream is established, regardless of how long the model thinks; (3) "Stream Idle Timeout" = the maximum idle gap allowed between adjacent chunks of a streaming response, the timer restarting on each new chunk, default 300 seconds — if the upstream sends no data for a long time, the connection is judged dead and disconnected; (4) "Non-Streaming Timeout" = the total budget for reading a complete non-streaming response body (a single timer that is not reset), default 300 seconds. All four are wait limits: as long as data keeps arriving, a normal streaming answer keeps flowing. Changes take effect on the next request without a restart.'),
+  retry: t('When forwarding a request to an upstream fails (transient server errors, connection failures, and WorkBuddy\'s 11-128 sensitive-word blocking), the gateway waits for an interval and sends it once more. The counts come in two tiers covering two different things: (1) "Same-Account Retries" resends in place on the same account a few times — usually the prompt was blocked by the upstream or the link flickered, and resending after a wait tends to succeed; (2) "Account-Switch Retries" is how many more accounts this request may try — the account that sent it first does not count, each switch costs one, regardless of whether it is the same provider (switching to the next account of the same provider also counts), and when the switches are exhausted and it still fails, the error is returned to the client. Setting both to 0 means no retries on failure — error out immediately. Note that account-level throttling (429) does not consume these account switches — that kind of failure goes through the "cool down the account and move to the next one" fallback, a separate path from the retries here. There is also the "Switch Accounts on Specified Error Codes" list (default 402): upstream status codes on the list are not retried on the same account; the gateway switches to the next account in the queue and keeps trying (the switch also consumes an "Account-Switch Retries" slot), and only when those are exhausted is the error returned to the client.'),
+  routing: t('How accounts are picked when forwarding a request: ① "Routing strategy" sets the queueing rule — Strict order means position 1 takes every request until it can\'t answer (rate-limited / failing / out of quota) before the next one steps in; Load balancing rotates to the next account on every request, spreading the load across accounts. ② "Session stickiness" keeps the same session (same model + same opening messages) on one account wherever possible — multi-turn conversations reuse the upstream context cache, fewer account switches, less waste; Auto sticks for 5 minutes, In-session for 6 hours, Per turn and Off don\'t stick. The queue position (first column of the accounts table) is the foundation under every strategy; strategies are layered on top of it. Routing also has three self-healing guards: accounts that fail to forward back off for a while (starting at 15 minutes, doubling per failure, capped at 1 hour), accounts 429\'d despite having quota go to the back of the queue for 30 minutes, and accounts out of quota or over their per-period token cap are held by the limiter — the first two can be toggled below as needed; the limiter is governed by each account\'s "Limiter" settings.'),
+  sanitize: t('Before forwarding, fingerprint masking applies rules in list order to message text, including conversation content, reasoning content and tool-call arguments. The default rules contain exact replacements and regular-expression deletions for client templates and billing headers. You can add, edit, delete, enable, disable and reorder rules; an empty replacement deletes the matched text. All providers are selected by default, or you can select specific providers. Only the outbound copy is modified; responses are unchanged. Click Save settings to apply changes to the next request. An empty rule list performs no fingerprint rewriting, and restoring defaults resets only the rules.'),
+  developerRoleCompat: t('The newer OpenAI API carries instructions in a developer role instead of system, so conversations sent by current OpenAI SDKs and some clients contain messages with role "developer". Many OpenAI-compatible upstreams (especially the passthrough path of custom providers) do not recognize that role and reject the whole request with 400. When enabled, the gateway rewrites developer-role messages to system before every forward — the two roles are equivalent in OpenAI semantics (OpenAI\'s own migration guide maps them the same way), so the rewrite changes neither content nor meaning, and it is harmless to the built-in upstreams that only accept system anyway. Enabled by default; when off, developer messages go upstream as-is and upstreams that do not know the role return "unknown role"-style errors.'),
+  reasoningCollapse: t('Let Codex collapse intermediate work after the final answer. Phase markers are added only to strictly identified Codex Responses requests, independently of report categories and client declarations. Only non-empty, normally completed replies without tool calls receive final_answer; text before tool calls receives commentary. Errors, truncation, missing completion signals and unknown finish reasons never receive a final-answer marker. Off by default; answer text, model reasoning and usage are unchanged.'),
+  imageCompress: t('Large base64 images embedded in a conversation (screenshots, photos) both bloat the request body and raise upstream billing, which is computed from pixels. When enabled, the gateway scales images above the threshold down to the long-edge limit and re-encodes them as JPEG before forwarding — only the copy sent upstream is changed; the request log still stores the original you sent. When the same original image reappears across turns, the previous compressed result is reused instead of recomputed. Images referenced by http links, animated GIFs and SVGs are never touched; an image that would grow after re-encoding is kept as-is. Applies to chat only — image generation and editing are unaffected. On by default; turn the switch off if you do not want it.'),
+  clineHeaders: t('The Cline upstream decides from the request headers whether the caller is one of Cline\'s own products: X-CLIENT-TYPE: cline-sdk is a hard requirement (without it, free-pool models always return 403), and the version number and platform identifier make the request look closer to the official client. Listed here are the headers the gateway sends by default: editing a row\'s value overrides the default (you can also add custom headers beyond the default list); saving an empty value means this header is not sent; deleting an edited row in the UI reverts it to the default. Click "Save" when done and the next Cline request picks it up immediately. Do not touch a row you do not understand — the value of spoofed headers lies in being word-for-word identical to the official client.'),
+  cors: t('The gateway endpoints (/v1/*) do not answer browser cross-origin requests by default: a page connecting directly is stopped by the preflight and only reports "cannot connect to the API". Note that the allowed origin is * — with no gateway key configured, any web page could use this machine\'s gateway to hit upstreams, which is why the default is off; if you only use it yourself, serving the page from the same origin as the gateway (a local reverse proxy for /v1) is safer. The panel API (/api/*) is unaffected.'),
+  prompt: t('Clients (CLI tools such as Claude Code / Codex) inject dozens of fixed template sentences into the system prompt, and the upstream reviews them by word-for-word matching — a hit blocks the whole request (HTTP 400). Fingerprint masking can rewrite the sentences observed to be hit, but a different client version may introduce new ones. Here you can replace the whole system prompt with the gateway\'s own one: (1) "Passthrough" = leave the client\'s system prompt untouched (the default, identical to the previous behavior); (2) "Replace" = delete all client system / developer messages and substitute the gateway\'s prompt (the client\'s project instructions disappear with them); (3) "Append" = insert one gateway prompt after the leading consecutive system blocks, leaving existing messages word-for-word intact (the client\'s instructions and the gateway prompt are used together). That prompt has two sources: a prompt file (leave empty for the built-in default), or editing the text right in the UI — an edited text takes precedence (over the file), and clearing it goes back to the file / built-in default. Also, in Passthrough / Append mode, if content blocking is hit (usually a fingerprint false positive), the gateway automatically retries once with a minimal neutral prompt and extends the "fallback period" to 00:00 the next day — during that period every request goes out with the neutral prompt directly, with no 400 hit first; you can see it here and clear it early. The items above are **defaults**: to configure a single provider, add a row under "Per-Provider Configuration" below (providers with "Gateway-Provided Prompt" are listed there by default) — different upstreams tolerate these differently.'),
+  debug: t('When on, the gateway stores every forward\'s **request to the upstream** (headers + body) and the **upstream response** (status code + headers + body) locally in full, for the "Details" view on the request logs page. Credential fields in request headers — Authorization, Cookie, API Key, and the like — are always replaced with [redacted] and never hit the disk in plain text; request and response bodies are stored as-is (they may contain your conversations). Only the most recent 500 payloads are kept; the oldest are dropped beyond that. This is a temporary troubleshooting switch — keep it off when you don\'t need it.'),
+  io: t('Export writes all accounts and custom provider definitions to a JSON file that can be copied to another machine and imported for continued use. Import merges: within the same provider, accounts are deduplicated by business identity (UID / userId / apiKey, etc.) — existing accounts only get their credentials updated and keep this machine\'s existing priority order; new accounts are appended to the end of the forwarding order and never displace the account currently in use; custom provider definitions are merged by id and created automatically when missing locally.'),
+  backup: t('Save the database and required recovery keys in a password-encrypted .a2ab backup. Restore it on Windows, macOS, or Linux without manually copying keys. Restoration replaces accounts, configuration, logs, and desktop settings, and re-encrypts credentials with the destination keys without overwriting them. Exclude logs to reduce file size. Legacy .sql imports remain supported. A safety backup is created before replacement; sign in again afterward.'),
+  retention: t('Logs and request logs are limited by both retention days and record count. Logs default to 30 days and 10,000 records, with capacity allocated proportionally by level; debug details are kept for at most 3 days. Request logs default to 99999 days and 1,000,000 records; excess records are removed oldest first together with their raw bodies. Daily aggregates default to 99999 days and are limited only by days; request log count cleanup does not affect them. Days accept 1–99999 and counts accept 1–100000000. Lowering any setting and confirming immediately removes excess data, which cannot be recovered.'),
+  storage: t('Accounts, event logs, request records, debug payloads, and settings are stored in agent2api.db. Encryption keys are stored separately. To move between machines, use Full database backup / restore rather than copying only the database. To change the directory, set AGENT2API_PROXY_HOME and restart.'),
+  modelsDev: t('models.dev is an open-source, community-maintained model database. It fills in what the upstream never told us: context window, max output, tool calling, images, video, reasoning support, and which reasoning levels the model actually accepts. Priority: values you edited by hand under "Model capabilities" > what the upstream catalog declares > models.dev — it only fills gaps the upstream left, and never overrides a declared value. A snapshot ships inside the app, so offline, first-run and blocked-network cases still have data; while enabled it refreshes online on the "Model catalog refresh" schedule (in the same round, or on demand here). Turning it off only stops the online refresh; existing data stays in use.'),
 } as const
 
 /** 面板底注（`.hint.retention-note`）与各面板内的说明行 */
 export const NOTES = {
-  timeouts: t('保存后立即生效，不用重启；超时按上游失败处理（计入请求日志的「错误」列，并按「请求重试」的设置决定是否重试）。'),
-  queue: t('等待期间请求日志的状态列会显示「排队中」阶段，详情弹窗的「内部重试」里能逐次看到等待时长；等待用尽后返回 HTTP 503（不是 401/429：既不会刷新凭证，也不会把账号标成限额）。'),
-  captchaPool: t('保存后状态读取立即生效。后台不会自动生成令牌；需要人机验证时，在账号的「套餐明细」中主动开始验证。模型请求免验证时无需保持界面打开。'),
-  retry: t('保存后立即生效，不用重启；次数用尽仍失败时，错误原样返回给客户端。'),
-  routing: t('保存后立即生效，不用重启：策略与粘性作用于**下一次**转发的选路，进行中的请求不受影响。'),
-  retryCodes: t('命中这些上游状态码的失败不在同一账号重发，直接换下一个账号继续试（换号占用「切换账号重试次数」，换满仍失败才把错误原样返回给客户端）。输入 100–599 的状态码后回车添加，点 × 或退格删除；默认 402（积分不足）。清空全部表示任何错误都照常重试。'),
-  sanitize: t('默认开启并应用全部提供商。编辑词表或应用范围后点击「保存设置」，下一次请求立即生效，不用重启。命中明细仍记进请求日志的「敏」标签。'),
-  developerRoleCompat: t('默认开启。只改 role 字段本身，消息内容与顺序都不动；本项只改发给上游的副本，客户端看到的响应内容不变。'),
-  reasoningCollapse: t('默认关闭。开启后下一次 Codex 请求立即生效，不用重启；只对 Codex 来源的 /v1/responses 请求补阶段标记，其它客户端与 /v1/chat/completions 不受影响。'),
-  imageCompress: t('默认开启。只改发给上游的副本，客户端看到的响应与原图都不变；请求日志里保存的是客户端发来的原图，不是压缩后的版本。只作用在对话链路，生图 / 图片编辑不经过这里。改完对下一个请求立即生效，不用重启。'),
-  clineHeaders: t('值与默认值相同的行不占覆盖（存的是「改过的键」，不是全量配置）；值留空保存表示这个头不发送，删除改过的行表示回落默认值。改完立即生效，不用重启。'),
-  cors: t('默认关闭。改动立即生效，不用重启；关闭期间的跨源请求会被预检拦下。'),
-  debug: t('开启后，新发生的请求会保存上游调试报文与下游正文，历史请求无法补录。上游调试报文只保留最近 500 条；两侧条数可在「数据 → 数据存储」查看。关闭开关不会删除已保存的报文，可在请求日志中选择「仅清空报文原文」一起清理。'),
-  promptMode: t('替换 = 客户端 system / developer 消息全部删掉，换成网关的提示词；追加 = 保留客户端内容，只在开头 system 块之后多插一条。两者都只改发给上游的副本，客户端看到的响应不变。'),
-  promptFile: t('UTF-8 文本文件路径，留空用内置默认提示词（通用编码助手提示词，不含任何会被上游拦截的模板句）。只在「替换 / 追加」模式下生效，透传模式不读它。'),
-  promptText: t('在这里直接编辑提示词正文：保存后以这份文本为准（优先于上面的提示词文件），清空则回到文件 / 内置默认。改一个字不必再去编辑器里开文件。'),
-  promptGatewayText: t('上游按「结构」校验身份：三段必须各自成块，所以这里分开编辑三段（不能合成一段）。动态段里的运行值写成占位符，发请求时才替换：{cwd} 工作目录、{platform} 平台、{shell} shell、{os_version} 系统版本、{git} 是否 git 仓库、{provider} 提供方标识、{model} 模型名。清空某一段 = 那一段恢复官方原文。第三段发出时前面会自带一个空行（官方形状）。'),
-  prompt: t('改完立即生效，不用重启（下一个请求就用新模式）。降级是自动的临时状态，解除后本模式自己的提示词立刻恢复。'),
-  promptProviders: t('这里只列出已保存的提供商配置；未配置的提供商沿用全局设置，可从下拉框手动添加。用户保存的模式、文件和正文优先于全局设置，「跟随默认」只取消该提供商的模式、文件和正文覆盖。ZCode 套餐池默认由插件按三块装配，客户端系统正文合入第三块，不会自动创建替换规则；手动修改的网关提示词段或关闭开关仍以用户配置为准，能否被接受取决于上游规则。'),
-  modelsDev: t('「模型管理」里每个能力的来源标记（上游 / models.dev / 已覆盖）读的就是这份数据；映射弹窗的思考档位下拉也按这里的数据只列该模型真实认识的档位。'),
-  retention: t('保存后立即生效：保留天数和数量上限同时生效，调小任一项会立即清理超出的历史数据，且不可恢复。'),
-  storageFile: t('配置目录下的 agent2api.db（账号、日志、请求记录、调试报文与设置都在里面）。'),
-  storageSize: t('数据库主文件与 WAL 文件的总占用，与请求日志清理弹窗采用同一口径；清理后可压缩数据库回收空闲空间。'),
-  storage: t('数据统一保存在配置目录下的 agent2api.db；如需更换位置，请设置环境变量 AGENT2API_PROXY_HOME 后重启程序。'),
-  captcha: t('开启后，登录页在浏览器后台自动完成验证（对真人无感），而脚本每次尝试都要先算一道题 —— 暴力破解与抢注的成本显著上升。仅影响面板的登录 / 注册，与 API 客户端的 API Key 无关。桌面端与网页端各自独立：桌面端主要服务本机与局域网，网页端（Docker / 服务端）直接暴露在网络上的登录页风险更高，建议保持开启。'),
-  panelLogin: t('当前浏览器以管理员身份登录着本面板。「退出登录」会撤销这台设备的登录会话（30 天内的自动续期一并失效），需要重新输入账号密码；其他已登录的设备不受影响。'),
-  exportDanger: t('导出文件内含 accessToken / refreshToken / apiKey 等凭证与自定义提供商定义，可直接用于登录。请妥善保管，不要外传或上传到公共位置。'),
-  backupDanger: t('备份包含账号凭证、网关 Key、GitHub 令牌与云同步凭据的恢复密钥，整个文件受备份密码保护。请分开保管文件与密码；忘记密码无法恢复。'),
+  timeouts: t('Takes effect immediately after saving, no restart needed; a timeout is treated as an upstream failure (counted in the "Error" column of the request logs, and retried according to the "Request Retries" settings).'),
+  queue: t('While waiting, the status column in the request logs shows a "Queueing" phase, and the "Internal Retries" section of the detail dialog lists each wait duration; when the waits run out, HTTP 503 is returned (not 401/429: credentials are not refreshed and the account is not marked as rate-limited).'),
+  captchaPool: t('Status polling settings take effect immediately after saving. No tokens are generated automatically. Start required verification in the account’s Plan details. You do not need to keep the interface open when model requests are exempt from verification.'),
+  retry: t('Takes effect immediately after saving, no restart needed; if all attempts are exhausted and the request still fails, the error is returned to the client as-is.'),
+  routing: t('Takes effect on save, no restart: strategy and stickiness apply to the **next** forwarded request; in-flight requests are unaffected.'),
+  retryCodes: t('Failures matching these upstream status codes are not retried on the same account — the gateway switches to the next account and keeps trying (an account switch consumes an "Account-Switch Retries" slot; only when those are exhausted is the error returned to the client as-is). Type a status code from 100–599 and press Enter to add it; click × or press Backspace to delete one. Default: 402 (insufficient points). Clearing the list means any error is retried as usual.'),
+  sanitize: t('Enabled for all providers by default. Edit rules or provider scope and click Save settings; the next request uses the changes without restarting. Rule hits are still recorded in the request log\'s masking tag.'),
+  developerRoleCompat: t('Enabled by default. Only the role field changes — message content and order stay untouched; this only rewrites the copy sent upstream, and what the client sees never changes.'),
+  reasoningCollapse: t('Off by default. Enabling takes effect on the next Codex request without a restart; phase markers are only added to Codex-origin /v1/responses requests, other clients and /v1/chat/completions are unaffected.'),
+  imageCompress: t('On by default. Only the copy sent upstream is changed; the response and the original image seen by the client stay the same, and the request log stores the original image from the client rather than the compressed version. Applies to the chat path only — image generation and editing do not go through it. Changes take effect on the next request, no restart needed.'),
+  clineHeaders: t('Rows whose value equals the default do not count as overrides (only changed keys are stored, not the whole configuration); saving an empty value means this header is not sent, and deleting an edited row reverts it to the default. Changes take effect immediately, no restart needed.'),
+  cors: t('Off by default. Changes take effect immediately, no restart needed; while off, cross-origin requests are stopped by the preflight.'),
+  debug: t('New requests save upstream debug payloads and downstream bodies after this is enabled; past requests cannot be backfilled. Only the most recent 500 upstream debug payloads are kept. Counts for both sides are shown under Data → Data storage. Turning this off does not delete saved payloads; choose Clear raw payloads only in request logs to clear both sides together.'),
+  promptMode: t('Replace = delete all client system / developer messages and substitute the gateway\'s prompt; Append = keep the client\'s content and just insert one extra prompt after the leading system blocks. Both only change the copy sent upstream; the response the client sees is unchanged.'),
+  promptFile: t('Path to a UTF-8 text file. Leave empty to use the built-in default prompt (a general coding-assistant prompt with no template sentences the upstream would block). Only applies in Replace / Append mode; passthrough mode does not read it.'),
+  promptText: t('Edit the prompt text right here: after saving, this text takes precedence (over the prompt file above), and clearing it falls back to the file / built-in default. No need to open a file in an editor just to change one word.'),
+  promptGatewayText: t('The upstream verifies identity by "structure": the three blocks must each be a separate block, so they are edited separately here (they cannot be merged into one). Runtime values in the dynamic block are written as placeholders and substituted only when a request is sent: {cwd} working directory, {platform} platform, {shell} shell, {os_version} OS version, {git} whether this is a git repository, {provider} provider identifier, {model} model name. Clearing a block = that block reverts to the official text. A blank line is automatically prepended to the third block when it is sent (the official shape).'),
+  prompt: t('Takes effect immediately after the change, no restart needed (the next request uses the new mode). The fallback is an automatic temporary state; once cleared, this mode\'s own prompt is restored immediately.'),
+  promptProviders: t('Only saved provider settings are listed here. Unconfigured providers follow the global settings and can be added manually from the dropdown. Saved modes, files and prompt text override the global settings; Follow Default removes only that provider\'s mode, file and text overrides. For ZCode\'s Start Plan, the plugin assembles three blocks by default and merges the client\'s system text into the third, without creating a replacement rule. Manually edited gateway prompt blocks and a disabled assembly switch still take precedence; acceptance depends on the upstream rules.'),
+  modelsDev: t('The per-capability source marks in "Model management" (upstream / models.dev / overridden) come from this data, and the reasoning-level dropdown in the mapping dialog lists only the levels the model actually accepts, based on it.'),
+  retention: t('Takes effect immediately after saving. Both retention days and record limits apply; lowering either immediately removes excess historical data and cannot be undone.'),
+  storageFile: t('agent2api.db in the configuration directory (it holds accounts, logs, request records, debug payloads, and settings).'),
+  storageSize: t('Total size of the database main file and WAL file, using the same calculation as the request cleanup dialog. After clearing data, vacuum the database to reclaim unused space.'),
+  storage: t('Data is kept in agent2api.db in the configuration directory; to change the location, set the AGENT2API_PROXY_HOME environment variable and restart the app.'),
+  captcha: t('When on, the login page solves the challenge in the background (invisible to humans) while every scripted attempt must compute one first — brute force and account squatting become far more expensive. It only affects panel sign-in / registration, not API keys used by clients. Desktop and web are independent: the desktop page mostly serves this machine and the LAN, while the web page (Docker / server) is exposed to the network and benefits more from staying on.'),
+  panelLogin: t('This browser is currently signed in to the panel as an administrator. "Sign Out" revokes this device\'s session (automatic renewals within 30 days are voided too) and the account and password must be entered again; other signed-in devices are unaffected.'),
+  exportDanger: t('The export file contains credentials such as accessToken / refreshToken / apiKey along with custom provider definitions, and can be used to sign in directly. Keep it safe; do not share it or upload it to a public location.'),
+  backupDanger: t('The backup contains recovery keys for account credentials, gateway keys, GitHub tokens, and cloud sync credentials. The whole file is protected by the backup password. Store the file and password separately; without the password, restoration is impossible.'),
 } as const
 
 /** 状态行（`.settings-state`）的派生文案：与旧实现的赋值逐字一致 */
 export const STATES = {
   appLoading: '—',
-  appUnavailable: t('主进程未返回启动设置，请更新桌面端后重试'),
-  appTrayOn: t('关闭窗口时程序不退出，转发继续在后台运行；退出请用托盘菜单'),
-  appTrayOff: t('关闭窗口即退出程序，后台转发随之中断'),
-  appLightOn: t('轻量模式已开启：关窗即销毁界面进程（释放约 200MB 内存），网关在后台继续；界面销毁期间 ZCode 套餐池（Start Plan）通道不可用，相关请求会在请求日志里注明原因'),
-  appLightOff: t('未开启轻量模式：关窗仅隐藏窗口，界面进程常驻内存，随时打开不等待'),
-  unitsOn: t('当前显示为「1.2亿 / 8400万」这类中文量级。'),
-  unitsOff: t('当前显示为「1.20M / 8.4k / 1.2B」这类英文缩写。'),
-  debugUnavailable: t('未能读取调试模式设置，请稍后重试'),
-  debugOn: t('正在保存上游原始报文：'),
-  debugOff: t('未开启，转发时不保存任何原始报文。'),
-  sanitizeUnavailable: t('未能读取指纹脱敏设置，请稍后重试'),
-  sanitizeOn: t('正在剥离出站请求里的审核指纹：表头键值整段删除，模板句最小改写。'),
-  sanitizeOff: t('未开启，客户端 system 模板会原样发往上游，可能被内容审核误拦（400）。'),
-  roleCompatUnavailable: t('未能读取开发者角色兼容设置，请稍后重试'),
-  roleCompatOn: t('正在归一角色：developer 角色消息转发前改写为 system。'),
-  roleCompatOff: t('未开启，developer 角色消息会原样发往上游，不认识该角色的上游会报错（400）。'),
-  reasoningCollapseUnavailable: t('未能读取第三方模型回答完自动折叠过程设置，请稍后重试'),
-  reasoningCollapseOn: t('已开启：为正常完成的 Codex 回答补阶段标记。'),
-  reasoningCollapseOff: t('已关闭：不额外补阶段标记，由客户端决定过程展示。'),
-  corsUnavailable: t('未能读取网关跨域访问设置，请稍后重试'),
-  corsOn: t('正在应答跨源请求：浏览器跨域请求可直连 /v1/*。'),
-  corsOff: t('未开启，浏览器跨域无法直连网关。'),
-  modelsDevUnavailable: t('未能读取 models.dev 元数据状态，请稍后重试'),
+  appUnavailable: t('The main process did not return startup settings. Update the desktop app and try again.'),
+  appTrayOn: t('Closing the window does not quit the app; forwarding keeps running in the background. To quit, use the tray menu'),
+  appTrayOff: t('Closing the window quits the app, and background forwarding stops with it'),
+  appLightOn: t('Lightweight mode is on: closing the window destroys the UI process (freeing about 200 MB of memory) while the gateway continues in the background; while the UI is destroyed, the ZCode plan-pool (Start Plan) channel is unavailable and affected requests will note the reason in the request log'),
+  appLightOff: t('Lightweight mode off: closing the window only hides it, the UI process stays in memory, and it opens instantly'),
+  unitsOn: t('Currently shown as "1.2100M / 840010k"-style Chinese magnitudes.'),
+  unitsOff: t('Currently shown with k / M / B abbreviations (e.g. 1.20M / 8.4k / 1.2B).'),
+  debugUnavailable: t('Could not read the debug mode settings. Please try again later.'),
+  debugOn: t('Saving raw upstream payloads:'),
+  debugOff: t('Off: no raw payloads are saved while forwarding.'),
+  sanitizeUnavailable: t('Could not read the fingerprint masking settings. Please try again later.'),
+  sanitizeOn: t('Stripping review fingerprints from outbound requests: header key/value pairs are deleted entirely, and template sentences get minimal rewrites.'),
+  sanitizeOff: t('Off: client system templates go upstream as-is and may be falsely blocked by content review (400).'),
+  roleCompatUnavailable: t('Could not read the developer role compatibility setting, please try again later'),
+  roleCompatOn: t('Normalizing roles: developer-role messages are rewritten to system before forwarding.'),
+  roleCompatOff: t('Off: developer-role messages are sent upstream as-is; upstreams that do not know the role return an error (400).'),
+  reasoningCollapseUnavailable: t('Could not read the third-party reasoning collapse setting, please try again later'),
+  reasoningCollapseOn: t('Enabled: add phase markers to normally completed Codex replies.'),
+  reasoningCollapseOff: t('Disabled: no extra phase markers; the client controls how work is displayed.'),
+  corsUnavailable: t('Could not read the gateway CORS settings. Please try again later.'),
+  corsOn: t('Answering cross-origin requests: browsers can reach /v1/* directly cross-origin.'),
+  corsOff: t('Off: browsers cannot reach the gateway cross-origin.'),
+  modelsDevUnavailable: t('Could not read the models.dev metadata state. Please try again later.'),
   /** 数据来历：内嵌快照（发版时那份）/ 上次刷新结果 / 刚拉的 */
-  modelsDevSourceBuiltin: t('随包内嵌的快照（发版时的那份）'),
-  modelsDevSourceCache: t('上次成功刷新的结果（存在本机数据库里）'),
-  modelsDevSourceNetwork: t('刚刚从 models.dev 拉到的最新数据'),
-  modelsDevEmpty: t('还没有装载任何数据。'),
-  promptUnavailable: t('未能读取系统提示词设置，请稍后重试'),
-  degradeUntilFallback: t('次日 00:00'),
+  modelsDevSourceBuiltin: t('Snapshot bundled with the app (the one from the last release)'),
+  modelsDevSourceCache: t('Result of the last successful refresh (stored in the local database)'),
+  modelsDevSourceNetwork: t('Fresh data just fetched from models.dev'),
+  modelsDevEmpty: t('No data loaded yet.'),
+  promptUnavailable: t('Could not read the system prompt settings. Please try again later.'),
+  degradeUntilFallback: t('00:00 the next day'),
   // ── 显示分类（本次新增：不来自静态骨架，是新写的文案）──
-  themeSystem: t('当前跟随操作系统的深浅色设置，系统切换时界面会自动跟上。'),
-  themeLight: t('当前固定为浅色模式，不随系统变化。'),
-  themeDark: t('当前固定为深色模式，不随系统变化。'),
-  zoomWeb: t('网页端的界面缩放由浏览器自己控制（Ctrl + / Ctrl -，或浏览器菜单里的缩放），此项不可调。'),
-  zoomDefault: t('当前按 100% 显示（默认比例）。'),
-  languageHint: t('界面语言只保存在本机（localStorage）。切换后整页立即刷新，不影响账号、密钥与转发。'),
-  groupTotalFilteredOn: t('合计只累加当前筛选后可见的账号，筛选、搜索一改数字就跟着变。'),
-  groupTotalFilteredOff: t('合计按整组统计（默认）：不受筛选、搜索影响，被筛掉与已禁用的账号也计入。'),
+  themeSystem: t('Currently following the operating system\'s light / dark setting; the UI follows along automatically when the system switches.'),
+  themeLight: t('Currently fixed to Light mode; it does not follow the system.'),
+  themeDark: t('Currently fixed to Dark mode; it does not follow the system.'),
+  zoomWeb: t('In the web build, interface zoom is controlled by the browser itself (Ctrl + / Ctrl -, or the zoom entry in the browser menu); this setting is not adjustable.'),
+  zoomDefault: t('Currently displayed at 100% (the default).'),
+  languageHint: t('The interface language is stored only on this machine (localStorage). Switching reloads the whole page immediately and does not affect accounts, keys, or forwarding.'),
+  groupTotalFilteredOn: t('Totals only add up accounts visible under the current filter; changing the filter or search changes the number.'),
+  groupTotalFilteredOff: t('Totals cover the whole group (default): filtering and search do not change them, and filtered-out or disabled accounts still count.'),
 } as const
 
 // ── 以下成员从 HEAD 恢复 ──────────────────────────────
@@ -968,18 +968,18 @@ export const STATES = {
 export const ROUTE_STRATEGIES = [
   {
     value: 'order',
-    label: t('顺序优先'),
-    tip: t('排第 1 的接走所有请求，直到它不能答（限流 / 故障 / 额度尽）才轮到下一位 —— 就是「从上往下」的现状行为。'),
+    label: t('Strict order'),
+    tip: t('Position 1 takes every request until it can\'t answer (rate-limited / failing / out of quota) before the next one steps in — the same top-down behavior as today.'),
   },
   {
     value: 'rotate',
-    label: t('负载均衡'),
-    tip: t('每条请求轮换到下一个可用账号；新会话交给当前最闲的那位。适合想把手里的号摊开用、不让某一个一直扛。'),
+    label: t('Load balancing'),
+    tip: t('Rotates to the next usable account on every request; a new session goes to whoever is least busy. For spreading usage across accounts instead of letting one carry everything.'),
   },
   {
     value: 'provider',
-    label: t('家内轮询'),
-    tip: t('家之间仍按优先级，只有同一家内部轮流用各账号 —— 想优先用某几家、又不愿把某一家的某个账号焊死时用它。'),
+    label: t('Per-provider rotation'),
+    tip: t('Providers still follow priority; only accounts within the same provider take turns. For preferring a few providers without pinning any single account.'),
   },
 ] as const
 
@@ -988,23 +988,23 @@ export const ROUTE_STRATEGIES = [
 export const ROUTE_STICKY_OPTIONS = [
   {
     value: 'auto',
-    label: t('自动'),
-    tip: t('同一会话在 5 分钟内尽量跟住同一个账号；停了 5 分钟再发就算新会话。多数场景用它 —— 多轮对话少换号，也不至于把账号焊死。'),
+    label: t('Auto'),
+    tip: t('The same session tries to stay on one account for 5 minutes; pausing longer than 5 minutes starts a new session. The choice for most cases — fewer account switches in multi-turn chats, without pinning an account.'),
   },
   {
     value: 'session',
-    label: t('会话内'),
-    tip: t('同一会话在 6 小时内跟住同一个账号；适合一坐几个小时的长会话，上游的上下文缓存能吃到更多。'),
+    label: t('In-session'),
+    tip: t('The same session stays on one account for up to 6 hours; suited to marathon sessions — the upstream context cache gets reused much more.'),
   },
   {
     value: 'turn',
-    label: t('每轮'),
-    tip: t('每条请求都重新按策略选路 —— 行为与「关闭」一致，仅保留会话识别的记录。'),
+    label: t('Per turn'),
+    tip: t('Every request is routed by strategy from scratch — same behavior as "Off", only the session records are kept.'),
   },
   {
     value: 'off',
-    label: t('关闭'),
-    tip: t('不做会话识别，每条请求都重新按策略选路。'),
+    label: t('Close'),
+    tip: t('No session detection: every request is routed by strategy from scratch.'),
   },
 ] as const
 
@@ -1021,21 +1021,21 @@ export type RouteStickyValue = (typeof ROUTE_STICKY_OPTIONS)[number]['value']
 export const ROUTE_PROTECTION_SWITCHES = [
   {
     key: 'routingFailoverBackoff',
-    label: t('失败退避'),
+    label: t('Failure backoff'),
     defaultOn: true,
-    tip: t('转发失败的账号休息一会儿再回来：15 分钟起步，连续失败翻倍，封顶 1 小时；成功一次立即恢复。目的是「让这次失败先凉一会儿」，免得一条条地反复撞同一个坏账号。'),
+    tip: t('An account that fails to forward rests for a while before coming back: starting at 15 minutes, doubling per consecutive failure, capped at 1 hour; one success restores it immediately. The point is to let a failure cool off instead of hammering the same bad account request after request.'),
   },
   {
     key: 'routingSink',
-    label: t('限流垫底'),
+    label: t('Rate-limit demotion'),
     defaultOn: true,
-    tip: t('还有额度时被 429 的账号排到队尾，30 分钟后自动回到队列（成功转发一次也会立即回来）。它标记的是「疑似共享池被别人抢」，不是「这个账号本身有问题」。⚠️ 注意它与路由策略的配合：在「家内轮询」下，队尾意味着这一家整体被往后排 —— 如果某个提供商的账号被批量限流，它们会集体沉到队尾，那个家可能长时间轮不到。这时可以关掉本项，让 429 过的账号只受冷却约束（冷却到点自动回来）。'),
+    tip: t('An account with quota left that gets 429\'d goes to the back of the queue and returns automatically after 30 minutes (one successful forward also brings it right back). This marks "the shared pool is probably being drained by someone else", not "this account is broken". ⚠️ Mind the interplay with the routing strategy: under "Per-provider rotation", the back of the queue means the whole provider gets pushed back — if one provider\'s accounts are rate-limited en masse, they all sink to the back and that provider may not be reached for a long time. Turn this off in that case, so 429\'d accounts are only bound by cooldown (they come back automatically when it expires).'),
   },
   {
     key: 'routingBreakerEnabled',
-    label: t('熔断'),
+    label: t('Circuit breaker'),
     defaultOn: false,
-    tip: t('连续失败到阈值后把这个账号整个打开（默认关）。与失败退避的分工：退避管「单次失败先凉一会儿」，惩罚轻、自动恢复；熔断管「这个账号现在整体不对劲，别再一条条地试」，要连续成功若干次才关。打开期间该账号被跳过，除非全场只剩它 —— 那时仍放行试一次。'),
+    tip: t('Trips this account off entirely after consecutive failures reach a threshold (off by default). Division of labor with failure backoff: backoff means "let a single failure cool off" — light penalty, automatic recovery; the circuit breaker means "this account is misbehaving as a whole, stop trying it one request at a time" and takes several consecutive successes to close. While open, the account is skipped — unless it is the only one left, in which case it still gets one try.'),
   },
 ] as const
 
@@ -1045,29 +1045,29 @@ export const CAPTCHA_POOL_FIELDS: NumberField[] = [
   {
     key: 'zcodeCaptchaPoolTarget',
     id: 'settings-captcha-pool-target',
-    label: t('库存目标'),
-    unit: t('个'),
+    label: t('Stock target'),
+    unit: t('total'),
     min: 1,
     max: 10,
-    hint: t('验证码库存的参考目标，默认 3 个，可填 1–10。只影响库存状态展示，不会因为低于目标自动生成令牌或弹出验证码。'),
+    hint: t('Reference stock target: 3 by default, from 1 to 10. It only affects the stock display; falling below it never generates tokens or opens verification automatically.'),
   },
   {
     key: 'zcodeCaptchaPoolPollMs',
     id: 'settings-captcha-pool-poll-ms',
-    label: t('轮询间隔'),
-    unit: t('毫秒'),
+    label: t('Poll interval'),
+    unit: t('ms'),
     min: 1000,
     max: 30000,
-    hint: t('有近期套餐池请求时读取库存状态的间隔，默认 2500 毫秒，可填 1000–30000。没有近期请求时降低读取频率，轮询不会发起验证码。'),
+    hint: t('Stock polling interval while Start Plan requests are recent: 2500 ms by default, from 1000 to 30000. Polling slows down when idle and never triggers verification.'),
   },
   {
     key: 'zcodeCaptchaPoolMaxPerRound',
     id: 'settings-captcha-pool-max-per-round',
-    label: t('单轮铸造上限'),
-    unit: t('个'),
+    label: t('Per-round mint cap'),
+    unit: t('total'),
     min: 1,
     max: 5,
-    hint: t('保留旧版配置兼容，当前不会自动连铸。每次点击「开始验证」只取得一枚令牌，失败或取消后停止。'),
+    hint: t('Kept for compatibility with older settings. Tokens are not minted automatically in batches. Each Start verification action obtains one token and stops on failure or cancellation.'),
   },
 ]
 

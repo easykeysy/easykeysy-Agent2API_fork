@@ -8,7 +8,7 @@ pub fn read(value: &Value) -> Result<Vec<Profile>, String> {
         .and_then(Value::as_u64)
         .unwrap_or(1);
     if version != 1 {
-        return Err(format!("ZCode 配置 schema {version} 尚未适配，已停止写入"));
+        return Err(format!("ZCode Profile schema {version} 尚未适配，已停止写入"));
     }
     let Some(rules) = value
         .pointer("/config/providerConfigRules/providerRules")

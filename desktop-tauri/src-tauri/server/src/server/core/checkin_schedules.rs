@@ -277,7 +277,7 @@ pub fn upsert(payload: &Value) -> Result<Schedule, String> {
         raw.get("id").and_then(Value::as_str) == Some(id.as_str())
     });
     if existing.is_none() && entries.len() >= MAX_SCHEDULES {
-        return Err(format!("定时条目最多 {MAX_SCHEDULES} 条"));
+        return Err(format!("定时条目最多 {MAX_SCHEDULES} rows"));
     }
     let existing_entry = existing.map(|index| normalize_schedule(&entries[index]))
         .or_else(|| (!stored_key_exists() && id == DEFAULT_SCHEDULE_ID).then(legacy_schedule));
@@ -370,7 +370,7 @@ pub fn upsert(payload: &Value) -> Result<Schedule, String> {
         let mut entries = state.get("schedules").and_then(Value::as_array).cloned().unwrap_or_default();
         let index = entries.iter().position(|raw| raw.get("id").and_then(Value::as_str) == Some(schedule.id.as_str()));
         if index.is_none() && entries.len() >= MAX_SCHEDULES {
-            outcome = Err(format!("定时条目最多 {MAX_SCHEDULES} 条"));
+            outcome = Err(format!("定时条目最多 {MAX_SCHEDULES} rows"));
             return;
         }
         let current = index.map(|index| normalize_schedule(&entries[index]))

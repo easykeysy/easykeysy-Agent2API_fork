@@ -48,7 +48,7 @@ export function ScriptPaginationFooter({ page, total, t }: {
 }) {
   if (!total) return null
   return <div ref={page.sentinel} className='flex flex-wrap items-center justify-center gap-3 py-4 text-xs text-muted-foreground'>
-    <span aria-live='polite'>{t('已显示 {shown} / {total} 个提供商插件', { shown: page.visible, total })}</span>
-    {page.hasMore ? <Button variant='ghost' size='sm' onClick={page.loadMore}>{t('加载更多')}</Button> : null}
+    <span aria-live='polite'>{t('Showing {shown} of {total} provider plugins', { shown: page.visible, total })}</span>
+    {page.hasMore ? <Button variant='ghost' size='sm' onClick={page.loadMore}>{t('Load more')}</Button> : null}
   </div>
 }

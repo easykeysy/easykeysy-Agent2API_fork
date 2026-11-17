@@ -173,7 +173,7 @@ pub(in super::super) fn parse(host: &super::super::Host, value: &Value) -> Resul
         if !host.callbacks.provider_allowed(id) { continue; }
         if host.options.script { return Err("脚本插件不能通过原生握手声明设置".into()); }
         if host.options.wasm.as_ref().is_some_and(|options| !options.allows("settings.schema.v1")) {
-            return Err("Wasm 插件未声明 settings.schema.v1 能力".into());
+            return Err("Wasm 插件未声明 settings.schema.v1 Capabilities".into());
         }
         if value.to_string().len() > 128 * 1024 { return Err("插件设置声明超过大小限制".into()); }
         let mut schema: Schema = serde_json::from_value(value.clone()).map_err(|_| "插件设置声明格式无效")?;

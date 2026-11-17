@@ -17,7 +17,7 @@ public class ImageSaverPlugin: CAPPlugin, CAPBridgedPlugin {
               name.range(of: "^image-[a-f0-9]{8}\\.(png|jpg|webp)$", options: .regularExpression) != nil,
               let mime = call.getString("mime"),
               ["image/png", "image/jpeg", "image/webp"].contains(mime) else {
-            call.reject("图片参数无效")
+            call.reject("Invalid image parameters")
             return
         }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -27,19 +27,19 @@ public class ImageSaverPlugin: CAPPlugin, CAPBridgedPlugin {
             try data.write(to: file, options: .atomic)
         } catch {
             try? FileManager.default.removeItem(at: directory)
-            call.reject("保存图片失败：\(error.localizedDescription)")
+            call.reject("Failed to save the image:\(error.localizedDescription)")
             return
         }
         DispatchQueue.main.async {
             guard let controller = self.bridge?.viewController, controller.presentedViewController == nil else {
                 try? FileManager.default.removeItem(at: directory)
-                call.reject("当前无法打开图片保存窗口，请关闭其它窗口后重试")
+                call.reject("Cannot open the image-save window right now; close other windows and retry")
                 return
             }
             let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
             sheet.completionWithItemsHandler = { _, completed, _, error in
                 try? FileManager.default.removeItem(at: directory)
-                if let error = error { call.reject("保存图片失败：\(error.localizedDescription)") }
+                if let error = error { call.reject("Failed to save the image:\(error.localizedDescription)") }
                 else { call.resolve(["saved": completed, "canceled": !completed]) }
             }
             if let popover = sheet.popoverPresentationController {

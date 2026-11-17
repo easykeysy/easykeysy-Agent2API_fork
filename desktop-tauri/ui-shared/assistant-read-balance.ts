@@ -15,14 +15,14 @@ export function createBalanceTool(api: BalanceApi, t: Translate): {
   run: (args: ToolArgs, context?: ImageToolContext) => Promise<{ text: string; summary: string }>
 } {
   return {
-    id: 'list_account_balance', label: t('查询账号余额'), kind: 'read',
-    desc: '分页读取账号最近一次缓存的余额和额度，不把未查询当作零。默认只读快照；refresh=true 只实时刷新本页账号，会请求上游并可能触发已配置的余额不足自动禁用规则，需要按权限模式确认。每次返回 total/hasMore/nextOffset，hasMore=true 时继续翻页；翻页默认不刷新。',
+    id: 'list_account_balance', label: t('Query account balance'), kind: 'read',
+    desc: 'Paginated read of the account\'s most recent cached balance and quota; unqueried is never treated as zero. Default is snapshot-only; refresh",=true Refreshes only this page\'s accounts live. It requests the upstream and may trigger the configured auto-disable rule for low balance, and confirmation is required per the permission mode. Each call returns total/hasMore/nextOffset; hasMore",=true keep paging then; paging does not refresh by default.',
     params: {
       type: 'object', additionalProperties: false,
       properties: {
-        account: { type: 'string', description: '账号 ID 或唯一的展示名；不填为全部' },
-        provider: { type: 'string', description: '提供商 ID，用于筛选和区分同名账号' },
-        refresh: { type: 'boolean', description: 'true 实时刷新本页；默认 false，只读取缓存' },
+        account: { type: 'string', description: 'Account ID or the unique display name; leave blank for all' },
+        provider: { type: 'string', description: 'Provider ID, used to filter and disambiguate accounts with the same name' },
+        refresh: { type: 'boolean', description: 'true Refresh this page in real time; default false, only reads the cache' },
         ...PAGE_PARAMS,
       },
     },
@@ -55,7 +55,7 @@ export function createBalanceTool(api: BalanceApi, t: Translate): {
           lastUsage: row?.lastUsage ? usageSummary(object(row.lastUsage), t) : null,
         }
       })
-      return result({ asOf: Date.now(), accounts: page(entries, offset, limit, selected.length), refreshed: refresh }, t('{n} 个账号', { n: selected.length }))
+      return result({ asOf: Date.now(), accounts: page(entries, offset, limit, selected.length), refreshed: refresh }, t('{n} accounts', { n: selected.length }))
     },
   }
 }

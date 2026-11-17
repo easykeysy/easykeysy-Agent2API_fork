@@ -69,26 +69,26 @@ export function logText(entry: LogEntry, key: string): string {
 
 export function logLevel(level: string | undefined, t: Translate): string {
   switch (level) {
-    case 'debug': return t('调试')
-    case 'warn': return t('警告')
-    case 'error': return t('错误')
-    default: return t('信息')
+    case 'debug': return t('Debug')
+    case 'warn': return t('Warning')
+    case 'error': return t('Error')
+    default: return t('Info')
   }
 }
 
 export function logCategory(category: string | undefined, t: Translate): string {
   switch (category) {
-    case 'server': return t('服务')
-    case 'auth': return t('登录')
-    case 'account': return t('账号')
-    case 'model': return t('模型')
-    case 'upstream': return t('上游')
-    case 'config': return t('配置')
-    case 'checkin': return t('自动签到')
-    case 'maintenance': return t('凭证自动维护')
-    case 'update': return t('软件版本检查')
-    case 'desensitize': return t('脱敏')
-    case 'plugin': return t('插件')
+    case 'server': return t('Service')
+    case 'auth': return t('Sign in')
+    case 'account': return t('Accounts')
+    case 'model': return t('Model')
+    case 'upstream': return t('Upstream')
+    case 'config': return t('Profile')
+    case 'checkin': return t('Auto check-in')
+    case 'maintenance': return t('Credential auto-maintenance')
+    case 'update': return t('Software update check')
+    case 'desensitize': return t('Redaction')
+    case 'plugin': return t('Plugins')
     default: return category || '—'
   }
 }
@@ -103,33 +103,33 @@ export function logSummary(entry: LogEntry, t: Translate): string {
     const ready = logNumber(entry, 'readyCount') ?? 0
     const failed = logNumber(entry, 'failedCount') ?? 0
     const blocked = logNumber(entry, 'blockedCount') ?? 0
-    if (!failed && !blocked) return t('插件启动完成，{n} 个已就绪', { n: ready })
-    return t('插件启动存在异常')
+    if (!failed && !blocked) return t('Plugin startup complete: {n} ready', { n: ready })
+    return t('Some plugins could not start')
   }
   if (logText(entry, 'action') === 'plugin.startup') {
     switch (logText(entry, 'phase')) {
-      case 'ready': return t('插件已就绪')
-      case 'failed': return t('插件启动失败')
-      case 'timeout': return t('插件启动超时')
-      case 'blocked': return t('插件暂不可用，等待运行环境恢复')
-      default: return t('插件未能就绪')
+      case 'ready': return t('Plugin ready')
+      case 'failed': return t('Plugin failed to start')
+      case 'timeout': return t('Plugin startup timed out')
+      case 'blocked': return t('Plugin unavailable while the runtime recovers')
+      default: return t('Plugin did not become ready')
     }
   }
   switch (logText(entry, 'action')) {
-    case 'plugin.failure': return t('插件暂时无法使用')
-    case 'plugin.exit': return t('插件进程已退出')
-    case 'plugin.recovered': return t('插件已恢复运行')
-    case 'plugin.shutdown': return t('插件未能正常停止')
+    case 'plugin.failure': return t('Plugin temporarily unavailable')
+    case 'plugin.exit': return t('Plugin process exited')
+    case 'plugin.recovered': return t('Plugin is running again')
+    case 'plugin.shutdown': return t('Plugin did not stop normally')
   }
   const summary = logText(entry, 'summary') || (entry.message || '').replace(/^(?:\[[^\]]+\]\s*)+/, '')
   switch (summary) {
-    case '计费接口请求': return t('计费接口请求')
-    case '上游接口请求': return t('上游接口请求')
-    case '出站参数归一': return t('出站参数归一')
-    case '补充系统消息': return t('补充系统消息')
-    case '余额查询完成': return t('余额查询完成')
-    case '余额查询未配置': return t('余额查询未配置')
-    case '余额查询失败': return t('余额查询失败')
+    case 'Billing API request': return t('Billing API request')
+    case 'Upstream API request': return t('Upstream API request')
+    case 'Outbound parameter normalization': return t('Outbound parameter normalization')
+    case 'System message added': return t('System message added')
+    case 'Balance query completed': return t('Balance query completed')
+    case 'Balance query not configured': return t('Balance query not configured')
+    case 'Balance query failed': return t('Balance query failed')
     default: return summary || '—'
   }
 }
@@ -143,10 +143,10 @@ export function logNumber(entry: LogEntry, key: string): number | undefined {
 
 export function formatLogDuration(ms: number | undefined, t: Translate): string {
   if (ms === undefined) return ''
-  if (ms < 1000) return t('{n} 毫秒', { n: Math.round(ms) })
-  if (ms < 60_000) return t('{n} 秒', { n: Number((ms / 1000).toFixed(1)) })
+  if (ms < 1000) return t('{n} ms', { n: Math.round(ms) })
+  if (ms < 60_000) return t('{n} s', { n: Number((ms / 1000).toFixed(1)) })
   const seconds = Math.round(ms / 1000)
-  return t('{minutes} 分 {seconds} 秒', { minutes: Math.floor(seconds / 60), seconds: seconds % 60 })
+  return t('{minutes} min {seconds} s', { minutes: Math.floor(seconds / 60), seconds: seconds % 60 })
 }
 
 export function logContext(entry: LogEntry, t: Translate): string {
@@ -159,18 +159,18 @@ export function logContext(entry: LogEntry, t: Translate): string {
     const ready = logNumber(entry, 'readyCount') ?? 0
     const failed = logNumber(entry, 'failedCount') ?? 0
     const blocked = logNumber(entry, 'blockedCount') ?? 0
-    if (failed || blocked) parts.push(t('{n} 个已就绪', { n: ready }))
-    if (failed) parts.push(t('{n} 个启动失败', { n: failed }))
-    if (blocked) parts.push(t('{n} 个等待恢复', { n: blocked }))
+    if (failed || blocked) parts.push(t('{n} ready', { n: ready }))
+    if (failed) parts.push(t('{n} failed to start', { n: failed }))
+    if (blocked) parts.push(t('{n} waiting for recovery', { n: blocked }))
   }
   const duration = formatLogDuration(logNumber(entry, 'durationMs'), t)
-  if (duration) parts.push(t('用时 {duration}', { duration }))
+  if (duration) parts.push(t('Took {duration}', { duration }))
   const status = logText(entry, 'status')
   if (status) parts.push(`HTTP ${status}`)
   if (action === 'plugin.startup' && logText(entry, 'phase') !== 'ready') {
-    parts.push(t('相关功能暂不可用，原因见详情'))
+    parts.push(t('Related features are unavailable; see details for the reason'))
   } else if (action === 'plugin.failure' || action === 'plugin.exit') {
-    parts.push(t('相关功能暂不可用，原因见详情'))
+    parts.push(t('Related features are unavailable; see details for the reason'))
   } else {
     const detail = logText(entry, 'detail')
     if (detail && entry.level !== 'debug' && !action.startsWith('plugin.')) parts.push(detail)
@@ -190,34 +190,34 @@ export function logAdvice(entry: LogEntry, t: Translate): string {
   const action = logText(entry, 'action')
   if (action === 'plugin.startup.summary') {
     return (logNumber(entry, 'failedCount') || logNumber(entry, 'blockedCount'))
-      ? t('部分插件暂不可用。请在插件页查看异常插件的加载诊断。') : ''
+      ? t('Some plugins are unavailable. Open the Plugins page to view their loading diagnostics.') : ''
   }
   if (action === 'plugin.startup') {
     switch (logText(entry, 'phase')) {
       case 'ready': return ''
-      case 'timeout': return t('本次启动超过等待时限。请在插件页查看加载诊断，确认后重新加载。')
-      case 'blocked': return t('共享运行环境尚未就绪，不代表这个插件本身损坏。请在插件页查看加载诊断。')
-      default: return t('请在插件页查看加载诊断，确认原因后重新加载。')
+      case 'timeout': return t('Startup exceeded the time limit. Review the loading diagnostics on the Plugins page before reloading.')
+      case 'blocked': return t('The shared runtime is not ready; this does not mean the plugin is damaged. View the loading diagnostics on the Plugins page.')
+      default: return t('View the loading diagnostics on the Plugins page and check the cause before reloading.')
     }
   }
   if (['plugin.failure', 'plugin.exit', 'plugin.shutdown'].includes(action)) {
-    return t('请在插件页查看加载诊断，确认原因后重新加载。')
+    return t('View the loading diagnostics on the Plugins page and check the cause before reloading.')
   }
   return ''
 }
 
 export function logPhase(phase: string, t: Translate): string {
   switch (phase) {
-    case 'queued': return t('等待加载')
-    case 'runtime': return t('准备运行环境')
-    case 'starting': return t('启动进程')
-    case 'loading': return t('加载插件')
-    case 'registering': return t('登记提供商')
-    case 'ready': return t('已就绪')
-    case 'failed': return t('启动失败')
-    case 'timeout': return t('启动超时')
-    case 'blocked': return t('等待恢复')
-    default: return t('结果未确认')
+    case 'queued': return t('Waiting to load')
+    case 'runtime': return t('Preparing runtime')
+    case 'starting': return t('Starting process')
+    case 'loading': return t('Loading plugin')
+    case 'registering': return t('Registering providers')
+    case 'ready': return t('Ready')
+    case 'failed': return t('Launch failed')
+    case 'timeout': return t('Startup timed out')
+    case 'blocked': return t('Waiting for recovery')
+    default: return t('Result unconfirmed')
   }
 }
 
@@ -236,16 +236,16 @@ export function logPlugins(entry: LogEntry, t: Translate): { id: string; name: s
   if (!Array.isArray(plugins)) return []
   return plugins.flatMap(plugin => {
     if (!plugin || typeof plugin !== 'object' || typeof plugin.pluginId !== 'string' || typeof plugin.phase !== 'string') return []
-    return [{ id: plugin.pluginId, name: typeof plugin.pluginName === 'string' && plugin.pluginName ? plugin.pluginName : t('未记录插件名称'),
+    return [{ id: plugin.pluginId, name: typeof plugin.pluginName === 'string' && plugin.pluginName ? plugin.pluginName : t('Plugin name not recorded'),
       status: logPhase(plugin.phase, t), phase: plugin.phase }]
   }).sort((left, right) => Number(left.phase === 'ready') - Number(right.phase === 'ready'))
 }
 
 export function logViewNote(view: LogView, t: Translate): string {
   switch (view) {
-    case 'important': return t('显示启动汇总和需要关注的事件；单个插件的正常启动记录在“全部事件”中。')
-    case 'all': return t('显示所有已保留的事件；技术信息可在详情中查看。')
-    default: return t('仅显示调试记录，供排查问题使用。')
+    case 'important': return t('Shows startup summaries and events that need attention. Individual successful startups are in All events.')
+    case 'all': return t('Shows all retained events. Open details for technical information.')
+    default: return t('Shows only debug records for troubleshooting.')
   }
 }
 

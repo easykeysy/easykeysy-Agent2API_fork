@@ -82,7 +82,7 @@ pub(super) fn import_settings(conn: &Connection, dir: &Path) -> Option<LegacyOut
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 桌面设置迁移失败：读取数据库失败（{error}）"),
+                &format!("❌ 桌面设置迁移失败：读取数据库失败（{error})"),
             );
             return None;
         }
@@ -109,7 +109,7 @@ pub(super) fn import_settings(conn: &Connection, dir: &Path) -> Option<LegacyOut
     if let Err(error) = write_migrated(conn, &text) {
         logging::console_line(
             "[Storage]",
-            &format!("❌ 桌面设置迁移失败：写入数据库失败（{error}）"),
+            &format!("❌ 桌面设置迁移失败：写入数据库失败（{error})"),
         );
         return None;
     }

@@ -2,8 +2,8 @@
 <html lang="zh-CN" data-theme="system">
 <head>
 <meta charset="utf-8" />
-<!-- viewport-fit=cover：让安全区（刘海 / 底部横条）由 env() 接管，
-     全屏时内容不会钻到系统栏下面。 -->
+<!-- viewport-fit=cover: let the safe areas (notch / bottom bar) be handled by env(),
+     In fullscreen the content will not slip under the system bars. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#f3f3f6" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
@@ -14,15 +14,15 @@
 <link rel="stylesheet" href="mobile.css" />
 
 <script>
-  // 语言引导：与 ui/m.html / index.html 同一套解析规则（改一处必须同步改另两处）。
-  // 必须早于业务脚本，否则首屏会先按简体渲染再跳一下。
+  // Language bootstrap: same parsing rules as ui/m.html / index.html (change one place and the other two must change in sync).",
+  // It must come before the business scripts; otherwise the first frame renders as Simplified first, then jumps.
   //
-  // 与浏览器形态的差别：APK 里的词典是**打包进来**的（构建时从 ui/i18n 拷到
-  // android-www/i18n），不是网关托管，所以路径是相对本文件的 `i18n/...`。
+  // The difference from the browser form: the APK's dictionary is **packaged in** (copied from ui/i18n at build time to",
+  // android-www/i18n), it is not gateway-hosted, so the path is relative to this file`i18n/...`.
   (function () {
     var CODES = ['zh-Hans', 'zh-Hant', 'en', 'ja', 'ko', 'pt-BR'];
     var raw = null;
-    try { raw = localStorage.getItem('workbuddy-desktop-locale'); } catch (e) { /* 存储被禁 */ }
+    try { raw = localStorage.getItem('workbuddy-desktop-locale'); } catch (e) { /* storage disabled */ }
     var locale = 'en';
     if (raw && raw !== 'auto' && CODES.indexOf(raw) >= 0) {
       locale = raw;
@@ -39,7 +39,7 @@
       }
     }
     document.documentElement.lang = locale;
-    // 简体没有词典目录（查不到即显示简体原文）；其余语言注入 manifest + 各域文件。
+    // Simplified Chinese has no dictionary directory (a miss shows the original Simplified text); the other languages inject the manifest + each domain file.",
     if (locale === 'zh-Hans') return;
     document.write('<script src="i18n/manifest.js"><\/script>');
   })();
@@ -47,10 +47,10 @@
 <script src="i18n.js"></script>
 
 <script>
-  // 主题引导：在首帧之前把 data-theme 定下来，避免浅色闪一下再切深色。
+  // Theme bootstrap: fixes data-theme before the first frame, so light doesn't flash for a moment before switching to dark.",
   (function () {
     var mode = 'system';
-    try { mode = localStorage.getItem('workbuddy-desktop-theme') || 'system'; } catch (e) { /* 忽略 */ }
+    try { mode = localStorage.getItem('workbuddy-desktop-theme') || 'system'; } catch (e) { /* ignored */ }
     if (mode !== 'light' && mode !== 'dark') mode = 'system';
     document.documentElement.dataset.theme = mode;
     var dark = mode === 'dark' || (mode === 'system'
@@ -66,8 +66,8 @@
 </head>
 <body>
 <div id="root"></div>
-<!-- APK 里没有 Service Worker：界面来自包内文件，不经过 HTTP，离线本来就能开。
-     数据请求照常打网关，连不上时各页面自己报错。 -->
+<!-- APK  has no Service Worker: the UI comes from files inside the package, not from HTTP, so it always works offline.",
+     Data requests still hit the gateway; when unreachable, each page reports its own error. -->
 <script src="mobile.js"></script>
 </body>
 </html>

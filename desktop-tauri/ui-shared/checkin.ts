@@ -44,10 +44,10 @@ export type OutOfScope = { label: string; reason: string; count: number }
 export type CheckinSection = 'daily' | 'onboarding' | 'plans' | 'growth'
 
 export const CHECKIN_SECTION_OPTIONS = [
-  { value: 'daily', label: '每日签到' },
-  { value: 'onboarding', label: '新手福利' },
-  { value: 'plans', label: '活动福利' },
-  { value: 'growth', label: '成长任务' },
+  { value: 'daily', label: 'Daily check-in' },
+  { value: 'onboarding', label: 'Starter rewards' },
+  { value: 'plans', label: 'Event rewards' },
+  { value: 'growth', label: 'Growth tasks' },
 ] as const
 
 export type OnboardingSettlement = {

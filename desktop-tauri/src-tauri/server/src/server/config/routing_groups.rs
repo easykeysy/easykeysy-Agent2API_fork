@@ -65,7 +65,7 @@ pub fn validate(group: &RoutingGroup) -> Result<(), String> {
         return Err("组名不能为空或超过 64 个字符，说明不能超过 500 个字符".into());
     }
     if group.model.is_empty() || super::normalize_routing_model(&group.model)? != group.model {
-        return Err("对外模型 ID 不能为空，请去掉首尾空格并使用小写英文字母".into());
+        return Err("Public model ID 不能为空，请去掉首尾空格并使用小写英文字母".into());
     }
     super::validate_routing_profile(&group.profile())?;
     if group.members.len() > MAX_MEMBERS { return Err(format!("一个路由组最多允许 {MAX_MEMBERS} 个成员")); }
@@ -117,7 +117,7 @@ pub fn save(id: &str, group: Option<RoutingGroup>, expected: &str) -> Result<(),
                 || crate::server::core::model_rules::shared().mappings.iter().any(|mapping| mapping.alias.eq_ignore_ascii_case(&group.model))
                 || crate::server::core::custom_providers::list().iter().any(|provider| provider.get("mappings").and_then(Value::as_array)
                     .is_some_and(|items| items.iter().any(|item| item.get("alias").and_then(Value::as_str).is_some_and(|alias| alias.eq_ignore_ascii_case(&group.model))))) {
-                return Err("对外模型 ID 已被模型、映射或其他路由占用，请换一个名称".into());
+                return Err("Public model ID 已被模型、映射或其他路由占用，请换一个名称".into());
             }
             for member in &group.members {
                 if profiles.groups.values().any(|known| known.model.eq_ignore_ascii_case(&member.model)) || group.model.eq_ignore_ascii_case(&member.model) {

@@ -69,9 +69,9 @@
    * `icon` 是 icons.js 里的键。
    */
   const MENUS = [
-    { key: 'assistant', label: wbI18n.t('对话'), icon: 'spark' },
-    { key: 'overview', label: wbI18n.t('报表'), icon: 'overview' },
-    { key: 'accounts', label: wbI18n.t('账号'), icon: 'accounts' },
+    { key: 'assistant', label: wbI18n.t('Chats'), icon: 'spark' },
+    { key: 'overview', label: wbI18n.t('Reports'), icon: 'overview' },
+    { key: 'accounts', label: wbI18n.t('Accounts'), icon: 'accounts' },
     // 签到中心：**固定项**，与「账号」「模型管理」同级，不随插件装没装而消失。
     //
     // 早先它由插件申报（`pack.json` 的 `ui`），没装插件时菜单里就没有这一项 ——
@@ -79,25 +79,25 @@
     // 网关（本表里的固定项），**能力**归插件（走哪个接口、有哪些档位、有没有保活
     // /旅行这类专属面板，都由插件申报）。没装插件时页面显示空态并指路，比一个
     // 凭空消失的菜单项清楚得多。
-    { key: 'checkin', label: wbI18n.t('签到中心'), icon: 'checkin' },
-    { key: 'routing', label: wbI18n.t('路由'), icon: 'route' },
-    { key: 'gateway', label: wbI18n.t('模型管理'), icon: 'gateway' },
-    { key: 'agent', label: wbI18n.t('Agent 配置'), icon: 'agent' },
+    { key: 'checkin', label: wbI18n.t('Check-in center'), icon: 'checkin' },
+    { key: 'routing', label: wbI18n.t('Routing'), icon: 'route' },
+    { key: 'gateway', label: wbI18n.t('Model management'), icon: 'gateway' },
+    { key: 'agent', label: wbI18n.t('Agent Configuration'), icon: 'agent' },
     // MCP & Skills：给客户端装上的可选能力（网络搜索 / 视觉分析），排在客户端
     // 配置之后、出网代理之前 —— 前者是「接哪些客户端」，这一项是「接了能用什么」。
     { key: 'tools', label: wbI18n.t('MCP & Skills'), icon: 'tools' },
-    { key: 'proxies', label: wbI18n.t('网络代理'), icon: 'proxies' },
-    { key: 'keys', label: wbI18n.t('网关 Key'), icon: 'key' },
-    { key: 'docs', label: wbI18n.t('文档'), icon: 'logs' },
-    { key: 'requests', label: wbI18n.t('请求日志'), icon: 'requests' },
-    { key: 'logs', label: wbI18n.t('日志'), icon: 'logs' },
-    { key: 'tasks', label: wbI18n.t('自动维护'), icon: 'tasks' },
+    { key: 'proxies', label: wbI18n.t('Network proxy'), icon: 'proxies' },
+    { key: 'keys', label: wbI18n.t('Gateway key'), icon: 'key' },
+    { key: 'docs', label: wbI18n.t('Docs'), icon: 'logs' },
+    { key: 'requests', label: wbI18n.t('Request logs'), icon: 'requests' },
+    { key: 'logs', label: wbI18n.t('Logs'), icon: 'logs' },
+    { key: 'tasks', label: wbI18n.t('Automatic maintenance'), icon: 'tasks' },
     // 提供商插件：各家 provider 的转发与账号实现都在插件包里，这一页是装插件的
     // 唯一入口。排在「设置」上面 —— 它是「让软件能用起来」的前置步骤，与设置同级
     // 但更靠前（没装插件时账号页与模型页都是空的）。
-    { key: 'plugins', label: wbI18n.t('插件'), icon: 'plugins' },
+    { key: 'plugins', label: wbI18n.t('Plugins'), icon: 'plugins' },
     // 固定项：不可隐藏，所在分组也不可整组隐藏（隐藏了用户只能清缓存找回来）
-    { key: 'settings', label: wbI18n.t('设置'), icon: 'settings', fixed: true },
+    { key: 'settings', label: wbI18n.t('Settings'), icon: 'settings', fixed: true },
   ];
 
   const MENU_BY_KEY = new Map(MENUS.map(menu => [menu.key, menu]));
@@ -199,10 +199,10 @@
    * 刷新后这张表会按新语言重建，不存在「表里的译文过期」这种状态。
    */
   const GROUP_LABELS = {
-    概览: wbI18n.t('概览'),
-    转发链路: wbI18n.t('转发链路'),
-    诊断: wbI18n.t('诊断'),
-    系统: wbI18n.t('系统'),
+    概览: wbI18n.t('Overview'),
+    转发链路: wbI18n.t('Forwarding'),
+    诊断: wbI18n.t('Diagnostics'),
+    系统: wbI18n.t('System'),
   };
 
   /** 分组名的展示文本：内置分组查表，自建分组原样返回 */
@@ -228,13 +228,13 @@
   function defaultLayout() {
     return {
       groups: [
-        { id: 'g-overview', label: '概览', custom: false, hidden: false,
+        { id: 'g-overview', label: 'Overview', custom: false, hidden: false,
           items: ['assistant', 'overview', 'accounts', 'checkin'] },
-        { id: 'g-forward', label: '转发链路', custom: false, hidden: false,
+        { id: 'g-forward', label: 'Forwarding', custom: false, hidden: false,
           items: ['routing', 'gateway', 'agent', 'tools', 'proxies', 'keys', 'docs'] },
-        { id: 'g-diag', label: '诊断', custom: false, hidden: false,
+        { id: 'g-diag', label: 'Diagnostics', custom: false, hidden: false,
           items: ['requests', 'logs', 'tasks'] },
-        { id: 'g-system', label: '系统', custom: false, hidden: false,
+        { id: 'g-system', label: 'System', custom: false, hidden: false,
           items: ['plugins', 'settings'] },
       ],
       hidden: [],
@@ -296,7 +296,7 @@
       groups.push({
         // id 只用于拖动认人与 React key，不参与展示；缺了就补一个稳定的
         id: typeof group.id === 'string' && group.id ? group.id : 'g-' + index,
-        label: label || ('分组 ' + (index + 1)),
+        label: label || ('Grouping' + (index + 1)),
         custom: group.custom === true,
         hidden: group.hidden === true,
         items,
@@ -443,10 +443,10 @@
     if (!bridge || typeof bridge.saveSidebarLayout !== 'function') return;
     try {
       Promise.resolve(bridge.saveSidebarLayout(layout)).catch(error => {
-        console.warn('侧边栏布局保存到数据库失败（本机已生效，其它设备看不到这次改动）:', error);
+        console.warn('Failed to save the sidebar layout to the database (effective on this machine; other devices will not see this change):', error);
       });
     } catch (error) {
-      console.warn('侧边栏布局保存到数据库失败（本机已生效，其它设备看不到这次改动）:', error);
+      console.warn('Failed to save the sidebar layout to the database (effective on this machine; other devices will not see this change):', error);
     }
   }
 

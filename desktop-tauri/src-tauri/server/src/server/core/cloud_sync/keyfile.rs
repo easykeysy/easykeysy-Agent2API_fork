@@ -129,7 +129,7 @@ pub(crate) fn seal_key(key_bytes: &[u8], password: &str) -> Result<Vec<u8>, Stri
     let nonce_bytes: [u8; NONCE_LEN] = random_bytes()?;
     let derived = derive_key(password, &salt, DEFAULT_ITERATIONS);
     let cipher = Aes256Gcm::new_from_slice(&derived)
-        .map_err(|_| "派生密钥长度不受 AES-256 支持".to_string())?;
+        .map_err(|_| "派生密钥长度不受 AES-256 Supported".to_string())?;
     let nonce = Nonce::<U12>::from(nonce_bytes);
     let ciphertext = cipher
         .encrypt(&nonce, key_bytes)
@@ -156,13 +156,13 @@ pub(crate) fn open_key(raw: &[u8], password: &str) -> Result<[u8; KEY_LEN], Stri
     use aes_gcm::{Aes256Gcm, KeyInit as _, Nonce};
 
     let envelope: KeyEnvelope = serde_json::from_slice(raw)
-        .map_err(|_| "远端密钥文件的格式不认识（不是本功能生成的 account.key.enc）".to_string())?;
+        .map_err(|_| "远端密钥文件的格式不认识（不是本功能生成的 account.key.enc)".to_string())?;
     if envelope.format != ENVELOPE_FORMAT {
-        return Err(format!("远端密钥文件格式不兼容（format = {}）", envelope.format));
+        return Err(format!("远端密钥文件格式不兼容（format = {})", envelope.format));
     }
     if envelope.version != ENVELOPE_VERSION {
         return Err(format!(
-            "远端密钥文件版本不兼容（v{}，本机支持 v{ENVELOPE_VERSION}）",
+            "远端密钥文件版本不兼容（v{}，本机支持 v{ENVELOPE_VERSION})",
             envelope.version
         ));
     }
@@ -187,7 +187,7 @@ pub(crate) fn open_key(raw: &[u8], password: &str) -> Result<[u8; KEY_LEN], Stri
 
     let derived = derive_key(password, &salt, envelope.iterations);
     let cipher = Aes256Gcm::new_from_slice(&derived)
-        .map_err(|_| "派生密钥长度不受 AES-256 支持".to_string())?;
+        .map_err(|_| "派生密钥长度不受 AES-256 Supported".to_string())?;
     let nonce = Nonce::<U12>::try_from(nonce_bytes.as_slice())
         .map_err(|_| "远端密钥文件的 nonce 长度异常".to_string())?;
     let plaintext = cipher.decrypt(&nonce, ciphertext.as_slice()).map_err(|_| {

@@ -66,7 +66,7 @@ export function syncAccountSorting(): void {
       migration = null
       migrationAttempt = ''
       migrationRetryAt = Date.now() + 60_000
-      toast(t('排序设置迁移失败：{message}', { message: errorMessage(error) }), 'err')
+      toast(t('Could not migrate sorting settings: {message}', { message: errorMessage(error) }), 'err')
     })
   }
 }
@@ -75,31 +75,31 @@ export async function refreshAccountSorting(): Promise<void> {
   const api = shared().workbuddyDesktop
   if (!api?.getAccountSorting || getStore().sortBusy) return
   try { adoptAccountSorting(await api.getAccountSorting()) }
-  catch (error) { toast(t('读取消耗排序失败：{message}', { message: errorMessage(error) }), 'err') }
+  catch (error) { toast(t('Could not load consumption order: {message}', { message: errorMessage(error) }), 'err') }
 }
 
 export async function saveGroupSortRules(provider: string, rules: GroupSortRule[] | null): Promise<void> {
   if (!provider || getStore().sortBusy) return
   const api = shared().workbuddyDesktop
   if (!api?.saveAccountSorting) {
-    toast(t('账号排序接口不可用，请确认网关与界面已更新'), 'err')
+    toast(t('Account sorting API unavailable. Ensure both the gateway and interface are updated.'), 'err')
     return
   }
   const supported = getStore().sorting?.balanceSortStates !== undefined
   if (!supported && rules?.some(rule => rule.key === 'balance' && rule.on)) {
-    toast(t('当前网关不支持余额排序，请先更新网关'), 'err')
+    toast(t('This gateway does not support balance sorting. Update the gateway first.'), 'err')
     return
   }
   const compatible = supported ? rules : rules?.filter(rule => rule.key !== 'balance') ?? null
   patch({ sortBusy: true })
   try {
     const sorting = await api.saveAccountSorting({ provider, rules: compatible })
-    if (!sorting?.rules || !sorting.accountOrder || !Array.isArray(sorting.providerOrder)) throw new Error(t('保存响应不完整，请刷新当前配置确认结果'))
+    if (!sorting?.rules || !sorting.accountOrder || !Array.isArray(sorting.providerOrder)) throw new Error(t('The save response is incomplete. Reload the current configuration to confirm the result.'))
     adoptAccountSorting(sorting)
     window.dispatchEvent(new CustomEvent('wb:account-sorting', { detail: sorting }))
     try { await shared().wbApp?.refresh?.() }
-    catch (error) { toast(t('排序已保存，但列表刷新失败：{message}', { message: errorMessage(error) }), 'err') }
+    catch (error) { toast(t('Order saved, but the list could not refresh: {message}', { message: errorMessage(error) }), 'err') }
   } catch (error) {
-    toast(t('排序未保存：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Order not saved: {message}', { message: errorMessage(error) }), 'err')
   } finally { patch({ sortBusy: false }) }
 }

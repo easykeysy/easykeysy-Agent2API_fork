@@ -154,10 +154,10 @@ function kindOfTag(tag: HTMLElement): PanelKind {
  */
 function ChainLine({ details }: { details: AttemptDetail[] }) {
   if (details.length < 2) return null
-  const names = details.map(item => providerLabel(item.provider) || t('未知'))
+  const names = details.map(item => providerLabel(item.provider) || t('Unknown'))
   return (
     <div className='rh-chain mb-1.5 border-b border-border pb-1.5 break-words'>
-      <span className='rh-chain-k font-semibold text-muted-foreground'>{t('切换路径：')}</span>
+      <span className='rh-chain-k font-semibold text-muted-foreground'>{t('Switch path:')}</span>
       <span className='rh-chain-v font-semibold text-foreground'>{names.join(' → ')}</span>
     </div>
   )
@@ -176,7 +176,7 @@ function RetryRows({ item }: { item: AttemptDetail }) {
   return (
     <div className='rh-retry mt-0.5 mb-1 ml-2.5 border-l-2 border-border-strong pl-2'>
       <div className='rh-retry-head text-[11.5px] font-semibold text-warning'>
-        {t('↻ 重试 {n} 次', { n: retries.length })}
+        {t('↻ Retried {n} times', { n: retries.length })}
       </div>
       {retries.map((retry, index) => {
         const reason = String(retry?.reason ?? '').trim()
@@ -185,13 +185,13 @@ function RetryRows({ item }: { item: AttemptDetail }) {
         const delayMs = Number(retry?.delayMs)
         const delay = Number.isFinite(delayMs) && delayMs > 0
           ? (delayMs >= 1000
-              ? t('，{n}秒后重试', { n: Math.round(delayMs / 1000) })
-              : t('，{n}毫秒后重试', { n: Math.round(delayMs) }))
+              ? t(', retry in {n}s', { n: Math.round(delayMs / 1000) })
+              : t(', retry in {n}ms', { n: Math.round(delayMs) }))
           : ''
         return (
           <div key={index} className='rh-retry-row min-w-0 break-words'>
             <span className='rh-retry-why mr-1 text-subtle [overflow-wrap:anywhere]'>
-              {reason || t('未知原因')}
+              {reason || t('Unknown reason')}
             </span>
             {hasStatus ? (
               <span className='rh-retry-status mr-1 text-muted-foreground tabular-nums whitespace-nowrap'>
@@ -230,8 +230,8 @@ function AttemptRow({ item, index, inFlight }: { item: AttemptDetail; index: num
     <>
       <div className={FLOW_ROW}>
         {/* 序号从 1 起（后端明细数组本身就是发生顺序，不需要另存 attempt_no） */}
-        <span className='rh-no mr-1 text-muted-foreground'>{t('尝试 {n} ·', { n: index + 1 })}</span>
-        <span className='rh-who mr-1 font-semibold text-foreground'>{name || t('未知')}</span>
+        <span className='rh-no mr-1 text-muted-foreground'>{t('Attempt {n} ·', { n: index + 1 })}</span>
+        <span className='rh-who mr-1 font-semibold text-foreground'>{name || t('Unknown')}</span>
         {account ? (
           <span className='rh-account mr-1 text-muted-foreground [overflow-wrap:anywhere]'>{account}</span>
         ) : null}
@@ -239,15 +239,15 @@ function AttemptRow({ item, index, inFlight }: { item: AttemptDetail; index: num
         {error ? (
           <span className='rh-bad font-medium text-destructive [overflow-wrap:anywhere]'>
             {hasStatus
-              ? t('失败（{status}）：{error}', { status: String(status), error })
-              : t('失败：{error}', { error })}
+              ? t('Failed ({status}): {error}', { status: String(status), error })
+              : t('Failed: {error}', { error })}
           </span>
         ) : hasStatus ? (
-          <span className='rh-ok font-medium text-success'>{t('成功（{status}）', { status: String(status) })}</span>
+          <span className='rh-ok font-medium text-success'>{t('Success ({status})', { status: String(status) })}</span>
         ) : inFlight ? (
-          <span className='rh-dim text-muted-foreground'>{t('进行中…')}</span>
+          <span className='rh-dim text-muted-foreground'>{t('In progress…')}</span>
         ) : (
-          <span className='rh-dim text-muted-foreground'>{t('无结果记录')}</span>
+          <span className='rh-dim text-muted-foreground'>{t('No result recorded')}</span>
         )}
       </div>
       {/* 提示行（代理回退直连等）：非失败、但值得记一笔 */}
@@ -275,13 +275,13 @@ function ChainPanel({ entry }: { entry: RequestEntry }) {
   if (!details.length) {
     const finalProvider = providerLabel(entry.provider)
     const sentence = finalProvider
-      ? t('共 {n} 次尝试，最终由 {provider} 承载', { n: attempts, provider: finalProvider })
-      : t('共 {n} 次尝试', { n: attempts })
+      ? t('{n} attempts total, finally served by {provider}', { n: attempts, provider: finalProvider })
+      : t('{n} attempts total', { n: attempts })
     return (
       <>
         <div className={DIM_ROW}>{sentence}</div>
         <div className={DIM_ROW}>
-          {t('这条记录的尝试明细未采集（该字段上线前的旧数据，或请求在转发前就失败）')}
+          {t('Attempt details were not collected for this record (old data from before this field existed, or the request failed before forwarding)')}
         </div>
       </>
     )
@@ -303,7 +303,7 @@ function ChainPanel({ entry }: { entry: RequestEntry }) {
       ))}
       {details.length < attempts ? (
         <div className={DIM_ROW}>
-          {t('另有 {missing} 次尝试未记录明细（只保留最早的 {kept} 条）', {
+          {t('{missing} more attempts have no details recorded (only the earliest {kept} are kept)', {
             missing: attempts - details.length, kept: details.length,
           })}
         </div>
@@ -320,13 +320,13 @@ function ChainPanel({ entry }: { entry: RequestEntry }) {
 function SensitivePanel({ entry }: { entry: RequestEntry }) {
   const hits = hitsOf(entry)
   if (!hits.length) {
-    return <div className={DIM_ROW}>{t('这条记录命中了敏感词，但没有留下命中明细')}</div>
+    return <div className={DIM_ROW}>{t('This record hit a sensitive word, but no hit details were kept')}</div>
   }
   // 后端已按次数降序给出，这里不重排（顺序定义只有一处）
   return (
     <>
       <div className='rh-title mb-1 text-[11.5px] font-semibold tracking-[.02em] text-muted-foreground'>
-        {t('命中的敏感词')}
+        {t('Sensitive words hit')}
       </div>
       {hits.slice(0, MAX_TERM_ROWS).map((hit, index) => (
         <div key={index} className='rh-row rh-hit flex items-baseline justify-between gap-2.5'>
@@ -337,7 +337,7 @@ function SensitivePanel({ entry }: { entry: RequestEntry }) {
         </div>
       ))}
       {hits.length > MAX_TERM_ROWS ? (
-        <div className={DIM_ROW}>{t('另有 {n} 个词命中', { n: hits.length - MAX_TERM_ROWS })}</div>
+        <div className={DIM_ROW}>{t('{n} more words hit', { n: hits.length - MAX_TERM_ROWS })}</div>
       ) : null}
     </>
   )

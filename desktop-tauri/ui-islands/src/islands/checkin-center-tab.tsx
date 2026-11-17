@@ -50,9 +50,9 @@ function EmptyState(): React.ReactElement {
   const hasAccounts = (store.center?.daily?.providers?.length ?? 0) > 0
   const missingPlugin = !hasFeature
   const message = missingPlugin
-    ? '还没有可签到的提供商。签到能力由提供商插件提供，请先到「插件」页安装 Agent2API 提供商插件。'
+    ? 'No sign-in-capable providers yet. Sign-in is provided by provider plugins; first install the Agent2API provider plugin on the "Plugins" page.'
     : !hasAccounts
-      ? '插件已安装，但还没有可签到的账号。到「账号」页添加并启用账号后，这里会自动出现。'
+      ? 'The plugin is installed, but there are no accounts available for sign-in yet. Add and enable an account on the "Accounts" page and it will appear here automatically.'
       : ''
   if (!message) return <></>
   return (
@@ -69,7 +69,7 @@ function EmptyState(): React.ReactElement {
             variant="outline"
             onClick={() => window.wbApp?.showPage?.(missingPlugin ? 'plugins' : 'accounts')}
           >
-            去「{missingPlugin ? '插件' : '账号'}」页
+            去「{missingPlugin ? 'Plugins' : 'Accounts'}」页
           </Button>
           <Button size="sm" variant="ghost" onClick={() => void loadCenter()}>
             重新检查
@@ -139,37 +139,37 @@ export function CheckinStats({ center }: { center: CheckinCenter }): React.React
   return (
     <div className='ck-metrics'>
       <MetricCell
-        label={t('今日签到')}
+        label={t('Today')}
         value={daily.todayEligible > 0 ? daily.todayDone : <span className='ck-pending'>—</span>}
         unit={daily.todayEligible > 0 ? `/ ${daily.todayEligible}` : undefined}
         foot={outCount > 0
-          ? t('另有 {n} 个账号不参与', { n: outCount })
-          : t('全部账号均可签到')}
+          ? t('{n} more accounts are not included', { n: outCount })
+          : t('All accounts can check in')}
       />
       <MetricCell
-        label={t('定时签到')}
+        label={t('Scheduled check-in')}
         value={enabledEntries.length > 0 ? enabledEntries.length : <span className='ck-pending'>—</span>}
         unit={enabledEntries.length > 0 ? `/ ${auto?.schedules?.length ?? 0} 条启用` : undefined}
         foot={auto?.enabled !== true
-          ? t('总开关已关闭')
-          : nextRun ? t('下次 {time}', { time: formatTime(nextRun) }) : t('暂无启用的条目')}
+          ? t('Master switch is off')
+          : nextRun ? t('Next: {time}', { time: formatTime(nextRun) }) : t('No enabled entries')}
         onClick={() => goTab('schedule')}
       />
       <MetricCell
-        label={t('待领新手福利')}
+        label={t('Starter rewards to claim')}
         value={extras.onboarding.length > 0
           ? onboardingChecked > 0 ? onboardingPending : <span className='ck-pending'>—</span>
           : <span className='ck-pending'>无</span>}
-        unit={extras.onboarding.length > 0 && onboardingChecked > 0 ? t('项') : undefined}
+        unit={extras.onboarding.length > 0 && onboardingChecked > 0 ? t('items') : undefined}
         foot={extras.onboarding.length > 0
-          ? t('已查 {checked} / {total} 个账号', { checked: onboardingChecked, total: extras.onboarding.length })
-          : t('没有支持新手福利的账号')}
+          ? t('Checked {checked} of {total} accounts', { checked: onboardingChecked, total: extras.onboarding.length })
+          : t('No accounts support starter rewards')}
         onClick={() => goTab('onboarding')}
       />
       <MetricCell
-        label={t('累计签到记录')}
+        label={t('Total check-in records')}
         value={store.recordsLoaded ? store.recordsTotal : <span className='ck-pending'>—</span>}
-        foot={t('每账号一条明细')}
+        foot={t('One entry per account')}
         onClick={() => goTab('records')}
       />
     </div>
@@ -202,11 +202,11 @@ function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
       expandable={tasks.length > 0} expanded={expanded} onExpandedChange={setExpanded}
       description={<>
         {cache.settled
-          ? row.provider === 'officeace' ? t('今天已领') : t('一次性福利已结清，无需重复查询')
+          ? row.provider === 'officeace' ? t('Already claimed today') : t('One-time rewards have been claimed; no need to query again')
           : status === 'loaded'
             ? `已领 ${tasks.filter(task => task.done).length}/${tasks.length} · 累计 ${cache.earned} 积分`
-            : status === 'loading' ? '正在查询…' : '尚未查询任务状态'}
-        {cache.settledAt ? ` · ${t('结算于 {time}', { time: formatTime(cache.settledAt) })}`
+            : status === 'loading' ? 'Querying…' : 'Task status not queried yet'}
+        {cache.settledAt ? ` · ${t('Settled at {time}', { time: formatTime(cache.settledAt) })}`
           : cache.checkedAt ? ` · 查询于 ${formatTime(cache.checkedAt)}` : ''}
       </>}
       summary={claimed
@@ -214,12 +214,12 @@ function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
         : status === 'loaded' && unclaimed > 0
           ? <Badge variant="warning" shape="tag">{unclaimed} 项待领</Badge>
           : status === 'loaded'
-            ? <Badge variant="outline" shape="tag">{t('暂无可领取福利')}</Badge>
+            ? <Badge variant="outline" shape="tag">{t('No rewards available to claim')}</Badge>
             : status === 'error'
               ? <Badge variant="destructive" shape="tag">查询失败</Badge>
               : null}
       note={row.provider === 'officeace' || status === 'error' ? <>
-        {status === 'error' && cache.error ? <p>{t('查询失败：{error}', { error: cache.error })}</p> : null}
+        {status === 'error' && cache.error ? <p>{t('Query failed: {error}', { error: cache.error })}</p> : null}
         {row.provider === 'officeace' ? <OfficeaceSubscriptionRow accountId={row.id}
           disabled={batchClaiming || status === 'loading' || cache.claiming} /> : null}
       </> : undefined}
@@ -230,7 +230,7 @@ function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
           disabled={batchClaiming || status === 'loading' || cache.claiming}
           onClick={() => void queryOnboarding(row.id, true)}
         >
-          {status === 'loading' ? '查询中…' : '查询任务'}
+          {status === 'loading' ? 'Checking…' : 'Query tasks'}
         </Button>
         <Button
           size="sm"
@@ -238,7 +238,7 @@ function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
           disabled={batchClaiming || !onboardingClaimable(row.id)}
           onClick={() => void claimOnboarding(row.id)}
         >
-          {cache?.claiming ? '领取中…' : unclaimed > 0 ? `一键领取（${unclaimed}）` : '领取'}
+          {cache?.claiming ? 'Claiming…' : unclaimed > 0 ? `一键领取（${unclaimed}）` : 'Claim'}
         </Button>
       </>}>
       {tasks.map(task => (
@@ -247,14 +247,14 @@ function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
           <span className='min-w-0 flex-1 truncate'>{task.title}</span>
           <span className='shrink-0 tabular-nums text-muted-foreground'>+{task.points}</span>
           {task.claiming
-            ? <Badge variant="warning" shape="tag">{t('领取中')}</Badge>
+            ? <Badge variant="warning" shape="tag">{t('Claiming')}</Badge>
             : task.done
-              ? <Badge variant="success" shape="tag">{t('已领取')}</Badge>
+              ? <Badge variant="success" shape="tag">{t('Claimed')}</Badge>
               : task.blocked
-                ? <Badge variant="outline" shape="tag">{t('暂不可领')}</Badge>
+                ? <Badge variant="outline" shape="tag">{t('Not claimable yet')}</Badge>
                 : task.error
                   ? <Badge variant="destructive" shape="tag">{task.error}</Badge>
-                  : <Badge variant="brand" shape="tag">{t('可领取')}</Badge>}
+                  : <Badge variant="brand" shape="tag">{t('Claimable')}</Badge>}
         </DetailLine>
       ))}
     </CheckinRow>
@@ -271,11 +271,11 @@ function OnboardingRow({ row }: { row: OnboardingEntry }): React.ReactElement {
 /**
  * 成长任务的一行。
  *
- * 三块内容：任务树（逐条点亮 / 领奖）、开学季（任务 + 抽奖）、猫猫旅行。
+ * 三块内容：任务树（逐条点亮 / 领奖）、开学季（任务 + 抽奖）、猫猫旅行.
  * 明细要打一次上游，所以行上是「查询任务」按钮，点了才查。
  *
  * 「一键完成」逐条调用单任务端点（见 `runGrowth` 的说明）：全量一次请求会
- * 超过管理 API 的 60 秒转发超时。
+ * 超过管理 API 的 60 秒转发超时.
  */
 function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
   const cache = growthOf(row.id)
@@ -292,7 +292,7 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
       description={<>
         {cache.status === 'loaded'
           ? `${runnable.length} 项任务 · ${pending.length} 项可完成`
-          : '查询任务树并一键点亮 / 领奖（含开学季与猫猫旅行）'}
+          : 'Query the task tree, then light up / claim in one click (includes school-season and cat travel)'}
         {cache.checkedAt ? ` · 查询于 ${formatTime(cache.checkedAt)}` : ''}
       </>}
       summary={cache.status === 'loaded'
@@ -310,31 +310,31 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
           disabled={cache.status === 'loading' || running}
           onClick={() => void queryGrowth(row.id)}
         >
-          {cache.status === 'loading' ? '查询中…' : '查询任务'}
+          {cache.status === 'loading' ? 'Checking…' : 'Query tasks'}
         </Button>
         <Button
           size="sm"
           variant="outline"
           disabled={cache.status !== 'loaded' || running}
-          title="接单 + 点亮 + 领奖（只处理已实测沉淀的任务）"
+          title="Accept + light up + claim (only tasks with verified recipes)"
           onClick={() => void runGrowth(row.id, 'full')}
         >
-          {cache.running ? '执行中…' : '一键完成'}
+          {cache.running ? 'Running…' : 'Complete all'}
         </Button>
         <Button
           size="sm"
           variant="ghost"
           disabled={cache.status !== 'loaded' || running}
-          title="只领取已完成任务的奖励（幂等，重复点不会重复入账）"
+          title="Claim rewards of completed tasks only (idempotent; repeated clicks will not double-credit)"
           onClick={() => void runGrowth(row.id, 'claim')}
         >
           领取
         </Button>
       </>}>
       <div className='border-b border-hairline pb-1.5 text-[11.5px] text-muted-foreground'>
-        {cache.energy !== null && cache.energy !== undefined ? t('能量 {value}', { value: cache.energy }) : ''}
-        {cache.streak !== null && cache.streak !== undefined ? ` · ${t('连登 {days} 天', { days: cache.streak })}` : ''}
-        {cache.energy === null && cache.streak === null ? t('（能量 / 连登读数本次未取到）') : ''}
+        {cache.energy !== null && cache.energy !== undefined ? t('energy {value}', { value: cache.energy }) : ''}
+        {cache.streak !== null && cache.streak !== undefined ? ` · ${t('{days} days in a row', { days: cache.streak })}` : ''}
+        {cache.energy === null && cache.streak === null ? t('(Energy / streak readings unavailable this time)') : ''}
       </div>
       {tasks.map(task => {
         const result = cache.results.find(item => item.code === task.code)
@@ -347,16 +347,16 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
             </span>
             {result ? <span className='shrink-0 text-[11.5px] text-muted-foreground'>{result.message}</span> : null}
             {task.status === 'claimed'
-              ? <Badge variant="success" shape="tag">{t('已领取')}</Badge>
+              ? <Badge variant="success" shape="tag">{t('Claimed')}</Badge>
               : growthTaskRunnable(task, 'claim')
-                ? <Badge variant="brand" shape="tag">{t('可领取')}</Badge>
+                ? <Badge variant="brand" shape="tag">{t('Claimable')}</Badge>
                 : task.unforgeable
-                  ? <Badge variant="outline" shape="tag">{t('需真实操作')}</Badge>
+                  ? <Badge variant="outline" shape="tag">{t('Requires real action')}</Badge>
                   : !task.supported
-                    ? <Badge variant="outline" shape="tag">{t('不支持')}</Badge>
+                    ? <Badge variant="outline" shape="tag">{t('Not supported')}</Badge>
                     : task.locked
-                      ? <Badge variant="outline" shape="tag">{t('未解锁')}</Badge>
-                      : <Badge variant="warning" shape="tag">{t('待完成')}</Badge>}
+                      ? <Badge variant="outline" shape="tag">{t('Locked')}</Badge>
+                      : <Badge variant="warning" shape="tag">{t('To complete')}</Badge>}
           </DetailLine>
         )
       })}
@@ -368,7 +368,7 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
           disabled={running}
           onClick={() => void runSchool(row.id, false)}
         >
-          {cache.runningSchool ? t('执行中…') : t('开学季任务')}
+          {cache.runningSchool ? t('Running…') : t('The back-to-school task')}
         </Button>
         <Button
           size="xs"
@@ -376,7 +376,7 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
           disabled={running}
           onClick={() => void runSchool(row.id, true)}
         >
-          {t('开学季 + 抽奖')}
+          {t('Back-to-school + lottery')}
         </Button>
         <Button
           size="xs"
@@ -384,14 +384,14 @@ function GrowthRow({ row }: { row: GrowthEntry }): React.ReactElement {
           disabled={running}
           onClick={() => void runTravelOnce(row.id)}
         >
-          {t('猫猫旅行一趟')}
+          {t('Cat travelOne cat travel trip')}
         </Button>
       </div>
     </CheckinRow>
   )
 }
 
-/* ─── 主体 ─────────────────────────────────── */
+/* ─── 主body─────────────────────────────────── */
 
 /** provider id → 展示名（快照只给 id 时用共享目录兜底，取不到就原样显示 id） */
 function providerLabel(id: string): string {
@@ -514,26 +514,26 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
 
   const sectionMeta = {
     daily: {
-      title: t('每日签到'),
+      title: t('Daily check-in'),
       summary: daily.todayEligible > 0
-        ? t('{done} / {total} 个账号已签', { done: daily.todayDone, total: daily.todayEligible })
-        : t('今天没有需要签到的账号'),
-      labels: ['全部', '已签到', '未签到'] as const,
-      aria: t('按签到状态筛选'),
+        ? t('{done} of {total} accounts checked in', { done: daily.todayDone, total: daily.todayEligible })
+        : t('No accounts need to sign in today'),
+      labels: ['All', '已签到', 'Not signed in'] as const,
+      aria: t('Filter by sign-in state'),
       total: providerId ? (railOptions.find(o => o.id === providerId)?.total ?? 0) : dutyTotal,
       done: providerId
         ? daily.providers.find(group => group.id === providerId)?.doneCount ?? 0
         : dutyDone,
     },
     onboarding: {
-      title: t('新手福利'),
+      title: t('Starter rewards'),
       summary: extras.onboarding.length > 0
-        ? t('已有结果 {checked} / 共 {total} 个账号 · {pending} 项待领', {
+        ? t('Results for {checked} / {total} accounts · {pending} items to claim', {
           checked: onboardingChecked, total: extras.onboarding.length, pending: onboardingPending,
         })
-        : t('没有支持新手福利的账号'),
-      labels: ['全部', '已领取', '未领取'] as const,
-      aria: t('按领取状态筛选'),
+        : t('No accounts support starter rewards'),
+      labels: ['All', 'Claimed', 'Not claimed'] as const,
+      aria: t('Filter by claim state'),
       total: providerId
         ? onboardingGroups.find(group => group.id === providerId)?.rows.length ?? 0
         : extras.onboarding.length,
@@ -542,10 +542,10 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
         : onboardingDoneCount,
     },
     plans: {
-      title: t('活动福利'),
-      summary: t('限时活动与体验套餐'),
-      labels: ['全部', '已领取', '未领取'] as const,
-      aria: t('按领取状态筛选'),
+      title: t('Event rewards'),
+      summary: t('Limited-time events and trial plans'),
+      labels: ['All', 'Claimed', 'Not claimed'] as const,
+      aria: t('Filter by claim state'),
       total: providerId
         ? plansCounts.byProvider[providerId]?.total ?? 0
         : plansCounts.total,
@@ -555,12 +555,12 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
         : plansCounts.claimed,
     },
     growth: {
-      title: t('成长任务'),
+      title: t('Growth tasks'),
       summary: extras.growth.length > 0
-        ? t('{n} 个账号', { n: extras.growth.length })
-        : t('没有支持成长任务的账号'),
-      labels: ['全部', '已完成', '未完成'] as const,
-      aria: t('按完成状态筛选'),
+        ? t('{n} accounts', { n: extras.growth.length })
+        : t('No accounts support the growth tasks'),
+      labels: ['All', 'Completed', 'Not finished'] as const,
+      aria: t('Filter by completion state'),
       total: providerId
         ? growthGroups.find(group => group.id === providerId)?.rows.length ?? 0
         : extras.growth.length,
@@ -571,20 +571,20 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
   }[section]
 
   const emptyText = section === 'daily'
-    ? filter === 'done' ? t('今天还没有账号签到，切到「全部」看看哪些还没签。') : t('今天的账号都签完了。')
+    ? filter === 'done' ? t('No account has signed in yet today; switch to "All" to see which are still unsigned.') : t('All of today\'s accounts are signed.')
     : section === 'onboarding'
       ? extras.onboarding.length === 0
-        ? t('没有支持新手福利的账号。')
+        ? t('No accounts support the new-user perks.')
         : filter === 'done'
-          ? t('还没有账号领完新手福利，切到「全部」看看待领的项。')
-          : t('新手福利都领完了。')
+          ? t('No account has claimed the new-user perks yet; switch to "All" to see what is waiting.')
+          : t('All the new-user perks have been claimed.')
       : section === 'growth'
         ? extras.growth.length === 0
-          ? t('没有支持成长任务的账号（需要 WorkBuddy 国内版）。')
+          ? t('No accounts support growth tasks (WorkBuddy CN required).')
           : filter === 'done'
-            ? t('还没有账号完成全部任务，切到「全部」看看可完成的项。')
-            : t('成长任务都完成了。')
-        : t('没有支持活动福利的账号，请添加账号并更新提供商插件。')
+            ? t('No account has completed all tasks yet; switch to "All" to see the claimable items.')
+            : t('All the growth tasks are done.')
+        : t('No accounts support campaign rewards. Add an account and update the provider plugin.')
 
   const empty = section === 'daily' ? dutyEntries.length === 0
     : section === 'onboarding' ? onboardingRows.length === 0
@@ -625,7 +625,7 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
               <CardAction>
                 {section === 'daily' ? (
                   <Button size="sm" disabled={runningAll} onClick={() => void runAllCheckin()}>
-                    {runningAll ? t('签到中…') : t('全部签到')}
+                    {runningAll ? t('Checking in…') : t('Check in all')}
                   </Button>
                 ) : null}
                 {section === 'onboarding' && extras.onboarding.length > 0 ? <>
@@ -637,34 +637,34 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
                       for (const row of onboardingRows) void queryOnboarding(row.id)
                     }}
                   >
-                    {t('全部查询')}
+                    {t('Query all')}
                   </Button>
                   <Button size="sm" variant="outline"
                     disabled={onboardingBusy || !onboardingRows.some(row => onboardingClaimable(row.id))}
                     onClick={() => void claimOnboardingBatch(onboardingRows.map(row => row.id))}>
-                    {store.onboardingBatch ? t('领取中…') : t('全部领取')}
+                    {store.onboardingBatch ? t('Claiming…') : t('Claim all')}
                   </Button>
                 </> : null}
                 {section === 'plans' ? <>
                   <Button size="sm" variant="outline" disabled={plansCounts.busy || store.plansBatch !== null || sectionMeta.total === 0}
                     onClick={() => setPlansQueryToken(token => token + 1)}>
-                    {store.plansBatch === 'query' ? t('查询中…') : t('全部查询')}
+                    {store.plansBatch === 'query' ? t('Checking…') : t('Query all')}
                   </Button>
                   <Button size="sm" variant="outline" disabled={plansCounts.busy || store.plansBatch !== null || plansCounts.claimable === 0}
                     onClick={() => setPlansClaimToken(token => token + 1)}>
-                    {store.plansBatch === 'claim' ? t('领取中…') : t('全部领取')}
+                    {store.plansBatch === 'claim' ? t('Claiming…') : t('Claim all')}
                   </Button>
                 </> : null}
                 {section === 'growth' ? <>
                   <Button size="sm" variant="outline" disabled={growthBusy || growthRows.length === 0}
-                    title={t('接单 + 点亮 + 领奖（只处理已实测沉淀的任务）')}
+                    title={t('Accept + light up + claim (only tasks with verified recipes)')}
                     onClick={() => void runGrowthBatch(growthRows.map(row => row.id), 'full')}>
-                    {store.growthBatch?.mode === 'full' ? t('执行中…') : t('一键完成')}
+                    {store.growthBatch?.mode === 'full' ? t('Running…') : t('Complete all')}
                   </Button>
                   <Button size="sm" variant="outline" disabled={growthBusy || growthRows.length === 0}
-                    title={t('只领取已完成任务的奖励（幂等，重复点不会重复入账）')}
+                    title={t('Claim rewards of completed tasks only (idempotent; repeated clicks will not double-credit)')}
                     onClick={() => void runGrowthBatch(growthRows.map(row => row.id), 'claim')}>
-                    {store.growthBatch?.mode === 'claim' ? t('领取中…') : t('领取')}
+                    {store.growthBatch?.mode === 'claim' ? t('Claiming…') : t('Claim')}
                   </Button>
                 </> : null}
                 {sectionMeta.done !== null ? (
@@ -715,10 +715,10 @@ export function CenterTab({ center }: { center: CheckinCenter }): React.ReactEle
             </div>
 
             <CardFooter className="ck-task-foot">
-              {section === 'daily' ? t('单账号签到不受范围限制') : null}
-              {section === 'onboarding' ? t('一次性福利 · 已领取状态保存在网关，领完无需重复查询 · 点击行展开任务清单') : null}
-              {section === 'plans' ? t('资格、额度与有效期以官方返回为准 · 领取不会购买或订阅套餐') : null}
-              {section === 'growth' ? t('查询任务树后一键点亮 / 领奖 · 含开学季与猫猫旅行 · 点击行展开明细') : null}
+              {section === 'daily' ? t('Per-account check-in is not limited by scope') : null}
+              {section === 'onboarding' ? t('One-time rewards · claim status is stored on the gateway, so claimed rewards need no further queries · click a row to expand tasks') : null}
+              {section === 'plans' ? t('Eligibility, quota and validity period are decided by the official response· Claiming does not purchase or subscribe to plans') : null}
+              {section === 'growth' ? t('After querying the task tree, light up / collect with one click· including the back-to-school and the cat travel· Click a row to expand the details') : null}
             </CardFooter>
           </Card>
         </div>

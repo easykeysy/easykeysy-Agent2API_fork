@@ -25,14 +25,14 @@ use super::record::{AccountAccum, DailyEntry, ModelAccum, ProviderAccum, Request
 
 /// 未知 provider 的展示名（`id` 为空串的那一组：旧版本写出的明细、
 /// 以及「一次都没发出去就失败」的请求）。前端也会用同样的文案做降级显示。
-pub(super) const UNKNOWN_PROVIDER_LABEL: &str = "未知";
+pub(super) const UNKNOWN_PROVIDER_LABEL: &str = "Unknown";
 
 /// 未知账号的展示名（没有账号身份的那一组）。
 ///
 /// 与 provider 那条是**两个独立的常量**而不是共用一个：两者的「未知」
 /// 成因不同（前者是没记下承载的家，后者是没走账号列表），文案将来若分叉，
 /// 共用会让改一处等于改两处。
-pub(super) const UNKNOWN_ACCOUNT_LABEL: &str = "未知账号";
+pub(super) const UNKNOWN_ACCOUNT_LABEL: &str = "Unknown account";
 
 /// 热力图固定返回的天数（与 range 解耦）
 pub(super) const HEATMAP_DAYS: i64 = 365;
@@ -462,7 +462,7 @@ pub(super) fn build_providers(totals: &[ProviderAccum]) -> Vec<Value> {
 /// 与 provider / 账号那两条是**三个独立的常量**：三者的「未知」成因各不相同
 /// （没记下承载的家 / 没走账号列表 / 没记下模型名），文案将来若分叉，
 /// 共用会让改一处等于改两处。
-pub(super) const UNKNOWN_MODEL_LABEL: &str = "未知模型";
+pub(super) const UNKNOWN_MODEL_LABEL: &str = "Unknown model";
 
 /// 区间级的按模型汇总 → `/api/stats/summary` 的 `models` 数组。
 ///

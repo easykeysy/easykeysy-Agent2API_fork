@@ -113,7 +113,7 @@ export function jsonTopLevelKeys(text: string): string[] {
 function fileBlock(file: AssistantTextFile, index: number): string {
   const ordinal = index + 1
   const keys = jsonTopLevelKeys(file.text)
-  const shape = keys.length ? `顶层字段：${keys.join(', ')}` : '不是合法 JSON（可先用 read_attachment 读取，再修正结构）'
+  const shape = keys.length ? `顶层字段：${keys.join(', ')}` : 'Is not valid JSON (you can first read it with read_attachment, then fix the structure)",'
   const truncated = file.text.length > MAX_FILE_PREVIEW_CHARS
   const preview = truncated
     ? `${file.text.slice(0, MAX_FILE_PREVIEW_CHARS)}\n…（预览已截断，剩余 ${file.text.length - MAX_FILE_PREVIEW_CHARS} 字符）`
@@ -125,9 +125,9 @@ function fileBlock(file: AssistantTextFile, index: number): string {
     `【附件 ${ordinal}：${file.name}（${formatFileSize(file.size)}，${file.text.length} 字符）】`,
     shape,
     '',
-    '--- 内容开始 ---',
+    '--- Content start ---',
     preview,
-    '--- 内容结束 ---',
+    '--- Content end ---',
     hint,
   ].join('\n')
 }
@@ -142,5 +142,5 @@ export function userContentWithFiles(content: string, files: AssistantTextFile[]
   const body = content
   if (!files.length) return body
   const blocks = files.map((file, index) => fileBlock(file, index)).join('\n\n')
-  return `${body.trim() ? `${body}\n\n` : ''}【用户上传的文件】\n\n${blocks}`
+  return `${body.trim() ? `${body}\n\n` : ''}【用户The uploaded file件】\n\n${blocks}`
 }

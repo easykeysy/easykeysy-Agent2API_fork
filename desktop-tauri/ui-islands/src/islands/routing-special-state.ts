@@ -109,13 +109,13 @@ const desktop = () => (window as unknown as { workbuddyDesktop?: DesktopBridge }
 
 export function compactApi() {
   const api = desktop()
-  if (!api?.getCompactRoutes || !api.saveCompactRoutes) throw new Error(t('压缩路由入口尚未就绪，请刷新页面后重试'))
+  if (!api?.getCompactRoutes || !api.saveCompactRoutes) throw new Error(t('Compaction routing is not ready. Refresh the page and try again.'))
   return { load: api.getCompactRoutes, save: api.saveCompactRoutes }
 }
 
 export function titleApi() {
   const api = desktop()
-  if (!api?.getTitleRoutes || !api.saveTitleRoutes) throw new Error(t('标题生成路由入口尚未就绪，请刷新页面后重试'))
+  if (!api?.getTitleRoutes || !api.saveTitleRoutes) throw new Error(t('The title generation route entry is not ready yet. Refresh the page and try again.'))
   return { load: api.getTitleRoutes, save: api.saveTitleRoutes }
 }
 

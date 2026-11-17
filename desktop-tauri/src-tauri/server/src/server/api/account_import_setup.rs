@@ -52,22 +52,22 @@ pub(super) async fn complete(state: &ServerState, ids: &[String], result: &mut V
         report["provider"] = Value::String(PROVIDER.to_string());
         logging::log_with_level(
             "[Accounts]",
-            &format!("账号 {name} 导入后套餐检查：{}", report["message"].as_str().unwrap_or("未返回结果")),
+            &format!("Account {name} 导入后套餐检查：{}", report["message"].as_str().unwrap_or("未返回结果")),
             if succeeded(&report) { "info" } else { "warn" },
         );
         reports.push(report);
     }
     if reports.is_empty() { return; }
     let notices: Vec<String> = reports.iter().map(|report| format!(
-        "{}：{}", report["name"].as_str().unwrap_or("果办账号"), report["message"].as_str().unwrap_or("未返回结果"),
+        "{}: {}", report["name"].as_str().unwrap_or("果办账号"), report["message"].as_str().unwrap_or("未返回结果"),
     )).collect();
     let warnings: Vec<Value> = reports.iter().filter(|report| !succeeded(report)).cloned().collect();
     result["subscriptionChecks"] = Value::Array(reports);
-    result["importNotice"] = Value::String(notices.join("；"));
+    result["importNotice"] = Value::String(notices.join("; "));
     if !warnings.is_empty() {
         result["warning"] = json!(warnings.iter().filter_map(|item| {
-            Some(format!("{}：{}", item.get("name")?.as_str()?, item.get("message")?.as_str()?))
-        }).collect::<Vec<_>>().join("；"));
+            Some(format!("{}: {}", item.get("name")?.as_str()?, item.get("message")?.as_str()?))
+        }).collect::<Vec<_>>().join("; "));
         result["warnings"] = Value::Array(warnings);
     }
 }
@@ -83,7 +83,7 @@ fn succeeded(report: &Value) -> bool {
 
 fn public_report(value: &Value) -> Value {
     match (value.get("status").and_then(Value::as_str), value.get("message").and_then(Value::as_str)) {
-        (Some("active"), _) => json!({ "status": "already_active", "message": "套餐已开通，无需重复操作" }),
+        (Some("active"), _) => json!({ "status": "already_active", "message": "The plan is already active. No further action is needed." }),
         (Some("inactive"), _) => json!({
             "status": "skipped",
             "message": "尚未开通体验套餐，请到签到中心确认服务协议后开通；导入账号不会自动下单",

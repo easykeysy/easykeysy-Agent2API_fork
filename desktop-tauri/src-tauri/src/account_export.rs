@@ -45,7 +45,7 @@ pub async fn export_account_files(app: AppHandle, selection: Value) -> Result<Va
     } else {
         app.dialog()
             .file()
-            .set_title("导出账号")
+            .set_title("Export Accounts")
             .set_file_name(&data.files[0].file_name)
             .add_filter("JSON", &["json"])
             .add_filter("全部文件", &["*"])

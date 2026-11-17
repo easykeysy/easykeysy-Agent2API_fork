@@ -1,6 +1,6 @@
 name: 💡 功能建议
 description: 想让网关或界面多一个能力、改一处别扭的地方
-title: "[建议] "
+title: "[Suggestion] "
 labels: ["enhancement"]
 body:
   - type: textarea

@@ -94,7 +94,7 @@
     try {
       info = await api.getUpgrade();
     } catch (error) {
-      console.warn('读取数据结构升级状态失败:', error.message);
+      console.warn('Failed to read the data-structure upgrade state:', error.message);
       return;
     }
     if (info?.pending !== true) return;
@@ -102,7 +102,7 @@
     running = true;
     // 「旧数据不会被删除」这句是这条 toast 最要紧的信息：用户没有点过任何东西，
     // 却看到程序在搬他的数据，第一反应会是「我的文件呢」。
-    toast(wbI18n.t('正在把旧数据导入 SQLite 数据库（旧文件会保留，不会删除）…'));
+    toast(wbI18n.t('Importing old data into the SQLite database (old files are kept, not deleted)…'));
     let result = null;
     try {
       result = await api.runUpgrade();
@@ -110,7 +110,7 @@
       running = false;
       // 自动流程的失败必须说清「数据还在」与「会自动重试」——否则用户无从判断
       // 要不要做什么。后端也已把失败项写进日志页（见模块头）。
-      toast(wbI18n.t('数据升级失败：{error}（旧数据仍在原处，下次启动会自动重试）', { error: error.message }), 'err');
+      toast(wbI18n.t('Data migration failed: {error} (the old data is still in place; it will be retried automatically on the next launch)', { error: error.message }), 'err');
       return;
     }
     running = false;
@@ -130,11 +130,11 @@
     const outcomes = Array.isArray(result?.outcomes) ? result.outcomes : [];
     const imported = outcomes.length;
     if (result?.pending) {
-      toast(wbI18n.t('数据升级未全部完成（已导入 {n} 项，仍有数据待导入，下次启动会自动重试）', { n: imported }), 'err');
+      toast(wbI18n.t('Data migration incomplete ({n} items imported; the remaining data will be imported on the next launch)', { n: imported }), 'err');
     } else if (imported) {
-      toast(wbI18n.t('✅ 数据升级完成（{n} 项）', { n: imported }));
+      toast(wbI18n.t('✅ Data migration complete ({n} items)', { n: imported }));
     } else {
-      toast(wbI18n.t('数据升级：没有需要导入的旧数据'));
+      toast(wbI18n.t('Data migration: no old data to import'));
     }
     void refreshPanels();
   }

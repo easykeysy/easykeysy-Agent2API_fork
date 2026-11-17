@@ -214,11 +214,11 @@ pub fn cached_scopes() -> Vec<(String, i64)> {
 /// 「3 天前」比「2026-09-22 14:03:11」直接；且不必为日志引入一处时间格式化。
 pub fn age_text(fetched_at: i64) -> String {
     if fetched_at <= 0 {
-        return "未知".to_string();
+        return "Unknown".to_string();
     }
     let age = logging::now_ms() - fetched_at;
     if age < 60_000 {
-        "刚刚".to_string()
+        "Just now".to_string()
     } else if age < 3_600_000 {
         format!("{} 分钟前", age / 60_000)
     } else if age < 86_400_000 {

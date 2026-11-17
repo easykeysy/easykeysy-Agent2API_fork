@@ -31,22 +31,22 @@ export function PluginPackSettingsSheet({ pack, disabled, onClose, onEnabled, on
         {pack.description ? <p className='m-0 text-sm text-muted-foreground'>{t(pack.description)}</p> : null}
         <DialogSection>
           <Label htmlFor={`${prefix}-enabled`} className='justify-between text-foreground'>
-            {t('启用')}<Switch id={`${prefix}-enabled`} checked={pack.enabled} disabled={locked} onCheckedChange={onEnabled} />
+            {t('enabled')}<Switch id={`${prefix}-enabled`} checked={pack.enabled} disabled={locked} onCheckedChange={onEnabled} />
           </Label>
-          <p className='m-0'>v{pack.version} · {t('社区插件')} · {pack.signed ? t('已签名') : t('未签名')}</p>
+          <p className='m-0'>v{pack.version} · {t('Community plugin')} · {pack.signed ? t('Signed') : t('Unsigned')}</p>
         </DialogSection>
         <DialogSection>
-          <h3 className='m-0'>{t('加载状态')}</h3>
+          <h3 className='m-0'>{t('Load status')}</h3>
           <PluginStartupDetails id={pack.id} status={startup} t={t} />
-          <Button variant='link' size='sm' onClick={() => { onClose(); requestPluginDiagnostics(pack.id) }}>{t('加载诊断')}</Button>
+          <Button variant='link' size='sm' onClick={() => { onClose(); requestPluginDiagnostics(pack.id) }}>{t('Load diagnostics')}</Button>
         </DialogSection>
         <DialogSection>
-          <h3 className='m-0'>{t('提供商启停')}</h3>
+          <h3 className='m-0'>{t('Provider switches')}</h3>
           {pack.providers.map(provider => <div key={provider.id} className='flex items-center justify-between gap-3 border-t border-hairline py-2 first:border-t-0'>
             <Label htmlFor={`${prefix}-${provider.id}`} className='min-w-0 flex-1 flex-wrap text-foreground'>
               <span>{t(provider.label)}</span>
               {provider.overriddenBy ? <Badge variant='secondary' shape='tag'
-                title={t('已由其他插件接管，请到对应插件中管理。')}>{t('由其他插件接管')}</Badge>
+                title={t('This provider is managed by another plugin. Manage it in that plugin\'s settings.')}>{t('Managed by another plugin')}</Badge>
                 : provider.enabled && !provider.loaded ? <Badge variant='secondary' shape='tag'>{pluginPhaseLabel(startup, t)}</Badge> : null}
             </Label>
             <Switch id={`${prefix}-${provider.id}`} checked={provider.enabled && !provider.overriddenBy}
@@ -58,7 +58,7 @@ export function PluginPackSettingsSheet({ pack, disabled, onClose, onEnabled, on
           enabled={pack.enabled} disabled={disabled} onBusyChange={setPermissionBusy} t={t}
           request={(method, path, body) => apiCall(path, { method, body })} />
       </SheetBody>
-      <SheetFooter><Button variant='outline' disabled={permissionBusy} onClick={onClose}>{t('完成')}</Button></SheetFooter>
+      <SheetFooter><Button variant='outline' disabled={permissionBusy} onClick={onClose}>{t('Done')}</Button></SheetFooter>
     </SheetContent>
   </Sheet>
 }

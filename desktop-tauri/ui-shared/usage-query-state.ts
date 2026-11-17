@@ -43,11 +43,11 @@ export function mergeUsageQueryRow(row: UsageQueryRow, previous?: UsageQueryRow)
 
 export function usageAgeText(at: number, t: Translate, now: number): string {
   const elapsed = Math.max(0, now - at)
-  if (elapsed < 10_000) return t('刚刚更新')
-  if (elapsed < 60_000) return t('{n} 秒前更新', { n: Math.floor(elapsed / 1000) })
-  if (elapsed < 3_600_000) return t('{n} 分钟前更新', { n: Math.floor(elapsed / 60_000) })
-  if (elapsed < 86_400_000) return t('{n} 小时前更新', { n: Math.floor(elapsed / 3_600_000) })
-  return t('{n} 天前更新', { n: Math.floor(elapsed / 86_400_000) })
+  if (elapsed < 10_000) return t('Updated just now')
+  if (elapsed < 60_000) return t('Updated {n} seconds ago', { n: Math.floor(elapsed / 1000) })
+  if (elapsed < 3_600_000) return t('Updated {n} minutes ago', { n: Math.floor(elapsed / 60_000) })
+  if (elapsed < 86_400_000) return t('Updated {n} hours ago', { n: Math.floor(elapsed / 3_600_000) })
+  return t('Updated {n} days ago', { n: Math.floor(elapsed / 86_400_000) })
 }
 
 export function usageQueryFailureStatus(
@@ -58,10 +58,10 @@ export function usageQueryFailureStatus(
 ): { text: string; detail: string } | null {
   if (!row.error || row.code === USAGE_NOT_CONFIGURED_CODE) return null
   const at = reading(row.lastUsage) ? timestamp(row.lastSuccessAt) : 0
-  const text = at ? `${t('更新失败')} · ${usageAgeText(at, t, now)}` : t('查询失败')
+  const text = at ? `${t('Update failed')} · ${usageAgeText(at, t, now)}` : t('Query failed')
   const fullTime = at ? formatTime(at) : ''
   return {
     text,
-    detail: [t(row.error), fullTime ? t('上次成功查询：{time}', { time: fullTime }) : ''].filter(Boolean).join('\n'),
+    detail: [t(row.error), fullTime ? t('Last successful query: {time}', { time: fullTime }) : ''].filter(Boolean).join('\n'),
   }
 }

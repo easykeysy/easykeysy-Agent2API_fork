@@ -2,55 +2,55 @@ import { t } from '../i18n'
 
 export function pluginLoginText(value: string): string {
   switch (value.trim()) {
-    case 'ACP 的本机进程仍使用原来的代理。请先在插件页停用再启用 ACP 插件，再使用新的代理。':
-      return t('ACP 的本机进程仍使用原来的代理。请先在插件页停用再启用 ACP 插件，再使用新的代理。')
-    case 'ACP 代理配置无效，请重新选择代理。': return t('ACP 代理配置无效，请重新选择代理。')
-    case '此提供商已有登录任务，请先完成或取消。': return t('此提供商已有登录任务，请先完成或取消。')
-    case 'ACP 尚未返回可用的会话模型目录，请检查官方 CLI 登录状态后重试。':
-      return t('ACP 尚未返回可用的会话模型目录，请检查官方 CLI 登录状态后重试。')
-    case 'ACP 会话失败时不自动重发，也不切换到其他接入方式。':
-      return t('ACP 会话失败时不自动重发，也不切换到其他接入方式。')
-    case 'Google 授权（ACP）': return t('Google 授权（ACP）')
-    case 'ACP 使用网关电脑上的官方 agy CLI，不是当前手机或浏览器所在设备。请先安装 agy 1.5.0 或更新版本：https://antigravity.google/docs/cli。程序不在默认位置时，可在网关启动环境设置 AGY_PATH。':
-      return t('ACP 使用网关电脑上的官方 agy CLI，不是当前手机或浏览器所在设备。请先安装 agy 1.5.0 或更新版本：https://antigravity.google/docs/cli。程序不在默认位置时，可在网关启动环境设置 AGY_PATH。')
-    case '点击登录后，在 Google 页面授权，再原样粘贴授权码或完整页面地址；已登录的 agy 会直接连接。Google 凭证由官方客户端保管，Agent2API 只保存本机连接标记。同一网关仅使用 agy 当前登录的一个账号，不支持复制为多个独立账号。':
-      return t('点击登录后，在 Google 页面授权，再原样粘贴授权码或完整页面地址；已登录的 agy 会直接连接。Google 凭证由官方客户端保管，Agent2API 只保存本机连接标记。同一网关仅使用 agy 当前登录的一个账号，不支持复制为多个独立账号。')
+    case 'The local ACP processes still use the previous proxy. Disable and re-enable the ACP plugin on the Plugins page before using a different proxy.':
+      return t('The local ACP processes still use the previous proxy. Disable and re-enable the ACP plugin on the Plugins page before using a different proxy.')
+    case 'The ACP proxy configuration is invalid. Select the proxy again.': return t('The ACP proxy configuration is invalid. Select the proxy again.')
+    case 'A sign-in is already in progress for this provider. Complete or cancel it first.': return t('A sign-in is already in progress for this provider. Complete or cancel it first.')
+    case 'ACP has not returned a usable session model catalog. Check the official CLI sign-in status and try again.':
+      return t('ACP has not returned a usable session model catalog. Check the official CLI sign-in status and try again.')
+    case 'A failed ACP session is not retried automatically or switched to another connection method.':
+      return t('A failed ACP session is not retried automatically or switched to another connection method.')
+    case 'Google sign-in (ACP)': return t('Google sign-in (ACP)')
+    case 'ACP uses the official agy CLI on the gateway computer, not the device running this browser or phone. Install agy 1.5.0 or later first: https://antigravity.google/docs/cli. For a custom installation path, set AGY_PATH in the gateway\'s startup environment.':
+      return t('ACP uses the official agy CLI on the gateway computer, not the device running this browser or phone. Install agy 1.5.0 or later first: https://antigravity.google/docs/cli. For a custom installation path, set AGY_PATH in the gateway\'s startup environment.')
+    case 'Click Sign in, authorize on Google\'s page, then paste the authorization code or full page URL unchanged. If agy is already signed in, it connects directly. The official client keeps Google\'s credentials; Agent2API stores only a local connection marker. Each gateway uses agy\'s current account, not multiple independent copies.':
+      return t('Click Sign in, authorize on Google\'s page, then paste the authorization code or full page URL unchanged. If agy is already signed in, it connects directly. The official client keeps Google\'s credentials; Agent2API stores only a local connection marker. Each gateway uses agy\'s current account, not multiple independent copies.')
     case 'Browser sign-in (ink credits + creates an API key)':
-      return t('浏览器登录（墨点额度 + 自动创建 API Key）')
+      return t('Browser sign-in (ink credits + automatic API Key creation)')
     case 'Browser sign-in + reuse an existing API key':
-      return t('浏览器登录（复用已有 API Key）')
+      return t('Browser sign-in (reuse an existing API Key)')
     case 'API key only (models, no ink-credit card)':
-      return t('仅 API Key（模型调用，不含墨点额度）')
+      return t('API Key only (model access, no ink-credit balance)')
     case 'API key + console token (models + ink-credit card)':
-      return t('API Key + 控制台令牌（模型调用 + 墨点额度）')
+      return t('API Key + console token (model access + ink-credit balance)')
     case 'Leave empty to sign in in a browser (paste an existing key to reuse it)':
-      return t('已有 API Key（留空则在浏览器登录后自动创建）')
-    case 'TokenPlan API key (console → 科研模型 → API Key)':
-      return t('TokenPlan API Key（控制台 → 科研模型 → API Key）')
+      return t('Existing API Key (leave blank to create one after browser sign-in)')
+    case 'TokenPlan API key (console → The research model→ API Key)':
+      return t('TokenPlan API Key (console → Research Models → API Key)')
     case 'TokenPlan API key':
       return 'TokenPlan API Key'
     case 'Console uaa-token (paste just the token value, or the full "uaa-token=…" cookie entry)':
-      return t('控制台 uaa-token（粘贴令牌值或完整的 uaa-token=… Cookie 项）')
+      return t('Console uaa-token (paste the token value or the full uaa-token=… cookie entry)')
     case 'A browser window opens on the InkStone console. Sign in there (password, SMS or QR code); the plugin reads the completed sign-in by itself and closes the window. You do not need to close it. After the sign-in the plugin creates an ink-* API key on your account — the plaintext is shown once, and the plugin keeps it for you.':
-      return t('请在插件打开的端砚控制台窗口中登录（支持密码、短信或扫码）。插件会自动读取登录结果并关闭窗口，无需手动关闭；随后按所选方式创建或复用 API Key。新建密钥的明文只显示一次，由插件保存。')
+      return t('Sign in to the InkStone console window opened by the plugin using a password, SMS or QR code. The plugin reads the sign-in result and closes the window automatically. It then creates or reuses an API Key according to the selected method. New keys are shown in plaintext only once and are saved by the plugin.')
     case 'A browser window opens on the InkStone console. Sign in there (password, SMS or QR code), then quit that browser yourself — Cmd+Q on macOS (closing its last window is not enough), or close its last window on Linux. The plugin then reads the session from the profile and finishes. After the sign-in the plugin creates an ink-* API key on your account — the plaintext is shown once, and the plugin keeps it for you.':
-      return t('请在插件打开的端砚控制台窗口中登录（支持密码、短信或扫码），然后退出该浏览器：macOS 请按 Cmd+Q（只关闭窗口不够），Linux 请关闭最后一个窗口。插件读取登录结果后会继续处理，并按所选方式创建或复用 API Key。新建密钥的明文只显示一次，由插件保存。')
-    case '浏览器登录（登录一次，凭证全自动）':
-      return t('插件专用 Chrome 登录（自动读取凭据）')
-    case '已弹出专用 Chrome 窗口：请在里面登录移动云（yun.139.com，网页支持多种登录方式），登录成功后本流程自动继续并收走全部凭证':
-      return t('请在插件打开的专用 Chrome 窗口中登录移动云（yun.139.com）。登录成功后会自动读取并验证凭据，随后继续添加账号。')
-    case '等待插件完成登录':
-      return t('等待插件完成登录')
-    case '等待浏览器完成登录':
-      return t('等待浏览器完成登录')
-    case '已收到浏览器授权，正在获取账号凭据…':
-      return t('已收到浏览器授权，正在获取账号凭据…')
-    case '浏览器显示登录完成后，网关还需联网获取账号凭据。若浏览器或 Magpie 使用系统代理，请先在下方点击「填入系统代理」；选择直连不会跟随系统代理。':
-      return t('浏览器显示登录完成后，网关还需联网获取账号凭据。若浏览器或 Magpie 使用系统代理，请先在下方点击「填入系统代理」；选择直连不会跟随系统代理。')
-    case '浏览器授权已收到，但网关直连 DeepAI 失败。请在登录代理中填入系统代理或选择可用代理后重新登录。':
-      return t('浏览器授权已收到，但网关直连 DeepAI 失败。请在登录代理中填入系统代理或选择可用代理后重新登录。')
-    case '浏览器授权已收到，但通过所选代理获取账号凭据失败。请检查该代理后重新登录。':
-      return t('浏览器授权已收到，但通过所选代理获取账号凭据失败。请检查该代理后重新登录。')
+      return t('Sign in to the InkStone console window opened by the plugin using a password, SMS or QR code, then quit that browser: press Cmd+Q on macOS (closing the window is not enough), or close its last window on Linux. The plugin then reads the sign-in result and creates or reuses an API Key according to the selected method. New keys are shown in plaintext only once and are saved by the plugin.')
+    case 'Browser login (log in once, credentials fully automatic)':
+      return t('Plugin-managed Chrome sign-in (automatic credential capture)')
+    case 'A dedicated Chrome window has opened: sign in to Mobile Cloud (yun.139.com; the web page supports several login methods) inside it. After a successful login, this flow continues automatically and harvests all credentials.",':
+      return t('Sign in to China Mobile Cloud (yun.139.com) in the dedicated Chrome window opened by the plugin. After sign-in, credentials are read and verified automatically, then the account is added.')
+    case 'Waiting for the plugin to complete sign-in':
+      return t('Waiting for the plugin to complete sign-in')
+    case 'Waiting for browser sign-in to complete':
+      return t('Waiting for browser sign-in to complete')
+    case 'Browser authorization received. Retrieving account credentials…':
+      return t('Browser authorization received. Retrieving account credentials…')
+    case 'After the browser shows sign-in complete, the gateway still needs to retrieve account credentials online. If your browser or Magpie uses a system proxy, click “Fill from system proxy” below first. Direct connections do not use the system proxy.':
+      return t('After the browser shows sign-in complete, the gateway still needs to retrieve account credentials online. If your browser or Magpie uses a system proxy, click “Fill from system proxy” below first. Direct connections do not use the system proxy.')
+    case 'Browser authorization was received, but the gateway could not reach DeepAI directly. Fill from the system proxy or choose a working sign-in proxy, then sign in again.':
+      return t('Browser authorization was received, but the gateway could not reach DeepAI directly. Fill from the system proxy or choose a working sign-in proxy, then sign in again.')
+    case 'Browser authorization was received, but retrieving account credentials through the selected proxy failed. Check the proxy and sign in again.':
+      return t('Browser authorization was received, but retrieving account credentials through the selected proxy failed. Check the proxy and sign in again.')
     default:
       return t(value)
   }
@@ -58,12 +58,12 @@ export function pluginLoginText(value: string): string {
 
 export function pluginBrowserInstructions(provider: string): string {
   if (provider === 'intern-inkstone') {
-    return t('端砚由插件在网关电脑上启动独立的 Edge、Chrome 或 Chromium 窗口，不使用系统默认浏览器或应用内嵌窗口。')
+    return t('The InkStone plugin opens a separate Edge, Chrome or Chromium window on the gateway machine. It does not use the system default browser or the app\'s embedded window.')
   }
   if (provider === 'mclaw') {
-    return t('MClaw 由插件在网关电脑上启动专用 Chrome 窗口，独立登录环境也用于自动续期，不使用系统默认浏览器或应用内嵌窗口。')
+    return t('The MClaw plugin opens a dedicated Chrome window on the gateway machine. Its isolated sign-in profile is also used for automatic renewal; it does not use the system default browser or the app\'s embedded window.')
   }
-  return t('插件会在网关电脑上启动独立浏览器并读取登录结果，不使用系统默认浏览器。')
+  return t('The plugin starts a separate browser on the gateway machine and reads the sign-in result. It does not use the system\'s default browser.')
 }
 
 export function mergeLoginInstructions(...values: Array<string | null | undefined>): string {

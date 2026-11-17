@@ -7,7 +7,7 @@ import {
 import type { ReplayRow } from './routing-types'
 
 export const execCandidateKey = (candidate: TraceCandidate) => candidate.candidateId || `${candidate.memberId || ''}:${candidate.id}`
-export const execAttemptName = (attempt: TraceAttempt) => attempt.account || attempt.accountName || attempt.accountId || t('账号未记录')
+export const execAttemptName = (attempt: TraceAttempt) => attempt.account || attempt.accountName || attempt.accountId || t('Account not recorded')
 
 // 同一账号可参加不同成员模型；只有旧记录缺少成员标识时才退回账号匹配。
 export function execAttemptMatches(candidate: TraceCandidate, attempt: TraceAttempt): boolean {
@@ -35,19 +35,19 @@ export function execCarrier(row: ReplayRow) {
   const provider = traceProvider(row.provider || last?.provider || candidate?.provider, row.providerLabel || last?.providerLabel || candidate?.providerLabel)
   const carrying = Boolean(name && (success || running && (last ? attemptState(row, last) !== 'failed' : row.phase !== 'retrying')))
   let reason = errorText(last?.reason || candidate?.reason)
-    || (last?.stickyHit || row.route?.stickyHit ? t('命中会话粘滞') : t('选路原因未记录'))
+    || (last?.stickyHit || row.route?.stickyHit ? t('Session binding hit') : t('Routing reason not recorded'))
   const previous = last && attempts.find(attempt => attempt.index === last.index - 1)
   if (previous && attemptState(row, previous) === 'failed') {
-    reason = `${t('{account} 尝试失败后切换到此账号', { account: execAttemptName(previous) })}；${reason}`
+    reason = `${t('Switched to this account after {account} failed', { account: execAttemptName(previous) })}；${reason}`
   }
-  if (cancelled) return { label: t('本次结果'), name: t('请求已取消'), reason: errorText(row.error) || t('客户端已取消请求'), carrying: false, candidate, last }
-  if (!running && !success) return { label: t('本次结果'), name: t('请求未成功完成'),
-    reason: errorText(row.error || last?.error || last?.notice) || t('失败原因未记录'), carrying: false, candidate, last }
-  if (!carrying && success) return { label: t('最终承载'), name: t('账号未记录'), reason: t('请求成功完成，未记录承载账号'), carrying: false, candidate, last }
-  if (!carrying) return { label: t('当前状态'), name: tracePhase(row.phase),
-    reason: last && attemptState(row, last) === 'failed' ? errorText(last.error || last.notice) || t('本轮尝试失败，正在退避等待或切换到下一个账号')
-      : t('尚未记录承载账号'), carrying: false, candidate, last }
-  return { label: running ? t('当前承载') : t('最终承载'), name: `${provider} · ${name}`, reason, carrying, candidate, last }
+  if (cancelled) return { label: t('Request outcome'), name: t('Request cancelled'), reason: errorText(row.error) || t('The client cancelled the request'), carrying: false, candidate, last }
+  if (!running && !success) return { label: t('Request outcome'), name: t('Request did not complete successfully'),
+    reason: errorText(row.error || last?.error || last?.notice) || t('Failure reason not recorded'), carrying: false, candidate, last }
+  if (!carrying && success) return { label: t('Final handling account'), name: t('Account not recorded'), reason: t('The request succeeded, but the serving account was not recorded'), carrying: false, candidate, last }
+  if (!carrying) return { label: t('Current status'), name: tracePhase(row.phase),
+    reason: last && attemptState(row, last) === 'failed' ? errorText(last.error || last.notice) || t('This attempt failed; backing off or switching to the next account')
+      : t('No serving account recorded yet'), carrying: false, candidate, last }
+  return { label: running ? t('Current handling account') : t('Final handling account'), name: `${provider} · ${name}`, reason, carrying, candidate, last }
 }
 
 export type ExecAccount = {
@@ -77,11 +77,11 @@ export function execAccounts(row: ReplayRow): ExecAccount[] {
       model: candidate?.model || attempt.model,
       current,
       kind: 'tried',
-      label: cancelled ? t('已取消') : current ? isTraceRunning(row) ? t('当前承载') : t('最终承载')
-        : state === 'failed' ? t('尝试失败') : state === 'success' ? t('上游已响应') : state === 'running' ? tracePhase(row.phase) : t('结果未记录'),
+      label: cancelled ? t('Canceled') : current ? isTraceRunning(row) ? t('Current handling account') : t('Final handling account')
+        : state === 'failed' ? t('Attempt failed') : state === 'success' ? t('Upstream responded') : state === 'running' ? tracePhase(row.phase) : t('Result not recorded'),
       tone: cancelled ? 'muted' : current ? 'accent' : state === 'failed' ? 'fail' : 'muted',
       reason: errorText(cancelled ? row.error : state === 'failed' ? attempt.error || attempt.notice : attempt.reason || candidate?.reason || attempt.notice)
-        || (attempt.status != null ? `HTTP ${attempt.status}` : t('没有保存调用明细')),
+        || (attempt.status != null ? `HTTP ${attempt.status}` : t('No call details saved')),
     }
   }
   const entries = candidates.map((candidate): ExecAccount => {
@@ -89,15 +89,15 @@ export function execAccounts(row: ReplayRow): ExecAccount[] {
     if (attempt) return fromAttempt(attempt, candidate)
     const current = carrier.carrying && Boolean(carrier.candidate && execCandidateKey(carrier.candidate) === execCandidateKey(candidate))
     return {
-      key: execCandidateKey(candidate), name: candidate.name || candidate.id || t('账号未记录'),
+      key: execCandidateKey(candidate), name: candidate.name || candidate.id || t('Account not recorded'),
       provider: traceProvider(candidate.provider, candidate.providerLabel), model: candidate.model, current,
       kind: current || candidate.state === 'tried' ? 'tried' : candidate.kind === 'skipped' ? 'skipped' : 'idle',
-      label: current ? isTraceRunning(row) ? t('当前承载') : t('最终承载') : candidate.state === 'tried' ? t('已尝试')
-        : candidate.kind === 'skipped' ? t('已跳过') : t('未调用'),
+      label: current ? isTraceRunning(row) ? t('Current handling account') : t('Final handling account') : candidate.state === 'tried' ? t('Already attempted')
+        : candidate.kind === 'skipped' ? t('Skipped') : t('Not called'),
       tone: current ? 'accent' : 'muted',
-      reason: current ? carrier.reason : candidate.state === 'tried' ? errorText(candidate.reason) || t('没有保存调用明细')
+      reason: current ? carrier.reason : candidate.state === 'tried' ? errorText(candidate.reason) || t('No call details saved')
         : candidate.kind === 'skipped' ? errorText(candidateReason(row, candidate))
-          : [errorText(candidate.reason), candidateReason(row, candidate)].filter(Boolean).join('；'),
+          : [errorText(candidate.reason), candidateReason(row, candidate)].filter(Boolean).join('; '),
     }
   })
   const hasCurrent = entries.some(entry => entry.current)
@@ -109,8 +109,8 @@ export function execAccounts(row: ReplayRow): ExecAccount[] {
   if (current.length) {
     const attempt = current[0]
     entries.push({ ...fromAttempt(attempt), key: 'current-account', current: carrier.carrying,
-      label: carrier.carrying ? isTraceRunning(row) ? t('当前承载') : t('最终承载') : t('结果未记录'),
-      reason: carrier.carrying ? carrier.reason : t('没有保存调用明细') })
+      label: carrier.carrying ? isTraceRunning(row) ? t('Current handling account') : t('Final handling account') : t('Result not recorded'),
+      reason: carrier.carrying ? carrier.reason : t('No call details saved') })
   }
   const missing = attempts.filter(attempt => !candidates.some(candidate => execAttemptMatches(candidate, attempt)))
   return [...entries, ...missing.map(attempt => fromAttempt(attempt))]
@@ -152,20 +152,20 @@ export function execTiming(row: ReplayRow, now: number) {
     // 缺少起止时间的旧尝试不补画；响应头到达与上游首帧是两个独立读数。
     if (started != null && end != null && end >= started) {
       const boundary = Math.min(end, frame ?? end, responded != null && responded >= started ? responded : end)
-      add(started, boundary, state === 'failed' && frame == null && !cancelled ? 'fail' : 'wait', t('等待响应'))
+      add(started, boundary, state === 'failed' && frame == null && !cancelled ? 'fail' : 'wait', t('Awaiting response'))
       if (frame != null && frame <= end) {
-        add(boundary, frame, 'frame', t('等待首帧'))
-        add(frame, end, state === 'failed' && !cancelled ? 'fail' : 'stream', t('输出'))
+        add(boundary, frame, 'frame', t('Waiting for first byte'))
+        add(frame, end, state === 'failed' && !cancelled ? 'fail' : 'stream', t('Output'))
       } else {
-        add(boundary, end, state === 'failed' && !cancelled ? 'fail' : 'frame', t('响应到达后'))
+        add(boundary, end, state === 'failed' && !cancelled ? 'fail' : 'frame', t('After response arrival'))
       }
     }
     return {
       attempt, duration: started != null && finished != null && finished >= started ? finished - started : null,
       response: responded, segments,
-      label: cancelled ? t('已取消') : state === 'running' ? tracePhase(row.phase) : state === 'failed'
-        ? [attempt.status != null ? String(attempt.status) : '', t('失败')].filter(Boolean).join(' · ')
-        : state === 'success' ? t('成功') : t('结果未记录'),
+      label: cancelled ? t('Canceled') : state === 'running' ? tracePhase(row.phase) : state === 'failed'
+        ? [attempt.status != null ? String(attempt.status) : '', t('Failed')].filter(Boolean).join(' · ')
+        : state === 'success' ? t('Success') : t('Result not recorded'),
       tone: cancelled ? 'muted' : state === 'failed' ? 'fail' : state === 'running' ? 'accent' : 'muted',
     }
   })
@@ -175,7 +175,7 @@ export function execTiming(row: ReplayRow, now: number) {
 
 export function execScopeLabel(row: ReplayRow): string {
   const snapshot = row.route?.configSnapshot
-  if (snapshot?.groupId) return `${t('自定义路由组')} · ${snapshot.groupName || snapshot.scope}`
+  if (snapshot?.groupId) return `${t('Custom route groups')} · ${snapshot.groupName || snapshot.scope}`
   const scope = snapshot?.scope ?? row.route?.scope
-  return scope == null ? t('未记录') : scope ? `${t('模型独立配置')} · ${scope}` : t('继承全局配置')
+  return scope == null ? t('Unrecorded') : scope ? `${t('Independent model configuration')} · ${scope}` : t('Inherits global configuration')
 }

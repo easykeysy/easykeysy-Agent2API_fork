@@ -19,7 +19,7 @@ function Spinner({ className, ...props }: React.ComponentProps<'svg'>) {
     <svg
       data-slot='spinner'
       role='status'
-      aria-label={t('加载中')}
+      aria-label={t('Loading')}
       viewBox='0 0 24 24'
       fill='none'
       stroke='currentColor'

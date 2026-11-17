@@ -57,8 +57,8 @@ const MAX_NAME_CHARS = 64
 const MAX_ACCOUNT_NAME_CHARS = 100
 
 /** Base URL 的两种填法：Anthropic 走根地址，OpenAI 兼容要带 /v1（后端按协议拼路径） */
-const BASE_HINT_OPENAI = t('OpenAI 兼容填到 /v1；Anthropic 填根地址')
-const BASE_HINT_ANTHROPIC = t('Anthropic 协议填根地址，不要带 /v1')
+const BASE_HINT_OPENAI = t('For OpenAI-compatible use /v1; for Anthropic use the root URL')
+const BASE_HINT_ANTHROPIC = t('For the Anthropic protocol, use the root URL without /v1')
 const BASE_PLACEHOLDER_OPENAI = 'https://open.bigmodel.cn/api/paas/v4'
 const BASE_PLACEHOLDER_ANTHROPIC = 'https://api.anthropic.com'
 
@@ -168,9 +168,9 @@ function BalanceFields({ scheme, prefix }: { scheme: string; prefix: string }): 
   return (
     <>
       <div className='add-field'>
-        <Label>{t('余额查询')}</Label>
+        <Label>{t('Balance query')}</Label>
         <div className='col-start-2 row-start-1 flex h-[30px] items-center'>
-          <span className='text-xs text-subtle'>{t('方案：{label}', { label: spec.label })}</span>
+          <span className='text-xs text-subtle'>{t('Scheme: {label}', { label: spec.label })}</span>
           <span className='ml-1.5 text-xs text-subtle'>{spec.endpoint}</span>
         </div>
         <span className='hint'>{spec.note}</span>
@@ -242,14 +242,14 @@ function NoAuthCheckbox({
 }): React.ReactElement {
   return (
     <div className='add-field'>
-      <Label>{t('鉴权')}</Label>
+      <Label>{t('Authentication')}</Label>
       {/* 组件库的 Checkbox 不是原生 input（自绘的 role=checkbox 按钮），
           用包一层 <label> 建立关联：button 是可标注元素，点文字即可切换 */}
       <div className='col-start-2 row-start-1 flex h-[30px] items-center'>
         <Label className='inline-flex cursor-pointer items-center gap-2.5'>
-          <Checkbox checked={checked} aria-label={t('该上游无需鉴权')}
+          <Checkbox checked={checked} aria-label={t('This upstream needs no auth')}
             onCheckedChange={next => onChange(next === true)} />
-          <span className='text-xs text-subtle'>{t('该上游无需鉴权（不发送鉴权头）')}</span>
+          <span className='text-xs text-subtle'>{t('This upstream needs no authentication (no auth headers are sent)')}</span>
         </Label>
       </div>
       <span className='hint'>{note}</span>
@@ -295,7 +295,7 @@ export function CustomProviderBlock({
   const list = React.useMemo(() => customList(), [version])
   const pickedProvider = list.find(item => item.id === providerHint)
   const current = pickedProvider?.id || ''
-  const pickedName = pickedProvider?.name || t('该提供商')
+  const pickedName = pickedProvider?.name || t('This provider')
   const selfHosted = mode === 'create' && Boolean(presetKey) && !shared().wbPresetProviders?.presetOf?.(presetKey)?.baseUrl
 
   React.useEffect(() => {
@@ -344,13 +344,13 @@ export function CustomProviderBlock({
     <>
       <DialogSection hidden={mode !== 'create'}>
         <div className='add-panel-head'>
-          <h3>{t('上游信息')}</h3>
-          <span>{t('创建这个提供商，并同时建立它的第一个账号。')}</span>
+          <h3>{t('Upstream info')}</h3>
+          <span>{t('Create this provider and its first account in one step.')}</span>
         </div>
         <div className='add-form'>
           <div className='add-field'>
             <Label htmlFor={NAME_ID}>
-              {selfHosted ? t('站点名称') : t('名称')}
+              {selfHosted ? t('Site name') : t('Name')}
               <i className='req' aria-hidden='true'>*</i>
             </Label>
             <Input
@@ -358,15 +358,15 @@ export function CustomProviderBlock({
               type='text'
               maxLength={MAX_NAME_CHARS}
               aria-required='true'
-              placeholder={selfHosted ? t('如：公司中转站、个人备用站') : t('如：智谱 GLM')}
+              placeholder={selfHosted ? t('e.g. Company gateway, Personal backup') : t('e.g. Zhipu GLM')}
               {...draftProps(NAME_ID)}
             />
             <span className='hint'>{selfHosted
-              ? t('填写具体站点名称；模板类型不会作为站点身份')
-              : t('1~64 个字符，账号列表里按它分组显示')}</span>
+              ? t('Enter a name for this site; the template type does not identify the site')
+              : t('1-64 characters; accounts are grouped by it in the account list')}</span>
           </div>
           <div className='add-field'>
-            <Label htmlFor={PROTOCOL_ID}>{t('协议')}</Label>
+            <Label htmlFor={PROTOCOL_ID}>{t('Protocol')}</Label>
             {/* 协议换了下方的 Base URL 提示跟着换，因此这里受控 */}
             <Select
               value={protocol}
@@ -416,43 +416,43 @@ export function CustomProviderBlock({
             />
             <span className='hint'>
               {noAuth
-                ? t('不需要 Key：转发与拉取模型都不发送鉴权头')
-                : t('上游不要鉴权时留空，并勾选下面一项（留空又不勾会被当成未配置凭证）')}
+                ? t('No Key needed: neither forwarding nor model fetching sends auth headers')
+                : t('Leave blank when the upstream needs no authentication, and check the option below (blank without the checkbox counts as no credential configured)')}
             </span>
           </div>
           <NoAuthCheckbox
             checked={noAuth}
             note={noAuth
-              ? t('已声明无需鉴权：账号会被正常选路，出网时不带任何鉴权头')
-              : t('本地 Ollama、OpenCode Zen 免费档这类上游要勾上，否则账号不可用')}
+              ? t('Marked as needing no authentication: the account is routed normally, and no auth headers are sent outbound')
+              : t('Check this for upstreams like local Ollama or the OpenCode Zen free tier; otherwise the account cannot be used')}
             onChange={toggleNoAuth(NOAUTH_ID, setNoAuth)}
           />
           {/* 余额查询：只有预置卡带方案的家才出现（新建时方案随记录写入） */}
           <BalanceFields scheme={createScheme} prefix={BALANCE_CREATE_PREFIX} />
           <div className='add-field'>
-            <Label htmlFor={UA_CREATE_ID}>{t('User-Agent（可选）')}</Label>
+            <Label htmlFor={UA_CREATE_ID}>{t('User-Agent (optional)')}</Label>
             <UserAgentInput id={UA_CREATE_ID} value={createUa}
               onChange={value => { setCreateUa(value); writeUaDraft(UA_CREATE_ID, value) }}
               presets={uaPresets} className='col-start-2 row-start-1' />
-            <span className='hint'>{t('留空使用默认的 User-Agent；可从预置里选一个内置客户端，也可以直接填写。')}</span>
+            <span className='hint'>{t('Leave empty to use the default User-Agent; pick a built-in client preset or type one directly.')}</span>
           </div>
         </div>
       </DialogSection>
 
       <DialogSection hidden={mode !== 'existing'}>
         <div className='add-panel-head'>
-          <h3>{t('账号信息')}</h3>
+          <h3>{t('Account info')}</h3>
           {/* 提供商名是用户数据，留在 JSX 里交给 React 转义（不进 dangerouslySetInnerHTML）；
               两边的中文碎片各自走 t()，全角空格是原文的一部分 */}
           <span>
-            {t('添加到 ')}<b>{pickedName}</b>{t('　同一家可以放多把 key，按优先级轮换。')}
+            {t('Add to ')}<b>{pickedName}</b>{t(' One provider can hold multiple keys, rotated by priority.')}
           </span>
         </div>
         <div className='add-form'>
           <div className='add-field'>
-            <Label>{t('提供商')}</Label>
-            <Input readOnly value={pickedProvider ? pickedName : t('该提供商已不存在（可能已被删除），请刷新后重试')} />
-            <span className='hint'>{t('要添加到其他站点，请返回「已建 API」重新选择')}</span>
+            <Label>{t('Provider')}</Label>
+            <Input readOnly value={pickedProvider ? pickedName : t('This provider no longer exists (it may have been deleted); refresh and try again')} />
+            <span className='hint'>{t('To add to another site, return to Configured APIs and select it')}</span>
           </div>
           <div className='add-field'>
             <Label>Base URL</Label>
@@ -470,36 +470,36 @@ export function CustomProviderBlock({
             />
             <span className='hint'>
               {existingNoAuth
-                ? t('不需要 Key：转发与拉取模型都不发送鉴权头')
-                : t('上游不要鉴权时留空，并勾选下面一项（留空又不勾会被当成未配置凭证）')}
+                ? t('No Key needed: neither forwarding nor model fetching sends auth headers')
+                : t('Leave blank when the upstream needs no authentication, and check the option below (blank without the checkbox counts as no credential configured)')}
             </span>
           </div>
           <NoAuthCheckbox
             checked={existingNoAuth}
             note={existingNoAuth
-              ? t('已声明无需鉴权：账号会被正常选路，出网时不带任何鉴权头')
-              : t('同一家可以混着放：有 Key 的账号与无鉴权账号各按各的规则走；无需鉴权的账号也能并存多条（各自可配不同的出网代理）')}
+              ? t('Marked as needing no authentication: the account is routed normally, and no auth headers are sent outbound')
+              : t('Keyed and no-auth accounts can coexist in one provider, each routed by its own rules; multiple no-auth accounts are allowed too (each with its own egress proxy)')}
             onChange={toggleNoAuth(EXISTING_NOAUTH_ID, setExistingNoAuth)}
           />
           {/* 余额查询：这一家登记了方案才出现（方案来自提供商记录，不能改） */}
           <BalanceFields scheme={existingScheme} prefix={BALANCE_EXISTING_PREFIX} />
           <div className='add-field'>
-            <Label htmlFor={EXISTING_NAME_ID}>{t('备注名')}</Label>
+            <Label htmlFor={EXISTING_NAME_ID}>{t('Label')}</Label>
             <Input
               id={EXISTING_NAME_ID}
               type='text'
               maxLength={MAX_ACCOUNT_NAME_CHARS}
-              placeholder={t('可选')}
+              placeholder={t('Optional')}
               {...draftProps(EXISTING_NAME_ID)}
             />
-            <span className='hint'>{t('留空则用提供商名称')}</span>
+            <span className='hint'>{t('Leave blank to use the provider name')}</span>
           </div>
           <div className='add-field'>
-            <Label htmlFor={UA_EXISTING_ID}>{t('User-Agent（可选）')}</Label>
+            <Label htmlFor={UA_EXISTING_ID}>{t('User-Agent (optional)')}</Label>
             <UserAgentInput id={UA_EXISTING_ID} value={existingUa}
               onChange={value => { setExistingUa(value); writeUaDraft(UA_EXISTING_ID, value) }}
               presets={uaPresets} className='col-start-2 row-start-1' />
-            <span className='hint'>{t('留空使用默认的 User-Agent；可从预置里选一个内置客户端，也可以直接填写。')}</span>
+            <span className='hint'>{t('Leave empty to use the default User-Agent; pick a built-in client preset or type one directly.')}</span>
           </div>
         </div>
       </DialogSection>
@@ -522,7 +522,7 @@ type FootContext = {
 /** 失败提示同时写 toast 与底部条（toast 几秒后就没了） */
 function showSubmitError(context: FootContext, error: unknown): void {
   const message = describeError(error)
-  toast(t('添加失败：{reason}', { reason: message }), 'err')
+  toast(t('Add failed: {reason}', { reason: message }), 'err')
   context.setHint(message)
 }
 
@@ -534,8 +534,8 @@ async function submitCreate(context: FootContext, allowDuplicate = false, target
   const apiKey = readField(APIKEY_ID)
   const noAuth = readNoAuthDraft(NOAUTH_ID)
   // 必填拦截在本地先做一次（弹窗不是 <form>，原生 required 不生效）
-  if (!name) { toast(t('请填写名称'), 'err'); return }
-  if (!baseUrl) { toast(t('请填写 Base URL'), 'err'); return }
+  if (!name) { toast(t('Enter a name'), 'err'); return }
+  if (!baseUrl) { toast(t('Enter the Base URL'), 'err'); return }
   await runSubmit(context.setBusy, async () => {
     if (!allowDuplicate) {
       await shared().wbProviders?.refreshCustom?.()
@@ -547,7 +547,7 @@ async function submitCreate(context: FootContext, allowDuplicate = false, target
     }
     context.setDuplicates([])
     if (target && !customList().some(provider => provider.id === target.id && sameProviderEndpoint(provider, protocol, baseUrl))) {
-      toast(t('该提供商已不存在或地址已变更，请重新选择'), 'err')
+      toast(t('This provider no longer exists or its address has changed; select it again'), 'err')
       return
     }
     const payload: Record<string, unknown> = target ? { provider: target.id } : { name, protocol, baseUrl }
@@ -589,7 +589,7 @@ async function submitCreate(context: FootContext, allowDuplicate = false, target
       writeNoAuthDraft(NOAUTH_ID, false)
       const message = target
         ? addedMessage(data?.account?.name || target.name || '', data?.created)
-        : t('✅ 已创建自定义提供商「{name}」并添加账号', { name: data?.provider?.name || name })
+        : t('✅ Created custom provider "{name}" and added an account', { name: data?.provider?.name || name })
       await afterCustomAdd(message)
     } catch (error) {
       showSubmitError(context, error)
@@ -600,15 +600,15 @@ async function submitCreate(context: FootContext, allowDuplicate = false, target
 function addedMessage(label: string, created: boolean | undefined): string {
   const suffix = label ? `：${label}` : ''
   return created !== false
-    ? t('✅ {label}账号已添加{name}', { label: '', name: suffix })
-    : t('✅ 已更新已有账号{name}（同一提供商内，同一把 API Key 只保留一条）', { name: suffix })
+    ? t('✅ {label} account added{name}', { label: '', name: suffix })
+    : t('✅ Updated the existing account{name} (one account per API key within each provider)', { name: suffix })
 }
 
 /** 已有模式：POST /api/accounts（custom 账号走 provider = custom-xxx 分支） */
 async function submitExisting(context: FootContext): Promise<void> {
   const providerId = context.providerId
   if (!providerId || !customList().some(item => item.id === providerId)) {
-    toast(t('该提供商已不存在（可能已被删除），请刷新后重试'), 'err')
+    toast(t('This provider no longer exists (it may have been deleted); refresh and try again'), 'err')
     return
   }
   const apiKey = readField(EXISTING_APIKEY_ID)
@@ -657,9 +657,9 @@ async function submitExisting(context: FootContext): Promise<void> {
  * 的上下文了）。
  */
 async function removeExistingProvider(providerId: string): Promise<void> {
-  if (!providerId) { toast(t('请先选择一个自定义提供商'), 'err'); return }
+  if (!providerId) { toast(t('Select a custom provider first'), 'err'); return }
   const remover = shared().wbCustomProvidersUi?.remove
-  if (typeof remover !== 'function') { toast(t('删除功能不可用（脚本未就绪）'), 'err'); return }
+  if (typeof remover !== 'function') { toast(t('Delete is unavailable (script not ready)'), 'err'); return }
   await runSubmit(() => {}, async () => {
     const removed = await remover(providerId)
     if (removed) shared().wbAddAccountModal?.close?.()
@@ -697,10 +697,10 @@ export function CustomFootActions({
           <Button
             id={REMOVE_BUTTON_ID}
             variant='destructive'
-            title={t('级联删除名下全部账号，不可恢复')}
+            title={t('Cascade-deletes all its accounts; cannot be undone')}
             onClick={() => { void removeExistingProvider(providerId) }}
           >
-            {t('删除此提供商')}
+            {t('Delete this provider')}
           </Button>
         ) : null}
         {/* 两颗主按钮都常驻、按模式切显隐（与旧实现一致：文案与提交函数成对写在一处） */}
@@ -710,7 +710,7 @@ export function CustomFootActions({
           disabled={busy}
           onClick={() => { void submitCreate(context) }}
         >
-          {busy && mode === 'create' ? t('提交中…') : t('创建并添加账号')}
+          {busy && mode === 'create' ? t('Submitting…') : t('Create and add account')}
         </Button>
         <Button
           id={EXISTING_BUTTON_ID}
@@ -718,7 +718,7 @@ export function CustomFootActions({
           disabled={busy}
           onClick={() => { void submitExisting(context) }}
         >
-          {busy && mode === 'existing' ? t('提交中…') : t('添加账号')}
+          {busy && mode === 'existing' ? t('Submitting…') : t('Add account')}
         </Button>
       </span>
     </>

@@ -84,72 +84,72 @@ export const BALANCE_SCHEME_SPECS: Record<BalanceScheme, BalanceSchemeSpec> = {
   sub2api: {
     label: 'Sub2API',
     endpoint: '{base}/v1/usage',
-    note: t('用这条账号的 API Key 查询，不需要额外配置。'),
+    note: t('Queries with this account\'s API key; no extra setup.'),
     fields: [],
   },
   new_api: {
     label: 'NewAPI',
     endpoint: '{base}/api/user/self + /api/status',
-    note: t('用 NewAPI 站点的个人访问令牌查询账户余额（不是这条账号的上游 API Key）。令牌在站点的「个人设置」里生成，只有旧版 / 定制站点才需要额外填用户 ID。'),
+    note: t('Queries the account balance with a NewAPI site personal access token (not this account\'s upstream API key). The token is generated under the site\'s "Personal settings"; only older / custom sites additionally need a user ID.'),
     fields: [
       {
         key: 'accessToken',
-        label: t('NewAPI 个人访问令牌'),
+        label: t('NewAPI personal access token'),
         secret: true,
-        placeholder: t('在 NewAPI 站点「个人设置」里生成的访问令牌'),
-        hint: t('必填；留空 = 不修改，清除用右边的按钮'),
+        placeholder: t('Access token generated under "Personal settings" on the NewAPI site'),
+        hint: t('Required; leave empty to keep the current one, use the button on the right to clear'),
       },
       {
         key: 'userId',
-        label: t('NewAPI 用户 ID'),
-        placeholder: t('旧版 / 定制站点才需要，新版可留空'),
-        hint: t('可留空：新版请求头只认令牌；旧版会把用户 ID 放进 New-Api-User 头'),
+        label: t('NewAPI user ID'),
+        placeholder: t('Only older / custom sites need it; leave empty on newer ones'),
+        hint: t('Optional: newer builds only use the token; older ones put the user ID in the New-Api-User header'),
       },
     ],
   },
   deepseek: {
     label: 'DeepSeek',
     endpoint: '{base}/user/balance',
-    note: t('用这条账号的 API Key 查询，不需要额外配置。'),
+    note: t('Queries with this account\'s API key; no extra setup.'),
     fields: [],
   },
   opencode: {
     label: 'OpenCode Go',
     endpoint: '{base}/v1/usage',
-    note: t('用这条账号的 API Key 查询订阅用量，不需要额外配置；读数展开成 5 小时 / 每周 / 每月三个窗口。'),
+    note: t('Queries subscription usage with this account\'s API key; no extra setup. The reading expands into 5-hour / weekly / monthly windows.'),
     fields: [],
   },
   sensenova: {
     label: '商汤日日新',
-    endpoint: 'platform.sensenova.cn 控制台',
-    note: t('用商汤日日新控制台的账号密码查询（与推理用的 API Key 不是同一套）。网关会自动换取登录票并缓存，过期后自动重登，不需要手动维护。'),
+    endpoint: 'platform.sensenova.cn Console',
+    note: t('Queries with the SenseNova console account and password (not the same credentials as the inference API key). The gateway exchanges them for a login ticket and caches it, logging in again automatically when it expires — no manual upkeep.'),
     fields: [
       {
         key: 'username',
-        label: t('账号'),
-        placeholder: t('商汤日日新控制台的登录账号'),
-        hint: t('必填'),
+        label: t('Accounts'),
+        placeholder: t('SenseNova console login account'),
+        hint: t('Required'),
       },
       {
         key: 'password',
-        label: t('密码'),
+        label: t('Password'),
         secret: true,
-        placeholder: t('商汤日日新控制台的登录密码'),
-        hint: t('留空 = 不修改，清除用右边的按钮'),
+        placeholder: t('SenseNova console login password'),
+        hint: t('Leave empty to keep the current one; clear with the button on the right'),
       },
     ],
   },
   zhipu: {
     label: '智谱',
-    endpoint: 'bigmodel.cn 控制台',
-    note: t('用 bigmodel.cn 控制台的访问令牌查询账户余额（人民币元）。令牌是登录后浏览器 Cookie `bigmodel_token_production` 的值：开发者工具 → 应用（Application）→ Cookie 里复制。'),
+    endpoint: 'bigmodel.cn Console',
+    note: t('Queries the account balance (CNY) with an access token from the bigmodel.cn console. The token is the value of the browser cookie `bigmodel_token_production` after logging in: DevTools → Application → Cookies, then copy it.'),
     fields: [
       {
         key: 'token',
-        label: t('访问令牌'),
+        label: t('Access token'),
         secret: true,
-        placeholder: t('bigmodel_token_production 的值'),
-        hint: t('必填；留空 = 不修改，清除用右边的按钮'),
+        placeholder: t('Value of bigmodel_token_production'),
+        hint: t('Required; leave empty to keep the current one, use the button on the right to clear'),
       },
     ],
   },
@@ -158,8 +158,8 @@ export const BALANCE_SCHEME_SPECS: Record<BalanceScheme, BalanceSchemeSpec> = {
   // 签名原料就是转发要填的那把 API Key，所以这一支**没有任何输入框**（deepseek 同款）。
   zhipu_zai: {
     label: '智谱（z.ai 国际）',
-    endpoint: 'api.z.ai 控制台',
-    note: t('用这条账号的 API Key 生成签名后查询账户余额（美元），不需要额外配置。要求 API Key 是 z.ai 的「id.secret」形态（控制台生成的 Key 就是）。'),
+    endpoint: 'api.z.ai Console',
+    note: t('Signs with this account\'s API key and queries the balance (USD); no extra setup. The API key must be in z.ai\'s "id.secret" form (which is what the console generates).'),
     fields: [],
   },
 }
@@ -278,12 +278,12 @@ export function BalanceFieldRow({
       <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
       <Input id={id} className='min-w-[220px]' type={field.secret ? 'password' : 'text'}
         autoComplete={field.secret ? 'new-password' : 'off'}
-        placeholder={configured ? t('已配置，留空则不修改') : field.placeholder}
+        placeholder={configured ? t('Configured; leave blank to keep') : field.placeholder}
         title={field.hint} value={value}
         onChange={event => onValue(event.currentTarget.value)} />
       {configured && onClear ? (
         <Button variant='outline' size='sm' disabled={clearBusy === true} onClick={onClear}
-          title={t('清除已配置的 {label}', { label: field.label })}>{t('清除')}</Button>
+          title={t('Clear the configured {label}', { label: field.label })}>{t('Clear')}</Button>
       ) : null}
     </Field>
   )
@@ -307,7 +307,7 @@ export function BalanceQuerySection({
   return (
     <>
       <p className='detail mt-2.5'>
-        {t('余额查询方案：{label}', { label: spec.label })}
+        {t('Balance query scheme: {label}', { label: spec.label })}
         <span className='ml-1 text-subtle'>{spec.endpoint}</span>
         {' — '}{spec.note}
       </p>

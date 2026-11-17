@@ -13,7 +13,7 @@
 
 pub const VISION_BRIDGE_SCRIPT: &str = r#"'use strict';
 /*
- * Agent2API 视觉 MCP 本地桥接（stdio，Node >= 18）。
+ * Agent2API 视觉 MCP 本地桥接（stdio, Node >= 18）。
  * 环境变量：AGENT2API_VISION_ENDPOINT / AGENT2API_VISION_KEY（由 Agent2API 面板写入）。
  */
 

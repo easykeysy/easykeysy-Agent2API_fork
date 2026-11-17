@@ -57,12 +57,12 @@ export const CUSTOM_RANGE = 'custom'
 export const RANGE_KEY = 'workbuddy-desktop-report-range'
 export const CUSTOM_RANGE_KEY = 'workbuddy-desktop-report-custom-range'
 export const RANGE_LABEL: Record<string, string> = {
-  today: t('今天'), yesterday: t('昨天'), 7: t('近 7 天'), 30: t('近 30 天'), month: t('本月'),
-  all: t('全部'), custom: t('自定义区间'),
+  today: t('Today'), yesterday: t('Yesterday'), 7: t('Last 7 days'), 30: t('Last 30 days'), month: t('This month'),
+  all: t('All'), custom: t('Custom range'),
 }
 export const RANGE_OPTION_LABEL: Record<string, string> = {
-  today: t('今天'), yesterday: t('昨天'), 7: t('7 天'), 30: t('30 天'), month: t('本月'),
-  all: t('全部'), custom: t('自定义'),
+  today: t('Today'), yesterday: t('Yesterday'), 7: t('7 days'), 30: t('30 days'), month: t('This month'),
+  all: t('All'), custom: t('Custom'),
 }
 
 /** 只有明确存过合法值才采纳；无值 / 读取抛错 / 值被改坏都回落默认的 7 天 */
@@ -85,7 +85,7 @@ export function saveCustomRange(range: CustomRange): void {
   saveDates(CUSTOM_RANGE_KEY, range)
 }
 
-export const WEEKDAY_ROWS: readonly (readonly [number, string])[] = [[0, t('一')], [2, t('三')], [4, t('五')]]
+export const WEEKDAY_ROWS: readonly (readonly [number, string])[] = [[0, t('Mo')], [2, t('We')], [4, t('Fr')]]
 
 /* ─── 读数口径 ─────────────────────────────── */
 
@@ -134,11 +134,11 @@ export function parseDay(key: unknown): Date {
   return new Date(y || 1970, (m || 1) - 1, d || 1)
 }
 
-const WEEKDAY_TEXT: readonly string[] = [t('日'), t('一'), t('二'), t('三'), t('四'), t('五'), t('六')]
+const WEEKDAY_TEXT: readonly string[] = [t('Su'), t('Mo'), t('Tu'), t('We'), t('Th'), t('Fr'), t('Sa')]
 
 export function dayLabel(key: unknown): string {
   const date = parseDay(key)
-  return t('{m}月{d}日 周{wd}', {
+  return t('{m}/{d} {wd}', {
     m: date.getMonth() + 1, d: date.getDate(), wd: WEEKDAY_TEXT[date.getDay()],
   })
 }
@@ -178,19 +178,19 @@ export function overviewCells(overview: StatsOverview | undefined, range: string
   const successRate = requests ? `${((successful / requests) * 100).toFixed(1)}%` : '—'
 
   const cells: OverviewCell[] = [
-    { key: 'tokens', label: t('总 Token'), value: formatTokens(data.tokens), sub: t('输入 + 输出'), mono: false },
-    { key: 'successful', label: t('成功请求数'), value: formatInt(successful), sub: t('成功率 {rate}', { rate: successRate }), mono: false },
-    { key: 'requests', label: t('总请求数'), value: formatInt(requests), sub: RANGE_LABEL[range] || '', mono: false },
-    { key: 'activeDays', label: t('活跃天数'), value: formatInt(data.activeDays), sub: t('区间共 {n} 天', { n: days }), mono: false },
-    { key: 'streak', label: t('当前连续天数'), value: formatInt(data.streak), sub: t('含今天在内往前数'), mono: false },
+    { key: 'tokens', label: t('Total tokens'), value: formatTokens(data.tokens), sub: t('Input + output'), mono: false },
+    { key: 'successful', label: t('Successful requests'), value: formatInt(successful), sub: t('Success rate {rate}', { rate: successRate }), mono: false },
+    { key: 'requests', label: t('Total requests'), value: formatInt(requests), sub: RANGE_LABEL[range] || '', mono: false },
+    { key: 'activeDays', label: t('Active days'), value: formatInt(data.activeDays), sub: t('{n} days in range', { n: days }), mono: false },
+    { key: 'streak', label: t('Current streak'), value: formatInt(data.streak), sub: t('Counting back from today'), mono: false },
   ]
   cells.push(top
     ? {
-      key: 'topModel', label: t('Top 模型'), value: String(top.model ?? ''),
-      sub: t('{tokens} tokens · 占 {pct}', { tokens: formatTokens(top.tokens), pct: formatPercent(top.percentage) }),
+      key: 'topModel', label: t('Top models'), value: String(top.model ?? ''),
+      sub: t('{tokens} tokens · {pct} of total', { tokens: formatTokens(top.tokens), pct: formatPercent(top.percentage) }),
       mono: true,
     }
-    : { key: 'topModel', label: t('Top 模型'), value: '—', sub: t('所选范围内还没有模型用量'), mono: false })
+    : { key: 'topModel', label: t('Top models'), value: '—', sub: t('No model usage in the selected range'), mono: false })
   return cells
 }
 
@@ -223,14 +223,14 @@ export function rankRows(list: StatsGroup[] | undefined): RankRowView[] | null {
   return [...rows].sort((left, right) => right.tokens - left.tokens).map((item, index) => {
     const percent = share(item.tokens)
     const text = formatTokens(item.tokens)
-    const name = item.label || item.id || t('未知')
-    const full = item.id ? t('{name}（{id}）', { name, id: item.id }) : name
+    const name = item.label || item.id || t('Unknown')
+    const full = item.id ? t('{name} ({id})', { name, id: item.id }) : name
     return {
       key: `${index}-${item.id || name}`,
       id: item.id,
       name,
       full,
-      tip: t('{name}：{tokens} tokens · 占 {pct}%', { name: full, tokens: text, pct: percent.toFixed(1) }),
+      tip: t('{name}: {tokens} tokens · {pct}% of total', { name: full, tokens: text, pct: percent.toFixed(1) }),
       tokensText: text,
       percentText: `${percent.toFixed(1)}%`,
       barWidth: `${percent.toFixed(1)}%`,
@@ -291,7 +291,7 @@ export function donutView(list: StatsGroup[] | undefined, unknownLabel: string,
   const total = rows.reduce((sum, item) => sum + item.tokens, 0)
   if (!total) return null
   const colors = modelColorMap(list)
-  const tip = (name: string, tokens: number, requests: number) => t('{name} · {tokens} tokens · {n} 次请求 · {pct}', {
+  const tip = (name: string, tokens: number, requests: number) => t('{name} · {tokens} tokens · {n} requests · {pct}', {
     name, tokens: formatTokens(tokens), n: formatInt(requests), pct: formatUsagePercent(tokens / total),
   })
   const data = rows.map((item, index): DonutDatum => {
@@ -309,7 +309,7 @@ export function donutView(list: StatsGroup[] | undefined, unknownLabel: string,
   if (members.length) {
     const tokens = members.reduce((sum, item) => sum + item.tokens, 0)
     const requests = members.reduce((sum, item) => sum + item.requests, 0)
-    const name = t('其他（{n} 项）', { n: formatInt(members.length) })
+    const name = t('Other ({n} items)', { n: formatInt(members.length) })
     visible.push({
       key: 'donut-other', name, fill: 'var(--chart-other)', tokens, requests,
       percentage: tokens / total, tip: tip(name, tokens, requests), members,
@@ -393,10 +393,10 @@ export function heatmapView(days: StatsDay[] | undefined, boxWidth: number): Hea
       const tokens = Number(day.tokens) || 0
       // 失败请求也算活跃；Token 只决定颜色，不能据此说成「无请求」。
       const tip = requests
-        ? t('{date} · {tokens} tokens · {n} 次请求', {
+        ? t('{date} · {tokens} tokens · {n} requests', {
           date: dayLabel(day.date), tokens: formatTokens(tokens), n: formatInt(requests),
         })
-        : t('{date} · 无请求', { date: dayLabel(day.date) })
+        : t('{date} · No requests', { date: dayLabel(day.date) })
       cellsOut.push({
         key: String(day.date),
         level: levelOf(tokens),
@@ -428,7 +428,7 @@ export function heatmapView(days: StatsDay[] | undefined, boxWidth: number): Hea
     lastLabelCol = col
     months.push({
       key: `${month}-${col}`, x: round1(offsetX + labelW + col * step),
-      text: t('{m}月', { m: month + 1 }),
+      text: t('{m}/', { m: month + 1 }),
     })
   }
 
@@ -446,10 +446,10 @@ export type CacheRateCell = { key: string; label: string; value: string; sub: st
 export function cacheRateCells(rates: Record<string, CacheRateWindow> | undefined): CacheRateCell[] {
   const data = rates || {}
   const windows: [string, string][] = [
-    ['last10m', t('近 10 分钟')],
-    ['last1h', t('近 1 小时')],
-    ['last24h', t('近 24 小时')],
-    ['last7d', t('近 7 天')],
+    ['last10m', t('Last 10 minutes')],
+    ['last1h', t('Last 1 hour')],
+    ['last24h', t('Last 24 hours')],
+    ['last7d', t('Last 7 days')],
   ]
   return windows.map(([key, label]) => {
     const item = data[key] || {}
@@ -458,7 +458,7 @@ export function cacheRateCells(rates: Record<string, CacheRateWindow> | undefine
       key,
       label,
       value: input ? formatPercent(item.rate) : '—',
-      sub: t('命中 {hit} / 输入 {input}', {
+      sub: t('Hits {hit} / input {input}', {
         hit: formatTokens(item.hitTokens), input: formatTokens(input),
       }),
     }

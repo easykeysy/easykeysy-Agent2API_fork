@@ -63,7 +63,7 @@ pub async fn put_metadata(State(_state): State<ServerState>, body: Bytes) -> Res
         return errors::management_error(400, "请求体必须是 JSON 对象");
     };
     let Some(value) = object.get(config::KEY_MODELS_DEV_ENABLED) else {
-        return errors::management_error(400, "缺少 modelsDevEnabled 字段");
+        return errors::management_error(400, "缺少 modelsDevEnabled field");
     };
     let Some(enabled) = value.as_bool() else {
         return errors::management_error(400, "modelsDevEnabled 必须是布尔值");
@@ -95,7 +95,7 @@ pub async fn refresh_metadata(State(_state): State<ServerState>) -> Response {
             "[Models]",
             &format!(
                 "models.dev 元数据刷新失败：{}",
-                row.get("message").and_then(serde_json::Value::as_str).unwrap_or("未知原因")
+                row.get("message").and_then(serde_json::Value::as_str).unwrap_or("Unknown reason")
             ),
         );
     }

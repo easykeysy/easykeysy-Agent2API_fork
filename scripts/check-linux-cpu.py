@@ -30,7 +30,7 @@ def require_elf(path):
     with path.open("rb") as source:
         header = source.read(20)
     if len(header) < 20 or header[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<H", header, 18)[0] != 62:
-        raise RuntimeError(f"不是 Linux x86_64 可执行文件：{path}")
+        raise RuntimeError(f"Not a Linux x86_64 executable: {path}")
 
 
 def extract_package(package, directory):
@@ -54,10 +54,10 @@ def extract_package(package, directory):
             for member in members:
                 destination = (directory / member.name).resolve()
                 if not destination.is_relative_to(directory.resolve()) or not (member.isfile() or member.isdir()):
-                    raise RuntimeError(f"不安全的包内条目：{member.name}")
+                    raise RuntimeError(f"Unsafe in-package entry: {member.name}")
             archive.extractall(directory, members=members)
         return directory / "agent2api-server", None, False
-    raise RuntimeError(f"不支持的安装包：{package}")
+    raise RuntimeError(f"Unsupported install package: {package}")
 
 
 def stop(process):
@@ -87,10 +87,10 @@ def display_server(directory):
         )
         try:
             if not select.select([process.stdout], [], [], 15)[0]:
-                raise RuntimeError("虚拟显示器启动超时")
+                raise RuntimeError("The virtual display timed out while starting")
             number = process.stdout.readline().decode().strip()
             if not number.isdigit():
-                raise RuntimeError("虚拟显示器启动失败")
+                raise RuntimeError("The virtual display failed to start")
             yield f":{number}"
         finally:
             process.stdout.close()
@@ -175,7 +175,7 @@ def check_cpu(qemu, cpu, binary, appdir, desktop, directory, display, timeout):
                 except OSError:
                     listening = False
                 text = log_path.read_text(errors="replace")
-                logged_ready = ("服务已就绪" in text if desktop else "headless 运行中" in text)
+                logged_ready = ("The service is ready" in text if desktop else "headless Running" in text)
                 if listening and logged_ready and database_ready(directory / "data/agent2api.db"):
                     ready_since = ready_since or time.monotonic()
                     if time.monotonic() - ready_since >= 2:
@@ -198,18 +198,18 @@ def check_cpu(qemu, cpu, binary, appdir, desktop, directory, display, timeout):
 
 def run(args):
     if not sys.platform.startswith("linux"):
-        raise RuntimeError("兼容检查必须在 Linux 上运行")
+        raise RuntimeError("The compatibility check must run on Linux")
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     if args.timeout < 5:
-        raise RuntimeError("启动检查超时必须至少为 5 秒")
+        raise RuntimeError("The startup check timeout must be at least 5 seconds")
     qemu = shutil.which(args.qemu)
     if not qemu:
-        raise RuntimeError(f"找不到 CPU 模拟器：{args.qemu}")
+        raise RuntimeError(f"CPU emulator not found: {args.qemu}")
     command([qemu, "--version"])
     # 发布检查必须由无外网的网络命名空间或 --network none 容器执行。
     interfaces = {name for _, name in socket.if_nameindex()}
     if interfaces - {"lo"}:
-        raise RuntimeError("请在无外网的独立网络命名空间中运行兼容检查")
+        raise RuntimeError("Run the compatibility check inside an isolated network namespace with no external network")
     results = []
     with tempfile.TemporaryDirectory(prefix="agent2api-cpu-") as temporary:
         root = Path(temporary)
@@ -221,7 +221,7 @@ def run(args):
                 binary, appdir, desktop = extract_package(package, directory)
                 require_elf(binary)
                 digest = hashlib.sha256(package.read_bytes()).hexdigest()
-                print(f"检查 {package.name}，SHA256 {digest}", flush=True)
+                print(f"Checking {package.name}, SHA256 {digest}", flush=True)
                 for cpu in CPUS:
                     result = check_cpu(qemu, cpu, binary, appdir, desktop, directory / cpu, display, args.timeout)
                     result.update({"package": package.name, "sha256": digest})
@@ -234,18 +234,18 @@ def run(args):
         if args.logs:
             (Path(args.logs) / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2))
     if not all(result["passed"] for result in results):
-        raise RuntimeError("安装包未通过 CPU 兼容检查，拒绝发布")
-    print("所有安装包均通过老款和新款 CPU 启动及数据库初始化检查。")
+        raise RuntimeError("Install package failed the CPU compatibility check; publish refused")
+    print("All install packages pass the startup and database initialization checks on both old and new CPUs.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="检查 Linux amd64 发布安装包的 CPU 启动兼容性")
+    parser = argparse.ArgumentParser(description="Check the CPU startup compatibility of the Linux amd64 release package")
     parser.add_argument("packages", nargs="+")
     parser.add_argument("--qemu", default="qemu-x86_64")
     parser.add_argument("--timeout", type=int, default=60)
-    parser.add_argument("--logs", help="保留启动日志和结果的目录")
+    parser.add_argument("--logs", help="Keep the directory of startup logs and results")
     try:
         run(parser.parse_args())
     except (RuntimeError, OSError, subprocess.SubprocessError, tarfile.TarError) as error:
-        print(f"兼容检查失败：{error}", file=sys.stderr)
+        print(f"Compatibility check failed: {error}", file=sys.stderr)
         sys.exit(1)

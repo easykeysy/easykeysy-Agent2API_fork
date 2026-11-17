@@ -10,33 +10,33 @@ const STATES = new Set<OfficeaceSubscriptionStatus>([
 
 function statusLabel(status: OfficeaceSubscriptionStatus | undefined, t: Translate): string {
   switch (status) {
-    case 'active': return t('已开通')
-    case 'inactive': return t('未开通')
-    case 'expired': return t('套餐已到期')
-    case 'frozen': return t('套餐已冻结')
-    case 'pending': return t('开通结果待确认')
-    case 'credentials_missing': return t('缺少开通凭证')
-    case 'credentials_expired': return t('凭证需刷新')
-    case 'permission_denied': return t('授权被拒绝')
-    case 'unsupported': return t('暂不支持')
-    case 'unknown': return t('状态未确认')
-    default: return t('尚未查询')
+    case 'active': return t('Active')
+    case 'inactive': return t('Not activated')
+    case 'expired': return t('Plan expired')
+    case 'frozen': return t('Plan frozen')
+    case 'pending': return t('Activation awaiting confirmation')
+    case 'credentials_missing': return t('Activation credentials missing')
+    case 'credentials_expired': return t('Credentials need refreshing')
+    case 'permission_denied': return t('Authorization denied')
+    case 'unsupported': return t('Not supported yet')
+    case 'unknown': return t('Status unconfirmed')
+    default: return t('Not queried yet')
   }
 }
 
 function description(status: OfficeaceSubscriptionStatus | undefined, t: Translate): string {
   switch (status) {
-    case 'active': return t('套餐已开通，无需重复操作')
-    case 'inactive': return t('尚未开通套餐，可开通免费体验套餐')
+    case 'active': return t('The plan is already active. No further action is needed.')
+    case 'inactive': return t('No plan is active. You can activate the free trial plan.')
     case 'expired':
-    case 'frozen': return t('原套餐已到期或冻结，请在官方客户端处理；这里不会续费或变更套餐')
-    case 'credentials_missing': return t('缺少套餐开通凭证，请通过果办网页登录补齐授权')
-    case 'credentials_expired': return t('套餐查询凭证已过期，请先到账号页刷新凭证；此查询不会自动续期')
-    case 'permission_denied': return t('官方拒绝套餐查询，请检查账号授权；这不一定表示 Token 已过期')
-    case 'unsupported': return t('账号未使用官方果办网关地址，无法在此开通免费套餐')
-    case 'unknown': return t('官方未返回明确的套餐状态，暂不能开通')
-    case 'pending': return t('开通请求仍在处理或结果待确认，请稍后查询，不要重复提交')
-    default: return t('查询只读取套餐状态，点击开通后才会执行')
+    case 'frozen': return t('The existing plan has expired or been frozen. Manage it in the official client; this page will not renew or change it.')
+    case 'credentials_missing': return t('Plan activation credentials are missing. Sign in to OfficeAce through web login to restore authorization.')
+    case 'credentials_expired': return t('The credentials for querying plans have expired. Refresh them on the Accounts page first; this query does not refresh credentials automatically.')
+    case 'permission_denied': return t('The official service denied the plan query. Check account authorization; this does not necessarily mean the token has expired.')
+    case 'unsupported': return t('This account does not use an official OfficeAce gateway address. The free plan cannot be activated here.')
+    case 'unknown': return t('The official service returned no definite plan status. Activation is unavailable for now.')
+    case 'pending': return t('Activation is still processing or awaiting confirmation. Check again later; do not submit another request.')
+    default: return t('Querying only reads the plan status. Activation runs only when you click Activate.')
   }
 }
 
@@ -79,7 +79,7 @@ export function OfficeaceSubscription({ accountId, api, t, active = true, disabl
     try {
       const result = await api.query(accountId)
       if (generation.current !== current) return
-      if (!result || !STATES.has(result.status)) throw new Error(t('后端未返回有效的套餐状态'))
+      if (!result || !STATES.has(result.status)) throw new Error(t('The gateway did not return a valid plan status'))
       setData(result)
       if (result.status === 'active') onChange?.()
     } catch (cause) {
@@ -116,16 +116,16 @@ export function OfficeaceSubscription({ accountId, api, t, active = true, disabl
       const result = await api.activate(accountId, consent)
       if (generation.current !== current) return
       if (!result || !['activated', 'already_active', 'skipped', 'pending'].includes(result.status)) {
-        throw new Error(t('后端未返回有效的套餐状态'))
+        throw new Error(t('The gateway did not return a valid plan status'))
       }
       if (result.status === 'activated' || result.status === 'already_active') {
         setData({ ...result, status: 'active', canActivate: false })
-        setMessage(result.message || (result.status === 'activated' ? t('免费套餐已开通并确认生效') : t('套餐已开通，无需重复操作')))
+        setMessage(result.message || (result.status === 'activated' ? t('The free plan has been activated and confirmed active') : t('The plan is already active. No further action is needed.')))
       } else {
         setData({ ...result, status: result.status === 'pending' ? 'pending' : 'unknown', canActivate: false })
         setMessage(result.message || (result.status === 'pending'
-          ? t('开通请求仍在处理或结果待确认，请稍后查询，不要重复提交')
-          : t('未执行开通，请查询套餐状态查看原因')))
+          ? t('Activation is still processing or awaiting confirmation. Check again later; do not submit another request.')
+          : t('Activation was not performed. Query the plan status for details.')))
       }
       onChange?.()
     } catch (cause) {
@@ -136,7 +136,7 @@ export function OfficeaceSubscription({ accountId, api, t, active = true, disabl
         const latest = await api.query(accountId)
         if (generation.current === current && latest && STATES.has(latest.status)) setData(latest)
       } catch {
-        if (generation.current === current) setMessage(t('开通未得到确认，请重新查询套餐状态；不会自动重试开通'))
+        if (generation.current === current) setMessage(t('Activation was not confirmed. Check the plan status again; activation will not be retried automatically.'))
       }
     } finally {
       if (generation.current === current) { lock.current = false; setBusy('') }
@@ -146,35 +146,35 @@ export function OfficeaceSubscription({ accountId, api, t, active = true, disabl
   const status = data?.status
   const variant = status === 'active' ? 'success' : status === 'inactive' ? 'brand'
     : status === 'pending' ? 'warning' : 'outline'
-  return <div className='min-w-0 space-y-2' aria-label={t('果办免费体验套餐')}>
+  return <div className='min-w-0 space-y-2' aria-label={t('OfficeAce free trial plan')}>
     <div className='flex flex-wrap items-center gap-2'>
-      <span className='text-sm font-medium text-foreground'>{t('免费体验套餐')}</span>
+      <span className='text-sm font-medium text-foreground'>{t('Free trial plan')}</span>
       <Badge variant={variant} shape='tag'>{statusLabel(status, t)}</Badge>
       <div className='ml-auto flex flex-wrap gap-2'>
         <Button size='sm' variant='outline' disabled={Boolean(busy) || disabled} onClick={() => void query()}>
-          {busy === 'query' ? <Spinner /> : null}{busy === 'query' ? t('查询中…') : t('查询套餐')}
+          {busy === 'query' ? <Spinner /> : null}{busy === 'query' ? t('Checking…') : t('Check plan')}
         </Button>
         <Button size='sm' disabled={Boolean(busy) || disabled || !consent || status !== 'inactive' || data?.canActivate !== true}
           onClick={() => void activate()}>
           {busy === 'activate' ? <Spinner /> : null}
-          {busy === 'activate' ? t('开通中…') : status === 'active' ? t('已开通') : t('开通免费套餐')}
+          {busy === 'activate' ? t('Activating…') : status === 'active' ? t('Active') : t('Activate free plan')}
         </Button>
       </div>
     </div>
     <p className='text-xs text-muted-foreground break-words'>{data?.message ? t(data.message) : description(status, t)}</p>
-    <p className='text-xs text-muted-foreground'>{t('仅开通官方报价为 0 元的个人体验套餐，固定关闭自动续费；奖励另行领取')}</p>
+    <p className='text-xs text-muted-foreground'>{t('Only activate the personal trial when the official price is CNY 0, with automatic renewal disabled. Rewards are claimed separately.')}</p>
     {status === 'inactive' && data?.canActivate ? <div className='space-y-1.5'>
       <label className='flex items-start gap-2 text-xs text-muted-foreground'>
         <Checkbox className='mt-0.5' checked={consent} onCheckedChange={checked => setConsent(checked === true)} disabled={Boolean(busy) || disabled} />
-        <span>{t('我已阅读并同意以下服务声明，仅授权开通零元体验套餐，不自动续费')}</span>
+        <span>{t('I have read and accept the service statements below, and authorize only the zero-cost trial without automatic renewal.')}</span>
       </label>
       <div className='flex flex-wrap gap-3 pl-5 text-xs'>
-        <a className='text-primary underline underline-offset-2' href='https://www.huaweicloud.com/declaration/officeace.html' target='_blank' rel='noreferrer'>{t('果办服务声明')}</a>
-        <a className='text-primary underline underline-offset-2' href='https://www.huaweicloud.com/declaration/agentarts.html' target='_blank' rel='noreferrer'>{t('AgentArts 服务声明')}</a>
+        <a className='text-primary underline underline-offset-2' href='https://www.huaweicloud.com/declaration/officeace.html' target='_blank' rel='noreferrer'>{t('OfficeAce Service Statement')}</a>
+        <a className='text-primary underline underline-offset-2' href='https://www.huaweicloud.com/declaration/agentarts.html' target='_blank' rel='noreferrer'>{t('AgentArts Service Statement')}</a>
       </div>
     </div> : null}
-    {data?.autoRenew === false ? <Badge variant='success' shape='tag'>{t('已确认不自动续费')}</Badge> : null}
-    {data?.autoRenew === true ? <p role='alert' className='text-sm text-destructive'>{t('官方显示自动续费已开启，请到官方客户端检查')}</p> : null}
+    {data?.autoRenew === false ? <Badge variant='success' shape='tag'>{t('Automatic renewal confirmed off')}</Badge> : null}
+    {data?.autoRenew === true ? <p role='alert' className='text-sm text-destructive'>{t('The official service reports that automatic renewal is enabled. Check it in the official client.')}</p> : null}
     {error ? <p role='alert' className='text-sm text-destructive break-words'>{error}</p> : null}
     {message && message !== data?.message ? <p role='status' className='text-sm text-foreground break-words'>{t(message)}</p> : null}
   </div>

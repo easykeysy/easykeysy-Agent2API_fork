@@ -26,7 +26,7 @@ export function RoutingExecTimeline({ row, now, onDetail, onConfig }: {
             {row.status ? <span>HTTP {row.status}</span> : null}
           </div>
         </div>
-        <Button variant='outline' size='sm' onClick={() => onDetail(row)}>{t('完整详情')}</Button>
+        <Button variant='outline' size='sm' onClick={() => onDetail(row)}>{t('Full details')}</Button>
       </header>
       {/* 模型改写排在承载之前：请求真实经过的顺序就是「先改写模型、再选账号」 */}
       <RoutingExecRewrite row={row} />

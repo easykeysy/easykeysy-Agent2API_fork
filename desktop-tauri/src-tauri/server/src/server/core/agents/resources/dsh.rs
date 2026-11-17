@@ -81,7 +81,7 @@ pub fn plan(def: &ClientDef, payload: &Value) -> Result<Plan, String> {
             dsh_patch::update_config(
                 &original,
                 &id,
-                &validate(name, payload.get("config").ok_or("缺少 MCP 配置")?)?,
+                &validate(name, payload.get("config").ok_or("缺少 MCP Profile")?)?,
             )?
         }
     } else {
@@ -92,7 +92,7 @@ pub fn plan(def: &ClientDef, payload: &Value) -> Result<Plan, String> {
         if composition.entries.contains_key(&id) {
             return Err("DSH 已有同名插件标识，请先在客户端处理冲突".into());
         }
-        let config = validate(name, payload.get("config").ok_or("缺少 MCP 配置")?)?;
+        let config = validate(name, payload.get("config").ok_or("缺少 MCP Profile")?)?;
         PatchDocument::parse(&original)?
             .append(&json!({ "insert": [{ "id": id, "name": MCP_PACKAGE, "config": config }] }))?
     };
@@ -107,7 +107,7 @@ pub fn plan(def: &ClientDef, payload: &Value) -> Result<Plan, String> {
         && actual.as_ref().map(|(_, config)| config)
             != Some(&validate(
                 name,
-                payload.get("config").ok_or("缺少 MCP 配置")?,
+                payload.get("config").ok_or("缺少 MCP Profile")?,
             )?)
     {
         return Err("DSH 叠加后的 MCP 配置与预期不一致，已停止写入".into());
@@ -144,7 +144,7 @@ pub fn validate(name: &str, value: &Value) -> Result<Value, String> {
         .and_then(Value::as_str)
         .is_some_and(|value| value != name)
     {
-        return Err("DSH MCP 的 serverName 必须与服务名称一致".into());
+        return Err("DSH MCP — see the serverName 必须与服务名称一致".into());
     }
     let transport = object
         .get("transport")
@@ -183,11 +183,11 @@ pub fn validate(name: &str, value: &Value) -> Result<Value, String> {
                         && url.password().is_none()
                 });
             if !valid {
-                return Err("DSH MCP 需要有效的 HTTP(S) 地址".into());
+                return Err("DSH MCP 需要有效的 HTTP(S) Address".into());
             }
             string_map(object.get("headers"), "headers")?;
         }
-        _ => return Err("DSH MCP transport 必须是 stdio 或 streamable-http".into()),
+        _ => return Err("DSH MCP transport 必须是 stdio or streamable-http".into()),
     }
     if object
         .get("toolCallTimeoutMs")

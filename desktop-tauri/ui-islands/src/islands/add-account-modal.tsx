@@ -236,11 +236,11 @@ function AddAccountModal({
   // 标题写在表单弹窗的头部：列表弹窗的标题始终是「添加账号」，不跟着步骤变
   const heading = isCustom
     ? (state.providerHint
-      ? t('登录 / 添加 {name} 账号', { name: customLabel || t('自定义提供商') })
+      ? t('Sign in / add {name} account', { name: customLabel || t('Custom provider') })
       : state.presetKey
-        ? t('使用 {name} 模板新建提供商', { name: customLabel })
-        : t('新建自定义提供商'))
-    : isDeepseek ? t('添加 DeepSeek 账号') : t('登录 / 添加 {name} 账号', { name: providerLabel })
+        ? t('Create a provider using the {name} template', { name: customLabel })
+        : t('New custom provider'))
+    : isDeepseek ? t('Add DeepSeek account') : t('Sign in / add {name} account', { name: providerLabel })
 
   /** 第 1 步点一张卡：三种特殊取值分别落到自定义块的哪种模式（见 pickProvider 的旧注释） */
   function pick(id: string): void {
@@ -336,7 +336,7 @@ function AddAccountModal({
     <Dialog open onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent className='acct-add-dialog w-[min(1100px,calc(100vw-48px))]'>
         <DialogHeader>
-          <DialogTitle>{t('添加账号')}</DialogTitle>
+          <DialogTitle>{t('Add account')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <PickStep

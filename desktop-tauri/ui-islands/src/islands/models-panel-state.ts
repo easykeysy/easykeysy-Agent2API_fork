@@ -176,7 +176,7 @@ const FILTERS_KEY = 'workbuddy-desktop-models-filters'
 const MODEL_STATES: readonly string[] = ['all', 'enabled', 'disabled', 'mapped']
 /** 状态分段控件上的标签（键与 MODEL_STATES 一一对应，顺序也照它；只有展示串走 t()，value 是匹配/落盘用的枚举值） */
 const MODEL_STATE_LABEL: Record<string, string> = {
-  all: t('全部'), enabled: t('已启用'), disabled: t('已禁用'), mapped: t('有映射'),
+  all: t('All'), enabled: t('Enabled'), disabled: t('Disabled'), mapped: t('Mapped'),
 }
 /** 选项提到模块级：SegmentedControl 每拿到新数组都要重新量滑块位置，常量能省掉这轮测量 */
 export const MODEL_STATE_OPTIONS: readonly SegmentedControlOption<string>[] = MODEL_STATES.map(value => ({
@@ -223,7 +223,7 @@ const MODEL_SORTS: readonly string[] = ['default', 'rate-asc', 'rate-desc']
  */
 const MODEL_VISIBILITIES: readonly string[] = ['all', 'visible', 'hidden', 'undeclared']
 const MODEL_VISIBILITY_LABEL: Record<string, string> = {
-  all: t('全部'), visible: t('可见'), hidden: t('不展示'), undeclared: t('未声明'),
+  all: t('All'), visible: t('Visible'), hidden: t('Not shown'), undeclared: t('Not declared'),
 }
 export const MODEL_VISIBILITY_OPTIONS: readonly SegmentedControlOption<string>[] = MODEL_VISIBILITIES.map(value => ({
   value, label: MODEL_VISIBILITY_LABEL[value],
@@ -244,21 +244,21 @@ export function visibilityOf(model: ManageModel): 'visible' | 'hidden' | 'undecl
 const COLUMNS: ColumnDecl[] = [
   // 「选择」列：整行的批量操作入口（照账号页勾选列的口径 —— 列设置里要有名字，
   // 表格里那格是「全选」复选框，没有表头文案）
-  { key: 'check', label: t('选择'), align: 'center' },
-  { key: 'model', label: t('上游模型') },
-  { key: 'rate', label: t('倍率') },
+  { key: 'check', label: t('Select'), align: 'center' },
+  { key: 'model', label: t('Upstream model') },
+  { key: 'rate', label: t('Multiplier') },
   // 「可见性」紧挨「来源」：两者回答的是同一类问题（这条记录哪来的 / 上游
   // 认不认它），并排放读起来才连贯。没判据的家显示 `—`（见 models-page 的
   // `visibilityCell`）—— 那是「这家没这个信息」，不是「确认可见」。
-  { key: 'visibility', label: t('可见性') },
-  { key: 'source', label: t('来源') },
+  { key: 'visibility', label: t('Visibility') },
+  { key: 'source', label: t('Source') },
   // 能力位两列（顺序、文案与 model-capability 的键序对应）：数值合并在
   // 「上下文 / 输出」一格里，三个布尔合并成一列徽章 —— 分成五列会把
   // 复合控件最宽的「模型映射」列挤到不可用（列数取舍见交付说明）
-  { key: 'budget', label: t('上下文 / 输出') },
-  { key: 'caps', label: t('能力') },
-  { key: 'alias', label: t('模型映射') },
-  { key: 'act', label: t('操作'), align: 'right' },
+  { key: 'budget', label: t('Context / Output') },
+  { key: 'caps', label: t('Capabilities') },
+  { key: 'alias', label: t('Model mapping') },
+  { key: 'act', label: t('Actions'), align: 'right' },
 ]
 
 /**
@@ -595,7 +595,7 @@ export function upstreamOptions(providerId: string): UpstreamOption[] {
     .map(model => ({
       id: model.id,
       // 展示名与 id 不同才补在括号里，避免出现「GLM-5.3（GLM-5.3）」这种重复
-      label: model.name && model.name !== model.id ? t('{id}（{name}）', { id: model.id, name: model.name }) : model.id,
+      label: model.name && model.name !== model.id ? t('{id} ({name})', { id: model.id, name: model.name }) : model.id,
       off: model.enabled === false,
     }))
 }
@@ -654,7 +654,7 @@ export function registerColumnSettings(): void {
   if (colSettings) return
   const handle = shared().wbColSettings?.register({
     id: 'models',
-    label: t('模型管理表'),
+    label: t('Models table'),
     columns: COLUMNS,
     mount: () => document.querySelector('.page[data-page="gateway"] .panel-head .head-actions'),
     buttonPlacement: 'last',
@@ -696,7 +696,7 @@ export async function load({ force = false }: { force?: boolean } = {}): Promise
   } catch (error) {
     if (seq !== loadSeq) return
     render()
-    toast(t('读取模型清单失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Failed to read the model catalog: {message}', { message: errorMessage(error) }), 'err')
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -765,20 +765,20 @@ export function enabledBindingConflicts(provider: string, alias: string, target:
 export function addModelError(provider: string, id: string): string {
   const view = providerView(provider)
   if ((view.models || []).some(model => same(model.provider, provider) && same(model.id, id))) {
-    return t('模型 ID「{id}」已存在，请使用已有模型', { id })
+    return t('Model ID “{id}” already exists. Use the existing model.', { id })
   }
   return enabledBindingConflicts(provider, id, id).length
-    ? t('模型 ID「{id}」在该提供商已有启用绑定，请先关闭它再添加', { id }) : ''
+    ? t('Model ID “{id}” already has an enabled binding under this provider. Disable it before adding another.', { id }) : ''
 }
 
 export function addMappingError(provider: string, alias: string, target: string): string {
   const view = providerView(provider)
   if (same(alias, target) || (view.mappings || []).some(mapping => same(mapping.alias, alias)
     && same(mapping.target, target) && (!mapping.provider || same(mapping.provider, provider)))) {
-    return t('模型 ID「{id}」已绑定到此上游模型，请直接使用已有绑定', { id: alias })
+    return t('Model ID “{id}” is already bound to this upstream model. Use the existing binding.', { id: alias })
   }
   return enabledBindingConflicts(provider, alias, target).length
-    ? t('模型 ID「{id}」在该提供商已有启用绑定，请先关闭它再添加', { id: alias }) : ''
+    ? t('Model ID “{id}” already has an enabled binding under this provider. Disable it before adding another.', { id: alias }) : ''
 }
 
 /** 开关 / 新增 / 改一条绑定（alias == target 时即该模型的默认绑定） */
@@ -791,14 +791,14 @@ export async function writeBinding(
   }
   if (customSource.isCustom(provider)) return customSource.setBinding(provider, alias, target, { ...change, create: change.create ?? false })
   const api = shared().workbuddyDesktop
-  if (!api) throw new Error(t('后端桥不可用'))
+  if (!api) throw new Error(t('Backend bridge unavailable'))
   return enqueueWrite(() => api.addModelMapping(alias, target, provider, change.reasoning, change.enabled, change.create ?? false))
 }
 
 export async function writeRemoveMapping(provider: string, alias: string, target: string): Promise<unknown> {
   if (customSource.isCustom(provider)) return customSource.removeMapping(provider, alias, target)
   const api = shared().workbuddyDesktop
-  if (!api) throw new Error(t('后端桥不可用'))
+  if (!api) throw new Error(t('Backend bridge unavailable'))
   return enqueueWrite(() => api.removeModelMapping(alias, target, provider))
 }
 
@@ -807,14 +807,14 @@ export async function writeAddModel(provider: string, id: string): Promise<unkno
   if (error) throw new Error(error)
   if (customSource.isCustom(provider)) return customSource.addModel(provider, id)
   const api = shared().workbuddyDesktop
-  if (!api) throw new Error(t('后端桥不可用'))
+  if (!api) throw new Error(t('Backend bridge unavailable'))
   return enqueueWrite(() => api.addCustomModel(provider, id))
 }
 
 export async function writeRemoveModel(provider: string, id: string): Promise<unknown> {
   if (customSource.isCustom(provider)) return customSource.removeModel(provider, id)
   const api = shared().workbuddyDesktop
-  if (!api) throw new Error(t('后端桥不可用'))
+  if (!api) throw new Error(t('Backend bridge unavailable'))
   return enqueueWrite(() => api.removeCustomModel(provider, id))
 }
 
@@ -834,7 +834,7 @@ export async function writeCapabilities(
 ): Promise<unknown> {
   if (customSource.isCustom(provider)) return customSource.setCapabilities(provider, id, capabilities)
   const api = shared().workbuddyDesktop
-  if (!api) throw new Error(t('后端桥不可用'))
+  if (!api) throw new Error(t('Backend bridge unavailable'))
   return enqueueWrite(() => api.setModelCapabilities(provider, id, capabilities))
 }
 
@@ -851,7 +851,7 @@ export async function runRowAction(key: string, run: () => Promise<unknown>, don
     accept(await run())
     if (doneText) toast(doneText)
   } catch (error) {
-    toast(t('操作失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Operation failed: {message}', { message: errorMessage(error) }), 'err')
   } finally {
     const pending = new Set(snapshot.pending)
     pending.delete(key)
@@ -966,7 +966,7 @@ export async function removeCustomProvider(providerId: string): Promise<void> {
   const api = shared().wbCustomProvidersUi
   // 正常加载顺序下它一定在（custom-provider-ui.js 在本岛之后加载）。真缺了就说一声 ——
   // 点了 × 什么都不发生比报错更难查
-  if (!api?.remove) { toast(t('删除入口未就绪，请重试或重启应用'), 'err'); return }
+  if (!api?.remove) { toast(t('Delete isn\'t ready yet; retry or restart the app'), 'err'); return }
   if (!(await api.remove(providerId))) return
   // 重拉而非只重绘：该家从后端目录里消失了（它的模型不再参与路由），内置家那份 manage
   // 视图里的承载关系可能跟着变
@@ -1060,7 +1060,7 @@ export function refreshModels(): void {
   const custom = customSource.isCustom(provider)
   const name = custom
     ? (customSource.record(provider)?.name || provider)
-    : t('内置提供商')
+    : t('Built-in provider')
   shared().wbModelsFetchModal?.open({
     // 「自定义 · 全部」聚合视图没有单一的上游可拉（各家 Base URL 都不同），
     // 把 providerId 置空，弹窗按内置家的「多家范围」模式组装刷新名单

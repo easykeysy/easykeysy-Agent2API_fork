@@ -198,7 +198,7 @@ mod imp {
         match std::fs::remove_dir_all(dir) {
             Ok(()) => {
                 eprintln!(
-                    "[Cleanup] 已清理旧用户级安装目录（新版装在 Program Files）: {}",
+                    "[Cleanup] 已清理旧用户级安装目录（新版装在 Program Files): {}",
                     dir.display()
                 );
                 true

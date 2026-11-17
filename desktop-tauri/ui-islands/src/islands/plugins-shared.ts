@@ -28,13 +28,13 @@ export function toast(message: string, kind?: 'err' | 'ok'): void {
 
 export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const invoke = bridge().__TAURI_INTERNALS__?.invoke
-  if (!invoke) throw new Error(t('桌面运行时不可用（Tauri 未初始化）'))
+  if (!invoke) throw new Error(t('Desktop runtime unavailable (Tauri not initialized)'))
   const result = await invoke('api_request', {
     request: { method, path, body: body === undefined ? null : body },
   })
   if (result && typeof result === 'object' && 'success' in result) {
     const envelope = result as { success?: boolean; data?: unknown; error?: string }
-    if (envelope.success === false) throw new Error(envelope.error || t('请求失败'))
+    if (envelope.success === false) throw new Error(envelope.error || t('Request failed'))
     return envelope.data as T
   }
   return result as T
@@ -66,7 +66,7 @@ export function platformLabel(target: string): string {
 export function readBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error(t('读取文件失败')))
+    reader.onerror = () => reject(new Error(t('Failed to read the file')))
     reader.onload = () => {
       const text = typeof reader.result === 'string' ? reader.result : ''
       const index = text.indexOf('base64,')
@@ -77,17 +77,17 @@ export function readBase64(file: File): Promise<string> {
 }
 
 export function pluginName(id: string, name?: string | null): string {
-  if (id === 'agent2api-providers') return t('提供商增强')
-  if (id === 'agent2api-web-providers') return t('网页提供商')
+  if (id === 'agent2api-providers') return t('Provider Enhancement')
+  if (id === 'agent2api-web-providers') return t('Web Providers')
   return name || id
 }
 
 export function pluginDescription(id: string, description?: string | null): string {
   if (id === 'agent2api-providers') {
-    return t('为网关扩展多家 AI 提供商，支持账号登录与导入、模型调用、凭证续期、模型目录、余额查询和签到。具体能力以各提供商的支持情况为准。')
+    return t('Adds AI providers to the gateway, with account sign-in and import, model requests, credential renewal, model catalogs, balance queries and check-in. Available capabilities vary by provider.')
   }
   if (id === 'agent2api-web-providers') {
-    return t('为 Agent2API 扩展网页提供商，支持智谱清言的模型调用、访客与登录账号、凭证续期、模型目录、积分查询、签到和任务领取。')
+    return t('Adds web providers to Agent2API, with Zhipu Qingyan model requests, guest and signed-in accounts, credential renewal, model catalogs, points queries, check-in and task rewards.')
   }
-  return description || t('作者尚未提供插件介绍。')
+  return description || t('The author has not provided a plugin description.')
 }

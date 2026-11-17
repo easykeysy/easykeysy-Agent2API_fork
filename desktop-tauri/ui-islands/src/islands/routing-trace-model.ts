@@ -10,14 +10,14 @@ export type TraceState = 'running' | 'success' | 'failed' | 'unknown' | 'pending
 export const requestKey = (row: ReplayRow) => row.traceKey || `${row.id}:${row.ts}`
 export const sameRequest = (left: ReplayRow, right: ReplayRow) => left.traceKey && right.traceKey
   ? left.traceKey === right.traceKey : left.id === right.id && left.ts === right.ts
-export const requestModel = (row: ReplayRow) => row.clientModel || row.model || t('模型未记录')
+export const requestModel = (row: ReplayRow) => row.clientModel || row.model || t('Model not recorded')
 export const isTraceRunning = (row: ReplayRow) => row.status === 0 && row.error == null
 export const isTraceSuccess = (row: ReplayRow) => row.status >= 200 && row.status < 300 && row.error == null
 export const isTraceCancelled = (row: ReplayRow) => row.status === 499 || row.status === 408
   && (row.error === '客户端在响应完成前断开连接' || row.error === '请求已被手动终止')
 export const requestStateLabel = (row: ReplayRow) => isTraceRunning(row) ? tracePhase(row.phase)
-  : isTraceCancelled(row) ? t('已取消') : isTraceSuccess(row) ? t('成功') : t('失败')
-export const traceProvider = (id?: string, label?: string) => label || (id ? host().wbProviders?.labelOf(id) || id : t('提供商未记录'))
+  : isTraceCancelled(row) ? t('Canceled') : isTraceSuccess(row) ? t('Success') : t('Failed')
+export const traceProvider = (id?: string, label?: string) => label || (id ? host().wbProviders?.labelOf(id) || id : t('Provider not recorded'))
 export function traceAttempts(row: ReplayRow): TraceAttempt[] {
   const entries = Array.isArray(row.attemptDetails) ? row.attemptDetails : []
   if (entries.length) return entries.map((entry, index) => ({ ...entry, index }))
@@ -47,20 +47,20 @@ export function attemptState(row: ReplayRow, attempt: TraceAttempt): TraceState 
 export function attemptLabel(row: ReplayRow, attempt: TraceAttempt): string {
   const state = attemptState(row, attempt)
   if (state === 'running') return tracePhase(row.phase)
-  if (state === 'failed') return t('尝试失败')
-  if (state === 'success') return attempt.index + 1 >= (row.attempts || 1) ? t('最终承载') : t('上游已响应')
-  return t('结果未记录')
+  if (state === 'failed') return t('Attempt failed')
+  if (state === 'success') return attempt.index + 1 >= (row.attempts || 1) ? t('Final handling account') : t('Upstream responded')
+  return t('Result not recorded')
 }
 export function tracePhase(phase?: string): string {
-  return phase === 'waiting' ? t('等待响应') : phase === 'streaming' ? t('响应中') : phase === 'retrying' ? t('重试中') : phase === 'queued' ? t('排队中') : phase === 'connecting' ? t('连接中') : t('进行中')
+  return phase === 'waiting' ? t('Awaiting response') : phase === 'streaming' ? t('Streaming') : phase === 'retrying' ? t('Retrying') : phase === 'queued' ? t('Queued') : phase === 'connecting' ? t('Connecting') : t('In progress')
 }
 export function attemptDuration(row: ReplayRow, attempt: TraceAttempt): string {
   if (attempt.startedAt != null && attempt.finishedAt != null) return formatDuration(Math.max(0, attempt.finishedAt - attempt.startedAt))
-  if (attemptState(row, attempt) === 'running') return t('进行中')
-  return t('耗时未记录')
+  if (attemptState(row, attempt) === 'running') return t('In progress')
+  return t('Duration not recorded')
 }
 export function relativeTime(row: ReplayRow, time?: number | null): string {
-  return time != null ? formatDuration(Math.max(0, time - row.ts)) : t('未记录')
+  return time != null ? formatDuration(Math.max(0, time - row.ts)) : t('Unrecorded')
 }
 /** 上游错误常带整段 HTML，摘要只留可读文字；完整原文在请求详情里。 */
 export function errorText(value?: string | null, limit = 0): string {
@@ -69,17 +69,17 @@ export function errorText(value?: string | null, limit = 0): string {
 }
 export function requestSummary(row: ReplayRow): string {
   const switches = Math.max(0, (row.attempts || 1) - 1)
-  if (isTraceRunning(row)) return t('请求仍在处理中，当前阶段：{phase}', { phase: tracePhase(row.phase) })
-  if (!isTraceSuccess(row)) return errorText(row.error, 180) || t('请求未成功完成')
-  if (switches) return t('经过 {n} 次切换后成功，最终承载：{account}', { n: switches, account: row.accountName || traceProvider(row.provider, row.providerLabel) })
-  if (row.route?.stickyHit) return t('命中会话粘性，沿用原账号完成请求')
-  return t('请求成功完成，未发生账号切换')
+  if (isTraceRunning(row)) return t('Request is still in progress; current phase: {phase}', { phase: tracePhase(row.phase) })
+  if (!isTraceSuccess(row)) return errorText(row.error, 180) || t('Request did not complete successfully')
+  if (switches) return t('Succeeded after {n} switches; final account: {account}', { n: switches, account: row.accountName || traceProvider(row.provider, row.providerLabel) })
+  if (row.route?.stickyHit) return t('Session stickiness matched; the previous account completed the request')
+  return t('Request completed successfully without an account switch')
 }
 export function candidateReason(row: ReplayRow, candidate: TraceCandidate): string {
-  if (candidate.kind === 'skipped') return candidate.reason || t('当时被候选过滤规则跳过')
-  if (isTraceRunning(row)) return t('当时可用，当前请求尚未轮到这个账号')
-  if (isTraceSuccess(row)) return t('其他账号已完成请求，没有继续调用这个候选')
-  return t('候选快照中有此账号，但保存的尝试明细未显示它被调用')
+  if (candidate.kind === 'skipped') return candidate.reason || t('Skipped by candidate filtering rules at the time')
+  if (isTraceRunning(row)) return t('Available at the time; this request has not reached this account yet')
+  if (isTraceSuccess(row)) return t('Another account completed the request, so this candidate was not called')
+  return t('This account appears in the candidate snapshot, but no call to it is recorded in the saved attempts')
 }
-export const formatTraceTokens = (value?: number) => value == null ? t('未记录') : host().wbUnits?.formatTokens?.(value) || value.toLocaleString()
+export const formatTraceTokens = (value?: number) => value == null ? t('Unrecorded') : host().wbUnits?.formatTokens?.(value) || value.toLocaleString()
 export const traceBadgeVariant = (state: TraceState) => state === 'success' ? 'success' : state === 'failed' ? 'destructive' : state === 'running' ? 'info' : 'secondary'

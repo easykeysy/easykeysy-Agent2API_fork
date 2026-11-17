@@ -191,7 +191,7 @@ function accountLabel(account: Account): string {
   const email = String(account?.email || '').trim()
   if (shared().wbAccountsModel?.providerFeatures?.(account?.provider)?.emailAsName && email) return email
   const name = String(account?.nickname || account?.name || email || account?.id || '').trim()
-  return name || t('未命名账号')
+  return name || t('Unnamed account')
 }
 
 /** 该家可用于拉取目录的账号（「模型来源」下拉的选项）。过滤 = `available`（后端口径：启用 + 有
@@ -317,9 +317,9 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
   const summary = custom
     // 还没拉过时三个计数都是 0，列出来只会让人以为「上游没有模型」——那与「还没拉」是两件事
     ? fetched
-      ? t('已选 {picked} 个 · 上游共 {upstream} 个 · 清单已有 {managed} 个',
+      ? t('{picked} selected · {upstream} upstream total · {managed} already in catalog',
         { picked: picked.size, upstream: upstream.length, managed: managed.size })
-      : t('尚未获取')
+      : t('Not fetched yet')
     : intlSummary(rows)
 
   /**
@@ -346,20 +346,20 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
    * `results.length`：逐行刷过一家之后表里仍是全部家，成功数只该算真拿到结果的那几家。
    */
   function intlSummary(list: Row[]): string {
-    if (status === 'loading') return t('正在刷新…')
+    if (status === 'loading') return t('Refreshing…')
     // 失败时不留上一轮的读数：那是旧结果，与整屏的「获取失败」自相矛盾
     if (status === 'error') return ''
     const items = list.map(row => row.item).filter((item): item is RefreshItem => Boolean(item))
     if (!items.length) {
       // 点了刷、但（这些家）一条结果都没回来：如实说「没得到结果」，别提「点获取开始」
-      if (fetched) return t('刷新完成，但没有得到任何结果')
-      return list.length ? t('共 {n} 家 · 点「获取模型」开始', { n: list.length }) : t('0 家')
+      if (fetched) return t('Refresh finished, but no results were returned')
+      return list.length ? t('{n} providers · click “Fetch models” to start', { n: list.length }) : t('0 providers')
     }
     const done = items.filter(item => item.status === 'refreshed').length
     const failed = items.filter(item => item.status === 'failed').length
     return failed
-      ? t('{total} 家 · 成功 {done} · 失败 {failed}', { total: list.length, done, failed })
-      : t('{total} 家 · 成功 {done}', { total: list.length, done })
+      ? t('{total} providers · {done} succeeded · {failed} failed', { total: list.length, done, failed })
+      : t('{total} providers · {done} succeeded', { total: list.length, done })
   }
 
   /**
@@ -445,13 +445,13 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
       }
       // 「模型来源」下拉的选择与刷新范围随请求带上（范围见 scopeProviders）
       const refresh = shared().workbuddyDesktop?.refreshModels
-      if (!refresh) throw new Error(t('模型目录刷新不可用，请重新打开面板'))
+      if (!refresh) throw new Error(t('Model catalog refresh is unavailable. Reopen the panel.'))
       const providers = pending.map(item => item.id).filter((id): id is string => Boolean(id))
       const result = await refresh({ accounts: buildSourceMap(sourceRows), providers })
       if (!Array.isArray(result?.results) || result.results.some(item => !item || typeof item.provider !== 'string'
         || !['refreshed', 'failed', 'skipped'].includes(item.status || ''))
         || providers.some(provider => result.results!.filter(item => item.provider === provider).length !== 1)) {
-        throw new Error(t('网关未返回逐家模型目录刷新结果'))
+        throw new Error(t('The gateway returned no per-provider model catalog refresh results'))
       }
       setResults(result.results)
       setFetched(true)
@@ -487,14 +487,14 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
     setHint('')
     try {
       const refresh = shared().workbuddyDesktop?.refreshModels
-      if (!refresh) throw new Error(t('模型目录刷新不可用，请重新打开面板'))
+      if (!refresh) throw new Error(t('Model catalog refresh is unavailable. Reopen the panel.'))
       const result = await refresh({
         accounts: buildSourceMap([{ provider: row.provider, reported: row.item?.accountId }]),
         providers: [row.provider],
       })
       const items = Array.isArray(result?.results) ? result.results.filter(item => item?.provider === row.provider) : []
       if (items.length !== 1 || !['refreshed', 'failed', 'skipped'].includes(items[0].status || '')) {
-        throw new Error(t('网关未返回逐家模型目录刷新结果'))
+        throw new Error(t('The gateway returned no per-provider model catalog refresh results'))
       }
       const item = items[0]
       setResults(prev => mergeResults(prev, [item]))
@@ -509,7 +509,7 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
       setFetched(true)
       setStatus('ready')
       setHint(message)
-      toast(t('获取失败：{message}', { message }), 'err')
+      toast(t('Fetch failed: {message}', { message }), 'err')
     } finally {
       setBusyKind(null)
       setBusyRow('')
@@ -540,14 +540,14 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
     setHint('')
     try {
       const added = Number(await shared().wbModelsCustom?.addModels?.(providerId, values)) || 0
-      toast(t('✅ 已导入 {added} 个模型（{skipped} 个已存在，跳过）',
+      toast(t('✅ Imported {added} models ({skipped} already existed and were skipped)',
         { added, skipped: values.length - added }))
       setBusyKind(null)
       onClose()
       onDone?.()
     } catch (error) {
       const message = errorMessage(error)
-      toast(t('导入失败：{message}', { message }), 'err')
+      toast(t('Import failed: {message}', { message }), 'err')
       setHint(message)
       setBusyKind(null)
     }
@@ -571,15 +571,15 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
     const { list, selected } = selectSource(pid, reported)
     if (!list.length) {
       const why = ACCOUNTLESS_REFRESH.has(pid)
-        ? t('这家的模型清单是全局的，不跟账号走')
-        : t('这家还没有可用账号，刷新会使用默认登录态')
+        ? t('This provider\'s model catalog is global and not tied to accounts')
+        : t('This provider has no usable accounts yet; the refresh will use the default login session')
       return <span className='text-[11.5px] text-muted-foreground' title={why}>—</span>
     }
     const current = list.find(account => String(account.id) === selected)
     return (
       <SearchableSelect value={selected} onValueChange={value => rememberSource(pid, value)}
-        className='w-full' title={t('用哪个账号去拉这家的模型清单')} aria-label={t('模型来源')}
-        searchPlaceholder={t('搜索账号…')} displayValue={current ? accountLabel(current) : '—'}
+        className='w-full' title={t('Which account to use to fetch this provider\'s model catalog')} aria-label={t('Model source')}
+        searchPlaceholder={t('Search accounts…')} displayValue={current ? accountLabel(current) : '—'}
         options={list.map(account => ({ value: String(account.id), label: accountLabel(account) }))} />
     )
   }
@@ -618,7 +618,7 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
       <DialogContent className={failed ? 'w-[min(640px,calc(100vw-48px))]'
         : custom ? 'w-[min(607px,calc(100vw-48px))]' : 'w-[min(1012px,calc(100vw-48px))]'}>
         <DialogHeader>
-          <DialogTitle>{t('获取模型 — {name}', { name })}</DialogTitle>
+          <DialogTitle>{t('Fetch models — {name}', { name })}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           {failed ? <ModelsFetchError message={errorText} /> : (
@@ -627,7 +627,7 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
                 <span className='text-[11.5px] text-muted-foreground'>{summary}</span>
                 {custom && (
                   <InputGroup className='w-[240px] flex-none'>
-                    <InputGroupInput type='search' placeholder={t('搜索模型 ID…')} autoComplete='off'
+                    <InputGroupInput type='search' placeholder={t('Search model ID…')} autoComplete='off'
                       value={keyword} onChange={event => setKeyword(event.currentTarget.value)} />
                     <InputGroupAddon aria-hidden='true'>⌕</InputGroupAddon>
                   </InputGroup>
@@ -635,13 +635,13 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
                 <div className='mr-auto' />
                 {custom && (
                   <>
-                    <Button variant='ghost' size='sm' onClick={selectAllUnadded}>{t('全选未添加')}</Button>
-                    <Button variant='ghost' size='sm' onClick={() => setPicked(new Set())}>{t('清空')}</Button>
+                    <Button variant='ghost' size='sm' onClick={selectAllUnadded}>{t('Select all not added')}</Button>
+                    <Button variant='ghost' size='sm' onClick={() => setPicked(new Set())}>{t('Clear')}</Button>
                   </>
                 )}
-                <Button variant='outline' size='sm' title={t('刷新全部家（逐家打上游）')} disabled={busy}
+                <Button variant='outline' size='sm' title={t('Refresh every provider (each hits upstream once)')} disabled={busy}
                   onClick={() => { void load() }}>
-                  {busyKind === 'load' ? t('获取中…') : fetched ? t('重新获取') : t('获取模型')}
+                  {busyKind === 'load' ? t('Fetching…') : fetched ? t('Fetch again') : t('Fetch models')}
                 </Button>
               </div>
               <ModelsFetchTable custom={custom} status={status} rows={rows}
@@ -658,14 +658,14 @@ function ModelsFetchModal({ options, onClose }: { options: OpenOptions; onClose:
           )}
           <div className='mr-auto' />
           <Button variant='outline' onClick={handleCloseClick} disabled={busy}>
-            {failed ? t('关闭') : custom ? t('取消') : t('完成')}
+            {failed ? t('Close') : custom ? t('Cancel') : t('Done')}
           </Button>
           {failed ? (
-            <Button variant='default' disabled={busy} onClick={() => { void load() }}>{t('重试')}</Button>
+            <Button variant='default' disabled={busy} onClick={() => { void load() }}>{t('Retry')}</Button>
           ) : custom && (
             <Button variant='default' disabled={!picked.size || busy} onClick={() => { void importPicked() }}>
-              {busyKind === 'import' ? t('导入中…')
-                : picked.size ? t('导入选中的 {n} 个模型', { n: picked.size }) : t('导入')}
+              {busyKind === 'import' ? t('Importing…')
+                : picked.size ? t('Import {n} selected models', { n: picked.size }) : t('Import')}
             </Button>
           )}
         </DialogFooter>

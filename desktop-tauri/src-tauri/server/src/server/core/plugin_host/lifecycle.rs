@@ -250,7 +250,7 @@ impl Host {
                         proto::FrameKind::Unknown => {}
                     }
                 }
-                Ok(None) => break "插件通信通道已关闭（stdout EOF）".to_string(),
+                Ok(None) => break "插件通信通道已关闭（stdout EOF)".to_string(),
                 Err(error) => break process::redact(&format!("读取插件通信帧失败：{error}")),
             }
         };
@@ -319,7 +319,7 @@ impl Host {
     fn record_exit(&self, run: &ProcessRun, reason: &str, report: &ExitReport) {
         let failure = run.failure();
         if failure.is_none() && run.is_expected_exit() { return; }
-        let message = format!("{}；{}", failure.as_deref().unwrap_or(reason), report.description());
+        let message = format!("{}; {}", failure.as_deref().unwrap_or(reason), report.description());
         {
             let _state = self.lifecycle.lock().unwrap_or_else(|error| error.into_inner());
             if self.is_current_run(run) && run.failed.load(Ordering::Acquire) {

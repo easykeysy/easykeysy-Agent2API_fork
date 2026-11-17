@@ -138,7 +138,7 @@ fn run_foreground(launch: Launch) -> ExitCode {
     {
         Ok(runtime) => runtime,
         Err(error) => {
-            eprintln!("❌ 创建 Tokio 运行时失败: {error}");
+            eprintln!("❌ Create Tokio 运行时失败: {error}");
             return ExitCode::FAILURE;
         }
     };
@@ -171,7 +171,7 @@ fn start_gateway(launch: &Launch) -> Result<Running, String> {
         logging::log(
             "[Server]",
             &format!(
-                "面板分端口已启用：管理面（界面 + /api/*）监听 :{p}，主端口只保留 /v1/* 网关 —— 公网部署建议防火墙/compose 只映射主端口"
+                "面板分端口已启用：管理面（界面 + /api/*）监听 :{p}，主端口只保留 /v1/* Gateway —— 公网部署建议防火墙/compose 只映射主端口"
             ),
         );
     }
@@ -300,7 +300,7 @@ fn run_as_windows_service(launch: Launch) -> ExitCode {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .map_err(|error| format!("创建 Tokio 运行时失败: {error}"))?;
+            .map_err(|error| format!("Create Tokio 运行时失败: {error}"))?;
         runtime.block_on(async move {
             tokio::select! {
                 _ = stop.into_async().wait() => {}
@@ -336,7 +336,7 @@ fn parse_launch() -> Result<Launch, String> {
         Ok(value) if !value.trim().is_empty() => value
             .trim()
             .parse()
-            .map_err(|_| format!("AGENT2API_HOST 不是合法的 IP 地址: {value}"))?,
+            .map_err(|_| format!("AGENT2API_HOST 不是合法的 IP Address: {value}"))?,
         // headless 形态默认 0.0.0.0：它的宿主通常是容器 / 服务器，
         // 绑回环会让端口映射与外部访问全部失效。对外暴露的安全由
         // 「未配 Key 拒绝启动」闸门 + API Key 认证兜底。

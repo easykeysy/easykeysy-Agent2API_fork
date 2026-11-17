@@ -47,9 +47,9 @@ fn check_path(raw: &str, importing: bool) -> Result<std::path::PathBuf, Response
         return Err(errors::management_error(
             400,
             if importing {
-                "请选择 .a2ab 加密备份或旧 .sql 备份"
+                "Select an option .a2ab 加密备份或旧 .sql 备份"
             } else {
-                "完整备份必须保存为 .a2ab 文件"
+                "完整备份必须保存为 .a2ab Document"
             },
         ));
     }
@@ -80,7 +80,7 @@ pub async fn export_backup(State(state): State<ServerState>, body: Bytes) -> Res
         backup::export_to_file(&db, &target, options.include_logs, &password)
     })
     .await;
-    task_response(result, "导出")
+    task_response(result, "Export")
 }
 
 pub async fn import_backup(State(state): State<ServerState>, body: Bytes) -> Response {
@@ -109,7 +109,7 @@ pub async fn import_backup(State(state): State<ServerState>, body: Bytes) -> Res
         backup::import_from_file(&db, &source, &state.config_dir, &password)
     })
     .await;
-    task_response(result, "恢复")
+    task_response(result, "Restore")
 }
 
 pub async fn restore_progress() -> Response {
@@ -243,7 +243,7 @@ pub async fn upload_backup(
         backup::import_from_file(&db, file.path(), &state.config_dir, &password)
     })
     .await;
-    task_response(result, "恢复")
+    task_response(result, "Restore")
 }
 
 async fn write_multipart(

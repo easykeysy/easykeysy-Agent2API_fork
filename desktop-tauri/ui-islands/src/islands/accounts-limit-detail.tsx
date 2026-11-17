@@ -64,14 +64,14 @@ export type LimitRow = {
  */
 function waitText(remainingMs: number): string {
   const minutes = Math.round(remainingMs / 60000)
-  if (minutes < 1) return t('不到 1 分钟')
-  if (minutes < 60) return t('还有 {n} 分钟', { n: minutes })
+  if (minutes < 1) return t('under a minute')
+  if (minutes < 60) return t('{n} min left', { n: minutes })
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   if (hours < 24) {
-    return rest ? t('还有 {h} 小时 {m} 分', { h: hours, m: rest }) : t('还有 {h} 小时', { h: hours })
+    return rest ? t('{h}h {m}m left', { h: hours, m: rest }) : t('{h}h left', { h: hours })
   }
-  return t('还有 {d} 天', { d: Math.floor(hours / 24) })
+  return t('{d}d left', { d: Math.floor(hours / 24) })
 }
 
 /**
@@ -87,13 +87,13 @@ export function limitRowsOf(account: AccountRecord | null | undefined): LimitRow
     const started = Number(entry.at)
     const reset = formatResetText(entry.resetAt)
     const unknown = reset === RESET_UNKNOWN
-    const reason = entry.message || (entry.status ? t('上游返回 {status}', { status: entry.status }) : '')
+    const reason = entry.message || (entry.status ? t('Upstream returned {status}', { status: entry.status }) : '')
     const span = resetAt - started
     const progress = started > 0 && Number.isFinite(span) && span > 0
       ? Math.max(0, Math.min(100, ((now - started) / span) * 100))
       : null
-    const wait = unknown ? t('恢复时间未知') : waitText(resetAt - now)
-    const resetLine = unknown ? '' : t('{time} 恢复', { time: reset })
+    const wait = unknown ? t('Reset time unknown') : waitText(resetAt - now)
+    const resetLine = unknown ? '' : t('Resets {time}', { time: reset })
     return {
       model: entry.model,
       wait,
@@ -105,7 +105,7 @@ export function limitRowsOf(account: AccountRecord | null | undefined): LimitRow
         wait,
         resetLine,
         reason,
-        t('到恢复时间后自动解除，无需手动操作'),
+        t('Clears automatically at the reset time; no manual action needed'),
       ].filter(Boolean).join(' · '),
       progress,
     }
@@ -142,16 +142,16 @@ export function LimitDetailButton({ accountName, rows, count, cooldown, soonest,
   }, [])
   const initialFocus = React.useCallback(() => boxRef.current ?? null, [])
 
-  const earliest = soonest === RESET_UNKNOWN ? t('待定') : soonest
+  const earliest = soonest === RESET_UNKNOWN ? t('TBD') : soonest
 
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={<Button size='default' variant='ghost' type='button' className='usage-toggle warn'
-            title={cooldown ? t('点击查看账号冷却与模型限流明细') : t('点击查看各模型的限流明细')} aria-label={t('限流明细')} />}
+            title={cooldown ? t('Click to view account cooldown and model rate-limit details') : t('Click to view per-model rate-limit details')} aria-label={t('Rate-limit details')} />}
         >
-          <span className='val'>{cooldown ? t('账号冷却') : t('{n} 个模型', { n: count })}</span>
+          <span className='val'>{cooldown ? t('Account cooldown') : t('{n} models', { n: count })}</span>
           <span className='caret' aria-hidden>▾</span>
         </PopoverTrigger>
         {/* `align='center'`：与「积分明细」同一处置（理由见 accounts-credit-detail
@@ -160,16 +160,16 @@ export function LimitDetailButton({ accountName, rows, count, cooldown, soonest,
 
           <div className='usage-pop-limit' ref={attachBox} tabIndex={-1}>
             {accountName ? <div className='usage-pop-sub'>{accountName}</div> : null}
-            <div className='usage-pop-group'>{t('限流明细')}</div>
+            <div className='usage-pop-group'>{t('Rate-limit details')}</div>
             {cooldown ? (
               <div className='usage-pop-row'>
                 <div className='usage-pop-line'>
-                  <span className='usage-pop-name'>{t('账号冷却')}</span>
+                  <span className='usage-pop-name'>{t('Account cooldown')}</span>
                   <span className='usage-pop-view warn'>{waitText(cooldown.resetAt - Date.now())}</span>
                 </div>
                 <div className='lp-pop-subline'>
                   <span className='lp-pop-reason'>
-                    {t('{time} 恢复', { time: soonest })}{cooldown.message ? ` · ${cooldown.message}` : ''}
+                    {t('Resets {time}', { time: soonest })}{cooldown.message ? ` · ${cooldown.message}` : ''}
                   </span>
                 </div>
               </div>
@@ -185,27 +185,27 @@ export function LimitDetailButton({ accountName, rows, count, cooldown, soonest,
                     {row.reset ? `${row.reset} · ` : ''}{row.reason}
                   </span>
                   <Button variant='ghost' size='xs'
-                    title={t('清掉本机的限流标记，立刻重新尝试该模型（上游若仍在限流会再次被标记）')}
-                    onClick={() => onClear(row.model)}>{t('清除')}</Button>
+                    title={t('Clear the local rate-limit flag and retry this model immediately (it will be flagged again if the upstream is still rate-limiting)')}
+                    onClick={() => onClear(row.model)}>{t('Clear')}</Button>
                 </div>
                 {row.progress !== null ? (
                   <Meter value={row.progress} variant='muted' className='mt-1.5' trackClassName='h-[3px]'
-                    aria-label={t('冷却进度 {percent}%', { percent: Math.round(row.progress) })} />
+                    aria-label={t('Cooldown progress {percent}%', { percent: Math.round(row.progress) })} />
                 ) : null}
               </div>
             ))}
             <div className='lp-pop-foot'>
               <span className='lp-pop-note'>{cooldown
-                ? t('账号全部模型暂时停止转发 · 到恢复时间自动解除')
-                : t('{n} 个模型限流中 · 到恢复时间自动解除', { n: count })}</span>
-              <Button variant='outline' size='xs' title={t('清除该账号的冷却与全部模型限流标记')}
-                onClick={() => onClear('')}>{t('全部清除')}</Button>
+                ? t('All models on this account are paused · Resumes automatically at the recovery time')
+                : t('{n} models rate-limited · clears automatically at the reset time', { n: count })}</span>
+              <Button variant='outline' size='xs' title={t('Clear this account\'s cooldown and all model rate-limit flags')}
+                onClick={() => onClear('')}>{t('Clear all')}</Button>
             </div>
           </div>
         </PopoverContent>
       </Popover>
-      <span className='lim-sub' title={cooldown ? t('账号冷却') : t('最早恢复')}>
-        {cooldown ? t('{time} 恢复', { time: earliest }) : t('最早 {soonest} 恢复', { soonest: earliest })}
+      <span className='lim-sub' title={cooldown ? t('Account cooldown') : t('Earliest reset')}>
+        {cooldown ? t('Resets {time}', { time: earliest }) : t('Earliest reset {soonest}', { soonest: earliest })}
       </span>
     </>
   )

@@ -6,15 +6,15 @@ export const DEFAULT_BRANDING: Branding = Object.freeze({ displayName: 'Agent2AP
 export const MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 export function normalizeBranding(value: unknown, base: string): Branding {
-  if (!value || typeof value !== 'object') throw new Error('品牌设置格式无效')
+  if (!value || typeof value !== 'object') throw new Error('The brand settings are malformed')
   const data = value as Partial<Branding>
   if (typeof data.displayName !== 'string' || !data.displayName.trim() || Array.from(data.displayName).length > 64) {
-    throw new Error('品牌设置格式无效')
+    throw new Error('The brand settings are malformed')
   }
   let logoUrl: string | null = null
   if (data.logoUrl !== null && data.logoUrl !== undefined) {
     if (typeof data.logoUrl !== 'string' || !/^\/api\/panel\/branding\/logo\?v=[a-f0-9]{64}$/.test(data.logoUrl)) {
-      throw new Error('品牌 Logo 地址无效')
+      throw new Error('Brand logo 地址无效')
     }
     logoUrl = new URL(data.logoUrl, base).href
   }

@@ -99,7 +99,7 @@ export function RoutingPage() {
       editor.syncSorting(next.sorting)
       adoptAccountSorting(next.sorting)
     } catch (failure) {
-      if (id === sortSequence.current) setSortingError(t('消耗规则已保存，但路由列表刷新失败：{error}', { error: errorMessage(failure) }))
+      if (id === sortSequence.current) setSortingError(t('Consumption rules were saved, but the routing list could not be refreshed: {error}', { error: errorMessage(failure) }))
     } finally {
       if (id === sortSequence.current) { setSortingSyncBusy(false); refreshRouting() }
     }
@@ -153,7 +153,7 @@ export function RoutingPage() {
     replay.refresh()
     if (groups.selected) { await groups.reload(); return }
     if (editor.draft && draftDirty(editor.draft)
-      && !await confirmDialog(t('重新读取会丢弃当前范围的未保存草稿，其他范围的草稿保留。'), { title: t('重新读取配置'), confirmText: t('重新读取') })) return
+      && !await confirmDialog(t('Reloading discards the unsaved draft for this scope. Drafts in other scopes are kept.'), { title: t('Reload configuration'), confirmText: t('Reload') })) return
     void editor.load(editor.scope, true)
   }
   React.useEffect(() => {
@@ -181,33 +181,33 @@ export function RoutingPage() {
 
   return <>
     <div className='routing-page-bar'>
-      <SegmentedControl aria-label={t('路由模式')} value={mode} onValueChange={setMode} options={[
-        { value: 'config', label: <><RouteIcon name='route' />{t('路由配置')}{dirtyCount ? <Badge variant='warning' shape='tag'>{dirtyCount}</Badge> : null}</> },
-        { value: 'replay', label: <><RouteIcon name='requests' />{t('请求回放')}</> },
+      <SegmentedControl aria-label={t('Routing mode')} value={mode} onValueChange={setMode} options={[
+        { value: 'config', label: <><RouteIcon name='route' />{t('Routing configuration')}{dirtyCount ? <Badge variant='warning' shape='tag'>{dirtyCount}</Badge> : null}</> },
+        { value: 'replay', label: <><RouteIcon name='requests' />{t('Request replay')}</> },
       ]} />
       <span className='routing-page-policy'>{mode === 'config'
-        ? specialKey ? t('特殊请求路由 · 只改写模型，不改选账号规则')
-          : workspace ? `${groups.draft && strategy === 'provider' ? t('成员内轮询') : strategyLabel(strategy)} · ${t('粘滞 {mode}', { mode: stickyLabel(sticky) })}` : ''
-        : t('历史只读，不影响当前配置')}</span>
+        ? specialKey ? t('Special request routing · rewrites the model only, account rules stay unchanged')
+          : workspace ? `${groups.draft && strategy === 'provider' ? t('Rotate within members') : strategyLabel(strategy)} · ${t('Affinity {mode}', { mode: stickyLabel(sticky) })}` : ''
+        : t('Read-only history; current settings are unchanged')}</span>
       <div className='routing-page-actions'>
-        {mode === 'replay' ? <Button variant='ghost' size='sm' onClick={() => host().wbApp?.showPage('requests')}><RouteIcon name='requests' />{t('请求日志')}</Button> : null}
-        <Button variant='ghost' size='sm' onClick={() => setModal({ kind: 'sticky' })}><RouteIcon name='lock' />{t('会话粘滞')}</Button>
+        {mode === 'replay' ? <Button variant='ghost' size='sm' onClick={() => host().wbApp?.showPage('requests')}><RouteIcon name='requests' />{t('Request logs')}</Button> : null}
+        <Button variant='ghost' size='sm' onClick={() => setModal({ kind: 'sticky' })}><RouteIcon name='lock' />{t('Session bindings')}</Button>
         {mode === 'replay'
-          ? <Button variant='ghost' size='sm' disabled={replay.loading} onClick={() => void refreshReplay()}><RouteIcon name='refresh' />{t('刷新')}</Button>
-          : <Button variant='ghost' size='sm' disabled={editor.loading || pageEditor.busy || groups.loading || groups.busy} onClick={() => void reloadConfig()}><RouteIcon name='refresh' />{t('重新读取')}</Button>}
+          ? <Button variant='ghost' size='sm' disabled={replay.loading} onClick={() => void refreshReplay()}><RouteIcon name='refresh' />{t('Refresh')}</Button>
+          : <Button variant='ghost' size='sm' disabled={editor.loading || pageEditor.busy || groups.loading || groups.busy} onClick={() => void reloadConfig()}><RouteIcon name='refresh' />{t('Reload')}</Button>}
       </div>
     </div>
 
     {replay.error && mode === 'replay' ? <div className='routing-page-error' role='alert'>
-      <RouteIcon name='info' /><span>{replay.error}</span><Button variant='ghost' size='sm' onClick={replay.refresh}>{t('重试')}</Button>
+      <RouteIcon name='info' /><span>{replay.error}</span><Button variant='ghost' size='sm' onClick={replay.refresh}>{t('Retry')}</Button>
     </div> : null}
 
     {mode === 'config' ? <div className='routing-config-view'>
       {editor.error && !editor.draft ? <div className='routing-page-error' role='alert'>
-        <RouteIcon name='info' /><span>{editor.error}</span><Button variant='ghost' size='sm' onClick={() => void editor.load(editor.scope, true)}>{t('重新读取')}</Button>
+        <RouteIcon name='info' /><span>{editor.error}</span><Button variant='ghost' size='sm' onClick={() => void editor.load(editor.scope, true)}>{t('Reload')}</Button>
       </div> : null}
       {sortingError ? <div className='routing-page-error' role='alert'><RouteIcon name='info' /><span>{sortingError}</span>
-        <Button variant='ghost' size='sm' disabled={sortingSyncBusy} onClick={() => void reloadSorting()}>{t('重试')}</Button></div> : null}
+        <Button variant='ghost' size='sm' disabled={sortingSyncBusy} onClick={() => void reloadSorting()}>{t('Retry')}</Button></div> : null}
       {/* 特殊请求路由只有一份规则列表，用平底画布；账号路由那边保留点阵画布 */}
       <RoutingConfigShell plain={Boolean(specialKey)}>
         {rail}
@@ -234,7 +234,7 @@ export function RoutingPage() {
       <section className='routing-replay-main'>
         {selected ? <RoutingExecTimeline key={requestKey(selected)} row={selected} now={replay.now}
           onDetail={row => host().wbRequestDetail?.open(row.id, row)} onConfig={openConfig} />
-          : <Empty>{replay.loading ? <Spinner /> : t('选择左侧请求查看选路过程')}</Empty>}
+          : <Empty>{replay.loading ? <Spinner /> : t('Select a request on the left to view its routing.')}</Empty>}
       </section>
     </div>}
 
@@ -248,9 +248,9 @@ export function RoutingPage() {
     {modal?.kind === 'sort' ? <GroupSettingsDialog key={modal.id} provider={modal.id} onClose={close}
       accounts={workspace?.accounts} sorting={sorting}
       routeContext={groups.selected || editor.scope && editor.draft?.mode !== 'inherit'
-        ? <p className='routing-config-note'>{t('这里调整的是账号组的全局消耗规则；当前独立路由的账号顺序保持不变。')}</p> : undefined} /> : null}
+        ? <p className='routing-config-note'>{t('These are the account group\'s global consumption rules. The current independent route\'s account order stays unchanged.')}</p> : undefined} /> : null}
     {modal?.kind === 'account' ? <AccountSettingsDialog key={modal.id} id={modal.id} initialAccount={replay.workspace?.accounts.find(account => account.id === modal.id) || workspace?.accounts.find(account => account.id === modal.id)} onClose={close}
-      routeContext={<p className='routing-config-note'>{t('账号设置与所有路由共用，不改变当前路由的参与名单。')}</p>} /> : null}
+      routeContext={<p className='routing-config-note'>{t('Account settings apply across all routes without changing this route\'s participation list.')}</p>} /> : null}
   </>
 }
 

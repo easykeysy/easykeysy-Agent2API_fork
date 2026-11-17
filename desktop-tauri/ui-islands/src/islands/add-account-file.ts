@@ -13,7 +13,7 @@ export function accountFilePayload(
   name: string,
 ): Record<string, unknown> {
   if (record.provider !== provider) {
-    throw new Error(t('账号文件的提供商与当前选择不一致，请选择对应的提供商后再导入'))
+    throw new Error(t('The account file belongs to a different provider. Select the matching provider before importing it.'))
   }
   const payload: Record<string, unknown> = { ...record, provider }
   if (name) payload.name = name

@@ -51,7 +51,7 @@ pub fn change(paths: &ResourcePaths, id: &str, content: &str, delete: bool) -> R
         change.after = None;
     } else {
         if content.len() > 1024 * 1024 { return Err("Skill 内容超过 1 MB".into()); }
-        if frontmatter(content, "name").is_none() || frontmatter(content, "description").is_none() { return Err("SKILL.md 需要 name 与 description 的 YAML frontmatter".into()); }
+        if frontmatter(content, "name").is_none() || frontmatter(content, "description").is_none() { return Err("SKILL.md Needed name and description — see the YAML frontmatter".into()); }
         change.after = Some(content.as_bytes().to_vec());
     }
     Ok(change)

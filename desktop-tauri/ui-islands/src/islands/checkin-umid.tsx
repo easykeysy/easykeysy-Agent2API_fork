@@ -16,10 +16,10 @@ export function CheckinUmid(): React.ReactElement | null {
     const id = ++request.current
     try {
       const getStatus = bridgeApi().getQoderUmid
-      if (!getStatus) throw new Error(t('UMID 组件管理接口不可用，请刷新页面或更新网关。'))
+      if (!getStatus) throw new Error(t('The UMID component management API is unavailable. Refresh the page or update the gateway.'))
       const next = await getStatus()
       if (!next || typeof next.available !== 'boolean') {
-        throw new Error(t('后端未返回 UMID 组件状态'))
+        throw new Error(t('The backend did not return the UMID component status'))
       }
       if (active.current && id === request.current) {
         setState(next)
@@ -53,20 +53,20 @@ export function CheckinUmid(): React.ReactElement | null {
     setInstallError('')
     try {
       const installComponent = bridgeApi().installQoderUmid
-      if (!installComponent) throw new Error(t('UMID 组件管理接口不可用，请刷新页面或更新网关。'))
+      if (!installComponent) throw new Error(t('The UMID component management API is unavailable. Refresh the page or update the gateway.'))
       const result = await installComponent()
-      if (!result) throw new Error(t('后端未返回 UMID 组件安装结果'))
+      if (!result) throw new Error(t('The backend did not return a UMID component installation result'))
       const next = await load()
       if (!active.current) return
       if (next?.available) {
-        toast(t('UMID 组件已安装，可重新签到。'))
+        toast(t('The UMID component is installed. You can check in again.'))
         await loadCenter()
       } else if (next && !next.installing) {
-        throw new Error(t('安装后仍未检测到 UMID 组件，请重新检查。'))
+        throw new Error(t('The UMID component is still not detected after installation. Check again.'))
       }
     } catch (error) {
       if (active.current) {
-        const message = t('UMID 组件安装失败：{error}', { error: errorMessage(error) })
+        const message = t('UMID component installation failed: {error}', { error: errorMessage(error) })
         setInstallError(message)
         toast(message, 'err')
       }
@@ -88,21 +88,21 @@ export function CheckinUmid(): React.ReactElement | null {
   return (
     <div className='flex flex-wrap items-center gap-2' aria-live='polite'>
       <span>{state
-        ? t('国际版签到需要 UMID 组件生成设备风控身份（本机未检测到）。')
-        : error ? t('网关设备组件') : t('正在读取 UMID 组件状态…')}</span>
+        ? t('International check-in requires the UMID component to generate a device risk-control identity (not detected on this machine).')
+        : error ? t('Gateway device component') : t('Loading the UMID component status…')}</span>
       {state?.installSupported ? (
         <Button variant='outline' size='sm' disabled={pending || !bridge.installQoderUmid}
           onClick={() => void install()}>
-          {pending ? <><Spinner className='size-3.5' />{t('安装中…')}</> : t('一键安装组件')}
+          {pending ? <><Spinner className='size-3.5' />{t('Installing…')}</> : t('Install component')}
         </Button>
-      ) : state ? <span>{t('安装 Qoder 客户端或 qodercli 后即可（无需重启网关）。')}</span> : null}
+      ) : state ? <span>{t('Install the Qoder client or qodercli to enable it (no need to restart the gateway).')}</span> : null}
       <Button variant='ghost' size='sm' onClick={() => { setInstallError(''); void load() }}>
-        {t('重新检查')}
+        {t('Check again')}
       </Button>
       {installError ? <span className='text-destructive'>{installError}</span>
-        : queryError ? <span className='text-destructive'>{t('查询失败：{error}', { error: queryError })}</span> : null}
+        : queryError ? <span className='text-destructive'>{t('Query failed: {error}', { error: queryError })}</span> : null}
       {unavailable ? <span>
-        {t('可使用管理员凭据调用：')} <code>POST /api/qoder-umid/install</code>
+        {t('You can call this API with administrator credentials:')} <code>POST /api/qoder-umid/install</code>
       </span> : null}
     </div>
   )

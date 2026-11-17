@@ -15,7 +15,7 @@ export function saveUpdateChannels(body: Partial<Pick<UpdateChannels, 'stable' |
 export async function getUpdateCheckPlan(signal?: AbortSignal): Promise<UpdateCheckPlan> {
   const payload = await apiCall<{ tasks?: Array<UpdateCheckPlan & { id: string }> }>('/api/scheduled-tasks', { signal })
   const task = payload.tasks?.find(task => task.id === 'updateCheck')
-  if (!task) throw new Error(t('软件版本检查设置不可用'))
+  if (!task) throw new Error(t('Software update check settings are unavailable.'))
   return task
 }
 

@@ -2,7 +2,7 @@ import { AGY_INSTRUCTIONS, isLocalProvider } from "./local-provider.mjs"
 import { applies } from "./login-prompts.mjs"
 
 const WPS_SITE = "https://lingxi.wps.cn/"
-const LOCAL_CLIENT_HINT = "读取的是网关电脑上已登录的客户端，不是打开面板的电脑；也可改用粘贴凭据。"
+const LOCAL_CLIENT_HINT = "Reads the signed-in client on the gateway machine, not the computer displaying the panel. You can also paste credentials instead."
 
 export function loginMethods(provider) {
   const original = provider.hooks.auth?.methods ?? []
@@ -12,21 +12,21 @@ export function loginMethods(provider) {
     for (const method of methods) {
       method.browserMode = method.prompts?.length ? "none" : /导入|客户端/.test(method.label) ? "none" : "plugin"
       if (method.browserMode === "plugin") {
-        method.label = "由插件打开浏览器登录"
-        method.instructions = "插件会在网关电脑上启动独立浏览器并读取登录结果，不使用系统默认浏览器。"
+        method.label = "Sign in using the plugin's browser"
+        method.instructions = "The plugin starts a separate browser on the gateway machine and reads the sign-in result. It does not use the system's default browser."
       } else if (!method.prompts?.length) method.localOnly = true
     }
     if (paste && typeof paste.authorize === "function") {
       methods.unshift({
-        methodIndex: original.length, type: "oauth", label: "内嵌窗口登录", embeddedOnly: true,
+        methodIndex: original.length, type: "oauth", label: "Sign in in the embedded window", embeddedOnly: true,
         desktopOnly: true, cookieCapture: "wps-lingxi", browserMode: "choice",
-        instructions: "在应用内嵌窗口完成 WPS 登录，登录凭据仅交给原插件校验并保存到当前网关。",
+        instructions: "Sign in to WPS in the app's embedded window. Credentials are passed only to the original plugin for verification and saved to this gateway.",
         async authorize(_inputs, options) {
           return { url: WPS_SITE, method: "code", instructions: this.instructions,
             async callback(cookie) {
               const authorization = await paste.authorize({ cookie }, options)
               if (authorization?.type === "failed") return authorization
-              if (typeof authorization?.callback !== "function") throw new Error("WPS 插件未返回凭据校验流程")
+              if (typeof authorization?.callback !== "function") throw new Error("WPS The plugin did not return a credential verification flow")
               return authorization.callback(undefined, options)
             },
           }
@@ -46,12 +46,12 @@ export function loginMethods(provider) {
   }
   for (const method of methods) {
     if (isLocalProvider(provider) && method.type === "oauth") {
-      method.label = "Google 授权（ACP）"
+      method.label = "Google sign-in (ACP)"
       method.browserMode = "external"
       method.instructions = AGY_INSTRUCTIONS
     }
     if (provider.id === "deepaicode" && method.type === "oauth") {
-      method.instructions = "浏览器显示登录完成后，网关还需联网获取账号凭据。若浏览器或 Magpie 使用系统代理，请先在下方点击「填入系统代理」；选择直连不会跟随系统代理。"
+      method.instructions = "After the browser shows sign-in complete, the gateway still needs to retrieve account credentials online. If your browser or Magpie uses a system proxy, click “Fill from system proxy” below first. Direct connections do not use the system proxy."
     }
     if (method.type === "api" && (method.keyless || provider.id === "deepaicode" && method.prompts?.some(prompt => prompt.key === "dir"))) {
       method.instructions = LOCAL_CLIENT_HINT
@@ -138,10 +138,10 @@ export function checkedCallback(targets, raw) {
   const url = new URL(raw)
   const target = targets.find(target => url.protocol === "http:" && loopback(url.hostname)
     && url.port === target.port && url.pathname === target.pathname && !url.username && !url.password)
-  if (!target) throw new Error("回调地址不属于本次登录的本机接收端")
+  if (!target) throw new Error("The callback address does not belong to this login's local receiver")
   for (const [key, value] of target.searchParams) {
     if (key === "state" && !url.searchParams.has(key)) continue
-    if (url.searchParams.get(key) !== value) throw new Error("回调地址与当前登录任务不匹配")
+    if (url.searchParams.get(key) !== value) throw new Error("The callback address does not match the current login task")
   }
   url.hostname = target.hostname
   return url.href

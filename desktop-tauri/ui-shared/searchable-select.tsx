@@ -31,7 +31,7 @@ type SearchableSelectProps = {
 
 export function SearchableSelect({
   value, onValueChange, options, placeholder = '', displayValue,
-  searchPlaceholder = t('搜索…'), emptyHint = t('没有匹配的选项'),
+  searchPlaceholder = t('Search…'), emptyHint = t('No matching options'),
   disabled, className, id, title, searchable = true, ...props
 }: SearchableSelectProps) {
   const [search, setSearch] = React.useState('')

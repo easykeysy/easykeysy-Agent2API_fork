@@ -92,7 +92,7 @@ pub(crate) fn save_settings(input: settings::SaveInput) -> Result<Value, String>
         &format!(
             "云同步设置已保存：{}，远端 {}{}",
             if saved.provider == settings::PROVIDER_S3 {
-                "S3 兼容存储"
+                "S3-compatible storage"
             } else {
                 "WebDAV"
             },
@@ -256,7 +256,7 @@ pub(crate) async fn upload_locked(
         key_fingerprint.clone(),
     );
     let manifest_bytes = serde_json::to_vec_pretty(&manifest)
-        .map_err(|error| format!("序列化 manifest 失败: {error}"))?;
+        .map_err(|error| format!("序列化 manifest failed: {error}"))?;
 
     let transport = Transport::from_settings(settings)?;
     settings::update_status_for(settings, |status| {
@@ -334,7 +334,7 @@ pub(crate) async fn download_locked(
 ) -> Result<Value, String> {
     let transport = Transport::from_settings(settings)?;
     let Some((_, manifest)) = transport.get_manifest().await? else {
-        return Err("远端还没有可下载的同步数据".to_string());
+        return Err("No sync data available to download on the remote".to_string());
     };
     manifest::validate_compat(&manifest)?;
 
@@ -352,7 +352,7 @@ pub(crate) async fn download_locked(
         .get_artifact(REMOTE_SNAPSHOT, &manifest.artifacts)
         .await?;
     let snapshot: snapshot::Snapshot = serde_json::from_slice(&snapshot_bytes)
-        .map_err(|error| format!("远端 snapshot.json 解析失败: {error}"))?;
+        .map_err(|error| format!("远端 snapshot.json Resolve failed: {error}"))?;
 
     // 安全备份：用**当前**数据构建一份快照写到 backups/
     let safety = {
@@ -387,7 +387,7 @@ pub(crate) async fn download_locked(
         "[CloudSync]",
         &format!(
             "☁️ 云同步下载完成：来自 {}（{}），替换前数据已备份到 backups/{}",
-            if device.is_empty() { "未知设备" } else { &device },
+            if device.is_empty() { "Unknown device" } else { &device },
             if created_at.is_empty() { "未知时间" } else { &created_at },
             safety
         ),
@@ -422,7 +422,7 @@ pub(crate) async fn import_key(password: &str) -> Result<Value, String> {
     settings.validate_remote()?;
     let transport = Transport::from_settings(&settings)?;
     let Some((_, manifest)) = transport.get_manifest().await? else {
-        return Err("远端还没有可下载的同步数据".to_string());
+        return Err("No sync data available to download on the remote".to_string());
     };
     if !manifest.artifacts.contains_key(REMOTE_KEY_FILE) {
         return Err("远端这份快照没有携带账号密钥（上传时本机还没有保存过账号）".to_string());
@@ -441,7 +441,7 @@ pub(crate) async fn import_key(password: &str) -> Result<Value, String> {
     logging::log(
         "[CloudSync]",
         &format!(
-            "🔑 已从云同步导入账号密钥（指纹 {fingerprint}{}）",
+            "🔑 已从云同步导入账号密钥（指纹 {fingerprint}{})",
             backup
                 .as_ref()
                 .map(|name| format!("，原密钥已备份为 {name}"))
@@ -467,7 +467,7 @@ pub(crate) fn record_failure(error: &str, source: &str) {
     logging::log_with_level(
         "[CloudSync]",
         &format!(
-            "⚠️ 云同步{}失败：{error}",
+            "⚠️ Cloud sync{}Failed: {error}",
             if source == "auto" { "（自动）" } else { "" }
         ),
         "warn",

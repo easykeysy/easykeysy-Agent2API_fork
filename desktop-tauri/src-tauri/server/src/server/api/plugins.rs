@@ -146,7 +146,7 @@ pub async fn install(body: Bytes) -> Response {
     };
     match plugin_host::operations::install_prepared(prepared).await {
         Ok(result) => ok_json(result),
-        Err(error) => management_error(400, format!("安装失败：{error}")),
+        Err(error) => management_error(400, format!("Installation failed: {error}")),
     }
 }
 
@@ -270,7 +270,7 @@ pub async fn release() -> Response {
 
 fn pack_size_error() -> String {
     format!(
-        "插件包必须为非空且不超过 {} MiB 的 zip",
+        "插件包必须为非空且不超过 {} MiB — see the zip",
         MAX_PACK_BYTES / (1024 * 1024)
     )
 }
@@ -317,7 +317,7 @@ fn pack_bytes(body: &[u8]) -> Result<Vec<u8>, String> {
     }
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(encoded)
-        .map_err(|error| format!("插件包内容不是合法 base64：{error}"))?;
+        .map_err(|error| format!("插件包内容不是合法 base64: {error}"))?;
     if bytes.is_empty() || bytes.len() > MAX_PACK_BYTES {
         return Err(pack_size_error());
     }

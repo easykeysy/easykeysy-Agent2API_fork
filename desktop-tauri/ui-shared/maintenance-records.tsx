@@ -51,40 +51,40 @@ export function MaintenanceRecords({ compact, loading, busy, runs, total, page, 
   onRetry(runId: string, itemId?: string): void
   onAccount?(accountId: string): void
 }) {
-  const resultOptions = [{ value: '', label: t('全部结果') }, { value: 'failed', label: t('有失败项') }, { value: 'success', label: t('无失败项') }]
-  const sourceOptions = [{ value: '', label: t('全部触发方式') }, { value: 'automatic', label: t('自动触发') }, { value: 'manual', label: t('手动触发') }]
+  const resultOptions = [{ value: '', label: t('All outcomes') }, { value: 'failed', label: t('Has failures') }, { value: 'success', label: t('No failures') }]
+  const sourceOptions = [{ value: '', label: t('All triggers') }, { value: 'automatic', label: t('Automatic') }, { value: 'manual', label: t('Manual') }]
   const filtered = Boolean(query.taskId || query.source || query.status || query.keyword)
 
   return <Card className='maintenance-records'>
     <div className='maintenance-toolbar'>
-      <span className='maintenance-toolbar-title'>{t('执行记录')}</span>
-      <span className='maintenance-toolbar-sub'>{t('自动和手动维护，统一在这里查看')}</span>
+      <span className='maintenance-toolbar-title'>{t('Execution records')}</span>
+      <span className='maintenance-toolbar-sub'>{t('Automatic and manual maintenance in one place')}</span>
       <SegmentedControl
         value={query.taskId}
-        aria-label={t('维护类型')}
+        aria-label={t('Maintenance type')}
         onValueChange={value => onQuery({ taskId: value as MaintenanceTaskId | '' })}
         options={[
-          { value: '', label: t('全部') },
-          { value: 'credentialMaintenance', label: t('凭证维护') },
-          { value: 'modelRefresh', label: t('模型目录更新') },
+          { value: '', label: t('All') },
+          { value: 'credentialMaintenance', label: t('Credential maintenance') },
+          { value: 'modelRefresh', label: t('Model catalog update') },
         ]}
       />
       <Select value={query.status} onValueChange={value => onQuery({ status: (value ?? '') as MaintenanceQuery['status'] })}>
-        <SelectTrigger aria-label={t('执行结果')} className='min-w-[124px]'>
+        <SelectTrigger aria-label={t('Operation result')} className='min-w-[124px]'>
           <SelectValue>{resultOptions.find(option => option.value === query.status)?.label}</SelectValue>
         </SelectTrigger>
         <SelectContent>{resultOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={query.source} onValueChange={value => onQuery({ source: (value ?? '') as MaintenanceQuery['source'] })}>
-        <SelectTrigger aria-label={t('触发方式')} className='min-w-[132px]'>
+        <SelectTrigger aria-label={t('Trigger')} className='min-w-[132px]'>
           <SelectValue>{sourceOptions.find(option => option.value === query.source)?.label}</SelectValue>
         </SelectTrigger>
         <SelectContent>{sourceOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>
       <Input
         value={search}
-        aria-label={t('搜索账号或提供商')}
-        placeholder={t('搜索账号或提供商')}
+        aria-label={t('Search accounts or providers')}
+        placeholder={t('Search accounts or providers')}
         className='maintenance-push maintenance-search'
         onChange={event => onSearch(event.target.value)}
       />
@@ -99,26 +99,26 @@ export function MaintenanceRecords({ compact, loading, busy, runs, total, page, 
           </div>
           <p className='maintenance-muted'>{stamp(run.startedAt)} · {sourceLabel(run.source)} · {duration(run.durationMs)}</p>
           <RunCounts run={run} />
-          <Button size='sm' variant='link' className='hover:no-underline' onClick={() => onToggle(run.id)}>{t('查看明细')}</Button>
+          <Button size='sm' variant='link' className='hover:no-underline' onClick={() => onToggle(run.id)}>{t('View details')}</Button>
         </div>)}
-        {!runs.length ? <Empty>{filtered ? t('没有符合筛选条件的维护记录') : t('暂无维护记录，首次执行后会自动保存')}</Empty> : null}
+        {!runs.length ? <Empty>{filtered ? t('No maintenance records match these filters') : t('No maintenance records yet. The first run will be saved automatically.')}</Empty> : null}
       </div>
       : <Table containerClassName='maintenance-scroll min-h-0 flex-1' className='maintenance-history-table'>
         <TableHeader><TableRow>
-          <TableHead>{t('执行时间')}</TableHead>
-          <TableHead>{t('维护类型')}</TableHead>
-          <TableHead>{t('触发方式')}</TableHead>
-          <TableHead>{t('结果')}</TableHead>
-          <TableHead>{t('执行汇总')}</TableHead>
-          <TableHead>{t('耗时')}</TableHead>
-          <TableHead className='text-right'>{t('操作')}</TableHead>
+          <TableHead>{t('Run time')}</TableHead>
+          <TableHead>{t('Maintenance type')}</TableHead>
+          <TableHead>{t('Trigger')}</TableHead>
+          <TableHead>{t('Result')}</TableHead>
+          <TableHead>{t('Run summary')}</TableHead>
+          <TableHead>{t('Duration')}</TableHead>
+          <TableHead className='text-right'>{t('Actions')}</TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {runs.map(run => <TableRow key={run.id}>
             <TableCell><span className='maintenance-num'>{stamp(run.startedAt)}</span></TableCell>
             <TableCell>
               {maintenanceLabel(run.taskId)}
-              {run.retryOf ? <span className='maintenance-retry-label'>{t('失败重试')}</span> : null}
+              {run.retryOf ? <span className='maintenance-retry-label'>{t('Retry of failed items')}</span> : null}
             </TableCell>
             <TableCell>{sourceLabel(run.source)}</TableCell>
             <TableCell><RunStatus status={run.status} /></TableCell>
@@ -126,20 +126,20 @@ export function MaintenanceRecords({ compact, loading, busy, runs, total, page, 
             <TableCell><span className='maintenance-num'>{duration(run.durationMs)}</span></TableCell>
             <TableCell className='text-right'>
               <Button size='sm' variant='link' className='hover:no-underline' onClick={() => onToggle(run.id)}>
-                {t('查看明细')}
+                {t('View details')}
                 <RowChevron />
               </Button>
             </TableCell>
           </TableRow>)}
           {!runs.length ? <TableRow><TableCell colSpan={7}>
-            <Empty>{filtered ? t('没有符合筛选条件的维护记录') : t('暂无维护记录，首次执行后会自动保存')}</Empty>
+            <Empty>{filtered ? t('No maintenance records match these filters') : t('No maintenance records yet. The first run will be saved automatically.')}</Empty>
           </TableCell></TableRow> : null}
         </TableBody>
       </Table>}
 
     <div className='maintenance-foot'>
-      <span className='maintenance-num'>{t('共 {n} 次执行', { n: total })}</span>
-      <span className='maintenance-foot-note'>{t('维护记录保留 {days} 天，最多 {count} 次；仅保存结果，不保存密钥或令牌。', { days: retentionDays, count: maxRecords })}</span>
+      <span className='maintenance-num'>{t('{n} runs in total', { n: total })}</span>
+      <span className='maintenance-foot-note'>{t('Maintenance records are kept for {days} days, up to {count} runs. Only results are saved, never keys or tokens.', { days: retentionDays, count: maxRecords })}</span>
       {loading ? <Spinner className='maintenance-foot-spinner' /> : null}
       <Pager className='maintenance-push' page={page} pageCount={pages} disabled={loading} onPageChange={next => onPage(next - page)} />
     </div>

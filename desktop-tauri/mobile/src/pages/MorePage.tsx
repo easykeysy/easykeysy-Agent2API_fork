@@ -27,31 +27,31 @@ export function MorePage() {
 
   const groups: Array<{ title: string; entries: Entry[] }> = [
     {
-      title: t('转发链路'),
+      title: t('Forwarding'),
       entries: [
-        { id: 'checkin', label: t('签到中心'), icon: 'checkin' },
-        { id: 'models', label: t('模型管理'), icon: 'model' },
-        { id: 'agent', label: t('Agent 配置'), icon: 'agent' },
+        { id: 'checkin', label: t('Check-in center'), icon: 'checkin' },
+        { id: 'models', label: t('Model management'), icon: 'model' },
+        { id: 'agent', label: t('Agent Configuration'), icon: 'agent' },
         { id: 'tools', label: t('MCP & Skills'), icon: 'tools' },
-        { id: 'proxies', label: t('网络代理'), icon: 'proxy' },
-        { id: 'keys', label: t('网关 Key'), icon: 'key' },
-        { id: 'docs', label: t('接口文档'), icon: 'doc' },
+        { id: 'proxies', label: t('Network proxy'), icon: 'proxy' },
+        { id: 'keys', label: t('Gateway key'), icon: 'key' },
+        { id: 'docs', label: t('The API documentation'), icon: 'doc' },
       ],
     },
     {
-      title: t('诊断'),
+      title: t('Diagnostics'),
       entries: [
-        { id: 'requests', label: t('请求日志'), icon: 'request', badge: limited ? String(limited) : undefined },
-        { id: 'logs', label: t('运行日志'), icon: 'log' },
-        { id: 'tasks', label: t('自动维护'), icon: 'task' },
+        { id: 'requests', label: t('Request logs'), icon: 'request', badge: limited ? String(limited) : undefined },
+        { id: 'logs', label: t('The run log'), icon: 'log' },
+        { id: 'tasks', label: t('Automatic maintenance'), icon: 'task' },
       ],
     },
     {
-      title: t('系统'),
+      title: t('System'),
       entries: [
-        { id: 'plugins', label: t('网关插件'), icon: 'plugin', badge: session?.accounts?.hiddenAccounts?.total ? String(session.accounts.hiddenAccounts.total) : undefined },
-        { id: 'settings', label: t('设置'), icon: 'settings' },
-        { id: 'report', label: t('报表'), icon: 'chart' },
+        { id: 'plugins', label: t('Gateway plugins'), icon: 'plugin', badge: session?.accounts?.hiddenAccounts?.total ? String(session.accounts.hiddenAccounts.total) : undefined },
+        { id: 'settings', label: t('Settings'), icon: 'settings' },
+        { id: 'report', label: t('Reports'), icon: 'chart' },
       ],
     },
   ]
@@ -60,9 +60,9 @@ export function MorePage() {
     <div className='m-page' ref={pull.bindRef}>
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
       <PageHead
-        title={t('更多')}
-        subtitle={t('转发链路 · 诊断 · 系统')}
-        actions={<IconButton name='settings' label={t('设置')} onClick={() => store.push('settings')} />}
+        title={t('More')}
+        subtitle={t('Forwarding · Diagnostics · System')}
+        actions={<IconButton name='settings' label={t('Settings')} onClick={() => store.push('settings')} />}
       />
 
       <div className='m-section' style={{ marginTop: 0 }}>
@@ -140,15 +140,15 @@ export function MorePage() {
       </div>
 
       <div className='m-section'>
-        <SectionHead title={t('外观')} />
+        <SectionHead title={t('Appearance')} />
         <Card className='m-card'>
           <div className='m-row' style={{ flexWrap: 'wrap', gap: 8 }}>
             <span className='m-logo'>
               <Icon name='moon' />
             </span>
             <div className='m-grow'>
-              <div className='m-t1'>{t('主题')}</div>
-              <div className='m-t2'>{t('跟随系统 · 浅色 · 深色')}</div>
+              <div className='m-t1'>{t('Theme')}</div>
+              <div className='m-t2'>{t('System · Light · Dark')}</div>
             </div>
             <ThemeSwitch />
           </div>
@@ -162,7 +162,7 @@ export function MorePage() {
               <Icon name='server' />
             </span>
             <div className='m-grow'>
-              <div className='m-t1'>{t('网关状态')}</div>
+              <div className='m-t1'>{t('Gateway status')}</div>
               <div className='m-t2 m-mono' style={{ fontSize: 11.5 }}>
                 {baseLabel(apiBase())}
               </div>
@@ -176,8 +176,8 @@ export function MorePage() {
               <Icon name='doc' />
             </span>
             <div className='m-grow'>
-              <div className='m-t1'>{t('接口地址')}</div>
-              <div className='m-t2'>{t('把 Base URL 复制给客户端')}</div>
+              <div className='m-t1'>{t('API address')}</div>
+              <div className='m-t2'>{t('The Base URL to copy for your client')}</div>
             </div>
             <span className='m-chev'>
               <Icon name='chev' />
@@ -188,7 +188,7 @@ export function MorePage() {
 
       <div className='m-section' style={{ paddingBottom: 8 }}>
         <Card className='m-card m-card-pad' style={{ fontSize: 11.5, color: 'var(--m-text-3)', lineHeight: 1.7 }}>
-          {t('手机端可管理所连接网关的账号、签到与插件，并使用提供商声明的动态登录入口；其余既有添加入口、编辑凭证和改写客户端配置仍需桌面面板。')}
+          {t('The mobile app manages accounts, check-in and plugins on the connected gateway and supports sign-in through providers’ declared dynamic methods. Other existing add-account entry points, credential editing and client configuration changes still require the desktop panel.')}
         </Card>
       </div>
     </div>
@@ -199,10 +199,10 @@ export function MorePage() {
 export function ThemeSwitch() {
   const { theme } = useStore()
   const options: Array<{ value: 'system' | 'light' | 'dark'; label: string }> = [
-    { value: 'system', label: t('系统') },
-    { value: 'light', label: t('浅色') },
-    { value: 'dark', label: t('深色') },
+    { value: 'system', label: t('System') },
+    { value: 'light', label: t('Light') },
+    { value: 'dark', label: t('Dark') },
   ]
-  return <SegmentedControl options={options} value={theme} aria-label={t('主题')}
+  return <SegmentedControl options={options} value={theme} aria-label={t('Theme')}
     onValueChange={value => store.setTheme(value as 'system' | 'light' | 'dark')} />
 }

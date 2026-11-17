@@ -23,6 +23,6 @@ pub(crate) fn failure_of(row: &Value) -> Option<String> {
         .unwrap_or("签到未完成");
     let name = text(row.get("name"))
         .or_else(|| text(row.get("id")))
-        .unwrap_or("未知账号");
-    Some(format!("{name}（{message}）"))
+        .unwrap_or("Unknown account");
+    Some(format!("{name}（{message})"))
 }

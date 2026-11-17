@@ -10,7 +10,7 @@ fn response(result: Result<Value, String>) -> Response {
 
 pub async fn get(State(_state): State<ServerState>, Path(id): Path<String>, Query(query): Query<HashMap<String, String>>) -> Response {
     response((|| {
-        let def = agents::find(&id).ok_or("未知客户端")?;
+        let def = agents::find(&id).ok_or("Unknown client")?;
         let kind = query.get("kind").map(String::as_str).unwrap_or("prompt");
         if kind == "skill" { agents::resources::skill(def, query.get("id").map(String::as_str).unwrap_or("")) }
         else { agents::resources::snapshot(def, kind) }
@@ -20,7 +20,7 @@ pub async fn get(State(_state): State<ServerState>, Path(id): Path<String>, Quer
 pub async fn preview(State(_state): State<ServerState>, Path(id): Path<String>, body: Bytes) -> Response {
     response((|| {
         let payload = parse_body(&body).map_err(|error| error.message)?;
-        let def = agents::find(&id).ok_or("未知客户端")?;
+        let def = agents::find(&id).ok_or("Unknown client")?;
         agents::resources::create_preview(def, &payload)
     })())
 }
@@ -28,7 +28,7 @@ pub async fn preview(State(_state): State<ServerState>, Path(id): Path<String>, 
 pub async fn apply(State(_state): State<ServerState>, Path(id): Path<String>, body: Bytes) -> Response {
     response((|| {
         let payload = parse_body(&body).map_err(|error| error.message)?;
-        let def = agents::find(&id).ok_or("未知客户端")?;
+        let def = agents::find(&id).ok_or("Unknown client")?;
         agents::resources::apply(def, &payload)
     })())
 }

@@ -89,7 +89,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                 return errors::management_error(
                     400,
                     format!(
-                        "{KEY_PROMPT_MODE} 只认 {}（收到: {text}）",
+                        "{KEY_PROMPT_MODE} 只认 {}（收到: {text})",
                         allowed_modes()
                     ),
                 )
@@ -98,7 +98,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         Some(value) => {
             return errors::management_error(
                 400,
-                format!("{KEY_PROMPT_MODE} 必须是字符串（收到: {value}）"),
+                format!("{KEY_PROMPT_MODE} 必须是字符串（收到: {value})"),
             )
         }
     };
@@ -110,7 +110,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         Some(value) => {
             return errors::management_error(
                 400,
-                format!("{KEY_PROMPT_FILE} 必须是字符串或 null（收到: {value}）"),
+                format!("{KEY_PROMPT_FILE} 必须是字符串或 null（收到: {value})"),
             )
         }
     };
@@ -130,7 +130,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         Some(value) => {
             return errors::management_error(
                 400,
-                format!("{KEY_PROMPT_TEXT} 必须是字符串或 null（收到: {value}）"),
+                format!("{KEY_PROMPT_TEXT} 必须是字符串或 null（收到: {value})"),
             )
         }
     };
@@ -159,12 +159,12 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
             for (id, value) in entries {
                 let id = id.trim();
                 if id.is_empty() {
-                    return errors::management_error(400, "提供商 id 不能为空串");
+                    return errors::management_error(400, "Provider id 不能为空串");
                 }
                 if !providers::is_known_provider_id(id) {
                     return errors::management_error(
                         400,
-                        format!("未知的提供商 id：{id}（只能配已登记的提供商）"),
+                        format!("未知的提供商 id: {id}（只能配已登记的提供商）"),
                     );
                 }
                 // 值是 null → 删除这一家
@@ -175,7 +175,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                 let Some(entry) = value.as_object() else {
                     return errors::management_error(
                         400,
-                        format!("{KEY_PROMPT_PROVIDERS}.{id} 必须是对象或 null（收到: {value}）"),
+                        format!("{KEY_PROMPT_PROVIDERS}.{id} 必须是对象或 null（收到: {value})"),
                     );
                 };
                 // 未出现的字段保持这一家**原值**；这一家还没配过时按**全局模式**
@@ -191,7 +191,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                             return errors::management_error(
                                 400,
                                 format!(
-                                    "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_MODE} 只认 {}（收到: {text}）",
+                                    "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_MODE} 只认 {}（收到: {text})",
                                     allowed_modes()
                                 ),
                             )
@@ -201,7 +201,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                         return errors::management_error(
                             400,
                             format!(
-                                "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_MODE} 必须是字符串（收到: {other}）"
+                                "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_MODE} 必须是字符串（收到: {other})"
                             ),
                         )
                     }
@@ -215,7 +215,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                         return errors::management_error(
                             400,
                             format!(
-                                "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_FILE} 必须是字符串或 null（收到: {other}）"
+                                "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_FILE} 必须是字符串或 null（收到: {other})"
                             ),
                         )
                     }
@@ -235,7 +235,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                         return errors::management_error(
                             400,
                             format!(
-                                "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_TEXT} 必须是字符串或 null（收到: {other}）"
+                                "{KEY_PROMPT_PROVIDERS}.{id}.{KEY_PROMPT_TEXT} 必须是字符串或 null（收到: {other})"
                             ),
                         )
                     }
@@ -263,7 +263,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         Some(value) => {
             return errors::management_error(
                 400,
-                format!("{KEY_PROMPT_PROVIDERS} 必须是对象或 null（收到: {value}）"),
+                format!("{KEY_PROMPT_PROVIDERS} 必须是对象或 null（收到: {value})"),
             )
         }
     }
@@ -280,12 +280,12 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
             for (id, value) in entries {
                 let id = id.trim();
                 if id.is_empty() {
-                    return errors::management_error(400, "提供商 id 不能为空串");
+                    return errors::management_error(400, "Provider id 不能为空串");
                 }
                 if !providers::is_known_provider_id(id) {
                     return errors::management_error(
                         400,
-                        format!("未知的提供商 id：{id}（只能配已登记的提供商）"),
+                        format!("未知的提供商 id: {id}（只能配已登记的提供商）"),
                     );
                 }
                 match value {
@@ -295,7 +295,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                         return errors::management_error(
                             400,
                             format!(
-                                "{KEY_PROMPT_GATEWAY}.{id} 必须是 true / false / null（收到: {other}）"
+                                "{KEY_PROMPT_GATEWAY}.{id} 必须是 true / false / null（收到: {other})"
                             ),
                         )
                     }
@@ -305,7 +305,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         Some(value) => {
             return errors::management_error(
                 400,
-                format!("{KEY_PROMPT_GATEWAY} 必须是对象或 null（收到: {value}）"),
+                format!("{KEY_PROMPT_GATEWAY} 必须是对象或 null（收到: {value})"),
             )
         }
     }
@@ -322,12 +322,12 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
             for (id, value) in entries {
                 let id = id.trim();
                 if id.is_empty() {
-                    return errors::management_error(400, "提供商 id 不能为空串");
+                    return errors::management_error(400, "Provider id 不能为空串");
                 }
                 if !providers::is_known_provider_id(id) {
                     return errors::management_error(
                         400,
-                        format!("未知的提供商 id：{id}（只能配已登记的提供商）"),
+                        format!("未知的提供商 id: {id}（只能配已登记的提供商）"),
                     );
                 }
                 if value.is_null() {
@@ -337,7 +337,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                 let Some(entry) = value.as_object() else {
                     return errors::management_error(
                         400,
-                        format!("{KEY_PROMPT_GATEWAY_TEXT}.{id} 必须是对象或 null（收到: {value}）"),
+                        format!("{KEY_PROMPT_GATEWAY_TEXT}.{id} 必须是对象或 null（收到: {value})"),
                     );
                 };
                 let mut blocks = settings
@@ -354,7 +354,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                             return errors::management_error(
                                 400,
                                 format!(
-                                    "{KEY_PROMPT_GATEWAY_TEXT}.{id}.{field} 必须是字符串或 null（收到: {other}）"
+                                    "{KEY_PROMPT_GATEWAY_TEXT}.{id}.{field} 必须是字符串或 null（收到: {other})"
                                 ),
                             )
                         }
@@ -367,7 +367,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         Some(value) => {
             return errors::management_error(
                 400,
-                format!("{KEY_PROMPT_GATEWAY_TEXT} 必须是对象或 null（收到: {value}）"),
+                format!("{KEY_PROMPT_GATEWAY_TEXT} 必须是对象或 null（收到: {value})"),
             )
         }
     }
@@ -399,7 +399,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         if !config::set_prompt_provider(id, patch.clone()) {
             logging::log(
                 "[Config]",
-                &format!("⚠️  提供商 {id} 的提示词设置写入失败，本次运行内仍生效"),
+                &format!("⚠️  Provider {id} 的提示词设置写入失败，本次运行内仍生效"),
             );
         }
     }
@@ -408,7 +408,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         if !config::set_prompt_gateway(id, *flag) {
             logging::log(
                 "[Config]",
-                &format!("⚠️  提供商 {id} 的网关提示词开关写入失败，本次运行内仍生效"),
+                &format!("⚠️  Provider {id} 的网关提示词开关写入失败，本次运行内仍生效"),
             );
         }
     }
@@ -417,7 +417,7 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         if !config::set_prompt_gateway_text(id, blocks.clone()) {
             logging::log(
                 "[Config]",
-                &format!("⚠️  提供商 {id} 的网关提示词正文写入失败，本次运行内仍生效"),
+                &format!("⚠️  Provider {id} 的网关提示词正文写入失败，本次运行内仍生效"),
             );
         }
     }
@@ -437,19 +437,19 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
         || !gateway_patches.is_empty()
         || !gateway_text_patches.is_empty();
     if changed {
-        let mut detail = format!("{}（{}）", next.mode.label(), next.source.label());
+        let mut detail = format!("{}（{})", next.mode.label(), next.source.label());
         if !provider_patches.is_empty() {
             let names: Vec<String> = provider_patches
                 .iter()
                 .map(|(id, patch)| match patch {
                     Some(patch) => {
-                        let mut marks = vec![format!("模式={}", patch.mode.as_str())];
+                        let mut marks = vec![format!("Mode={}", patch.mode.as_str())];
                         if patch.inline.is_some() {
                             marks.push("界面正文".to_string());
                         }
-                        format!("{id}（{}）", marks.join("/"))
+                        format!("{id}（{})", marks.join("/"))
                     }
-                    None => format!("{id}=默认"),
+                    None => format!("{id}=Default"),
                 })
                 .collect();
             detail.push_str(&format!("；按提供商：{}", names.join(", ")));
@@ -461,8 +461,8 @@ pub async fn put_prompt(State(state): State<ServerState>, body: Bytes) -> Respon
                 .iter()
                 .map(|(id, flag)| match flag {
                     Some(true) => format!("{id}=装"),
-                    Some(false) => format!("{id}=**已关闭**"),
-                    None => format!("{id}=默认"),
+                    Some(false) => format!("{id}=**Disabled**"),
+                    None => format!("{id}=Default"),
                 })
                 .collect();
             detail.push_str(&format!("；网关自带提示词：{}", names.join(", ")));

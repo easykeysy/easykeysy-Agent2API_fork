@@ -36,9 +36,9 @@ export function CheckinUmid() {
 
   return (
     <div className='m-card-pad'>
-      <p className='m-ck-note'>{t('网关设备组件')}: {state?.available ? t('已就绪') : state?.installing ? t('安装中…') : t('未就绪')}</p>
+      <p className='m-ck-note'>{t('Gateway device component')}: {state?.available ? t('Ready') : state?.installing ? t('Installing…') : t('Not ready')}</p>
       {state?.installSupported && !state.available ? <Button variant='outline' size='sm' disabled={busy || state.installing}
-        onClick={() => void install()}>{busy || state.installing ? t('安装中…') : t('在网关安装组件')}</Button> : null}
+        onClick={() => void install()}>{busy || state.installing ? t('Installing…') : t('Install the component on the gateway')}</Button> : null}
       {error ? <p className='m-ck-error'>{error}</p> : null}
     </div>
   )

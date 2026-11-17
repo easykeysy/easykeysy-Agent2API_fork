@@ -1300,8 +1300,8 @@ mod credential_candidate_tests {
         // 半个配对也是碎片（中转把响应拼歪之后就是这种形状）：两侧都不进候选
         for broken in ["agent2api-panel=.", "agent2api-panel=acc.", "agent2api-panel=.rt"] {
             let headers = request(broken, &[]);
-            assert!(access_candidates(&headers).is_empty(), "{broken} 不该贡献 access 候选");
-            assert!(refresh_candidates(&headers).is_empty(), "{broken} 不该贡献 refresh 候选");
+            assert!(access_candidates(&headers).is_empty(), "{broken} 不该贡献 access Candidates");
+            assert!(refresh_candidates(&headers).is_empty(), "{broken} 不该贡献 refresh Candidates");
         }
     }
 
@@ -1375,7 +1375,7 @@ mod credential_candidate_tests {
         assert_eq!(
             vec![session.refresh_token.clone(), "legacy-rt".to_string()],
             refresh_candidates(&both),
-            "会话 cookie 的 refresh 段要排在旧名之前"
+            "Sessions cookie — see the refresh 段要排在旧名之前"
         );
     }
 
@@ -1642,7 +1642,7 @@ mod session_lifecycle_tests {
         let (pair, attributes) = issued.session_cookie.split_once("; ").expect("至少带 Path 属性");
         assert!(
             pair.contains('.'),
-            "会话 cookie 必须是 access.refresh 两段的形状，实得 {pair}"
+            "Sessions cookie 必须是 access.refresh 两段的形状，实得 {pair}"
         );
         assert!(
             pair.starts_with(&format!("{ACCESS_COOKIE}=")),
@@ -1657,12 +1657,12 @@ mod session_lifecycle_tests {
         assert!(attributes.contains("SameSite=Lax"));
         assert!(
             attributes.contains(&format!("Max-Age={}", REFRESH_TTL.as_secs())),
-            "寿命取 refresh：access 的过期由服务端会话表判，cookie 只是载体"
+            "寿命取 refresh: access 的过期由服务端会话表判，cookie 只是载体"
         );
         assert_eq!(
             path_of(&clear_cookie()),
             path_of(&issued.session_cookie),
-            "清除 Path 必须与签发一致"
+            "Clear Path 必须与签发一致"
         );
         assert_eq!(path_of(&issued.session_cookie), Some("/"));
         assert!(clear_cookie().contains(&format!("{ACCESS_COOKIE}=;")));

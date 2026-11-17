@@ -34,13 +34,13 @@ export function PwaNotice() {
       {pwa.offline ? (
         <Alert variant='warning' className='m-notice-top rounded-none border-x-0 border-t-0' role='status'>
           <Icon name='alert' />
-          <span>{t('已离线 · 显示的是缓存内容')}</span>
+          <span>{t('Offline — showing cached content')}</span>
         </Alert>
       ) : null}
 
       {showUpdate ? (
         <Alert className='m-notice-update' role='status'>
-          <span className='m-notice-text'>{t('有新版本，重启后生效')}</span>
+          <span className='m-notice-text'>{t('New version ready — restart to apply')}</span>
           <Button size='touch-sm' variant='default'
             type='button'
             className='m-btn m-sm'
@@ -50,10 +50,10 @@ export function PwaNotice() {
               void applyUpdate()
             }}
           >
-            {busy ? t('重启中…') : t('重启更新')}
+            {busy ? t('Restarting…') : t('Restart & update')}
           </Button>
           <Button size='default' variant='ghost' type='button' className='m-notice-later' onClick={() => setSnoozed(true)}>
-            {t('稍后')}
+            {t('Later')}
           </Button>
         </Alert>
       ) : null}

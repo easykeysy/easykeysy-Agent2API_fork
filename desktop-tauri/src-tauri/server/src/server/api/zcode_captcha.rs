@@ -140,7 +140,7 @@ pub async fn push_captcha(State(state): State<ServerState>, body: Bytes) -> Resp
     logging::console_line(
         "[ZCode]",
         &format!(
-            "🔐 人机验证令牌入池 {} 个（目标 {}）",
+            "🔐 人机验证令牌入池 {} 个（目标 {})",
             accepted,
             config::captcha_pool_settings().target,
         ),

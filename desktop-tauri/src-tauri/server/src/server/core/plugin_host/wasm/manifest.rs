@@ -45,7 +45,7 @@ pub fn is_wasm(manifest: &proto::PackManifest) -> bool {
 
 pub fn read(dir: &Path, manifest: &proto::PackManifest) -> Result<Option<Options>, String> {
     if !is_wasm(manifest) {
-        if dir.join("wasm.json").exists() { return Err("非 Wasm 插件不能声明 Wasm 权限".into()); }
+        if dir.join("wasm.json").exists() { return Err("非 Wasm 插件不能声明 Wasm Permissions".into()); }
         return Ok(None);
     }
     if manifest.entry.len() != 1 || manifest.providers.len() != 1 {
@@ -73,11 +73,11 @@ pub fn read(dir: &Path, manifest: &proto::PackManifest) -> Result<Option<Options
         ("login.captcha.geetest.v1", &["login.interaction.v1"][..]),
     ] {
         if requires(capability) && dependencies.iter().any(|dependency| !requires(dependency)) {
-            return Err(format!("Wasm 能力 {capability} 缺少依赖声明"));
+            return Err(format!("Wasm Capabilities {capability} 缺少依赖声明"));
         }
     }
     if !(8..=128).contains(&spec.memory_mib) || !(1..=16).contains(&spec.concurrency) {
-        return Err("Wasm 资源声明超出允许范围（内存 8–128 MiB，并发 1–16）".into());
+        return Err("Wasm 资源声明超出允许范围（内存 8–128 MiB，并发 1–16)".into());
     }
     if spec.helpers.len() > 8 || spec.helpers.iter().any(|helper| helper.is_empty() || helper.len() > 80
         || !helper.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')))
@@ -95,7 +95,7 @@ pub fn read(dir: &Path, manifest: &proto::PackManifest) -> Result<Option<Options
         }
     }
     let entry = manifest.entry.get(TARGET).ok_or("Wasm 入口不存在")?;
-    if !entry.ends_with(".wasm") { return Err("Wasm 入口必须是 .wasm 文件".into()); }
+    if !entry.ends_with(".wasm") { return Err("Wasm 入口必须是 .wasm Document".into()); }
     checked_entry(dir, entry)?;
     Ok(Some(Options { provider: manifest.providers[0].id.0.clone(), manifest: spec }))
 }

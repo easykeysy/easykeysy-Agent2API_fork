@@ -94,14 +94,14 @@ export async function startUsageTasks(id?: string, replace = true): Promise<Usag
   const key = id || '*'
   if (starts.has(key)) return null
   const api = shared().workbuddyDesktop
-  if (!api?.startBalanceQuery) throw new Error(t('余额查询接口不可用，请更新网关后重试'))
+  if (!api?.startBalanceQuery) throw new Error(t('Balance query is unavailable. Update the gateway and try again.'))
   const start = ++sequence
   starts.set(key, start)
   patch({ usageStarting: new Set(starts.keys()) })
   try {
     const data = await usageQueryDeadline(api.startBalanceQuery(id, replace))
     if (starts.get(key) !== start) return null
-    if (!Array.isArray(data?.queries) || id && !data.queries.some(task => task.id === id)) throw new Error(t('余额查询接口返回异常'))
+    if (!Array.isArray(data?.queries) || id && !data.queries.some(task => task.id === id)) throw new Error(t('The balance query returned an invalid response.'))
     revision++
     if (!id) batch = new Map(data.queries.map(task => [task.id, task.requestId]))
     applyUsageTasks(data.queries)
@@ -143,7 +143,7 @@ export async function cancelUsageQuery(id: string): Promise<void> {
     if (result.cancelled) { revision++; applyUsageTasks([{ ...task, status: 'cancelled' }]) }
     else if (sync) void sync()
   } catch (error) {
-    toast(t('取消查询失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Failed to cancel query: {message}', { message: errorMessage(error) }), 'err')
   }
 }
 

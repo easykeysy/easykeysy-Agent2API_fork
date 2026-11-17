@@ -41,7 +41,7 @@ export function useRoutingReplay(active: boolean, workspaceModel?: string, pollW
           bridge().getRoutingSticky(currentModel || undefined),
         ])
         if (!alive || id !== sequence.current) return
-        if (!nextWorkspace?.profile || !Array.isArray(nextWorkspace.accounts)) throw new Error(t('路由接口返回了不完整的数据'))
+        if (!nextWorkspace?.profile || !Array.isArray(nextWorkspace.accounts)) throw new Error(t('The routing API returned incomplete data'))
         setWorkspace(nextWorkspace)
         setSticky(nextSticky.entries || [])
         setError('')

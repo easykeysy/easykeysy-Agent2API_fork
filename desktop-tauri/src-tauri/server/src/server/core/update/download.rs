@@ -142,7 +142,7 @@ impl UpdateManager {
                 Ok(size) => logging::log(
                     "[Update]",
                     &format!(
-                        "✅ 安装包已就绪: {}（{:.1} MB）",
+                        "✅ 安装包已就绪: {}（{:.1} MB)",
                         path.display(),
                         size as f64 / 1024.0 / 1024.0
                     ),
@@ -194,7 +194,7 @@ impl UpdateManager {
             };
             if response.status().as_u16() != 200 {
                 let error = UpdateError::new(format!(
-                    "下载失败：{}返回 HTTP {}",
+                    "Download failed:{}Back HTTP {}",
                     candidate.label(),
                     response.status().as_u16()
                 ));
@@ -213,7 +213,7 @@ impl UpdateManager {
             logging::log(
                 "[Update]",
                 &format!(
-                    "开始下载 {}（{}）",
+                    "开始下载 {}（{})",
                     path.file_name().unwrap_or_default().to_string_lossy(),
                     candidate.label()
                 ),
@@ -275,7 +275,7 @@ impl UpdateManager {
             let chunk = chunk.map_err(|error| UpdateError::new(format!("下载中断: {error}")))?;
             received += chunk.len() as u64;
             if received > MAX_INSTALLER_BYTES {
-                return Err(UpdateError::new("安装包超过体积上限"));
+                return Err(UpdateError::new("The install package exceeds the size limit"));
             }
             hasher.update(&chunk);
             file.write_all(&chunk)
@@ -293,12 +293,12 @@ impl UpdateManager {
             || (declared > 0 && received != declared)
             || (expected_size > 0 && received != expected_size)
         {
-            return Err(UpdateError::new("安装包不完整，已拒绝使用"));
+            return Err(UpdateError::new("The install package is incomplete; use refused"));
         }
         if let Some((hash, _)) = expected {
             if format!("{:x}", hasher.finalize()) != *hash {
                 return Err(UpdateError::new(
-                    "安装包 SHA-256 与 GitHub 官方校验值不一致，已拒绝使用",
+                    "installer SHA-256 and GitHub The official verification value does not match; use refused",
                 ));
             }
         }

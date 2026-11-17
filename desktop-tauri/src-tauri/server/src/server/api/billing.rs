@@ -76,7 +76,7 @@ pub async fn claim_checkin(State(state): State<ServerState>) -> Response {
         .unwrap_or(false);
     if !success {
         let detail = result.get("msg").and_then(serde_json::Value::as_str).unwrap_or("");
-        logging::log("[Billing]", &format!("签到未领取（{detail}）"));
+        logging::log("[Billing]", &format!("签到未领取（{detail})"));
     }
     // 状态码与 body 的 success 都由结果决定，不能用 ok_json（它恒为 200/true）
     let status = if success {
@@ -122,7 +122,7 @@ pub async fn run_activity(State(state): State<ServerState>, body: Bytes) -> Resp
     let payload = match serde_json::from_slice::<Value>(&body) {
         Ok(value) => value,
         Err(error) => {
-            return GatewayError::new(format!("请求体不是合法 JSON：{error}")).into_response()
+            return GatewayError::new(format!("请求体不是合法 JSON: {error}")).into_response()
         }
     };
     let id = payload
@@ -197,7 +197,7 @@ pub async fn run_activity(State(state): State<ServerState>, body: Bytes) -> Resp
     {
         crate::server::logging::verbose(
             "[Accounts]",
-            &format!("账号 {id} 的签到时间未能落盘（账号可能已被删除）"),
+            &format!("Account {id} 的签到时间未能落盘（账号可能已被删除）"),
         );
     }
     ok_json(row)
@@ -213,7 +213,7 @@ pub async fn save_keepalive(body: Bytes) -> Response {
     let payload = match serde_json::from_slice::<serde_json::Value>(&body) {
         Ok(value) => value,
         Err(error) => {
-            return GatewayError::new(format!("请求体不是合法 JSON：{error}")).into_response()
+            return GatewayError::new(format!("请求体不是合法 JSON: {error}")).into_response()
         }
     };
     // 两种入参都收：数组（规范形态）与字符串（输入框原样）——
@@ -236,7 +236,7 @@ pub async fn save_keepalive(body: Bytes) -> Response {
             let id = id.trim();
             Some((!id.is_empty()).then(|| id.to_string()))
         }
-        Some(_) => return GatewayError::bad_request("apiKeyId 必须是 Key ID 或 null").into_response(),
+        Some(_) => return GatewayError::bad_request("apiKeyId 必须是 Key ID or null").into_response(),
     };
     match crate::server::core::billing::keepalive::set_models(&raw, api_key_id) {
         Ok(_) => ok_json(crate::server::core::billing::keepalive::state()),

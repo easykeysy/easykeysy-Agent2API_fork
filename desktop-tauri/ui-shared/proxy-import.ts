@@ -31,9 +31,9 @@ export function proxyIdentity(proxy: ProxyImportDraft): string {
 
 export function proxyHost(value: string, t: Translate): string {
   const host = value.trim()
-  if (!host) throw new Error(t('请填写代理主机地址'))
+  if (!host) throw new Error(t('Enter the proxy host address'))
   if (/[\s\u0000-\u001f/@?#\\%]/.test(host) || host.length > 255) {
-    throw new Error(t('代理主机只能填写域名或 IP 地址，不能包含协议、端口或路径'))
+    throw new Error(t('Enter only a domain or IP address, without a protocol, port or path'))
   }
   const formatted = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host
   try {
@@ -41,7 +41,7 @@ export function proxyHost(value: string, t: Translate): string {
     if (!parsed.hostname || parsed.port !== '1' || parsed.username || parsed.password) throw new Error()
     return parsed.hostname.replace(/^\[|\]$/g, '')
   } catch {
-    throw new Error(t('代理主机地址无效'))
+    throw new Error(t('Invalid proxy host'))
   }
 }
 
@@ -54,7 +54,7 @@ function parseLine(raw: string, nonDirect: boolean, t: Translate): ProxyImportDr
   line = line.replace(/\[https?:\/\/[^\]]*\]$/i, '').trim()
   const scheme = /^([a-z][a-z\d+.-]*):\/\//i.exec(line)
   const protocol = scheme ? scheme[1].toLowerCase() : 'http'
-  if (protocol !== 'http' && protocol !== 'socks5') throw new Error(t('代理协议只支持 HTTP 或 SOCKS5'))
+  if (protocol !== 'http' && protocol !== 'socks5') throw new Error(t('Only HTTP and SOCKS5 proxies are supported'))
   if (scheme) line = line.slice(scheme[0].length)
   let username = ''
   let password = ''
@@ -66,7 +66,7 @@ function parseLine(raw: string, nonDirect: boolean, t: Translate): ProxyImportDr
   }
   const at = legacy ? -1 : line.lastIndexOf('@')
   const decode = (text: string): string => {
-    try { return decodeURIComponent(text) } catch { throw new Error(t('代理账号或密码的 URL 编码无效')) }
+    try { return decodeURIComponent(text) } catch { throw new Error(t('Invalid URL encoding in the proxy username or password')) }
   }
   if (at !== -1) {
     const auth = line.slice(0, at)
@@ -76,15 +76,15 @@ function parseLine(raw: string, nonDirect: boolean, t: Translate): ProxyImportDr
     line = line.slice(at + 1)
   }
   const match = /^(\[[^\]]+\]|[^:]+):(\d+)\/?$/.exec(line)
-  if (!match) throw new Error(t('代理格式无效，请按示例填写'))
+  if (!match) throw new Error(t('Invalid proxy format. Follow the examples.'))
   const host = proxyHost(match[1], t)
   const port = Number(match[2])
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(t('代理端口必须是 1-65535 的整数'))
-  if ([...username].length > 200 || [...password].length > 200) throw new Error(t('代理账号和密码不能超过 200 个字符'))
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(t('Proxy port must be an integer from 1 to 65535'))
+  if ([...username].length > 200 || [...password].length > 200) throw new Error(t('Proxy usernames and passwords must not exceed 200 characters'))
   if (protocol === 'socks5' && (new TextEncoder().encode(username).length > 255 || new TextEncoder().encode(password).length > 255)) {
-    throw new Error(t('SOCKS5 用户名和密码不能超过 255 字节'))
+    throw new Error(t('SOCKS5 usernames and passwords must not exceed 255 bytes'))
   }
-  if ([...name].length > 60) throw new Error(t('代理名称不能超过 60 个字符'))
+  if ([...name].length > 60) throw new Error(t('Proxy names must not exceed 60 characters'))
   const draft: ProxyImportDraft = { name, protocol, host, port, username, password, nonDirect, enabled: true }
   if (!name) draft.name = [...proxyAddress(draft)].slice(0, 60).join('')
   return draft
@@ -104,7 +104,7 @@ export function parseProxyList(text: string, nonDirect: boolean, existing: Proxy
       const proxy = parseLine(raw, nonDirect, t)
       const key = proxyIdentity(proxy)
       if (seen.has(key)) { duplicates += 1; continue }
-      if (existing.length + items.length >= PROXY_IMPORT_LIMIT) throw new Error(t('每次最多添加 {n} 条代理', { n: PROXY_IMPORT_LIMIT }))
+      if (existing.length + items.length >= PROXY_IMPORT_LIMIT) throw new Error(t('Add up to {n} proxies at a time', { n: PROXY_IMPORT_LIMIT }))
       seen.add(key)
       items.push(proxy)
     } catch (error) {

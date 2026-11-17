@@ -242,7 +242,7 @@ impl UpdateManager {
         }
         if !response.status.is_success() {
             return Err((
-                UpdateError::new(format!("GitHub 返回 HTTP {status}")),
+                UpdateError::new(format!("GitHub Back HTTP {status}")),
                 retry_at,
             ));
         }

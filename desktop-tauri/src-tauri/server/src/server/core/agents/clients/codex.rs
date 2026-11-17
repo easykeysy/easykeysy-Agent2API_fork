@@ -167,7 +167,7 @@ pub fn write(
     }
     if !selected.is_empty() {
         warnings.push(format!(
-            "当前使用 Codex profile「{selected}」；模型选择写入此 profile。"
+            "当前使用 Codex profile「{selected}」；模型选择写入此 profile."
         ));
     }
     Ok(extra)

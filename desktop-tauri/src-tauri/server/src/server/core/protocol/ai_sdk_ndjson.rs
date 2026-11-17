@@ -412,7 +412,7 @@ impl ChatFromAiSdkNdjsonStream {
         // provider 报连接失败时「零输出」只是表象，按 502 报才指向真实原因
         if reason == "upstream_error" {
             return self.fail_message(
-                "上游报告连接失败（provider reported an upstream connection failure）",
+                "上游报告连接失败（provider reported an upstream connection failure)",
                 "upstream_error",
                 502,
                 None,
@@ -487,7 +487,7 @@ impl ChatFromAiSdkNdjsonStream {
         crate::server::logging::verbose(
             "[AI-SDK-NDJSON]",
             &format!(
-                "上游流内错误：{message}（上游状态 {}，映射为 {status} {kind}）",
+                "上游流内错误：{message}（上游状态 {}，映射为 {status} {kind})",
                 reported
                     .map(|value| value.to_string())
                     .unwrap_or_else(|| "-".to_string())

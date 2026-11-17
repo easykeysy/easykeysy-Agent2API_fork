@@ -38,15 +38,15 @@ export function UsageDonut({ view, ariaLabel, itemLabel }: { view: DonutView; ar
           </PieChart>
         </ResponsiveContainer>
         <div className='donut-center'>
-          <div className='donut-center-label' title={selected?.name}>{selected?.name || t('总 Token')}</div>
+          <div className='donut-center-label' title={selected?.name}>{selected?.name || t('Total tokens')}</div>
           <div className='donut-center-value'><CompactValue value={selected ? selected.tokens : view.total} /></div>
-          <div className='donut-center-label'>{selected ? formatUsagePercent(selected.percentage) : t('全部用量')}</div>
+          <div className='donut-center-label'>{selected ? formatUsagePercent(selected.percentage) : t('All usage')}</div>
         </div>
       </div>
-      {other ? <p className='donut-caption'>{t('其他 {pct} · {n} 项，仅在饼图合并', { pct: formatUsagePercent(other.percentage), n: formatInt(other.members?.length || 0) })}</p> : null}
+      {other ? <p className='donut-caption'>{t('Other {pct} · {n} items, grouped only in the donut', { pct: formatUsagePercent(other.percentage), n: formatInt(other.members?.length || 0) })}</p> : null}
     </div>
     <div className='donut-legend'>
-      <div className='donut-legend-head'><span>{itemLabel || t('名称')}</span><span>{t('Token')}</span><span>{t('占比')}</span></div>
+      <div className='donut-legend-head'><span>{itemLabel || t('Name')}</span><span>{t('Token')}</span><span>{t('Share')}</span></div>
       <div className='donut-legend-scroll' role='list' aria-label={ariaLabel}>
         {view.rows.map(row => <div className='donut-legend-row' key={row.key} role='listitem' tabIndex={0}
           data-highlighted={selected?.key === row.key ? '' : undefined} data-tip={row.tip}
@@ -77,10 +77,10 @@ export function CacheTrendChart({ series, colors }: { series: StatsHour[]; color
       stride: Math.max(1, Math.ceil(((rows.length - 1) * LINE_LABEL_GAP) / plot)),
     }
   }, [rows, width])
-  if (!rows.some(row => row.used)) return <div className='report-chart-empty'><Empty>{t('暂无缓存趋势数据')}</Empty></div>
+  if (!rows.some(row => row.used)) return <div className='report-chart-empty'><Empty>{t('No cache trend data')}</Empty></div>
   return <div className='report-chart-area' ref={container}>
     <ResponsiveContainer width='100%' height='100%' minWidth={0}>
-      <LineChart data={rows} margin={{ top: 28, right: 0, left: 0, bottom: 0 }} aria-label={t('近 24 小时缓存命中率与总 Token 趋势')}>
+      <LineChart data={rows} margin={{ top: 28, right: 0, left: 0, bottom: 0 }} aria-label={t('Last 24 hours: cache hit rate and total tokens trend')}>
         <CartesianGrid stroke={gridColor} vertical={false} />
         <XAxis dataKey='hour' tickFormatter={hourText} tick={tickStyle} tickLine={false} axisLine={false}
           minTickGap={32} interval='preserveStartEnd' height={32} tickMargin={12} />
@@ -92,14 +92,14 @@ export function CacheTrendChart({ series, colors }: { series: StatsHour[]; color
           tickLine={false} axisLine={false} width={68} tickMargin={8} />
         <RechartsTooltip cursor={{ stroke: 'var(--ui-border-strong)' }} isAnimationActive={false} filterNull={false}
           wrapperStyle={{ pointerEvents: 'none' }} content={props => <CacheTooltip {...props} container={container} />} />
-        <Line type='monotone' dataKey='rate' name={t('缓存命中率')} stroke={rateColor} strokeWidth={2}
+        <Line type='monotone' dataKey='rate' name={t('Cache hit rate')} stroke={rateColor} strokeWidth={2}
           connectNulls={false} dot={{ r: 2, fill: rateColor, strokeWidth: 0 }}
           activeDot={{ r: 4, strokeWidth: 3, stroke: 'var(--ui-card)' }} isAnimationActive={false}>
           <LabelList dataKey='rate' content={props => renderPointLabel(props, {
             ...labels, fill: rateColor, place: 'below', flipUnder: rateAxis.max / 12, format: formatPercent,
           })} />
         </Line>
-        <Line yAxisId='tokens' type='monotone' dataKey='totalTokens' name={t('总 Token')} stroke={tokenColor} strokeWidth={2}
+        <Line yAxisId='tokens' type='monotone' dataKey='totalTokens' name={t('Total tokens')} stroke={tokenColor} strokeWidth={2}
           connectNulls={false} dot={{ r: 2, fill: tokenColor, strokeWidth: 0 }}
           activeDot={{ r: 4, strokeWidth: 3, stroke: 'var(--ui-card)' }} isAnimationActive={false}>
           <LabelList dataKey='totalTokens' content={props => renderPointLabel(props, {
@@ -111,7 +111,7 @@ export function CacheTrendChart({ series, colors }: { series: StatsHour[]; color
   </div>
 }
 
-export function DailyTrendChart({ series, colors, metric = 'tokens', type = 'bar', unknownLabel = t('未知模型'), breakdownLabel = t('模型分布') }: {
+export function DailyTrendChart({ series, colors, metric = 'tokens', type = 'bar', unknownLabel = t('Unknown model'), breakdownLabel = t('Model breakdown') }: {
   series: StatsDay[]; colors: Map<string, string>; metric?: 'tokens' | 'requests'; type?: 'bar' | 'line'; unknownLabel?: string; breakdownLabel?: string
 }) {
   const container = React.useRef<HTMLDivElement>(null)
@@ -120,13 +120,13 @@ export function DailyTrendChart({ series, colors, metric = 'tokens', type = 'bar
   const maxSegments = rows.reduce((max, row) => Math.max(max, row.segments.length), 0)
   const axis = chartAxis(rows.reduce((peak, row) => Math.max(peak, row.total), 0))
   const average = rows.reduce((sum, row) => sum + row.total, 0) / Math.max(rows.length, 1)
-  if (!rows.length) return <Empty>{t('暂无趋势数据')}</Empty>
-  if (!rows.some(row => row.total > 0)) return <div className='report-chart-empty'><Empty>{t('所选范围内暂无请求')}</Empty></div>
+  if (!rows.length) return <Empty>{t('No trend data')}</Empty>
+  if (!rows.some(row => row.total > 0)) return <div className='report-chart-empty'><Empty>{t('No requests in the selected range')}</Empty></div>
   return <>
     <div className='report-chart-area' ref={container}>
       <ResponsiveContainer width='100%' height='100%' minWidth={0}>
         <ComposedChart data={rows} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}
-          aria-label={metric === 'requests' ? t('按天请求趋势') : t('按天 Token 趋势')}>
+          aria-label={metric === 'requests' ? t('Daily request trend') : t('Daily token trend')}>
           <CartesianGrid stroke={gridColor} vertical={false} />
           <XAxis dataKey='date' tickFormatter={dateTick} tick={tickStyle} tickLine={false} axisLine={false}
             minTickGap={40} interval='preserveStartEnd' height={32} tickMargin={12} />
@@ -151,10 +151,10 @@ export function DailyTrendChart({ series, colors, metric = 'tokens', type = 'bar
         {type === 'bar' ? legend.slice(0, 5).map(row => <span className='report-model-legend-item' title={row.name} key={row.name}>
           <span className='report-model-legend-dot' style={{ background: row.fill }} /><span className='report-model-legend-name'>{row.name}</span>
         </span>) : <span className='report-model-legend-item'><span className='report-model-legend-dot' style={{ background: 'var(--primary)' }} />{t('合计')}</span>}
-        {type === 'bar' && legend.length > 5 ? <span>{t('另 {n} 项', { n: formatInt(legend.length - 5) })}</span> : null}
-        <span className='report-model-legend-item'><i className='report-average-swatch' />{t('日均')}</span>
+        {type === 'bar' && legend.length > 5 ? <span>{t('{n} more', { n: formatInt(legend.length - 5) })}</span> : null}
+        <span className='report-model-legend-item'><i className='report-average-swatch' />{t('Daily average')}</span>
       </div>
-      <span>{t('悬停查看完整读数与分项')}</span>
+      <span>{t('Hover for full readings and a breakdown')}</span>
     </div>
   </>
 }

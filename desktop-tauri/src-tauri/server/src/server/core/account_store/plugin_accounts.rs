@@ -177,7 +177,7 @@ impl AccountStore {
                     serde_json::json!({ "state": "failed", "message": "代理配置缺少主机地址" })
                 }
                 Some(ProxyResolution::Resolved(proxy)) if proxy.port.is_none() => {
-                    serde_json::json!({ "state": "failed", "message": "代理端口必须是 1-65535 的整数" })
+                    serde_json::json!({ "state": "failed", "message": "Proxy port must be an integer from 1 to 65535" })
                 }
                 Some(ProxyResolution::Resolved(proxy)) => match crate::server::core::proxies::chain::wire_json(&proxy) {
                     Ok(proxy) => serde_json::json!({ "state": "resolved", "proxy": proxy }),
@@ -293,7 +293,7 @@ impl AccountStore {
             let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let Some(mut record) = crate::server::core::account_store::sql::load_by_id(&tx, id)?
             else {
-                return Ok(Err(format!("账号 {id} 不存在")));
+                return Ok(Err(format!("Account {id} 不存在")));
             };
             let current = secret_of(&record);
             if &current != expect {
@@ -373,7 +373,7 @@ impl AccountStore {
     pub fn plugin_set_ledger(&self, id: &str, kind: &str, value: &Value) -> Result<(), String> {
         let guard = self.guard();
         let Some(mut record) = self.record_by_id(&guard, id) else {
-            return Err(format!("账号 {id} 不存在"));
+            return Err(format!("Account {id} 不存在"));
         };
         let key = format!("{LEDGER_PREFIX}{kind}");
         if kind == super::checkin_state::LEDGER_KIND {
@@ -457,7 +457,7 @@ impl AccountStore {
             return Err("插件账号缺少提供商".to_string());
         }
         if !matches!(source, "plugin" | "builtin") {
-            return Err("标准账号来源必须是 plugin 或 builtin".to_string());
+            return Err("标准账号来源必须是 plugin or builtin".to_string());
         }
         let account = super::plugin_identity::incoming(provider, id, secret, public, desktop);
         let identity = id;

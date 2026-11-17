@@ -19,11 +19,11 @@ const feedbackManager = createToastManager()
 export type TabDef = { id: string; label: string; icon: IconName }
 
 const TABS: TabDef[] = [
-  { id: 'home', label: t('首页'), icon: 'home' },
-  { id: 'report', label: t('报表'), icon: 'chart' },
-  { id: 'accounts', label: t('账号'), icon: 'users' },
-  { id: 'assistant', label: t('对话'), icon: 'spark' },
-  { id: 'more', label: t('更多'), icon: 'grid' },
+  { id: 'home', label: t('Home'), icon: 'home' },
+  { id: 'report', label: t('Reports'), icon: 'chart' },
+  { id: 'accounts', label: t('Accounts'), icon: 'users' },
+  { id: 'assistant', label: t('Chats'), icon: 'spark' },
+  { id: 'more', label: t('More'), icon: 'grid' },
 ]
 
 /** 一级页集合：这些 screen 显示底部标签栏 */
@@ -78,7 +78,7 @@ export function TabBar() {
   if (keyboardOpen) return null
   const limited = state.session?.accounts?.accounts?.filter(a => a.enabled && isRateLimited(a)).length || 0
   return (
-    <BottomNavigation className='m-tabbar' aria-label={t('主导航')}>
+    <BottomNavigation className='m-tabbar' aria-label={t('Main navigation')}>
       {TABS.map(tab => (
         <BottomNavigationItem
           key={tab.id}
@@ -146,16 +146,16 @@ export function AuthGate() {
 
   return <Dialog open disablePointerDismissal>
     <DialogContent className='w-[min(340px,calc(100vw-40px))]' showCloseButton={false}>
-      <DialogHeader><DialogTitle>{state.authLost === 'login' ? t('需要重新登录') : t('需要网关 API Key')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{state.authLost === 'login' ? t('Sign-in required') : t('Gateway API key required')}</DialogTitle></DialogHeader>
       <DialogBody>
         <p className='text-[12.5px] leading-relaxed text-subtle'>{state.authLost === 'login'
-          ? t('会话已过期。重新登录后会自动回到手机端。')
-          : t('这个面板没有管理员，用一把已启用的 API Key 访问（在桌面端「网关 Key」页创建）。')}</p>
+          ? t('Your session expired. Sign in again and you will return to the mobile app automatically.')
+          : t('This panel has no admin account. Access it with an enabled API key (create one under Gateway keys on desktop).')}</p>
         {state.authLost === 'key' && <Input type='password' value={key} onChange={event => setKey(event.target.value)} placeholder='sk-…' autoComplete='off' />}
       </DialogBody>
       <DialogFooter>
-        {state.authLost === 'login' ? <Button size='touch' className='w-full' onClick={() => { window.location.href = '/login?next=%2Fm' }}>{t('去登录')}</Button>
-          : <Button size='touch' className='w-full' onClick={() => void submit()} disabled={busy || !key.trim()}>{busy ? t('验证中…') : t('保存并继续')}</Button>}
+        {state.authLost === 'login' ? <Button size='touch' className='w-full' onClick={() => { window.location.href = '/login?next=%2Fm' }}>{t('Sign in')}</Button>
+          : <Button size='touch' className='w-full' onClick={() => void submit()} disabled={busy || !key.trim()}>{busy ? t('Verifying…') : t('Save and continue')}</Button>}
       </DialogFooter>
     </DialogContent>
   </Dialog>

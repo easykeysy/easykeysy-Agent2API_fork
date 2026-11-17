@@ -53,22 +53,22 @@ function RequestSummary({ row }: { row: StatsUsage }) {
   const success = measured(row.success)
   const failures = measured(row.failures) ?? (requests !== null && success !== null ? Math.max(0, requests - success) : null)
   return <div className='report-tooltip-requests'>
-    <span>{t('请求数')} <strong>{requests === null ? '—' : formatInt(requests)}</strong></span>
-    <span>{t('成功')} <strong>{success === null ? '—' : formatInt(success)}</strong></span>
-    <span>{t('失败')} <strong>{failures === null ? '—' : formatInt(failures)}</strong></span>
-    <span>{t('成功率')} <strong>{rateText(row.successRate ?? (requests && success !== null ? success / requests : null))}</strong></span>
+    <span>{t('Requests')} <strong>{requests === null ? '—' : formatInt(requests)}</strong></span>
+    <span>{t('Success')} <strong>{success === null ? '—' : formatInt(success)}</strong></span>
+    <span>{t('Failed')} <strong>{failures === null ? '—' : formatInt(failures)}</strong></span>
+    <span>{t('Success rate')} <strong>{rateText(row.successRate ?? (requests && success !== null ? success / requests : null))}</strong></span>
   </div>
 }
 
 function TokenSummary({ row, cache = true }: { row: StatsUsage; cache?: boolean }) {
   return <div className='report-tooltip-summary'>
-    <DataRow label={t('总 Token')}><TokenValue value={row.totalTokens} /></DataRow>
+    <DataRow label={t('Total tokens')}><TokenValue value={row.totalTokens} /></DataRow>
     <div className='report-tooltip-pairs'>
-      <DataRow label={t('输入')}><TokenValue value={row.promptTokens} compact={false} /></DataRow>
-      <DataRow label={t('输出')}><TokenValue value={row.completionTokens} compact={false} /></DataRow>
+      <DataRow label={t('Input')}><TokenValue value={row.promptTokens} compact={false} /></DataRow>
+      <DataRow label={t('Output')}><TokenValue value={row.completionTokens} compact={false} /></DataRow>
       {cache ? <>
-        <DataRow label={t('缓存读取')}><TokenValue value={row.cacheReadTokens} compact={false} /></DataRow>
-        <DataRow label={t('命中率')}><strong>{rateText(row.cacheRate)}</strong></DataRow>
+        <DataRow label={t('Cache reads')}><TokenValue value={row.cacheReadTokens} compact={false} /></DataRow>
+        <DataRow label={t('Hit rate')}><strong>{rateText(row.cacheRate)}</strong></DataRow>
       </> : null}
     </div>
     <RequestSummary row={row} />
@@ -82,14 +82,14 @@ function Breakdown({ rows, total, label, requests = false }: { rows: ModelSlice[
   const value = (tokens: number) => requests ? <strong>{formatInt(tokens)}</strong> : <TokenValue value={tokens} compact={false} />
   const share = (tokens: number) => total > 0 ? formatUsagePercent(tokens / total) : '—'
   return <div className='report-tooltip-breakdown'>
-    <div className='report-tooltip-section-title'><span>{label} · {t('{n} 项', { n: formatInt(rows.length) })}</span>
-      <span>{requests ? t('请求数') : t('Token')}</span><span>{t('占比')}</span></div>
+    <div className='report-tooltip-section-title'><span>{label} · {t('{n} items', { n: formatInt(rows.length) })}</span>
+      <span>{requests ? t('Requests') : t('Token')}</span><span>{t('Share')}</span></div>
     {ordered.slice(0, 8).map(row => <div className='report-tooltip-model' key={row.name}>
       <span className='report-tooltip-name' title={row.name}><i style={{ background: row.fill }} /><span>{row.name}</span></span>
       {value(row.tokens)}<small>{share(row.tokens)}</small>
     </div>)}
     {rest.length ? <div className='report-tooltip-model report-tooltip-rest'>
-      <span>{t('其余 {n} 项', { n: formatInt(rest.length) })}</span>{value(restValue)}<small>{share(restValue)}</small>
+      <span>{t('Remaining {n} items', { n: formatInt(rest.length) })}</span>{value(restValue)}<small>{share(restValue)}</small>
     </div> : null}
   </div>
 }
@@ -100,9 +100,9 @@ export function DailyTooltip(props: ChartTooltipProps & { metric?: 'tokens' | 'r
   return <ChartTooltip {...props}>
     <div className='report-tooltip-title'>{dayLabel(row.date)}<span>{row.date}</span></div>
     <TokenSummary row={row.usage} />
-    <Breakdown rows={row.models} total={row.total} label={props.breakdownLabel || t('模型分布')} requests={props.metric === 'requests'} />
-    {row.usage.tokenDetailsComplete === false ? <p className='report-tooltip-note'>{t('历史明细不完整，输入、输出与缓存读数无法恢复')}</p> : null}
-    <p className='report-tooltip-note'>{t('缓存读取属于输入，不重复计入总 Token')}</p>
+    <Breakdown rows={row.models} total={row.total} label={props.breakdownLabel || t('Model breakdown')} requests={props.metric === 'requests'} />
+    {row.usage.tokenDetailsComplete === false ? <p className='report-tooltip-note'>{t('Historical details are incomplete; input, output and cache readings cannot be recovered.')}</p> : null}
+    <p className='report-tooltip-note'>{t('Cache reads are part of input, not added to total tokens again')}</p>
   </ChartTooltip>
 }
 
@@ -113,11 +113,11 @@ export function CacheTooltip(props: ChartTooltipProps) {
   return <ChartTooltip {...props}>
     <div className='report-tooltip-title'>{hourText(row.hour)} — {end}<span>{dayLabel(row.hour.slice(0, 10))}</span></div>
     {row.used ? <>
-      <div className='report-tooltip-cache-rate'><span>{t('命中率')} <strong>{formatPercent(row.rate)}</strong></span>
-        <span>{t('读取 {hit} ÷ 输入 {input}', { hit: formatInt(row.hitTokens), input: formatInt(row.inputTokens) })}</span></div>
+      <div className='report-tooltip-cache-rate'><span>{t('Hit rate')} <strong>{formatPercent(row.rate)}</strong></span>
+        <span>{t('Cache reads {hit} ÷ input {input}', { hit: formatInt(row.hitTokens), input: formatInt(row.inputTokens) })}</span></div>
       <TokenSummary row={row.usage} cache={false} />
-      <Breakdown rows={row.models} total={row.totalTokens ?? 0} label={t('模型分布')} />
-    </> : <p className='report-tooltip-note'>{t('无数据')}</p>}
+      <Breakdown rows={row.models} total={row.totalTokens ?? 0} label={t('Model breakdown')} />
+    </> : <p className='report-tooltip-note'>{t('No data')}</p>}
   </ChartTooltip>
 }
 
@@ -127,7 +127,7 @@ export function DonutTooltip(props: ChartTooltipProps) {
   return <ChartTooltip {...props} compact>
     <div className='report-tooltip-title'>{row.name}<span>{formatUsagePercent(row.percentage)}</span></div>
     <DataRow label={t('Token')}><TokenValue value={row.tokens} /></DataRow>
-    <DataRow label={t('总请求数')}><strong>{formatInt(row.requests)}</strong></DataRow>
-    {row.members ? <p className='report-tooltip-note'>{t('仅在饼图合并，右侧列表完整保留每个项目')}</p> : null}
+    <DataRow label={t('Total requests')}><strong>{formatInt(row.requests)}</strong></DataRow>
+    {row.members ? <p className='report-tooltip-note'>{t('Grouped only in the donut; every item remains in the list')}</p> : null}
   </ChartTooltip>
 }

@@ -445,8 +445,8 @@ pub fn validate(settings: &VisionSettings) -> Result<(), String> {
         || settings.reroute.targets.len() > MAX_TARGETS {
         return Err(format!("图片兼容每种方式最多 {MAX_MODELS} 个模型、{MAX_TARGETS} 个备选视觉模型"));
     }
-    validate_model_list("辅助识图", &settings.assist.models)?;
-    validate_model_list("切换视觉模型", &settings.reroute.models)?;
+    validate_model_list("Assisted image reading", &settings.assist.models)?;
+    validate_model_list("Switch to a vision model", &settings.reroute.models)?;
     if let Some(target) = &settings.assist.target { validate_target(target)?; }
     if let Some(target) = &settings.assist.shared_target { validate_target(target)?; }
     let mut targets = HashSet::new();
@@ -462,7 +462,7 @@ pub fn validate(settings: &VisionSettings) -> Result<(), String> {
             return Err("模型单独配置的提供商和模型不完整".into());
         }
         if !overrides.insert((entry.provider.to_lowercase(), entry.model.to_lowercase())) {
-            return Err("同一提供商的同一模型不能重复配置".into());
+            return Err("The same provider and model cannot have duplicate overrides".into());
         }
     }
     if settings.enabled && settings.uses(Mode::Assist)

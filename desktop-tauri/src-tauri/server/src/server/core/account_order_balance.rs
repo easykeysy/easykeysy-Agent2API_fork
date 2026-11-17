@@ -23,8 +23,8 @@ impl AccountSortBalance {
             .and_then(|source| source.get("unit")).and_then(Value::as_str);
         let unit = usage.get("unit").and_then(Value::as_str).map(str::trim).filter(|unit| !unit.is_empty())
             .or_else(|| account_unit.map(str::trim).filter(|unit| !unit.is_empty()))
-            .unwrap_or_else(|| if usage.get("totalLeft").is_some() { "积分" } else { "" });
-        let unit = if unit.eq_ignore_ascii_case("credit") || unit.eq_ignore_ascii_case("credits") { "积分" } else { unit };
+            .unwrap_or_else(|| if usage.get("totalLeft").is_some() { "Points" } else { "" });
+        let unit = if unit.eq_ignore_ascii_case("credit") || unit.eq_ignore_ascii_case("credits") { "Points" } else { unit };
         Self { remaining, unlimited, unit: unit.to_string() }
     }
 

@@ -24,7 +24,7 @@ export function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(reader.error || new Error(t('读取图片失败')))
+    reader.onerror = () => reject(reader.error || new Error(t('Failed to read image')))
     reader.readAsDataURL(file)
   })
 }
@@ -33,7 +33,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error(t('读取图片失败')))
+    image.onerror = () => reject(new Error(t('Failed to read image')))
     image.src = src
   })
 }

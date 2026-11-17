@@ -86,7 +86,7 @@ pub(in crate::server::core::plugin_host) async fn open_body(params: &Value, body
         || !url.username().is_empty()
         || url.password().is_some()
     {
-        return Err(error("脚本请求只允许不含账号信息的 HTTP 地址"));
+        return Err(error("脚本请求只允许不含账号信息的 HTTP Address"));
     }
     let proxy = proxy_for(&url, params)?;
     let client = egress::resolved_client(proxy.as_ref(), false, "", &[]).map_err(error)?;

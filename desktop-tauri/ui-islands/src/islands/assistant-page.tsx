@@ -172,7 +172,7 @@ function AssistantPage() {
     try {
       setSessions(await loadSessions())
     } catch (error) {
-      toast(t('读取历史会话失败：{message}', { message: errorText(error) }), 'err')
+      toast(t('Failed to load conversation history: {message}', { message: errorText(error) }), 'err')
     }
     // 首次进入开一条空白会话（不等用户点「新对话」：直接就能打字）
     if (!activeIdRef.current) {
@@ -202,8 +202,8 @@ function AssistantPage() {
   const currentOption = selectedModel(models, currentModel)
   const modelSupportsImages = currentOption?.supportsImages === true
   const modelWarning = modelsError
-    ? t('读取模型清单失败：{message}', { message: modelsError })
-    : !modelsReady ? t('正在读取可用模型…')
+    ? t('Failed to read the model catalog: {message}', { message: modelsError })
+    : !modelsReady ? t('Loading available models…')
     : currentModel && !currentOption ? unavailableModelMessage(currentModel) : ''
   const mode: PermissionMode = config?.mode ?? 'confirm'
 
@@ -236,7 +236,7 @@ function AssistantPage() {
       if (stoppedRef.current) {
         for (const call of calls.slice(i)) {
           uiRef.current.push({ kind: 'tool', call, state: 'cancelled' })
-          collected.push({ toolCallId: call.id, content: '用户已停止，未执行这次操作。' })
+          collected.push({ toolCallId: call.id, content: 'The user stopped; this action was not executed.' })
         }
         break
       }
@@ -246,14 +246,14 @@ function AssistantPage() {
       if (!tool) {
         uiRef.current.push({
           kind: 'tool', call, state: 'failed',
-          error: t('未知工具「{name}」：它在设置里可能刚被取消勾选，或这一版助手还不认识它。', { name: call.name }),
+          error: t('Unknown tool "{name}": it may have just been deselected in settings, or this version of the assistant doesn\'t recognize it yet.', { name: call.name }),
         })
         collected.push({ toolCallId: call.id, content: `未知工具 ${call.name}，未执行。` })
         syncUI()
         continue
       }
       if (configRef.current?.tools?.[tool.id] !== true) {
-        const message = t('工具「{name}」未获授权，未执行。', { name: tool.label })
+        const message = t('Tool "{name}" is not authorized and was not executed.', { name: tool.label })
         uiRef.current.push({ kind: 'tool', call, state: 'failed', error: message })
         collected.push({ toolCallId: call.id, content: message })
         syncUI()
@@ -273,7 +273,7 @@ function AssistantPage() {
             if (activeIdRef.current !== session) return
             stoppedRef.current = true
             uiRef.current[cardIndex] = { kind: 'tool', call, state: 'cancelled' }
-            collected.push({ toolCallId: call.id, content: '用户已停止，未继续执行这次操作。' })
+            collected.push({ toolCallId: call.id, content: 'The user stopped; this action was not carried on.' })
             syncUI()
             continue
           }
@@ -287,8 +287,8 @@ function AssistantPage() {
 
       // 改动 / 消耗类：看权限模式决定「先问」还是「直接做」
       const plan = tool.plan?.(args) || {
-        lead: t('将执行 {label}。', { label: tool.label }),
-        ...(refreshingBalance ? { note: t('实时余额查询会请求上游，并可能触发已配置的自动禁用规则。') } : {}),
+        lead: t('About to run {label}.', { label: tool.label }),
+        ...(refreshingBalance ? { note: t('Live balance checks send requests to upstream providers and may trigger the configured automatic account-disable rules.') } : {}),
       }
       const auto = (configRef.current?.mode ?? 'confirm') === 'full'
       if (!auto) {
@@ -315,7 +315,7 @@ function AssistantPage() {
           if (activeIdRef.current !== session) return
           stoppedRef.current = true
           uiRef.current[cardIndex] = { kind: 'tool', call, state: 'cancelled' }
-          collected.push({ toolCallId: call.id, content: '用户已停止，未继续执行这次操作。' })
+          collected.push({ toolCallId: call.id, content: 'The user stopped; this action was not carried on.' })
           syncUI()
           continue
         }
@@ -343,7 +343,7 @@ function AssistantPage() {
     if (roundRef.current >= MAX_ROUNDS) {
       uiRef.current.push({
         kind: 'notice',
-        text: t('这一轮来回已达 {n} 次上限，我先停下等你指示（可以换个说法，或拆成几步让我做）。', { n: MAX_ROUNDS }),
+        text: t('This turn has reached the {n}-round-trip limit, so I stopped for your input (try rephrasing, or split it into a few steps).', { n: MAX_ROUNDS }),
         bad: true,
       })
       syncUI()
@@ -360,7 +360,7 @@ function AssistantPage() {
     let calls: ToolCall[] = []
     let failed = false
     try {
-      if (!requestKeyRef.current) throw new Error(t('请先选择一把 API Key'))
+      if (!requestKeyRef.current) throw new Error(t('Select an API Key first'))
       await streamChat({
         model: requestModelRef.current,
         apiKey: requestKeyRef.current.key,
@@ -398,7 +398,7 @@ function AssistantPage() {
       const aborted = controller.signal.aborted
       uiRef.current.push({
         kind: 'notice',
-        text: aborted ? t('已停止这次回答。') : t('请求失败：{message}', { message }),
+        text: aborted ? t('This reply was stopped.') : t('Request failed: {message}', { message }),
         bad: !aborted,
       })
       syncUI()
@@ -442,14 +442,14 @@ function AssistantPage() {
     const args = parseToolArguments(call.arguments)
     if (!run || !tool) {
       uiRef.current[suspended.cardIndex] = { kind: 'tool', call, state: 'cancelled' }
-      suspended.collected.push({ toolCallId: call.id, content: '用户取消了这次操作，没有做任何改动。' })
+      suspended.collected.push({ toolCallId: call.id, content: 'The user cancelled this action; nothing was changed.' })
       syncUI()
     } else {
       uiRef.current[suspended.cardIndex] = { kind: 'tool', call, state: 'running' }
       setBusy(true)
       syncUI()
       try {
-        if (configRef.current?.tools?.[tool.id] !== true) throw new Error(t('工具「{name}」未获授权，未执行。', { name: tool.label }))
+        if (configRef.current?.tools?.[tool.id] !== true) throw new Error(t('Tool "{name}" is not authorized and was not executed.', { name: tool.label }))
         const result: ToolResult = await runTool(tool, args, suspended.collected)
         uiRef.current[suspended.cardIndex] = { kind: 'tool', call, state: 'done', summary: result.summary, detail: result.text, images: result.images }
         suspended.collected.push({ toolCallId: call.id, content: result.text, images: result.images })
@@ -459,7 +459,7 @@ function AssistantPage() {
           if (activeIdRef.current !== session) return
           stoppedRef.current = true
           uiRef.current[suspended.cardIndex] = { kind: 'tool', call, state: 'cancelled' }
-          suspended.collected.push({ toolCallId: call.id, content: '用户已停止，未继续执行这次操作。' })
+          suspended.collected.push({ toolCallId: call.id, content: 'The user stopped; this action was not carried on.' })
           syncUI()
           await pump(suspended.calls, suspended.index + 1, suspended.collected)
           return
@@ -481,8 +481,8 @@ function AssistantPage() {
     const current = configRef.current
     if (!current?.model) {
       toast(current
-        ? t('还没有选择对话模型：在输入框右下角选一个，或点右上角「助手设置」。')
-        : t('助手设置没读出来，现在还不能发消息 —— 点右上角「助手设置」看看。'), 'err')
+        ? t('No chat model selected yet: pick one at the bottom right of the input box, or tap "Assistant settings" at the top right.')
+        : t('Assistant settings could not be read; messages cannot be sent yet—— Check "Assistant settings" at the top right.'), 'err')
       return
     }
     const attempt = ++preflightRef.current
@@ -496,11 +496,11 @@ function AssistantPage() {
       if (attempt !== preflightRef.current || activeIdRef.current !== session || configRef.current?.model !== model) return
       const key = keys.find(key => key.id === current.apiKeyId)
       if (!key) {
-        toast(t('请先选择一把 API Key'), 'err')
+        toast(t('Select an API Key first'), 'err')
         return
       }
       if (!modelApiKeyAllows(key, model)) {
-        toast(t('所选 API Key 无权调用此模型或提供商'), 'err')
+        toast(t('The selected API Key cannot access this model or provider'), 'err')
         return
       }
       const option = selectedModel(latest, model)
@@ -538,8 +538,8 @@ function AssistantPage() {
     } catch (error) {
       if (attempt === preflightRef.current) {
         toast(checkingModelRef.current
-          ? t('读取模型清单失败：{message}', { message: errorText(error) })
-          : t('请求失败：{message}', { message: errorText(error) }), 'err')
+          ? t('Failed to read the model catalog: {message}', { message: errorText(error) })
+          : t('Request failed: {message}', { message: errorText(error) }), 'err')
       }
     } finally {
       if (attempt === preflightRef.current) {
@@ -627,7 +627,7 @@ function AssistantPage() {
         refreshModelOptions()
       }
     } catch (error) {
-      toast(t('打开会话失败：{message}', { message: errorText(error) }), 'err')
+      toast(t('Failed to open session: {message}', { message: errorText(error) }), 'err')
     } finally {
       historyBusyRef.current = false
       setHistoryBusy(false)
@@ -643,7 +643,7 @@ function AssistantPage() {
       await removeSavedSession(id)
       if (id === activeIdRef.current) resetToBlank(newSessionId())
     } catch (error) {
-      toast(t('删除会话失败：{message}', { message: errorText(error) }), 'err')
+      toast(t('Failed to delete session: {message}', { message: errorText(error) }), 'err')
     } finally {
       historyBusyRef.current = false
       setHistoryBusy(false)
@@ -658,7 +658,7 @@ function AssistantPage() {
       await clearSavedSessions()
       resetToBlank(newSessionId())
     } catch (error) {
-      toast(t('清空历史失败：{message}', { message: errorText(error) }), 'err')
+      toast(t('Failed to clear history: {message}', { message: errorText(error) }), 'err')
     } finally {
       historyBusyRef.current = false
       setHistoryBusy(false)
@@ -668,7 +668,7 @@ function AssistantPage() {
   const pickModel = React.useCallback((name: string) => {
     if (!name) return
     if (!config) {
-      toast(t('助手设置没读出来，暂时存不了对话模型。'), 'err')
+      toast(t('Assistant settings could not be read; the chat model cannot be stored for now.'), 'err')
       return
     }
     saveConfig({ ...config, model: name })
@@ -676,7 +676,7 @@ function AssistantPage() {
 
   const pickReasoning = React.useCallback((level: string | null) => {
     if (!config) {
-      toast(t('助手设置没读出来，暂时存不了思考等级。'), 'err')
+      toast(t('Assistant settings could not be read; the thinking level cannot be stored for now.'), 'err')
       return
     }
     saveConfig({ ...config, reasoning: level })
@@ -686,7 +686,7 @@ function AssistantPage() {
     if (!config) return
     saveConfig(
       { ...config, mode: next },
-      next === 'full' ? t('已切换到完全访问') : t('已切换到变更前确认'),
+      next === 'full' ? t('Switched to full access') : t('Switched to confirm-before-change'),
     )
   }, [config, saveConfig])
 
@@ -712,7 +712,7 @@ function AssistantPage() {
 
   /* ─── 渲染 ─── */
 
-  const activeTitle = titleRef.current || titleFrom(wireRef.current) || t('新对话')
+  const activeTitle = titleRef.current || titleFrom(wireRef.current) || t('New chat')
   const empty = ui.length === 0
 
   return (
@@ -723,7 +723,7 @@ function AssistantPage() {
         onSettings={() => { setTitleSettingsOpen(true); refreshModelOptions() }} />
 
       <div className='asst-main'>
-        <AssistantTopbar title={activeTitle} keyLabel={selectedKey ? modelApiKeyLabel(selectedKey) : t('请先选择一把 API Key')}
+        <AssistantTopbar title={activeTitle} keyLabel={selectedKey ? modelApiKeyLabel(selectedKey) : t('Select an API Key first')}
           onHistory={() => setSidebarOpen(open => !open)} onSettings={() => setSettingsOpen(true)} />
 
         <div className='asst-scroll' ref={scrollRef}>
@@ -768,7 +768,7 @@ function AssistantPage() {
 
       <AssistantTitleSettings open={titleSettingsOpen} onOpenChange={setTitleSettingsOpen}
         model={config?.titleModel ?? null} prompt={config?.titlePrompt ?? ''} models={models.map(item => item.name)} t={t} disabled={!config}
-        onSave={(titleModel, titlePrompt) => { if (config) saveConfig({ ...config, titleModel, titlePrompt }, t('标题总结设置已保存')) }} />
+        onSave={(titleModel, titlePrompt) => { if (config) saveConfig({ ...config, titleModel, titlePrompt }, t('Title generation settings saved')) }} />
       <AssistantSettingsDrawer
         open={settingsOpen}
         onOpenChange={setSettingsOpen}

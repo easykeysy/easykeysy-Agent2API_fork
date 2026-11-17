@@ -148,7 +148,7 @@ pub async fn stats_summary(State(state): State<ServerState>, Query(params): Quer
     if !RANGES.contains(&requested.as_str()) {
         return errors::management_error(
             400,
-            format!("range 取值非法: {requested}（合法值: {}）", RANGES.join("、")),
+            format!("range 取值非法: {requested}（合法值: {})", RANGES.join(", ")),
         );
     }
     let custom = if requested == "custom" {
@@ -164,7 +164,7 @@ pub async fn stats_summary(State(state): State<ServerState>, Query(params): Quer
             return errors::management_error(
                 400,
                 format!(
-                    "开始日期不能晚于结束日期（startDate={}, endDate={}）",
+                    "开始日期不能晚于结束日期（startDate={}, endDate={})",
                     start, end
                 ),
             );
@@ -190,7 +190,7 @@ pub async fn stats_summary(State(state): State<ServerState>, Query(params): Quer
     // runtime 线程」这一半。
     let api_key = text_of(&params, "apiKey");
     if api_key.as_deref().is_some_and(|value| crate::server::request_stats::ApiKeyIdentity::from_filter(value).is_none()) {
-        return errors::management_error(400, "apiKey 取值非法（需要 key:<id>、env、none 或 unknown）");
+        return errors::management_error(400, "apiKey 取值非法（需要 key:<id>, env, none or unknown)");
     }
     let stats = state.request_stats();
     let result = tokio::task::spawn_blocking(move || stats.usage_summary(&requested, custom, api_key.as_deref())).await;
@@ -248,7 +248,7 @@ fn filter_from_params(params: &Params) -> RequestQuery {
 fn checked_filter(params: &Params) -> Result<RequestQuery, Response> {
     let mut filter = filter_from_params(params);
     if filter.api_key.as_deref().is_some_and(|value| crate::server::request_stats::ApiKeyIdentity::from_filter(value).is_none()) {
-        return Err(errors::management_error(400, "apiKey 取值非法（需要 key:<id>、env、none 或 unknown）"));
+        return Err(errors::management_error(400, "apiKey 取值非法（需要 key:<id>, env, none or unknown)"));
     }
     if let Some((start, end)) = date_bounds(params).map_err(|message| errors::management_error(400, message))? {
         filter.start = Some(start);
@@ -289,7 +289,7 @@ pub async fn clear_stats_requests(
         Some(other) => {
             return errors::management_error(
                 400,
-                format!("mode 取值非法: {other}（合法值: raw、all）"),
+                format!("mode 取值非法: {other}（合法值: raw, all)"),
             )
         }
     };
@@ -361,7 +361,7 @@ pub async fn stats_request_raw(
     };
     match state.request_stats().raw_body(&id) {
         Some(value) => ok_json(value),
-        None => errors::management_error(404, format!("未找到该请求的原始报文（id: {id}）")),
+        None => errors::management_error(404, format!("未找到该请求的原始报文（id: {id})")),
     }
 }
 
@@ -462,35 +462,35 @@ pub async fn put_retention(State(state): State<ServerState>, body: Bytes) -> Res
             &mut patch.log_days,
             RETENTION_MIN_DAYS,
             RETENTION_MAX_DAYS,
-            "天",
+            "days",
         ),
         (
             KEY_REQUEST_RETENTION_DAYS,
             &mut patch.request_days,
             RETENTION_MIN_DAYS,
             RETENTION_MAX_DAYS,
-            "天",
+            "days",
         ),
         (
             KEY_DAILY_RETENTION_DAYS,
             &mut patch.daily_days,
             RETENTION_MIN_DAYS,
             RETENTION_MAX_DAYS,
-            "天",
+            "days",
         ),
         (
             KEY_LOG_RETENTION_COUNT,
             &mut patch.log_count,
             RETENTION_MIN_COUNT,
             RETENTION_MAX_COUNT,
-            "条",
+            "rows",
         ),
         (
             KEY_REQUEST_RETENTION_COUNT,
             &mut patch.request_count,
             RETENTION_MIN_COUNT,
             RETENTION_MAX_COUNT,
-            "条",
+            "rows",
         ),
     ];
     for (key, slot, min, max, unit) in targets {
@@ -533,7 +533,7 @@ pub async fn put_retention(State(state): State<ServerState>, body: Bytes) -> Res
         logging::log(
             "[Config]",
             &format!(
-                "数据保留设置已更新: 日志 {} 天 / {} 条，请求日志 {} 天 / {} 条，按天聚合 {} 天",
+                "数据保留设置已更新: Logs {} days / {} 条，请求日志 {} days / {} 条，按天聚合 {} days",
                 settings.log_days,
                 settings.log_count,
                 settings.request_days,
@@ -570,5 +570,5 @@ fn parse_retention_value(
     unit: &str,
 ) -> Result<i64, String> {
     config::parse::int_in_range(value, min, max)
-        .ok_or_else(|| format!("{key} 必须是 {min}-{max} {unit}范围内的整数（收到: {value}）"))
+        .ok_or_else(|| format!("{key} 必须是 {min}-{max} {unit}范围内的整数（收到: {value})"))
 }

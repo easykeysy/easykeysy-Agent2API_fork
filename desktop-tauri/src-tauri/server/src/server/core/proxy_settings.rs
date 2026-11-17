@@ -73,7 +73,7 @@ pub fn save(input: &Value) -> Result<Value, String> {
         if !text.is_empty() {
             let url = url::Url::parse(text).map_err(|_| "测试网址无效".to_string())?;
             if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
-                return Err("测试网址要以 http:// 或 https:// 开头".to_string());
+                return Err("The test URL must start with http:// or https://".to_string());
             }
             if text.chars().count() > MAX_URL_LENGTH {
                 return Err("测试网址过长".to_string());

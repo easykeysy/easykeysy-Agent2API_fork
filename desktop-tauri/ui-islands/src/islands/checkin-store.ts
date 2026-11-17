@@ -301,7 +301,7 @@ export async function loadCenter(): Promise<void> {
     const data = await bridge().getCheckinCenter?.()
     if (request !== centerRequest) return
     if (!data) {
-      patch({ loaded: true, loadError: '后端未返回签到中心数据' })
+      patch({ loaded: true, loadError: 'The backend did not return check-in center data' })
       return
     }
     patch({
@@ -421,7 +421,7 @@ export async function signSingle(accountId: string, mode: string): Promise<void>
 }
 
 function rowMessage(row: CheckinResultRow): string {
-  return resultMessage(row) || t('未完成，请查看签到记录')
+  return resultMessage(row) || t('Not completed. Please check the check-in records.')
 }
 
 /** 提示以逐账号执行结果为准，HTTP 成功仅表示整轮执行完毕。 */
@@ -432,7 +432,7 @@ function reportRunResult(result: CheckinRunResult | null | undefined, single = f
   if (single && rows.length === 1) {
     const row = rows[0]
     const completed = rowCompleted(row)
-    const message = completed ? row.claim?.msg?.trim() || result.reason || '签到完成' : rowMessage(row)
+    const message = completed ? row.claim?.msg?.trim() || result.reason || 'Sign-in complete' : rowMessage(row)
     toast(completed ? `✅ ${message}` : message, completed ? 'ok' : rowPending(row) ? 'warn' : 'err')
     return
   }
@@ -444,13 +444,13 @@ function reportRunResult(result: CheckinRunResult | null | undefined, single = f
   const activeText = active > 0 ? `，日活保活 ${active} 个` : ''
   if (failed > 0) {
     const failures = result.failed?.length ? result.failed : failedRows.map(rowMessage)
-    const names = failures.length ? `（${failures.slice(0, 5).join('、')}）` : ''
+    const names = failures.length ? `（${failures.slice(0, 5).join(', ')}）` : ''
     toast(`签到完成：${succeeded}/${total} 成功${activeText}，${failed} 个失败${names}`, 'err')
     return
   }
   if (single) {
     const completed = succeeded > 0 || active > 0
-    toast(completed ? `✅ ${result.reason || '签到完成'}` : t('未完成，请查看签到记录'), completed ? 'ok' : 'warn')
+    toast(completed ? `✅ ${result.reason || 'Sign-in complete'}` : t('Not completed. Please check the check-in records.'), completed ? 'ok' : 'warn')
     return
   }
   toast(`✅ 签到完成：${succeeded}/${total} 个账号成功领取${activeText}`, succeeded > 0 || active > 0 ? 'ok' : 'warn')
@@ -463,7 +463,7 @@ export async function toggleMaster(enabled: boolean): Promise<void> {
       const data = await bridge().saveAutoCheckin?.({ enabled })
       if (data) patch({ center: withAuto(store.center, data) })
     },
-    { success: enabled ? '✅ 定时签到已开启' : '定时签到已关闭', reload: false, failure: '保存失败' },
+    { success: enabled ? '✅ Scheduled check-in enabled' : 'Scheduled check-in disabled', reload: false, failure: 'Save failed' },
   )
   void loadCenter()
 }
@@ -476,14 +476,14 @@ export async function saveScheduleEntry(
   const saved = await run(
     async () => {
       const data = await bridge().saveCheckinSchedule?.(payload)
-      if (!data) throw new Error(t('后端未返回定时签到数据'))
+      if (!data) throw new Error(t('Backend returned no schedule data'))
       patch({
         center: withAuto(store.center, data),
         ...(options.closeEditor === false ? {} : { editingId: null }),
       })
       return true
     },
-    { success: options.silent ? undefined : '✅ 已保存', reload: false, failure: '保存失败' },
+    { success: options.silent ? undefined : '✅ Saved', reload: false, failure: 'Save failed' },
   )
   if (saved) void loadCenter()
   return saved === true
@@ -495,7 +495,7 @@ export async function removeScheduleEntry(id: string): Promise<void> {
     async () => {
       await bridge().deleteCheckinSchedule?.(id)
     },
-    { success: '已删除', failure: '删除失败' },
+    { success: 'Deleted', failure: 'Deletion failed' },
   )
 }
 
@@ -523,7 +523,7 @@ export async function saveKeepaliveModels(models: string[], apiKeyId?: string | 
         patch({ center: { ...store.center, keepalive: data }, keepaliveDraft: null })
       }
     },
-    { success: '✅ 模型链已保存', reload: false, failure: '保存失败' },
+    { success: '✅ The model chain has been saved', reload: false, failure: 'Save failed' },
   )
 }
 
@@ -539,7 +539,7 @@ export async function saveTravel(body: Record<string, unknown>): Promise<void> {
         })
       }
     },
-    { success: '✅ 已保存', reload: false, failure: '保存失败' },
+    { success: '✅ Saved', reload: false, failure: 'Save failed' },
   )
 }
 
@@ -548,19 +548,19 @@ export async function runTravelNow(): Promise<void> {
   await run(
     async () => {
       const result = await bridge().runTravelScheduleNow?.()
-      if (!result) throw new Error(t('后端未返回巡检结果'))
+      if (!result) throw new Error(t('The backend did not return an inspection result'))
       if (result.outcome === 'skipped') {
-        toast(t('本轮已跳过：{reason}', { reason: result.message ?? '' }))
+        toast(t('This run was skipped: {reason}', { reason: result.message ?? '' }))
         return
       }
       const failed = Number(result.summary?.failed) || 0
-      toast(t('猫猫旅行：{n} 个动作，+{credit} 积分，{failed} 个失败', {
+      toast(t('Cat travel: {n} actions, +{credit} credits, {failed} failed', {
         n: result.summary?.actions?.length ?? 0,
         credit: Number(result.summary?.credit) || 0,
         failed,
       }), failed > 0 ? 'err' : 'ok')
     },
-    { failure: '执行失败' },
+    { failure: 'Execution failed' },
   )
 }
 
@@ -578,7 +578,7 @@ export async function clearRecords(all: boolean): Promise<void> {
           keyword: query.keyword || undefined,
         })
     },
-    { success: '签到记录已清空', reload: false, failure: '清空失败' },
+    { success: 'Sign-in records cleared', reload: false, failure: 'Clear failed' },
   )
   await loadRecords()
 }
@@ -666,7 +666,7 @@ export async function runGrowth(id: string, mode: 'full' | 'claim'): Promise<voi
   if (current.status !== 'loaded' || current.running || current.runningSchool) return
   const targets = current.tasks.filter(task => growthTaskRunnable(task, mode))
   if (targets.length === 0) {
-    toast('没有需要执行的任务')
+    toast('Nothing to run')
     return
   }
   patchGrowth(id, { running: true, results: [], error: '' })
@@ -688,7 +688,7 @@ export async function runGrowth(id: string, mode: 'full' | 'claim'): Promise<voi
     patchGrowth(id, { results: [...results] })
   }
   patchGrowth(id, { running: false })
-  toast(failed > 0 ? `执行完成，${failed} 项失败` : '✅ 执行完成', failed > 0 ? 'err' : 'ok')
+  toast(failed > 0 ? `执行完成，${failed} 项失败` : '✅ Execution complete', failed > 0 ? 'err' : 'ok')
   await queryGrowth(id)
 }
 
@@ -705,19 +705,19 @@ export async function runGrowthBatch(accountIds: string[], mode: 'full' | 'claim
       await queryGrowth(id)
       const cache = growthOf(id)
       if (cache.status !== 'loaded' || cache.error) {
-        toast(t('查询失败：{error}', { error: cache.error || id }), 'err')
+        toast(t('Query failed: {error}', { error: cache.error || id }), 'err')
         continue
       }
       await runGrowth(id, mode)
     }
   } catch (error) {
-    toast(t('成长任务执行失败：{error}', { error: errorMessage(error) }), 'err')
+    toast(t('Growth task run failed: {error}', { error: errorMessage(error) }), 'err')
   } finally {
     patch({ growthBatch: null })
   }
 }
 
-/** 开学季任务 + 抽奖 */
+/** On学季任务 + 抽奖 */
 export async function runSchool(id: string, lottery: boolean): Promise<void> {
   const current = growthOf(id)
   if (current.runningSchool) return
@@ -726,7 +726,7 @@ export async function runSchool(id: string, lottery: boolean): Promise<void> {
     const data = await bridge().runGrowthSchool?.(id, lottery)
     const message = typeof data?.message === 'string' && data.message
       ? data.message
-      : (lottery ? '✅ 开学季任务已执行并抽奖' : '✅ 开学季任务已执行')
+      : (lottery ? '✅ The back-to-school task has been executed and the lottery drawn' : '✅ The back-to-school task has been executed')
     toast(message)
   } catch (error) {
     toast(`执行失败：${errorMessage(error)}`, 'err')
@@ -740,7 +740,7 @@ export async function runSchool(id: string, lottery: boolean): Promise<void> {
 export async function runTravelOnce(id: string): Promise<void> {
   try {
     const data = await bridge().runGrowthTravel?.(id)
-    toast(typeof data?.message === 'string' && data.message ? data.message : '✅ 旅行巡检完成')
+    toast(typeof data?.message === 'string' && data.message ? data.message : '✅ The travel inspection is complete')
   } catch (error) {
     toast(`执行失败：${errorMessage(error)}`, 'err')
   } finally {

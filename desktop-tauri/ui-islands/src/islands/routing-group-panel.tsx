@@ -43,7 +43,7 @@ export function RoutingGroupPanel({ editor, accounts, lastUsed, reserved, baseUr
     next.members = [...ids.map(id => next.members.find(member => member.id === id)!), ...next.members.filter(member => !member.included)]
   })
   const drag = useRoutingDrag(!locked && !query, `${group?.id || ''}:${search}`, drop)
-  if (!group || !editor.draft) return <Empty>{t('选择路由入口')}</Empty>
+  if (!group || !editor.draft) return <Empty>{t('Select a route entry')}</Empty>
   const active = group.members.filter(member => member.included)
   const sections = routingAccountSections(group.members, accounts, member => member.provider, member => member.included)
   const orderingPeers = (id: string) => (Object.values(sections).find(members => members.some(member => member.id === id)) || []).filter(member => member.included)
@@ -60,13 +60,13 @@ export function RoutingGroupPanel({ editor, accounts, lastUsed, reserved, baseUr
     if (target) editMember(member.id, next => reorderRoute(next.accounts, id, target, direction > 0))
   }
   const removeAll = async () => {
-    if (await confirmDialog(t('只移出本路由，账号状态和其他路由不变；保存后此入口将没有可用路由。'), {
-      title: t('全部移出本路由'), confirmText: t('全部移出'),
+    if (await confirmDialog(t('Remove only from this route. Accounts and other routes stay unchanged. After saving, this entry has no available route.'), {
+      title: t('Remove all from this route'), confirmText: t('Remove all'),
     })) update(next => { next.members.forEach(member => { member.included = false }) })
   }
   const copy = async (value: string) => {
-    try { await navigator.clipboard.writeText(value); notify(t('已复制')) }
-    catch { notify(t('复制失败，请手动选择并复制'), 'error') }
+    try { await navigator.clipboard.writeText(value); notify(t('Copied')) }
+    catch { notify(t('Copy failed. Select and copy manually.'), 'error') }
   }
   const request = JSON.stringify({ model: group.model, messages: [{ role: 'user', content: 'Hello' }], stream: true }, null, 2)
   const snippet = `POST ${baseUrl.replace(/\/$/, '')}/v1/chat/completions\nAuthorization: Bearer <YOUR_GATEWAY_KEY>\nContent-Type: application/json\n\n${request}`
@@ -84,22 +84,22 @@ export function RoutingGroupPanel({ editor, accounts, lastUsed, reserved, baseUr
     onAccount={onAccount} sorting={sorting} now={now} onSort={() => onSort(member.provider)} />
   const selectedAccountMember = group.members.find(member => member.id === accountMember)
   const members = <section className='routing-groups-column'>
-    <div className='routing-column-head'><RouteIcon name='plugins' size={14} /><b>{t('成员模型')}</b><span>{t('{n} 项参与', { n: active.length })}</span>
+    <div className='routing-column-head'><RouteIcon name='plugins' size={14} /><b>{t('成员模型')}</b><span>{t('{n} participating', { n: active.length })}</span>
       <div className='right'><Button variant='ghost' size='sm' disabled={!expandable.length || Boolean(query)} onClick={() => setOpened(current => ({ ...current, ...Object.fromEntries(expandable.map(member => [member.id, !allOpen])) }))}>
-        {allOpen ? t('折叠全部') : t('展开全部')}</Button>
-        <RoutingActions label={t('路由参与操作')} actions={[
-          { label: t('添加模型'), icon: 'plus', disabled: locked, onClick: () => setDialog('add') },
-          { label: t('全部移出'), disabled: locked || !active.length, onClick: () => void removeAll() },
+        {allOpen ? t('Collapse all') : t('Expand all')}</Button>
+        <RoutingActions label={t('Route participation actions')} actions={[
+          { label: t('Add model'), icon: 'plus', disabled: locked, onClick: () => setDialog('add') },
+          { label: t('Remove all'), disabled: locked || !active.length, onClick: () => void removeAll() },
         ]} />
       </div>
     </div>
     <InputGroup className='routing-config-search'><InputGroupInput value={search} onChange={event => setSearch(event.currentTarget.value)}
-      placeholder={t('搜索提供商或模型')} aria-label={t('搜索提供商或模型')} /><InputGroupAddon><RouteIcon name='search' size={14} /></InputGroupAddon></InputGroup>
-    <p className='routing-groups-hint'>{t('拖动把手或按 Alt + 方向键调整顺序，更多操作在右侧菜单。')}</p>
+      placeholder={t('Search providers or models')} aria-label={t('Search providers or models')} /><InputGroupAddon><RouteIcon name='search' size={14} /></InputGroupAddon></InputGroup>
+    <p className='routing-groups-hint'>{t('Drag a handle or use Alt + arrow keys to reorder. More actions are in the menu on the right.')}</p>
     <RoutingRefreshError error={live.error} onRetry={live.refresh} />
     <div className='routing-config-listcol' data-route-scroll>
       <div className='routing-config-participants' data-route-list>{visible.map(renderMember)}</div>
-      {!active.length ? <Empty><b>{t('还没有参与模型')}</b><span>{t('可以保存空路由，但请求会明确失败，不会回退全局。')}</span></Empty> : null}
+      {!active.length ? <Empty><b>{t('No participating models yet')}</b><span>{t('An empty route can be saved, but requests will fail explicitly without falling back globally.')}</span></Empty> : null}
       {routingCollapsedSections.map(({ key, label }) => {
         const members = sections[key].filter(matches)
         return members.length ? <Collapsible key={key} className='routing-config-excluded' open={Boolean(sectionOpen[key]) || Boolean(query)}
@@ -108,32 +108,32 @@ export function RoutingGroupPanel({ editor, accounts, lastUsed, reserved, baseUr
           <CollapsibleContent data-route-list>{members.map(renderMember)}</CollapsibleContent>
         </Collapsible> : null
       })}
-      {query && !group.members.some(matches) ? <Empty>{t('没有匹配的候选')}</Empty> : null}
+      {query && !group.members.some(matches) ? <Empty>{t('No matching candidates')}</Empty> : null}
       <Button variant='dashed' className='routing-add-member' disabled={locked} onClick={() => setDialog('add')}><RouteIcon name='plus' size={14} />{t('添加模型')}</Button>
     </div>
   </section>
   return <>
-    <RoutingCanvasLayout title={t('自定义路由组')} groups={members} note={t('只影响这个路由成员，不改变账号启用状态，也不影响其他模型。新增账号需要手动加入。')}>
+    <RoutingCanvasLayout title={t('Custom route groups')} groups={members} note={t('Only affects this member, not account enablement or other models. New accounts must be added manually.')}>
       <div className='routing-config-card' data-route-source data-route-running={activity.running > 0 ? '' : undefined}>
         <div className='routing-config-card-scroll'>
-          <header className='routing-config-head'><div><span className='routing-config-eyebrow'>{t('跨模型组合')}</span><h2>{group.name}</h2></div>
-            <RoutingActions label={t('路由配置操作')} actions={[
-              { label: t('编辑路由组'), icon: 'settings', disabled: locked, onClick: () => setDialog('edit') },
-              { label: t('调用示例'), disabled: locked, onClick: () => setDialog('example') },
-              { label: t('删除路由组'), destructive: true, disabled: locked, onClick: () => void editor.remove() },
+          <header className='routing-config-head'><div><span className='routing-config-eyebrow'>{t('Mixed-model group')}</span><h2>{group.name}</h2></div>
+            <RoutingActions label={t('Route configuration actions')} actions={[
+              { label: t('Edit route group'), icon: 'settings', disabled: locked, onClick: () => setDialog('edit') },
+              { label: t('Request example'), disabled: locked, onClick: () => setDialog('example') },
+              { label: t('Delete route group'), destructive: true, disabled: locked, onClick: () => void editor.remove() },
             ]} />
           </header>
           {group.description ? <p className='routing-config-note'>{group.description}</p> : null}
-          <div className='routing-config-alias'><span>{t('对外模型 ID')}</span><code title={group.model}>{group.model}</code>
-            <IconButton name='copy' title={t('复制')} onClick={() => void copy(group.model)} /></div>
+          <div className='routing-config-alias'><span>{t('Public model ID')}</span><code title={group.model}>{group.model}</code>
+            <IconButton name='copy' title={t('Copy')} onClick={() => void copy(group.model)} /></div>
           <div className='routing-config-rules'>
-            <div className='routing-rule-field'><Label>{t('路由策略')}</Label><RoutingSelect label={t('路由策略')} value={group.strategy} disabled={locked}
-              options={[[ 'order', t('顺序优先') ], ['rotate', t('负载均衡')], ['provider', t('成员内轮询')]]} onChange={value => update(next => { next.strategy = value })} /></div>
-            <div className='routing-rule-field'><Label>{t('会话粘滞')}</Label><RoutingSelect label={t('会话粘滞')} value={group.sticky} disabled={locked}
-              options={[[ 'auto', t('自动') ], ['session', t('会话内')], ['turn', t('每轮')], ['off', t('关闭')]]} onChange={value => update(next => { next.sticky = value })} /></div>
+            <div className='routing-rule-field'><Label>{t('Routing strategy')}</LRouting strategy')}</Label><RoutingSelect label={t('Routing strategy')} value={group.strategy} disabled={locked}
+              options={[[ 'order', t('Strict order') ], ['rotate', t('Load balancing')], ['provider', t('Rotate within members')]]} onChange={value => update(next => { next.strategy = value })} /></div>
+            <div className='routing-rule-field'><Label>{t('Session bindings')}</Label><RoutingSelect label={t('Session bindings')} value={group.sticky} disabled={locked}
+              options={[[ 'auto', t('Auto') ], ['session', t('In-session')], ['turn', t('Per turn')], ['off', t('Close')]]} onChange={value => update(next => { next.sticky = value })} /></div>
           </div>
-          <p className='routing-config-note'>{group.sticky === 'auto' || group.sticky === 'session' ? t('同一会话优先保持模型与账号，不可用时才顺延。') : t('每轮重新选路，不保留跨请求的账号绑定。')}</p>
-          <Button variant='link' size='sm' className='routing-group-example' onClick={() => setDialog('example')}>{t('调用示例')}</Button>
+          <p className='routing-config-note'>{group.sticky === 'auto' || group.sticky === 'session' ? t('Prefer the same model and account within a session; fall back when unavailable.') : t('Route each turn independently without retaining account bindings across requests.')}</p>
+          <Button variant='link' size='sm' className='routing-group-example' onClick={() => setDialog('example')}>{t('Request example')}</Button>
         </div>
         <RoutingDraftFooter dirty={dirty} busy={editor.busy} disabled={locked} error={editor.error} onDiscard={editor.discard} onSave={() => void editor.save()} />
       </div>
@@ -144,8 +144,8 @@ export function RoutingGroupPanel({ editor, accounts, lastUsed, reserved, baseUr
       && !Object.values(editor.drafts).some(draft => draft.group.model.toLowerCase() === choice.model.toLowerCase()))} members={group.members} accounts={accounts} lastUsed={lastUsed} onAdd={members => update(next => { next.members.push(...members) })} onClose={() => setDialog(null)} /> : null}
     {selectedAccountMember ? <RoutingMemberAccounts member={selectedAccountMember} accounts={accounts} onSave={ids => editMember(selectedAccountMember.id, member => { member.accounts = ids })} onClose={() => setAccountMember(null)} /> : null}
     {dialog === 'example' ? <Dialog open onOpenChange={open => { if (!open) setDialog(null) }}><DialogContent>
-      <DialogHeader><DialogTitle>{t('调用示例')}</DialogTitle></DialogHeader><DialogBody><p className='text-sm text-muted-foreground'>{t('保存路由后，在客户端填写此模型 ID。密钥使用你自己的网关 Key。')}</p><pre className='routing-group-code'>{snippet}</pre></DialogBody>
-      <DialogFooter><Button variant='outline' onClick={() => setDialog(null)}>{t('关闭')}</Button><Button onClick={() => void copy(snippet)}>{t('复制')}</Button></DialogFooter>
+      <DialogHeader><DialogTitle>{t('Request example')}</DialogTitle></DialogHeader><DialogBody><p className='text-sm text-muted-foreground'>{t('After saving, use this model ID in your client with your own gateway key.')}</p><pre className='routing-group-code'>{snippet}</pre></DialogBody>
+      <DialogFooter><Button variant='outline' onClick={() => setDialog(null)}>{t('Close')}</Button><Button onClick={() => void copy(snippet)}>{t('Copy')}</Button></DialogFooter>
     </DialogContent></Dialog> : null}
   </>
 }

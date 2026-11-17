@@ -54,7 +54,7 @@ export async function loadWorkspace(silent = false): Promise<void> {
   try {
     const workspace = await bridge().getRoutingWorkspace(model || undefined)
     if (sequence !== loadSequence || model !== current.model) return
-    if (!workspace?.profile || !Array.isArray(workspace.accounts)) throw new Error(t('路由接口返回了不完整的数据'))
+    if (!workspace?.profile || !Array.isArray(workspace.accounts)) throw new Error(t('The routing API returned incomplete data'))
     const expandedProviders = new Set(current.expandedProviders)
     for (const provider of workspace.profile.providers) {
       if (inactiveProvider(workspace, provider) && (!current.workspace || !inactiveProvider(current.workspace, provider))) expandedProviders.delete(provider)
@@ -73,7 +73,7 @@ export async function selectModel(model: string): Promise<void> {
   await loadWorkspace()
 }
 export function cloneProfile(): RouteProfile {
-  if (!current.workspace) throw new Error(t('路由配置尚未读取'))
+  if (!current.workspace) throw new Error(t('Routing configuration not loaded yet'))
   return structuredClone(current.workspace.profile)
 }
 export function independentProfile(profile = cloneProfile()): RouteProfile {
@@ -100,7 +100,7 @@ export async function saveProfile(profile: RouteProfile | null, model = current.
       }
       patch({ workspace, expandedProviders })
     }
-    notify(t('路由配置已保存'))
+    notify(t('Routing configuration saved'))
     return true
   } catch (error) {
     patch({ error: errorMessage(error) })

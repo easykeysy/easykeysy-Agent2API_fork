@@ -106,7 +106,7 @@ pub(crate) fn validate_compat(manifest: &SyncManifest) -> Result<(), String> {
     }
     if manifest.schema_version > SCHEMA_VERSION {
         return Err(format!(
-            "远端数据来自更新版本的应用（库版本 {} > 当前 {SCHEMA_VERSION}），请先升级本应用再下载。",
+            "远端数据来自更新版本的应用（库版本 {} > Current {SCHEMA_VERSION}），请先升级本应用再下载。",
             manifest.schema_version
         ));
     }

@@ -18,22 +18,22 @@ export function ClientIdentificationDetail({ entry, api, t }: { entry: RequestId
     <div className='flex flex-wrap items-center gap-2'><Badge variant='outline'>{requestClientLabel(entry, t)}</Badge><span className='text-muted-foreground'>{clientMethodLabel(evidence?.method, t)}</span></div>
     {evidence ? <>
       <div className='break-all'><span className='text-muted-foreground'>User-Agent: </span>{evidence.userAgent || '—'}</div>
-      {evidence.userAgentTruncated ? <p className='text-muted-foreground'>{t('软件标识超过 1 KB，已截断保存；匹配仅使用保留部分。')}</p> : null}
-      {Object.entries(evidence.headers || {}).map(([header, value]) => <div key={header} className='break-all'><span className='text-muted-foreground'>{header}: </span>{value}{evidence.truncatedHeaders?.includes(header) ? ` · ${t('已截断')}` : ''}</div>)}
-      {evidence.invalidHeaders?.length ? <p className='break-all text-muted-foreground'>{t('无效或重复的标识请求头：{headers}', { headers: evidence.invalidHeaders.join(', ') })}</p> : null}
-      {evidence.matchedHeader ? <p className='break-all text-muted-foreground'>{t('命中依据：{header} · {pattern}', { header: evidence.matchedHeader, pattern: evidence.matchedPattern })}</p> : null}
-      {evidence.ruleId ? <p className='break-all text-muted-foreground'>{t('规则编号：{id}', { id: evidence.ruleId })}</p> : null}
-      {evidence.declarationStatus && evidence.declarationStatus !== 'accepted' ? <p className='text-muted-foreground'>{evidence.declarationStatus === 'disabled' ? t('来源声明未启用，本次已忽略。') : t('来源声明无效或未登记，本次已忽略。')}</p> : null}
-      {evidence.method === 'ambiguous' ? <p className='text-muted-foreground'>{t('请求带有不同软件的标识，未自动归类；可用自定义规则明确归属。')}</p> : null}
+      {evidence.userAgentTruncated ? <p className='text-muted-foreground'>{t('The software identifier exceeded 1 KB and was truncated. Matching uses only the retained portion.')}</p> : null}
+      {Object.entries(evidence.headers || {}).map(([header, value]) => <div key={header} className='break-all'><span className='text-muted-foreground'>{header}: </span>{value}{evidence.truncatedHeaders?.includes(header) ? ` · ${t('Truncated')}` : ''}</div>)}
+      {evidence.invalidHeaders?.length ? <p className='break-all text-muted-foreground'>{t('Invalid or duplicate identity headers: {headers}', { headers: evidence.invalidHeaders.join(', ') })}</p> : null}
+      {evidence.matchedHeader ? <p className='break-all text-muted-foreground'>{t('Matched evidence: {header} · {pattern}', { header: evidence.matchedHeader, pattern: evidence.matchedPattern })}</p> : null}
+      {evidence.ruleId ? <p className='break-all text-muted-foreground'>{t('Rule ID: {id}', { id: evidence.ruleId })}</p> : null}
+      {evidence.declarationStatus && evidence.declarationStatus !== 'accepted' ? <p className='text-muted-foreground'>{evidence.declarationStatus === 'disabled' ? t('Origin declarations are disabled and were ignored.') : t('The origin declaration was invalid or unregistered and was ignored.')}</p> : null}
+      {evidence.method === 'ambiguous' ? <p className='text-muted-foreground'>{t('The request contains identifiers for different applications and was not classified automatically. Use a custom rule to assign it.')}</p> : null}
       <Button size='sm' variant='outline' disabled={busy} onClick={async () => {
         setBusy(true); setError(''); setSaved(false)
         try { const next = await api.load(); if (alive.current) setView(next) }
         catch (failure) { if (alive.current) setError(failure instanceof Error ? failure.message : String(failure)) }
         finally { if (alive.current) setBusy(false) }
-      }}>{busy ? t('加载中…') : t('设置识别规则')}</Button>
-    </> : <p className='text-muted-foreground'>{t('这条历史请求没有保存识别依据，不能据此自动创建规则。')}</p>}
+      }}>{busy ? t('Loading…') : t('Set identification rule')}</Button>
+    </> : <p className='text-muted-foreground'>{t('This historical request has no saved identification evidence, so it cannot be used to create a rule automatically.')}</p>}
     {error ? <Alert variant='destructive'>{error}</Alert> : null}
-    {saved ? <p className='text-muted-foreground'>{t('规则已保存，对后续请求生效；当前历史记录未修改。')}</p> : null}
+    {saved ? <p className='text-muted-foreground'>{t('Rule saved for future requests. This historical record was not changed.')}</p> : null}
     {view && evidence ? <ClientRuleEditor api={api} view={view} evidence={evidence} t={t} onClose={() => setView(null)} onSaved={() => { setView(null); setSaved(true) }} /> : null}
   </div>
 }

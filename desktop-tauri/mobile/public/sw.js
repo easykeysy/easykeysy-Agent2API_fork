@@ -141,8 +141,8 @@ self.addEventListener('fetch', event => {
           return new Response(
             '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
               '<body style="font:15px/1.7 -apple-system,system-ui,sans-serif;padding:40px 24px;color:#333">' +
-              '<h1 style="font-size:18px;margin:0 0 8px">离线</h1>' +
-              '<p style="margin:0;color:#666">连不上网关。确认手机与网关在同一局域网，然后刷新。</p>' +
+              '<h1 style="font-size:18px;margin:0 0 8px">Offline</h1>' +
+              '<p style="margin:0;color:#666">Cannot reach the gateway. Make sure the phone and the gateway are on the same LAN, then refresh.</p>' +
               '</body>',
             { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
           )

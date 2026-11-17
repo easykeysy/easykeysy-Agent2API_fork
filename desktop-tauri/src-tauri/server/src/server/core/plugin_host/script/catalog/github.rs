@@ -119,10 +119,10 @@ async fn read(row: &Value, previous: Option<&Entry>, force: bool) -> Result<Opti
     }
     if entry.version.is_empty() {
         entry.installable = false;
-        entry.unavailable_reason = Some("插件尚未声明有效版本，暂时无法安装".to_string());
+        entry.unavailable_reason = Some("The plugin has no valid version declared and cannot be installed yet.".to_string());
     } else if !evidence.entry_present {
         entry.installable = false;
-        entry.unavailable_reason = Some("仓库没有已提交的可加载入口，请等待作者发布构建产物".to_string());
+        entry.unavailable_reason = Some("This repository has no committed loadable entry point. Wait for the author to publish a build.".to_string());
     }
     Ok(Some(entry))
 }

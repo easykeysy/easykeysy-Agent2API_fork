@@ -27,7 +27,7 @@ pub async fn verification(State(state): State<ServerState>, body: Bytes) -> Resp
             return management_error(404, "领取账号已不存在，验证结果未提交");
         };
         if zcode::region::Region::from_provider_id(&provider).is_none() {
-            return management_error(400, "该账号不是 ZCode 账号");
+            return management_error(400, "该账号不是 ZCode Accounts");
         }
         adapter::adapter_by_id(&provider)
     } else {

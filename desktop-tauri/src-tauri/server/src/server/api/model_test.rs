@@ -127,7 +127,7 @@ impl TestProtocol {
             "responses" => Ok(Self::Responses),
             "anthropic" | "messages" => Ok(Self::Anthropic),
             other => Err(format!(
-                "不支持的对话协议 {other}（可选 chat_completions / responses / anthropic）"
+                "不支持的对话协议 {other}（可选 chat_completions / responses / anthropic)"
             )),
         }
     }
@@ -389,7 +389,7 @@ fn translate_completion(
                     .pointer("/error/message")
                     .and_then(Value::as_str)
                     .filter(|text| !text.is_empty())
-                    .unwrap_or("Responses 协议转换返回 failed 状态")
+                    .unwrap_or("Responses 协议转换返回 failed Status")
                     .to_string();
                 return TestOutcome {
                     status: 502,
@@ -435,7 +435,7 @@ fn parse_proxy_override(
         return Ok((None, None));
     }
     if trimmed.eq_ignore_ascii_case("direct") || trimmed.eq_ignore_ascii_case("none") {
-        return Ok((Some(None), Some("直连".to_string())));
+        return Ok((Some(None), Some("Direct".to_string())));
     }
     let proxy_id = trimmed.strip_prefix("pool:").unwrap_or(trimmed).trim();
     if proxy_id.is_empty() {
@@ -466,7 +466,7 @@ struct TestOutcome {
 
 /// POST /api/models/test
 pub async fn run_model_test(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> Response {
-    let access = match super::model_access::authenticate(&headers, super::model_access::MODEL_TEST) {
+    let access = match super::model_access::authenticate(&headers, super::model_access::MODEL_TEST, true) {
         Ok(access) => access,
         Err(error) => return error.payload_response(),
     };
@@ -484,13 +484,13 @@ pub async fn run_model_test(State(state): State<ServerState>, headers: HeaderMap
     }
     let key_scope = access.scope.clone().unwrap_or_default();
     if !key_scope.allows_model(&model) {
-        let error = errors::GatewayError::with_status(404, format!("模型 '{model}' 不在这把网关 Key 的可用模型列表里"))
+        let error = errors::GatewayError::with_status(404, format!("Model '{model}' 不在这把网关 Key 的可用模型列表里"))
             .with_code("model_not_found");
         pipeline::record_early_failure(&state, logging::now_ms(), &model, "", &access.source, &error);
         return error.payload_response();
     }
     let Some(test_scope) = key_scope.for_test_provider(&provider) else {
-        let error = errors::GatewayError::with_status(403, format!("提供商 '{provider}' 不在这把网关 Key 的可用提供商列表里"));
+        let error = errors::GatewayError::with_status(403, format!("Provider '{provider}' 不在这把网关 Key 的可用提供商列表里"));
         pipeline::record_early_failure(&state, logging::now_ms(), &model, "", &access.source, &error);
         return error.payload_response();
     };
@@ -507,7 +507,7 @@ pub async fn run_model_test(State(state): State<ServerState>, headers: HeaderMap
         );
     }
     if crate::server::core::providers::images::provider_model_is_image(&provider, &model) {
-        return errors::management_error(400, "图片生成模型请通过 /v1/images/generations 调用，暂不支持对话测试");
+        return errors::management_error(400, "Use /v1/images/generations for image models; chat testing is not supported yet");
     }
     let protocol_raw = text_field(&payload, "protocol", 32);
     let protocol = match TestProtocol::parse(&protocol_raw) {

@@ -133,14 +133,14 @@ pub fn normalize_model(model: &str) -> Result<String, String> {
 
 pub fn validate_shape(profile: &RoutingProfile) -> Result<(), String> {
     if profile.strategy.as_deref().is_some_and(|value| !["order", "rotate", "provider"].contains(&value)) {
-        return Err("路由策略必须为 order、rotate 或 provider".to_string());
+        return Err("路由策略必须为 order, rotate or provider".to_string());
     }
     if profile.sticky.as_deref().is_some_and(|value| !["auto", "session", "turn", "off"].contains(&value)) {
-        return Err("会话粘滞必须为 auto、session、turn 或 off".to_string());
+        return Err("会话粘滞必须为 auto, session, turn or off".to_string());
     }
     fn unique(values: &[String], max: usize, label: &str) -> Result<(), String> {
         if values.len() > max {
-            return Err(format!("{label}最多允许 {max} 项"));
+            return Err(format!("{label}最多允许 {max} items"));
         }
         let mut seen = HashSet::new();
         for value in values {

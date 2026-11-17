@@ -17,7 +17,7 @@ export function formatInt(value: number): string {
   return Math.round(value).toLocaleString('zh-CN')
 }
 
-/** Token 数：走紧凑口径（报表与日志都用这一套，避免两页读数不一致） */
+/** Token 数：走紧凑口径（报表与日志都用这一套，避免Two pages读数不一致） */
 export function formatTokens(value: number): string {
   return formatCompact(value)
 }
@@ -62,21 +62,21 @@ export function formatRelative(ts: number | null | undefined): string {
   if (!ts) return '—'
   const diff = ts - Date.now()
   const abs = Math.abs(diff)
-  const suffix = diff >= 0 ? '后' : '前'
-  if (abs < 60_000) return diff >= 0 ? '即将' : '刚刚'
+  const suffix = diff >= 0 ? 'after' : 'before'
+  if (abs < 60_000) return diff >= 0 ? 'Coming up' : 'Just now'
   if (abs < 3_600_000) return `${Math.round(abs / 60_000)} 分钟${suffix}`
-  if (abs < 86_400_000) return `${Math.round(abs / 3_600_000)} 小时${suffix}`
+  if (abs < 86_400_000) return `${Math.round(abs / 3_600_000)} hours${suffix}`
   return `${Math.round(abs / 86_400_000)} 天${suffix}`
 }
 
 /**
  * 有效期读数：把「绝对时间戳」翻成手机上更好读的相对量。
- * 已过期返回「已过期」；缺失返回「—」。
+ * 已过期返回「已past期」; 缺失返回「—」。
  */
 export function formatExpiry(ts: number | null | undefined): string {
   if (!ts) return '—'
   const diff = ts - Date.now()
-  if (diff <= 0) return '已过期'
+  if (diff <= 0) return 'Expired'
   if (diff < 3_600_000) return `${Math.max(1, Math.round(diff / 60_000))} 分钟后`
   if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)} 小时后`
   return `${Math.round(diff / 86_400_000)} 天后`
@@ -102,7 +102,7 @@ export function accountName(account: {
   email?: string
   id?: string
 }): string {
-  return account.displayName || account.name || account.nickname || account.email || account.id || '未命名'
+  return account.displayName || account.name || account.nickname || account.email || account.id || 'Untitled'
 }
 
 /** 脱敏：保留首尾各 3 个字符，中间用 • 代替 */

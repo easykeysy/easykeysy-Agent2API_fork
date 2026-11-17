@@ -63,7 +63,7 @@ pub async fn import_account_file(
     if payload.get("provider").and_then(Value::as_str) != Some(provider) {
         return Some(management_error(
             400,
-            "账号文件的提供商与当前选择不一致，请选择对应的提供商后再导入",
+            "The account file belongs to a different provider. Select the matching provider before importing it.",
         ));
     }
     let id = payload

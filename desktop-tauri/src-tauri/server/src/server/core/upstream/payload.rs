@@ -223,7 +223,7 @@ pub(super) async fn send_body<'a>(
                 logging::verbose(
                     "[Upstream]",
                     &format!(
-                        "角色归一层：developer → system × {changed} 条 provider={provider_id}（开发者角色兼容）"
+                        "角色归一层：developer → system × {changed} rows provider={provider_id}（开发者角色兼容）"
                     ),
                 );
                 Cow::Owned(next)
@@ -249,7 +249,7 @@ pub(super) async fn send_body<'a>(
             logging::verbose(
                 "[Upstream]",
                 &format!(
-                    "系统提示词层：{}（{}）provider={} messages {} → {}",
+                    "系统提示词层：{}（{})provider={} messages {} → {}",
                     prompt.mode.label(),
                     if degraded && prompt.mode.degradable() {
                         "降级期：中性提示词"

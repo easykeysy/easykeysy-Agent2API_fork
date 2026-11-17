@@ -37,10 +37,10 @@ export function QuickConnectDialog({ client, onClose }: { client: AgentClient; o
   const unavailable = !loading && !catalogError ? ids.filter(id => !catalog.some(model => model.id.toLowerCase() === id.toLowerCase())) : []
   const connect = async () => {
     if (busy || loading || catalogError) return
-    if (draft.authMode === 'gateway' && !selectedKey) { setError(t('请先在「网关 Key」页创建并启用一把 Key')); return }
+    if (draft.authMode === 'gateway' && !selectedKey) { setError(t('Create and enable a key on the Gateway Key page first.')); return }
     const missing = validateDraft(client, draft)
     if (missing) { setError(missing); return }
-    if (unavailable.length) { setError(t('部分已选模型已不可用或所选 Key 无权使用，请移除或更换 Key。')); return }
+    if (unavailable.length) { setError(t('Some selected models are unavailable or not allowed by this key. Remove them or choose another key.')); return }
     setBusy(true); setError('')
     try {
       if (!preview) setPreview(await requestPreview(client, draft, 'quick-connect'))
@@ -51,48 +51,48 @@ export function QuickConnectDialog({ client, onClose }: { client: AgentClient; o
   return <Dialog open onOpenChange={(open, details) => { if (!open && busy) details.cancel(); else if (!open) onClose() }}>
     <DialogContent className='agent-config-dialog agent-quick-dialog' showCloseButton={!busy}>
       {/* 说明挂到标题下当副标题：原来它是正文的第一段，与下面三块信息抢同一层级 */}
-      <DialogHeader className='agent-quick-head'><DialogTitle>{t('一键接入')} · {client.name}</DialogTitle>
-        <DialogDescription>{t('选择要接入的模型；确认前展示文件改动，写入前自动备份。')}</DialogDescription>
+      <DialogHeader className='agent-quick-head'><DialogTitle>{t('Quick connect')} · {client.name}</DialogTitle>
+        <DialogDescription>{t('Choose models to connect. File changes are shown before confirmation, and a backup is made before writing.')}</DialogDescription>
       </DialogHeader>
       <DialogBody className='agent-quick-body'>
         {preview ? <WritePreview preview={preview} /> : <>
           {/* 接进哪里：一行一个字段（端点 / 写入文件 / 网关 Key），左标签右值 */}
           <section className='agent-quick-info'>
             <div className='agent-quick-info-row'>
-              <span className='agent-quick-info-key'>{t('接入端点')}</span>
+              <span className='agent-quick-info-key'>{t('Endpoint')}</span>
               <code className='agent-quick-info-value'>{draft.baseUrl}</code>
               <Badge variant='outline' shape='tag'>{protocolLabel(draft.protocol)}</Badge>
             </div>
             <div className='agent-quick-info-row'>
-              <span className='agent-quick-info-key'>{t('写入文件')}</span>
+              <span className='agent-quick-info-key'>{t('Configuration file')}</span>
               <code className='agent-quick-info-value is-muted'>{client.resolvedPath}</code>
             </div>
             {client.id !== 'zed' && <div className='agent-quick-info-row'>
-              <span className='agent-quick-info-key'>{t('网关 Key')}</span>
+              <span className='agent-quick-info-key'>{t('Gateway key')}</span>
               <SearchableSelect value={draft.gatewayKeyId} disabled={busy || !store.gatewayKeys.length}
                 onValueChange={gatewayKeyId => update({ gatewayKeyId })}
-                className='agent-quick-info-select' aria-label={t('网关 Key')}
-                displayValue={selectedKey ? selectedKey.name || selectedKey.id : t('选择网关 Key')}
+                className='agent-quick-info-select' aria-label={t('Gateway key')}
+                displayValue={selectedKey ? selectedKey.name || selectedKey.id : t('Select a gateway key')}
                 options={store.gatewayKeys.map(key => ({ value: key.id, label: key.name || key.id }))} />
-              <span className='agent-quick-info-hint'>{t('换 Key 后会按新 Key 的授权重新核对已选模型')}</span>
+              <span className='agent-quick-info-hint'>{t('Switching keys re-checks the selected models against the new key\'s permissions.')}</span>
             </div>}
           </section>
-          {loading ? <Empty>{t('正在读取网关模型并填入配置…')}</Empty> : catalogError ? <Alert variant='warning'>
-            <span>{catalogError}</span><Button variant='outline' size='sm' disabled={busy} onClick={retry}>{t('重试')}</Button>
+          {loading ? <Empty>{t('Loading gateway models and filling the configuration…')}</Empty> : catalogError ? <Alert variant='warning'>
+            <span>{catalogError}</span><Button variant='outline' size='sm' disabled={busy} onClick={retry}>{t('Retry')}</Button>
           </Alert> : <>
-            {unavailable.length > 0 && <Alert variant='warning'>{t('部分已选模型已不可用或所选 Key 无权使用，请移除或更换 Key。')}<code className='block break-all'>{unavailable.join('、')}</code></Alert>}
+            {unavailable.length > 0 && <Alert variant='warning'>{t('Some selected models are unavailable or not allowed by this key. Remove them or choose another key.')}<code className='block break-all'>{unavailable.join(', ')}</code></Alert>}
             {client.supportsModels ? <ModelsFields client={client} draft={draft} update={update} catalog={catalog} disabled={busy} quick layout='split' />
               : <SingleModelFields client={client} draft={draft} update={update} catalog={catalog} disabled={busy} />}
-            {!catalog.length && <Alert variant='warning'>{t('所选 Key 下没有可用的对话模型，请先启用模型或更换 Key。')}</Alert>}
+            {!catalog.length && <Alert variant='warning'>{t('No chat models are available for this key. Enable a model or choose another key.')}</Alert>}
           </>}
-          {client.id === 'zed' && <Alert variant='warning'>{t('Zed 的 API Key 仍需在客户端提供商设置中填写；本页不修改系统凭证。')}</Alert>}
+          {client.id === 'zed' && <Alert variant='warning'>{t('Enter the API key in Zed provider settings. This page does not modify system credentials.')}</Alert>}
         </>}
         {error && <Alert variant='destructive'>{error}</Alert>}
       </DialogBody>
       <DialogFooter>
-        {preview && <Button variant='ghost' className='mr-auto' disabled={busy} onClick={() => { setPreview(null); setError('') }}>{t('返回编辑')}</Button>}
-        <Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
-        <Button disabled={busy || loading || Boolean(catalogError)} onClick={() => void connect()}>{busy ? t('处理中…') : preview ? t('确认接入') : t('接入客户端')}</Button>
+        {preview && <Button variant='ghost' className='mr-auto' disabled={busy} onClick={() => { setPreview(null); setError('') }}>{t('Back to editing')}</Button>}
+        <Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
+        <Button disabled={busy || loading || Boolean(catalogError)} onClick={() => void connect()}>{busy ? t('Processing…') : preview ? t('Confirm connection') : t('Connect client')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

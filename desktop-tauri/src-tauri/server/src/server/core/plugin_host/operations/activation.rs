@@ -54,7 +54,7 @@ pub(super) async fn install(
             set_stage(&id, "restoring");
             if let Err(stop) = scope.stop().await {
                 switch.clear_adapters();
-                return Err(format!("新插件启动失败：{error}；{stop}；旧版本备份已保留"));
+                return Err(format!("新插件启动失败：{error}; {stop}；旧版本备份已保留"));
             }
             switch.clear_adapters();
             tokio::task::spawn_blocking(move || transaction.rollback()).await

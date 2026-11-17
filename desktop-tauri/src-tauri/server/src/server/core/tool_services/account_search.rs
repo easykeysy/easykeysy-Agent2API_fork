@@ -32,16 +32,16 @@ fn account_options(store: &AccountStore, provider: &str) -> Vec<Value> {
 }
 
 pub(super) fn validate_account(store: &AccountStore, provider: &str, account_id: &str) -> Result<(), SearchError> {
-    if account_id.is_empty() { return Err(configuration("请先选择搜索使用的账号")); }
+    if account_id.is_empty() { return Err(configuration("Select an account to use for search first")); }
     let snapshot = store.list_accounts();
     let account = snapshot.get("accounts").and_then(Value::as_array).into_iter().flatten()
         .find(|account| account.get("id").and_then(Value::as_str) == Some(account_id))
-        .ok_or_else(|| configuration("已绑定的搜索账号不存在，请重新选择"))?;
+        .ok_or_else(|| configuration("The bound search account no longer exists; select another account"))?;
     if account.get("provider").and_then(Value::as_str) != Some(provider) {
-        return Err(configuration("搜索账号不属于该提供商，请重新选择"));
+        return Err(configuration("The search account belongs to a different provider; select another account"));
     }
     if account.get("enabled").and_then(Value::as_bool) == Some(false) {
-        return Err(configuration("已绑定的搜索账号已停用"));
+        return Err(configuration("The bound search account is disabled"));
     }
     Ok(())
 }
@@ -51,24 +51,24 @@ async fn capability(
     provider: &str,
 ) -> Result<(Arc<dyn ProviderAdapter>, usize), SearchError> {
     let adapter = plugin_host::lookup(provider)
-        .ok_or_else(|| configuration("提供商插件未安装或未启用"))?;
+        .ok_or_else(|| configuration("The provider plugin is not installed or enabled"))?;
     let metadata = tokio::time::timeout(Duration::from_secs(5),
         adapter.admin_action(store, "", CAPABILITIES, &json!({}))).await
-        .map_err(|_| SearchError::new(SearchErrorCode::ProviderUnavailable, "提供商插件暂不可用"))?
+        .map_err(|_| SearchError::new(SearchErrorCode::ProviderUnavailable, "The provider plugin is temporarily unavailable"))?
         .map_err(|error| {
             if error.status_code == 501 || error.code.as_deref() == Some("unsupported") {
-                configuration("当前提供商插件不支持账号搜索，请更新插件")
+                configuration("The current provider plugin does not support account-based search; update the plugin")
             } else {
-                SearchError::new(SearchErrorCode::ProviderUnavailable, "无法确认插件搜索能力，请更新或重启提供商插件")
+                SearchError::new(SearchErrorCode::ProviderUnavailable, "Unable to confirm search support; update or restart the provider plugin")
             }
         })?;
     if metadata.get("version").and_then(Value::as_u64) != Some(1)
         || metadata.get("search").and_then(Value::as_bool) != Some(true) {
-        return Err(configuration("当前提供商插件不支持账号搜索，请更新插件"));
+        return Err(configuration("The current provider plugin does not support account-based search; update the plugin"));
     }
     let max_chars = metadata.get("max_query_chars").and_then(Value::as_u64)
         .and_then(|value| usize::try_from(value).ok()).filter(|value| (1..=16000).contains(value))
-        .ok_or_else(|| configuration("插件搜索能力声明不完整，请更新插件"))?;
+        .ok_or_else(|| configuration("The plugin’s search capability information is incomplete; update the plugin"))?;
     Ok((adapter, max_chars))
 }
 
@@ -114,7 +114,7 @@ impl SearchSource {
                 let payload = json!({ "query": query, "timeout_seconds": timeout });
                 let result = tokio::time::timeout(Duration::from_secs(timeout.saturating_add(2)),
                     adapter.admin_action(store, account_id, SEARCH, &payload)).await
-                    .map_err(|_| SearchError::new(SearchErrorCode::TimedOut, "搜索请求超时"))?
+                    .map_err(|_| SearchError::new(SearchErrorCode::TimedOut, "The search request timed out"))?
                     .map_err(search_failure)?;
                 source_rows(provider, &result)
             }
@@ -128,21 +128,21 @@ pub(super) async fn prepare(store: &AccountStore, provider: &str, entry: &Provid
         let (adapter, max_chars) = capability(store, provider).await?;
         Ok(SearchSource::Account { provider: provider.to_string(), account_id: entry.account_id.clone(), adapter, max_chars })
     } else {
-        let key = super::decrypt_provider_key(entry).ok_or_else(|| configuration("提供商尚未配置有效密钥"))?;
+        let key = super::decrypt_provider_key(entry).ok_or_else(|| configuration("The provider has no valid API key configured"))?;
         Ok(SearchSource::Key { provider: provider.to_string(), key })
     }
 }
 
 fn search_failure(error: crate::server::errors::GatewayError) -> SearchError {
     let (code, message) = match error.code.as_deref() {
-        Some("invalid_input") => (SearchErrorCode::InvalidInput, "搜索参数不符合该来源的要求"),
-        Some("configuration") => (SearchErrorCode::Configuration, "账号搜索配置不完整，请重新选择账号或更新插件"),
-        _ if error.status_code == 401 => (SearchErrorCode::InvalidProviderKey, "搜索账号登录态已失效，请重新登录"),
-        _ if matches!(error.status_code, 402 | 429) => (SearchErrorCode::RateLimited, "搜索额度已用完或触发限流"),
-        _ if error.status_code == 504 => (SearchErrorCode::TimedOut, "搜索请求超时"),
-        _ if error.status_code == 501 => (SearchErrorCode::Configuration, "当前提供商插件不支持账号搜索，请更新插件"),
-        _ if error.status_code == 403 => (SearchErrorCode::ProviderUnavailable, "搜索服务拒绝了该账号，请检查账号权限"),
-        _ => (SearchErrorCode::ProviderUnavailable, "账号搜索暂不可用，请检查账号及插件状态"),
+        Some("invalid_input") => (SearchErrorCode::InvalidInput, "The search parameters do not meet this source’s requirements"),
+        Some("configuration") => (SearchErrorCode::Configuration, "Account-based search is not fully configured; select an account again or update the plugin"),
+        _ if error.status_code == 401 => (SearchErrorCode::InvalidProviderKey, "The search account login has expired; sign in again"),
+        _ if matches!(error.status_code, 402 | 429) => (SearchErrorCode::RateLimited, "The search quota is exhausted or the rate limit was reached"),
+        _ if error.status_code == 504 => (SearchErrorCode::TimedOut, "The search request timed out"),
+        _ if error.status_code == 501 => (SearchErrorCode::Configuration, "The current provider plugin does not support account-based search; update the plugin"),
+        _ if error.status_code == 403 => (SearchErrorCode::ProviderUnavailable, "The search service rejected this account; check its permissions"),
+        _ => (SearchErrorCode::ProviderUnavailable, "Account-based search is temporarily unavailable; check the account and plugin status"),
     };
     // 插件错误可能包含认证或代理内部信息，公开层只回稳定错误说明。
     SearchError::new(code, message)
@@ -150,7 +150,7 @@ fn search_failure(error: crate::server::errors::GatewayError) -> SearchError {
 
 fn source_rows(provider: &str, value: &Value) -> Result<Vec<SourceDraft>, SearchError> {
     let rows = value.get("sources").and_then(Value::as_array)
-        .ok_or_else(|| SearchError::new(SearchErrorCode::ProviderUnavailable, "插件返回的搜索来源格式不正确"))?;
+        .ok_or_else(|| SearchError::new(SearchErrorCode::ProviderUnavailable, "The plugin returned search sources in an invalid format"))?;
     Ok(rows.iter().take(50).filter_map(|row| {
         let url = row.get("url").and_then(Value::as_str)?.trim();
         let parsed = url::Url::parse(url).ok()?;
@@ -181,7 +181,7 @@ pub async fn test_provider(store: &AccountStore, provider: &str) -> Value {
     let duration = crate::server::logging::now_ms() - started;
     match result {
         Ok(sources) if !sources.is_empty() => json!({ "success": true, "provider": provider, "result_count": sources.len(), "duration_ms": duration }),
-        Ok(_) => json!({ "success": false, "provider": provider, "code": "no_results", "error": "搜索提供商没有返回来源", "duration_ms": duration }),
+        Ok(_) => json!({ "success": false, "provider": provider, "code": "no_results", "error": "The search provider returned no sources", "duration_ms": duration }),
         Err(error) => json!({ "success": false, "provider": provider, "code": error.code.as_str(), "error": error.message, "duration_ms": duration }),
     }
 }

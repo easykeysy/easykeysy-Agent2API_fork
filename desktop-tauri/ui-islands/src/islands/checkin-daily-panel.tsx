@@ -32,15 +32,15 @@ export function AccountLine({ account, group }: {
   const dailyActivity = modes.some(mode => mode === 'keepalive' || mode === 'claim' || mode === 'full')
   const manualPlans = group.manualPlans === true
   const progress = checkinPlanProgress(daily) && daily
-    ? t('已领 {done} / {total} 份套餐', { done: daily.completedCount, total: daily.totalCount })
+    ? t('Claimed {done} / {total} plans', { done: daily.completedCount, total: daily.totalCount })
     : ''
   return (
     <DetailLine>
       <span className='min-w-0 flex-1 truncate'>{account.name}
         {account.streakDays > 0
-          ? <span className='text-muted-foreground'> · {t('连登 {days} 天', { days: account.streakDays })}</span> : null}
+          ? <span className='text-muted-foreground'> · {t('{days} days in a row', { days: account.streakDays })}</span> : null}
       </span>
-      {account.available ? null : <Badge variant='outline' shape='tag'>{t('凭据不可用')}</Badge>}
+      {account.available ? null : <Badge variant='outline' shape='tag'>{t('The credentials are unavailable')}</Badge>}
       {/* 异常信息优先于进度读数：它是「为什么还没签上」的答案 */}
       {daily?.message && status !== 'done' ? (
         <span className='max-w-[320px] flex-1 truncate text-[11.5px] text-muted-foreground'
@@ -49,10 +49,10 @@ export function AccountLine({ account, group }: {
         <span className='shrink-0 text-[11.5px] text-muted-foreground'>{progress}</span>
       ) : null}
       {daily?.kind === 'rolling' && daily.until ? <span className='shrink-0 tabular-nums text-muted-foreground'>
-        {t('下次检查：{time}', { time: formatShort(daily.until) })}
+        {t('Next check: {time}', { time: formatShort(daily.until) })}
       </span> : null}
       <span className='shrink-0 tabular-nums text-muted-foreground'>
-        {account.checkinAt ? t('上次 {time}', { time: formatShort(account.checkinAt) }) : t('从未签到')}
+        {account.checkinAt ? t('Last: {time}', { time: formatShort(account.checkinAt) }) : t('Never signed in')}
       </span>
       <StatusBadge status={status} />
       <span className='flex shrink-0 items-center gap-0.5'>
@@ -82,8 +82,8 @@ export function AccountLine({ account, group }: {
                 }
               }}
             >
-              {manualPlans ? t('套餐明细') : busy('checkin')
-                ? t(daily?.queryOnly ? '查询中…' : '签到中…') : t(checkinActionLabel(account))}
+              {manualPlans ? t('Plan details') : busy('checkin')
+                ? t(daily?.queryOnly ? 'Checking…' : 'Checking in…') : t(checkinActionLabel(account))}
             </Button>
           )}
       </span>
@@ -97,7 +97,7 @@ export function DailyAccountList({ entries, showProvider }: {
   showProvider: boolean
 }): React.ReactElement {
   const rows = entries.filter(entry => entry.accounts.length > 0)
-  if (!rows.length) return <p className='ck-list-empty'>{t('没有符合条件的账号。')}</p>
+  if (!rows.length) return <p className='ck-list-empty'>{t('No accounts match the current filter.')}</p>
   return (
     <div className='ck-account-list'>
       {rows.map(entry => (
@@ -105,7 +105,7 @@ export function DailyAccountList({ entries, showProvider }: {
           {showProvider ? <div className='ck-account-group'>
             <ProviderLogo id={entry.group.id} label={entry.group.label} />
             <span>{t(entry.group.label)}</span>
-            <span className='text-muted-foreground'>{t('{done} / {total} 个账号已签', {
+            <span className='text-muted-foreground'>{t('{done} of {total} accounts checked in', {
               done: entry.group.doneCount, total: entry.group.totalCount,
             })}</span>
           </div> : null}

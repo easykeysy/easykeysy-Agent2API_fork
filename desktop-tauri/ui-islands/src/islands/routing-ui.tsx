@@ -27,10 +27,10 @@ export function IconButton({ name, title, className, ...props }: {
     title={title} aria-label={title} {...props}><RouteIcon name={name} size={14} /></Button>
 }
 export function RouteStateBadge({ state, children }: { state: string; children?: React.ReactNode }) {
-  const label = state === 'usable' ? t('可用') : state === 'cooldown' ? t('冷却中')
-    : state === 'concurrency' ? t('并发已满') : state === 'disabled' ? t('已禁用')
-      : state === 'no-credentials' ? t('无凭证') : state === 'limiter' ? t('限制器跳过')
-        : state === 'excluded' ? t('未参与') : state === 'tried' ? t('已尝试') : state === 'enabled' ? t('已启用') : state === 'missing' ? t('账号已移除') : t('未就绪')
+  const label = state === 'usable' ? t('usable') : state === 'cooldown' ? t('Cooling down')
+    : state === 'concurrency' ? t('Concurrency limit reached') : state === 'disabled' ? t('Disabled')
+      : state === 'no-credentials' ? t('No credentials') : state === 'limiter' ? t('Skipped by limiter')
+        : state === 'excluded' ? t('Not participating') : state === 'tried' ? t('Already attempted') : state === 'enabled' ? t('Enabled') : state === 'missing' ? t('Account removed') : t('Not ready')
   return <Badge shape='tag' variant={state === 'usable' ? 'success'
     : state === 'no-credentials' ? 'destructive'
       : state === 'cooldown' || state === 'concurrency' || state === 'limiter' ? 'warning' : 'secondary'}>
@@ -44,14 +44,14 @@ export function ProviderRouteBadge({ rank, effectiveRank, unavailable, disabled,
   disabled: boolean
   states: string[]
 }) {
-  if (unavailable || disabled) return <Badge shape='tag' variant='secondary'>{unavailable ? t('模型绑定不可用') : t('未参与')}</Badge>
+  if (unavailable || disabled) return <Badge shape='tag' variant='secondary'>{unavailable ? t('Model binding unavailable') : t('Not participating')}</Badge>
   if (rank !== undefined) return <Badge shape='tag' variant={effectiveRank === undefined ? 'secondary' : 'brand'} title={effectiveRank === undefined
-    ? t('启用提供商中的第 {rank} 顺位；当前没有可用候选账号。', { rank })
-    : t('启用提供商中的第 {rank} 顺位；当前可用候选第 {effective} 顺位。', { rank, effective: effectiveRank })}>{t('第 {n} 顺位', { n: rank })}</Badge>
-  if (!states.length) return <Badge shape='tag' variant='secondary'>{t('没有参与路由的账号')}</Badge>
+    ? t('Priority {rank} among enabled providers; no candidate accounts are currently available.', { rank })
+    : t('Priority {rank} among enabled providers; current available-candidate priority {effective}.', { rank, effective: effectiveRank })}>{t('Priority {n}', { n: rank })}</Badge>
+  if (!states.length) return <Badge shape='tag' variant='secondary'>{t('No accounts participating in routing')}</Badge>
   const state = states[0]
-  if (!states.every(value => value === state)) return <Badge shape='tag' variant='secondary'>{t('无可用账号')}</Badge>
-  return <RouteStateBadge state={state}>{state === 'disabled' ? t('全部禁用') : undefined}</RouteStateBadge>
+  if (!states.every(value => value === state)) return <Badge shape='tag' variant='secondary'>{t('No available accounts')}</Badge>
+  return <RouteStateBadge state={state}>{state === 'disabled' ? t('All accounts disabled') : undefined}</RouteStateBadge>
 }
 export function formatDuration(ms?: number | null): string {
   if (ms === undefined || ms === null) return '—'
@@ -61,10 +61,10 @@ export function formatDuration(ms?: number | null): string {
 }
 export function timeText(ts: number): string { return new Date(ts).toLocaleString() }
 export function strategyLabel(strategy?: string): string {
-  return strategy === 'rotate' || strategy === 'usage' ? t('负载均衡')
-    : strategy === 'provider' ? t('家内轮询') : t('顺序优先')
+  return strategy === 'rotate' || strategy === 'usage' ? t('Load balancing')
+    : strategy === 'provider' ? t('Per-provider rotation') : t('Strict order')
 }
 export function stickyLabel(sticky?: string): string {
-  return sticky === 'session' ? t('会话内') : sticky === 'off' ? t('关闭')
-    : sticky === 'turn' ? t('每轮') : t('自动')
+  return sticky === 'session' ? t('In-session') : sticky === 'off' ? t('Close')
+    : sticky === 'turn' ? t('Per turn') : t('Auto')
 }

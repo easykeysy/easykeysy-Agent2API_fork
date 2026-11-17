@@ -30,7 +30,7 @@ pub(super) fn header(file: &mut std::fs::File) -> Result<String, String> {
 
 pub(super) fn apply(conn: &Connection, file: &mut std::fs::File) -> Result<(), String> {
     file.seek(SeekFrom::Start(0))
-        .map_err(|error| format!("定位备份 SQL 失败: {error}"))?;
+        .map_err(|error| format!("定位备份 SQL failed: {error}"))?;
     conn.authorizer(Some(import_authorizer))
         .map_err(|error| format!("设置备份 SQL 校验失败: {error}"))?;
     let result = execute(conn, file);
@@ -43,7 +43,7 @@ fn execute(conn: &Connection, file: &mut std::fs::File) -> Result<(), String> {
     let mut reader = BufReader::with_capacity(CHUNK_BYTES, file);
     if reader
         .fill_buf()
-        .map_err(|error| format!("读取备份 SQL 失败: {error}"))?
+        .map_err(|error| format!("读取备份 SQL failed: {error}"))?
         .starts_with(&[0xef, 0xbb, 0xbf])
     {
         reader.consume(3);
@@ -53,7 +53,7 @@ fn execute(conn: &Connection, file: &mut std::fs::File) -> Result<(), String> {
     loop {
         let count = reader
             .read(&mut chunk)
-            .map_err(|error| format!("读取备份 SQL 失败: {error}"))?;
+            .map_err(|error| format!("读取备份 SQL failed: {error}"))?;
         if count == 0 {
             break;
         }
@@ -93,5 +93,5 @@ fn apply_pending(conn: &Connection, bytes: &[u8]) -> Result<(), String> {
         return Err("备份 SQL 含无效的零字节".into());
     }
     conn.execute_batch(sql)
-        .map_err(|error| format!("执行备份 SQL 失败: {error}"))
+        .map_err(|error| format!("执行备份 SQL failed: {error}"))
 }

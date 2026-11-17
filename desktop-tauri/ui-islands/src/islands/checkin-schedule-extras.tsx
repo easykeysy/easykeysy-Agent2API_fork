@@ -122,7 +122,7 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
           disabled={!dirty || store.saving}
           onClick={() => void saveKeepaliveModels(models)}
         >
-          {store.saving ? '保存中…' : '保存'}
+          {store.saving ? 'Saving…' : 'Save'}
         </Button>
       </CardHeader>
       <div className="ck-panel-pad">
@@ -131,7 +131,7 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
           onRefresh={() => { void keyState.refresh().catch(() => {}) }} t={t} id='keepalive-api-key' />
         {current.apiKeyDefaulted
           ? <p className='text-xs leading-[1.6] text-subtle'>
-              {t('默认使用第一把可用 API Key，想换就在上面选一把')}
+              {t('Uses the first available API Key by default; select another above to change it.')}
             </p>
           : null}
         {current.authError ? <p role='status' className='text-xs text-destructive'>{current.authError}</p> : null}
@@ -144,7 +144,7 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
                 type="button"
                 className="ck-mini-btn"
                 disabled={store.saving || defaults.length === 0}
-                title="把缺省链填进清单，再点「保存」生效"
+                title="Puts the default chain into the list; click Save to apply"
                 onClick={() => setDraft([...defaults])}
               >
                 填入缺省链
@@ -156,8 +156,8 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
                   <span
                     className="ck-chain-grip"
                     role="button"
-                    aria-label="按住拖动调整顺序"
-                    title="按住拖动，调整这个模型在链里的顺序"
+                    aria-label="Press and drag to reorder"
+                    title="Press and drag to change this model's position in the chain"
                     onPointerDown={event => startDrag(event, index, models, setDraft)}
                   >
                     <GripIcon />
@@ -169,7 +169,7 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
                     className="ck-chain-del"
                     disabled={store.saving}
                     aria-label={`移除 ${model}`}
-                    title="从清单里移除"
+                    title="Remove from the list"
                     onClick={() => setDraft(models.filter((_, keep) => keep !== index))}
                   >
                     ×
@@ -184,7 +184,7 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
               <Input
                 type="text"
                 className="ck-chain-input font-mono text-xs"
-                placeholder="WorkBuddy 国际版保活模型，按顺序回退"
+                placeholder="WorkBuddy International keep-alive models, tried in order"
                 value={input}
                 disabled={store.saving}
                 onChange={event => setInput(event.currentTarget.value)}
@@ -204,7 +204,7 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
         <div className="ck-note">
           「保活模型链」是 WorkBuddy 国际版领日活时用来保活的免费模型，按顺序逐个尝试、
           第一个成功即止；清空清单并保存 = 恢复缺省链（当前缺省：
-          {defaults.length ? defaults.join('、') : '（无）'}）。
+          {defaults.length ? defaults.join(', ') : '(none)'}）。
           当天去重 + 幂等领取：重复执行只会拿到「已领取」，不会重复加分。
         </div>
       </div>
@@ -214,9 +214,9 @@ function KeepalivePanel({ center }: { center: CheckinCenter }): React.ReactEleme
 
 /* ─── 猫猫旅行排程（国内版）────────────────── */
 
-const TRAVEL_TIP = '每天按这里的时刻自动巡检一遍 WorkBuddy 国内版账号：没有猫就领养、'
-  + '在家就派出、到站就领奖。一趟只推进一步，所以建议留两个时刻'
-  + '（早上派出、晚上领奖）。企业版与国际版账号自动跳过。'
+const TRAVEL_TIP = 'Every day at the time set here, patrol the WorkBuddy China edition account once: adopt a cat if there isn\'t one,",'
+  + 'Dispatch at home, collect the reward on arrival. Each trip advances only one step, so it is recommended to keep two times'
+  + '(dispatch in the morning, collect in the evening). Enterprise and International edition accounts are skipped automatically.'
 
 function TravelPanel({ center }: { center: CheckinCenter }): React.ReactElement {
   const travel = center.travel
@@ -253,13 +253,13 @@ function TravelPanel({ center }: { center: CheckinCenter }): React.ReactElement 
           disabled={travel.running || isPaused || store.saving}
           onClick={() => void runTravelNow()}
         >
-          {travel.running ? '巡检中…' : '立即巡检全部'}
+          {travel.running ? 'Inspecting…' : 'Inspect all now'}
         </Button>
       </CardHeader>
       <div className="ck-panel-pad">
         {isPaused ? (
           <div className="ck-note">
-            {t('自动巡检已暂停：{reason}', { reason: travel.pausedReason ?? '' })}
+            {t('Automatic inspection is paused: {reason}', { reason: travel.pausedReason ?? '' })}
           </div>
         ) : null}
         <div className="ck-set-line">
@@ -271,7 +271,7 @@ function TravelPanel({ center }: { center: CheckinCenter }): React.ReactElement 
               onCheckedChange={checked => void saveTravel({ enabled: checked === true })}
             />
             <span className="ck-sub">
-              {travel.enabled ? '开着：按下面的时刻自动巡检' : '关着：不自动巡检（仍可手动巡检）'}
+              {travel.enabled ? 'On: inspects automatically at the times below' : 'Off: no automatic inspection (manual inspection still works)'}
             </span>
           </span>
         </div>
@@ -296,10 +296,10 @@ function TravelPanel({ center }: { center: CheckinCenter }): React.ReactElement 
         </div>
         {last && (actions.length > 0 || last.error) ? (
           <div className="ck-note">
-            {last.error ? t('巡检失败：{reason}', { reason: last.error }) : (
+            {last.error ? t('Inspection failed: {reason}', { reason: last.error }) : (
               <>
                 上一轮（{last.at ? formatTime(last.at) : ''}）：{actions.length} 个动作，+{Number(last.credit) || 0} 积分
-                {failed > 0 ? ` · ${t('失败 {n}', { n: failed })}` : ''}
+                {failed > 0 ? ` · ${t('{n} failed', { n: failed })}` : ''}
                 {actions.slice(0, 6).map(action =>
                   ` · ${action.name ?? action.accountId ?? ''}: ${action.message ?? action.outcome ?? ''}`).join('')}
               </>
@@ -317,7 +317,7 @@ export function CheckinScheduleExtras({ center }: { center: CheckinCenter }): Re
   const travel = panels.has('growth_tasks') ? <TravelPanel center={center} /> : null
   if (!keepalive && !travel) return null
   return <section className='ck-schedule-extras'>
-    <div className='ck-schedule-heading'><div><h2>{t('其他自动任务')}</h2><p>{t('保活模型链为全局配置，猫猫旅行有独立的开关与时刻。')}</p></div></div>
+    <div className='ck-schedule-heading'><div><h2>{t('Other automatic tasks')}</h2><p>{t('The keep-alive model chain is global. Cat travel has its own switch and times.')}</p></div></div>
     <div className='ck-region-row'>{keepalive}{travel}</div>
   </section>
 }

@@ -1,7 +1,7 @@
 {
-  "name": "Agent2API 网关面板",
+  "name": "Agent2API Gateway panel",
   "short_name": "Agent2API",
-  "description": "多提供商本地 AI 网关面板",
+  "description": "Panel for the multi-provider local AI gateway",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

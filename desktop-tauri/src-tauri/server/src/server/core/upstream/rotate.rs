@@ -179,7 +179,7 @@ fn select_target_account_sync(
             .filter_map(|entry| entry.get("reason").and_then(Value::as_str)).collect();
         return Err(GatewayError::with_status(503, format!("此路由组没有可用成员，未回退全局或默认提供商{}", if reasons.is_empty() {
             String::new()
-        } else { format!("：{}", reasons.join("；")) })).with_code("route_empty"));
+        } else { format!(": {}", reasons.join("; ")) })).with_code("route_empty"));
     }
     if accounts.is_empty() && accounts_in_providers(service, providers, pinned).iter().any(|account| {
         account.get("upstreamCooldownUntil").and_then(Value::as_i64).is_some_and(|until| until > logging::now_ms())

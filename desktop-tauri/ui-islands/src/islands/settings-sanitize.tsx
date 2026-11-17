@@ -40,7 +40,7 @@ export function SanitizePanel({ snap }: { snap: SettingsSnapshot }) {
     || !sameProviders || (restore && state.customRules))
   const defaultLabel = restore || (!state.customRules && sameRules(rules, state.defaults))
   const saveStatus = <span className='hint mr-auto'>
-    {dirty ? t('有未保存的修改') : t('当前设置已保存')}{!state.on ? t('；开关关闭时词表不执行') : ''}
+    {dirty ? t('There are unsaved changes') : t('Current settings are saved')}{!state.on ? t('; rules do not run while masking is disabled') : ''}
   </span>
 
   function changeRules(next: SanitizeRule[]): void {
@@ -72,43 +72,43 @@ export function SanitizePanel({ snap }: { snap: SettingsSnapshot }) {
   return (
     <Card render={<section />} className='panel'>
       <CardHeader className='panel-head'>
-        <h2>{t('指纹脱敏')}</h2>
+        <h2>{t('Fingerprint sanitizing')}</h2>
         <span className='tip-q' data-tip={TIPS.sanitize}></span>
         <Badge variant={!ready ? (state.status === 'loading' ? 'outline' : 'destructive') : state.on ? 'success' : 'outline'}>
-          {!ready ? (state.status === 'loading' ? t('检测中…') : t('不可用')) : state.on ? t('已开启') : t('已关闭')}
+          {!ready ? (state.status === 'loading' ? t('Checking…') : t('Unavailable')) : state.on ? t('Enabled') : t('Disabled')}
         </Badge>
         <div className='head-actions'>
           <Button id='btn-sanitize-refresh' variant='outline' size='sm' disabled={busy}
-            onClick={() => void refreshSanitize()}>{t('刷新')}</Button>
+            onClick={() => void refreshSanitize()}>{t('Refresh')}</Button>
         </div>
       </CardHeader>
       <CardContent className='panel-body flex flex-col gap-3'>
         <div className='settings-switches'>
           <Label htmlFor='settings-sanitize' className='flex items-center gap-2'>
             <Switch id='settings-sanitize' checked={on} disabled={!ready || busy} onCheckedChange={setOn} />
-            {t('剥离上游审核黑名单指纹（改写请求体里的模板句与表头）')}
+            {t('Strip upstream review blacklist fingerprints (rewrite template sentences and headers in request bodies)')}
           </Label>
         </div>
         <div className='settings-state'>
           {!ready ? (state.status === 'loading' ? STATES.appLoading : STATES.sanitizeUnavailable)
             : !state.on ? STATES.sanitizeOff
-              : t('已启用 {count} 条规则，应用于{scope}。', {
+              : t('{count} rules enabled, applied to {scope}.', {
                   count: state.rules.filter(rule => rule.enabled).length,
                   scope: state.providers.length
-                    ? state.providers.map(id => state.options.find(option => option.id === id)?.label ?? id).join(t('、'))
-                    : t('全部提供商'),
+                    ? state.providers.map(id => state.options.find(option => option.id === id)?.label ?? id).join(t(', '))
+                    : t('All providers'),
                 })}
         </div>
         {!state.saved ? <Alert variant='destructive' role='alert' className='text-xs text-destructive'>
-          {t('指纹脱敏设置仅本次运行生效，写入数据库失败，请检查配置目录')}
+          {t('Fingerprint masking settings apply only to this run. Database writing failed; check the configuration directory.')}
         </Alert> : null}
         {editable ? <>
           <div className='retention-list'>
             <div className='retention-row'>
-              <Label>{t('应用提供商')}</Label>
-              <SegmentedControl aria-label={t('应用提供商')} value={scope}
-                options={[{ value: 'all', label: t('全部提供商') },
-                  { value: 'selected', label: t('指定提供商'), disabled: !state.options.length }]}
+              <Label>{t('Apply to providers')}</Label>
+              <SegmentedControl aria-label={t('Apply to providers')} value={scope}
+                options={[{ value: 'all', label: t('All providers') },
+                  { value: 'selected', label: t('Selected providers'), disabled: !state.options.length }]}
                 disabled={disabled} onValueChange={value => {
                   if (value === 'all') { setScope('all'); return }
                   if (!providers.length) setProviders(state.options.map(option => option.id))
@@ -116,57 +116,57 @@ export function SanitizePanel({ snap }: { snap: SettingsSnapshot }) {
                 }} />
             </div>
             {scope === 'selected' ? <div className='flex flex-col gap-2'>
-              <Label htmlFor='sanitize-provider-select'>{t('选择提供商（可多选）')}</Label>
+              <Label htmlFor='sanitize-provider-select'>{t('Select providers (multiple allowed)')}</Label>
               <MultiSelect id='sanitize-provider-select' value={providers}
                 options={state.options.map(option => ({ value: option.id, label: option.label }))}
                 disabled={disabled} onValueChange={value => {
                   setProviders(value)
                   if (!value.length) setScope('all')
                 }} className='w-full'
-                placeholder={t('请至少选择一个提供商')} />
+                placeholder={t('Select at least one provider')} />
             </div> : null}
-            <div className='hint'>{t('默认应用全部提供商（包含之后新增的插件与自定义提供商）。指定范围后，未选中的提供商不做指纹脱敏；清空选择自动回到全部提供商。')}</div>
+            <div className='hint'>{t('Applies to all providers by default, including plugins and custom providers added later. With a selected scope, other providers are not masked. Clearing the selection returns to all providers.')}</div>
           </div>
           <Dialog open={rulesOpen} onOpenChange={open => {
             setRulesOpen(open)
             if (!open) setEditor(null)
           }}>
             <div className='flex flex-wrap items-center gap-2'>
-              <h3 className='text-[12.5px] font-semibold'>{t('脱敏词表')}</h3>
-              <Badge variant='outline'>{defaultLabel ? t('内置默认') : t('自定义')}</Badge>
-              <span className='hint'>{t('{count} 条规则，按列表顺序执行', { count: rules.length })}</span>
+              <h3 className='text-[12.5px] font-semibold'>{t('Masking rules')}</h3>
+              <Badge variant='outline'>{defaultLabel ? t('Built-in defaults') : t('Custom')}</Badge>
+              <span className='hint'>{t('{count} rules, executed in list order', { count: rules.length })}</span>
               <DialogTrigger id='btn-sanitize-rules-open' disabled={disabled}
                 render={<Button variant='outline' size='sm' className='ml-auto' />}>
-                {t('编辑')}
+                {t('Edit')}
               </DialogTrigger>
             </div>
             <DialogContent className='w-[min(1120px,calc(100vw-48px))]'>
               <DialogHeader>
-                <DialogTitle>{t('脱敏词表')}</DialogTitle>
-                <Badge variant='outline'>{defaultLabel ? t('内置默认') : t('自定义')}</Badge>
+                <DialogTitle>{t('Masking rules')}</DialogTitle>
+                <Badge variant='outline'>{defaultLabel ? t('Built-in defaults') : t('Custom')}</Badge>
               </DialogHeader>
               <DialogBody>
                 <div className='flex flex-wrap items-center gap-2'>
-                  <span className='hint'>{t('{count} 条规则，按列表顺序执行', { count: rules.length })}</span>
+                  <span className='hint'>{t('{count} rules, executed in list order', { count: rules.length })}</span>
                   <Button id='btn-sanitize-rule-add' variant='dashed' size='sm' className='ml-auto'
-                    disabled={disabled || rules.length >= state.limits.maxRules} onClick={addRule}>{t('新增规则')}</Button>
+                    disabled={disabled || rules.length >= state.limits.maxRules} onClick={addRule}>{t('Add rule')}</Button>
                   <Button id='btn-sanitize-rules-reset' variant='outline' size='sm' disabled={disabled}
                     onClick={() => { setRules(state.defaults.map(rule => ({ ...rule }))); setRestore(true) }}>
-                    {t('恢复默认词表')}
+                    {t('Restore default rules')}
                   </Button>
                 </div>
                 <SanitizeRulesTable rules={rules} defaults={state.defaults} disabled={disabled} onChange={changeRules}
                   onEdit={rule => setEditor({ rule, isNew: false })} />
-                <div className='hint'>{t('规则可以增删改、启停和调整顺序；替换内容留空表示删除匹配内容。恢复默认只重置词表，不改开关和提供商范围。')}</div>
+                <div className='hint'>{t('Add, edit, delete, enable, disable and reorder rules. An empty replacement deletes matched text. Restoring defaults resets only the rules, not the switch or provider scope.')}</div>
                 {!state.saved ? <Alert variant='destructive' role='alert' className='text-xs text-destructive'>
-                  {t('指纹脱敏设置仅本次运行生效，写入数据库失败，请检查配置目录')}
+                  {t('Fingerprint masking settings apply only to this run. Database writing failed; check the configuration directory.')}
                 </Alert> : null}
               </DialogBody>
               <DialogFooter className='flex-wrap justify-end'>
                 {saveStatus}
-                <DialogClose render={<Button variant='outline' />}>{t('关闭')}</DialogClose>
+                <DialogClose render={<Button variant='outline' />}>{t('Close')}</DialogClose>
                 <Button id='btn-sanitize-rules-save' disabled={disabled || !dirty} onClick={() => void save()}>
-                  {busy ? t('保存中…') : t('保存设置')}
+                  {busy ? t('Saving…') : t('Save settings')}
                 </Button>
               </DialogFooter>
               {editor ? <SanitizeRuleEditor rule={editor.rule} isNew={editor.isNew} limits={state.limits}
@@ -176,11 +176,11 @@ export function SanitizePanel({ snap }: { snap: SettingsSnapshot }) {
                 }} /> : null}
             </DialogContent>
           </Dialog>
-        </> : ready ? <div className='hint'>{t('当前后端不支持词表编辑与提供商范围，请更新后端后重试。')}</div> : null}
+        </> : ready ? <div className='hint'>{t('This backend does not support editable rules or provider scope. Update the backend and try again.')}</div> : null}
         {ready ? <div className='flex flex-wrap items-center justify-end gap-2'>
           {saveStatus}
           <Button id='btn-sanitize-save' disabled={busy || !dirty} onClick={() => void save()}>
-            {busy ? t('保存中…') : t('保存设置')}
+            {busy ? t('Saving…') : t('Save settings')}
           </Button>
         </div> : null}
         <div className='hint retention-note'>{NOTES.sanitize}</div>

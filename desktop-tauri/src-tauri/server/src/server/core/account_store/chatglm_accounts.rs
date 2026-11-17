@@ -303,7 +303,7 @@ mod tests {
         // 迁移前：不被认（这正是「整家静默消失」那个症状）
         assert!(!accounts[0].has_credentials());
         let healed = migrate_nested_tokens(&mut accounts);
-        assert_eq!(healed, 1, "应当修复 1 条");
+        assert_eq!(healed, 1, "应当修复 1 rows");
         // 迁移后：顶层有值、判据认了、空壳壳也清掉了
         assert!(accounts[0].has_credentials());
         assert_eq!(accounts[0].access_token(), "nested-access-token");

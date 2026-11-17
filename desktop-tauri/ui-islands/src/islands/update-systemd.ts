@@ -25,19 +25,19 @@ export function serviceProgress(info: UpdateInfo): ServiceProgress | null {
   const task = serviceUpdateTask(info)
   if (!task) return null
   const names = {
-    downloading: t('下载中'), verifying: t('校验中'), installing: t('安装中'),
-    restarting: t('重启中'), completed: t('更新完成'), failed: t('更新失败'),
+    downloading: t('Downloading'), verifying: t('Verifying'), installing: t('Installing'),
+    restarting: t('Restarting'), completed: t('Update complete'), failed: t('Update failed'),
   }
   let text = ''
   switch (task.phase) {
-    case 'downloading': text = t('正在下载 {version} 的服务端更新包…', { version: task.version }); break
-    case 'verifying': text = t('正在独立核验官方更新包，校验通过前不会修改现有程序…'); break
-    case 'installing': text = t('正在备份并替换服务端程序与界面，请勿关闭服务器…'); break
-    case 'restarting': text = t('正在重启服务并确认新版本，页面恢复后会自动刷新…'); break
+    case 'downloading': text = t('Downloading the server update for {version}…', { version: task.version }); break
+    case 'verifying': text = t('Independently verifying the official update. Existing files will not change until verification succeeds…'); break
+    case 'installing': text = t('Backing up and replacing the server and panel files. Do not shut down the server…'); break
+    case 'restarting': text = t('Restarting the service and verifying the new version. This page will refresh after recovery…'); break
     case 'completed': text = info.currentVersion === task.version
-      ? t('已更新至 {version}，服务已恢复。', { version: task.version })
-      : t('更新任务已结束，但当前运行版本与目标不一致，请检查服务日志。'); break
-    case 'failed': text = t('更新失败：{error}', { error: errorMessage(task.error || t('请检查服务日志')) }); break
+      ? t('Updated to {version}. The service is back online.', { version: task.version })
+      : t('The update task ended, but the running version differs from the target. Check the service logs.'); break
+    case 'failed': text = t('Update failed: {error}', { error: errorMessage(task.error || t('Please check the service logs')) }); break
   }
   return {
     info, text, badge: names[task.phase], active: serviceTaskActive(task),
@@ -83,7 +83,7 @@ async function poll(): Promise<void> {
       if (!disconnectedAt) disconnectedAt = Date.now()
       if (Date.now() - disconnectedAt > 180_000) {
         const info = lastInfo
-        listener?.({ info, badge: t('等待恢复'), text: t('暂未确认服务恢复，请检查服务器状态后刷新页面；不会自动重复安装。'),
+        listener?.({ info, badge: t('Waiting for recovery'), text: t('Service recovery has not been confirmed. Check the server and refresh this page. Installation will not repeat automatically.'),
           active: false, failed: true, percent: 0 })
         return
       }
@@ -95,11 +95,11 @@ export async function startServiceUpdate(info: UpdateInfo, onProgress: Listener)
   const version = info.latestVersion
   const api = shared().workbuddyDesktop
   const start = info.updateCapability?.mode === 'windows-service' ? api?.startWindowsServiceUpdate : api?.startSystemdUpdate
-  if (!version || !start) throw new Error(t('一键更新入口不可用，请刷新页面后重试。'))
+  if (!version || !start) throw new Error(t('One-click updates are unavailable. Refresh the page and try again.'))
   const confirmed = await shared().wbConfirm?.ask({
-    title: t('一键更新服务端？'),
-    text: t('将更新至 {version}。下载和校验完成后会短暂停止服务、替换程序并自动重启；账号与配置会保留。确认后无需再次点击安装。', { version }),
-    okText: t('开始更新'), cancelText: t('取消'), bodyClass: '',
+    title: t('Update the server now?'),
+    text: t('Update to {version}? Once downloaded and verified, the service will briefly stop, the files will be replaced and the service will restart automatically. Accounts and settings are preserved. No further installation click is needed.', { version }),
+    okText: t('Start update'), cancelText: t('Cancel'), bodyClass: '',
   })
   if (!confirmed) return
   const task = await start({ version })

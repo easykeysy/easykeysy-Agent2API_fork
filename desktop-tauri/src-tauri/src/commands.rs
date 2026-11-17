@@ -154,7 +154,7 @@ pub async fn end_port_occupant(app: AppHandle) -> Result<Value, String> {
     let port = gateway::proxy_port();
     let Some(occupant) = backend::occupant_of(port) else {
         return Err(format!(
-            "端口 {port} 上没有查到监听进程，无法结束。\
+            "Port {port} 上没有查到监听进程，无法结束。\
              若该端口属于系统保留段，请改用「更换端口」。"
         ));
     };
@@ -202,15 +202,15 @@ pub async fn check_port(port: u16) -> Result<Value, String> {
     if port < 1024 {
         return Ok(json!({
             "ok": false,
-            "message": "端口 1-1023 是系统保留范围，普通程序无法监听，请用 1024 以上的端口",
+            "message": "Port 1-1023 是系统保留范围，普通程序无法监听，请用 1024 以上的端口",
         }));
     }
     let current = gateway::proxy_port();
     if port == current {
-        return Ok(json!({ "ok": true, "message": "与当前端口相同，无需重启", "same": true }));
+        return Ok(json!({ "ok": true, "message": "Same as the current port; no restart needed", "same": true }));
     }
     match crate::server::probe_port(port) {
-        Ok(()) => Ok(json!({ "ok": true, "message": format!("端口 {port} 可用") })),
+        Ok(()) => Ok(json!({ "ok": true, "message": format!("Port {port} usable") })),
         Err(conflict) => Ok(json!({
             "ok": false,
             "message": conflict.message.clone(),
@@ -228,7 +228,7 @@ pub async fn check_port(port: u16) -> Result<Value, String> {
 #[tauri::command]
 pub async fn change_port(app: AppHandle, port: u16) -> Result<Value, String> {
     if port < 1024 {
-        return Err("端口 1-1023 是系统保留范围，请用 1024 以上的端口".to_string());
+        return Err("Port 1-1023 是系统保留范围，请用 1024 以上的端口".to_string());
     }
     // 环境变量显式指定端口时，设置文件里的值不会生效 —— 与其静默失败，
     // 不如明确告诉用户该改哪里
@@ -281,10 +281,10 @@ pub async fn panel_register(username: String, password: String) -> Result<Value,
     crate::startup::wait().await?;
     let username = username.trim();
     if username.is_empty() || username.chars().count() > 64 {
-        return Err("请填写管理员账号（64 字符以内）".to_string());
+        return Err("Enter an admin account (up to 64 characters)".to_string());
     }
     if password.len() < 8 {
-        return Err("密码至少 8 位".to_string());
+        return Err("Password must be at least 8 characters".to_string());
     }
     let username = username.to_string();
     // bcrypt 是刻意的慢函数，放阻塞线程池，别占异步 worker
@@ -369,8 +369,19 @@ pub async fn change_lan_access(app: AppHandle, enabled: bool, panel: bool) -> Re
 
     let mut created_key = None;
     if enabled && crate::server::config::current().active_api_keys().is_empty() {
-        let entry = crate::server::core::api_keys::add("默认", None, Vec::new(), Vec::new())
-            .map_err(|message| format!("自动创建网关 Key 失败: {message}"))?;
+        let entry = crate::server::core::api_keys::add(
+            "Default",
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .map_err(|message| format!("auto-creating the gateway key failed: {message}"))?;
         crate::server::logging::log(
             "[Config]",
             &format!("✅ 已自动创建网关 Key「{}」（网络访问开启流程）", entry.name),
@@ -677,7 +688,7 @@ pub async fn export_accounts(app: AppHandle) -> Result<Value, String> {
     let file = app
         .dialog()
         .file()
-        .set_title("导出账号")
+        .set_title("Export Accounts")
         .set_file_name(&default_name)
         .add_filter("JSON", &["json"])
         .add_filter("全部文件", &["*"])
@@ -710,7 +721,7 @@ pub async fn import_accounts(app: AppHandle) -> Result<Value, String> {
     let file = app
         .dialog()
         .file()
-        .set_title("导入账号")
+        .set_title("Import Accounts")
         .add_filter("JSON", &["json"])
         .add_filter("全部文件", &["*"])
         .blocking_pick_file();
@@ -722,7 +733,7 @@ pub async fn import_accounts(app: AppHandle) -> Result<Value, String> {
         .into_path()
         .map_err(|error| format!("文件路径无效: {error}"))?;
     let text = std::fs::read_to_string(&path)
-        .map_err(|error| format!("读取文件失败: {error}"))?;
+        .map_err(|error| format!("Failed to read the file: {error}"))?;
 
     let parsed: Value = serde_json::from_str(&text)
         .map_err(|error| format!("文件不是有效 JSON: {error}"))?;
@@ -855,7 +866,7 @@ pub async fn import_database(app: AppHandle, password: Option<String>) -> Result
     .await
     {
         Ok(data) => Ok(data),
-        Err(message) if message.contains("超时") => {
+        Err(message) if message.contains("Timeout") => {
             let progress = gateway::call("GET", "/api/backup/progress", None).await;
             match progress {
                 Ok(snapshot) if snapshot.get("active").and_then(Value::as_bool) == Some(true) => {
@@ -1186,7 +1197,7 @@ pub fn set_zoom(app: AppHandle, scale: f64) -> Result<f64, String> {
     // 先规整再比范围：0.95 这类因子在浮点里是 0.9499999…，直接比大小会把 95% 误判出界
     let factor = (scale * 100.0).round() / 100.0;
     if !(MIN..=MAX).contains(&factor) {
-        return Err(format!("界面缩放需在 80%–130% 之间（收到 {:.0}%）", factor * 100.0));
+        return Err(format!("界面缩放需在 80%–130% 之间（收到 {:.0}%)", factor * 100.0));
     }
     let window = main_window(&app)?;
     window

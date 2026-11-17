@@ -293,7 +293,7 @@ fn resolve_model_for(
                 if hint.is_empty() {
                     String::new()
                 } else {
-                    format!("（目录里相近的模型: {}）", hint.join("、"))
+                    format!("（目录里相近的模型: {})", hint.join(", "))
                 },
             );
             return Err(GatewayError::with_status(404, message).with_code("model_not_found"));
@@ -301,7 +301,7 @@ fn resolve_model_for(
     }
     if !requested_model.is_empty() && !key_scope::allows_model(scope, &requested_model) {
         return Err(GatewayError::with_status(404, format!(
-            "模型 '{requested_model}' 不可用：不在这把网关 Key 的可用模型列表里"
+            "Model '{requested_model}' 不可用：不在这把网关 Key 的可用模型列表里"
         )).with_code("model_not_found"));
     }
     if !image_generation && !requested_model.is_empty() {
@@ -310,7 +310,7 @@ fn resolve_model_for(
             crate::server::core::providers::images::provider_model_is_image(provider, &requested_model)
         }) {
             return Err(GatewayError::bad_request(format!(
-                "模型 '{requested_model}' 是图片生成模型，请使用 POST /v1/images/generations"
+                "Model '{requested_model}' 是图片生成模型，请使用 POST /v1/images/generations"
             )).with_code("image_generation_required"));
         }
     }

@@ -105,7 +105,7 @@ fn patch_from(object: &Map<String, Value>) -> Result<AutoContinuePatch, String> 
     let mut patch = AutoContinuePatch::default();
     if let Some(value) = object.get(KEY_AUTO_CONTINUE) {
         let Some(enabled) = value.as_bool() else {
-            return Err(format!("{KEY_AUTO_CONTINUE} 必须是 true 或 false"));
+            return Err(format!("{KEY_AUTO_CONTINUE} 必须是 true or false"));
         };
         patch.enabled = Some(enabled);
     }
@@ -193,7 +193,7 @@ mod tests {
                 Err(error) => error,
             };
             assert!(
-                error.contains("必须是 true 或 false"),
+                error.contains("必须是 true or false"),
                 "文案要与 /api/keepalive-strip 同形，拿到的是: {error}"
             );
         }

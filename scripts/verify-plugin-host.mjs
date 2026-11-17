@@ -191,7 +191,7 @@ class PluginClient {
           id: account,
           provider: 'demo',
           secret: { token: 'demo-token-1234', expires_at: Date.now() + 60_000 },
-          public: { name: '示例账号', uid: 'demo-uid' },
+          public: { name: 'Sample account', uid: 'demo-uid' },
         })
       }
       case 'store.list':
@@ -245,7 +245,7 @@ class PluginClient {
     let resolveEnd
     const done = new Promise((resolve) => { resolveEnd = resolve })
 
-    const timer = setTimeout(() => resolveEnd({ head, chunks, frames, error: '超时' }), timeoutMs)
+    const timer = setTimeout(() => resolveEnd({ head, chunks, frames, error: 'Timeout' }), timeoutMs)
 
     this.streams.set(id, {
       push: (frame) => {
@@ -311,7 +311,7 @@ async function main() {
   const client = new PluginClient(EXE, env)
   await client.start()
 
-  console.log('【1】握手')
+  console.log('[1] Handshake')
 
   let providers
   try {
@@ -325,12 +325,12 @@ async function main() {
       },
     })
     if (Array.isArray(providers) && providers.length > 0) {
-      pass('init 返回 provider 列表', `${providers.length} 家：${providers.map((p) => p.id).join(', ')}`)
+      pass('init Back provider List', `${providers.length} 家：${providers.map((p) => p.id).join(', ')}`)
     } else {
-      fail('init 返回 provider 列表', '列表为空')
+      fail('init Back provider List', 'The list is empty')
     }
   } catch (e) {
-    fail('init 返回 provider 列表', e.message)
+    fail('init Back proinit Back provider List', e.message)
   }
 
   const demo = providers?.find((p) => p.id === 'demo')
@@ -338,33 +338,33 @@ async function main() {
     const caps = demo.capabilities || {}
     const expected = ['chat', 'stateful', 'refresh', 'model_refresh', 'usage', 'checkin', 'web_login']
     const wrong = expected.filter((key) => caps[key] !== true)
-    if (wrong.length === 0) pass('能力位如实申报', expected.join(' / '))
-    else fail('能力位如实申报', `未申报：${wrong.join(', ')}`)
+    if (wrong.length === 0) pass('Report the capability bits honestly', expected.join(' / '))
+    else fail('Report the capability bits honestly', `未申报：${wrong.join(', ')}`)
     if (Array.isArray(demo.login_methods) && demo.login_methods.length === 2) {
-      pass('登录方式申报', demo.login_methods.map((m) => m.kind).join(', '))
+      pass('Report the login method', demo.login_methods.map((m) => m.kind).join(', '))
     } else {
-      fail('登录方式申报', `期望 2 种，得到 ${demo.login_methods?.length ?? 0}`)
+      fail('Report the login method', `期望 2 种，得到 ${demo.login_methods?.length ?? 0}`)
     }
   }
 
-  console.log('\n【2】无状态转发（构造请求）')
+  console.log('\n[2] Stateless forwarding (building requests)')
   try {
     const plan = await client.call('chat', baseChat())
     const okUrl = typeof plan.url === 'string' && plan.url.endsWith('/v1/chat/completions')
     const okBody = plan.body?.model === 'demo-fast'
     const okAuth = (plan.headers || []).some(([k, v]) => k === 'authorization' && v.includes('demo'))
     if (okUrl && okBody && okAuth) {
-      pass('chat 返回完整构造计划', `${plan.url}（model=${plan.body.model}）`)
+      pass('chat Return the complete build plan', `${plan.url}（model=${plan.body.model}）`)
     } else {
-      fail('chat 返回完整构造计划', JSON.stringify({ okUrl, okBody, okAuth }))
+      fail('chat Return the complete build plan', JSON.stringify({ okUrl, okBody, okAuth }))
     }
-    if (plan.upstream === 'chat') pass('响应协议标记', 'chat')
-    else fail('响应协议标记', `期望 chat，得到 ${plan.upstream}`)
+    if (plan.upstream === 'chat') pass('The response protocol marker', 'chat')
+    else fail('The response protocol marker', `期望 chat，得到 ${plan.upstream}`)
   } catch (e) {
-    fail('chat 返回完整构造计划', e.message)
+    fail('chat Return the complete build plan', e.message)
   }
 
-  console.log('\n【3】控制面')
+  console.log('\n[3] Control plane')
   try {
     const list = await client.call('models.list', { provider: 'demo', account: 'demo-1' })
     if (Array.isArray(list.models) && list.models.length === 2) {
@@ -379,23 +379,23 @@ async function main() {
   try {
     const refreshed = await client.call('models.refresh', { provider: 'demo', account: 'demo-1', force: true })
     if (refreshed.refreshed === true && refreshed.count === 2) {
-      pass('models.refresh（force）', `落地 ${refreshed.count} 条`)
+      pass('models.refresh(force)', `落地 ${refreshed.count} 条`)
     } else {
-      fail('models.refresh（force）', JSON.stringify(refreshed))
+      fail('models.refresh(force)', JSON.stringify(refreshed))
     }
   } catch (e) {
-    fail('models.refresh（force）', e.message)
+    fail('models.refresh(force)', e.message)
   }
 
   try {
     const cached = await client.call('models.refresh', { provider: 'demo', account: 'demo-1', force: false })
     if (cached.refreshed === false && !cached.message) {
-      pass('models.refresh（自动路径按缓存跳过）', 'refreshed=false 且无失败原因')
+      pass('models.refresh(the automatic path skips by cache)', 'refreshed=false and there is no failure reason')
     } else {
-      fail('models.refresh（自动路径按缓存跳过）', JSON.stringify(cached))
+      fail('models.refresh(the automatic path skips by cache)', JSON.stringify(cached))
     }
   } catch (e) {
-    fail('models.refresh（自动路径按缓存跳过）', e.message)
+    fail('models.refresh(the automatic path skips by cache)', e.message)
   }
 
   try {
@@ -417,10 +417,10 @@ async function main() {
     fail('checkin.claim', e.message)
   }
 
-  console.log('\n【4】错误分类与策略')
+  console.log('\n[4] Error classification and policy')
   try {
-    const quota = await client.call('classify', { provider: 'demo', status: 429, body: { error: { message: '限额', code: 6004 } } })
-    if (quota.kind === 'quota_limited') pass('429 → QuotaLimited', '会换账号')
+    const quota = await client.call('classify', { provider: 'demo', status: 429, body: { error: { message: 'Limit', code: 6004 } } })
+    if (quota.kind === 'quota_limited') pass('429 → QuotaLimited', 'It will rotate accounts')
     else fail('429 → QuotaLimited', JSON.stringify(quota))
   } catch (e) {
     fail('429 → QuotaLimited', e.message)
@@ -428,7 +428,7 @@ async function main() {
 
   try {
     const expired = await client.call('classify', { provider: 'demo', status: 401, body: { error: { message: '过期' } } })
-    if (expired.kind === 'token_expired') pass('401 → TokenExpired', '刷新后同账号重试')
+    if (expired.kind === 'token_expired') pass('401 → TokenExpired', 'Retry with the same account after refreshing')
     else fail('401 → TokenExpired', JSON.stringify(expired))
   } catch (e) {
     fail('401 → TokenExpired', e.message)
@@ -436,54 +436,54 @@ async function main() {
 
   try {
     const blocked = await client.call('classify', { provider: 'demo', status: 400, body: { error: { message: 'sensitive content' } } })
-    if (blocked.kind === 'content_blocked') pass('400+审核文案 → ContentBlocked', '不罚账号')
-    else fail('400+审核文案 → ContentBlocked', JSON.stringify(blocked))
+    if (blocked.kind === 'content_blocked') pass('400+The review copy→ ContentBlocked', 'The account is not penalized')
+    else fail('400+The review copy→ ContentBlocked', JSON.stringify(blocked))
   } catch (e) {
-    fail('400+审核文案 → ContentBlocked', e.message)
+    fail('400+The review copy→ ContentBlocked', e.message)
   }
 
   try {
     const patch = await client.call('reasoning_patch', { provider: 'demo', level: 'high', model: 'demo-fast', body: {} })
     if (patch.action === 'set' && patch.field === 'reasoning_effort') {
-      pass('reasoning_patch 注入', `${patch.field}=${patch.value}`)
+      pass('reasoning_patch Injection', `${patch.field}=${patch.value}`)
     } else {
-      fail('reasoning_patch 注入', JSON.stringify(patch))
+      fail('reasoning_patch Injection', JSON.stringify(patch))
     }
   } catch (e) {
-    fail('reasoning_patch 注入', e.message)
+    fail('reasoning_patch Injection', e.message)
   }
 
   try {
     const skip = await client.call('reasoning_patch', { provider: 'demo', level: 'ultra', model: 'demo-fast', body: {} })
-    if (skip.action === 'skip' && skip.reason) pass('reasoning_patch 拒绝表外档位并给原因', skip.reason)
-    else fail('reasoning_patch 拒绝表外档位并给原因', JSON.stringify(skip))
+    if (skip.action === 'skip' && skip.reason) pass('reasoning_patch Reject out-of-table levels and give the reason', skip.reason)
+    else fail('reasoning_patch Reject out-of-table levels and give the reason', JSON.stringify(skip))
   } catch (e) {
-    fail('reasoning_patch 拒绝表外档位并给原因', e.message)
+    fail('reasoning_patch Reject out-of-table levels and give the reason', e.message)
   }
 
-  console.log('\n【5】账号')
+  console.log('\n[5] Account')
   try {
     const normalized = await client.call('account.normalize', {
       provider: 'demo',
-      source: { kind: 'manual', payload: { token: 'demo-abc-1234', name: '我的示例' } },
+      source: { kind: 'manual', payload: { token: 'demo-abc-1234', name: 'My example' } },
     })
     const okSecret = normalized.secret?.token === 'demo-abc-1234'
-    const okPublic = normalized.public?.name === '我的示例' && normalized.public?.tokenTail === '1234'
+    const okPublic = normalized.public?.name === 'My example' && normalized.public?.tokenTail === '1234'
     const okIdentity = typeof normalized.identity === 'string' && normalized.identity.startsWith('demo-')
     if (okSecret && okPublic && okIdentity) {
-      pass('account.normalize（手填）', `identity=${normalized.identity}`)
+      pass('account.normalize(typed in)', `identity=${normalized.identity}`)
     } else {
-      fail('account.normalize（手填）', JSON.stringify({ okSecret, okPublic, okIdentity }))
+      fail('account.normalize(typed in)', JSON.stringify({ okSecret, okPublic, okIdentity }))
     }
     // 同令牌两次添加 → 同一个 identity（去重的前提）
     const again = await client.call('account.normalize', {
       provider: 'demo',
       source: { kind: 'manual', payload: { token: 'demo-abc-1234' } },
     })
-    if (again.identity === normalized.identity) pass('同一令牌的稳定身份', again.identity)
-    else fail('同一令牌的稳定身份', `${normalized.identity} vs ${again.identity}`)
+    if (again.identity === normalized.identity) pass('The stable identity of the same token', again.identity)
+    else fail('The stable identity of the same token', `${normalized.identity} vs ${again.identity}`)
   } catch (e) {
-    fail('account.normalize（手填）', e.message)
+    fail('account.normalize(typed in)', e.message)
   }
 
   try {
@@ -491,30 +491,30 @@ async function main() {
       provider: 'demo',
       source: { kind: 'manual', payload: {} },
     })
-    fail('空令牌被拒', '居然成功了')
+    fail('An empty token was rejected', 'It actually succeeded')
   } catch (e) {
-    pass('空令牌被拒', e.message.slice(0, 40))
+    pass('An empty token was rejected', e.message.slice(0, 40))
   }
 
-  console.log('\n【6】登录')
+  console.log('\n[6] Login')
   try {
     const start = await client.call('login.start', { provider: 'demo', method: 'browser', payload: {} })
     if (start.url && start.poll_interval_ms === 3000) {
-      pass('login.start（设备授权型）', `${start.url}，轮询 ${start.poll_interval_ms}ms`)
+      pass('login.start(device-authorization type)', `${start.url}，轮询 ${start.poll_interval_ms}ms`)
     } else {
-      fail('login.start（设备授权型）', JSON.stringify(start))
+      fail('login.start(device-authorization type)', JSON.stringify(start))
     }
     const poll = await client.call('login.poll', { provider: 'demo', flow: start.flow })
     if (poll.state === 'done' && poll.account?.secret?.token) {
-      pass('login.poll 返回账号', poll.account.public?.name)
+      pass('login.poll Return the account', poll.account.public?.name)
     } else {
-      fail('login.poll 返回账号', JSON.stringify(poll))
+      fail('login.poll Return the account', JSON.stringify(poll))
     }
   } catch (e) {
-    fail('login.start（设备授权型）', e.message)
+    fail('login.start(device-authorization type)', e.message)
   }
 
-  console.log('\n【7】流式转发 + 背压')
+  console.log('\n[7] Streaming forwarding + backpressure')
   try {
     const { done } = client.callStream('conversation', {
       provider: 'demo',
@@ -527,28 +527,28 @@ async function main() {
     })
     const outcome = await done
     if (outcome.head?.status === 200) {
-      pass('conversation 上报 head', `status=${outcome.head.status}, upstream=${outcome.head.upstream}`)
+      pass('conversation Report the head', `status=${outcome.head.status}, upstream=${outcome.head.upstream}`)
     } else {
-      fail('conversation 上报 head', JSON.stringify(outcome.head ?? outcome.error))
+      fail('conversation Report the head', JSON.stringify(outcome.head ?? outcome.error))
     }
     const body = Buffer.concat(outcome.chunks).toString('utf8')
     if (body.includes('data:') && body.includes('[DONE]')) {
-      pass('流式 chunk 内容完整', `${outcome.chunks.length} 帧，${body.length} 字节`)
+      pass('the streaming chunk content is complete', `${outcome.chunks.length} 帧，${body.length} 字节`)
     } else {
-      fail('流式 chunk 内容完整', `收到 ${body.length} 字节：${body.slice(0, 80)}`)
+      fail('the streaming chunk content is complete', `收到 ${body.length} 字节：${body.slice(0, 80)}`)
     }
     if (outcome.result === null && !outcome.error) {
-      pass('流式调用正常收尾', 'result=null')
+      pass('The streaming call ended normally', 'result=null')
     } else {
-      fail('流式调用正常收尾', outcome.error ?? JSON.stringify(outcome.result))
+      fail('The streaming call ended normally', outcome.error ?? JSON.stringify(outcome.result))
     }
   } catch (e) {
-    fail('conversation 上报 head', e.message)
+    fail('conversation Report the head', e.message)
   }
 
   // ── 背压：大响应 + 不还额度，插件必须停下来 ────────────────
   // 4 MiB 响应 vs 512 KiB 初始窗口：插件最多发到窗口用完就必须阻塞在
-  // `sink.send` 上。这里断言「收到的字节数显著小于总量」——
+  // `sink.send` 上。这里断言「收到的字节The count is significantly smaller than the total量」——
   // 如果背压没实现，插件会把 4 MiB 全推过来。
   try {
     const { id, done } = client.callStream('conversation', {
@@ -565,25 +565,25 @@ async function main() {
     // 初始窗口 512 KiB + 帧开销余量。留 2 倍余量避免边界抖动。
     const limit = 512 * 1024 * 2
     if (received > 0 && received < limit) {
-      pass('背压生效（不还额度时插件停在窗口内）', `收到 ${(received / 1024).toFixed(0)} KiB / 总共 4096 KiB`)
+      pass('backpressure is in effect (the plugin stays inside the window when not returning quota)', `收到 ${(received / 1024).toFixed(0)} KiB / 总共 4096 KiB`)
     } else if (received >= limit) {
-      fail('背压生效（不还额度时插件停在窗口内）', `收到 ${(received / 1024).toFixed(0)} KiB，超过窗口上限`)
+      fail('backpressure is in effect (the plugin stays inside the window when not returning quota)', `收到 ${(received / 1024).toFixed(0)} KiB，超过窗口上限`)
     } else {
-      fail('背压生效（不还额度时插件停在窗口内）', `没收到数据：${outcome.error}`)
+      fail('backpressure is in effect (the plugin stays inside the window when not returning quota)', `没收到数据：${outcome.error}`)
     }
     client.write({ id: client.nextId++, method: 'abort', params: { id } })
   } catch (e) {
-    fail('背压生效（不还额度时插件停在窗口内）', e.message)
+    fail('backpressure is in effect (the plugin stays inside the window when not returning quota)', e.message)
   }
 
-  console.log('\n【8】取消')
+  console.log('\n[8] Cancel')
   try {
     // 用大响应（慢速 4 MiB）确保取消时调用一定还在途 ——
     // 小响应会在 abort 到达之前就结束，那样这项就是假通过。
     const { id, done } = client.callStream('conversation', {
       provider: 'demo',
       account: 'demo-1',
-      body: { messages: [{ role: 'user', content: '取消测试' }], model: 'demo-fast', demo_big: true },
+      body: { messages: [{ role: 'user', content: 'Cancel the test' }], model: 'demo-fast', demo_big: true },
       headers: {},
       stream: true,
       session: '',
@@ -594,33 +594,33 @@ async function main() {
     client.write({ id: client.nextId++, method: 'abort', params: { id } })
     const outcome = await done
     if (outcome.error && /取消|aborted|cancel/i.test(outcome.error)) {
-      pass('abort 让在途流式调用终止', outcome.error)
+      pass('abort Make in-flight streaming calls terminate', outcome.error)
     } else if (outcome.result === null && outcome.chunks.length > 0) {
       // 上游在 abort 生效前刚好推完了 —— 记录事实但不判失败
-      pass('abort 后调用已收尾', `${outcome.chunks.length} 帧后自然结束`)
+      pass('abort the follow-up call has finished', `${outcome.chunks.length} 帧后自然结束`)
     } else {
-      fail('abort 让在途流式调用终止', JSON.stringify({ error: outcome.error, frames: outcome.chunks.length }))
+      fail('abort Make in-flight streaming calls terminate', JSON.stringify({ error: outcome.error, frames: outcome.chunks.length }))
     }
   } catch (e) {
-    fail('abort 让在途流式调用终止', e.message)
+    fail('abort Make in-flight streaming calls terminate', e.message)
   }
 
-  console.log('\n【9】错误路径')
+  console.log('\n[9] Error paths')
   try {
     await client.call('no.such.method', { provider: 'demo' })
-    fail('未知方法被拒', '居然成功了')
+    fail('An unknown method was refused', 'It actually succeeded')
   } catch (e) {
-    pass('未知方法被拒', e.message.slice(0, 50))
+    pass('An unknown method was refused', e.message.slice(0, 50))
   }
 
   try {
     await client.call('chat', { provider: 'unknown-provider', body: {} })
-    fail('未知 provider 被拒', '居然成功了')
+    fail('Unknown provider Rejected', 'It actually succeeded')
   } catch (e) {
-    pass('未知 provider 被拒', e.message.slice(0, 50))
+    pass('Unknown provider Rejected', e.message.slice(0, 50))
   }
 
-  console.log('\n【10】崩溃恢复')
+  console.log('\n[10] Crash recovery')
   try {
     const before = client.child.pid
     client.child.kill('SIGKILL')
@@ -631,13 +631,13 @@ async function main() {
       env: { data_dir: ROOT, host_version: '0.1.0-test', target: 'x86_64-windows', proxy: '', debug_traffic: false },
     })
     if (Array.isArray(list) && list.length > 0) {
-      pass('子进程被杀后能重新握手', `旧 pid=${before}，新进程可用`)
+      pass('the child process can re-handshake after being killed', `旧 pid=${before}，新进程可用`)
     } else {
-      fail('子进程被杀后能重新握手', '列表为空')
+      fail('the child process can re-handshake after being killed', 'The list is empty')
     }
     await restarted.stop()
   } catch (e) {
-    fail('子进程被杀后能重新握手', e.message)
+    fail('the child process can re-handshake after being killed', e.message)
   }
 
   await client.stop()
@@ -649,7 +649,7 @@ async function main() {
   console.log(`\n${'─'.repeat(52)}`)
   console.log(`通过 ${ok}/${total}${failed ? `，失败 ${failed}` : ''}`)
   if (failed) {
-    console.log('\n失败项：')
+    console.log('\nFailed items:')
     for (const item of results.filter((r) => !r.ok)) {
       console.log(`  · ${item.name} — ${item.detail}`)
     }
@@ -658,6 +658,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error('验证脚本自身出错：', e)
+  console.error('The verification script itself errored:', e)
   process.exit(1)
 })

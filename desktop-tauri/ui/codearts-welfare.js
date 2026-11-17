@@ -36,14 +36,14 @@
   const describeError = error => {
     if (error instanceof Error && error.message) return error.message;
     const text = String(error ?? '').trim();
-    return text || wbI18n.t('未知错误');
+    return text || wbI18n.t('Unknown error');
   };
 
   /** 管理端点的通用调用（POST /api/accounts 在桥里没有具名方法，这里同一口径）。 */
   async function manage(method, path, body) {
     const internals = window.__TAURI_INTERNALS__;
     if (!internals || typeof internals.invoke !== 'function') {
-      throw new Error(wbI18n.t('桌面运行时不可用（Tauri 未初始化）'));
+      throw new Error(wbI18n.t('Desktop runtime unavailable (Tauri not initialized)'));
     }
     return internals.invoke('api_request', { request: { method, path, body } });
   }
@@ -52,35 +52,35 @@
   function describeCampaign(item) {
     const amount = Number(item.benefitAmount) || 0;
     const state = item.confirmed
-      ? wbI18n.t('已到账')
+      ? wbI18n.t('Credited')
       : item.localClaimed
-        ? wbI18n.t('已领取，等官方确认')
+        ? wbI18n.t('Claimed, awaiting official confirmation')
         : item.claimable
-          ? wbI18n.t('可领取')
-          : wbI18n.t('不可领（{status}）', {
-            status: escapeHtml(item.status || wbI18n.t('未知')),
+          ? wbI18n.t('Claimable')
+          : wbI18n.t('Not claimable ({status})', {
+            status: escapeHtml(item.status || wbI18n.t('Unknown')),
           });
-    return `<li><b>${amount} ${escapeHtml(item.benefitUnit || wbI18n.t('积分'))}</b> · ${state}</li>`;
+    return `<li><b>${amount} ${escapeHtml(item.benefitUnit || wbI18n.t('Points'))}</b> · ${state}</li>`;
   }
 
   function summaryHtml(account, preview) {
     const campaigns = preview?.campaigns || [];
     const attemptsLeft = Number(preview?.attemptsLeft ?? 0);
     const waiting = Number(preview?.nextAttemptInMs ?? 0);
-    return wbI18n.t('账号：<b>{name}</b><br>', {
+    return wbI18n.t('Account: <b>{name}</b><br>', {
       name: escapeHtml(account?.name || account?.id || ''),
     })
-      + wbI18n.t('今天（北京时间 {day}）已试 {attempts} 次，还能试 {left} 次{next}<br>', {
+      + wbI18n.t('Tried {attempts} times today (Beijing time {day}); {left} attempts left{next}<br>', {
         day: escapeHtml(preview?.day || ''),
         attempts: preview?.attempts ?? 0,
         left: attemptsLeft,
-        next: waiting ? wbI18n.t('，下一次最快 {minutes} 分钟后', {
+        next: waiting ? wbI18n.t(', earliest next attempt in {minutes} min', {
           minutes: Math.ceil(waiting / 60000),
         }) : '',
       })
-      + `<ul class="codearts-welfare-campaigns">${campaigns.map(describeCampaign).join('') || wbI18n.t('<li>没有可自动领的活动</li>')}</ul>`
-      + wbI18n.t('<p class="muted">领到的是<b>套餐赠送积分</b>，不会增加福利模型的 token 池；'
-        + '领取按账号计，官方确认后本机会不再重复领。</p>');
+      + `<ul class="codearts-welfare-campaigns">${campaigns.map(describeCampaign).join('') || wbI18n.t('<li>No campaigns can be claimed automatically</li>')}</ul>`
+      + wbI18n.t('<p class="muted">What you receive is <b>plan gift points</b>, which do not add to the welfare model token pool; '
+        + 'Claims are counted per account; after official confirmation this machine will not claim again.</p>');
   }
 
   async function start(account) {
@@ -91,36 +91,36 @@
     try {
       preview = await manage('POST', `/api/accounts/${encodeURIComponent(account.id)}/codearts-welfare/preview`, {});
     } catch (error) {
-      fail(wbI18n.t('探测失败：{message}', { message: describeError(error) }));
+      fail(wbI18n.t('Probe failed: {message}', { message: describeError(error) }));
       return;
     }
     if (!preview?.eligible) {
       // 最常见的两种结果不值得让用户多点一次：直接说清楚就收工
       window.wbApp?.toast?.(
         preview?.campaigns?.length
-          ? wbI18n.t('今天没有需要领的活动（都已到账）')
-          : wbI18n.t('这个账号当前没有可自动领的活动（只自动领每日登录赠送积分）'),
+          ? wbI18n.t('No campaigns to claim today (all already credited)')
+          : wbI18n.t('This account has no campaigns that can be claimed automatically right now (only the daily login gift points are claimed automatically)'),
       );
       return;
     }
     const ok = await window.wbConfirm?.ask?.({
-      title: wbI18n.t('领取 CodeArts 每日福利'),
+      title: wbI18n.t('Claim CodeArts daily welfare'),
       html: summaryHtml(account, preview),
-      okText: wbI18n.t('领取并让官方确认'),
+      okText: wbI18n.t('Claim and await confirmation'),
     });
     if (!ok) return;
     let result;
     try {
       result = await manage('POST', `/api/accounts/${encodeURIComponent(account.id)}/codearts-welfare`, {});
     } catch (error) {
-      fail(wbI18n.t('领取失败：{message}', { message: describeError(error) }));
+      fail(wbI18n.t('Claim failed: {message}', { message: describeError(error) }));
       return;
     }
     if (result?.confirmed) {
-      window.wbApp?.toast?.(`✅ ${result.result || wbI18n.t('官方已确认到账')}`);
+      window.wbApp?.toast?.(`✅ ${result.result || wbI18n.t('Officially confirmed as credited')}`);
     } else {
       // 「已领取并确认」与「等待重试」都是真话，不是失败：用中性提示
-      window.wbApp?.toast?.(result?.result || wbI18n.t('本次未确认到账'));
+      window.wbApp?.toast?.(result?.result || wbI18n.t('Not confirmed as credited this time'));
     }
     await window.wbApp?.refresh?.();
   }

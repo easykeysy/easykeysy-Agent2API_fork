@@ -135,13 +135,13 @@ impl TaskState {
 
     fn describe_wait(&self, backoff_bypassed: bool) -> String {
         if self.running() {
-            return "任务正在执行中，请稍候".to_string();
+            return "The task is already running. Please wait.".to_string();
         }
         let seconds = ((self.retry_at - logging::now_ms()).max(0) + 999) / 1000;
         if seconds > 0 && !backoff_bypassed {
             format!("请求处于冷却期，请在 {seconds} 秒后重试")
         } else {
-            "刚刚已执行，请稍后重试".to_string()
+            "This task just ran. Please retry shortly.".to_string()
         }
     }
 

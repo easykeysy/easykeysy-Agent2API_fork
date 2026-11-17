@@ -52,10 +52,10 @@ import { t } from '../i18n'
 
 /** 批量动作（RadioGroup 的取值；文案与执行动词共用这里） */
 const ACTIONS = [
-  { value: 'enable', label: t('启用') },
-  { value: 'disable', label: t('禁用') },
-  { value: 'reasoning', label: t('设置思考等级') },
-  { value: 'delete', label: t('删除') },
+  { value: 'enable', label: t('enabled') },
+  { value: 'disable', label: t('Disable') },
+  { value: 'reasoning', label: t('Set reasoning level') },
+  { value: 'delete', label: t('Delete') },
 ] as const
 
 type BatchAction = (typeof ACTIONS)[number]['value']
@@ -67,7 +67,7 @@ function isRemovable(model: ManageModel): boolean {
 
 /** 模型名（与账号页同一口径：有名字用名字，没有回退 id） */
 function modelName(model: ManageModel): string {
-  return (model.name && model.name !== model.id ? t('{name}（{id}）', { name: model.name, id: model.id }) : model.id) || model.id
+  return (model.name && model.name !== model.id ? t('{name} ({id})', { name: model.name, id: model.id }) : model.id) || model.id
 }
 
 export function ModelBatchDialog({ models, onClose, onDone }: {
@@ -93,23 +93,23 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
   const [result, setResult] = React.useState<React.ReactNode>('')
   const level = reasoning.select === CUSTOM_LEVEL ? reasoning.custom.trim() : reasoning.select
   const removableCount = models.filter(isRemovable).length
-  const label = ACTIONS.find(item => item.value === action)?.label || t('操作')
+  const label = ACTIONS.find(item => item.value === action)?.label || t('Actions')
 
   /** 批量删除不可逆，按数量做二次确认（与账号页批量删除同一口子，原生 confirm 在
    *  Tauri WebView 里直接放行，所以一律走 wbConfirm 的应用内确认框） */
   async function confirmRemove(count: number): Promise<boolean> {
     return Promise.resolve(shared().wbConfirm?.ask?.({
-      title: t('删除选中的模型'),
-      html: t('确定删除选中的 <strong>{count}</strong> 个模型登记？删除后 <code>/v1/models</code> 不再广告它们、请求也会被拒。', { count })
-        + (models.length > count ? '<br/>' + t('另有 {n} 个非手动登记的模型将被跳过。', { n: models.length - count }) : ''),
-      okText: t('删除'),
+      title: t('Delete selected models'),
+      html: t('Delete the <strong>{count}</strong> selected model registrations? After deletion, <code>/v1/models</code> will no longer advertise them and requests to them will be rejected.', { count })
+        + (models.length > count ? '<br/>' + t('Another {n} models that aren\'t manually registered will be skipped.', { n: models.length - count }) : ''),
+      okText: t('Delete'),
       okClass: 'danger',
     }) ?? false)
   }
 
   async function run(): Promise<void> {
     if (busy) return
-    if (!models.length) { toast(t('没有选中的模型'), 'err'); return }
+    if (!models.length) { toast(t('No models selected'), 'err'); return }
     if (action === 'enable') {
       const selected = new Map<string, string>()
       for (const model of models) {
@@ -117,7 +117,7 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
           const key = JSON.stringify([(model.provider || '').toLowerCase(), binding.alias.toLowerCase()])
           const previous = selected.get(key)
           if (previous && !same(previous, model.id)) {
-            setResult(<span className='text-destructive'>{t('所选模型含同一提供商的同名绑定「{id}」，请分别启用，避免相互关闭', { id: binding.alias })}</span>)
+            setResult(<span className='text-destructive'>{t('The selected models contain bindings named “{id}” under the same provider. Enable them separately to avoid disabling one another.', { id: binding.alias })}</span>)
             return
           }
           selected.set(key, model.id)
@@ -125,7 +125,7 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
       }
     }
     if (action === 'reasoning' && reasoning.select === CUSTOM_LEVEL && !level) {
-      setResult(<span className='text-destructive'>{t('请填写自定义思考等级，或改选候选档 / 「清除」')}</span>)
+      setResult(<span className='text-destructive'>{t('Enter a custom reasoning level, or pick a candidate level / “Clear”')}</span>)
       return
     }
     if (action === 'reasoning' && level && managedReasoning) {
@@ -136,13 +136,13 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
           || (rank < 0 && !info.levels.some(value => value.toLowerCase() === level.toLowerCase()))
       })
       if (incompatible) {
-        setResult(<span className='text-destructive'>{t('所选模型没有共同可用档位，请分别设置或清除绑定。')}</span>)
+        setResult(<span className='text-destructive'>{t('The selected models have no shared supported level. Configure them separately or clear their bindings.')}</span>)
         return
       }
     }
     if (action === 'delete') {
       if (removableCount === 0) {
-        setResult(<span className='text-destructive'>{t('选中的模型都不是手动登记，无法删除（开关映射才是它们的手段）')}</span>)
+        setResult(<span className='text-destructive'>{t('None of the selected models are manually registered, so they can\'t be deleted (use the mapping toggles instead)')}</span>)
         return
       }
       if (!(await confirmRemove(removableCount))) return
@@ -175,22 +175,22 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
         failed += 1
         if (!firstError) firstError = errorMessage(error)
         setResult(<span className='text-destructive'>
-          {t('失败 {n} 个 · 首个失败：{error}', { n: failed, error: firstError })}
+          {t('{n} failed · first failure: {error}', { n: failed, error: firstError })}
         </span>)
       }
     }
     if (failed === 0) {
       toast(skipped
-        ? t('✅ 批量{action}完成：共 {n} 个模型（跳过不可删除的 {skipped} 个）',
+        ? t('✅ Batch {action} complete: {n} models ({skipped} not deletable, skipped)',
           { action: label, n: ok, skipped })
-        : t('✅ 批量{action}完成：共 {n} 个模型', { action: label, n: ok }))
+        : t('✅ Batch {action} complete: {n} models', { action: label, n: ok }))
       onDone()
     } else {
-      toast(t('批量{action}完成：成功 {ok} 个，失败 {failed} 个', { action: label, ok, failed }), 'err')
+      toast(t('Batch {action} finished: {ok} succeeded, {failed} failed', { action: label, ok, failed }), 'err')
       setResult(<span className='text-destructive'>
-        {t('成功 {ok} 个，失败 {failed} 个', { ok, failed })}
-        {skipped ? t('，跳过 {n} 个', { n: skipped }) : ''}
-        {firstError ? t('；首个失败：{error}', { error: firstError }) : ''}
+        {t('{ok} succeeded, {failed} failed', { ok, failed })}
+        {skipped ? t(', {n} skipped', { n: skipped }) : ''}
+        {firstError ? t('; first failure: {error}', { error: firstError }) : ''}
       </span>)
     }
     setBusy(false)
@@ -199,16 +199,16 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
   return (
     <Dialog open onOpenChange={(next, details) => { if (next) return; if (busy) { details.cancel(); return }; onClose() }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{t('批量操作 · 已选 {n} 个模型', { n: models.length })}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t('Batch actions · {n} models selected', { n: models.length })}</DialogTitle></DialogHeader>
         <DialogBody>
           <DialogSection>
-            <h3>{t('将作用于以下模型')}</h3>
-            <p style={{ maxHeight: 84, overflowY: 'auto' }}>{models.map(modelName).join(t('、'))}</p>
+            <h3>{t('Applies to the following models')}</h3>
+            <p style={{ maxHeight: 84, overflowY: 'auto' }}>{models.map(modelName).join(t(', '))}</p>
           </DialogSection>
           <DialogSection>
-            <h3>{t('操作')}</h3>
+            <h3>{t('Actions')}</h3>
             <RadioGroup value={action} onValueChange={next => setAction(next as BatchAction)}
-              className='flex-row flex-wrap items-center gap-5' aria-label={t('批量动作')}>
+              className='flex-row flex-wrap items-center gap-5' aria-label={t('Batch action')}>
               {ACTIONS.map(item => (
                 <Label key={item.value} className='inline-flex cursor-pointer items-center gap-2 font-normal'>
                   <RadioGroupItem value={item.value} />{item.label}
@@ -218,45 +218,45 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
             {action === 'reasoning' ? (
               <div className='mt-2.5'>
                 <Field orientation='horizontal' className='field-row'>
-                  <FieldLabel htmlFor='batch-model-reasoning'>{t('思考等级')}</FieldLabel>
+                  <FieldLabel htmlFor='batch-model-reasoning'>{t('Reasoning level')}</FieldLabel>
                   <Select value={reasoning.select} onValueChange={next => setReasoning(prev => ({ ...prev, select: String(next) }))}>
                     <SelectTrigger id='batch-model-reasoning' className='min-w-[220px]'>
                       <SelectValue>
-                        {reasoning.select === CUSTOM_LEVEL ? t('自定义等级…')
-                          : (reasoning.select || t('清除（不覆盖）'))}
+                        {reasoning.select === CUSTOM_LEVEL ? t('Custom level…')
+                          : (reasoning.select || t('Clear (do not override)'))}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value=''>{t('清除（不覆盖）')}</SelectItem>
+                      <SelectItem value=''>{t('Clear (do not override)')}</SelectItem>
                       {candidates.map(levelName => (
                         <SelectItem key={levelName} value={levelName}>{levelName}</SelectItem>
                       ))}
                       {allowsCustomLevel
-                        ? <SelectItem value={CUSTOM_LEVEL}>{t('自定义等级…')}</SelectItem> : null}
+                        ? <SelectItem value={CUSTOM_LEVEL}>{t('Custom level…')}</SelectItem> : null}
                     </SelectContent>
                   </Select>
                 </Field>
                 {reasoning.select === CUSTOM_LEVEL ? (
                   <Field orientation='horizontal' className='field-row mt-2'>
-                    <FieldLabel htmlFor='batch-model-reasoning-custom'>{t('自定义等级')}</FieldLabel>
+                    <FieldLabel htmlFor='batch-model-reasoning-custom'>{t('Custom level')}</FieldLabel>
                     <Input id='batch-model-reasoning-custom' maxLength={32} value={reasoning.custom}
                       onChange={event => setReasoning(prev => ({ ...prev, custom: event.currentTarget.value }))} />
                   </Field>
                 ) : null}
                 {!candidates.length && managedReasoning
-                  ? <p className='detail mt-1.5'>{t('所选模型没有共同可用档位，请分别设置或清除绑定。')}</p> : null}
+                  ? <p className='detail mt-1.5'>{t('The selected models have no shared supported level. Configure them separately or clear their bindings.')}</p> : null}
                 <p className='detail mt-1.5'>
-                  {t('设置 / 清除会应用到选中模型的')}<b>{t('全部映射')}</b>{t('（默认绑定与别名 chips）；「清除」= 不给这些映射指定等级（选「不覆盖」的口径与映射弹窗一致）')}
+                  {t('Setting / clearing applies to ')}<b>{t('all mappings')}</b>{t(' of the selected models (default binding and alias chips); “Clear” means no level is assigned to these mappings (same as “Do not override” in the mapping dialog)')}
                 </p>
               </div>
             ) : null}
             {action === 'delete' ? (
               <p className='detail mt-2'>
                 {removableCount === 0
-                  ? t('选中的都不是手动登记的模型，删除不可用（上游目录带回来的行由清单决定存在性）')
-                  : t('可删除 {n} 个（手动登记 / 自定义家）；', { n: removableCount })
+                  ? t('None of the selected models are manually registered; deletion isn\'t available (rows brought back by the upstream catalog exist as long as the catalog lists them)')
+                  : t('{n} can be deleted (manually registered / custom provider); ', { n: removableCount })
                     + (models.length > removableCount
-                      ? t('其余 {n} 个会被跳过。', { n: models.length - removableCount })
+                      ? t('the remaining {n} will be skipped.', { n: models.length - removableCount })
                       : '')}
               </p>
             ) : null}
@@ -265,9 +265,9 @@ export function ModelBatchDialog({ models, onClose, onDone }: {
         </DialogBody>
         <DialogFooter>
           <div className='mr-auto' />
-          <Button variant='outline' disabled={busy} onClick={onClose}>{t('关闭')}</Button>
+          <Button variant='outline' disabled={busy} onClick={onClose}>{t('Close')}</Button>
           <Button variant={action === 'delete' ? 'destructive' : 'default'} disabled={busy} onClick={() => void run()}>
-            {busy ? t('执行中…') : t('执行{action}', { action: label })}
+            {busy ? t('Running…') : t('{action}', { action: label })}
           </Button>
         </DialogFooter>
       </DialogContent>

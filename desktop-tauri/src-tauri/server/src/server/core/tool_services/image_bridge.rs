@@ -47,7 +47,7 @@ fn node_binary() -> Result<PathBuf, String> {
             }
         }
     }
-    Err("未找到 Node.js 18 或更新版本；请安装后重试，或改用远程 HTTP 接入".into())
+    Err("未找到 Node.js 18 或更新版本；请安装后重试，或改用远程 HTTP Access".into())
 }
 
 fn ensure_script() -> Result<PathBuf, String> {
@@ -75,7 +75,7 @@ pub struct PreparedBridge {
 
 pub fn prepare(options: &ImageBridgeOptions) -> Result<PreparedBridge, String> {
     let output = directory(&options.output_directory)?;
-    if options.reference_directories.len() > 16 { return Err("参考图目录最多 16 个".into()); }
+    if options.reference_directories.len() > 16 { return Err("参考图目录最多 16 total".into()); }
     let references = options.reference_directories.iter().map(|value| directory(value)).collect::<Result<Vec<_>, _>>()?;
     Ok(PreparedBridge { node: node_binary()?, script: ensure_script()?, output, references })
 }

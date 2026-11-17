@@ -513,7 +513,7 @@ impl ProviderAdapter for RpcAdapter {
                     else { GatewayError::with_status(502, format!("插件生图计划无法解析：{error}")) }
                 })?;
             if plan.url.trim().is_empty() || !plan.body.is_object() {
-                return Err(GatewayError::with_status(502, "插件生图计划缺少上游地址或 JSON 请求体"));
+                return Err(GatewayError::with_status(502, "插件生图计划缺少上游地址或 JSON Request body"));
             }
             Ok(ChatRequestPlan {
                 url: plan.url,
@@ -601,7 +601,7 @@ impl ProviderAdapter for RpcAdapter {
         Box::pin(async move {
             if self.metadata().stop_on_error {
                 return crate::server::core::providers::policy::ErrorPolicy {
-                    stop: true, reason: "ACP 会话失败时不自动重发，也不切换到其他接入方式。".into(),
+                    stop: true, reason: "A failed ACP session is not retried automatically or switched to another connection method.".into(),
                     ..Default::default()
                 };
             }
@@ -680,7 +680,7 @@ impl ProviderAdapter for RpcAdapter {
         Err(GatewayError::with_status(
             501,
             format!(
-                "提供商 {} 是插件实现，必须走 build_chat_request_async（同步签名调用链未切换）",
+                "Provider {} 是插件实现，必须走 build_chat_request_async（同步签名调用链未切换）",
                 self.id
             ),
         ))
@@ -1260,7 +1260,7 @@ impl ProviderAdapter for RpcAdapter {
     fn reasoning_patch(&self, _level: &str, _model: &str, _body: &Value) -> ReasoningPatch {
         // 真正的实现在 [`Self::reasoning_patch_async`]。同步版 Skip = 不注入
         // （body 一个字节不动），是安全兜底。
-        ReasoningPatch::Skip { reason: "插件 provider 的档位翻译要走异步入口" }
+        ReasoningPatch::Skip { reason: "Plugins provider 的档位翻译要走异步入口" }
     }
 
     fn build_login_url(&self) -> Option<(String, String)> {
@@ -1552,7 +1552,7 @@ impl ProviderAdapter for RpcAdapter {
                 else { GatewayError::with_status(502, format!("插件返回的签到结果无法解析：{e}")) }
             })?;
             let (success, default_message) = match report.outcome {
-                proto::CheckinOutcome::Claimed => (true, "签到成功"),
+                proto::CheckinOutcome::Claimed => (true, "Check-in succeeded"),
                 proto::CheckinOutcome::Done => (false, "今天已经签过了"),
                 proto::CheckinOutcome::Ineligible => (false, "该账号不参与签到"),
                 proto::CheckinOutcome::Inactive => (false, "当前没有可领的活动"),
@@ -1866,7 +1866,7 @@ impl RpcAdapter {
             if strict && telemetry.is_cancelled() {
                 return Err(crate::server::core::upstream::cancellation::cancelled_error());
             }
-            if strict && aggregated.as_ref().err().is_some_and(|error| error.message.starts_with("非流式响应超时(")) {
+            if strict && aggregated.as_ref().err().is_some_and(|error| error.message.starts_with("Non-Streaming Timeout(")) {
                 return Err(strict::fatal(self.id, 504, "upstream_timeout"));
             }
             let upstream = failure.and_then(|slot| {

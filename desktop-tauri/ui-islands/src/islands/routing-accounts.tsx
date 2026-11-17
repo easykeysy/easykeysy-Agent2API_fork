@@ -12,10 +12,10 @@ export function useRoutingAccounts(editor: RoutingEditorState, onStart: () => vo
   const sync = async (readWorkspace: boolean) => {
     if (readWorkspace) {
       try { editor.syncWorkspace(await bridge().getRoutingWorkspace()) }
-      catch (failure) { setError(t('账号已保存，但列表刷新失败：{error}', { error: errorMessage(failure) })) }
+      catch (failure) { setError(t('The account was saved, but the list failed to refresh: {error}', { error: errorMessage(failure) })) }
     }
     try { await refreshSavedAccounts() }
-    catch (failure) { setError(t('账号已保存，但列表刷新失败：{error}', { error: errorMessage(failure) })) }
+    catch (failure) { setError(t('The account was saved, but the list failed to refresh: {error}', { error: errorMessage(failure) })) }
   }
   const setEnabled = async (ids: string[], enabled: boolean, batch = false) => {
     const workspace = editor.draft?.workspace
@@ -26,19 +26,19 @@ export function useRoutingAccounts(editor: RoutingEditorState, onStart: () => vo
     if (!targets.length) return
     pending.current = true; onStart(); setBusy(true); setError('')
     try {
-      if (batch && !enabled && !await confirmDialog(t('将禁用当前所选的 {n} 个账号，所有路由都不能再选用它们。此操作立即保存，不会删除账号。', { n: targets.length }), {
-        title: t('批量禁用账号'), confirmText: t('禁用账号'), destructive: true,
+      if (batch && !enabled && !await confirmDialog(t('Disable the {n} selected accounts for all routes. This change is saved immediately and does not delete the accounts.', { n: targets.length }), {
+        title: t('Disable accounts in bulk'), confirmText: t('Disable account'), destructive: true,
       })) return
       const payload = { action: enabled ? 'enable' : 'disable', ids: targets.map(account => account.id) }
       const result = confirmBatchResult(await bridge().batchAccounts(payload), payload)
       editor.syncAccounts(result.list!.accounts!)
       const failed = result.failed || [], skipped = result.skipped || []
       if (failed.length || skipped.length) {
-        const details = [...failed.map(item => `${targets.find(account => account.id === item.id)?.name || item.id}: ${item.error}`), ...skipped.map(item => `${item.name || item.id}: ${item.reason}`)].join('；')
-        setError(t('账号启停部分完成：成功 {ok} 个，失败 {fail} 个，跳过 {skip} 个。{details}', {
+        const details = [...failed.map(item => `${targets.find(account => account.id === item.id)?.name || item.id}: ${item.error}`), ...skipped.map(item => `${item.name || item.id}: ${item.reason}`)].join('; ')
+        setError(t('Account status partially updated: {ok} succeeded, {fail} failed, {skip} skipped. {details}', {
           ok: result.ok?.length || 0, fail: failed.length, skip: skipped.length, details,
         }))
-      } else notify(enabled ? t('✅ 已启用 {n} 个账号', { n: targets.length }) : t('✅ 已禁用 {n} 个账号', { n: targets.length }))
+      } else notify(enabled ? t('✅ Enabled {n} accounts', { n: targets.length }) : t('✅ Disabled {n} accounts', { n: targets.length }))
       await sync(true)
     } catch (failure) { setError(errorMessage(failure)); void refreshSavedAccounts().catch(() => {}) }
     finally { pending.current = false; onFinished(); setBusy(false) }
@@ -49,11 +49,11 @@ export function useRoutingAccounts(editor: RoutingEditorState, onStart: () => vo
     try {
       const workspace = await bridge().saveRoutingProfile({ migrateGlobalAccounts: revision })
       if (!workspace.globalAccountControl || workspace.legacyGlobalParticipation || !workspace.revision) {
-        throw new Error(t('转换结果未确认，请重新读取全局配置'))
+        throw new Error(t('Conversion could not be confirmed. Reload the global configuration.'))
       }
       editor.syncAccounts(workspace.accounts)
       editor.syncWorkspace(workspace, true)
-      notify(t('已转换为账号启停，独立路由参与名单保持不变'))
+      notify(t('Converted to account enable/disable controls. Independent route participation lists are unchanged.'))
       await sync(false)
       return true
     } catch (failure) { setError(errorMessage(failure)); return false }
@@ -68,17 +68,17 @@ export function RoutingLegacyAccountsDialog({ legacy, busy, error, onConfirm, on
 }) {
   return <Dialog open onOpenChange={(open, details) => { if (!open) { if (busy) details.cancel(); else onClose() } }}>
     <DialogContent className='w-[min(620px,calc(100vw-40px))]'>
-      <DialogHeader><DialogTitle>{t('转换旧版全局参与设置')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Convert legacy global participation settings')}</DialogTitle></DialogHeader>
       <DialogBody>
-        <p className='routing-config-note'>{t('以下 {n} 个账号原本被全局路由排除。确认后会将它们设为禁用，所有路由都不能再选用；原有独立路由的参与名单保留。', { n: legacy.accounts.length })}</p>
+        <p className='routing-config-note'>{t('These {n} accounts were excluded from the global route. Confirming disables them for all routes. Existing participation lists in independent routes are preserved.', { n: legacy.accounts.length })}</p>
         {legacy.accounts.length ? <div className='routing-model-picker'>{legacy.accounts.map(account => <div key={account.id} className='routing-group-picker-row'>
           <div><b>{account.name || account.id}</b><small>{account.providerLabel}</small></div>
         </div>)}</div> : null}
-        <p className='routing-config-note'>{t('转换只处理当前账号；之后新增账号按账号页的启用状态使用。不会启用任何已禁用的账号。')}</p>
+        <p className='routing-config-note'>{t('Conversion only affects existing accounts. New accounts follow their status on the Accounts page. No disabled account will be enabled.')}</p>
         {error ? <p className='routing-config-error' role='alert'>{error}</p> : null}
       </DialogBody>
-      <DialogFooter><Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
-        <Button variant={legacy.accounts.length ? 'destructive' : 'default'} disabled={busy} onClick={onConfirm}>{busy ? t('保存中…') : t('确认转换')}</Button></DialogFooter>
+      <DialogFooter><Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
+        <Button variant={legacy.accounts.length ? 'destructive' : 'default'} disabled={busy} onClick={onConfirm}>{busy ? t('Saving…') : t('Confirm conversion')}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }

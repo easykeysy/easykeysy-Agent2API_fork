@@ -77,7 +77,7 @@ fn plan(def: &ClientDef, payload: &Value) -> Result<Plan, String> {
             change
         }
         "skills" => skills::change(&paths, field("id"), field("content"), delete)?,
-        "mcp" => mcp::change(def, &paths, field("name"), if delete { None } else { Some(payload.get("config").ok_or("缺少 MCP 配置")?) })?,
+        "mcp" => mcp::change(def, &paths, field("name"), if delete { None } else { Some(payload.get("config").ok_or("缺少 MCP Profile")?) })?,
         _ => return Err("客户端资源类型无效".into()),
     };
     if field("revision") != revision(change.before.as_deref()) { return Err("客户端资源已被其他程序修改，请重新读取后再编辑".into()); }

@@ -10,14 +10,14 @@ import { pluginFailed, pluginPhaseLabel } from '../../../../ui-shared/plugin-sta
 
 function PluginProgress({ operation }: { operation?: PluginOperation }) {
   if (!operation) return null
-  const stage = operation.stage === 'downloading' ? t('网关正在下载…')
-    : operation.stage === 'verifying' ? t('网关正在校验…')
-    : operation.stage === 'waiting' ? t('等待当前任务结束，插件继续服务…')
-    : operation.stage === 'loading' ? t('正在加载新插件…')
-    : operation.stage === 'restoring' ? t('正在恢复旧版本插件…') : t('网关正在安装…')
+  const stage = operation.stage === 'downloading' ? t('The gateway is downloading…')
+    : operation.stage === 'verifying' ? t('The gateway is verifying…')
+    : operation.stage === 'waiting' ? t('Waiting for active tasks to finish; the plugin is still serving requests…')
+    : operation.stage === 'loading' ? t('Loading the new plugin…')
+    : operation.stage === 'restoring' ? t('Restoring the previous plugin version…') : t('The gateway is installing…')
   return <>
     {operation.active ? <div className='my-3' aria-live='polite'>
-      <p className='m-ck-note'>{operation.required ? `${t('正在补齐插件…')} · ` : ''}{stage}{operation.stage === 'downloading' && operation.percent != null ? ` ${Math.round(operation.percent)}%` : ''}</p>
+      <p className='m-ck-note'>{operation.required ? `${t('Updating required plugin…')} · ` : ''}{stage}{operation.stage === 'downloading' && operation.percent != null ? ` ${Math.round(operation.percent)}%` : ''}</p>
       <Progress value={operation.stage === 'downloading' ? operation.percent : null} aria-label={stage} />
     </div> : null}
     {operation.error ? <p className='m-ck-error'>{pluginErrorMessage(operation.error)}</p> : null}
@@ -30,7 +30,7 @@ function Head({ name, version, icon }: { name: string; version?: string | null; 
     <PluginArtwork src={icon} fallback={name.slice(0, 1)} />
     <div className='m-ck-grow'>
       <div className='m-ck-title'>{t(name)}</div>
-      <div className='m-ck-note'>{version ? `v${version}` : t('暂未发布')}</div>
+      <div className='m-ck-note'>{version ? `v${version}` : t('Not published yet')}</div>
     </div>
   </div>
 }
@@ -46,13 +46,13 @@ export function StorePluginCard({ item, target, busy, operation, onInstall }: {
   return <Card render={<article />} className='m-card m-card-pad'>
     <Head name={item.name || item.id} version={item.version} icon={item.icon} />
     <p className='m-ck-note'>{t(item.description)}</p>
-    <Badge tone='mute'>{t('社区插件')}</Badge>
+    <Badge tone='mute'>{t('Community plugin')}</Badge>
     {item.reason ? <p className={item.error ? 'm-ck-error' : 'm-ck-note'}><GithubFailureText value={item} t={t} /></p> : null}
     <PluginProgress operation={operation} />
     {!operation?.active ? <div className='m-ck-actions'>
-      <Button size='sm' disabled={busy || !asset || !item.version || item.error} onClick={onInstall}>{t('在网关下载并安装')}</Button>
+      <Button size='sm' disabled={busy || !asset || !item.version || item.error} onClick={onInstall}>{t('Download and install on the gateway')}</Button>
     </div> : null}
-    {!asset ? <p className='m-ck-note'>{t('当前网关平台暂无插件包')}</p> : null}
+    {!asset ? <p className='m-ck-note'>{t('The current gateway platform has no plugin packages')}</p> : null}
   </Card>
 }
 
@@ -77,44 +77,44 @@ export function PluginCard({ pack, target, busy, update, operation, onEnabled, o
       <PluginSettingsButton name={pack.name || pack.id} t={t} onClick={onSettings} />
     </div>
     <div className='m-ck-actions'>
-      <Badge tone='mute'>{t('社区插件')}</Badge>
-      <Badge tone={pack.enabled ? 'ok' : 'mute'}>{pack.enabled ? t('已启用') : t('已停用')}</Badge>
-      <Badge tone={pack.signed ? 'ok' : 'warn'}>{pack.signed ? t('已签名') : t('未签名')}</Badge>
-      {required ? <Badge tone='warn'>{t('接口不兼容')}</Badge> : null}
+      <Badge tone='mute'>{t('Community plugin')}</Badge>
+      <Badge tone={pack.enabled ? 'ok' : 'mute'}>{pack.enabled ? t('Enabled') : t('Disabled')}</Badge>
+      <Badge tone={pack.signed ? 'ok' : 'warn'}>{pack.signed ? t('Signed') : t('Unsigned')}</Badge>
+      {required ? <Badge tone='warn'>{t('Incompatible interface')}</Badge> : null}
       <Badge tone={pluginFailed(startup) ? 'warn' : startup?.phase === 'ready' ? 'ok' : 'mute'}>{pluginPhaseLabel(startup, t)}</Badge>
     </div>
     {pack.description ? <p className='m-ck-note'>{t(pack.description)}</p> : null}
     {required ? <div className='mt-3 rounded-md border border-destructive/30 px-3 py-2' aria-live='polite'>
-      <p className='m-ck-error'>{pack.compatibilityError || t('插件与当前网关的公共接口不兼容，暂未加载。')}</p>
-      <p className='m-ck-note'>{t('请根据不兼容原因更新插件或网关；不会要求两者版本号一致。')}</p>
+      <p className='m-ck-error'>{pack.compatibilityError || t('The plugin is incompatible with the gateway\'s public interface and has not been loaded.')}</p>
+      <p className='m-ck-note'>{t('Update the plugin or gateway as indicated by the compatibility error. Their version numbers do not need to match.')}</p>
       {update?.reason ? <p className={update.error ? 'm-ck-error' : 'm-ck-note'}><GithubFailureText value={update} t={t} /></p> : null}
       {update?.retryAt && update.retryAt > Date.now() ? <p className='m-ck-note'>
-        {t('下次自动重试：{time}', { time: new Date(update.retryAt).toLocaleString() })}
+        {t('Next automatic retry: {time}', { time: new Date(update.retryAt).toLocaleString() })}
       </p> : null}
     </div> : null}
-    {!pack.entryPresent ? <p className='m-ck-error'>{t('插件文件缺失，请重新安装插件包')}</p> : null}
+    {!pack.entryPresent ? <p className='m-ck-error'>{t('Plugin files are missing; please reinstall the plugin package')}</p> : null}
     {(startup ? pluginFailed(startup) && startup.error : pack.host?.lastError) ? <p className='m-ck-error'>{startup?.error || pack.host?.lastError}</p> : null}
     {update?.reason && !required ? <p className={update.error ? 'm-ck-error' : 'm-ck-note'}><GithubFailureText value={update} t={t} /></p> : null}
     <PluginProgress operation={operation} />
     <div className='m-ck-actions'>
       <Label className='m-ck-toolbar m-ck-note'>
-        {t('启用')}<Switch checked={pack.enabled} disabled={locked} aria-label={t('启用插件 {name}', { name: pack.name })}
+        {t('enabled')}<Switch checked={pack.enabled} disabled={locked} aria-label={t('Enable plugin {name}', { name: pack.name })}
           onCheckedChange={onEnabled} />
       </Label>
-      <Button size='sm' variant='ghost' onClick={() => requestPluginDiagnostics(pack.id)}>{t('加载诊断')}</Button>
-      <Button size='sm' variant='outline' disabled={locked} onClick={onRemove}>{t('卸载')}</Button>
+      <Button size='sm' variant='ghost' onClick={() => requestPluginDiagnostics(pack.id)}>{t('Load diagnostics')}</Button>
+      <Button size='sm' variant='outline' disabled={locked} onClick={onRemove}>{t('Uninstall')}</Button>
       {update?.available ? <Button size='sm' disabled={locked || update.error || !update.asset
         || update.asset.target !== target && update.asset.target !== 'wasm32-unknown-unknown'} onClick={onUpdate}>
-        {t('更新到 v{version}', { version: update.latest || '' })}
+        {t('Update to v{version}', { version: update.latest || '' })}
       </Button> : null}
     </div>
     <Collapsible className='mt-3 border-t border-hairline pt-3'>
-      <CollapsibleTrigger className='m-ck-title'>{t('提供商启停')}</CollapsibleTrigger><CollapsibleContent keepMounted>
+      <CollapsibleTrigger className='m-ck-title'>{t('Provider switches')}</CollapsibleTrigger><CollapsibleContent keepMounted>
       {pack.providers?.map(provider => <Label className='m-ck-toolbar py-2' key={provider.id}>
         <Switch checked={provider.enabled && !provider.overriddenBy} disabled={locked || !pack.enabled || Boolean(provider.overriddenBy)}
           aria-label={t(provider.label)} onCheckedChange={enabled => onProvider(provider.id, enabled)} />
         <span className='m-ck-note m-ck-grow'>{t(provider.label)}</span>
-        {provider.overriddenBy ? <Badge tone='mute'>{t('由其他插件接管')}</Badge>
+        {provider.overriddenBy ? <Badge tone='mute'>{t('Managed by another plugin')}</Badge>
           : provider.enabled && !provider.loaded ? <Badge tone={pluginFailed(startup) ? 'warn' : 'mute'}>{pluginPhaseLabel(startup, t)}</Badge> : null}
       </Label>)}
     </CollapsibleContent></Collapsible>

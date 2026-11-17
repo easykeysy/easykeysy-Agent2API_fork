@@ -420,7 +420,7 @@ function runScan() {
   }
 
   // 报告
-  process.stdout.write('\n[scan] 各域键数：\n')
+  process.stdout.write('\n[scan] Key count per domain:\n')
   let total = 0
   for (const domain of DOMAIN_ORDER) {
     const keys = assigned.get(domain)
@@ -428,13 +428,13 @@ function runScan() {
     total += keys.length
     process.stdout.write(`  ${domain.padEnd(12)} ${String(keys.length).padStart(4)}\n`)
   }
-  process.stdout.write(`  ${'合计'.padEnd(12)} ${String(total).padStart(4)}\n`)
+  process.stdout.write(`  ${'Total'.padEnd(12)} ${String(total).padStart(4)}\n`)
   process.stdout.write(`[scan] 本次新增键 ${totalAdded} 条（× ${LOCALES.length} 语言）\n`)
   if (warnings.length > 0) {
     process.stdout.write(`\n[scan] warning（${warnings.length} 条，需人工处理）：\n`)
     for (const warning of warnings) process.stdout.write(`  - ${warning}\n`)
   } else {
-    process.stdout.write('[scan] 无 warning\n')
+    process.stdout.write('[scan] None warning\n')
   }
 }
 
@@ -448,7 +448,7 @@ function runCheck() {
   for (const domain of DOMAIN_ORDER) for (const key of assigned.get(domain)) allScanned.add(key)
 
   let missingTotal = 0
-  process.stdout.write('\n[check] 各语言 / 各域的缺失与空值：\n')
+  process.stdout.write('\n[check] Missing and empty values per language / per domain:\n')
   for (const locale of LOCALES) {
     let localeMissing = 0
     let localeEmpty = 0
@@ -494,7 +494,7 @@ function runCheck() {
     process.stdout.write(`\n[check] 失败：有 ${missingTotal} 处缺失键（先跑 node scan.mjs 补齐骨架）\n`)
     process.exitCode = 1
   } else {
-    process.stdout.write('\n[check] 通过：所有语言的所有域都没有缺失键（空值属预期，等翻译）\n')
+    process.stdout.write('\n[check] Pass: no missing keys in any domain of any language (empty values are expected, waiting for translation)\n')
   }
 }
 

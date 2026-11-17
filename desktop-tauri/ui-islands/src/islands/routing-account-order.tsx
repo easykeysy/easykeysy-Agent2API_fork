@@ -16,8 +16,8 @@ export function RoutingCreditExpiry({ id, provider, sorting, now }: {
   const expiry = sorting?.creditExpiresAt[id]
   const text = expiry && expiry > now ? creditExpiryLabel(expiry, t, now) : ''
   return <small className='routing-credit-expiry' data-soon={text && expiry! - now <= CREDIT_EXPIRY_WINDOW_MS ? '' : undefined}
-    title={text ? t('最早到期的剩余积分包：{time}', { time: new Date(expiry!).toLocaleString() }) : t('尚未读取到有效的积分到期时间')}>
-    {text ? t('积分：{time}', { time: text }) : t('积分到期：暂无数据')}
+    title={text ? t('Earliest-expiring credit pack with a remaining balance: {time}', { time: new Date(expiry!).toLocaleString() }) : t('No valid credit expiry time has been loaded yet')}>
+    {text ? t('Credits: {time}', { time: text }) : t('Credit expiry: no data')}
   </small>
 }
 
@@ -31,7 +31,7 @@ export function RoutingConsumptionOrder({ provider, sorting, independent, disabl
   const credit = rules.find(rule => rule.key === 'credit')
   const balance = rules.find(rule => rule.key === 'balance')
   const balanceSupported = supportsBalanceSort(provider, sorting)
-  const summary = independent ? t('独立账号顺序') : groupSortSummary(rules) || t('仅按手动顺序')
+  const summary = independent ? t('Independent account order') : groupSortSummary(rules) || t('Manual order only')
   const changeRule = async (key: 'credit' | 'balance', value: string) => {
     if (disabled || pending.current || independent) return
     pending.current = true; setSaving(true)
@@ -47,21 +47,21 @@ export function RoutingConsumptionOrder({ provider, sorting, independent, disabl
   return <div className='routing-consumption-order'>
     <RouteIcon name='sort' size={13} /><span>{t('消耗顺序')}</span>
     {!independent && supportsCreditExpiry(provider) ? <div className='routing-credit-sort'>
-      <RoutingSelect label={t('积分到期时间')} value={credit?.dir || 'off'} disabled={disabled || saving} onChange={value => void changeRule('credit', value)}
-        options={[[ 'off', t('不按到期排序') ], [ 'soon', t('到期 近→远') ], [ 'late', t('到期 远→近') ]]} />
+      <RoutingSelect label={t('Credit expiry')} value={credit?.dir || 'off'} disabled={disabled || saving} onChange={value => void changeRule('credit', value)}
+        options={[[ 'off', t('Do not sort by expiry') ], [ 'soon', t('Expiry near→far') ], [ 'late', t('Expiry far→near') ]]} />
     </div> : null}
     {!independent && balanceSupported ? <div className='routing-credit-sort'>
-      <RoutingSelect label={t('可用余额')} value={balance?.dir || 'off'} disabled={disabled || saving} onChange={value => void changeRule('balance', value)}
-        options={[[ 'off', t('不按余额排序') ], [ 'high', t('余额大优先') ], [ 'low', t('余额小优先') ]]} />
+      <RoutingSelect label={t('Available balance')} value={balance?.dir || 'off'} disabled={disabled || saving} onChange={value => void changeRule('balance', value)}
+        options={[[ 'off', t('Do not sort by balance') ], [ 'high', t('Higher balance first') ], [ 'low', t('Lower balance first') ]]} />
     </div> : null}
     <Button variant='ghost' size='sm' disabled={disabled || saving} onClick={onSettings}
-      title={independent ? t('独立路由的账号顺序不受全局消耗规则影响') : t('调整到期时间、可用余额及其他消耗规则的优先级')}>
-      {!independent && (supportsCreditExpiry(provider) || balanceSupported) ? t('消耗规则') : summary}<RouteIcon name='chevronRight' size={11} />
+      title={independent ? t('The account order in an independent route is not affected by global consumption rules') : t('Adjust the priority of expiry, available balance and other consumption rules')}>
+      {!independent && (supportsCreditExpiry(provider) || balanceSupported) ? t('Consumption rules') : summary}<RouteIcon name='chevronRight' size={11} />
     </Button>
-    {!independent && rules.length ? <small className='basis-full leading-relaxed'>{t('优先级：{rules}；前一项相同才比较后一项。', { rules: summary })}</small> : null}
+    {!independent && rules.length ? <small className='basis-full leading-relaxed'>{t('Priority: {rules}. Later rules apply only when earlier rules tie.', { rules: summary })}</small> : null}
     {!independent && balance && sorting?.balanceSortStates?.[provider] === 'mixedUnits'
-      ? <small className='basis-full text-warning'>{t('账号余额单位不一致，暂不按余额排序，继续比较其他规则')}</small> : null}
+      ? <small className='basis-full text-warning'>{t('Account balances use different units. Balance sorting is skipped; other rules still apply.')}</small> : null}
     {!independent && balance && sorting?.balanceSortStates?.[provider] === 'noData'
-      ? <small className='basis-full'>{t('暂无可比较余额；查到同单位的数值后自动生效，比例与无限额度不参与')}</small> : null}
+      ? <small className='basis-full'>{t('No comparable balances yet. Sorting applies once numeric balances in the same unit are available; percentages and unlimited quotas are excluded.')}</small> : null}
   </div>
 }

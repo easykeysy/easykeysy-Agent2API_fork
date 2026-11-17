@@ -131,7 +131,7 @@ pub fn configure(patch: &Value) -> Result<Value, String> {
             .get(key)
             .map(|value| {
                 serde_json::from_value(value.clone())
-                    .map_err(|_| format!("{key} 必须是 follow 或 custom"))
+                    .map_err(|_| format!("{key} 必须是 follow or custom"))
             })
             .transpose()
     };
@@ -172,7 +172,7 @@ pub fn configure(patch: &Value) -> Result<Value, String> {
                     .as_i64()
                     .filter(|value| (MIN_INTERVAL..=MAX_INTERVAL).contains(value))
                     .ok_or_else(|| {
-                        format!("检查间隔必须是 {MIN_INTERVAL} ~ {MAX_INTERVAL} 分钟")
+                        format!("检查间隔必须是 {MIN_INTERVAL} ~ {MAX_INTERVAL} minutes")
                     })?;
             }
             _ => {
@@ -190,7 +190,7 @@ pub fn configure(patch: &Value) -> Result<Value, String> {
         }
     }
     if !next.stable && !next.beta {
-        return Err("至少需要关注正式版或 beta 版中的一个通道".to_string());
+        return Err("Follow at least one channel: stable or beta.".to_string());
     }
     let value = serde_json::to_value(next).map_err(|error| error.to_string())?;
     let saved = config::update_raw_field(KEY, value);

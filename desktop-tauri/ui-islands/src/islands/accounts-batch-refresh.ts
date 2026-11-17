@@ -11,7 +11,7 @@ export async function refreshAccountTokens(
   onProgress: (progress: BatchTokenRefreshProgress) => void,
 ): Promise<BatchAccountsResult> {
   const bridge = shared().workbuddyDesktop
-  if (!bridge?.refreshAccountToken) throw new Error(t('Token 刷新接口不可用，请重新打开页面'))
+  if (!bridge?.refreshAccountToken) throw new Error(t('The token refresh service is unavailable. Please reopen the page.'))
   const selected = [...new Set(ids)]
   const ok: NonNullable<BatchAccountsResult['ok']> = []
   const failed: NonNullable<BatchAccountsResult['failed']> = []
@@ -23,7 +23,7 @@ export async function refreshAccountTokens(
     const name = displayNameOf(account) || id
     onProgress({ completed: index, total: selected.length, name })
     try {
-      if (!account) throw new Error(t('账号不存在，请刷新后重试'))
+      if (!account) throw new Error(t('Account not found; refresh and try again'))
       const reason = tokenRefreshSkipReason(account)
       if (reason) {
         skipped.push({ id, name, reason })
@@ -32,7 +32,7 @@ export async function refreshAccountTokens(
         const refreshed = data?.list?.accounts?.find(item => item.id === id)
         if (data?.refreshedId !== id || !refreshed || refreshed.needsRelogin === true
           || providerOf(refreshed) !== providerOf(account)) {
-          throw new Error(t('Token 刷新结果未确认，请刷新后核对账号状态'))
+          throw new Error(t('Token refresh could not be confirmed. Reload the list and check the account status.'))
         }
         ok.push({ id, name })
       }

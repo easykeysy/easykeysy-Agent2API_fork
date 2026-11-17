@@ -83,7 +83,7 @@ function CaptchaControl() {
       ? <div className='mt-5 w-full'><TurnstileWidget url={`${config.gatewayBase || ''}/api/panel/turnstile`} t={t} resetKey={resetKey}
           onToken={token => ref.current?.acceptToken?.(token)} onState={value => ref.current?.setState?.(value)} /></div>
       : <Verification state={state} className='mx-auto mt-5' onClick={() => { void ref.current?.start?.() }}>
-          {state === 'verifying' ? t('验证中…') : state === 'verified' ? t('验证成功') : state === 'error' ? t('验证失败，请重试') : t('我不是机器人')}
+          {state === 'verifying' ? t('Verifying…') : state === 'verified' ? t('Verified') : state === 'error' ? t('Verification failed. Please try again.') : t('I\'m not a robot')}
         </Verification>,
   )
 }
@@ -95,12 +95,12 @@ function CaptchaControl() {
  * 脚本填，这里只提供位置与占位高度（min-h-5 让错误行出现前后布局不跳）。
  */
 function LoginBrand() {
-  const branding = useDesktopBranding(t('登录'))
+  const branding = useDesktopBranding(t('Sign in'))
   return <div className='mb-[26px] flex min-w-0 flex-col items-center gap-3 text-center'>
     <BrandLogo branding={branding} size={52} className='rounded-lg' />
     <div className='min-w-0 max-w-full'>
       <h1 className='m-0 break-words text-[21px] font-bold tracking-[0.2px]'>{branding.displayName}</h1>
-      <div className='text-[12.5px] text-muted-foreground'>{t('OpenAI 兼容网关 · 管理面板')}</div>
+      <div className='text-[12.5px] text-muted-foreground'>{t('OpenAI-compatible Gateway · Admin panel')}</div>
     </div>
   </div>
 }
@@ -114,25 +114,25 @@ function LoginPage() {
 
       <form id='form' autoComplete='on'>
         <Label htmlFor='username' className='mt-3.5 mb-[5px] text-[12.5px]'>
-          {t('账号')}
+          {t('Accounts')}
         </Label>
-        <Input id='username' autoComplete='username' placeholder={t('管理员账号')} />
+        <Input id='username' autoComplete='username' placeholder={t('Admin account')} />
         <Label htmlFor='password' className='mt-3.5 mb-[5px] text-[12.5px]'>
-          {t('密码')}
+          {t('Password')}
         </Label>
-        <Input id='password' type='password' autoComplete='new-password' placeholder={t('至少 8 位')} />
+        <Input id='password' type='password' autoComplete='new-password' placeholder={t('At least 8 characters')} />
         {/* 领题求解放后台跑 → 绿勾已验证（组件见 ui/panel-captcha.js） */}
         <CaptchaControl />
         {/* type='submit' 必须显式给：Base UI 的 useButton 会给原生 button 补一个
             type="button"，只有显式传入（合并时外部 props 优先）才盖得掉 */}
         <Button id='submit' type='submit' size='lg' className='w-full'>
-          {t('继续')}
+          {t('Continue')}
         </Button>
         <div id='error' className='mt-3 min-h-5 text-center text-[13px] whitespace-pre-wrap text-destructive' />
       </form>
 
       <div className='mt-[22px] text-center text-[12px] text-muted-foreground'>
-        {t('登录后可在「网关 Key」页为 API 客户端创建密钥')}
+        {t('After signing in, you can create keys for API clients on the Gateway Key page')}
       </div>
     </Card>
   )

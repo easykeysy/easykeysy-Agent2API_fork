@@ -64,7 +64,7 @@ fn client_with_policy(
     // 不设总超时（.timeout），按请求逐个设：PROPFIND 30 秒、传输 300 秒
     builder
         .build()
-        .map_err(|error| format!("创建 HTTP 客户端失败: {}", redact_detail(&error.to_string())))
+        .map_err(|error| format!("Create HTTP 客户端失败: {}", redact_detail(&error.to_string())))
 }
 
 /// 解析并校验 WebDAV 基地址（只认 http / https）。
@@ -76,7 +76,7 @@ pub(crate) fn parse_base_url(raw: &str) -> Result<Url, String> {
     let url = Url::parse(trimmed).map_err(|error| format!("WebDAV 地址无效: {error}"))?;
     match url.scheme() {
         "http" | "https" => Ok(url),
-        other => Err(format!("WebDAV 只支持 http/https 地址（当前是 {other}）")),
+        other => Err(format!("WebDAV 只支持 http/https 地址（当前是 {other})")),
     }
 }
 
@@ -144,7 +144,7 @@ fn is_jianguoyun(url: &str) -> bool {
 
 fn status_error(op: &str, status: StatusCode, url: &str) -> String {
     let safe_url = redact_url(url);
-    let mut message = format!("WebDAV {op} 失败: {status} ({safe_url})");
+    let mut message = format!("WebDAV {op} failed: {status} ({safe_url})");
     let jgy = is_jianguoyun(url);
     if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
         if jgy {
@@ -189,14 +189,14 @@ fn error_detail(error: &reqwest::Error) -> String {
         }
         source = current.source();
     }
-    parts.join("；")
+    parts.join("; ")
 }
 
 fn transport_error(op: &str, url: &str, error: &reqwest::Error) -> String {
     let detail = error_detail(error);
     let lower = detail.to_ascii_lowercase();
     let reason = if error.is_timeout() {
-        "请求超时"
+        "Request Timeouts"
     } else if error.is_redirect() {
         "重定向失败"
     } else if error.is_builder() {
@@ -212,17 +212,17 @@ fn transport_error(op: &str, url: &str, error: &reqwest::Error) -> String {
     } else {
         "网络请求失败"
     };
-    let mut message = format!("WebDAV {op}失败（{reason}）: {}", redact_url(url));
+    let mut message = format!("WebDAV {op}失败（{reason}): {}", redact_url(url));
     if !detail.is_empty() {
         message.push_str(&format!("。底层原因：{detail}"));
     }
     message
 }
 
-/// 测试连接：对基地址发 `PROPFIND Depth: 0`。
+/// 测试连接：对基地址发 `PROPFIND Depth: 0`.
 ///
-/// 用 PROPFIND 而不是 HEAD：很多 WebDAV 服务对目录的 HEAD 返回 405，而
-/// PROPFIND 是 WebDAV 的「你好，这里有东西吗」，能同时验证「地址对」与
+/// 用 PROPFIND 而不是 HEAD：很多 WebDAV 服务对目录的 HEAD Back 405，而
+/// PROPFIND Yes WebDAV 的「你好，这里有东西吗」，能同时验证「地址对」与
 /// 「这是 WebDAV 而不是普通静态站点」。
 pub(crate) async fn test_connection(
     base_url: &str,
@@ -338,9 +338,9 @@ pub(crate) async fn put_bytes(
     Err(status_error("PUT", response.status(), url))
 }
 
-/// GET 一个文件；404 返回 `None`（「远端还没有这份数据」是正常状态，不是错误）。
+/// GET 一个文件；404 Back `None`（「远端还没有这份数据」是正常状态，不是错误）。
 ///
-/// `max_bytes` 是**硬上限**：先看 `Content-Length`，再在流式读取时逐块累计 ——
+/// `max_bytes` Yes**硬上限**：先看 `Content-Length`，再在流式读取时逐块累计 ——
 /// 只看头不够（服务端可以不发长度，或发一个假的），所以两道都做。
 pub(crate) async fn get_bytes(
     url: &str,

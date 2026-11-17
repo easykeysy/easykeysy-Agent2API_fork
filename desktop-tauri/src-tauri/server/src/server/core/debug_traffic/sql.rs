@@ -202,15 +202,100 @@ pub(super) fn select_one(conn: &Connection, id: &str) -> rusqlite::Result<Option
     }
 }
 
-/// 只按留存条数淘汰旧记录，不因单条报文过大删除它。
-pub(super) fn enforce_limits(conn: &Connection) -> rusqlite::Result<()> {
+/// Column bindings for writes (fork: payloads are disk-offloaded, so only ledger columns go here).
+///
+/// `request_headers` / `request_body` are `NOT NULL` columns, filled with their DDL defaults
+/// (`'{}'` / `''`); `response_headers` / `response_body` stay NULL — they
+/// have always used NULL to mean "nothing captured on this side", a distinction that still holds with payloads in files.
+fn encode_ledger(entry: &TrafficEntry) -> [SqlValue; 11] {
+    [
+        SqlValue::Text(entry.id.clone()),
+        SqlValue::Integer(entry.ts),
+        SqlValue::Text(entry.url.clone()),
+        SqlValue::Text(entry.provider.clone()),
+        SqlValue::Text("{}".to_string()),
+        SqlValue::Text(String::new()),
+        match entry.status {
+            Some(value) => SqlValue::Integer(i64::from(value)),
+            None => SqlValue::Null,
+        },
+        SqlValue::Null,
+        SqlValue::Null,
+        SqlValue::Integer(i64::from(entry.truncated)),
+        SqlValue::Integer(payload_bytes(entry)),
+    ]
+}
+
+/// fork: write the ledger row (overwrite on same id), leaving the four payload columns empty — the body is in
+/// `{cache_dir}/debug-traffic/{id}` (see the `payload` submodule).
+pub(super) fn upsert_ledger(conn: &Connection, entry: &TrafficEntry) -> rusqlite::Result<()> {
+    let binds = encode_ledger(entry);
+    conn.execute(
+        "INSERT INTO debug_traffic (id, ts, url, provider, request_headers, request_body, \
+         status, response_headers, response_body, truncated, size) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+         ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, url = excluded.url, \
+         provider = excluded.provider, request_headers = excluded.request_headers, \
+         request_body = excluded.request_body, status = excluded.status, \
+         response_headers = excluded.response_headers, response_body = excluded.response_body, \
+         truncated = excluded.truncated, size = excluded.size",
+        rusqlite::params_from_iter(binds.iter()),
+    )?;
+    Ok(())
+}
+
+/// All ids in the ledger (used to work out "who is still alive" when pruning payload files).
+pub(super) fn ids(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT id FROM debug_traffic")?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    Ok(rows.filter_map(|row| row.ok()).collect())
+}
+
+/// Rows that still keep their payload in the DB (legacy data written before the rework).
+///
+/// The DDL default of `request_headers` is `'{}'` (length 2), so "longer than 2" is what
+/// actually means content; the other three columns are judged by NULL / non-NULL.
+pub(super) fn payload_rows(conn: &Connection) -> rusqlite::Result<Vec<TrafficEntry>> {
+    let sql = format!(
+        "SELECT {COLUMNS} FROM debug_traffic WHERE length(request_headers) > 2 \
+         OR length(request_body) > 0 OR response_headers IS NOT NULL \
+         OR response_body IS NOT NULL"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query([])?;
+    let mut entries = Vec::new();
+    while let Some(row) = rows.next()? {
+        entries.push(decode_row(row)?);
+    }
+    Ok(entries)
+}
+
+/// Blanks the payload columns of disk-offloaded rows (the body is in the file; the DB keeps only the ledger).
+pub(super) fn blank_payloads(conn: &Connection, ids: &[String]) -> rusqlite::Result<usize> {
+    let mut changed = 0;
+    for batch in ids.chunks(200) {
+        let placeholders = vec!["?"; batch.len()].join(", ");
+        changed += conn.execute(
+            &format!(
+                "UPDATE debug_traffic SET request_headers = '{{}}', request_body = '', \
+                 response_headers = NULL, response_body = NULL WHERE id IN ({placeholders})"
+            ),
+            rusqlite::params_from_iter(batch.iter()),
+        )?;
+    }
+    Ok(changed)
+}
+
+/// Evicts old records purely by retention count — never deletes one for being too large; returns the number of rows deleted this pass
+/// (fork: the caller uses this to decide whether to sweep payload files along the way).
+pub(super) fn enforce_limits(conn: &Connection) -> rusqlite::Result<usize> {
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM debug_traffic", [], |row| row.get(0))?;
     if count > MAX_ENTRIES as i64 {
-        conn.execute(
+        return conn.execute(
             "DELETE FROM debug_traffic WHERE id NOT IN \
              (SELECT id FROM debug_traffic ORDER BY ts DESC, rowid DESC LIMIT ?1)",
             params![MAX_ENTRIES as i64],
-        )?;
+        );
     }
-    Ok(())
+    Ok(0)
 }

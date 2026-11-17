@@ -88,9 +88,9 @@ export function HomePage() {
         <BrandLogo branding={branding} size={22} /><span className='truncate'>{branding.displayName}</span>
       </div>
       <PageHead
-        title={t('网关运行中')}
-        subtitle={t('{n} 个账号启用 · {m} 个限流中', { n: enabled, m: limited })}
-        actions={<IconButton name='refresh' label={t('刷新')} onClick={() => void store.refresh(true)} />}
+        title={t('Gateway running')}
+        subtitle={t('{n} accounts enabled · {m} are rate-limited', { n: enabled, m: limited })}
+        actions={<IconButton name='refresh' label={t('Refresh')} onClick={() => void store.refresh(true)} />}
       />
 
       {state.sessionError ? <ErrorNote text={state.sessionError} /> : null}
@@ -130,7 +130,7 @@ export function HomePage() {
                   boxShadow: gateway ? '0 0 0 3px rgba(110,242,164,.28)' : '0 0 0 3px rgba(255,209,102,.28)',
                 }}
               />
-              {gateway ? t('运行中') : t('未配置上游')}
+              {gateway ? t('Running') : t('No upstream configured')}
             </span>
             <Button size='default' variant='ghost'
               type='button'
@@ -155,11 +155,11 @@ export function HomePage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <HeroMetric label={t('可用账号')} value={`${enabled}`} unit={`/ ${accounts.length}`} />
+            <HeroMetric label={t('Available accounts')} value={`${enabled}`} unit={`/ ${accounts.length}`} />
             <div style={{ width: 1, background: 'rgba(255,255,255,.22)', margin: '2px 4px' }} />
-            <HeroMetric label={t('限流中')} value={`${limited}`} />
+            <HeroMetric label={t('Rate-limited')} value={`${limited}`} />
             <div style={{ width: 1, background: 'rgba(255,255,255,.22)', margin: '2px 4px' }} />
-            <HeroMetric label={t('今日请求')} value={formatInt(today?.overview?.requests || 0)} />
+            <HeroMetric label={t('Today\'s requests')} value={formatInt(today?.overview?.requests || 0)} />
           </div>
 
           <div
@@ -173,8 +173,8 @@ export function HomePage() {
               color: 'rgba(255,255,255,.82)',
             }}
           >
-            <span>{t('今日签到 {done}/{total}', { done, total: eligible })}</span>
-            <span>{t('累计请求 {n} 条', { n: requests?.total || 0 })}</span>
+            <span>{t('Today {done}/{total}', { done, total: eligible })}</span>
+            <span>{t('{n} requests in total', { n: requests?.total || 0 })}</span>
           </div>
         </Card>
       </div>
@@ -187,18 +187,18 @@ export function HomePage() {
             <Ring percent={percent} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14.5, fontWeight: 600 }}>
-                {t('今日签到 {done} / {total}', { done, total: eligible })}
+                {t('Today {done} / {total}', { done, total: eligible })}
               </div>
               <div style={{ fontSize: 12, color: 'var(--m-text-3)', marginTop: 3, whiteSpace: 'nowrap' }}>
-                {eligible === 0 ? t('暂无可签到账号')
+                {eligible === 0 ? t('No accounts available to sign in yet')
                   : eligible - done > 0
-                    ? t('还有 {n} 个待签', { n: eligible - done })
-                    : t('今天都签完了')}
+                    ? t('{n} still to sign', { n: eligible - done })
+                    : t('Everything is signed today')}
               </div>
             </div>
             <Button size='touch-sm' variant='default' type='button' className='m-btn m-sm' onClick={() => store.push(checkinKey)}>
               <Icon name='checkin' />
-              {t('签到')}
+              {t('Check in')}
             </Button>
           </Card>
         </div>
@@ -213,10 +213,10 @@ export function HomePage() {
             padding: '14px 8px 12px',
           }}
         >
-          <QuickEntry icon='checkin' label={t('签到')} onClick={() => store.push(checkinKey)} />
-          <QuickEntry icon='model' label={t('模型')} onClick={() => store.push('models')} />
+          <QuickEntry icon='checkin' label={t('Check in')} onClick={() => store.push(checkinKey)} />
+          <QuickEntry icon='model' label={t('Model')} onClick={() => store.push('models')} />
           <QuickEntry icon='key' label={t('Key')} onClick={() => store.push('keys')} />
-          <QuickEntry icon='doc' label={t('接入')} onClick={() => store.push('docs')} />
+          <QuickEntry icon='doc' label={t('Access')} onClick={() => store.push('docs')} />
         </Card>
       </div>
 
@@ -241,16 +241,16 @@ export function HomePage() {
           >
             <Icon name='alert' style={{ width: 17, height: 17, color: 'var(--m-warn)', flex: 'none' }} />
             <span style={{ flex: 1 }}>
-              {t('{n} 个账号正在限流，转发会自动跳过它们', { n: limited })}
+              {t('{n} accounts are rate-limited right now; forwarding will skip them automatically', { n: limited })}
             </span>
-            <span style={{ color: 'var(--m-warn)', fontWeight: 600, fontSize: 12, flex: 'none' }}>{t('查看')}</span>
+            <span style={{ color: 'var(--m-warn)', fontWeight: 600, fontSize: 12, flex: 'none' }}>{t('View')}</span>
           </Button>
         </div>
       ) : null}
 
       {/* 最近请求 */}
       <div className='m-section'>
-        <SectionHead title={t('最近请求')} action={{ label: t('全部'), onClick: () => store.push('requests') }} />
+        <SectionHead title={t('Recent requests')} action={{ label: t('All'), onClick: () => store.push('requests') }} />
         <Card className='m-card'>
           {error ? (
             <Empty text={error} />
@@ -276,14 +276,14 @@ export function HomePage() {
               </Button>
             ))
           ) : (
-            <Empty text={t('还没有请求记录')} />
+            <Empty text={t('No request records yet')} />
           )}
         </Card>
       </div>
 
       {/* 提供商概览 */}
       <div className='m-section'>
-        <SectionHead title={t('账号分布')} action={{ label: t('管理'), onClick: () => store.go('accounts') }} />
+        <SectionHead title={t('Account distribution')} action={{ label: t('Manage'), onClick: () => store.go('accounts') }} />
         <Card className='m-card'>
           {(session?.accounts?.providers || []).slice(0, 5).map(item => (
             <Button size='default' variant='ghost'
@@ -295,14 +295,14 @@ export function HomePage() {
               <ProviderLogo id={item.id} label={item.label} />
               <div className='m-grow'>
                 <div className='m-t1'>{providerLabel(item.id, item.label)}</div>
-                <div className='m-t2'>{t('{n} 个账号', { n: item.count || 0 })}</div>
+                <div className='m-t2'>{t('{n} accounts', { n: item.count || 0 })}</div>
               </div>
               <span className='m-chev'>
                 <Icon name='chev' />
               </span>
             </Button>
           ))}
-          {!(session?.accounts?.providers || []).length ? <Empty text={t('还没有添加账号')} /> : null}
+          {!(session?.accounts?.providers || []).length ? <Empty text={t('No account has been added yet')} /> : null}
         </Card>
       </div>
     </div>

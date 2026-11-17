@@ -31,7 +31,7 @@ pub(super) fn validate_origin(headers: &HeaderMap) -> Result<(), GatewayError> {
             && url.path() == "/" && url.query().is_none() && url.fragment().is_none()
             && host.is_some_and(|host| url::Url::parse(&format!("{}://{host}", url.scheme())).is_ok_and(|expected| expected.origin() == url.origin()))
     });
-    if valid { Ok(()) } else { Err(GatewayError::with_status(403, "图片 MCP 拒绝不受信任的网页来源")) }
+    if valid { Ok(()) } else { Err(GatewayError::with_status(403, "Images MCP 拒绝不受信任的网页来源")) }
 }
 
 pub(super) fn authorize(job: &ImageJob, owner: &str, scope: Option<&KeyScope>) -> Result<(), GatewayError> {
@@ -101,7 +101,7 @@ pub(crate) async fn call(name: &str, args: &Value, ctx: &McpRequestContext) -> R
     };
     authorize(&job, &ctx.owner, ctx.scope.as_ref())?;
     if !text(args, "request_id").is_empty() && text(args, "request_id") != job.request_id {
-        return Err(GatewayError::bad_request("job_id 与 request_id 不属于同一任务"));
+        return Err(GatewayError::bad_request("job_id and request_id 不属于同一任务"));
     }
     let until = Instant::now() + Duration::from_secs(wait);
     while job.state == "running" && Instant::now() < until {
@@ -148,7 +148,7 @@ async fn submit(name: &str, args: &Value, ctx: &McpRequestContext, db: &Db) -> R
         let mut images = Vec::new();
         let mut inline_bytes = 0usize;
         for reference in references {
-            let reference = reference.as_str().ok_or_else(|| GatewayError::bad_request("参考图必须是图片 ID、URL 或 data URI"))?;
+            let reference = reference.as_str().ok_or_else(|| GatewayError::bad_request("参考图必须是图片 ID, URL or data URI"))?;
             if let Some(id) = reference.strip_prefix("image:") {
                 let id = id.to_string();
                 let db_copy = db.clone();
@@ -263,7 +263,7 @@ async fn run_job(state: ServerState, db: Db, id: String, mut payload: Value, inp
         if let Err(error) = blocking::run(move || image_jobs::fail(&db, &id_copy, uncertain, &message)).await.and_then(|result| result) {
             logging::log("[Tools]", &format!("图片任务 {id} 状态保存失败：{}", error.message));
         }
-        logging::log("[Tools]", &format!("图片任务 {id}：{summary}"));
+        logging::log("[Tools]", &format!("图片任务 {id}: {summary}"));
     }
 }
 
@@ -291,7 +291,7 @@ fn prepare_files(response: Value) -> Result<(Value, Vec<ImageFile>), GatewayErro
 pub async fn download(State(state): State<ServerState>, Path(id): Path<String>, headers: HeaderMap) -> Response {
     async fn run(state: ServerState, id: String, headers: HeaderMap) -> Result<Response, GatewayError> {
         validate_origin(&headers)?;
-        let access = super::model_access::authenticate(&headers, "image-generation")?;
+        let access = super::model_access::authenticate(&headers, "image-generation", true)?;
         let db = database(&state)?;
         let (job, file) = blocking::run(move || image_jobs::read_file(&db, &id)).await??;
         authorize(&job, &owner(&headers), access.scope.as_ref())?;

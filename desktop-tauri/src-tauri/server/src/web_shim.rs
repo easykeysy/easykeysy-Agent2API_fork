@@ -46,12 +46,12 @@ pub fn shim_js() -> &'static str {
     r#"(function () {
   'use strict';
 
-  // ── 清掉登录页转来的放行标记（`?from=login`）─────────────
+  // ── 清掉登录页转来的放行标记（`?from=login`)─────────────
   // 服务端在 `/` 上会拦「会话无效的导航」并送回登录页（见
   // server::http::panel_boot_redirect）。中转环境里会话只存在于 localStorage
-  // 的 `x-panel-token` 头，而顶层导航带不了自定义头，所以登录页跳过来时带这个
+  // — see the `x-panel-token` 头，而顶层导航带不了自定义头，所以登录页跳过来时带这个
   // 标记、服务端放行这一趟。标记必须在页面跑起来后从地址栏抹掉：留着它，
-  // 会话过期后用户刷新页面仍会绕过那道判定，进去又是一屏 401。
+  // 会话过期后用户刷新页面仍会绕过那道判定，进去又是一屏 401.
   (function () {
     try {
       var url = new URL(window.location.href);
@@ -77,7 +77,7 @@ pub fn shim_js() -> &'static str {
     } catch (e) { /* 隐私模式等：留在内存即可 */ }
   }
 
-  // ── 面板双令牌的本地保管（PANEL_AUTH）──────────────────────
+  // ── 面板双令牌的本地保管（PANEL_AUTH)──────────────────────
   // HttpOnly cookie 在「宿主中转」入口（fnOS docker 管理页这类面板跳板）
   // 下发/回带都会被掐掉：登录 POST 能到、Set-Cookie 回不来，主页第一个
   // 请求就 401 被踢回登录页。因此登录/刷新接口把裸令牌同时放进响应体
@@ -115,7 +115,7 @@ pub fn shim_js() -> &'static str {
     return panelExpiresAt;
   }
 
-  /** 记下到期时刻。`expiresIn` 是服务端下发的剩余秒数（见 panel.rs issue_response） */
+  /** 记下到期时刻。`expiresIn` 是服务端下发的剩余秒数（见 panel.rs issue_response) */
   function rememberExpiry(expiresIn) {
     var seconds = Number(expiresIn);
     if (!isFinite(seconds) || seconds <= 0) return;
@@ -138,7 +138,7 @@ pub fn shim_js() -> &'static str {
     try { localStorage.removeItem(PANEL_AUTH); } catch (e) { /* 无害 */ }
   }
 
-  // ── 覆盖层（Key 输入 / 链接兜底 / 粘贴回调）：原生 DOM，界面样式不依赖 ──
+  // ── 覆盖层（Key Input / 链接兜底 / 粘贴回调）：原生 DOM，界面样式不依赖 ──
   // options（可选）：
   //   cancelText  给了就多渲染一个次要按钮；点它或按 Esc 以 null 收尾 ——
   //               调用方据此区分「确认」（确认值永远不是 null）与「取消」。
@@ -146,7 +146,7 @@ pub fn shim_js() -> &'static str {
   //               要给它里面的按钮挂监听只有这一次机会；controls.cancel()
   //               让外部（例如弹窗关闭时的取消通知）也能以取消收尾。
   //
-  // 带 cancelText 的覆盖层会登记到 activeOverlay：`cancelLogin` 与
+  // 带 cancelText 的覆盖层会登记到 activeOverlay: `cancelLogin`  and 
   // `closeWebOverlay` 都要能拿到它（前者让用户点「取消等待」时弹层立刻收尾，
   // 后者负责在流程结束时摘掉 document 上的 Esc 监听 —— 不摘的话，那个监听
   // 会在弹层早已消失后继续响应 Esc，把上一轮残留的 Promise 解析掉）。
@@ -155,7 +155,7 @@ pub fn shim_js() -> &'static str {
   var DISPOSED = {};
   function ensureOverlay(titleText, bodyHtml, confirmText, options) {
     options = options || {};
-    // 先摘掉上一张（可能带着 cancelText 与 document 级 Esc 监听）。
+    // 先摘掉上一张（可能带着 cancelText and document 级 Esc 监听）。
     // 用 dispose 而不是 cancel：被新弹层替换 ≠ 用户点了取消，不能因此
     // 把上一轮登录判成取消（典型场景：401 弹出 API Key 框接管了屏幕）。
     closeWebOverlay(true);
@@ -266,20 +266,20 @@ pub fn shim_js() -> &'static str {
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
       area.remove();
       if (ok) resolve();
-      else reject(new Error('复制失败'));
+      else reject(new Error('Copy failed'));
     });
   }
 
   function askForKey() {
     if (!askForKey.promise) {
       askForKey.promise = ensureOverlay(
-        '需要网关 API Key',
+        'Gateway API key required',
         '<div style="margin-bottom:10px;">此面板受网关鉴权保护，请输入一把已启用的 API Key'
         + '（在「API Keys」页创建）。</div>'
         + '<input type="password" placeholder="sk-…" style="width:100%;box-sizing:border-box;'
         + 'padding:8px 10px;border:1px solid #3a3b3f;border-radius:6px;background:#26272b;'
         + 'color:#e8e8e8;">',
-        '保存并继续'
+        'Save and continue'
       ).then(function (value) {
         askForKey.promise = null;
         // 被别的弹层接管（见 DISPOSED）：当作没填，避免把这枚哨兵当成 Key 存起来
@@ -292,7 +292,7 @@ pub fn shim_js() -> &'static str {
   }
 
   function showLinkFallback(url) {
-    // url 已过登录导航校验；仍逐项转义，查询串只能当文本/属性，不能插入 HTML。
+    // url 已过登录导航校验；仍逐项转义，查询串只能当文本/属性，不能插入 HTML.
     ensureOverlay(
       '浏览器拦截了弹出窗口',
       '<div>请点击下面的链接打开授权页：</div>'
@@ -303,7 +303,7 @@ pub fn shim_js() -> &'static str {
   }
 
   // 关掉当前覆盖层。silent=false 时连等待中的 Promise 一起以「取消」收尾 ——
-  // 「取消等待」按钮与关掉添加账号弹窗都走这条；流程正常结束（silent=true）
+  // 「取消等待」按钮与关掉添加账号弹窗都走这条；流程正常结束（silent=true)
   // 时只摘 DOM，不 resolve 成「用户取消」，免得把已经成功的结果改写成取消。
   function closeWebOverlay(silent) {
     if (activeOverlay) {
@@ -323,7 +323,7 @@ pub fn shim_js() -> &'static str {
   // 把粘贴框推给用户。见 runLoginFlow 里那段说明。
   var MANUAL_CALLBACK_GRACE_MS = 10000;
 
-  // 只供没有 options 的旧调用使用；动态流程完全取所选 method 的 metadata。
+  // 只供没有 options 的旧调用使用；动态流程完全取所选 method — see the metadata.
   function legacyNeedsManualCallback(provider) {
     return provider === 'trae'
       || provider === 'accio' || provider === 'accio-cn'
@@ -333,11 +333,11 @@ pub fn shim_js() -> &'static str {
       // 地址属于浏览器所在电脑、回不到容器，只能让用户把最终 URL 粘回来。
       || provider === 'lobsterai'
       // Antigravity 也是这一型：它的 `redirect_uri` 由网关拼成
-      // `http://localhost:<网关端口>/oauth-callback`（Google 的 desktop 型
+      // `http://localhost:<网关端口>/oauth-callback`（Google — see the desktop 型
       // client 只收 loopback，见 `providers/antigravity/oauth.rs`）。桌面端
       // 浏览器与网关同机，一跳就回来；服务器 / Docker 部署时那个 localhost
       // 属于浏览器所在电脑，回调永远到不了网关 —— 用户只能把地址栏整条 URL
-      // 粘回弹窗，由后端 `submit_login_callback` 的 Antigravity 分支换码。
+      // 粘回弹窗，由后端 `submit_login_callback` — see the Antigravity 分支换码。
       // 粘贴不要求该地址可达：换码回传的 `redirect_uri` 与发起授权时同源
       // （都取自 `login_redirect_uri`），天然逐字一致。
       || provider === 'antigravity';
@@ -353,7 +353,7 @@ pub fn shim_js() -> &'static str {
     return !!(options && Object.prototype.hasOwnProperty.call(options, 'methodIndex'));
   }
 
-  // GET 动态元数据同时完成运行时 provider/索引校验，不复制 BUILTIN 或放行任意 id。
+  // GET 动态元数据同时完成运行时 provider/索引校验，不复制 BUILTIN 或放行任意 id.
   async function selectedLoginMethod(provider, options) {
     if (!Number.isSafeInteger(options.methodIndex) || options.methodIndex < 0) {
       throw new Error('登录方式索引必须是非负整数');
@@ -431,14 +431,14 @@ pub fn shim_js() -> &'static str {
     return value; // 校验不重写原文，保留授权地址中的编码、顺序与签名。
   }
 
-  // 官方小浣熊授权页在 login_source=desktop 时固定跳 office-raccoon://，
+  // 官方小浣熊授权页在 login_source=desktop 时固定跳 office-raccoon://, 
   // 浏览器地址栏不会暴露授权码。该页面还支持 redirect 分支：去掉 desktop
   // 标记后，它会把 authorization_code 追加到 redirect URL 并导航过去。
   // 这里把回调地址放在当前面板 Origin，浏览器因此能直接访问 Docker 网关。
   //
-  // ── 为什么发起前要先检查面板自身地址（raccoonCallbackOriginProblem）──
-  // 上游授权页对 redirect 参数有一份写死的白名单（实测 2026-10）：http 协议
-  // + 回环主机（127.0.0.1 / localhost / [::1]）+ 显式端口；域名、局域网 IP、
+  // ── 为什么发起前要先检查面板自身地址（raccoonCallbackOriginProblem)──
+  // 上游授权页对 redirect 参数有一份写死的白名单（实测 2026-10）：http Protocol
+  // + 回环主机（127.0.0.1 / localhost / [::1])+ 显式端口；域名、局域网 IP, 
   // https、省略端口一律拒收 —— 服务端直接把授权上下文置空，页面渲染
   // 「授权链接无效，请从客户端重新发起登录。」这句话对我们的用户毫无信息量
   // （链接是面板自己拼的，用户没改过任何参数），所以在发起登录前先按同一
@@ -451,7 +451,7 @@ pub fn shim_js() -> &'static str {
     var reason;
     if (window.location.protocol !== 'http:') {
       reason = '小浣熊授权页只接受 http:// 的回调地址，当前面板以 '
-        + window.location.protocol + ' 访问';
+        + window.location.protocol + ' Access';
     } else if (!loopback) {
       reason = '小浣熊授权页只接受 127.0.0.1 / localhost 的回调地址，当前面板主机是 ' + hostname;
     } else {
@@ -459,21 +459,21 @@ pub fn shim_js() -> &'static str {
     }
     var displayPort = port || (window.location.protocol === 'https:' ? '443' : '80');
     var html = '<div style="margin-bottom:10px;">小浣熊官方授权页只接受<strong>浏览器本机的回环地址</strong>'
-      + '（127.0.0.1 / localhost，http 且带端口）作为登录回调；当前面板地址是 <code>'
+      + '（127.0.0.1 / localhost, http 且带端口）作为登录回调；当前面板地址是 <code>'
       + escapeHtml(window.location.origin) + '</code>，继续发起只会看到「授权链接无效」。</div>'
       + '<div style="margin-bottom:6px;">可行的做法：</div>'
       + '<div style="margin-bottom:6px;">① 在打开面板的这台电脑上，改用 <code>http://localhost:'
       + escapeHtml(displayPort) + '</code> 访问面板后再登录；面板部署在别的机器时，先做端口转发'
       + '（例如 <code>ssh -L ' + escapeHtml(displayPort) + ':127.0.0.1:' + escapeHtml(displayPort)
-      + ' 用户@面板主机</code>，端口按实际改）。</div>'
+      + ' User@面板主机</code>，端口按实际改）。</div>'
       + '<div>② 改用「粘贴 token / refreshToken」方式添加小浣熊账号，不走授权页。</div>';
     return { title: '小浣熊网页登录无法在当前地址发起', html: html, reason: reason };
   }
 
   // 预检不过的完整处置：先弹指引层（模态，细节在这里讲清），用户关闭后再
-  // reject —— 引擎会 toast 一次 reason 收尾（弹层承载细节，toast 只做结论）。
+  // reject —— 引擎会 toast Once reason 收尾（弹层承载细节，toast 只做结论）。
   async function reportRaccoonCallbackProblem(problem) {
-    await ensureOverlay(problem.title, problem.html, '知道了');
+    await ensureOverlay(problem.title, problem.html, 'Got it');
     throw new Error(problem.reason);
   }
 
@@ -481,7 +481,7 @@ pub fn shim_js() -> &'static str {
     if (provider !== 'raccoon') return authUrl;
     // 防御纵深：startLogin 已预检过（弹指引并拦下）。这里再查一次，是因为
     // 本函数是 redirect 分支的唯一入口 —— 未来新增调用方不必记得「必须回环
-    // 访问」这条前提；走到这里才失败时，runLoginFlow 的 finally 会关掉窗口，
+    // 访问」这条前提；走到这里才失败时，runLoginFlow — see the finally 会关掉窗口，
     // 已建的后台任务无人认领会自行超时落定。
     var problem = raccoonCallbackOriginProblem();
     if (problem) throw new Error(problem.reason);
@@ -506,7 +506,7 @@ pub fn shim_js() -> &'static str {
     var callbackInstruction = codeInput
       ? '仅粘贴此登录方式要求的<strong>本人已授权令牌或一次性 code</strong>；不是设备码或完整回调地址。'
         + '正文将原样通过受保护的 POST 提交；接受后仍须等待网关确认并保存账号。'
-      : '<strong>如果授权完成后账号没有自动出现</strong>，'
+      : '<strong>如果授权完成后账号没有自动出现</strong>, '
         + '复制浏览器地址栏中的<strong>完整回调地址</strong>粘贴提交；'
         + '不要改动参数。回调被接受后仍须等待网关确认并保存账号。';
     var linkStyle = 'flex:1;padding:7px 0;border:1px solid #3a3b3f;border-radius:6px;'
@@ -518,7 +518,7 @@ pub fn shim_js() -> &'static str {
         + 'background:#26272b;color:#b8c7e6;font-size:12px;line-height:1.5;'
         + 'word-break:break-all;max-height:96px;overflow:auto;">' + escapeHtml(authUrl) + '</code>'
         + '<div style="display:flex;gap:8px;margin-bottom:14px;">'
-        + '<button type="button" data-a2a-act="open" style="' + linkStyle + '">打开授权页</button>'
+        + '<button type="button" data-a2a-act="open" style="' + linkStyle + '">Open the authorization page</button>'
         + '<button type="button" data-a2a-act="copy" style="' + linkStyle + '">复制链接</button>'
         + '</div>' : '';
       var callbackUrl = await ensureOverlay(
@@ -549,7 +549,7 @@ pub fn shim_js() -> &'static str {
             });
             if (copyBtn) copyBtn.addEventListener('click', function () {
               copyText(authUrl).then(function () {
-                copyBtn.textContent = '已复制';
+                copyBtn.textContent = 'Copied';
                 setTimeout(function () {
                   if (copyBtn.isConnected) copyBtn.textContent = '复制链接';
                 }, 1500);
@@ -564,7 +564,7 @@ pub fn shim_js() -> &'static str {
         throw takenOver;
       }
       if (callbackUrl == null) return cancelWebLogin(flow.state);
-      // 完整 URL 和裸 code 保真传递，只用 trim 判空，不裁剪/解码/重组正文。
+      // Complete URL 和裸 code 保真传递，只用 trim 判空，不裁剪/解码/重组正文。
       callbackUrl = String(callbackUrl);
       if (!callbackUrl.trim()) continue;
       var submitted;
@@ -576,13 +576,13 @@ pub fn shim_js() -> &'static str {
         callbackUrl = '';
         if (currentFlow !== flow || flow.canceled) throw canceledError();
         if (submitted && submitted.retryable === true) {
-          flow.hint = typeof submitted.hint === 'string' ? submitted.hint : '回调未被接受，请重新复制本次登录的完整回调地址';
+          flow.hint = typeof submitted.hint === 'string' ? submitted.hint : 'Callback not accepted. Copy the complete callback URL for this sign-in again.';
           emitLogin();
           continue;
         }
         if (submitted && typeof submitted.nextUrl === 'string' && submitted.nextUrl) {
           authUrl = checkedLoginUrl(submitted.nextUrl, flow.dynamic ? flow.started : null, flow.callbackTargets);
-          flow.hint = '还需继续授权，请打开下一步授权页，完成后回填新的完整回调地址。';
+          flow.hint = 'More authorization is required. Open the next authorization page, then paste the new complete callback URL.';
           emitLogin();
           continue;
         }
@@ -612,7 +612,7 @@ pub fn shim_js() -> &'static str {
       if (typeof pendingHint === 'string') flow.hint = pendingHint;
       else flow.hint = '回调已提交，正在等待网关确认登录并保存账号…';
       emitLogin();
-      // accepted/Pending/甚至 callback 的 Done 都不是这里的成功出口：只复用
+      // accepted/Pending/甚至 callback — see the Done 都不是这里的成功出口：只复用
       // 同一个 /wait Promise，避免双轮询消费流程或虚报「已添加」。
       return await waitPromise;
     }
@@ -622,7 +622,7 @@ pub fn shim_js() -> &'static str {
   /** 用户主动取消粘贴回调：通知服务端撤掉这一轮登录任务，并向上抛一个
    *  可被界面识别为「取消」的结果。
    *
-   *  为什么要真的打 /cancel：Trae 那条链在网关侧持有回调监听端口，不撤要占满
+   *  为什么要真的打 /cancel: Trae 那条链在网关侧持有回调监听端口，不撤要占满
    *  5 分钟超时才释放，用户随即重新发起会抢不到端口（与 `LoginService::cancel`
    *  注释里 AutoClaw / CodeArts 同一个坑）。 */
   async function cancelWebLogin(state) {
@@ -632,15 +632,15 @@ pub fn shim_js() -> &'static str {
       var result = await call('POST', '/api/session/login/cancel', { state: state });
       canceled = !!(result && result.canceled);
     } catch (error) { /* 任务已自行落定时会 404：当作已取消 */ }
-    var err = new Error(canceled ? '已取消登录等待' : '登录已结束');
+    var err = new Error(canceled ? 'Pending sign-in canceled' : 'Sign-in has ended');
     err.canceled = true;
     throw err;
   }
 
   // ── 浏览器内核版本（设置页「版本信息」用）────────────────────
   // 桌面端由壳给 WebView2 / WKWebView 的版本；网页端只能从 UA 里认：
-  // Chrome/Edge/Opera 都是 `Chrome/<ver>`、Firefox 是 `Firefox/<ver>`、
-  // Safari 是 `Version/<ver> … Safari/`。认不出就给空串 —— 界面显示「—」，
+  // Chrome/Edge/Opera 都是 `Chrome/<ver>`, Firefox Yes `Firefox/<ver>`, 
+  // Safari Yes `Version/<ver> … Safari/`。认不出就给空串 —— 界面显示「—」，
   // 不编造一个看起来像版本号的字符串。
   function browserEngineVersion() {
     var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
@@ -658,7 +658,7 @@ pub fn shim_js() -> &'static str {
     return '';
   }
 
-  // ── 错误归一（与桌面 bridge 的 asError 同语义）─────────────
+  // ── 错误归一（与桌面 bridge — see the asError 同语义）─────────────
   function asError(failure) {
     if (failure instanceof Error) return failure;
     if (typeof failure === 'string') return new Error(failure);
@@ -672,7 +672,7 @@ pub fn shim_js() -> &'static str {
     return new Error(String(failure == null ? '操作失败' : failure));
   }
 
-  // ── HTTP 调用：信封解包与桌面 gateway::unwrap_envelope 对齐 ──
+  // ── HTTP 调用：信封解包与桌面 gateway::unwrap_envelope Alignment ──
   async function httpCall(method, path, body, retried, selectedKey) {
     // 到期前先把令牌换掉：这一步让「access 过期 → 401 → 续期」不再发生，
     // 也就没有那条每 2 小时一次的 401（见 `ensureFreshSession`）。
@@ -682,7 +682,7 @@ pub fn shim_js() -> &'static str {
     if (apiKey) headers['x-api-key'] = apiKey;
     // 面板会话的头部回退（见 PANEL_AUTH 段）：有存令牌就带上；
     // refresh/logout 只在 /api/panel/ 路径发 refresh，对齐
-    // refresh cookie 的 Path=/api/panel 语义。
+    // refresh cookie — see the Path=/api/panel 语义。
     var panelAccess = storedPanelToken('access');
     if (panelAccess) {
       headers['x-panel-token'] = panelAccess;
@@ -733,7 +733,7 @@ pub fn shim_js() -> &'static str {
     }
     var payload;
     try { payload = JSON.parse(text); } catch (e) {
-      throw new Error(text.trim() || '本地代理返回了空响应（HTTP ' + response.status + '）');
+      throw new Error(text.trim() || '本地代理返回了空响应（HTTP ' + response.status + ')');
     }
     var ok = response.status >= 200 && response.status < 300;
     var success = typeof payload.success === 'boolean' ? payload.success : undefined;
@@ -766,7 +766,7 @@ pub fn shim_js() -> &'static str {
   // 探针 cookie 判：直连 → 仍走 cookie（响应体无令牌）；中转 → 探针判不通，
   // 令牌照样进响应体。两侧行为都不比原来差，只有直连侧少暴露一份凭据。
   // ── 并发 401 的单飞 ───────────────────────────────────────
-  // access 过期那一刻，面板首屏一次会并发十几条 /api/*，它们同时收到 401、
+  // access 过期那一刻，面板首屏一次会并发十几条 /api/*，它们同时收到 401, 
   // 同时带着同一把 refresh 来换 —— 各发各的话，先到的轮换成功，其余就撞上
   // 「已轮换」判定。服务端对一分钟内的情况有宽限（access::ROTATION_GRACE_MS），
   // 但那只兜跨页面上下文的场（多标签页）；同一页面内的并发在这里合并掉：
@@ -793,18 +793,18 @@ pub fn shim_js() -> &'static str {
    * ── 为什么要有这一步 ────────────────────────────────────────
    * 只靠 401 被动续期时，**每次** access 过期都必然产生一条 401。面板里频率
    * 最高的轮询是验证码令牌池（2.5 秒一轮，见 ui/zcode-captcha-pool.js），
-   * 它永远是第一个撞上的那个 —— 于是每 2 小时准时一条 401、一条日志、徽标 +1。
+   * 它永远是第一个撞上的那个 —— 于是每 2 小时准时一条 401、一条日志、徽标 +1.
    * 续期本身是成功的（用户无感），但那行日志按旧口径记成 error，看起来像故障。
    * 服务端已经按「refresh 还活着」把这类 401 降成 verbose 了；这里再从源头
    * 把请求本身消掉：用户挂着面板一整天，日志里不该出现任何一条这种东西。
    *
    * ── 失败怎么办 ──────────────────────────────────────────────
-   * 一律**静默放行**，让请求照常发出去：`doRefresh` 返回 false 可能是会话链
+   * 一律**静默放行**，让请求照常发出去：`doRefresh` Back false 可能是会话链
    * 真没了（该走 401 → 跳登录页），也可能只是一次网络抖动（下一轮就会重试）。
    * 在这里抛错会把「网关偶尔抖一下」变成一屏报错，而真正的判据（会话有效吗）
    * 只有服务端知道 —— 交回给既有的 401 分支处理。
    *
-   * 不记 `expiresIn` 时（旧版服务端、或从没续过期）`panelExpiresAt` 是 0，
+   * 不记 `expiresIn` 时（旧版服务端、或从没续过期）`panelExpiresAt` Yes 0, 
    * 这里直接跳过，行为与改造前逐字一致。
    */
   async function ensureFreshSession() {
@@ -812,8 +812,8 @@ pub fn shim_js() -> &'static str {
     var expiresAt = currentExpiry();
     if (!expiresAt) return;
     if (Date.now() < expiresAt - REFRESH_AHEAD_MS) return;
-    // 续期端点自己也要过这道门 —— 但它的 401 分支会再调 tryRefresh，
-    // 递归下去没有意义（而且 `/api/panel/refresh` 是 public，根本不会 401）
+    // 续期端点自己也要过这道门 —— 但它的 401 分支会再调 tryRefresh, 
+    // 递归下去没有意义（而且 `/api/panel/refresh` Yes public，根本不会 401)
     await tryRefresh();
   }
 
@@ -860,7 +860,7 @@ pub fn shim_js() -> &'static str {
     }, 300);
   }
 
-  // ── 登录状态机（对齐桌面壳 login:state 的 {active, provider}）──
+  // ── 登录状态机（对齐桌面壳 login:state — see the {active, provider})──
   var loginActive = false;
   var loginProvider = '';
   var loginListeners = new Set();
@@ -932,14 +932,14 @@ pub fn shim_js() -> &'static str {
       await sleep(flow.pollIntervalMs);
     }
     var timeoutHint = flow.callbackInput === 'code'
-      ? '：请重新发起，并按此方式要求粘贴本人已授权的令牌或一次性 code。'
+      ? '：请重新发起，并按此方式要求粘贴本人已授权的令牌或一次性 code.'
       : MANUAL_CALLBACK_TIMEOUT_HINT;
     throw new Error('登录等待超时（5 分钟）' + (flow.manualCallback ? timeoutHint : ''));
   }
 
   /** 取消信号：用 `canceled` 标记与普通失败区分（界面据此提示「已取消」而非报错） */
   function canceledError(message) {
-    var err = new Error(message || '已取消登录等待');
+    var err = new Error(message || 'Pending sign-in canceled');
     err.canceled = true;
     return err;
   }
@@ -948,7 +948,7 @@ pub fn shim_js() -> &'static str {
    *  换了新流程就整体替换 —— 上一轮的迟到轮询凭 state 比对自然失效。 */
   var currentFlow = null;
 
-  /** 旧流程保留用户手势占位；动态流程要先确认 URL 非空，绝不空开 browser。 */
+  /** 旧流程保留用户手势占位；动态流程要先确认 URL 非空，绝不空开 browser. */
   async function runLoginFlow(provider, startRequest, config) {
     if (loginActive || currentFlow) throw new Error('已有登录流程在进行，请先完成或取消当前登录');
     config = config || {};
@@ -996,20 +996,20 @@ pub fn shim_js() -> &'static str {
         flow.notices.push('该供应商只支持外部浏览器，授权页将在浏览器标签页中打开，不会伪装成内嵌窗口。');
       }
       var interval = Number(started.pollIntervalMs);
-      // 插件 pollIntervalMs=0 是回调型，不代表关闭网关 /wait；不用于猜 manualCallback。
+      // Plugins pollIntervalMs=0 是回调型，不代表关闭网关 /wait；不用于猜 manualCallback.
       flow.pollIntervalMs = Number.isFinite(interval) && interval > 0
         ? Math.max(1000, Math.min(30000, interval)) : 3000;
       flow.deadline = Date.now() + 5 * 60 * 1000;
       if (hasUrl) {
         if (!dynamic) authUrl = buildRaccoonWebAuthUrl(provider, flow.state, authUrl);
         flow.callbackTargets = loginCallbackTargets(authUrl);
-        // 旧版没有白名单契约，保留原 SSO 行为；动态版严格采用真实 allowedHosts。
+        // 旧版没有白名单契约，保留原 SSO 行为；动态版严格采用真实 allowedHosts.
         authUrl = checkedLoginUrl(authUrl, dynamic ? started : null, flow.callbackTargets);
         if (popup && !popup.closed) popup.location.href = authUrl;
         else {
           var opened = false;
           try {
-            // 先拿同源空页句柄再断开 opener；直接 noopener 会在成功时也返回 null，
+            // 先拿同源空页句柄再断开 opener；直接 noopener 会在成功时也返回 null, 
             // 不能据此误报「被拦截」。这一步只在已确认 URL 非空且合法后执行。
             var second = window.open('about:blank', '_blank');
             if (second) {
@@ -1065,7 +1065,7 @@ pub fn shim_js() -> &'static str {
   var SHELL_UNAVAILABLE = '该操作在网页端不可用（仅桌面端支持）';
 
   var shellCommands = {
-    // 与老 edition/mode/provider 顺序的方法并存，直接 invoke 也收第五 options。
+    // 与老 edition/mode/provider 顺序的方法并存，直接 invoke 也收第五 options.
     start_login: function (args) {
       args = args || {};
       return window.workbuddyDesktop.startLogin(args.edition, args.mode, args.provider,
@@ -1080,7 +1080,7 @@ pub fn shim_js() -> &'static str {
     },
     check_update: function () {
       // 网页端没有「壳打包的版本号」这个概念：不带 current，服务端按自己的
-      // 编译期版本比较（见 api/update 的 check 分支）。返回里带 selfUpdate /
+      // 编译期版本比较（见 api/update — see the check 分支）。返回里带 selfUpdate /
       // serverAsset —— 面板据此决定显示「一键更新」还是手动升级命令。
       return call('GET', '/api/update/check');
     },
@@ -1124,9 +1124,9 @@ pub fn shim_js() -> &'static str {
   async function downloadFile(method, path, filename) {
     var headers = authHeaders({ 'Accept': '*/*' });
     var response = await fetch(path, { method: method, headers: headers });
-    if (!response.ok) throw new Error('导出失败（HTTP ' + response.status + '）');
+    if (!response.ok) throw new Error('导出失败（HTTP ' + response.status + ')');
     var blob = await response.blob();
-    // 管理 API 的响应带 { success, data } 信封：落盘前剥掉，存 data 本体 ——
+    // Manage API 的响应带 { success, data } 信封：落盘前剥掉，存 data 本体 ——
     // 与桌面端的导出文件同一格式；信封壳留着，这份文件导回去时顶层没有
     // accounts，只会得到「缺少 accounts 字段」。顺带把账号数带回给调用方
     //（设置页用它提示「已导出 N 个账号」，拿不到会误报「没有可导出的账号」）
@@ -1199,7 +1199,7 @@ pub fn shim_js() -> &'static str {
    * 401 的响应体很小（错误 JSON），`clone()` 读它不影响后续正常路径。
    */
   async function fetchAuthed(path, buildInit, retried) {
-    // 与 httpCall 同一取向：到期前先续期，别让这条非 JSON 请求去撞 401
+    // and httpCall 同一取向：到期前先续期，别让这条非 JSON 请求去撞 401
     if (!retried) await ensureFreshSession();
     var response = await fetch(path, buildInit());
     if (response.status !== 401 || retried) return response;
@@ -1222,7 +1222,7 @@ pub fn shim_js() -> &'static str {
   /**
    * 整库备份（网页端）：POST 密码参数，下载 .a2ab 加密包。
    *
-   * 返回形状与桌面壳 `commands.rs::export_database` 对齐
+   * 返回形状与桌面壳 `commands.rs::export_database` Alignment
    * （`{ bytes, tables, file }`），设置页的成功提示两端共用一套渲染。
    * 表计数在后端放进 `X-Backup-Tables` 响应头，响应体只承载加密包。
    */
@@ -1276,7 +1276,7 @@ pub fn shim_js() -> &'static str {
     });
     var text = await response.text();
     var payload = null;
-    try { payload = JSON.parse(text); } catch (e) { /* 非 JSON（如代理层 413） */ }
+    try { payload = JSON.parse(text); } catch (e) { /* 非 JSON（如代理层 413) */ }
     var ok = response.status >= 200 && response.status < 300;
     var success = payload && typeof payload.success === 'boolean' ? payload.success : undefined;
     if (!ok || success === false) {
@@ -1289,7 +1289,7 @@ pub fn shim_js() -> &'static str {
     return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
   }
 
-  /** `Content-Disposition` 里的 filename（取不到就返回空串，由调用方兜底） */
+  /** `Content-Disposition`, they appear as filename（取不到就返回空串，由调用方兜底） */
   function fileNameFromDisposition(value) {
     if (!value) return '';
     var match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(value);
@@ -1305,7 +1305,7 @@ pub fn shim_js() -> &'static str {
       + '-' + pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
   }
 
-  /** 壳命令的总入口（同时接住 UI 里两处直接的 internals.invoke('api_request')） */
+  /** 壳命令的总入口（同时接住 UI 里两处直接的 internals.invoke('api_request')) */
   function invokeShell(command, args) {
     var handler = shellCommands[command];
     if (handler) return handler(args);
@@ -1327,12 +1327,12 @@ pub fn shim_js() -> &'static str {
    *   · 在系统选择器里点「取消」时 `change` 不触发，Promise 永远挂着、按钮卡在
    *     「导入中…」。用 window focus / visibilitychange 兜底：回到页面后仍没拿到
    *     文件就按取消落定（与桌面壳返回 `{canceled:true}` 同一契约）。
-   *   · `accept` 只写扩展名：Android 各家文件管理器对 MIME 形（application/json）
+   *   · `accept` 只写扩展名：Android 各家文件管理器对 MIME 形（application/json)
    *     支持不一，带上它反而可能把 .json 过滤掉。
    *
    * 只负责「选到文件」，读内容与解析交给调用方 —— 整库恢复要求请求体直接放
    * File（流式上传），账号导入要读成文本解析，两者的后续步骤没有交集。
-   * 解析口径与桌面壳 `commands.rs::import_accounts` 对齐，见 buildImportPayload。
+   * 解析口径与桌面壳 `commands.rs::import_accounts` 对齐，见 buildImportPayload.
    */
   function pickFile(accept) {
     return new Promise(function (resolve, reject) {
@@ -1367,7 +1367,7 @@ pub fn shim_js() -> &'static str {
       }
       function onReturn() {
         if (settleTimer !== null) return;
-        // 给系统选择器一点时间派发 change，再判定「没选」= 取消
+        // 给系统选择器一点时间派发 change，再判定「没选」= Cancel
         settleTimer = window.setTimeout(function () {
           settleTimer = null;
           if (!picked) settleCancel();
@@ -1393,7 +1393,7 @@ pub fn shim_js() -> &'static str {
     });
   }
 
-  /** 网页端的「导入账号」：选 .json → 解析 → `POST /api/accounts/import` */
+  /** 网页端的「导入账号」：选 .json → Parse → `POST /api/accounts/import` */
   async function importAccountsViaFile() {
     var picked = await pickFile('.json');
     if (picked.canceled) return { canceled: true };
@@ -1454,13 +1454,13 @@ pub fn shim_js() -> &'static str {
     // 平台标识：界面据此裁剪本机功能（导入桌面端登录态等在 web 下隐藏）
     platform: 'web',
 
-    // ── 会话 ──
+    // ── Sessions ──
     getState: function () { return call('GET', '/api/session'); },
     startLogin: function (edition, mode, provider, socialRestore, options) {
       var target = String(provider || 'workbuddy').trim();
       var dynamic = hasMethodIndex(options);
       if (target === 'monkeycode' || target === 'monkeycode-intl') {
-        return Promise.reject(new Error('MonkeyCode 自动网页登录仅限桌面端；浏览器面板请登录对应官网后粘贴 session。'));
+        return Promise.reject(new Error('Automatic MonkeyCode web sign-in requires the desktop app. In the browser panel, sign in to the corresponding official site and paste your session.'));
       }
       // 只有旧小浣熊入口才改 redirect/预检；动态方法不能被 provider 特判覆盖。
       if (!dynamic && target === 'raccoon') {
@@ -1482,7 +1482,7 @@ pub fn shim_js() -> &'static str {
           if (Object.prototype.hasOwnProperty.call(options, 'proxy')) body.proxy = options.proxy;
         } else if (options && Object.prototype.hasOwnProperty.call(options, 'proxy')) {
           // 旧入口（内置表单的网页登录）也能带登录代理：网关的非动态分支读的
-          // 就是顶层 `proxy`（见 api::session 的 legacy_proxy）。少了这一句，
+          // 就是顶层 `proxy`（见 api::session — see the legacy_proxy）。少了这一句，
           // 无头服务器上选了代理也仍然直连。
           body.proxy = options.proxy;
         }
@@ -1504,10 +1504,10 @@ pub fn shim_js() -> &'static str {
       // 三步缺一不可（早先只做了第一步，于是「取消等待」之后粘贴回调那层
       // 覆盖层还赖在屏幕上，用户除了刷新页面别无他法）：
       //   ① 给当前这一轮打取消标记 —— pollWait 下一拍（≤3 秒）就会抛
-      //      canceled，10 秒窗口期那一支也会在计时结束时直接退出；
+      //      canceled, 10 秒窗口期那一支也会在计时结束时直接退出；
       //   ② 收掉覆盖层：有粘贴框时走它的 cancel()，顺带发 /cancel 撤掉
       //      服务端任务（Trae 的回调端口靠这一步立即释放）；
-      //   ③ 没有覆盖层（还在窗口期里）时自己发一次 /cancel。
+      //   ③ 没有覆盖层（还在窗口期里）时自己发一次 /cancel.
       //
       // 取消来源在这里统一登记（externalCancel）：界面那一侧在发起取消时
       // 自己已经 toast 过一次，流程这边不要再重复提示。
@@ -1529,11 +1529,11 @@ pub fn shim_js() -> &'static str {
       return wasActive;
     },
     startAutoclawOauthLogin: function (state, authUrl, mode) {
-      if (!state || !authUrl) return Promise.reject(new Error('缺少授权参数（state / authUrl）'));
-      // AutoClaw OAuth 控制器与桌面 bridge 共用 `{ok, session}` 契约。
+      if (!state || !authUrl) return Promise.reject(new Error('缺少授权参数（state / authUrl)'));
+      // AutoClaw OAuth 控制器与桌面 bridge Shared `{ok, session}` 契约。
       // 网页端轮询拿到的是原始 session，直接返回会被前端误判为取消。
       // 用户取消时 runLoginFlow 给的是 `{canceled:true}`：必须映射成
-      // `ok:false`，否则会被当成「拿到了一份叫 canceled 的 session」。
+      // `ok:false`，否则会被当成「拿到了一份叫 canceled — see the session」。
       return runLoginFlow('autoclaw-intl', function () { return Promise.resolve({ state: state, authUrl: authUrl }); },
         { mode: mode || 'embedded', edition: 'intl' })
         .then(function (session) {
@@ -1559,8 +1559,8 @@ pub fn shim_js() -> &'static str {
     //
     // 契约（详见 `api/zcode_claim.rs` 的模块头）：
     //   · captchaConfig 拿阿里云风控配置（前端用它初始化滑块 SDK）；
-    //     返回 `{enabled:false}` 表示上游此刻不要验证码 —— 前端**不该**弹滑块；
-    //   · preview 只读探测，返回 `{plans:[...], deployed}`；
+    //     Back `{enabled:false}` 表示上游此刻不要验证码 —— 前端**不该**弹滑块；
+    //   · preview 只读探测，返回 `{plans:[...], deployed}`; 
     //     `deployed:false` = 活动接口尚未部署（开抢前的正常状态，不是错误）；
     //   · claim 真正领取。`captchaVerifyParam` **可以为空**：上游此刻不要验证码
     //     时它就不带那个头（发空头会被当成无效验证串，见 `claim::claim` 的注释）。
@@ -1582,7 +1582,7 @@ pub fn shim_js() -> &'static str {
         captchaRegion: captchaRegion ? String(captchaRegion) : '',
       });
     },
-    // ── ZCode 活动套餐通道的验证码令牌池（见 api/zcode_captcha.rs）──────
+    // ── ZCode 活动套餐通道的验证码令牌池（见 api/zcode_captcha.rs)──────
     // 与上面三条**不是一回事**：那三条服务「领套餐」（用户动作）；这两条服务
     // **转发** —— 活动套餐的推理端点每条请求都要一个当次铸的令牌，令牌只能由
     // 界面静默铸造后推进池子（唯一调用方 ui/zcode-captcha-pool.js）。
@@ -1621,11 +1621,11 @@ pub fn shim_js() -> &'static str {
       return call('GET', '/api/session');
     },
 
-    // ── 配置 ──
+    // ── Profile ──
     getConfig: function () { return call('GET', '/api/config'); },
     saveConfig: function (payload) { return call('POST', '/api/config', payload); },
 
-    // ── 模型清单 ──
+    // ── Model list ──
     // 入参原样透传（与桌面 bridge 对齐）：`{accounts: {providerId: accountId},
     // providers: [id, ...]}` —— 「模型来源」点名的账号与本次刷新的范围都在里面。
     // 早先这里写死 `{}`，两个可选项一起丢了：范围收窄失效（界面上看不到的家
@@ -1666,7 +1666,7 @@ pub fn shim_js() -> &'static str {
     testModel: function (payload, selectedKey) { return httpCall('POST', '/api/models/test', payload || {}, false, String(selectedKey || '')); },
     getModelApiKeys: function () { return call('GET', '/api/model-access/keys'); },
 
-    // ── 网关 API Key（多把）──
+    // ── Gateway API Key（多把）──
     getKeys: function () { return call('GET', '/api/keys'); },
     createKey: function (payload) { return call('POST', '/api/keys', payload || {}); },
     updateKey: function (id, patch) { return call('PATCH', '/api/keys/' + encodeURIComponent(id), patch); },
@@ -1685,7 +1685,7 @@ pub fn shim_js() -> &'static str {
     // —— 两层可选调用，缺了这一侧不报错、只是空操作，于是 Docker / 浏览器面板上
     // 拖完顺位照样弹「✅ 已保存」，刷新又跳回旧顺序（库里的顺序从没被写过）。
     // 队列是「全局一条按优先级升序尝试的队列」（见 account_store::priority），
-    // 组顺位 / 组内顺位由前端展开成整条 id 数组一次性交上来，后端编 0、1、2…，
+    // 组顺位 / 组内顺位由前端展开成整条 id 数组一次性交上来，后端编 0, 1, 2…, 
     // 所以这里原样透传，不做任何归一（空值整形与桌面桥一致）。
     reorderAccounts: function (queue) {
       return call('POST', '/api/accounts/reorder', {
@@ -1736,7 +1736,7 @@ pub fn shim_js() -> &'static str {
       return call('GET', '/api/routing/queue' + (model ? '?model=' + encodeURIComponent(model) : ''));
     },
 
-    // ── 出网代理 ──
+    // ── Outbound proxy ──
     getProxies: function () { return call('GET', '/api/proxies'); },
     testProxy: function (payload) {
       var body = {};
@@ -1774,7 +1774,7 @@ pub fn shim_js() -> &'static str {
     // 手输路径 —— 只回 `canceled` 的话，点一下按钮什么都不会发生，用户会以为卡了
     pickFolder: function () { return Promise.resolve({ canceled: true, unsupported: true }); },
 
-    // ── 积分 / 签到 ──
+    // ── Points / Check in ──
     getUsage: function () { return call('GET', '/api/usage'); },
     getCheckinStatus: function () { return call('GET', '/api/checkin/status'); },
     claimCheckin: function () { return call('POST', '/api/checkin', {}); },
@@ -1815,7 +1815,7 @@ pub fn shim_js() -> &'static str {
     },
     // ── WorkBuddy 成长任务（国内版：盘点 / 单任务执行 / 开学季 / 猫猫旅行）──
     // 与桌面 `bridge.rs` 的同名方法**必须成对存在**（理由上面 Loomy 那段已述：
-    // 只改一边时另一形态会静默失效）。端点在 server 的 `api::growth`。
+    // 只改一边时另一形态会静默失效）。端点在 server — see the `api::growth`.
     // 执行拆成单任务端点（60 秒转发超时，见 api::growth 模块头）。
     getGrowthStatus: function (id) {
       return call('GET', '/api/accounts/' + encodeURIComponent(String(id || '')) + '/growth');
@@ -1832,12 +1832,12 @@ pub fn shim_js() -> &'static str {
       return call('POST', '/api/accounts/' + encodeURIComponent(String(id || '')) + '/growth/travel', {});
     },
 
-    // ── 手机验证码登录（AutoClaw 国内版 / Loomy / Tabbit 国内版）──
+    // ── 手机验证码登录（AutoClaw China edition / Loomy / Tabbit 国内版）──
     // 与桌面 `bridge.rs` 的同名方法**必须成对存在**（理由见下面 ZCode 那段的
     // 说明）：界面只知道「手机号 + 中间态」，走哪个端点由两份桥各自决定。
     //
-    // ── 为什么这里要按 provider 选端点（曾经漏过，issue #93）──────
-    // Loomy 是**另一条链路**（自己的签名算法与站点，中间态叫 msgid 而不是
+    // ── 为什么这里要按 provider 选端点（曾经漏过，issue #93)──────
+    // Loomy Yes**另一条链路**（自己的签名算法与站点，中间态叫 msgid 而不是
     // deviceId），端点在服务端就是分开挂的（`api::session::login_loomy_*`）。
     // 只补了桌面那份桥、漏了这里时，浏览器面板发的 loomy 会落进 AutoClaw
     // 端点：验证码由 AutoClaw 发出、账号也存成 AutoClaw，界面却因为文案取自
@@ -1855,7 +1855,7 @@ pub fn shim_js() -> &'static str {
         phone: phone,
         provider: provider || undefined,
         // 与桌面桥同名同义：声明「认识发码前的滑块验证状态」，网关据此回
-        // 200 + `{status:"captcha"}` 而不是 409；uuid 用于过完验证重发时
+        // 200 + `{status:"captcha"}` 而不是 409; uuid 用于过完验证重发时
         // 沿用同一轮登录（见 api::session::login_tabbit_sms_send 的说明）。
         supportsCaptcha: isObject && input.supportsCaptcha ? true : undefined,
         uuid: isObject && input.uuid ? String(input.uuid) : undefined,
@@ -1864,12 +1864,12 @@ pub fn shim_js() -> &'static str {
     },
     // 打开上游给的人机验证页。网页面板没有壳命令可用，直接开新标签：
     // 这一下由用户点按钮触发，不会被弹窗拦截。不用 `noopener` 参数 ——
-    // 它会让 window.open 返回 null，看起来像「被拦截」；改成打开后清 opener。
+    // 它会让 window.open Back null，看起来像「被拦截」；改成打开后清 opener.
     openVerifyPage: function (url) {
       var opened = window.open(String(url || ''), '_blank');
       // 被拦截时 reject 而不是返回 false：界面据此把地址显示出来让人手动访问，
       // 而不是以为验证页已经开了、干等一个不会出现的窗口。
-      if (!opened) return Promise.reject(new Error('浏览器拦截了弹窗'));
+      if (!opened) return Promise.reject(new Error('The browser blocked the pop-up'));
       try { opened.opener = null; } catch (error) { /* 跨域时改不了，忽略 */ }
       return Promise.resolve(true);
     },
@@ -1885,8 +1885,8 @@ pub fn shim_js() -> &'static str {
         phone: String(payload.phone || ''),
         code: String(payload.code || ''),
       };
-      // deviceId（AutoClaw）/ msgid（Loomy）/ uuid（Tabbit）按「有值才带」整形。
-      // 字段名由界面按各自链路给（见 ui/sms-login.js 的 SMS_PROFILES），
+      // deviceId（AutoClaw)/ msgid（Loomy)/ uuid（Tabbit）按「有值才带」整形。
+      // 字段名由界面按各自链路给（见 ui/sms-login.js — see the SMS_PROFILES），
       // 发码返回的中间态必须原样回传，不能丢掉，也不替它做归一。
       if (payload.deviceId) body.deviceId = String(payload.deviceId);
       if (payload.msgid) body.msgid = String(payload.msgid);
@@ -1897,7 +1897,7 @@ pub fn shim_js() -> &'static str {
       return call('POST', path, body);
     },
 
-    // ── 定时签到 ──
+    // ── Scheduled check-in ──
     getAutoCheckin: function () { return call('GET', '/api/auto-checkin'); },
     saveAutoCheckin: function (patch) { return call('POST', '/api/auto-checkin', patch); },
     runAutoCheckinNow: function () { return call('POST', '/api/auto-checkin/run', {}); },
@@ -1917,12 +1917,12 @@ pub fn shim_js() -> &'static str {
     getTravelSchedule: function () { return call('GET', '/api/travel-schedule'); },
     saveTravelSchedule: function (patch) { return call('POST', '/api/travel-schedule', patch); },
     runTravelScheduleNow: function () { return call('POST', '/api/travel-schedule/run', {}); },
-    // WorkBuddy 国际版日活任务的手动粒度入口（mode: full | claim | keepalive）
+    // WorkBuddy 国际版日活任务的手动粒度入口（mode: full | claim | keepalive)
     runCheckinActivity: function (id, mode) { return call('POST', '/api/checkin-activity', { id: id, mode: mode }); },
     // 签到中心的聚合快照（与 bridge.rs 的同名方法同一路径）
     getCheckinCenter: function () { return call('GET', '/api/checkin-center'); },
     // Qoder UMID 组件（设备风控身份）的状态与安装（与 bridge.rs 的同名方法成对）。
-    // 路径挂 protected：headless 形态必须带面板凭据，所以页面只能走桥、不能裸 fetch。
+    // 路径挂 protected: headless 形态必须带面板凭据，所以页面只能走桥、不能裸 fetch.
     getQoderUmid: function () { return call('GET', '/api/qoder-umid'); },
     installQoderUmid: function () { return call('POST', '/api/qoder-umid/install', {}); },
     // 签到记录明细台账（查询 / 清空；参数对象里空值不带，与 bridge.rs 成对）
@@ -1958,14 +1958,14 @@ pub fn shim_js() -> &'static str {
       return call('POST', '/api/scheduled-tasks/' + encodeURIComponent(String(id || '')) + '/run', {});
     },
 
-    // ── 软件更新（检查 / 下载 / 容器内更新；只有「跑安装程序」是桌面专有）──
+    // ── 软件更新（检查 / Download / 容器内更新；只有「跑安装程序」是桌面专有）──
     checkUpdate: function () { return invokeShell('check_update'); },
     getUpdateStatus: function () { return call('GET', '/api/update/status'); },
     // 设置页「版本信息」：与桌面 bridge 的同名方法成对存在（两边必须一起加，
     // 少一边时那一半形态会报「桥接方法缺失」）。网页端没有壳侧的
     // package_info / WebView 版本，这里补的是**浏览器**那份：
     //   · runtime.webviewVersion ← 浏览器内核版本（从 UA 里取，取不到给空串）；
-    //   · app.version 不覆盖 —— 网页端没有「装的是哪个包」这回事，
+    //   · app.version Do not override —— 网页端没有「装的是哪个包」这回事，
     //     后端编译期版本就是唯一真值。
     // 脱敏开关走查询参数（后端做，见 api::system_info 的模块头）。
     getSystemInfo: function (options) {
@@ -1999,9 +1999,9 @@ pub fn shim_js() -> &'static str {
       return invokeShell('run_installer', { path: String(path || ''), restart: restart !== false });
     },
     openReleasePage: function (url) { return invokeShell('open_release_page', { url: String(url || '') }); },
-    // ── 容器内更新（Linux headless / Docker）：安装 → 重启 ──
+    // ── 容器内更新（Linux headless / Docker）：安装 → Restart ──
     // 三步走：下载（上面三条已接）→ installUpdate（校验 sha256 后原地替换
-    // 二进制与 ui 目录）→ restartService（进程优雅退出，容器由 restart 策略
+    // 二进制与 ui 目录）→ restartService（进程优雅退出，容器由 restart Strategy
     // 拉起，同一个容器、可写层保留）。未开 AGENT2API_SELF_UPDATE 的部署由
     // 后端 400 拒绝；面板按 check 返回的 selfUpdate 字段决定是否显示这些入口。
     installUpdate: function () { return call('POST', '/api/update/install', {}); },
@@ -2016,8 +2016,8 @@ pub fn shim_js() -> &'static str {
         ? { sanitizeBlacklistFingerprints: patch } : patch);
     },
 
-    // ── 开发者角色兼容 ──
-    // 与桌面桥（src/bridge.rs 的 getDeveloperRoleCompat / saveDeveloperRoleCompat）
+    // ── Developer role compat ──
+    // 与桌面桥（src/bridge.rs — see the getDeveloperRoleCompat / saveDeveloperRoleCompat)
     // 同一映射：两边接口名与签名必须一致，界面代码零改动地跑在两边
     //（漏一侧的症状见 getClineHeaders 那段）。
     getDeveloperRoleCompat: function () { return call('GET', '/api/developer-role-compat'); },
@@ -2025,8 +2025,8 @@ pub fn shim_js() -> &'static str {
       return call('PUT', '/api/developer-role-compat', { developerRoleCompat: enabled === true });
     },
 
-    // ── 第三方模型回答完自动折叠过程 ──
-    // 与桌面桥（src/bridge.rs 的 getReasoningCollapse / saveReasoningCollapse）
+    // ── Collapse third-party model work after the answer ──
+    // 与桌面桥（src/bridge.rs — see the getReasoningCollapse / saveReasoningCollapse)
     // 同一映射：两边接口名与签名必须一致，界面代码零改动地跑在两边
     getReasoningCollapse: function () { return call('GET', '/api/reasoning-collapse'); },
     saveReasoningCollapse: function (enabled) {
@@ -2034,7 +2034,7 @@ pub fn shim_js() -> &'static str {
     },
 
     // ── Cline 伪装头（转发头逐键覆盖）──
-    // 与桌面桥（src/bridge.rs 的 getClineHeaders / saveClineHeaders）同一映射。
+    // 与桌面桥（src/bridge.rs — see the getClineHeaders / saveClineHeaders）同一映射。
     // 这两个方法曾经漏在网页桥里：设置页调用 `getClineHeaders` 抛
     // 「不是函数」，面板因此一直显示「不可用」——后端接口本身是好的，
     // 缺的只是这座桥。
@@ -2070,21 +2070,21 @@ pub fn shim_js() -> &'static str {
         // 按提供商的覆盖：整张稀疏表原样透传（值是对象，或 null = 删掉这一家）。
         // 语义由 /api/prompt 定 —— 这里再解析一遍只会多一处可能与后端分叉的实现
         promptProviders: payload.promptProviders != null ? payload.promptProviders : null,
-        // 网关自带提示词的逐家开关（另一维，值是布尔或 null）—— 同样原样透传
+        // 网关自带提示词的逐家开关（另一维，值是布尔或 null)—— 同样原样透传
         promptGateway: payload.promptGateway != null ? payload.promptGateway : null,
-        // 网关自带提示词的正文覆盖（`{"<id>": {identity?, stable?, dynamic?} | null}`）
+        // 网关自带提示词的正文覆盖（`{"<id>": {identity?, stable?, dynamic?} | null}`)
         promptGatewayText: payload.promptGatewayText != null ? payload.promptGatewayText : null,
         clearDegrade: !!payload.clearDegrade,
       });
     },
 
-    // ── 运行日志 ──
+    // ── The run log ──
     getLogs: function (query) { return call('GET', '/api/logs' + toQuery(query)); },
     getLogStats: function () { return call('GET', '/api/logs/stats'); },
     // 插件页面清单（侧边栏动态菜单用）。与 desktop 壳的 bridge.rs 同名方法
     // **必须成对维护** —— 只改一边会让 headless 面板里插件页静默消失。
     getPlugins: function () { return call('GET', '/api/plugins'); },
-    // 侧边栏布局（分组 / 顺序 / 显隐）。与 desktop 壳 bridge.rs 的同名方法
+    // 侧边栏布局（分组 / Order / 显隐）。与 desktop 壳 bridge.rs 的同名方法
     // **必须成对维护** —— 漏了这一边，网页端就改不到库里的那份布局，
     // 「在 WebUI 里隐藏的菜单客户端也跟着隐藏」这条功能等于不存在。
     // 语义见 api::sidebar_layout：读回 `{layout}`（null = 没存过），写整份。
@@ -2095,8 +2095,8 @@ pub fn shim_js() -> &'static str {
     clearLogs: function (query) { return call('DELETE', '/api/logs' + toQuery(query)); },
     exportLogs: function (query) { return invokeShell('export_logs', { query: query }); },
 
-    // ── 请求统计报表 / 数据保留 ──
-    // dates（`{start, end}`，`YYYY-MM-DD`）只在 range=custom 时给，
+    // ── 请求统计报表 / Data Retention ──
+    // dates（`{start, end}`, `YYYY-MM-DD`）只在 range=custom 时给，
     // 与桌面壳 bridge.rs 的同名方法同一口径（toQuery 负责跳过空值）
     getStatsSummary: function (range, dates, options) {
       return call('GET', '/api/stats/summary' + toQuery({
@@ -2109,7 +2109,7 @@ pub fn shim_js() -> &'static str {
     getStatsRequests: function (query) { return call('GET', '/api/stats/requests' + toQuery(query)); },
     getStatsRequestFilters: function () { return call('GET', '/api/stats/requests/filters'); },
     clearStatsRequests: function (query) { return call('DELETE', '/api/stats/requests' + toQuery(query)); },
-    // 按 id 取单条请求的原始正文（详情弹窗「预览对话」的数据源；找不到给 404）
+    // 按 id 取单条请求的原始正文（详情弹窗「预览对话」的数据源；找不到给 404)
     getStatsRequestRaw: function (id) {
       return call('GET', '/api/stats/requests/raw' + toQuery({ id: id }));
     },
@@ -2124,7 +2124,7 @@ pub fn shim_js() -> &'static str {
     getStatsClearPreview: function (query) {
       return call('GET', '/api/stats/requests/clear-preview' + toQuery(query));
     },
-    // 后台压缩数据库：重复触发 409，进度看 clear-preview 的 vacuumRunning
+    // 后台压缩数据库：重复触发 409，进度看 clear-preview — see the vacuumRunning
     compactStatsDb: function () { return call('POST', '/api/stats/requests/compact'); },
     getRetention: function () { return call('GET', '/api/retention'); },
     saveRetention: function (patch) { return call('PUT', '/api/retention', patch); },
@@ -2136,7 +2136,7 @@ pub fn shim_js() -> &'static str {
       clearPanelAuth();
     },
 
-    // ── 直连网关的凭证（AI 助手页专用；桌面 bridge 的同名方法见 bridge.rs）
+    // ── 直连网关的凭证（AI 助手页专用；桌面 bridge 的同名方法见 bridge.rs)
     // 助手页为流式对话直接 fetch 网关基址、不经 call（见 ui-islands 的
     // assistant-state.ts），那条请求带什么凭证由这里说了算 —— 口径必须与
     // httpCall 完全一致，否则会出现「设置页能读、助手页 401」这种分叉：
@@ -2145,7 +2145,7 @@ pub fn shim_js() -> &'static str {
     //   · 宿主中转（cookie 往返不通）：令牌在 localStorage，必须放进
     //     `x-panel-token`（自定义头被剥时还有标准的 Authorization 兜底）；
     //   · 未注册管理员的部署：用户输入的网关 Key 是唯一凭证。
-    // 每次取凭证前复用普通请求的提前续期；refresh=true 只用于明确的面板 401。
+    // 每次取凭证前复用普通请求的提前续期；refresh=true 只用于明确的面板 401.
     // 只重读 localStorage 不会续期，拿回的仍是同一把失效令牌。
     directCredentials: async function (refresh) {
       if (refresh) {
@@ -2161,7 +2161,7 @@ pub fn shim_js() -> &'static str {
     },
 
     // ── 机器人校验开关（登录 / 注册的 ALTCHA proof-of-work，分两端）──
-    // 与桌面 bridge 的同名方法逐字同形：patch 是 `{captchaDesktop?, captchaWeb?}`
+    // 与桌面 bridge 的同名方法逐字同形：patch Yes `{captchaDesktop?, captchaWeb?}`
     // （部分更新）；旧签名传布尔值时按「两端一起改」处理（旧界面的调用形态）。
     getBranding: function () { return call('GET', '/api/branding'); },
     saveBranding: function (patch) { return call('PUT', '/api/branding', patch || {}); },
@@ -2232,7 +2232,7 @@ pub fn shim_js() -> &'static str {
     getUpgrade: function () { return call('GET', '/api/upgrade'); },
     runUpgrade: function () { return call('POST', '/api/upgrade/run', {}); },
 
-    // ── 请求重试 ──
+    // ── Request Retries ──
     getRetry: function () { return call('GET', '/api/retry'); },
     saveRetry: function (patch) { return call('PUT', '/api/retry', patch); },
     // ── 上游请求超时（四项）──
@@ -2242,14 +2242,14 @@ pub fn shim_js() -> &'static str {
     getQueue: function () { return call('GET', '/api/queue'); },
     saveQueue: function (patch) { return call('PUT', '/api/queue', patch); },
     // ── 会话图片压缩（开关 + 长边 / 质量 / 阈值三项）──
-    // 与桌面桥（src/bridge.rs 的 getImageCompress / saveImageCompress）逐字同形。
+    // 与桌面桥（src/bridge.rs — see the getImageCompress / saveImageCompress）逐字同形。
     getImageCompress: function () { return call('GET', '/api/image-compress'); },
     saveImageCompress: function (patch) { return call('PUT', '/api/image-compress', patch); },
     // ── 验证码令牌池（ZCode 活动套餐通道的补货节奏）──
     getCaptchaPool: function () { return call('GET', '/api/zcode/captcha-pool'); },
     saveCaptchaPool: function (patch) { return call('PUT', '/api/zcode/captcha-pool', patch); },
 
-    // ── 调试模式 ──
+    // ── Debug mode ──
     getDebug: function () { return call('GET', '/api/debug'); },
     saveDebug: function (enabled) { return call('PUT', '/api/debug', { debugMode: enabled }); },
     getDebugTraffic: function (id) {
@@ -2276,7 +2276,7 @@ pub fn shim_js() -> &'static str {
       return Promise.reject(new Error('网页端不支持改端口：请设置环境变量 AGENT2API_PROXY_PORT 后重启容器'));
     },
     restartApp: function () {
-      return Promise.reject(new Error('网页端不支持重启：请重启容器（docker compose restart）'));
+      return Promise.reject(new Error('网页端不支持重启：请重启容器（docker compose restart)'));
     },
 
     // ── 窗口主题：没有窗口主题可钉，交给系统/浏览器偏好 ──
@@ -2288,10 +2288,10 @@ pub fn shim_js() -> &'static str {
 
     // ── 自定义标题栏的窗口三键：网页端没有应用窗口 ──
     // 按「能映射则映射，不能则明确拒绝」的惯例处理：三个动作明确拒绝，
-    // isMaximized 是查询而非动作，照 backend_status 的口径返回常态 false；
+    // isMaximized 是查询而非动作，照 backend_status 的口径返回常态 false; 
     // 事件订阅照 onAutoMaintained 的口径返回空操作。
-    // 实际上标题栏在网页端根本不渲染（titlebar.js 的 platform 守卫：
-    // 本 shim 注入 platform='web'），这组方法只是兜底防误调。
+    // 实际上标题栏在网页端根本不渲染（titlebar.js — see the platform 守卫：
+    // 本 shim Injection platform='web'），这组方法只是兜底防误调。
     windowMinimize: function () {
       return Promise.reject(new Error(SHELL_UNAVAILABLE + '：浏览器里没有应用窗口'));
     },
@@ -2314,18 +2314,18 @@ pub fn shim_js() -> &'static str {
     exportAccountFiles: function (selection) { return invokeShell('export_account_files', { selection: selection }); },
     importAccounts: function () { return invokeShell('import_accounts'); },
 
-    // ── 整库备份 / 恢复 ──
-    // 桌面壳走系统文件对话框（bridge.rs 的 exportDatabase / importDatabase），
+    // ── Full-database backup / restore ──
+    // 桌面壳走系统文件对话框（bridge.rs — see the exportDatabase / importDatabase），
     // 网页端只能「下载附件」与「上传文件」，对应后端新加的一对 HTTP 端点
     // （见 api::backup_api 的模块头）。返回形状与桌面壳逐字段一致，设置页
     // 的提示文案与结果区两端共用。
     exportDatabase: function (includeLogs, password) { return exportDatabase(includeLogs, password); },
     importDatabase: function (password) { return importDatabase(password); },
-    // 恢复进度：网页端与桌面端同一条后端端点（见 api::backup_api）
+    // 恢复进度：网页端与桌面端同一条后端端点（见 api::backup_api)
     getBackupProgress: function () { return call('GET', '/api/backup/progress'); },
   };
 
-  // 把筛选条件转成查询串（与桌面 bridge 的 toQuery 同语义：空值跳过）
+  // 把筛选条件转成查询串（与桌面 bridge — see the toQuery 同语义：空值跳过）
   function toQuery(query) {
     if (!query) return '';
     if (typeof query === 'string') {

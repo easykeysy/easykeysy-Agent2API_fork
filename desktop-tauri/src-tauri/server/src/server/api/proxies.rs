@@ -37,7 +37,7 @@ pub async fn system_proxy() -> Response {
     let mut response = match tokio::task::spawn_blocking(crate::server::core::proxies::system::snapshot).await {
         Ok(Ok(value)) => ok_json(value),
         Ok(Err(message)) => management_error(400, message),
-        Err(_) => management_error(500, "读取系统代理失败"),
+        Err(_) => management_error(500, "Failed to read the system proxy"),
     };
     response.headers_mut().insert("cache-control", axum::http::HeaderValue::from_static("no-store"));
     response
@@ -76,8 +76,8 @@ pub async fn test_proxy(state: &ServerState, body: &Bytes) -> Response {
     }
     let result = egress::test_proxy(proxy.as_ref()).await;
     logging::log("[Accounts]", &format!("代理测试{}: {}",
-        proxy.as_ref().map(|proxy| format!("（{}）", proxy.label)).unwrap_or_else(|| "（直连）".to_string()),
-        if result.success { format!("✅ 出口 IP {}", result.ip) } else { format!("❌ {}", result.error.clone().unwrap_or_default()) },
+        proxy.as_ref().map(|proxy| format!("（{})", proxy.label)).unwrap_or_else(|| "（直连）".to_string()),
+        if result.success { format!("✅ Exit IP {}", result.ip) } else { format!("❌ {}", result.error.clone().unwrap_or_default()) },
     ));
     let mut data = result.to_json();
     data["proxy"] = egress::describe_public(proxy.as_ref());
@@ -200,7 +200,7 @@ pub async fn pool_enable(state: &ServerState, body: &Bytes) -> Response {
         return management_error(400, "缺少代理 id");
     }
     let Some(enabled) = payload.get("enabled").and_then(Value::as_bool) else {
-        return management_error(400, "缺少 enabled（true / false）");
+        return management_error(400, "缺少 enabled（true / false)");
     };
     match proxy_pool::set_enabled(id, enabled) {
         Ok((_, change)) => {
@@ -230,8 +230,8 @@ pub async fn pool_test(state: &ServerState, body: &Bytes) -> Response {
         duration_ms: result.duration_ms,
         error: result.error.clone(),
     }).err();
-    logging::log("[Proxies]", &format!("代理测试（{}）: {}", proxy.label,
-        if result.success { format!("✅ 出口 IP {}", result.ip) } else { format!("❌ {}", result.error.clone().unwrap_or_default()) },
+    logging::log("[Proxies]", &format!("代理测试（{}): {}", proxy.label,
+        if result.success { format!("✅ Exit IP {}", result.ip) } else { format!("❌ {}", result.error.clone().unwrap_or_default()) },
     ));
     let mut data = result.to_json();
     data["proxy"] = egress::describe_public(Some(&proxy));

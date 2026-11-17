@@ -19,10 +19,10 @@ const WEATHER_TOOL = {
   type: 'function',
   function: {
     name: 'get_weather',
-    description: '查询指定城市的当前天气',
+    description: 'Query the current weather of the specified city',
     parameters: {
       type: 'object',
-      properties: { city: { type: 'string', description: '城市名，例如 北京' } },
+      properties: { city: { type: 'string', description: 'City name, e.g. Beijing' } },
       required: ['city'],
     },
   },
@@ -32,10 +32,10 @@ const TIME_TOOL = {
   type: 'function',
   function: {
     name: 'get_local_time',
-    description: '查询指定城市的当前本地时间',
+    description: 'Query the current local time of the specified city',
     parameters: {
       type: 'object',
-      properties: { city: { type: 'string', description: '城市名，例如 上海' } },
+      properties: { city: { type: 'string', description: 'City name, e.g. Shanghai' } },
       required: ['city'],
     },
   },
@@ -102,13 +102,13 @@ function reasoningOf(body) {
 
 export const CASES = {
   stream: {
-    label: '流式 SSE',
+    label: 'Streaming SSE',
     severity: 'required',
     async run({ options, model, chat }) {
       const result = await chat(options, {
         model,
         stream: true,
-        messages: [{ role: 'user', content: '数到三，只输出数字，用逗号分隔。' }],
+        messages: [{ role: 'user', content: 'Count to three, output only the numbers, separated by commas.' }],
       })
       if (!result.ok) return { status: 'fail', error: result.error }
       const dataFrames = result.frames.filter(frame => frame.data)
@@ -135,14 +135,14 @@ export const CASES = {
   },
 
   tool_call: {
-    label: '工具调用',
+    label: 'Tool calling',
     severity: 'required',
     async run({ options, model, catalog, chat }) {
       // 第一次用常规提示；失败后换更硬的约束再试一次 —— 模型偶尔就是不调工具，
       // 单次失败不足以下结论（见 SKILL 第 6 节）。
       const prompts = [
-        '请调用 get_weather 工具查询北京的天气，不要用文字回答。',
-        '必须调用 get_weather 工具，参数 city 填「北京」。禁止直接回答，只允许发起工具调用。',
+        'Please use the get_weather tool to look up the weather in Beijing; do not answer in text.',
+        'You must call the get_weather tool with the city parameter set to "Beijing". Answering directly is forbidden; only initiating the tool call is allowed.',
       ]
       let last = null
       for (const prompt of prompts) {
@@ -179,30 +179,30 @@ export const CASES = {
         // 「必需项全部通过」，那是误导（见 SKILL 第 0 节的红线）。
         return {
           status: 'fail',
-          error: '/v1/models 声明该模型不支持工具调用：agent 客户端（Claude Code / Codex 等）用不了这家',
+          error: '/v1/models Declares that the model does not support tool calling: agent clients (Claude Code / Codex, etc.) cannot use this provider",',
           evidence: detail,
         }
       }
-      return { status: 'fail', error: '上游没有返回 tool_calls（已重试一次）', evidence: detail }
+      return { status: 'fail', error: 'Upstream returned no tool_calls (retried once)', evidence: detail }
     },
   },
 
   tool_roundtrip: {
-    label: '工具结果回灌',
+    label: 'Tool result backfill',
     severity: 'required',
     dependsOn: 'tool_call',
     async run({ options, model, chat }) {
       const first = await chat(options, {
         model,
         stream: false,
-        messages: [{ role: 'user', content: '请调用 get_weather 工具查询北京的天气。' }],
+        messages: [{ role: 'user', content: 'Please use the get_weather tool to look up the weather in Beijing.' }],
         tools: [WEATHER_TOOL],
         tool_choice: 'auto',
       })
       if (!first.ok) return { status: 'fail', error: first.error }
       const call = toolCallsOf(first.body).find(item => item?.function?.name === 'get_weather')
       if (!call) {
-        return { status: 'skip', reason: '第一轮没有拿到 tool_calls，无法回灌' }
+        return { status: 'skip', reason: 'The first round got no tool_calls; cannot backfill' }
       }
       // 上游没给 id 时自己造一个：assistant.tool_calls 与 tool 消息必须配对，
       // 缺 id 会被严格上游判成畸形历史（网关侧 `protocol::history` 会尝试修，
@@ -213,14 +213,14 @@ export const CASES = {
         stream: false,
         tools: [WEATHER_TOOL],
         messages: [
-          { role: 'user', content: '请调用 get_weather 工具查询北京的天气。' },
+          { role: 'user', content: 'Please use the get_weather tool to look up the weather in Beijing.' },
           { role: 'assistant', content: '', tool_calls: [{ ...call, id: callId }] },
           {
             role: 'tool',
             tool_call_id: callId,
-            content: '{"city":"北京","weather":"晴","temperature":26}',
+            content: '{"city":"Beijing","weather":"Sunny","temperature":26}ather":"Sunny","temperature":26}',
           },
-          { role: 'user', content: '根据上面的工具结果，用一句话告诉我北京天气。' },
+          { role: 'user', content: 'Based on the tool results above, tell me the weather in Beijing in one sentence.' },
         ],
       })
       if (!second.ok) {
@@ -235,7 +235,7 @@ export const CASES = {
       if (!reply.trim()) {
         return {
           status: 'fail',
-          error: '回灌后没有正文（可能又发起了一次工具调用，或上游丢弃了 tool 消息）',
+          error: 'After the backfill there was no body (it may have issued another tool call, or the upstream dropped the tool message)',
           evidence: {
             toolCalls: again.length,
             finishReason: firstChoice(second.body)?.finish_reason,
@@ -250,12 +250,12 @@ export const CASES = {
   },
 
   parallel_tools: {
-    label: '并行工具调用',
+    label: 'Parallel tool calls',
     severity: 'optional',
     async run({ options, model, catalog, chat }) {
       const prompt =
-        '请**同时**调用 get_weather 和 get_local_time 两个工具，参数 city 分别填「北京」和「上海」。' +
-        '不要用文字回答，只发起这两个工具调用。'
+        'Please call both the get_weather and get_local_time tools at the same time, with city set to "Beijing" and "Shanghai" respectively.",' +
+        'Do not answer in text; only issue these two tool calls.'
       let last = null
       for (let attempt = 0; attempt < 2; attempt += 1) {
         last = await chat(options, {
@@ -283,28 +283,28 @@ export const CASES = {
       if (catalog?.supports_tool_call === false && !options.force) {
         return {
           status: 'fail',
-          error: '/v1/models 声明该模型不支持工具调用',
+          error: '/v1/models Declare that this model does not support tool calling',
           evidence: detail,
         }
       }
       if (calls.length === 1) {
         // 单次返回一个 call 是**允许**的（模型可能打算分两轮），所以这只是
         // 「没有并行能力」的读数，不是适配缺陷 —— 可选项，不阻断验收。
-        return { status: 'info', reason: '只返回 1 个 tool_call（模型可能分两轮返回）', evidence: detail }
+        return { status: 'info', reason: 'Only 1 total tool_call was returned (the model may return it in two rounds)', evidence: detail }
       }
-      return { status: 'fail', error: '没有返回 tool_calls', evidence: detail }
+      return { status: 'fail', error: 'No tool_calls returned', evidence: detail }
     },
   },
 
   image: {
-    label: '图片输入',
+    label: 'Image input',
     severity: 'optional',
     async run({ options, model, catalog, chat }) {
       // 目录**明确声明**不支持时直接跳过：这时候再发图片请求，无论上游是 400
       // 还是静默返回空正文，结论都只是「目录说得对」，没有新信息。
       // `--force` 用于「怀疑目录写错了」—— 那种情况下才值得真发一次。
       if (catalog?.supports_images === false && !options.force) {
-        return { status: 'skip', reason: '/v1/models 声明不支持图片输入（--force 可强测）' }
+        return { status: 'skip', reason: '/v1/models Declares no image input support (--force can override the test)' }
       }
       const result = await chat(options, {
         model,
@@ -313,7 +313,7 @@ export const CASES = {
           {
             role: 'user',
             content: [
-              { type: 'text', text: '这张图片是什么颜色？只回答颜色名。' },
+              { type: 'text', text: 'What color is this image? Answer with the color name only.' },
               { type: 'image_url', image_url: { url: RED_PNG_DATA_URL } },
             ],
           },
@@ -322,7 +322,7 @@ export const CASES = {
       if (!result.ok) return { status: 'fail', error: result.error }
       const reply = contentOf(result.body)
       if (!reply.trim()) {
-        return { status: 'fail', error: '图片请求没有返回正文' }
+        return { status: 'fail', error: 'The image request did not return a body' }
       }
       return {
         status: 'pass',
@@ -335,19 +335,19 @@ export const CASES = {
   },
 
   reasoning: {
-    label: '思考 / 推理',
+    label: 'Reasoning / 推理',
     severity: 'optional',
     async run({ options, model, catalog, chat }) {
       // 与 image 同一处置：目录声明不支持时直接跳过（`--force` 才真发）。
       if (catalog?.supports_reasoning === false && !options.force) {
-        return { status: 'skip', reason: '/v1/models 声明不支持思考（--force 可强测）' }
+        return { status: 'skip', reason: '/v1/models Declares no thinking support (--force can override the test)' }
       }
       const result = await chat(options, {
         model,
         stream: false,
         reasoning_effort: 'high',
         messages: [
-          { role: 'user', content: '一个笼子里有鸡和兔共 10 只，脚共 28 只。鸡和兔各几只？只给出答案。' },
+          { role: 'user', content: 'A cage holds 10 chickens and rabbits together, 28 legs in total. How many of each are there? Give the answer only.",' },
         ],
       })
       if (!result.ok) return { status: 'fail', error: result.error }
@@ -360,14 +360,14 @@ export const CASES = {
       }
       return {
         status: 'fail',
-        error: '响应里没有 reasoning_content / reasoning 字段（模型可能只回正文）',
+        error: 'The response has no reasoning_content / reasoning field (the model may have returned only the body)",',
         evidence: { reply: contentOf(result.body).slice(0, 120) },
       }
     },
   },
 
   json_schema: {
-    label: '结构化输出',
+    label: 'Structured output',
     severity: 'optional',
     async run({ options, model, chat }) {
       const result = await chat(options, {
@@ -376,7 +376,7 @@ export const CASES = {
         messages: [
           {
             role: 'user',
-            content: '用 JSON 描述北京的天气，包含 city（字符串）与 temperature（数字）两个字段。',
+            content: 'Describe the weather in Beijing as JSON, with two fields: city (string) and temperature (number).",',
           },
         ],
         response_format: {
@@ -401,13 +401,13 @@ export const CASES = {
       try {
         const parsed = JSON.parse(candidate)
         if (typeof parsed?.city !== 'string' || typeof parsed?.temperature !== 'number') {
-          return { status: 'fail', error: 'JSON 能解析但字段不符合 schema', evidence: { parsed } }
+          return { status: 'fail', error: 'JSON It parses, but the fields do not match the schema', evidence: { parsed } }
         }
         return { status: 'pass', evidence: { parsed } }
       } catch {
         return {
           status: 'fail',
-          error: '响应正文不是可解析的 JSON',
+          error: 'The response body is not parseable JSON',
           evidence: { reply: reply.slice(0, 200) },
         }
       }
@@ -415,14 +415,14 @@ export const CASES = {
   },
 
   usage: {
-    label: 'usage 上报',
+    label: 'usage Report',
     severity: 'optional',
     async run({ options, model, chat }) {
       const result = await chat(options, {
         model,
         stream: true,
         stream_options: { include_usage: true },
-        messages: [{ role: 'user', content: '说一句「你好」。' }],
+        messages: [{ role: 'user', content: 'Say "hello".' }],
       })
       if (!result.ok) return { status: 'fail', error: result.error }
       let usage = null
@@ -435,7 +435,7 @@ export const CASES = {
       if (!usage) {
         return {
           status: 'fail',
-          error: '没有任何帧带 usage（请求已带 stream_options.include_usage）',
+          error: 'None of the frames carried usage (the request already included stream_options.include_usage)",',
           evidence: { frames: result.frames.length },
         }
       }
@@ -444,7 +444,7 @@ export const CASES = {
         // 真值只在 usage-only 收尾块里；不注入 include_usage 就恒为零）。
         return {
           status: 'fail',
-          error: 'usage 全为零（上游可能只在特定帧给真值，或压根没统计）',
+          error: 'usage All zero (the upstream may only give real values on certain frames, or may not have counted at all)',
           evidence: { usage },
         }
       }
@@ -460,7 +460,7 @@ export const CASES = {
   },
 
   context_window: {
-    label: '上下文窗口',
+    label: 'Context window',
     severity: 'optional',
     async run({ catalog }) {
       // 这一项**不发上游请求**：它读的是目录声明，与其余用例性质不同，
@@ -468,7 +468,7 @@ export const CASES = {
       if (catalog?.max_input_tokens == null) {
         return {
           status: 'info',
-          reason: '/v1/models 没有声明 max_input_tokens（不影响转发，但客户端无法估算截断）',
+          reason: '/v1/models max_input_tokens is not declared (forwarding is unaffected, but clients cannot estimate truncation)",',
         }
       }
       return {

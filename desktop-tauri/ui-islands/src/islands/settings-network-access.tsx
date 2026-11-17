@@ -38,53 +38,53 @@ export function NetworkAccessPanel({ snap }: { snap: SettingsSnapshot }) {
   return (
     <Card render={<section />} className='panel'>
       <CardHeader className='panel-head'>
-        <h2>{t('网络访问')}</h2>
+        <h2>{t('Network access')}</h2>
         <span className='tip-q' data-tip={TIPS.networkAccess} />
         <Badge variant={!ready ? (app.status === 'unavailable' ? 'destructive' : 'outline') : app.lanAccess ? 'success' : 'outline'}>
-          {!ready ? (app.status === 'unavailable' ? t('不可用') : t('检测中…')) : app.lanAccess ? t('已开启') : t('仅本机')}
+          {!ready ? (app.status === 'unavailable' ? t('Unavailable') : t('Checking…')) : app.lanAccess ? t('Enabled') : t('This device only')}
         </Badge>
       </CardHeader>
       <CardContent className='panel-body'>
         <div className='settings-switches'>
           <Label className='switch'>
             <Switch id='settings-lan-access' checked={app.lanAccess} disabled={disabled} onCheckedChange={toggleLan} />
-            <span>{t('允许其他设备访问网关')}</span>
+            <span>{t('Allow other devices to access the gateway')}</span>
           </Label>
           <Label className='switch'>
             <Switch id='settings-lan-panel' checked={app.lanPanel} disabled={disabled || !app.lanAccess} onCheckedChange={toggleLanPanel} />
-            <span>{t('同时开放网页管理面板')}</span>
+            <span>{t('Also expose the web admin panel')}</span>
           </Label>
         </div>
         <div className='settings-state'>
           {!ready
-            ? app.status === 'unavailable' ? t('未能读取网络访问设置，请稍后重试') : t('检测中…')
+            ? app.status === 'unavailable' ? t('Could not load network access settings. Please try again later.') : t('Checking…')
             : app.lanAccess
-              ? t('已开启：监听 0.0.0.0，允许其他设备访问。')
-              : t('未开启：网关只监听 127.0.0.1，仅本机可以访问。')}
+              ? t('Enabled: listening on 0.0.0.0 to allow access from other devices.')
+              : t('Off: the gateway listens only on 127.0.0.1 and is reachable only from this machine.')}
         </div>
         {ready && app.lanAccess ? (
           <div className='mt-3 space-y-2 text-sm'>
             {base ? (
               <>
                 <div className='flex flex-wrap items-baseline gap-x-2 gap-y-1'>
-                  <span className='text-muted-foreground'>{t('本机 API 地址')}</span>
+                  <span className='text-muted-foreground'>{t('This device\'s API address')}</span>
                   <code className='break-all'>{base}/v1</code>
                 </div>
                 {app.lanPanel ? (
                   <div className='flex flex-wrap items-baseline gap-x-2 gap-y-1'>
-                    <span className='text-muted-foreground'>{t('网页管理地址')}</span>
+                    <span className='text-muted-foreground'>{t('Web management address')}</span>
                     <code className='break-all'>{base}</code>
                   </div>
                 ) : null}
-                <div className='hint'>{t('访问时请使用目标设备能连接到的地址；这里显示的本机地址不代表公网可达。')}</div>
+                <div className='hint'>{t('Use an address reachable from the connecting device. The local address shown here does not imply public internet reachability.')}</div>
               </>
             ) : (
-              <div className='hint'>{t('暂未获取到本机访问地址，请使用其他设备能连接到的本机 IP 与网关端口。')}</div>
+              <div className='hint'>{t('The local access address is not available yet. Use this machine\'s IP and gateway port that the other device can reach.')}</div>
             )}
           </div>
         ) : null}
         <div className='hint retention-note'>
-          {t('开启后监听所有 IPv4 网卡（0.0.0.0），并不局限于局域网，也不会自动开放到公网；实际访问范围取决于网络与防火墙设置。修改后需要重启应用。')}
+          {t('Enabling this listens on all IPv4 interfaces (0.0.0.0), not just the LAN, but does not automatically expose the gateway to the internet. Actual access depends on your network and firewall settings. Changes require an app restart.')}
         </div>
       </CardContent>
     </Card>
@@ -96,37 +96,37 @@ const NETWORK_CONFIRM_COPY: Record<
   { title: string; body: (panel: boolean) => React.ReactNode; label: string }
 > = {
   enable: {
-    title: t('开启网络访问'),
+    title: t('Enable network access'),
     body: () => (
       <>
-        {t('开启后网关将监听所有 IPv4 网卡（0.0.0.0），访问范围不再限于本机，也不局限于局域网。是否能从公网访问取决于网络与防火墙设置。')}<br />
-        {t('开启前需要注册面板管理员，已注册会跳过此步骤。管理接口需要管理员会话或网关 Key；API 调用需要启用的网关 Key，没有时会自动创建一把「默认」Key。')}<br />
-        <strong>{t('保存后应用将重启以生效。')}</strong>{t('确定继续？')}
+        {t('The gateway will listen on all IPv4 interfaces (0.0.0.0). Access is no longer limited to this machine or to the LAN. Public internet access depends on your network and firewall settings.')}<br />
+        {t('A panel administrator must be registered before enabling this; existing administrators skip this step. Management endpoints require an admin session or gateway key. API calls require an enabled gateway key; a default key is created automatically if none is available.')}<br />
+        <strong>{t('The app will restart after saving for this to take effect.')}</strong>{t(' Continue?')}
       </>
     ),
-    label: t('继续'),
+    label: t('Continue'),
   },
   disable: {
-    title: t('关闭网络访问'),
+    title: t('Disable network access'),
     body: () => (
       <>
-        {t('关闭后网关只监听 127.0.0.1，其他设备将无法直接连接，网页管理面板也会一并关闭。已配置的网关 Key 与账号不受影响。')}<br />
-        <strong>{t('保存后应用将重启以生效。')}</strong>{t('确定继续？')}
+        {t('The gateway will listen only on 127.0.0.1, preventing direct connections from other devices. The web management panel will also be disabled. Existing gateway keys and accounts are not affected.')}<br />
+        <strong>{t('The app will restart after saving for this to take effect.')}</strong>{t(' Continue?')}
       </>
     ),
-    label: t('关闭并重启'),
+    label: t('Close & Restart'),
   },
   panel: {
-    title: t('变更网页管理面板'),
+    title: t('Change Web Admin Panel'),
     body: panel => (
       <>
         {panel
-          ? t('开启后，能连接到网关的设备可通过浏览器访问网页管理面板，需使用管理员账号登录。访问范围与网关相同，并不局限于局域网。')
-          : t('关闭后不再提供网页管理面板，本机桌面程序仍可正常管理；已开启的 API 转发不受影响。')}<br />
-        <strong>{t('保存后应用将重启以生效。')}</strong>{t('确定继续？')}
+          ? t('Devices that can reach the gateway will be able to open the web management panel in a browser and sign in with an administrator account. Its access scope is the same as the gateway\'s and is not limited to the LAN.')
+          : t('The web management panel will no longer be served. You can still manage the gateway in the local desktop app, and API forwarding is not affected.')}<br />
+        <strong>{t('The app will restart after saving for this to take effect.')}</strong>{t(' Continue?')}
       </>
     ),
-    label: t('保存并重启'),
+    label: t('Save & Restart'),
   },
 }
 
@@ -149,20 +149,20 @@ export function NetworkAccessDialog({ confirm, register }: { confirm: LanConfirm
         {register !== null ? (
           <>
             <DialogHeader>
-              <DialogTitle>{t('注册管理员账号')}</DialogTitle>
+              <DialogTitle>{t('Register Admin Account')}</DialogTitle>
             </DialogHeader>
             <DialogBody>
-              <div>{t('允许其他设备访问前，需要设置面板管理员账号与密码。注册完成后会继续开启流程并重启应用。')}</div>
+              <div>{t('Set a panel administrator username and password before allowing access from other devices. After registration, network access will be enabled and the app will restart.')}</div>
               <form onSubmit={event => { event.preventDefault(); if (!register.busy) submitRegister() }}>
-                <Label htmlFor='lan-admin-name' className='mt-3.5 mb-[5px] block text-[12.5px]'>{t('账号')}</Label>
-                <Input ref={nameRef} id='lan-admin-name' autoComplete='username' placeholder={t('管理员账号')} disabled={register.busy} />
-                <Label htmlFor='lan-admin-password' className='mt-3.5 mb-[5px] block text-[12.5px]'>{t('密码')}</Label>
+                <Label htmlFor='lan-admin-name' className='mt-3.5 mb-[5px] block text-[12.5px]'>{t('Accounts')}</Label>
+                <Input ref={nameRef} id='lan-admin-name' autoComplete='username' placeholder={t('Admin account')} disabled={register.busy} />
+                <Label htmlFor='lan-admin-password' className='mt-3.5 mb-[5px] block text-[12.5px]'>{t('Password')}</Label>
                 <Input
                   ref={passwordRef}
                   id='lan-admin-password'
                   type='password'
                   autoComplete='new-password'
-                  placeholder={t('至少 8 位')}
+                  placeholder={t('At least 8 characters')}
                   disabled={register.busy}
                 />
               </form>
@@ -171,10 +171,10 @@ export function NetworkAccessDialog({ confirm, register }: { confirm: LanConfirm
             <DialogFooter>
               <div className='mr-auto' />
               <Button ref={cancelRef} variant='outline' onClick={cancelLanRegister} disabled={register.busy}>
-                {t('取消')}
+                {t('Cancel')}
               </Button>
               <Button onClick={submitRegister} disabled={register.busy}>
-                {register.busy ? t('正在注册…') : t('注册并开启')}
+                {register.busy ? t('Registering…') : t('Register & Enable')}
               </Button>
             </DialogFooter>
           </>
@@ -188,9 +188,9 @@ export function NetworkAccessDialog({ confirm, register }: { confirm: LanConfirm
             </DialogBody>
             <DialogFooter>
               <div className='mr-auto' />
-              <Button ref={cancelRef} variant='outline' onClick={() => resolveLanConfirm(false)}>{t('取消')}</Button>
+              <Button ref={cancelRef} variant='outline' onClick={() => resolveLanConfirm(false)}>{t('Cancel')}</Button>
               <Button onClick={() => resolveLanConfirm(true)}>
-                {confirm ? NETWORK_CONFIRM_COPY[confirm.mode].label : t('继续')}
+                {confirm ? NETWORK_CONFIRM_COPY[confirm.mode].label : t('Continue')}
               </Button>
             </DialogFooter>
           </>

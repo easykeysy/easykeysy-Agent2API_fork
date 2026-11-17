@@ -57,10 +57,10 @@
    * 散在函数里。
    */
   const UNIT_WORDS = {
-    'zh-Hans': { wan: '万', yi: '亿' },
-    'zh-Hant': { wan: '萬', yi: '億' },
-    ja: { wan: '万', yi: '億' },
-    ko: { wan: '만', yi: '억' },
+    'zh-Hans': { wan: '10k', yi: '100M' },
+    'zh-Hant': { wan: 'Ten-thousand', yi: 'Billion' },
+    ja: { wan: '10k', yi: 'Billion' },
+    ko: { wan: '(Korean) 10,000', yi: '(Korean) 100 million' },
   };
 
   /** 当前界面语言（ui/i18n.js 注入）；没就位时按简体处理，维持改造前的中文观感 */

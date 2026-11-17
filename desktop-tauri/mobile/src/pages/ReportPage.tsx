@@ -94,16 +94,16 @@ export function ReportPage() {
     <div className='m-page' ref={pull.bindRef}>
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
       <PageHead
-        title={t('报表')}
+        title={t('Reports')}
         subtitle={
           data?.startDate && data?.endDate
             ? t('{start} ~ {end}', { start: data.startDate, end: data.endDate })
-            : t('统计区间加载中')
+            : t('Loading the statistics range')
         }
       />
 
       <PageAutoRefresh settings={auto} onRefresh={load} />
-      <DateRangeFilter range={range} dates={dates} onRangeChange={setRange} label={t('报表时间范围')}
+      <DateRangeFilter range={range} dates={dates} onRangeChange={setRange} label={t('Report time range')}
         onDatesChange={next => { setDates(next); saveCustomRange(CUSTOM_RANGE_KEY, next) }} />
 
       {error ? <ErrorNote text={error} /> : null}
@@ -112,24 +112,24 @@ export function ReportPage() {
       {data ? (
         <>
           <div className='m-section' style={{ marginTop: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
-            <StatCard label={t('总 Token')} value={formatTokens(tokens)} sub={t('输入 + 输出')} />
+            <StatCard label={t('Total tokens')} value={formatTokens(tokens)} sub={t('Input + output')} />
             <StatCard
-              label={t('成功率')}
+              label={t('Success rate')}
               value={rate === null ? '—' : formatPercent(rate)}
-              sub={t('失败 {n} 次', { n: formatInt(requests - successful) })}
+              sub={t('{n} failed times', { n: formatInt(requests - successful) })}
             />
-            <StatCard label={t('总请求数')} value={formatInt(requests)} sub={t('区间内累计')} />
+            <StatCard label={t('Total requests')} value={formatInt(requests)} sub={t('Cumulative within the range')} />
             <StatCard
-              label={t('缓存命中率')}
+              label={t('Cache hit rate')}
               value={cacheRate === null ? '—' : formatPercent(cacheRate)}
-              sub={t('近 24 小时')}
+              sub={t('Last 24 hours')}
             />
           </div>
 
           <MobileReportTrend summary={data} />
 
           <div className='m-section'>
-            <SectionHead title={t('模型用量')} />
+            <SectionHead title={t('Model usage')} />
             <Card className='m-card' style={{ padding: '4px 15px 8px' }}>
               {topModels.length ? (
                 topModels.map((item, index) => {
@@ -156,13 +156,13 @@ export function ReportPage() {
                   )
                 })
               ) : (
-                <Empty text={t('所选范围内还没有模型用量')} />
+                <Empty text={t('No model usage in the selected range')} />
               )}
             </Card>
           </div>
 
           <div className='m-section'>
-            <SectionHead title={t('提供商用量')} />
+            <SectionHead title={t('Provider usage')} />
             <Card className='m-card'>
               {topProviders.length ? (
                 topProviders.map(item => (
@@ -170,51 +170,51 @@ export function ReportPage() {
                     <ProviderLogo id={item.id} label={item.label} />
                     <div className='m-grow'>
                       <div className='m-t1'>{providerLabel(item.id, item.label)}</div>
-                      <div className='m-t2'>{t('{n} 次请求', { n: formatInt(Number(item.requests) || 0) })}</div>
+                      <div className='m-t2'>{t('{n} requests', { n: formatInt(Number(item.requests) || 0) })}</div>
                     </div>
                     <span className='m-val'>{formatCompact(Number(item.totalTokens) || 0)}</span>
                   </div>
                 ))
               ) : (
-                <Empty text={t('所选范围内还没有提供商用量')} />
+                <Empty text={t('No provider usage in the selected range')} />
               )}
             </Card>
           </div>
 
           <div className='m-section'>
-            <SectionHead title={t('账号用量')} />
+            <SectionHead title={t('Account usage')} />
             <Card className='m-card'>
               {topAccounts.length ? (
                 topAccounts.map(item => (
                   <div key={item.id || 'unknown'} className='m-row'>
                     <div className='m-grow'>
                       <div className='m-t1' style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.label || t('未知账号')}
+                        {item.label || t('Unknown account')}
                       </div>
-                      <div className='m-t2'>{t('{n} 次请求', { n: formatInt(Number(item.requests) || 0) })}</div>
+                      <div className='m-t2'>{t('{n} requests', { n: formatInt(Number(item.requests) || 0) })}</div>
                     </div>
                     <span className='m-val'>{formatCompact(Number(item.totalTokens) || 0)}</span>
                   </div>
                 ))
               ) : (
-                <Empty text={t('所选范围内还没有账号用量')} />
+                <Empty text={t('No account usage in the selected range')} />
               )}
             </Card>
           </div>
 
           <div className='m-section'>
-            <SectionHead title={t('活跃')} />
+            <SectionHead title={t('Active')} />
             <Card className='m-card m-card-pad' style={{ display: 'flex', gap: 8 }}>
-              <MiniStat label={t('活跃天数')} value={formatInt(Number(overview?.activeDays) || 0)} />
-              <MiniStat label={t('连续天数')} value={formatInt(Number(overview?.streak) || 0)} />
-              <MiniStat label={t('Top 模型')} value={overview?.topModel?.model || '—'} mono />
+              <MiniStat label={t('Active days')} value={formatInt(Number(overview?.activeDays) || 0)} />
+              <MiniStat label={t('Consecutive days')} value={formatInt(Number(overview?.streak) || 0)} />
+              <MiniStat label={t('Top models')} value={overview?.topModel?.model || '—'} mono />
             </Card>
           </div>
 
           {session?.lastRequestModel ? (
             <div className='m-section'>
               <Card className='m-card m-card-pad' style={{ fontSize: 12, color: 'var(--m-text-3)' }}>
-                {t('最近一次请求使用的模型')}：
+                {t('The model used by the most recent request')}：
                 <span className='m-mono' style={{ color: 'var(--m-text-2)' }}> {session.lastRequestModel}</span>
               </Card>
             </div>

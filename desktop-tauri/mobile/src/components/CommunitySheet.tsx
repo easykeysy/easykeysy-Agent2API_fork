@@ -30,11 +30,11 @@ export function CommunitySheet({
     <Sheet open={open} onOpenChange={next => { if (!next) onClose() }}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>{t('社区与支持')}</SheetTitle>
+          <SheetTitle>{t('Community & support')}</SheetTitle>
         </SheetHeader>
         <SheetBody>
           <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.65, color: 'var(--m-text-2)' }}>
-            {t('遇到问题或有使用心得，欢迎到群里交流。')}
+            {t('Questions and tips are welcome in any of these groups.')}
           </p>
 
           {QQ_GROUPS.map((group, index) => (
@@ -42,7 +42,7 @@ export function CommunitySheet({
               key={group.no}
               type='button'
               className='m-row h-auto min-h-[52px] w-full justify-start rounded-none border-0 px-3.5 py-3 text-left'
-              onClick={() => void copyWithToast(group.no, t('QQ 群号'))}
+              onClick={() => void copyWithToast(group.no, t('QQQ group number'))}
               style={{
                 borderRadius: 'var(--m-r-md)',
                 border: '1px solid var(--m-line)',
@@ -58,19 +58,19 @@ export function CommunitySheet({
               </span>
               <div className='m-grow'>
                 <div className='m-t1' style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {t('QQ 群 {n}', { n: index + 1 })}
+                  {t('QQQ group {n}', { n: index + 1 })}
                   <span className='m-mono' style={{ fontSize: 11.5, color: 'var(--m-text-3)' }}>
                     {group.no}
                   </span>
                 </div>
                 <div className='m-t2 whitespace-normal'>
                   {group.nearlyFull
-                    ? t('即将满员，请优先加3群、4群')
-                    : t('点击复制群号')}
+                    ? t('Almost full — please join group 3 or 4 first')
+                    : t('Click to copy the group number')}
                 </div>
               </div>
               {group.nearlyFull ? (
-                <Badge tone='warn'>{t('即将满员')}</Badge>
+                <Badge tone='warn'>{t('Almost full')}</Badge>
               ) : (
                 <span style={{ color: 'var(--m-primary)', display: 'flex', flex: 'none' }}>
                   <Icon name='copy' style={{ width: 16, height: 16 }} />
@@ -103,8 +103,8 @@ export function CommunitySheet({
                 <BrandGlyph id={link.id} />
               </span>
               <div className='m-grow'>
-                <div className='m-t1'>{t('Telegram 群')}</div>
-                <div className='m-t2'>{t('点击在浏览器中打开')}</div>
+                <div className='m-t1'>{t('Telegram group')}</div>
+                <div className='m-t2'>{t('Click to open in your browser')}</div>
               </div>
               <span className='m-chev'>
                 <Icon name='link' />
@@ -113,12 +113,12 @@ export function CommunitySheet({
           ))}
 
           <p style={{ margin: '2px 0 0', fontSize: 11.5, lineHeight: 1.7, color: 'var(--m-text-3)' }}>
-            {t('在 QQ 里搜索群号即可加入。')}
+            {t('Search the group number in QQ to join.')}
           </p>
         </SheetBody>
         <SheetFooter>
           <Button size='touch' variant='outline' type='button' className='m-btn m-ghost w-full' style={{ flex: 1 }} onClick={onClose}>
-            {t('关闭')}
+            {t('Close')}
           </Button>
         </SheetFooter>
       </SheetContent>

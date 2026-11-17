@@ -137,7 +137,7 @@ pub fn write(path: &Path, value: &mut Value, profile: &Profile) -> Result<Vec<Ch
     let id = "openai-compatible";
     if !profile.native.source_id.is_empty() && profile.native.source_id != id {
         return Err(
-            "仅适配 Cline CLI 的 OpenAI Compatible 提供商；其他认证请在客户端中管理".into(),
+            "仅适配 Cline CLI — see the OpenAI Compatible 提供商；其他认证请在客户端中管理".into(),
         );
     }
     let imported = profile.native.entry.clone();

@@ -303,7 +303,7 @@ pub fn is_enabled(service: &str, protocol: &str) -> bool {
 
 pub fn set_enabled(service: &str, protocol: &str, enabled: bool) -> Result<Value, String> {
     if endpoint(service, protocol).is_empty() {
-        return Err(format!("服务 {service} 不支持 {protocol} 协议"));
+        return Err(format!("Service {service} Not supported {protocol} Protocol"));
     }
     update(|config_value| {
         config_value
@@ -388,8 +388,8 @@ pub fn provider_display_name(provider: &str) -> &'static str {
         "querit" => "Querit",
         "firecrawl" => "Firecrawl",
         "ollama" => "Ollama Web Search",
-        "workbuddy" => "WorkBuddy 国内版",
-        "workbuddy-intl" => "WorkBuddy 国际版",
+        "workbuddy" => "WorkBuddy China edition",
+        "workbuddy-intl" => "WorkBuddy International edition",
         "kiro" => "Kiro",
         _ => "",
     }
@@ -449,7 +449,7 @@ pub fn update_provider(
     }
     if is_account_provider(provider) {
         if api_key.is_some_and(|key| !key.trim().is_empty()) {
-            return Err("该搜索来源使用已有账号，不接受 API Key".into());
+            return Err("This search source uses an existing account and does not accept an API Key".into());
         }
         let account_id = account_id.map(str::trim);
         if let Some(id) = account_id.filter(|id| !id.is_empty()) {
@@ -465,7 +465,7 @@ pub fn update_provider(
         return Ok(json!({ "success": true, "provider": provider, "account_id": entry.account_id }));
     }
     if account_id.is_some() {
-        return Err("该搜索来源使用 API Key，不接受账号绑定".into());
+        return Err("This search source uses an API Key and does not accept account bindings".into());
     }
     let api_key = api_key.map(str::trim).filter(|value| !value.is_empty());
     let encrypted = match api_key {
@@ -563,7 +563,7 @@ pub fn update_selection(
     let mut next_search = None;
     if let Some(items) = search {
         if items.is_empty() {
-            return Err("批量网页搜索至少选择一个提供商".into());
+            return Err("Select at least one provider for batch web search".into());
         }
         if items.iter().any(|item| !is_search_provider(item)) {
             return Err("搜索提供商包含未知项".into());
@@ -578,7 +578,7 @@ pub fn update_selection(
     }
     if let Some(provider) = fetch.as_deref() {
         if !is_fetch_provider(provider) {
-            return Err("该提供商不支持网页抓取".into());
+            return Err("This provider does not support page fetching".into());
         }
     }
     update(|config_value| {

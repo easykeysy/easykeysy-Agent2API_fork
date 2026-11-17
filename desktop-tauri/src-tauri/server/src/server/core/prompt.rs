@@ -113,9 +113,9 @@ impl PromptMode {
     /// 界面与日志用的中文标签
     pub fn label(self) -> &'static str {
         match self {
-            PromptMode::Passthrough => "透传客户端 system",
-            PromptMode::Custom => "替换为网关提示词",
-            PromptMode::Append => "追加网关提示词",
+            PromptMode::Passthrough => "Passthrough client system",
+            PromptMode::Custom => "Replace with gateway prompt",
+            PromptMode::Append => "Append gateway prompt",
         }
     }
 
@@ -157,9 +157,9 @@ impl PromptSource {
 
     pub fn label(self) -> &'static str {
         match self {
-            PromptSource::None => "不透传（passthrough）",
-            PromptSource::BuiltIn => "内置默认提示词",
-            PromptSource::File => "提示词文件",
+            PromptSource::None => "不透传（passthrough)",
+            PromptSource::BuiltIn => "the built-in default prompt",
+            PromptSource::File => "Prompt File",
             PromptSource::Inline => "界面里编辑的提示词",
         }
     }

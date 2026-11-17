@@ -57,8 +57,8 @@ gradle.taskGraph.whenReady { graph ->
     def buildsRelease = graph.allTasks.any { it.name.toLowerCase().contains('release') }
     if (buildsRelease && !keystorePropertiesFile.exists()) {
         throw new GradleException(
-            "缺少 android/keystore.properties —— release 包需要签名密钥。" +
-            "照 keystore.properties.example 建一份，并把 agent2api-release.jks 放回 android/ 目录。"
+            "Missing android/keystore.properties—— release The package needs a signing key." +
+            "Create one modeled on keystore.properties.example, and put agent2api-release.jks back in the android/ directory."
         )
     }
 }

@@ -45,12 +45,12 @@ export function RoutingAccountRow({ id, account, rank, joined, state, stateText,
   sorting?: AccountSorting | null; now?: number; settingsDisabled?: boolean; running?: boolean
   onDrag(event: React.PointerEvent): void; onMove(direction: number): void; onToggle(): void; onAccount?: () => void
 }) {
-  const name = account ? displayNameOf(account) : t('账号已移除')
+  const name = account ? displayNameOf(account) : t('Account removed')
   return <div data-route-sort={joined ? id : undefined} data-route-account={id} data-route-connected={joined ? '' : undefined}
     data-route-running={running ? '' : undefined} className={cn('routing-config-account', !joined && 'is-excluded', picked && 'is-picked',
       dragging && 'is-dragging', drop && `drop-${drop}`)}>
     <Button variant='ghost' size='icon-sm' className='routing-grip' disabled={orderLocked || !joined}
-      title={orderHint || t('拖动或按 Alt + 方向键调整顺序')} aria-label={t('拖动调整账号顺序')}
+      title={orderHint || t('Drag or press Alt + arrow keys to reorder')} aria-label={t('Drag to reorder accounts')}
       onPointerDown={onDrag} onKeyDown={event => routingOrderKey(event, onMove)}><RouteIcon name='gripVertical' size={14} /></Button>
     <span className='routing-account-rank'>{joined ? rank : '—'}</span>
     <span className='routing-account-avatar' aria-hidden='true'>{name.slice(0, 1).toUpperCase()}</span>
@@ -59,14 +59,14 @@ export function RoutingAccountRow({ id, account, rank, joined, state, stateText,
     </span>
     <RouteStateBadge state={state}>{stateText}</RouteStateBadge>
     {globalAccounts ? <Switch checked={joined} disabled={locked || !account} onCheckedChange={onToggle}
-      aria-label={t('启用账号 {account}', { account: name })} title={joined ? t('禁用账号') : t('启用账号')} />
+      aria-label={t('Enable account {account}', { account: name })} title={joined ? t('Disable account') : t('Enable account')} />
       : <Checkbox checked={joined} disabled={locked || (!account && !joined)} onCheckedChange={onToggle}
-        aria-label={t('{account} 参与本路由', { account: name })} title={joined ? t('移出本路由') : t('加入路由')} />}
+        aria-label={t('Include {account} in this route', { account: name })} title={joined ? t('Remove from this route') : t('Add to route')} />}
     {onAccount ? <Button variant='ghost' size='icon-sm' className='routing-settings-button' disabled={settingsDisabled}
-      title={t('账号设置')} aria-label={t('{account} · 账号设置', { account: name })} onClick={onAccount}><RouteIcon name='settings' size={14} /></Button> : null}
-    <RoutingActions label={t('账号操作')} actions={[
-      { label: t('提高优先级'), icon: 'arrowUp', disabled: orderLocked || !joined || first, onClick: () => onMove(-1) },
-      { label: t('降低优先级'), icon: 'arrowDown', disabled: orderLocked || !joined || last, onClick: () => onMove(1) },
+      title={t('Account settings')} aria-label={t('{account} · Account settings', { account: name })} onClick={onAccount}><RouteIcon name='settings' size={14} /></Button> : null}
+    <RoutingActions label={t('Account actions')} actions={[
+      { label: t('Raise priority'), icon: 'arrowUp', disabled: orderLocked || !joined || first, onClick: () => onMove(-1) },
+      { label: t('Lower priority'), icon: 'arrowDown', disabled: orderLocked || !joined || last, onClick: () => onMove(1) },
     ]} />
   </div>
 }

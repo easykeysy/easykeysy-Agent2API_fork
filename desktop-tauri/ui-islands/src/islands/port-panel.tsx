@@ -202,7 +202,7 @@ type PortSnapshot = {
 let snapshot: PortSnapshot = {
   backend: null,
   // web 模式下到这里就已经能拿到地址栏（web_shim 注入在 `<head>` 之后、所有界面脚本
-  // 之前），所以初值直接给真地址 —— 不必先闪一下 `127.0.0.1:3065` 再改成对的
+  // 之前），所以初值直接给真地址 —— 不必先闪一下 `127.0.0.1:3065` then change it to the right one
   gatewayBase: gatewayBaseFor(0, `http://127.0.0.1:${FALLBACK_PORT}`),
 }
 
@@ -271,7 +271,7 @@ async function sync(): Promise<void> {
   syncing = true
   try {
     const api = shared().workbuddyDesktop
-    if (!api) throw new Error('后端桥不可用')
+    if (!api) throw new Error('Backend bridge unavailable')
     const status = await api.getBackendStatus()
     const port = Number(status?.port) || 0
     const current = getSnapshot()
@@ -288,7 +288,7 @@ async function sync(): Promise<void> {
   } catch (error) {
     // 壳侧命令不可用（浏览器直开调试）或调用失败：保持上一次的结果，不清空
     // —— 清空会让状态灯无故熄灭
-    console.warn('读取后端状态失败:', errorMessage(error))
+    console.warn('Failed to read the backend state:', errorMessage(error))
   } finally {
     syncing = false
   }
@@ -302,12 +302,12 @@ function render(): void {
 
 /** 重启应用（壳侧会拉起新进程）；提示语由调用方给，因为触发场景不同 */
 async function restartApp(message?: string): Promise<void> {
-  toast(message || t('正在重启…'))
+  toast(message || t('Restarting…'))
   try {
     await shared().workbuddyDesktop?.restartApp()
     // 重启会带走本进程，新窗口由壳侧拉起；这里不做后续处理
   } catch (error) {
-    toast(t('重启失败：{reason}', { reason: errorMessage(error) }), 'err')
+    toast(t('Restart failed: {reason}', { reason: errorMessage(error) }), 'err')
   }
 }
 
@@ -317,9 +317,9 @@ async function restartApp(message?: string): Promise<void> {
 type EndPhase = 'idle' | 'querying' | 'ending'
 
 const END_LABELS: Record<EndPhase, string> = {
-  idle: t('结束占用进程'),
-  querying: t('查询中…'),
-  ending: t('结束中…'),
+  idle: t('End process'),
+  querying: t('Checking…'),
+  ending: t('Ending…'),
 }
 
 /**
@@ -345,23 +345,23 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
   // ── 状态灯与那一行文案：三种状态 + 「还没查过」 ──
   // 文案里的端口用 portLabel()（与顶栏徽标同一份读数），短标签由后端给
   let dotVariant: StatusDotProps['variant'] = 'muted'
-  let text = t('正在检查… · {port}', { port })
+  let text = t('Checking… · {port}', { port })
   if (ready === true) {
     dotVariant = 'success'
-    text = t('网关运行中 · {port}', { port })
+    text = t('Gateway running · {port}', { port })
   } else if (failure) {
     dotVariant = 'destructive'
-    text = t('{label} · {port}', { label: failure.label || t('网关启动失败'), port })
+    text = t('{label} · {port}', { label: failure.label || t('Gateway failed to start'), port })
   } else if (ready === false) {
-    text = t('网关启动中… · {port}', { port })
+    text = t('Gateway starting… · {port}', { port })
   }
 
   /** 完整说明（可能上百字）只进 title 与弹窗：状态条只有一行 */
   const title = failure
     ? failure.message ?? ''
     : ready === true
-      ? t('本地网关正在监听 {url}，可直接调用 OpenAI 兼容接口', { url: gatewayBase })
-      : t('正在确认网关是否已就绪')
+      ? t('The local Gateway is listening on {url}; the OpenAI-compatible API can be called directly', { url: gatewayBase })
+      : t('Checking whether the Gateway is ready')
 
   // 启动失败事件可能早于订阅，挂载时读取当前状态补齐。
   React.useEffect(() => {
@@ -402,26 +402,26 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
       if (!occupant) {
         // 没查到进程：多半是系统保留段（那里根本没有进程可杀）。
         // 这里不引导用户去杀进程，直接把出路指向换端口。
-        toast(t('端口 {port} 上没有查到监听进程，请改用「更换端口」', { port: info?.port ?? '' }), 'err')
+        toast(t('No process is listening on port {port}; use "Change port" instead', { port: info?.port ?? '' }), 'err')
         return
       }
       const lines = [
-        t('即将结束以下进程：'),
+        t('About to end the following process:'),
         '',
-        t('进程名：{name}', { name: String(occupant.name) }),
-        t('PID：{pid}', { pid: String(occupant.pid) }),
-        t('路径：{path}', { path: occupant.path || t('（未知）') }),
+        t('Process name: {name}', { name: String(occupant.name) }),
+        t('PID: {pid}', { pid: String(occupant.pid) }),
+        t('Path: {path}', { path: occupant.path || t('(unknown)') }),
         '',
-        t('结束它会强制退出该程序未保存的数据。确认继续？'),
+        t('Ending it will force-quit that program and unsaved data will be lost. Continue?'),
       ]
-      // 原生 confirm 在 Tauri 的 WebView 里不弹窗、直接放行（等于没有确认）——
+      // 原生 confirm 在 Tauri 的 WebView 里No dialog, let it pass directly (the same as no confirmation)——
       // 走自绘确认弹窗（wbConfirm）；text 形态内部会转义并保留换行
       const ask = shared().wbConfirm?.ask
       if (!ask) return
       const confirmed = await ask({
-        title: t('结束占用端口的进程'),
+        title: t('End the process holding the port'),
         text: lines.join('\n'),
-        okText: t('结束进程'),
+        okText: t('End process'),
         okClass: 'danger',
       })
       if (!confirmed) return
@@ -429,7 +429,7 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
       setPhase('ending')
       const result = await api.endPortOccupant()
       if (result?.released) {
-        toast(t('已结束进程 {name}（PID {pid}），端口已释放', {
+        toast(t('Ended process {name} (PID {pid}); the port is now free', {
           name: String(occupant.name),
           pid: String(occupant.pid),
         }))
@@ -437,21 +437,21 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
         // 问一句是否现在重启，而不是替用户决定重启。
         if (
           await ask({
-            title: t('重启程序'),
-            text: t('端口已释放。现在重启程序让网关用这个端口启动？'),
-            okText: t('重启'),
+            title: t('Restart app'),
+            text: t('The port is now free. Restart the app so the Gateway starts on this port?'),
+            okText: t('Restart'),
           })
         ) {
-          await restartApp(t('重启中…'))
+          await restartApp(t('Restarting…'))
         } else {
           await sync()
         }
       } else {
-        toast(t('进程已结束，但端口仍被占用，建议改用「更换端口」'), 'err')
+        toast(t('The process ended, but the port is still in use; try "Change port" instead'), 'err')
         await sync()
       }
     } catch (error) {
-      toast(t('结束失败：{reason}', { reason: errorMessage(error) }), 'err')
+      toast(t('Failed to end the process: {reason}', { reason: errorMessage(error) }), 'err')
     } finally {
       setPhase('idle')
     }
@@ -472,7 +472,7 @@ function SidebarStatus({ container }: { container: HTMLElement }) {
             </Button>
           ) : null}
           <Button size='sm' onClick={() => void openPortModal()}>
-            {t('更换端口')}
+            {t('Change port')}
           </Button>
         </div>
       ) : null}
@@ -512,9 +512,9 @@ window.addEventListener('wb:shell-layout', mountSidebarStatus)
 type SavePhase = 'idle' | 'checking' | 'saving'
 
 const SAVE_LABELS: Record<SavePhase, string> = {
-  idle: t('保存并重启'),
-  checking: t('校验中…'),
-  saving: t('保存中…'),
+  idle: t('Save & Restart'),
+  checking: t('Validating…'),
+  saving: t('Saving…'),
 }
 
 type PortModalProps = {
@@ -539,7 +539,7 @@ function PortModal({ status, onClose }: PortModalProps) {
   const selectOnFocusRef = React.useRef(true)
 
   const preview = Number(value) || 0
-  const statusText = status?.failure?.message || t('当前端口 {port}，网关运行正常。', { port: currentPort })
+  const statusText = status?.failure?.message || t('Current port: {port}. The Gateway is running normally.', { port: currentPort })
 
   /**
    * 保存新端口并重启：**先探测、再写盘、再重启**（顺序照旧，别调换）。
@@ -560,7 +560,7 @@ function PortModal({ status, onClose }: PortModalProps) {
     // 归一：number 输入框的 value 可能是空串 / 'abc'（Number → NaN），一律按 0
     const port = Number(value) || 0
     if (!port || port < 1024 || port > 65535) {
-      setMessage(t('端口需在 1024-65535 之间'))
+      setMessage(t('Port must be between 1024 and 65535'))
       return
     }
 
@@ -571,7 +571,7 @@ function PortModal({ status, onClose }: PortModalProps) {
       const check = await api.checkPort(port)
       if (!check?.ok) {
         // 不可用的原因由后端给（含「被系统保留」的完整说明），直接显示
-        setHint(check?.message || t('该端口不可用'))
+        setHint(check?.message || t('This port is unavailable'))
         return
       }
       if (check.same) {
@@ -581,11 +581,11 @@ function PortModal({ status, onClose }: PortModalProps) {
       setPhase('saving')
       const result = await api.changePort(port)
       if (result?.changed === false) {
-        setHint(t('与当前端口相同，无需重启'))
+        setHint(t('Same as the current port; no restart needed'))
         return
       }
       onClose()
-      await restartApp(t('端口已改为 {port}，正在重启…', { port }))
+      await restartApp(t('Port changed to {port}; restarting…', { port }))
     } catch (error) {
       setMessage(errorMessage(error))
     } finally {
@@ -599,22 +599,22 @@ function PortModal({ status, onClose }: PortModalProps) {
     <Dialog open onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('更换网关端口')}</DialogTitle>
+          <DialogTitle>{t('Change Gateway port')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <DialogSection>
-            <h3>{t('当前状态')}</h3>
+            <h3>{t('Current status')}</h3>
             {/* 完整说明由后端给（状态条那行塞不下），这里原样显示 */}
             <p>{statusText}</p>
           </DialogSection>
 
           <DialogSection>
-            <h3>{t('新端口')}</h3>
+            <h3>{t('New port')}</h3>
             {/* 原来是 .field-row（标签自然宽度 + 控件吃剩余），这里用同样的
                 弹性行表达；数字输入框由 ui/css 的 input[type=number] 限宽 130px */}
             <div className='flex flex-wrap items-center gap-2.5'>
               <Label htmlFor='port-input' className='text-[12.5px] whitespace-nowrap text-subtle'>
-                {t('端口号')}
+                {t('Port number')}
               </Label>
               <Input
                 id='port-input'
@@ -622,7 +622,7 @@ function PortModal({ status, onClose }: PortModalProps) {
                 min={1024}
                 max={65535}
                 step={1}
-                placeholder={t('例如 3066')}
+                placeholder={t('e.g. 3066')}
                 autoComplete='off'
                 className='max-w-[130px]'
                 value={value}
@@ -639,17 +639,17 @@ function PortModal({ status, onClose }: PortModalProps) {
               />
             </div>
             {hint ? <p>{hint}</p> : null}
-            <p>{t('端口需在 1024-65535 之间。1023 及以下是系统保留范围，普通程序无法监听。')}</p>
+            <p>{t('Port must be between 1024 and 65535. Ports 1023 and below are reserved by the system and cannot be listened on by regular programs.')}</p>
           </DialogSection>
 
           <DialogSection>
-            <h3>{t('换端口后要改的地方')}</h3>
+            <h3>{t('What to update after changing the port')}</h3>
             {/* 内联 <code> 是协议关键字、不进词典；两边中文碎片各自走 t()
                 （与 docs-page.tsx 同一条手法：整句塞一个键就保不住行内强调） */}
             <p>
-              {t('网关地址会变成 ')}
+              {t('The Gateway address will become ')}
               <code>{`http://127.0.0.1:${preview || '—'}`}</code>
-              {t('。已经把这个地址填进其它工具（Claude Code、Cherry Studio 等）的，需要一并改成新地址，否则那些工具会连不上。')}
+              {t('. If you have already put this address into other tools (Claude Code, Cherry Studio, etc.), update it there as well, or those tools will not be able to connect.')}
             </p>
           </DialogSection>
 
@@ -660,7 +660,7 @@ function PortModal({ status, onClose }: PortModalProps) {
         <DialogFooter>
           <div className='mr-auto' />
           <Button variant='outline' onClick={onClose}>
-            {t('取消')}
+            {t('Cancel')}
           </Button>
           <Button variant='default' disabled={phase !== 'idle'} onClick={() => void handleSave()}>
             {SAVE_LABELS[phase]}

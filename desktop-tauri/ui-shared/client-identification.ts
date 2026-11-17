@@ -66,15 +66,15 @@ export function notifyIdentificationChanged(): void {
 
 export function clientMethodLabel(method: string | undefined, t: Translate): string {
   switch (method) {
-    case 'builtin_ua': return t('内置软件标识规则')
-    case 'builtin_header': return t('客户端专用请求头')
-    case 'custom_rule': return t('自定义识别规则')
-    case 'declared': return t('调用方声明')
-    case 'unknown': return t('未匹配已知客户端')
-    case 'ambiguous': return t('多个客户端标识冲突')
-    case 'invalid': return t('客户端标识无效或重复')
-    case 'missing': return t('未提供客户端标识')
-    default: return t('历史未记录识别依据')
+    case 'builtin_ua': return t('Built-in User-Agent rule')
+    case 'builtin_header': return t('Client-specific header')
+    case 'custom_rule': return t('Custom identification rules')
+    case 'declared': return t('Caller declaration')
+    case 'unknown': return t('No known client matched')
+    case 'ambiguous': return t('Conflicting client identifiers')
+    case 'invalid': return t('Invalid or duplicate client identifier')
+    case 'missing': return t('No client identifier provided')
+    default: return t('Identification evidence was not recorded')
   }
 }
 
@@ -96,20 +96,20 @@ export function randomId(): string {
 }
 
 export function clientSettingsError(config: ClientSettings, view: ClientIdentificationView, t: Translate): string {
-  if (config.rules.length > view.maxRules) return t('识别规则数量已达上限')
-  if (config.clients.length > view.maxClients) return t('自定义客户端数量已达上限')
+  if (config.rules.length > view.maxRules) return t('Identification rule limit reached')
+  if (config.clients.length > view.maxClients) return t('Custom client limit reached')
   const names = new Set(view.builtins.flatMap(client => [client.name, client.id, client.value, ...client.products]).map(name => name.toLowerCase()))
   for (const client of config.clients) {
-    if (!client.name.trim() || client.name.trim() !== client.name || client.name.length > 80) return t('客户端名称不能为空，最长 80 个字符')
-    if (names.has(client.name.toLowerCase())) return t('客户端名称重复或与内置名称冲突')
+    if (!client.name.trim() || client.name.trim() !== client.name || client.name.length > 80) return t('Enter a client name of up to 80 characters')
+    if (names.has(client.name.toLowerCase())) return t('Client name is duplicated or conflicts with a built-in name')
     names.add(client.name.toLowerCase())
   }
   const clients = new Set([...view.builtins, ...config.clients].map(client => client.id))
   for (const rule of config.rules) {
-    if (!rule.pattern.trim() || rule.pattern.trim() !== rule.pattern || rule.pattern.length > 256) return t('匹配内容不能为空，最长 256 个字符')
-    if (!clients.has(rule.clientId)) return t('请选择归属客户端')
-    if (!view.headers.includes(rule.header)) return t('请选择可用的标识请求头')
-    if (rule.matchType === 'product' && (rule.header !== 'user-agent' || !/^[a-z0-9_. -]+$/i.test(rule.pattern))) return t('产品名不能包含斜杠或版本号，请改用前缀匹配')
+    if (!rule.pattern.trim() || rule.pattern.trim() !== rule.pattern || rule.pattern.length > 256) return t('Enter a match pattern of up to 256 characters')
+    if (!clients.has(rule.clientId)) return t('Select the client to assign')
+    if (!view.headers.includes(rule.header)) return t('Select an available identity header')
+    if (rule.matchType === 'product' && (rule.header !== 'user-agent' || !/^[a-z0-9_. -]+$/i.test(rule.pattern))) return t('Product names cannot include slashes or versions. Use prefix matching.')
   }
   return ''
 }

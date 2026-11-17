@@ -20,19 +20,19 @@ import {
 
 /** 稳定错误码 → 界面文案（代码是后端口径，文案是中文键，便于扫描进词典） */
 const TEST_FAILURE_TEXT: Record<string, string> = {
-  invalid_provider_key: t('密钥或账号登录态无效'),
-  rate_limited: t('触发上游限流'),
-  timed_out: t('上游请求超时'),
-  no_results: t('上游没有返回结果'),
-  provider_unavailable: t('提供商暂不可用或配置有误'),
-  configuration: t('搜索来源配置不完整'),
-  permission_denied: t('当前网关 Key 无权使用所选账号搜索来源'),
-  invalid_input: t('请求参数无效'),
+  invalid_provider_key: t('The API key or account login is invalid'),
+  rate_limited: t('The upstream rate limit was hit'),
+  timed_out: t('The upstream request timed out'),
+  no_results: t('The upstream returned no results'),
+  provider_unavailable: t('The provider is temporarily unavailable or misconfigured'),
+  configuration: t('The search source configuration is incomplete'),
+  permission_denied: t('This gateway Key is not allowed to use the selected account-based search sources'),
+  invalid_input: t('Invalid request parameters'),
 }
 
 function testFailureText(result: ProviderTestResult): string {
   const text = result.code ? TEST_FAILURE_TEXT[result.code] : ''
-  return result.error ? t(result.error) : text || t('连接测试失败')
+  return result.error ? t(result.error) : text || t('Connection test failed')
 }
 
 export function WebSearchConfig() {
@@ -80,12 +80,12 @@ export function WebSearchConfig() {
   const missingNames = missing.map(provider => provider.display_name).join(', ')
 
   const saveProviders = async () => {
-    if (!selection.search_providers.length) { setError(t('批量网页搜索至少选择一个提供商')); return }
+    if (!selection.search_providers.length) { setError(t('Select at least one provider for batch web search')); return }
     setSaving(true); setError(''); setNotice('')
     try {
       const next = await saveSelection(selection)
       setSelection(next)
-      setNotice(t('能力提供商配置已保存'))
+      setNotice(t('Capability provider settings saved'))
     } catch (failure) {
       setError(t(failure instanceof Error ? failure.message : String(failure)))
     } finally {
@@ -108,7 +108,7 @@ export function WebSearchConfig() {
     try {
       const result = await testProvider(provider.provider)
       if (result.success) {
-        setNotice(t('连接成功：{count} 条结果，耗时 {duration}ms', { count: result.result_count ?? 0, duration: result.duration_ms ?? 0 }))
+        setNotice(t('Connected: {count} results in {duration}ms', { count: result.result_count ?? 0, duration: result.duration_ms ?? 0 }))
       } else {
         setError(testFailureText(result))
       }
@@ -123,79 +123,79 @@ export function WebSearchConfig() {
     setError(''); setNotice('')
     try {
       await clearProviderKey(provider.provider)
-      setNotice(t('密钥已清除'))
+      setNotice(t('Key cleared'))
       await load(true)
     } catch (failure) {
       setError(t(failure instanceof Error ? failure.message : String(failure)))
     }
   }
 
-  if (loading) return <div className='flex items-center gap-2 p-4 text-sm text-subtle'><Spinner />{t('正在加载工具服务配置…')}</div>
+  if (loading) return <div className='flex items-center gap-2 p-4 text-sm text-subtle'><Spinner />{t('Loading tool service configuration…')}</div>
 
   return <Card>
-    <CardHeader><CardTitle>{t('上游提供商配置')}</CardTitle></CardHeader>
+    <CardHeader><CardTitle>{t('Upstream provider configuration')}</CardTitle></CardHeader>
     <CardContent className='flex flex-col gap-4'>
-      <p className='text-xs text-subtle'>{t('配置搜索与抓取所使用的上游提供商。调用方不再传递 provider，运行时始终使用这里保存的设置。')}</p>
-      <Alert>{t('上游提供商配置由各接入协议共享，改动后所有协议同时生效。')}</Alert>
+      <p className='text-xs text-subtle'>{t('Configure the upstream providers used for search and fetching. Callers no longer pass a provider; the saved settings are always used at runtime.')}</p>
+      <Alert>{t('Upstream provider settings are shared by all access protocols; changes take effect for all of them.')}</Alert>
       {error && <Alert variant='destructive' className='whitespace-pre-wrap'>{error}</Alert>}
       {notice && <Alert variant='success'>{notice}</Alert>}
 
       <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
         <Field>
-          <FieldLabel>{t('批量网页搜索提供商')}</FieldLabel>
+          <FieldLabel>{t('Batch web search providers')}</FieldLabel>
           <MultiSelect value={selection.search_providers} onValueChange={value => setSelection(current => ({ ...current, search_providers: value }))}
-            options={options} placeholder={t('请选择提供商')} aria-label={t('批量网页搜索提供商')} />
-          <FieldDescription>{t('支持多选。每次搜索会并发调用所选提供商并合并重复来源。')}</FieldDescription>
+            options={options} placeholder={t('Select a provider')} aria-label={t('Batch web search providers')} />
+          <FieldDescription>{t('Multiple selection. Each search calls the selected providers in parallel and merges duplicate sources.')}</FieldDescription>
         </Field>
         <Field>
-          <FieldLabel>{t('批量网页抓取提供商')}</FieldLabel>
+          <FieldLabel>{t('Batch page fetch provider')}</FieldLabel>
           <SearchableSelect value={selection.fetch_provider} options={fetchOptions} className='w-full'
-            aria-label={t('批量网页抓取提供商')} searchPlaceholder={t('搜索提供商')}
+            aria-label={t('Batch page fetch provider')} searchPlaceholder={t('Search providers')}
             onValueChange={fetch_provider => setSelection(current => ({ ...current, fetch_provider }))} />
-          <FieldDescription>{t('仅支持单选，默认为 Tavily。')}</FieldDescription>
+          <FieldDescription>{t('Single selection only; defaults to Tavily.')}</FieldDescription>
         </Field>
       </div>
-      <div><Button disabled={saving} onClick={() => void saveProviders()}>{saving ? <Spinner /> : null}{t('保存能力配置')}</Button></div>
+      <div><Button disabled={saving} onClick={() => void saveProviders()}>{saving ? <Spinner /> : null}{t('Save capability settings')}</Button></div>
 
       {aggregateReady
         ? <Alert variant='success'>{missing.length
-          ? t('批量网页搜索可用：将使用 {ready}，未配置的 {missing} 会自动跳过。', { ready: readyNames, missing: missingNames })
-          : t('批量网页搜索可用：所选来源均已启用并配置完成。')}</Alert>
-        : <Alert variant='warning'>{t('批量网页搜索不可用：请启用来源并配置密钥或绑定可用账号。')}</Alert>}
-      <p className='text-xs text-subtle'>{t('已有账号搜索只支持搜索，不支持网页抓取；请求会使用绑定账号的额度与出网设置。')}</p>
+          ? t('Batch web search available: using {ready}; unconfigured {missing} will be skipped automatically.', { ready: readyNames, missing: missingNames })
+          : t('Batch web search is available: all selected sources are enabled and configured.')}</Alert>
+        : <Alert variant='warning'>{t('Batch web search is unavailable: enable a source and configure its API key or bind an available account.')}</Alert>}
+      <p className='text-xs text-subtle'>{t('Account-based sources support search only, not page fetching. Requests use the bound account’s quota and outbound network settings.')}</p>
 
       <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4'>
         {providers.map(provider => <div key={provider.provider} className='flex flex-col gap-2 rounded-md border border-border p-3'>
           <div className='flex items-center gap-2'>
             <span className='font-semibold'>{provider.display_name}</span>
-            <Switch className='ml-auto' checked={provider.enabled} disabled={provider.available === false && !provider.enabled} onCheckedChange={checked => void toggle(provider, checked === true)} aria-label={t('启用')} />
+            <Switch className='ml-auto' checked={provider.enabled} disabled={provider.available === false && !provider.enabled} onCheckedChange={checked => void toggle(provider, checked === true)} aria-label={t('enabled')} />
           </div>
           <div className='flex flex-wrap gap-1.5 text-[11px]'>
-            <span className={provider.configured ? 'text-success' : 'text-subtle'}>{provider.configured ? t('已配置') : t('未配置')}</span>
+            <span className={provider.configured ? 'text-success' : 'text-subtle'}>{provider.configured ? t('Configured') : t('Not configured')}</span>
             <span className='text-subtle'>·</span>
-            <span className={provider.enabled ? 'text-primary' : 'text-subtle'}>{provider.enabled ? t('已启用') : t('已停用')}</span>
+            <span className={provider.enabled ? 'text-primary' : 'text-subtle'}>{provider.enabled ? t('Enabled') : t('Disabled')}</span>
           </div>
           <div className='text-[11.5px] text-subtle'>
             {provider.auth_type === 'account' ? <>
-              <div>{t('已有账号')} · {t('仅搜索')}</div>
-              <div>{t('搜索账号')}: <span className='text-foreground'>{provider.account_name || t('未选择账号')}</span></div>
-              {provider.max_query_chars ? <div>{t('每条搜索词最多 {count} 字', { count: provider.max_query_chars })}</div> : null}
+              <div>{t('Existing account')} · {t('Search only')}</div>
+              <div>{t('Search accounts')}: <span className='text-foreground'>{provider.account_name || t('No account selected')}</span></div>
+              {provider.max_query_chars ? <div>{t('Up to {count} characters per query', { count: provider.max_query_chars })}</div> : null}
               {provider.unavailable_reason ? <div className='mt-1 text-warning'>{t(provider.unavailable_reason)}</div> : null}
-            </> : <div>{t('密钥提示')}: <span className='text-foreground'>{provider.key_hint || '-'}</span></div>}
-            <div>{t('更新时间')}: {formatTime(provider.updated_at)}</div>
+            </> : <div>{t('Key hint')}: <span className='text-foreground'>{provider.key_hint || '-'}</span></div>}
+            <div>{t('Updated')}: {formatTime(provider.updated_at)}</div>
           </div>
           <div className='mt-auto flex flex-wrap gap-1.5'>
-            <Button size='sm' variant='outline' onClick={() => setEditing(provider)}>{t('编辑')}</Button>
+            <Button size='sm' variant='outline' onClick={() => setEditing(provider)}>{t('Edit')}</Button>
             <Button size='sm' variant='outline' disabled={!provider.configured || testing === provider.provider} onClick={() => void test(provider)}>
-              {testing === provider.provider ? <Spinner /> : null}{t('测试连接')}
+              {testing === provider.provider ? <Spinner /> : null}{t('Test connection')}
             </Button>
             {provider.auth_type !== 'account' ? <Button size='sm' variant='ghost' disabled={!provider.configured} onClick={() => {
-              void confirmDialog(t('确定清除提供商 {name} 的 API Key？清除后该提供商将不可用，直到重新保存新密钥。', { name: provider.display_name }), { destructive: true })
+              void confirmDialog(t('Clear the API Key of {name}? The provider will be unavailable until a new key is saved.', { name: provider.display_name }), { destructive: true })
                 .then(ok => { if (ok) void clearKey(provider) })
-            }}>{t('清除密钥')}</Button> : null}
+            }}>{t('Clear key')}</Button> : null}
           </div>
         </div>)}
-        {!providers.length && <Empty>{t('没有可配置的提供商')}</Empty>}
+        {!providers.length && <Empty>{t('No providers to configure')}</Empty>}
       </div>
     </CardContent>
     {editing && <ProviderDialog provider={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(true) }} />}
@@ -208,7 +208,7 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: ProviderRow;
   const isAccount = provider.auth_type === 'account'
   const accounts = (provider.accounts || []).filter(account => account.enabled)
   const accountLabel = accounts.find(account => account.id === accountId)?.name
-    || (accountId ? t('已绑定账号不可用，请重新选择') : t('未选择账号'))
+    || (accountId ? t('The bound account is unavailable; select another account') : t('No account selected'))
   const [enabled, setEnabled] = React.useState(provider.enabled)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
@@ -229,38 +229,38 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: ProviderRow;
 
   return <Dialog open onOpenChange={(open, details) => { if (!open) { if (busy) details.cancel(); else onClose() } }}>
     <DialogContent className='max-w-lg'>
-      <DialogHeader><DialogTitle>{t('编辑提供商 {name}', { name: provider.display_name })}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Edit provider {name}', { name: provider.display_name })}</DialogTitle></DialogHeader>
       <DialogBody className='flex flex-col gap-3'>
         {isAccount ? <Field>
-          <FieldLabel>{t('搜索账号')}</FieldLabel>
+          <FieldLabel>{t('Search accounts')}</FieldLabel>
           <SearchableSelect value={accountId || '__none__'} className='w-full' displayValue={accountLabel}
-            aria-label={t('搜索账号')} searchPlaceholder={t('搜索账号…')}
+            aria-label={t('Search accounts')} searchPlaceholder={t('Search accounts…')}
             onValueChange={value => setAccountId(value === '__none__' ? '' : value)} options={[
-              { value: '__none__', label: t('未选择账号') },
+              { value: '__none__', label: t('No account selected') },
               ...(accountId && !accounts.some(account => account.id === accountId)
                 ? [{ value: accountId, label: accountLabel, disabled: true }] : []),
               ...accounts.map(account => ({ value: account.id, label: account.name })),
             ]} />
-          <FieldDescription>{t('复用「账号」页的登录态，不需要额外填写搜索密钥。账号停用或删除后不会自动换号。')}</FieldDescription>
-          {!accounts.length ? <Alert variant='warning'>{t('没有可绑定的启用账号，请先到「账号」页添加或启用。')}</Alert> : null}
+          <FieldDescription>{t('Uses an existing login from the Accounts page; no additional search API key is required. Disabled or deleted accounts are not replaced automatically.')}</FieldDescription>
+          {!accounts.length ? <Alert variant='warning'>{t('No enabled account is available to bind. Add or enable one on the Accounts page first.')}</Alert> : null}
           {provider.available === false && provider.unavailable_reason ? <Alert variant='warning'>{t(provider.unavailable_reason)}</Alert> : null}
         </Field> : <Field>
           <FieldLabel>{t('API Key')}</FieldLabel>
-          <Input type='password' autoComplete='new-password' value={apiKey} placeholder={t('输入新密钥；留空保持不变')} onChange={event => setApiKey(event.currentTarget.value)} />
-          <FieldDescription>{t('空白的 API Key 不会覆盖已保存的密钥。')}</FieldDescription>
+          <Input type='password' autoComplete='new-password' value={apiKey} placeholder={t('Enter a new key; leave empty to keep the current one')} onChange={event => setApiKey(event.currentTarget.value)} />
+          <FieldDescription>{t('An empty API Key will not overwrite the saved key.')}</FieldDescription>
         </Field>}
         {PROVIDER_KEY_PAGES[provider.provider] ? <div>
           <Button variant='link' size='sm' className='h-auto px-0' onClick={() => void openExternal(PROVIDER_KEY_PAGES[provider.provider])}>
-            {t('获取 API Key')}
+            {t('Get API Key')}
           </Button>
         </div> : null}
         <div className='flex items-center gap-2'>
-          <span className='text-sm'>{t('启用')}</span>
-          <Switch checked={enabled} disabled={isAccount && provider.available === false && !enabled} onCheckedChange={checked => setEnabled(checked === true)} aria-label={t('启用')} />
+          <span className='text-sm'>{t('enabled')}</span>
+          <Switch checked={enabled} disabled={isAccount && provider.available === false && !enabled} onCheckedChange={checked => setEnabled(checked === true)} aria-label={t('enabled')} />
         </div>
         {error && <Alert variant='destructive'>{error}</Alert>}
       </DialogBody>
-      <DialogFooter><Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button><Button disabled={busy} onClick={() => void save()}>{busy ? <Spinner /> : null}{t('保存')}</Button></DialogFooter>
+      <DialogFooter><Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button><Button disabled={busy} onClick={() => void save()}>{busy ? <Spinner /> : null}{t('Save')}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }
@@ -324,13 +324,13 @@ export function VisionConfigPanel() {
   const savedKeyMissing = config?.api_key_id && !keys.some(key => key.id === config.api_key_id)
 
   const save = async () => {
-    if (!provider || !model) { setError(t('请选择提供商与上游模型')); return }
-    if (!keyId) { setError(t('请选择内部调用 API Key')); return }
+    if (!provider || !model) { setError(t('Select a provider and an upstream model')); return }
+    if (!keyId) { setError(t('Select the internal API Key')); return }
     setSaving(true); setError(''); setNotice('')
     try {
       const saved = await saveVision({ provider, upstream_model: model, reasoning_effort: reasoning, api_key_id: keyId })
       setConfig(saved)
-      setNotice(t('视觉服务配置已保存'))
+      setNotice(t('Vision service configuration saved'))
       await load(true)
     } catch (failure) {
       setError(t(failure instanceof Error ? failure.message : String(failure)))
@@ -343,8 +343,8 @@ export function VisionConfigPanel() {
     setTesting(true); setError(''); setNotice('')
     try {
       const result = await testVision()
-      if (result.success) setNotice(t('视觉链路连通：耗时 {duration}ms', { duration: result.duration_ms ?? 0 }))
-      else setError(result.error || t('视觉链路测试失败'))
+      if (result.success) setNotice(t('Vision pipeline connected in {duration}ms', { duration: result.duration_ms ?? 0 }))
+      else setError(result.error || t('Vision pipeline test failed'))
     } catch (failure) {
       setError(t(failure instanceof Error ? failure.message : String(failure)))
     } finally {
@@ -357,74 +357,74 @@ export function VisionConfigPanel() {
     try {
       await clearVision()
       setConfig(null); setProvider(''); setModel(''); setReasoning('')
-      setNotice(t('视觉服务配置已清除'))
+      setNotice(t('Vision service configuration cleared'))
     } catch (failure) {
       setError(t(failure instanceof Error ? failure.message : String(failure)))
     }
   }
 
-  if (loading) return <div className='flex items-center gap-2 p-4 text-sm text-subtle'><Spinner />{t('正在加载工具服务配置…')}</div>
+  if (loading) return <div className='flex items-center gap-2 p-4 text-sm text-subtle'><Spinner />{t('Loading tool service configuration…')}</div>
 
   return <Card>
     <CardHeader>
-      <CardTitle>{t('视觉模型配置')}</CardTitle>
+      <CardTitle>{t('Vision model configuration')}</CardTitle>
       <div className='ml-auto flex gap-2'>
-        <Button variant='outline' disabled={!config?.configured || testing} onClick={() => void test()}>{testing ? <Spinner /> : null}{t('测试连接')}</Button>
-        {config?.configured ? <Button variant='ghost' disabled={saving} onClick={() => void clear()}>{t('清除配置')}</Button> : null}
+        <Button variant='outline' disabled={!config?.configured || testing} onClick={() => void test()}>{testing ? <Spinner /> : null}{t('Test connection')}</Button>
+        {config?.configured ? <Button variant='ghost' disabled={saving} onClick={() => void clear()}>{t('Clear configuration')}</Button> : null}
       </div>
     </CardHeader>
     <CardContent className='flex flex-col gap-4'>
-      <p className='text-xs text-subtle'>{t('选择处理图片的上游提供商与模型。调用时会用内部 Key 经本站网关请求该模型，协议转换、重试与故障转移全部复用网关。')}</p>
+      <p className='text-xs text-subtle'>{t('Select the upstream provider and model for images. Calls go through this gateway with the internal Key, reusing protocol translation, retries and failover.')}</p>
       {!config?.configured
-        ? <Alert variant='warning'>{t('尚未配置视觉模型，配置前调用方会收到“未配置”错误。')}</Alert>
+        ? <Alert variant='warning'>{t('No vision model is configured yet; callers receive a "not configured" error until it is.')}</Alert>
         : config.key_available === false
-          ? <Alert variant='destructive'>{t('已配置的 API Key 已失效（被删除或禁用），请重新选择并保存。')}</Alert>
-          : <Alert variant='success'>{t('当前模型：{provider} / {model}', { provider: config.provider_label || config.provider, model: config.upstream_model })}</Alert>}
+          ? <Alert variant='destructive'>{t('The configured API Key is no longer valid (deleted or disabled); select a new one and save.')}</Alert>
+          : <Alert variant='success'>{t('Current model: {provider} / {model}', { provider: config.provider_label || config.provider, model: config.upstream_model })}</Alert>}
       {error && <Alert variant='destructive' className='whitespace-pre-wrap'>{error}</Alert>}
       {notice && <Alert variant='success'>{notice}</Alert>}
-      {!providers.length && <Alert variant='warning'>{t('还没有可用的提供商，请先在「账号」页添加账号并在「模型管理」页确认有已启用的模型。')}</Alert>}
+      {!providers.length && <Alert variant='warning'>{t('No providers available yet. Add accounts on the Accounts page and make sure there are enabled models on the Models page.')}</Alert>}
 
       <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
         <Field>
-          <FieldLabel>{t('上游提供商')}</FieldLabel>
+          <FieldLabel>{t('Upstream provider')}</FieldLabel>
           <SearchableSelect value={provider} options={providerOptions} className='w-full'
-            aria-label={t('上游提供商')} searchPlaceholder={t('搜索提供商')}
-            displayValue={providerOptions.find(option => option.value === provider)?.label || t('请选择提供商')}
+            aria-label={t('Upstream provider')} searchPlaceholder={t('Search providers')}
+            displayValue={providerOptions.find(option => option.value === provider)?.label || t('Select a provider')}
             onValueChange={value => { setProvider(value); setModel('') }} />
-          <FieldDescription>{t('仅显示已启用且至少有一个可用模型的提供商。')}</FieldDescription>
+          <FieldDescription>{t('Only providers that are enabled and have at least one available model are shown.')}</FieldDescription>
         </Field>
         <Field>
-          <FieldLabel>{t('上游模型')}</FieldLabel>
+          <FieldLabel>{t('Upstream model')}</FieldLabel>
           <SearchableSelect value={model} options={modelOptions} onValueChange={setModel} disabled={!provider}
-            className='w-full' aria-label={t('上游模型')} searchPlaceholder={t('搜索模型')}
-            displayValue={model || (provider ? t('请选择模型') : t('请先选择提供商'))} />
-          <FieldDescription>{t('仅显示该提供商下已启用的模型。')}</FieldDescription>
+            className='w-full' aria-label={t('Upstream model')} searchPlaceholder={t('Search models')}
+            displayValue={model || (provider ? t('Select a model') : t('Select a provider first'))} />
+          <FieldDescription>{t('Only enabled models under this provider are shown.')}</FieldDescription>
         </Field>
         <Field>
-          <FieldLabel>{t('思考等级')}</FieldLabel>
+          <FieldLabel>{t('Reasoning level')}</FieldLabel>
           <Select value={reasoning} onValueChange={value => { if (typeof value === 'string') setReasoning(value) }}>
-            <SelectTrigger className='w-full'><SelectValue>{reasoning || t('不指定')}</SelectValue></SelectTrigger>
+            <SelectTrigger className='w-full'><SelectValue>{reasoning || t('Not specified')}</SelectValue></SelectTrigger>
             <SelectContent>
-              <SelectItem value=''>{t('不指定')}</SelectItem>
+              <SelectItem value=''>{t('Not specified')}</SelectItem>
               {reasoningLevels.map(level => <SelectItem key={level} value={level}>{REASONING_LABELS[level] || level}</SelectItem>)}
             </SelectContent>
           </Select>
-          <FieldDescription>{t('可选。留空时不传，由模型映射的「思考覆盖」决定。')}</FieldDescription>
+          <FieldDescription>{t('Optional. Leave empty to omit it and let the mapping\'s reasoning override decide.')}</FieldDescription>
         </Field>
         <Field>
-          <FieldLabel>{t('内部调用 API Key')}</FieldLabel>
+          <FieldLabel>{t('Internal API Key')}</FieldLabel>
           <SearchableSelect value={keyId} onValueChange={setKeyId} className='w-full'
-            aria-label={t('内部调用 API Key')} placeholder={t('请选择 API Key')}
-            displayValue={keyOptions.find(option => option.value === keyId)?.label || t('请选择 API Key')}
+            aria-label={t('Internal API Key')} placeholder={t('Select an API Key')}
+            displayValue={keyOptions.find(option => option.value === keyId)?.label || t('Select an API Key')}
             options={[
               ...(savedKeyMissing ? [{ value: config?.api_key_id || '',
-                label: `${config?.api_key_name || config?.api_key_id}（${t('已失效')}）`, disabled: true }] : []),
+                label: `${config?.api_key_name || config?.api_key_id}（${t('Invalid')}）`, disabled: true }] : []),
               ...keyOptions,
             ]} />
-          <FieldDescription>{t('内部请求本站网关时使用的网关 Key；额度、限流与请求日志记在该 Key 上。')}</FieldDescription>
+          <FieldDescription>{t('The gateway Key used for internal requests to this gateway; quota, rate limits and request logs are recorded on that Key.')}</FieldDescription>
         </Field>
       </div>
-      <div><Button disabled={saving} onClick={() => void save()}>{saving ? <Spinner /> : null}{t('保存')}</Button></div>
+      <div><Button disabled={saving} onClick={() => void save()}>{saving ? <Spinner /> : null}{t('Save')}</Button></div>
     </CardContent>
   </Card>
 }

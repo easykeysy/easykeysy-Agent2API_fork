@@ -131,7 +131,7 @@ pub fn set_token(token: Option<&str>) -> Result<TokenUpdate, String> {
     };
     let token = raw.trim();
     if token.is_empty() {
-        return Err("令牌不能为空（要清除请传 null）".to_string());
+        return Err("令牌不能为空（要清除请传 null)".to_string());
     }
     if token.len() > MAX_TOKEN_LEN {
         return Err(format!("令牌过长（最多 {MAX_TOKEN_LEN} 字符）"));

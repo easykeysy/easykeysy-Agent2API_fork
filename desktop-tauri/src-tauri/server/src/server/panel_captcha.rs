@@ -62,7 +62,7 @@ pub(crate) async fn verify(payload: &Value, local_panel: bool) -> Result<(), (i3
         .get("captcha")
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| (400, "请完成人机验证后重试".to_string()))?;
+        .ok_or_else(|| (400, "Complete the human verification and try again".to_string()))?;
     if settings.provider == "altcha" {
         return crate::server::altcha::verify(token).map_err(|error| (400, error));
     }
@@ -84,7 +84,7 @@ pub(crate) async fn verify(payload: &Value, local_panel: bool) -> Result<(), (i3
         .await
         .map_err(|error| {
             let reason = if error.is_timeout() {
-                "请求超时"
+                "Request Timeouts"
             } else {
                 "网络连接失败"
             };

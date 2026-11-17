@@ -66,22 +66,29 @@ pub(in crate::server::request_stats) fn delete_raw_matching(
 }
 
 /// 正文只为仍有请求明细的 ID 保存，避免清理后迟到的下游回写产生孤立报文。
+///
+/// fork: the two body columns are written as NULL —— the content lives in `{cache_dir}/request-raw/`, only the ledger stays here;
+/// `size` is still accounted by body length. Returns the affected row count (0 = the detail row is already gone; the caller removes the file it just wrote).
 pub(in crate::server::request_stats) fn upsert_raw(
     conn: &Connection,
     id: &str,
     ts: i64,
-    request_body: &str,
-    response_body: &str,
     size: i64,
-) -> rusqlite::Result<()> {
+) -> rusqlite::Result<usize> {
     conn.execute(
         "INSERT INTO request_raw (id, ts, request_body, response_body, size, truncated) \
-         SELECT ?1, ?2, ?3, ?4, ?5, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ?1) \
-         ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, request_body = excluded.request_body, \
-         response_body = excluded.response_body, size = excluded.size, truncated = 0",
-        params![id, ts, request_body, response_body, size],
-    )?;
-    Ok(())
+         SELECT ?1, ?2, NULL, NULL, ?3, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ?1) \
+         ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, request_body = NULL, \
+         response_body = NULL, size = excluded.size, truncated = 0",
+        params![id, ts, size],
+    )
+}
+
+/// All ids in the ledger (fork: used to work out "who is still alive" when sweeping body files).
+pub(in crate::server::request_stats) fn raw_ids(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+    let mut statement = conn.prepare("SELECT id FROM request_raw")?;
+    let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+    Ok(rows.filter_map(|item| item.ok()).collect())
 }
 
 pub(in crate::server::request_stats) fn count_raw(conn: &Connection) -> rusqlite::Result<usize> {
@@ -106,10 +113,11 @@ pub(in crate::server::request_stats) fn trim_raw_rows(
     )
 }
 
+/// Reads body content left in the DB by the legacy version (rows written after the fork have NULL in both columns; callers treat them as "not retained").
 pub(in crate::server::request_stats) fn select_raw(
     conn: &Connection,
     id: &str,
-) -> rusqlite::Result<Option<(String, String, String, bool)>> {
+) -> rusqlite::Result<Option<(String, Option<String>, Option<String>, bool)>> {
     let mut stmt = conn.prepare(
         "SELECT id, request_body, response_body, truncated FROM request_raw WHERE id = ?1",
     )?;

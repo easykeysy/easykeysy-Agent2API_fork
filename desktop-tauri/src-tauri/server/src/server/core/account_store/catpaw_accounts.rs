@@ -248,7 +248,7 @@ impl AccountStore {
         })?;
         crate::server::logging::log(
             "[Accounts]",
-            &format!("✏️  CatPaw 账号已更新: {name}（{}）", changes.join("，")),
+            &format!("✏️  CatPaw 账号已更新: {name}（{})", changes.join(", ")),
         );
         Ok(changes)
     }

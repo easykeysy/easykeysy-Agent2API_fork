@@ -28,15 +28,15 @@ function ApiAddresses({ origin }: { origin: string }) {
             <div className='mt-1 text-[11px] leading-relaxed text-muted-foreground'>{item.note}</div>
           </div>
           <Button size='icon-touch' variant='ghost' type='button' className='shrink-0 text-primary'
-            onClick={() => void copyWithToast(url, item.name)} aria-label={t('复制地址')}>
+            onClick={() => void copyWithToast(url, item.name)} aria-label={t('Copy address')}>
             <Icon name='copy' style={{ width: 16, height: 16 }} />
           </Button>
         </div>
       </div>
     })}
     <CardFooter className='flex-col items-start gap-1.5'>
-      <span>{t('生成、编辑与对话接口共用网关 Key；鉴权规则、模型能力和请求示例可从文档目录查阅。')}</span>
-      <span>{t('Anthropic 官方 SDK / Claude Code 使用的根地址：')}<code className='break-all'>{origin}</code></span>
+      <span>{t('Generation, editing and chat endpoints share gateway Keys. Find authentication rules, model capabilities and request examples in the documentation contents.')}</span>
+      <span>{t('Root address for the official Anthropic SDK / Claude Code: ')}<code className='break-all'>{origin}</code></span>
     </CardFooter>
   </Card>
 }
@@ -49,8 +49,8 @@ export function DocsPage() {
     <DocumentationBrowser key={serverIdentity()} origin={origin} packs={packs}
       addresses={<ApiAddresses origin={origin} />} onCopy={copyWithToast}
       notice={error ? <div role='status' className='mb-3 flex flex-wrap items-center gap-2 text-[12px] text-subtle'>
-        <span>{t('读取提供商能力表失败：{error}', { error })}</span>
-        <Button variant='outline' size='xs' disabled={loading} onClick={refresh}>{t('重试')}</Button>
+        <span>{t('Failed to load provider capabilities: {error}', { error })}</span>
+        <Button variant='outline' size='xs' disabled={loading} onClick={refresh}>{t('Retry')}</Button>
       </div> : null} />
   </div>
 }

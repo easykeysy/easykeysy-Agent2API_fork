@@ -81,26 +81,26 @@ function ProxiesPage() {
     switch (column) {
       case 'pick':
         return <Checkbox checked={isPicked(item.id)} disabled={locked}
-          aria-label={t('勾选「{name}」', { name: item.name || t('未命名') })}
+          aria-label={t('Select "{name}"', { name: item.name || t('Untitled') })}
           onCheckedChange={next => togglePick(item.id, next)} />
       case 'name':
         /* 名称一行、说明一行：说明不套彩色标签，只用一档灰字 ——
            标签盒子一多，整张表就从「列表」变成「仪表盘」 */
         return <div className='flex min-w-0 flex-col gap-0.5'>
-          <span className='truncate text-[12.5px] font-medium' title={item.name || t('未命名')}>{item.name || t('未命名')}</span>
+          <span className='truncate text-[12.5px] font-medium' title={item.name || t('Untitled')}>{item.name || t('Untitled')}</span>
           <span className='flex min-w-0 items-center gap-1.5 text-[10.5px] text-muted-foreground'>
             <span className='shrink-0 font-mono'>{(item.resolved?.protocol || item.protocol || 'http').toUpperCase()}</span>
             <span className='opacity-45' aria-hidden='true'>·</span>
             {item.source === 'clash'
-              ? <span className='truncate' title={t('只读：在 Clash Verge 里改')}>Clash Verge</span>
-              : <span className='truncate'>{t('手动添加')}</span>}
+              ? <span className='truncate' title={t('Read-only: edit it in Clash Verge')}>Clash Verge</span>
+              : <span className='truncate'>{t('Manual entry')}</span>}
             {item.nonDirect ? <>
               <span className='opacity-45' aria-hidden='true'>·</span>
-              <span className='shrink-0' title={t('先经过系统代理，再连接到此代理')}>{t('非直连')}</span>
+              <span className='shrink-0' title={t('Connect through the system proxy first, then through this proxy')}>{t('Chained')}</span>
             </> : null}
             {item.enabled === false ? <>
               <span className='opacity-45' aria-hidden='true'>·</span>
-              <span className='shrink-0'>{t('已禁用')}</span>
+              <span className='shrink-0'>{t('Disabled')}</span>
             </> : null}
           </span>
         </div>
@@ -115,51 +115,51 @@ function ProxiesPage() {
           <span className='min-w-0 flex-1 truncate font-mono text-xs leading-[1.5] text-subtle'
             title={item.resolveError || address}>
             {rest !== address ? <span className='text-muted-foreground'>{scheme}</span> : null}
-            {rest || t('地址不完整')}
+            {rest || t('Incomplete address')}
           </span>
           {address ? <Button variant='ghost' size='icon-xs' className='copy-btn shrink-0' data-copy={address}
-            title={t('复制地址')} aria-label={t('复制地址')}><CopyIcon /></Button> : null}
+            title={t('Copy address')} aria-label={t('Copy address')}><CopyIcon /></Button> : null}
         </div>
       }
       case 'usage': {
         const services = proxyServiceLabels(item, t)
         const usedBy = item.usedBy || []
-        const accountLine = usedBy.length ? t('{n} 个账号在用', { n: usedBy.length }) : ''
+        const accountLine = usedBy.length ? t('{n} accounts using', { n: usedBy.length }) : ''
         return <div className='flex min-w-0 flex-col gap-0.5'>
           {accountLine ? <span className='truncate text-[11.5px] text-subtle'
-            title={usedBy.map(entry => entry.name || entry.id).join(t('、'))}>{accountLine}</span> : null}
+            title={usedBy.map(entry => entry.name || entry.id).join(t(', '))}>{accountLine}</span> : null}
           {services.length ? <span className='truncate text-[10.5px] text-muted-foreground'
-            title={services.join(t('、'))}>{services.join(' · ')}</span> : null}
-          {!accountLine && !services.length ? <span className='text-[11.5px] text-muted-foreground'>{t('暂未使用')}</span> : null}
+            title={services.join(t(', '))}>{services.join(' · ')}</span> : null}
+          {!accountLine && !services.length ? <span className='text-[11.5px] text-muted-foreground'>{t('Not in use')}</span> : null}
         </div>
       }
       case 'state':
         return <Switch checked={item.enabled !== false} disabled={locked || item.source === 'clash' && item.sourceEnabled === false}
           title={item.source === 'clash'
-            ? item.sourceEnabled === false ? t('这条在 Clash Verge 里是停用的，本页启用不生效 —— 到 Clash Verge 里打开它')
-              : t('禁用后本端不再用它（引用它的账号回退直连）；端口在 Clash Verge 侧，不受影响')
+            ? item.sourceEnabled === false ? t('This listener is disabled in Clash Verge, so enabling it here has no effect — turn it on in Clash Verge')
+              : t('Once disabled this machine stops using it (accounts referencing it fall back to direct); the port stays as it is on the Clash Verge side')
             : undefined}
-          aria-label={t('启用「{name}」', { name: item.name || t('未命名') })}
+          aria-label={t('Enable "{name}"', { name: item.name || t('Untitled') })}
           onCheckedChange={next => void toggleItem(item, next)} />
       case 'test': {
-        if (snapshot.testing === item.id) return <span className='flex items-center gap-1.5 text-[11.5px] text-muted-foreground'><Spinner />{t('测试中…')}</span>
+        if (snapshot.testing === item.id) return <span className='flex items-center gap-1.5 text-[11.5px] text-muted-foreground'><Spinner />{t('Testing…')}</span>
         const last = item.lastTest
         if (!last?.at) return <span className='flex items-center gap-1.5 text-[11.5px] text-muted-foreground'>
-          <StatusDot variant='muted' />{t('未检测')}</span>
+          <StatusDot variant='muted' />{t('Not checked')}</span>
         /* 颜色只落在状态点上、文字是常规色：结果一眼能扫，整列却不吵。
            时间在前、出口 IP 或失败原因在后 —— 时间永远不会被长文案挤掉 */
         return <div className='flex min-w-0 flex-col gap-0.5'>
           <span className='flex items-baseline gap-1.5'>
             <StatusDot variant={last.success ? 'success' : 'destructive'} className='translate-y-[-1px]' />
-            <span className='text-[12px]'>{last.success ? t('可用') : t('失败')}</span>
+            <span className='text-[12px]'>{last.success ? t('usable') : t('Failed')}</span>
             <span className='font-mono text-[10.5px] text-muted-foreground'>{durationText(last.durationMs)}</span>
           </span>
           <span className='flex min-w-0 items-baseline gap-1 text-[10.5px]'>
             <span className='shrink-0 font-mono text-muted-foreground'>{formatTime(last.at)}</span>
             <span className='opacity-45' aria-hidden='true'>·</span>
             <span className={cn('truncate font-mono', last.success ? 'text-muted-foreground' : 'text-destructive')}
-              title={last.success ? last.ip || undefined : last.error || t('连接失败')}>
-              {last.success ? last.ip || '' : last.error || t('连接失败')}
+              title={last.success ? last.ip || undefined : last.error || t('Connection failed')}>
+              {last.success ? last.ip || '' : last.error || t('Connection failed')}
             </span>
           </span>
         </div>
@@ -170,15 +170,15 @@ function ProxiesPage() {
         return <div className='row-actions'>
           {item.source === 'clash'
             ? <span className='self-center text-[10.5px] text-muted-foreground'
-              title={t('名字与端口在 Clash Verge 里改；启用可在本页关闭')}>{t('只读')}</span>
+              title={t('Edit the name and port in Clash Verge; the enable switch can be turned off on this page')}>{t('Read-only')}</span>
             : <>
-              <Button size='icon-xs' variant='ghost' disabled={locked} title={t('编辑')} aria-label={t('编辑')}
+              <Button size='icon-xs' variant='ghost' disabled={locked} title={t('Edit')} aria-label={t('Edit')}
                 onClick={() => setModal({ item })}><EditIcon /></Button>
-              <Button size='icon-xs' variant='ghost' disabled={locked} title={t('删除')} aria-label={t('删除')}
+              <Button size='icon-xs' variant='ghost' disabled={locked} title={t('Delete')} aria-label={t('Delete')}
                 className='text-muted-foreground hover:text-destructive'
                 onClick={() => void removeItem(item)}><TrashIcon /></Button>
             </>}
-          <Button size='sm' variant='outline' disabled={locked} onClick={() => void testItem(item)}>{t('测试')}</Button>
+          <Button size='sm' variant='outline' disabled={locked} onClick={() => void testItem(item)}>{t('Test')}</Button>
         </div>
       default: return null
     }
@@ -187,62 +187,62 @@ function ProxiesPage() {
   return <>
     <Card render={<section />} className='panel'>
       <CardHeader className='panel-head'>
-        <h2>{t('代理列表')}</h2><Badge variant='secondary' shape='tag'>{rows.length}</Badge>
-        <span className='panel-sub'>{ready ? t('已启用 {n} 个', { n: rows.filter(item => item.enabled !== false).length }) : t('加载中…')}</span>
+        <h2>{t('Proxy list')}</h2><Badge variant='secondary' shape='tag'>{rows.length}</Badge>
+        <span className='panel-sub'>{ready ? t('{n} enabled', { n: rows.filter(item => item.enabled !== false).length }) : t('Loading…')}</span>
         <div className='head-actions'>
           {/* 主次分明：只有「新增代理」是实心主操作，其余按重要性由浅到深排开
               （同步是第二条常用动作，保留描边；测试设置与刷新是轻动作，走 ghost） */}
-          <Button disabled={locked} onClick={() => setModal({ item: null })}>{t('＋ 新增代理')}</Button>
-          <Button variant='ghost' className='hidden max-[767px]:inline-flex' onClick={() => setFilterOpen(true)}>{t('筛选')}</Button>
-          <Button variant='outline' disabled={locked} onClick={() => void syncClash()}>{snapshot.syncing ? t('同步中…') : t('同步 Clash Verge')}</Button>
-          <Button variant='ghost' disabled={locked} onClick={() => setSettingsOpen(true)}>{t('测试设置')}</Button>
-          <Button variant='ghost' disabled={snapshot.loading || locked} onClick={() => void loadPanel()}>{snapshot.loading ? t('刷新中…') : t('刷新')}</Button>
+          <Button disabled={locked} onClick={() => setModal({ item: null })}>{t('+ New proxy')}</Button>
+          <Button variant='ghost' className='hidden max-[767px]:inline-flex' onClick={() => setFilterOpen(true)}>{t('Filter')}</Button>
+          <Button variant='outline' disabled={locked} onClick={() => void syncClash()}>{snapshot.syncing ? t('Syncing…') : t('Sync Clash Verge')}</Button>
+          <Button variant='ghost' disabled={locked} onClick={() => setSettingsOpen(true)}>{t('Test settings')}</Button>
+          <Button variant='ghost' disabled={snapshot.loading || locked} onClick={() => void loadPanel()}>{snapshot.loading ? t('Refreshing…') : t('Refresh')}</Button>
         </div>
       </CardHeader>
       {selectedCount ? <div className='batch-bar active'>
-        <span className='batch-count'>{t('已选')} <b>{selectedCount}</b> {t('个')}</span>
+        <span className='batch-count'>{t('Selected')} <b>{selectedCount}</b> {t('total')}</span>
         <div className='batch-actions'>
-          <Button variant='outline' disabled={locked} onClick={() => void batchTest()}>{progress ? t('测试中 {done}/{total}', { done: progress.done, total: progress.total }) : t('批量测试')}</Button>
-          <Button variant='destructive' disabled={locked} onClick={() => void batchRemove()}>{t('批量删除')}</Button>
-          <Button variant='outline' disabled={locked} onClick={clearSelection}>{t('取消选择')}</Button>
+          <Button variant='outline' disabled={locked} onClick={() => void batchTest()}>{progress ? t('Testing {done}/{total}', { done: progress.done, total: progress.total }) : t('Test selected')}</Button>
+          <Button variant='destructive' disabled={locked} onClick={() => void batchRemove()}>{t('Delete selected')}</Button>
+          <Button variant='outline' disabled={locked} onClick={clearSelection}>{t('Deselect')}</Button>
         </div>
-      </div> : <ResponsiveSheet open={filterOpen} onOpenChange={setFilterOpen} title={t('筛选')}
+      </div> : <ResponsiveSheet open={filterOpen} onOpenChange={setFilterOpen} title={t('Filter')}
         inlineClassName='flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-3'
         bodyClassName='proxy-filter-body'
-        actions={<Button variant='ghost' size='sm' onClick={clearFilters}>{t('清空')}</Button>}>
+        actions={<Button variant='ghost' size='sm' onClick={clearFilters}>{t('Clear')}</Button>}>
         <InputGroup className='w-[clamp(150px,22vw,240px)]'>
-          <InputGroupInput type='search' value={keyword} aria-label={t('搜索代理')} placeholder={t('搜索名称 / 地址 / 端口')}
+          <InputGroupInput type='search' value={keyword} aria-label={t('Search proxies')} placeholder={t('Search name / address / port')}
             onChange={event => setKeyword(event.currentTarget.value)} />
           <InputGroupAddon align='inline-start' aria-hidden='true'><SearchIcon /></InputGroupAddon>
         </InputGroup>
         <Select value={protocol} onValueChange={value => setProtocol(value || 'all')}>
-          <SelectTrigger className='w-[120px]' aria-label={t('按协议筛选')}><SelectValue>{protocol === 'all' ? t('全部协议') : protocol.toUpperCase()}</SelectValue></SelectTrigger>
-          <SelectContent><SelectItem value='all'>{t('全部协议')}</SelectItem><SelectItem value='http'>HTTP</SelectItem><SelectItem value='socks5'>SOCKS5</SelectItem></SelectContent>
+          <SelectTrigger className='w-[120px]' aria-label={t('Filter by protocol')}><SelectValue>{protocol === 'all' ? t('All protocols') : protocol.toUpperCase()}</SelectValue></SelectTrigger>
+          <SelectContent><SelectItem value='all'>{t('All protocols')}</SelectItem><SelectItem value='http'>HTTP</SelectItem><SelectItem value='socks5'>SOCKS5</SelectItem></SelectContent>
         </Select>
-        <SegmentedControl className='ml-auto' options={statusOptions(rows)} value={status} onValueChange={setStatus} aria-label={t('按状态筛选')} />
+        <SegmentedControl className='ml-auto' options={statusOptions(rows)} value={status} onValueChange={setStatus} aria-label={t('Filter by status')} />
       </ResponsiveSheet>}
       <div className='models-table-wrap'>
         <Table container={false} className='models-table proxies-table'>
           <colgroup>{columns.map(column => <col key={column.key} data-col={column.key} className={COL_CLASS[column.key] || undefined} />)}</colgroup>
           <TableHeader><TableRow>{columns.map(column => <TableHead key={column.key} data-col={column.key} className={`ta-${column.align}`}>
             {column.key === 'pick' ? <Checkbox checked={allPicked} indeterminate={somePicked} disabled={!shownIds.length || locked}
-              aria-label={t('全选当前筛选出的出口')} onCheckedChange={next => setAllPicked(shownIds, next)} /> : column.label}
+              aria-label={t('Select all filtered endpoints')} onCheckedChange={next => setAllPicked(shownIds, next)} /> : column.label}
           </TableHead>)}</TableRow></TableHeader>
           <TableBody>{pageRows.length ? pageRows.map(item => <TableRow key={item.id} data-id={item.id}
             className={cn(item.enabled === false && 'off', isPicked(item.id) && 'bg-primary-soft')}>
             {columns.map(column => <TableCell key={column.key} className={`ta-${column.align}`}>{cell(column.key, item)}</TableCell>)}
           </TableRow>) : <TableRow><TableCell colSpan={columns.length} className='empty'>
-            {!ready ? snapshot.error || t('加载中…') : !rows.length ? <div className='flex flex-col items-center gap-3 py-8'>
-              <b className='text-sm text-foreground'>{t('还没有保存的代理')}</b>
-              <p className='text-xs text-subtle'>{t('添加手动 HTTP / SOCKS5 地址，或同步 Clash Verge 的端点，供账号与服务线路使用。')}</p>
-              <Button onClick={() => setModal({ item: null })}>{t('添加第一个代理')}</Button>
+            {!ready ? snapshot.error || t('Loading…') : !rows.length ? <div className='flex flex-col items-center gap-3 py-8'>
+              <b className='text-sm text-foreground'>{t('No saved proxies yet')}</b>
+              <p className='text-xs text-subtle'>{t('Add a manual HTTP / SOCKS5 address or sync Clash Verge endpoints for use by accounts and service routes.')}</p>
+              <Button onClick={() => setModal({ item: null })}>{t('Add your first proxy')}</Button>
             </div> : <div className='flex flex-col items-center gap-3 py-5'>
-              <span>{t('没有匹配当前筛选的出口')}</span><Button variant='outline' size='sm' onClick={clearFilters}>{t('清空筛选')}</Button>
+              <span>{t('No endpoints match the current filters')}</span><Button variant='outline' size='sm' onClick={clearFilters}>{t('Clear filters')}</Button>
             </div>}
           </TableCell></TableRow>}</TableBody>
         </Table>
       </div>
-      <TableFooter leading={snapshot.error ? <span className='text-destructive'>{t('读取失败：{reason}', { reason: snapshot.error })}</span> : undefined}
+      <TableFooter leading={snapshot.error ? <span className='text-destructive'>{t('Load failed: {reason}', { reason: snapshot.error })}</span> : undefined}
         total={shown.length} page={paging.page} pageCount={paging.pageCount} size={paging.size}
         onSizeChange={paging.setSize} onPageChange={paging.goto}
         range={paging.paged ? { start: paging.rangeStart, end: paging.rangeEnd } : null} />
@@ -261,11 +261,11 @@ function stateOf(item: ProxyPoolItem): string {
 
 function statusOptions(rows: ProxyPoolItem[]): Array<{ value: string; label: string; count: number }> {
   return [
-    { value: 'all', label: t('全部'), count: rows.length },
-    { value: 'ok', label: t('可用'), count: rows.filter(item => stateOf(item) === 'ok').length },
-    { value: 'fail', label: t('失败'), count: rows.filter(item => stateOf(item) === 'fail').length },
-    { value: 'none', label: t('未检测'), count: rows.filter(item => stateOf(item) === 'none').length },
-    { value: 'off', label: t('已禁用'), count: rows.filter(item => stateOf(item) === 'off').length },
+    { value: 'all', label: t('All'), count: rows.length },
+    { value: 'ok', label: t('usable'), count: rows.filter(item => stateOf(item) === 'ok').length },
+    { value: 'fail', label: t('Failed'), count: rows.filter(item => stateOf(item) === 'fail').length },
+    { value: 'none', label: t('Not checked'), count: rows.filter(item => stateOf(item) === 'none').length },
+    { value: 'off', label: t('Disabled'), count: rows.filter(item => stateOf(item) === 'off').length },
   ]
 }
 

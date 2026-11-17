@@ -122,7 +122,7 @@ impl AccountStore {
         let session = pick(payload, &["session", "accessToken", "token"]);
         if session.is_empty() {
             return Err(AccountStoreError::new(
-                "缺少 session（accessToken / session / token）",
+                "缺少 session（accessToken / session / token)",
                 400,
             ));
         }
@@ -148,7 +148,7 @@ impl AccountStore {
             if existing_provider != LOOMY_PROVIDER_ID {
                 return Err(AccountStoreError::new(
                     format!(
-                        "账号 id「{id}」已被{existing_provider}账号占用，无法添加同一身份的\
+                        "Account id「{id}」已被{existing_provider}账号占用，无法添加同一身份的\
                          Loomy 账号（请先处理那个账号）"
                     ),
                     400,
@@ -173,7 +173,7 @@ impl AccountStore {
                 } else if !user_id.is_empty() {
                     format!("Loomy {user_id}")
                 } else {
-                    "Loomy 账号".to_string()
+                    "Loomy Accounts".to_string()
                 }
             });
         let priority = match existing.as_ref() {
@@ -241,7 +241,7 @@ impl AccountStore {
         self.with_conn(&guard, |conn| sql::put(conn, &saved))?;
         logging::log(
             "[Accounts]",
-            &format!("✅ Loomy 账号已保存: {record_name}（优先级 {priority}）"),
+            &format!("✅ Loomy 账号已保存: {record_name}（优先级 {priority})"),
         );
         Ok(self.public_account(&saved))
     }

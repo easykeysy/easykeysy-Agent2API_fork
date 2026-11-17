@@ -58,7 +58,7 @@ export function ServersPage() {
   const save = async () => {
     const base = normalizeBase(draftBase)
     if (!base) {
-      setError(t('地址格式不对。填「IP 或域名:端口」，可带 http:// 或 https://，例如 192.168.1.23:3065'))
+      setError(t('Invalid address. Enter "IP or domain:port", optionally with http:// or https:// — e.g. 192.168.1.23:3065'))
       return
     }
     setBusy(true)
@@ -66,7 +66,7 @@ export function ServersPage() {
     const result = await probe(base)
     setBusy(false)
     if (!result.ok) {
-      setError(t('连不上这台网关。请确认地址、端口与防火墙设置，网关需已启动；桌面端请在「设置 → 网关 → 网络访问」开启「允许其他设备访问网关」。使用 HTTPS 时还需确认证书有效。'))
+      setError(t('Cannot reach this gateway. Check the address, port, and firewall settings, and make sure the gateway is running. For the desktop app, enable Allow other devices to access the gateway under Settings → Gateway → Network access. For HTTPS, also check that the certificate is valid.'))
       return
     }
     setProbed({ version: result.version })
@@ -77,7 +77,7 @@ export function ServersPage() {
     }
     setEditing(null)
     setProbed(null)
-    store.toast(t('已保存'))
+    store.toast(t('Saved'))
     // 换到新服务器后立刻拉一次会话；没登录会弹登录层
     void store.refresh(true).then(() => {
       // 这一屏是从登录层的「换一台服务器」压进来的：保存完退回原页，
@@ -91,22 +91,22 @@ export function ServersPage() {
       {/* 作为二级页压栈进来时顶部已有返回栏，标题不再重复一遍 */}
       {stacked ? (
         <PageIntro
-          subtitle={servers.length ? t('已添加 {n} 台', { n: servers.length }) : t('先添加一台网关')}
+          subtitle={servers.length ? t('Added {n} Taiwan', { n: servers.length }) : t('Add a gateway first')}
           actions={
             <Button size='touch-sm' variant='default' type='button' className='m-btn m-sm' onClick={startAdd} disabled={editing === 'new'}>
               <Icon name='plus' />
-              {t('添加')}
+              {t('Add')}
             </Button>
           }
         />
       ) : (
         <PageHead
-          title={t('服务器')}
-          subtitle={servers.length ? t('已添加 {n} 台', { n: servers.length }) : t('先添加一台网关')}
+          title={t('Servers')}
+          subtitle={servers.length ? t('Added {n} Taiwan', { n: servers.length }) : t('Add a gateway first')}
           actions={
             <Button size='touch-sm' variant='default' type='button' className='m-btn m-sm' onClick={startAdd} disabled={editing === 'new'}>
               <Icon name='plus' />
-              {t('添加')}
+              {t('Add')}
             </Button>
           }
         />
@@ -119,14 +119,14 @@ export function ServersPage() {
         <div className='m-section' style={{ marginTop: 0 }}>
           <Card className='m-card m-card-pad'>
             <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {editing === 'new' ? t('添加服务器') : t('编辑服务器')}
+              {editing === 'new' ? t('Add server') : t('Edit server')}
             </div>
             <Label style={{ display: 'block', marginTop: 12 }}>
-              <span style={{ fontSize: 12, color: 'var(--m-text-3)' }}>{t('地址')}</span>
+              <span style={{ fontSize: 12, color: 'var(--m-text-3)' }}>{t('Address')}</span>
               <Input
                 value={draftBase}
                 onChange={event => setDraftBase(event.target.value)}
-                placeholder='192.168.1.23:3065 或 https://gw.example.com'
+                placeholder='192.168.1.23:3065 or https://gw.example.com'
                 inputMode='url'
                 autoCapitalize='off'
                 autoCorrect='off'
@@ -147,14 +147,14 @@ export function ServersPage() {
               />
             </Label>
             <div style={{ fontSize: 11.5, color: 'var(--m-text-3)', marginTop: 6, lineHeight: 1.6 }}>
-              {t('填「IP 或域名:端口」。协议可写 http:// 或 https://，不写默认 http；http 不写端口默认 3065，https 默认 443。地址里的 /m、/v1 会自动去掉。')}
+              {t('Enter "IP or domain:port". The scheme may be http:// or https:// (http is assumed if omitted). Without a port, http defaults to 3065 and https to 443. Any /m or /v1 in the address is stripped automatically.')}
             </div>
             <Label style={{ display: 'block', marginTop: 12 }}>
-              <span style={{ fontSize: 12, color: 'var(--m-text-3)' }}>{t('备注名（可选）')}</span>
+              <span style={{ fontSize: 12, color: 'var(--m-text-3)' }}>{t('Label (optional)')}</span>
               <Input
                 value={draftName}
                 onChange={event => setDraftName(event.target.value)}
-                placeholder={t('例如：家里、公司')}
+                placeholder={t('e.g. Home, Office')}
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
@@ -171,10 +171,10 @@ export function ServersPage() {
             </Label>
             <div className='m-btn-row' style={{ marginTop: 14 }}>
               <Button size='touch' variant='outline' type='button' className='m-btn m-ghost w-full' onClick={cancel} disabled={busy}>
-                {t('取消')}
+                {t('Cancel')}
               </Button>
               <Button size='touch' variant='default' type='button' className='m-btn w-full' onClick={() => void save()} disabled={busy || !draftBase.trim()}>
-                {busy ? t('正在连接…') : t('连接并保存')}
+                {busy ? t('Connecting…') : t('Connect & save')}
               </Button>
             </div>
           </Card>
@@ -182,10 +182,10 @@ export function ServersPage() {
       ) : null}
 
       <div className='m-section'>
-        <SectionHead title={t('已添加的服务器')} />
+        <SectionHead title={t('Added servers')} />
         {servers.length === 0 ? (
           <Card className='m-card m-card-pad' style={{ fontSize: 12.5, color: 'var(--m-text-2)', lineHeight: 1.7 }}>
-            {t('还没有添加服务器。点右上角「添加」，填入网关所在机器的 IP 或域名与端口。')}
+            {t('No servers yet. Tap "Add" at the top right and enter the IP or domain and port of the machine running the gateway.')}
           </Card>
         ) : (
           <Card className='m-card'>
@@ -219,7 +219,7 @@ export function ServersPage() {
                       {entry.name || baseLabel(entry.base)}
                       {current ? (
                         <Badge variant='brand' shape='tag' className='m-badge m-badge-brand' style={{ height: 18, fontSize: 10.5 }}>
-                          {t('当前')}
+                          {t('Current')}
                         </Badge>
                       ) : null}
                     </div>
@@ -230,7 +230,7 @@ export function ServersPage() {
                   <Button size='icon-touch' variant='outline'
                     type='button'
                     className='m-icon-btn'
-                    aria-label={t('编辑')}
+                    aria-label={t('Edit')}
                     onClick={() => startEdit(entry.id)}
                     style={{ width: 30, height: 30, boxShadow: 'none' }}
                   >
@@ -239,10 +239,10 @@ export function ServersPage() {
                   <Button size='icon-touch' variant='outline'
                     type='button'
                     className='m-icon-btn'
-                    aria-label={t('删除')}
+                    aria-label={t('Delete')}
                     onClick={() => {
                       store.deleteServer(entry.id)
-                      store.toast(t('已删除'))
+                      store.toast(t('Deleted'))
                       void store.refresh(true)
                     }}
                     style={{ width: 30, height: 30, boxShadow: 'none', color: 'var(--m-danger)' }}
@@ -258,7 +258,7 @@ export function ServersPage() {
 
       <div className='m-section' style={{ paddingBottom: 8 }}>
         <Card className='m-card m-card-pad' style={{ fontSize: 11.5, color: 'var(--m-text-3)', lineHeight: 1.7 }}>
-          {t('每台服务器的登录状态各自独立保存，切换后不用重新登录。地址改掉后需要重新登录。')}
+          {t('Each server keeps its own sign-in, so switching back does not require signing in again. Changing a server\'s address requires signing in again.')}
         </Card>
       </div>
     </div>

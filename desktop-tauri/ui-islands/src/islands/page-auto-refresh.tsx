@@ -18,7 +18,7 @@ const pages = { requestsAutoRefresh: 'requests', logsAutoRefresh: 'logs', report
 
 function api() {
   const bridge = host().workbuddyDesktop
-  if (!bridge) throw new Error(t('后端桥不可用'))
+  if (!bridge) throw new Error(t('Backend bridge unavailable'))
   return bridge
 }
 

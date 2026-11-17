@@ -44,7 +44,7 @@ function legacyMethods(provider: RuntimeProviderRecord | undefined): MethodsStat
   const builtin = source === 'builtin' || provider?.id?.endsWith('-subscription') === true
   if (builtin) return {
     phase: 'error', methods: [], instructions: '',
-    reason: t('本体订阅未返回动态登录方式（501）；不会猜测导入接口或显示插件手动凭证入口。请更新网关后重试。'),
+    reason: t('The native subscription returned no dynamic sign-in methods (501). Import endpoints will not be guessed and no plugin manual-credentials form will be shown. Update the gateway and retry.'),
   }
   const meta: Record<string, unknown> | undefined = provider?.meta || (provider && { ...provider })
   const declared = meta?.login_methods ?? meta?.loginMethods
@@ -61,11 +61,11 @@ function legacyMethods(provider: RuntimeProviderRecord | undefined): MethodsStat
     }
     if (kind === 'browser') {
       method.type = 'oauth'
-      method.label ||= t('网页登录（旧版声明）')
+      method.label ||= t('Web sign-in (legacy declaration)')
     } else if (kind === 'token') {
       // 旧 token 声明没有主字段的 key，不能猜成 token/apiKey；由 JSON 手动明确字段。
       method.type = 'manual'
-      method.label ||= t('手动凭证 JSON')
+      method.label ||= t('Manual credentials JSON')
       const extraFields = Array.isArray(raw.extra_fields) ? raw.extra_fields : []
       method.instructions = [method.instructions, ...extraFields.map(value => {
         const field = objectOf(value)
@@ -74,49 +74,49 @@ function legacyMethods(provider: RuntimeProviderRecord | undefined): MethodsStat
     } else if (kind === 'desktop') {
       method.type = 'desktop'
       method.localOnly = true
-      method.label ||= t('从网关本机客户端导入')
+      method.label ||= t('Import from a client on the gateway machine')
     } else if (kind === 'guest') {
       method.type = 'guest'
-      method.label ||= t('访客模式')
+      method.label ||= t('Guest mode')
     } else {
-      method.label ||= t('旧版登录方式')
+      method.label ||= t('Legacy sign-in method')
       method.reason = kind === 'sms'
-        ? t('插件只声明了短信登录，但没有下发可用的动态表单；此界面不会猜测短信接口')
-        : t('此旧版登录声明无法安全映射到动态表单，请联系插件作者')
+        ? t('The plugin only declared SMS sign-in but did not provide a usable dynamic form. This interface will not guess SMS endpoints.')
+        : t('This legacy sign-in declaration cannot be safely mapped to a dynamic form. Contact the plugin author.')
     }
     methods.push(method)
   }
   if (!methods.some(method => method.type === 'manual')) {
     methods.push({
-      id: 'manual:compat', type: 'manual', label: t('手动凭证 JSON（兼容入口）'),
+      id: 'manual:compat', type: 'manual', label: t('Manual credentials JSON (compatibility entry)'),
       prompts: [], localOnly: false, manualCallback: false, callbackInput: 'url', embeddedOnly: false, instructions: '',
     })
   }
   return {
     phase: 'legacy', methods, instructions: textOf(meta?.instructions),
     reason: Array.isArray(declared) && declared.length
-      ? t('插件未实现 auth.methods（501）；以下入口仅依据旧版登录声明显示')
-      : t('插件未实现 auth.methods（501），且没有可用的旧版登录声明；仅保留需要插件确认的手动凭证 JSON 入口'),
+      ? t('The plugin does not implement auth.methods (501). The entries below are shown solely based on its legacy sign-in declarations.')
+      : t('The plugin does not implement auth.methods (501) and has no usable legacy sign-in declarations. Only the manual credentials JSON entry remains, subject to validation by the plugin.'),
   }
 }
 
 function credentialPayload(text: string): Record<string, unknown> {
   if (!text.trim() || text.length > MAX_JSON_LENGTH) {
-    throw new Error(t('请填写非空的凭证 JSON 对象，且不超过 256 KiB'))
+    throw new Error(t('Enter a non-empty credentials JSON object no larger than 256 KiB.'))
   }
   let value: unknown
   try { value = JSON.parse(text) } catch {
     // JSON.parse 的错误可能包含原文片段，不能把凭证回显进错误提示。
-    throw new Error(t('凭证 JSON 格式不正确，请检查括号和引号'))
+    throw new Error(t('The credentials JSON is not valid. Check the brackets and quotation marks.'))
   }
   const record = objectOf(value)
-  if (!record || !Object.keys(record).length) throw new Error(t('凭证 JSON 必须是非空对象，不能是数组或字符串'))
+  if (!record || !Object.keys(record).length) throw new Error(t('The credentials JSON must be a non-empty object, not an array or a string.'))
   const inspect = (value: unknown, depth: number): void => {
-    if (depth > 20) throw new Error(t('凭证 JSON 嵌套过深，请只粘贴该插件要求的凭证对象'))
+    if (depth > 20) throw new Error(t('The credentials JSON is nested too deeply. Paste only the credentials object required by this plugin.'))
     if (!value || typeof value !== 'object') return
     for (const [key, child] of Object.entries(value)) {
       if (UNSAFE_KEYS.has(key) || (depth === 0 && RESERVED_KEYS.has(key))) {
-        throw new Error(t('凭证 JSON 含有不允许的字段：{key}', { key }))
+        throw new Error(t('The credentials JSON contains a disallowed field: {key}', { key }))
       }
       inspect(child, depth + 1)
     }
@@ -168,7 +168,7 @@ export function DynamicProviderBlock({
   const callbackGeneration = React.useRef(0)
   const progressRef = React.useRef<LoginProgress>({})
   const [loginView, setLoginView] = React.useState<WebLoginView>({
-    label: t('登录并添加'), hint: '', disabled: false, waiting: false,
+    label: t('Sign in and add'), hint: '', disabled: false, waiting: false,
   })
   const controllerRef = React.useRef<WebLoginController | null>(null)
   const alive = React.useRef(true)
@@ -245,7 +245,7 @@ export function DynamicProviderBlock({
     setMethodsState(previous => ({ ...previous, phase: 'loading', reason: '' }))
     void (async () => {
       try {
-        if (!runtimeProviderOf(provider)) throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
+        if (!runtimeProviderOf(provider)) throw new Error(t('This provider is no longer in the runtime catalog. Return to the list and select again.'))
         const locale = window.wbI18n?.locale() || 'zh-CN'
         const result = await accountRequest('GET', `/api/session/login/methods?provider=${encodeURIComponent(provider)}&locale=${encodeURIComponent(locale)}`)
         const parsed = parseMethods(result, provider)
@@ -270,11 +270,11 @@ export function DynamicProviderBlock({
     if (engine) {
       controllerRef.current = engine.create({
         provider, buttonId: `${prefix}-start`, cancelId: `${prefix}-cancel`, hintId: `${prefix}-hint`,
-        busyText: t('等待账号登录完成…'), onStateChange: setLoginView,
-        texts: () => ({ button: t('登录并添加'), hint: '' }),
+        busyText: t('Waiting for account sign-in to complete…'), onStateChange: setLoginView,
+        texts: () => ({ button: t('Sign in and add'), hint: '' }),
         start: async () => {
           const current = snapshot.current
-          if (!current.method || current.method.type !== 'oauth') throw new Error(t('请先选择有效的 OAuth 登录方式'))
+          if (!current.method || current.method.type !== 'oauth') throw new Error(t('Select a valid OAuth sign-in method first.'))
           setError('')
           clearCallback()
           progressRef.current = {}
@@ -295,7 +295,7 @@ export function DynamicProviderBlock({
         },
         onSuccess: async raw => {
           const result = raw as LoginResult
-          if (!result?.ok || result.canceled) throw new Error(t('登录桥未确认账号添加完成'))
+          if (!result?.ok || result.canceled) throw new Error(t('The sign-in bridge has not confirmed that the account was added.'))
           // OAuth 建号也走共享登录桥，UA 同样只能建好后补写
           await applyUserAgentAfterCreate(createdAccountIdOf(result), provider, userAgentRef.current)
           await finish(result)
@@ -331,7 +331,7 @@ export function DynamicProviderBlock({
         progressRef.current = {}
         setProgress({})
         clearCallback()
-        setCallbackError(t('网关未返回有效的手动回调输入契约；请更新网关后重新发起。'))
+        setCallbackError(t('The gateway did not return a valid manual callback input contract. Update the gateway and start again.'))
         return
       }
       // 只摘公开进度字段，不保存整个 payload 或凭证；flow 必须属于当前 provider。
@@ -371,18 +371,18 @@ export function DynamicProviderBlock({
     setError('')
     const nickname = textOf(result.session?.nickname)
     await afterAdd(addedLabelOf(result.account) || nickname, label)
-    if (result.warning) toast(t('账号已添加，但请留意：{warning}', { warning: result.warning }), 'warn')
+    if (result.warning) toast(t('Account added, but note: {warning}', { warning: result.warning }), 'warn')
   }
 
   async function submit(): Promise<void> {
     if (!method || submitLocked || savingRef.current || requestingRef.current || methodsState.phase === 'loading') return
     try {
-      if (!runtimeProviderOf(provider)) throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
+      if (!runtimeProviderOf(provider)) throw new Error(t('This provider is no longer in the runtime catalog. Return to the list and select again.'))
       if (method.reason) throw new Error(method.reason)
       const fields = readInputs(method, inputs)
       const proxy = readProxyDraft(proxyDraft)
       if (proxy && 'source' in proxy && proxy.source === 'rotate') {
-        throw new Error(t('登录代理不支持轮询出网，请选择一条已保存的代理'))
+        throw new Error(t('Sign-in does not support rotating proxies. Select one saved proxy.'))
       }
       const remark = method.prompts.some(prompt => prompt.key === 'name') ? fields.name : name.trim()
       const payload: Record<string, unknown> = { provider, proxy, ...(remark ? { name: remark } : {}) }
@@ -397,7 +397,7 @@ export function DynamicProviderBlock({
       } else if (method.type === 'guest') {
         payload.guest = true
       } else {
-        throw new Error(t('此登录方式需要由共享登录桥发起'))
+        throw new Error(t('This sign-in method must be started through the shared sign-in bridge.'))
       }
       savingRef.current = true
       setSaving(true)
@@ -426,10 +426,10 @@ export function DynamicProviderBlock({
   function startOauth(): void {
     if (submitLocked || !method || requestingRef.current || methodsState.phase === 'loading') return
     try {
-      if (!runtimeProviderOf(provider)) throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
+      if (!runtimeProviderOf(provider)) throw new Error(t('This provider is no longer in the runtime catalog. Return to the list and select again.'))
       readInputs(method, inputs)
       readProxyDraft(proxyDraft)
-      if (!controllerRef.current) throw new Error(t('共享登录桥不可用，请重新打开面板'))
+      if (!controllerRef.current) throw new Error(t('The shared sign-in bridge is unavailable. Reopen the panel.'))
       controllerRef.current.start()
     } catch (failure) { setError(describeError(failure)) }
   }
@@ -459,7 +459,7 @@ export function DynamicProviderBlock({
     setCallbackError('')
     setCallbackNotice('')
     try {
-      if (!runtimeProviderOf(provider)) throw new Error(t('该提供商已不在运行时目录中，请返回列表重新选择'))
+      if (!runtimeProviderOf(provider)) throw new Error(t('This provider is no longer in the runtime catalog. Return to the list and select again.'))
       if (!engine?.isActive?.() || engine.activeProvider?.() !== provider) throw new Error()
       const bridge = shared().workbuddyDesktop
       if (!bridge?.submitLoginCallback) throw new Error()
@@ -469,7 +469,7 @@ export function DynamicProviderBlock({
       if (reply?.success === false || reply?.ok === false || reply?.error) throw new Error()
       if (reply?.retryable === true) {
         clearCallback()
-        setCallbackError(loginText(reply.hint) || t('回调未被接受，请重新复制本次登录的完整回调地址'))
+        setCallbackError(loginText(reply.hint) || t('Callback not accepted. Copy the complete callback URL for this sign-in again.'))
         return
       }
       const nextUrl = textOf(reply?.nextUrl)
@@ -478,14 +478,14 @@ export function DynamicProviderBlock({
         if (parsed.protocol !== 'https:' || parsed.username || parsed.password || /[\u0000-\u0020\u007f]/.test(nextUrl)) throw new Error()
         clearCallback()
         setNextAuthUrl(nextUrl)
-        setCallbackNotice(t('还需继续授权，请打开下一步授权页，完成后回填新的完整回调地址。'))
+        setCallbackNotice(t('More authorization is required. Open the next authorization page, then paste the new complete callback URL.'))
         return
       }
       clearCallback()
-      setCallbackNotice(t('回调已提交，仍需等待网关确认账号登录完成。'))
+      setCallbackNotice(t('Callback submitted. Wait for the gateway to confirm account sign-in is complete.'))
       // accepted / Pending / accountId 都不触发 finish；终态只由现有 start/wait 链收尾。
     } catch {
-      if (isCurrent()) setCallbackError(t('授权回调提交失败；请检查输入并重试，登录仍在等待。'))
+      if (isCurrent()) setCallbackError(t('Authorization callback submission failed. Check the input and retry; sign-in is still waiting.'))
     } finally {
       if (isCurrent()) {
         callbackRequest.current = false
@@ -500,22 +500,22 @@ export function DynamicProviderBlock({
   const commonFields = method && method.type !== 'unsupported'
 
   return <div className='add-provider-block' hidden={!active}>
-    <AddGroup label={t('添加方式')} hidden={hideMethodPicker && methodsState.phase === 'ready' && !methodsState.reason}>
-      {methodsState.phase === 'loading' ? <p role='status'><Spinner /> {t('正在读取插件登录方式…')}</p>
+    <AddGroup label={t('Add method')} hidden={hideMethodPicker && methodsState.phase === 'ready' && !methodsState.reason}>
+      {methodsState.phase === 'loading' ? <p role='status'><Spinner /> {t('Loading plugin sign-in methods…')}</p>
         : methodsState.reason ? <Alert variant={methodsState.phase === 'error' ? 'destructive' : 'warning'}>
-          <AlertTitle>{methodsState.phase === 'error' ? t('无法读取登录方式') : t('登录方式说明')}</AlertTitle>
+          <AlertTitle>{methodsState.phase === 'error' ? t('Unable to load sign-in methods') : t('Sign-in method details')}</AlertTitle>
           <AlertDescription className='whitespace-pre-wrap break-words'>{methodsState.reason}</AlertDescription>
         </Alert> : null}
       {!hideMethodPicker && method && methodsState.phase !== 'loading' ? (
         methodsState.methods.length <= 3 ? <SegmentedControl
-          aria-label={t('{label} 账号的添加方式', { label })} disabled={locked}
+          aria-label={t('How to add a {label} account', { label })} disabled={locked}
           className='max-w-full flex-wrap [&_[data-slot=segmented-item]]:h-7'
           value={method.id} options={methodsState.methods.map(item => ({ value: item.id, label: methodLabel(item) }))}
           onValueChange={selectMethod}
         /> : <div className='min-w-0'>
           <Select value={method.id} disabled={locked}
             onValueChange={value => { if (value !== null) selectMethod(value) }}>
-            <SelectTrigger className='w-full max-w-full' aria-label={t('账号登录方式')} title={methodLabel(method)}>
+            <SelectTrigger className='w-full max-w-full' aria-label={t('Account sign-in methods')} title={methodLabel(method)}>
               <SelectValue>{methodLabel(method)}</SelectValue>
             </SelectTrigger>
             <SelectContent className='w-[min(var(--anchor-width),var(--available-width))]'>
@@ -532,24 +532,24 @@ export function DynamicProviderBlock({
     {progress.active && progress.state ? <PluginLoginInteraction key={progress.state} flow={progress.state} t={t}
       request={async <T,>(method: string, path: string, body?: unknown) => await accountRequest(method, path, body) as T} /> : null}
     {instructions || progress.userCode ? <Alert>
-      <AlertTitle>{t('登录指引 / 设备码授权')}</AlertTitle>
+      <AlertTitle>{t('Sign-in instructions / Device-code authorization')}</AlertTitle>
       <AlertDescription className='whitespace-pre-wrap break-words'>
         {instructions}
-        {progress.userCode ? <div className='mt-2'>{t('设备授权码：{code}', { code: progress.userCode })}</div> : null}
+        {progress.userCode ? <div className='mt-2'>{t('Device authorization code: {code}', { code: progress.userCode })}</div> : null}
       </AlertDescription>
     </Alert> : null}
 
     {method && methodsState.phase !== 'loading' ? <AddGroup label={methodLabel(method)}>
-      {method.type === 'oauth' && !method.localOnly ? <p>{t('填写信息后发起授权，进度与失败原因会显示在这里。')}</p> : null}
-      {method.type === 'api' ? <p>{t('API 方法提交给插件的账号规范化入口；不会用该密钥发起 OAuth 登录。')}</p> : null}
+      {method.type === 'oauth' && !method.localOnly ? <p>{t('Enter the required information and start authorization; progress and errors appear here.')}</p> : null}
+      {method.type === 'api' ? <p>{t('API methods submit to the plugin\'s account normalization entry point; the key is not used to start OAuth sign-in.')}</p> : null}
       {method.localOnly ? <Alert variant='warning'>
-        <AlertTitle>{t('需要网关本机环境')}</AlertTitle>
-        <AlertDescription>{t('“本机”指运行网关的机器，不是打开面板的电脑。远程浏览器也可以发起，但网关本机可能需要安装客户端并已登录；是否可用由网关返回结果决定。')}</AlertDescription>
+        <AlertTitle>{t('Requires the gateway machine\'s local environment')}</AlertTitle>
+        <AlertDescription>{t('“Local” means the machine running the gateway, not the computer displaying the panel. A remote browser can also start this, but the gateway machine may need the client installed and signed in. Availability depends on the gateway\'s response.')}</AlertDescription>
       </Alert> : null}
       {method.manualCallback ? <Alert>
         <AlertDescription>{method.callbackInput === 'code'
-          ? t('此方式需要原样提交授权码或令牌；输入会隐藏，不会当作 URL 或 API 凭证解析。提交后仍需等待网关确认。')
-          : t('此方式需要完整回调地址；请原样粘贴，不拆分参数或重建地址。提交后仍需等待网关确认。')}</AlertDescription>
+          ? t('This method requires an unchanged authorization code or token. The input is hidden and is not parsed as a URL or API credential. Wait for gateway confirmation after submitting.')
+          : t('This method requires the complete callback URL. Paste it unchanged, without splitting parameters or rebuilding the URL. Wait for gateway confirmation after submitting.')}</AlertDescription>
       </Alert> : null}
       {resolvedPrompts.error ? <Alert variant='destructive'><AlertDescription>{resolvedPrompts.error}</AlertDescription></Alert> : null}
       {method.reason ? <Alert variant='warning'><AlertDescription>{method.reason}</AlertDescription></Alert> : null}
@@ -558,15 +558,15 @@ export function DynamicProviderBlock({
         const id = `${prefix}-prompt-${index}`
         const current = promptValue(prompt, inputs)
         return <div key={`${method.id}:${prompt.key}`} className='flex flex-col gap-1.5'>
-          <Label htmlFor={id}>{prompt.label}{prompt.optional ? t('（可选）') : t('（必填）')}</Label>
+          <Label htmlFor={id}>{prompt.label}{prompt.optional ? t(' (Optional)') : t(' (Required)')}</Label>
           {prompt.type === 'select' ? <SearchableSelect value={current} disabled={locked || !prompt.options.length}
             onValueChange={value => setValues(previous => ({
               ...previous, [method.id]: { ...previous[method.id], [prompt.key]: value },
             }))}
             id={id} className='w-full' searchable={prompt.options.length > 8}
-            displayValue={prompt.options.find(option => option.value === current)?.label || prompt.placeholder || t('请选择')}
+            displayValue={prompt.options.find(option => option.value === current)?.label || prompt.placeholder || t('Select an option')}
             options={[
-              ...(prompt.optional ? [{ value: '', label: t('不填写（可选）') }] : []),
+              ...(prompt.optional ? [{ value: '', label: t('Leave blank (optional)') }] : []),
               ...prompt.options,
             ]} /> : <Input id={id} type={prompt.secret ? 'password' : 'text'} disabled={locked}
             autoComplete={prompt.secret ? 'new-password' : 'off'} spellCheck={false}
@@ -578,33 +578,33 @@ export function DynamicProviderBlock({
       })}
       {method.type === 'manual' ? <>
         <Alert variant='warning'><AlertDescription>
-          {t('这是旧插件的手动兼容入口，不代表支持任意凭证或登录方式。请仅粘贴该插件明确接受的凭证 JSON；网关会交给 account.normalize 校验，不会自动推断 Token、Cookie 或 OAuth。')}
+          {t('This is a manual compatibility entry for legacy plugins, not support for arbitrary credentials or sign-in methods. Paste only credentials JSON explicitly accepted by the plugin. The gateway passes it to account.normalize for validation and does not infer Token, Cookie or OAuth credentials.')}
         </AlertDescription></Alert>
-        <Label htmlFor={`${prefix}-credential`}>{t('凭证 JSON（必填）')}</Label>
+        <Label htmlFor={`${prefix}-credential`}>{t('Credentials JSON (required)')}</Label>
         <Textarea id={`${prefix}-credential`} rows={6} maxLength={MAX_JSON_LENGTH} disabled={locked}
           autoComplete='off' spellCheck={false} value={credentialJson}
           onChange={event => setCredentialJson(event.currentTarget.value)}
-          placeholder={t('粘贴插件要求的 JSON 对象，不要包含 provider、name、proxy 或登录流程控制字段')} />
-        <p>{t('凭证只在提交时发送到网关；备注名和代理请使用下面的字段，解析错误不会回显凭证内容。')}</p>
+          placeholder={t('Paste the JSON object required by the plugin, without provider, name, proxy or sign-in flow control fields.')} />
+        <p>{t('Credentials are sent to the gateway only on submission. Use the fields below for the label and proxy; parse errors will not display credential contents.')}</p>
       </> : null}
       {commonFields ? <>
         {method.type !== 'oauth' && !method.prompts.some(prompt => prompt.key === 'name') ? <div className='flex flex-col gap-1.5'>
-          <Label htmlFor={`${prefix}-name`}>{t('备注名')}</Label>
-          <Input id={`${prefix}-name`} maxLength={MAX_NAME_LENGTH} placeholder={t('可选，留空使用账号昵称')}
+          <Label htmlFor={`${prefix}-name`}>{t('Label')}</Label>
+          <Input id={`${prefix}-name`} maxLength={MAX_NAME_LENGTH} placeholder={t('Optional; leave blank to use the account nickname.')}
             value={name} disabled={locked} onChange={event => setName(event.currentTarget.value)} />
         </div> : null}
         {uaEditable ? <div className='flex flex-col gap-1.5'>
-          <Label htmlFor={`${prefix}-user-agent`}>{t('User-Agent（可选）')}</Label>
+          <Label htmlFor={`${prefix}-user-agent`}>{t('User-Agent (optional)')}</Label>
           <UserAgentInput id={`${prefix}-user-agent`} value={userAgent} onChange={setUserAgent}
             presets={uaPresets} disabled={locked} />
         </div> : null}
       </> : null}
       {method.type === 'oauth' && !legacyBrowser && !method.prompts.some(prompt => prompt.key === 'name')
-        ? <p>{t('账号名由插件自动获取，添加后可修改。')}</p> : null}
+        ? <p>{t('The plugin fills in the account name automatically; you can change it after adding.')}</p> : null}
       {method.type === 'oauth' && !method.localOnly && !method.embeddedOnly && (!method.browserMode || method.browserMode === 'choice') && shared().workbuddyDesktop?.platform !== 'web' ? <>
-        <Label>{t('打开方式')}</Label>
-        <SegmentedControl aria-label={t('网页登录的打开方式')} value={mode} disabled={locked}
-          options={[{ value: 'external', label: t('系统浏览器') }, { value: 'embedded', label: t('内嵌窗口') }]}
+        <Label>{t('Open with')}</Label>
+        <SegmentedControl aria-label={t('How to open web login')} value={mode} disabled={locked}
+          options={[{ value: 'external', label: t('System browser') }, { value: 'embedded', label: t('Embedded window') }]}
           onValueChange={setMode} />
       </> : null}
       {method.type === 'oauth' ? <AddFoot host={footerHost} active={active}>
@@ -612,34 +612,34 @@ export function DynamicProviderBlock({
           {loginView.waiting ? <Spinner /> : null}{loginView.label}
         </Button>
         <Button id={`${prefix}-cancel`} variant='outline' hidden={!loginView.waiting}
-          onClick={cancelOauth}>{t('取消等待')}</Button>
+          onClick={cancelOauth}>{t('Cancel sign-in')}</Button>
       </AddFoot> : method.type !== 'unsupported' ? <AddFoot host={footerHost} active={active}>
         <Button disabled={submitLocked || Boolean(method.reason)}
-          onClick={() => void submit()}>{saving ? <Spinner /> : null}{saving ? t('添加中…') : t('添加账号')}</Button>
+          onClick={() => void submit()}>{saving ? <Spinner /> : null}{saving ? t('Adding…') : t('Add account')}</Button>
       </AddFoot> : null}
       {manualWaiting ? <div className='flex flex-col gap-2'>
         {nextAuthUrl ? <Button variant='outline' className='self-start' disabled={callbackBusy}
           onClick={() => {
             if (progressRef.current.active && progressRef.current.provider === provider) void openExternal(nextAuthUrl)
-          }}>{t('打开下一步授权页')}</Button> : null}
+          }}>{t('Open the next authorization page')}</Button> : null}
         <Label htmlFor={`${prefix}-callback`}>{callbackType === 'code'
-          ? t('授权码或令牌（原样提交）') : t('完整回调地址（原样提交）')}</Label>
+          ? t('Authorization code or token (submitted unchanged)') : t('Complete callback URL (submitted unchanged)')}</Label>
         <Input key={`${progress.state}:${callbackType}`} id={`${prefix}-callback`} ref={callbackInputRef}
           type='password' defaultValue=''
           autoComplete='new-password' spellCheck={false} autoCapitalize='none'
           disabled={callbackBusy} placeholder={callbackType === 'code'
-            ? t('授权码或令牌（原样提交）') : t('完整回调地址（原样提交）')}
+            ? t('Authorization code or token (submitted unchanged)') : t('Complete callback URL (submitted unchanged)')}
           onChange={event => {
             setHasCallback(event.currentTarget.value.length > 0)
             setCallbackError('')
             setCallbackNotice('')
           }} />
         <Button variant='outline' className='self-start' disabled={!hasCallback || callbackBusy}
-          onClick={() => void sendCallback()}>{callbackBusy ? <Spinner /> : null}{t('提交授权回调')}</Button>
+          onClick={() => void sendCallback()}>{callbackBusy ? <Spinner /> : null}{t('Submit authorization callback')}</Button>
         {callbackNotice ? <p role='status'>{callbackNotice}</p> : null}
       </div> : null}
       {callbackError ? <Alert variant='destructive'><AlertDescription>{callbackError}</AlertDescription></Alert> : null}
-      {error ? <Alert variant='destructive'><AlertTitle>{t('添加失败')}</AlertTitle>
+      {error ? <Alert variant='destructive'><AlertTitle>{t('Failed to add')}</AlertTitle>
         <AlertDescription className='whitespace-pre-wrap break-words'>{error}</AlertDescription>
       </Alert> : null}
     </AddGroup> : null}

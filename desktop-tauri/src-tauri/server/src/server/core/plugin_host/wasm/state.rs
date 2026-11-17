@@ -122,7 +122,7 @@ impl Context {
                     }
                 }).await.map_err(|error| super::error(error.message))?.map_err(super::error)
             }
-            _ => Err(super::error("状态范围必须是 login、conversation 或 account")),
+            _ => Err(super::error("状态范围必须是 login, conversation or account")),
         }
     }
 }

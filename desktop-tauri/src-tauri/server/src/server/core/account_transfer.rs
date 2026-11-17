@@ -229,7 +229,7 @@ pub fn import_accounts(store: &AccountStore, payload: &Value) -> Result<Value, A
         crate::server::logging::log_with_level(
             "[Accounts]",
             &format!(
-                "📥 账号导入完成: 共 {} 条，新增 {} 个，更新 {} 个，跳过 {} 条，失败 {failed} 条\
+                "📥 账号导入完成: Total {} 条，新增 {} 个，更新 {} 个，跳过 {} 条，失败 {failed} rows\
                  （自定义提供商定义：新增 {} 家、更新 {} 家）",
                 items.len(),
                 stats.added,
@@ -386,7 +386,7 @@ fn import_one_item(
         .any(|record| record.id() == item_id && is_desktop_item(record.fields()))
     {
         return Ok(ImportOutcome::Skipped(format!(
-            "账号 id「{item_id}」在本机是桌面端实时登录态（凭证在客户端存储），\
+            "Account id「{item_id}」在本机是桌面端实时登录态（凭证在客户端存储），\
              通用导入不改写它；如需刷新请在目标机器用「导入桌面端登录态」"
         )));
     }
@@ -456,7 +456,7 @@ fn import_one_item(
     // 分配一个真正唯一的 id（绝不覆盖他人，也不回落成同样可能冲突的派生值）
     let taken: std::collections::HashSet<String> = taken_ids.iter().cloned().collect();
     let Some(new_id) = allocate_unique_id(&item_id, &taken) else {
-        return Err("导入账号 ID 冲突，无法分配独立 ID，未覆盖原账号".to_string());
+        return Err("Import Accounts ID 冲突，无法分配独立 ID，未覆盖原账号".to_string());
     };
 
     let normalized = normalize_imported(object, &provider, None)?;
@@ -485,7 +485,7 @@ fn import_one_item(
         let fallback = {
             let nickname = saved.nickname();
             if nickname.is_empty() {
-                format!("账号 {}", state.accounts.len() + 1)
+                format!("Account {}", state.accounts.len() + 1)
             } else {
                 nickname
             }

@@ -35,14 +35,14 @@ export function SourceLogFilters({ filters, clients, apiKeys, onChange }: {
   onChange: (patch: Partial<SourceFilters>) => void
 }) {
   const clientOptions = React.useMemo(() => [
-    { value: ALL_CLIENTS, label: t('全部客户端') },
+    { value: ALL_CLIENTS, label: t('All clients') },
     ...clients.map(item => ({ value: clientFilterValue(item.value), label: requestClientLabel({ client: item.value, clientLabel: item.label }, t) })),
   ], [clients])
-  const keyOptions = React.useMemo(() => [{ value: '', label: t('全部 API Key') },
+  const keyOptions = React.useMemo(() => [{ value: '', label: t('All API keys') },
     ...apiKeys.map(item => ({ ...item, label: t(item.label) })),
   ], [apiKeys])
   const options = (list: SourceOption[], value: string) => list.some(item => item.value === value)
-    ? list : [{ value, label: value === UNKNOWN_CLIENT ? t('未记录客户端') : value }, ...list]
+    ? list : [{ value, label: value === UNKNOWN_CLIENT ? t('Unrecorded client') : value }, ...list]
   return (
     <>
       {(['client', 'apiKey'] as const).map(key => {
@@ -50,7 +50,7 @@ export function SourceLogFilters({ filters, clients, apiKeys, onChange }: {
         return <SearchableSelect value={filters[key]} key={key} options={list}
           onValueChange={value => onChange({ [key]: value })}
           id={`req-${key}`} className='min-w-[120px] max-w-[200px]'
-          aria-label={key === 'client' ? t('按客户端筛选') : t('按 API Key 筛选')} />
+          aria-label={key === 'client' ? t('Filter by client') : t('Filter by API key')} />
       })}
     </>
   )

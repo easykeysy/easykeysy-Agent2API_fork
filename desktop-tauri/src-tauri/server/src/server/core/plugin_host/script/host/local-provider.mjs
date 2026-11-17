@@ -9,7 +9,7 @@ export function rememberProviderName(provider) {
 }
 
 export function localAccountName() { return localProviderName }
-export const AGY_INSTRUCTIONS = "ACP 使用网关电脑上的官方 agy CLI，不是当前手机或浏览器所在设备。请先安装 agy 1.5.0 或更新版本：https://antigravity.google/docs/cli。程序不在默认位置时，可在网关启动环境设置 AGY_PATH。\n点击登录后，在 Google 页面授权，再原样粘贴授权码或完整页面地址；已登录的 agy 会直接连接。Google 凭证由官方客户端保管，Agent2API 只保存本机连接标记。同一网关仅使用 agy 当前登录的一个账号，不支持复制为多个独立账号。"
+export const AGY_INSTRUCTIONS = "ACP uses the official agy CLI on the gateway computer, not the device running this browser or phone. Install agy 1.5.0 or later first: https://antigravity.google/docs/cli. For a custom installation path, set AGY_PATH in the gateway's startup environment.\nClick Sign in, authorize on Google's page, then paste the authorization code or full page URL unchanged. If agy is already signed in, it connects directly. The official client keeps Google's credentials; Agent2API stores only a local connection marker. Each gateway uses agy's current account, not multiple independent copies."
 
 export function isLocalProvider(provider) {
   return provider.id === AGY_PROVIDER && provider.packageName === AGY_PACKAGE
@@ -52,5 +52,5 @@ export function localRequest(provider, params, body) {
 }
 
 export function localErrorPolicy(provider) {
-  return isLocalProvider(provider) ? { stop: true, reason: "ACP 会话失败时不自动重发，也不切换到其他接入方式。" } : {}
+  return isLocalProvider(provider) ? { stop: true, reason: "A failed ACP session is not retried automatically or switched to another connection method." } : {}
 }

@@ -217,17 +217,17 @@ export function accept(payload: ProxyPoolPayload | null | undefined): void {
 export async function loadPanel(silent = false): Promise<void> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.getProxyPool !== 'function') {
-    patch({ error: t('当前环境不支持代理池（桥接方法缺失）') })
+    patch({ error: t('Proxy pool is not supported in this environment (bridge method missing)') })
     return
   }
   if (!silent) patch({ loading: true })
   try {
     const data = await bridge.getProxyPool()
-    if (!data || !Array.isArray(data.items)) throw new Error(t('代理列表响应异常'))
+    if (!data || !Array.isArray(data.items)) throw new Error(t('Unexpected proxy list response'))
     accept(data)
   } catch (error) {
     patch({ error: errorMessage(error) })
-    if (!silent) toast(t('代理列表加载失败：{reason}', { reason: errorMessage(error) }), 'err')
+    if (!silent) toast(t('Failed to load proxy list: {reason}', { reason: errorMessage(error) }), 'err')
   } finally {
     patch({ loading: false })
   }
@@ -236,21 +236,21 @@ export async function loadPanel(silent = false): Promise<void> {
 export async function syncClash(): Promise<void> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.syncClashToProxyPool !== 'function') {
-    toast(t('当前环境不支持同步（桥接方法缺失）'), 'err')
+    toast(t('Sync is not supported in this environment (bridge method missing)'), 'err')
     return
   }
   if (state.syncing || state.batchBusy || state.testing || state.pending.size) return
   patch({ syncing: true })
   try {
     const data = await bridge.syncClashToProxyPool()
-    if (!data || !Array.isArray(data.items)) throw new Error(t('代理列表响应异常'))
+    if (!data || !Array.isArray(data.items)) throw new Error(t('Unexpected proxy list response'))
     accept(data)
-    if (data.syncError) toast(t('没能同步：{reason}', { reason: data.syncError }), 'err')
+    if (data.syncError) toast(t('Could not sync: {reason}', { reason: data.syncError }), 'err')
     else toast(data.changes
-      ? t('✅ 已同步 Clash Verge 出口（{n} 项变更）', { n: data.changes })
-      : t('已是最新，没有需要同步的变更'), 'ok')
+      ? t('✅ Synced Clash Verge endpoints ({n} changes)', { n: data.changes })
+      : t('Already up to date — no changes to sync'), 'ok')
   } catch (error) {
-    toast(t('同步失败：{reason}', { reason: errorMessage(error) }), 'err')
+    toast(t('Sync failed: {reason}', { reason: errorMessage(error) }), 'err')
   } finally {
     patch({ syncing: false })
   }
@@ -259,7 +259,7 @@ export async function syncClash(): Promise<void> {
 export async function testItem(item: ProxyPoolItem): Promise<void> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.testProxyPoolItem !== 'function') {
-    toast(t('当前环境不支持代理测试（桥接方法缺失）'), 'err')
+    toast(t('Proxy testing is not supported in this environment (bridge method missing)'), 'err')
     return
   }
   if (state.testing) return
@@ -270,17 +270,17 @@ export async function testItem(item: ProxyPoolItem): Promise<void> {
     if (data?.success) {
       const suffix = durationText(data.durationMs)
       // 出口 IP / 耗时是附带读数：IP 是后端数据、耗时只有数字，各自做形参不做键
-      toast(t('✅ 「{name}」出口可用{ip}{took}', {
+      toast(t('✅ "{name}" endpoint available{ip}{took}', {
         name: itemName(item),
-        ip: data.ip ? t('　出口 IP {ip}', { ip: data.ip }) : '',
+        ip: data.ip ? t(' Exit IP {ip}', { ip: data.ip }) : '',
         took: suffix ? `　${suffix}` : '',
       }))
     } else {
-      toast(t('❌ 「{name}」{error}', { name: itemName(item), error: data?.error || t('连接失败') }), 'err')
+      toast(t('❌ "{name}": {error}', { name: itemName(item), error: data?.error || t('Connection failed') }), 'err')
     }
-    if (data?.saveError) toast(t('测试结果没能记下：{reason}', { reason: data.saveError }), 'err')
+    if (data?.saveError) toast(t('Could not save the test result: {reason}', { reason: data.saveError }), 'err')
   } catch (error) {
-    toast(t('测试失败：{reason}', { reason: errorMessage(error) }), 'err')
+    toast(t('Test failed: {reason}', { reason: errorMessage(error) }), 'err')
   } finally {
     patch({ testing: null })
   }
@@ -289,7 +289,7 @@ export async function testItem(item: ProxyPoolItem): Promise<void> {
 export async function toggleItem(item: ProxyPoolItem, enabled: boolean): Promise<void> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.setProxyPoolItemEnabled !== 'function') {
-    toast(t('当前环境不支持启停（桥接方法缺失）'), 'err')
+    toast(t('Enabling/disabling is not supported in this environment (bridge method missing)'), 'err')
     return
   }
   const pending = new Set(state.pending)
@@ -299,9 +299,9 @@ export async function toggleItem(item: ProxyPoolItem, enabled: boolean): Promise
     const data = await bridge.setProxyPoolItemEnabled({ id: item.id, enabled })
     accept(data)
     const name = itemName(item)
-    toast(enabled ? t('已启用「{name}」', { name }) : t('已禁用「{name}」', { name }))
+    toast(enabled ? t('Enabled "{name}"', { name }) : t('Disabled "{name}"', { name }))
   } catch (error) {
-    toast(t('保存失败：{reason}', { reason: errorMessage(error) }), 'err')
+    toast(t('Save failed: {reason}', { reason: errorMessage(error) }), 'err')
   } finally {
     const next = new Set(state.pending)
     next.delete(item.id)
@@ -311,29 +311,29 @@ export async function toggleItem(item: ProxyPoolItem, enabled: boolean): Promise
 
 export async function removeItem(item: ProxyPoolItem): Promise<void> {
   if (item.source === 'clash') {
-    toast(t('只读：在 Clash Verge 里改'), 'err')
+    toast(t('Read-only: edit it in Clash Verge'), 'err')
     return
   }
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.removeProxyPoolItem !== 'function') return
   const used = item.usedBy || []
   const usedHtml = used.length
-    ? `<p style="margin-top:6px">${t('有 <strong>{n}</strong> 个账号正在使用它（{names}）—— 删除后需重新设置这些账号的代理，不会自动直连。', {
+    ? `<p style="margin-top:6px">${t('<strong>{n}</strong> accounts use this proxy ({names}). After deletion, reconfigure their proxies; they will not connect directly automatically.', {
         n: used.length,
-        names: used.map(entry => escapeHtml(String(entry.name || entry.id || ''))).join(t('、')),
+        names: used.map(entry => escapeHtml(String(entry.name || entry.id || ''))).join(t(', ')),
       })}</p>`
     : ''
   const services = proxyServiceLabels(item, t)
   const serviceHtml = services.length
-    ? `<p style="margin-top:6px">${t('此代理用于{services}；删除后这些线路将不可用，不会自动回退直连。', { services: services.map(escapeHtml).join(t('、')) })}</p>`
+    ? `<p style="margin-top:6px">${t('This proxy is used for {services}. Deleting it makes those routes unavailable; they will not fall back to a direct connection.', { services: services.map(escapeHtml).join(t(', ')) })}</p>`
     : ''
   const ok = await wb().wbConfirm?.ask?.({
-    title: t('删除代理'),
-    html: t('确定删除「<strong>{name}</strong>」？{used}', {
+    title: t('Delete proxy'),
+    html: t('Delete "<strong>{name}</strong>"? {used}', {
       name: escapeHtml(itemName(item)),
       used: usedHtml + serviceHtml,
     }),
-    okText: t('删除'),
+    okText: t('Delete'),
     okClass: 'danger',
   })
   if (!ok) return
@@ -343,9 +343,9 @@ export async function removeItem(item: ProxyPoolItem): Promise<void> {
   try {
     const data = await bridge.removeProxyPoolItem(item.id)
     accept(data)
-    toast(t('已删除「{name}」', { name: itemName(item) }))
+    toast(t('Deleted "{name}"', { name: itemName(item) }))
   } catch (error) {
-    toast(t('删除失败：{reason}', { reason: errorMessage(error) }), 'err')
+    toast(t('Delete failed: {reason}', { reason: errorMessage(error) }), 'err')
   } finally {
     const next = new Set(state.pending)
     next.delete(item.id)
@@ -358,7 +358,7 @@ export async function removeItem(item: ProxyPoolItem): Promise<void> {
 export async function batchTest(): Promise<void> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.testProxyPoolItem !== 'function') {
-    toast(t('当前环境不支持代理测试（桥接方法缺失）'), 'err')
+    toast(t('Proxy testing is not supported in this environment (bridge method missing)'), 'err')
     return
   }
   if (state.batchBusy || state.testing) return
@@ -382,10 +382,10 @@ export async function batchTest(): Promise<void> {
   }
   patch({ testing: null, batchBusy: false, batchProgress: null })
   const summary = failed
-    ? t('批量测试完成：{ok} 个可用、{failed} 个失败（共 {total} 个）', { ok, failed, total: targets.length })
-    : t('批量测试完成：{ok} 个可用（共 {total} 个）', { ok, total: targets.length })
+    ? t('Batch test complete: {ok} available, {failed} failed ({total} total)', { ok, failed, total: targets.length })
+    : t('Batch test complete: {ok} available ({total} total)', { ok, total: targets.length })
   toast(failed ? summary : `✅ ${summary}`, failed ? 'err' : 'ok')
-  if (saveError) toast(t('部分测试结果没能记下：{reason}', { reason: saveError }), 'err')
+  if (saveError) toast(t('Some test results could not be saved: {reason}', { reason: saveError }), 'err')
 }
 
 export async function batchRemove(): Promise<void> {
@@ -398,28 +398,28 @@ export async function batchRemove(): Promise<void> {
   const deletable = picked.filter(item => item.source !== 'clash')
   const skipped = picked.length - deletable.length
   if (!deletable.length) {
-    if (skipped) toast(t('选中的 {n} 条都来自 Clash Verge 同步，不能删除（请到 Clash Verge 里删）', { n: skipped }), 'err')
+    if (skipped) toast(t('All {n} selected entries come from Clash Verge sync and cannot be deleted (delete them in Clash Verge)', { n: skipped }), 'err')
     return
   }
-  const names = deletable.slice(0, 8).map(item => escapeHtml(itemName(item))).join(t('、'))
+  const names = deletable.slice(0, 8).map(item => escapeHtml(itemName(item))).join(t(', '))
   const namesText = deletable.length > 8
-    ? t('{names} 等 {n} 条', { names, n: deletable.length })
+    ? t('{names} and {n} in total', { names, n: deletable.length })
     : names
   const usedCount = deletable.filter(item => (item.usedBy || []).length).length
   const usedHtml = usedCount
-    ? `<p style="margin-top:6px">${t('其中 <strong>{n}</strong> 条正被账号使用 —— 删除后需重新设置相关账号的代理，不会自动直连。', { n: usedCount })}</p>`
+    ? `<p style="margin-top:6px">${t('<strong>{n}</strong> selected proxies are in use. After deletion, reconfigure the affected accounts; they will not connect directly automatically.', { n: usedCount })}</p>`
     : ''
   const services = [...new Set(deletable.flatMap(item => proxyServiceLabels(item, t)))]
   const serviceHtml = services.length
-    ? `<p style="margin-top:6px">${t('选中的代理用于{services}；删除后这些线路将不可用，不会自动回退直连。', { services: services.map(escapeHtml).join(t('、')) })}</p>`
+    ? `<p style="margin-top:6px">${t('The selected proxies are used for {services}. Deleting them makes those routes unavailable; they will not fall back to a direct connection.', { services: services.map(escapeHtml).join(t(', ')) })}</p>`
     : ''
   const skippedHtml = skipped
-    ? `<p style="margin-top:6px">${t('另有 {n} 条来自 Clash Verge 同步，将跳过（请到 Clash Verge 里删）。', { n: skipped })}</p>`
+    ? `<p style="margin-top:6px">${t('{n} more entries come from Clash Verge sync and will be skipped (delete them in Clash Verge).', { n: skipped })}</p>`
     : ''
   const ok = await wb().wbConfirm?.ask?.({
-    title: t('批量删除代理'),
-    html: `${t('确定删除选中的 <strong>{n}</strong> 个代理？', { n: deletable.length })}<p style="margin-top:6px">${namesText}</p>${usedHtml}${serviceHtml}${skippedHtml}`,
-    okText: t('删除'),
+    title: t('Delete selected proxies'),
+    html: `${t('Delete the <strong>{n}</strong> selected proxies?', { n: deletable.length })}<p style="margin-top:6px">${namesText}</p>${usedHtml}${serviceHtml}${skippedHtml}`,
+    okText: t('Delete'),
     okClass: 'danger',
   })
   if (!ok) return
@@ -439,10 +439,10 @@ export async function batchRemove(): Promise<void> {
     }
   }
   patch({ batchBusy: false, batchProgress: null })
-  const parts = [t('已删除 {n} 个代理', { n: done })]
-  if (skipped) parts.push(t('跳过 {n} 个（Clash 同步）', { n: skipped }))
-  if (failed) parts.push(t('失败 {n} 个（{reason}）', { n: failed, reason: firstError }))
-  toast(failed ? parts.join(t('，')) : `✅ ${parts.join(t('，'))}`, failed ? 'err' : 'ok')
+  const parts = [t('Deleted {n} proxies', { n: done })]
+  if (skipped) parts.push(t('skipped {n} (Clash sync)', { n: skipped }))
+  if (failed) parts.push(t('{n} failed ({reason})', { n: failed, reason: firstError }))
+  toast(failed ? parts.join(t(', ')) : `✅ ${parts.join(t(', '))}`, failed ? 'err' : 'ok')
 }
 
 /** 新建 / 编辑提交（表单已在弹窗里校验过形状） */
@@ -455,7 +455,7 @@ export async function saveItem(
   const data = editing
     ? await bridge?.updateProxyPoolItem?.(body)
     : await bridge?.createProxyPoolItem?.(body)
-  if (!data || !Array.isArray(data.items)) throw new Error(t('代理列表响应异常'))
+  if (!data || !Array.isArray(data.items)) throw new Error(t('Unexpected proxy list response'))
   accept(data)
   return data
 }
@@ -466,11 +466,11 @@ export async function saveItem(
 export async function loadSettings(): Promise<ProxySettings | null> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.getProxySettings !== 'function') {
-    throw new Error(t('当前环境不支持代理设置（桥接方法缺失）'))
+    throw new Error(t('Proxy settings are not supported in this environment (bridge method missing)'))
   }
   const data = await bridge.getProxySettings()
   if (!data || typeof data !== 'object') {
-    throw new Error(t('代理设置响应异常'))
+    throw new Error(t('Unexpected proxy settings response'))
   }
   return data
 }
@@ -480,11 +480,11 @@ export async function saveSettings(payload: {
 }): Promise<ProxySettings> {
   const bridge = wb().workbuddyDesktop
   if (typeof bridge?.saveProxySettings !== 'function') {
-    throw new Error(t('当前环境不支持代理设置（桥接方法缺失）'))
+    throw new Error(t('Proxy settings are not supported in this environment (bridge method missing)'))
   }
   const data = await bridge.saveProxySettings(payload)
   if (!data || typeof data !== 'object') {
-    throw new Error(t('代理设置响应异常'))
+    throw new Error(t('Unexpected proxy settings response'))
   }
   return data
 }

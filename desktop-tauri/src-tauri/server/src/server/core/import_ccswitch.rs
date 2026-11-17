@@ -301,7 +301,7 @@ fn scan_entry(
 
     // 不可导入的原因（按确定性排序：类型 → 端点 → 凭证 → 同名）
     let reason = if !SUPPORTED_TYPES.contains(&app_type) {
-        format!("cc-switch 的 {} 配置，暂不支持导入", unsupported_label(app_type))
+        format!("cc-switch — see the {} 配置，暂不支持导入", unsupported_label(app_type))
     } else if base_url.is_empty() {
         if app_type.starts_with("claude") {
             "官方直连配置，没有可导入的自定义端点".to_string()
@@ -349,7 +349,7 @@ pub fn scan() -> Value {
         return json!({
             "available": false,
             "path": path_text,
-            "reason": "未找到 cc-switch 的数据库（~/.cc-switch/cc-switch.db）——请确认本机安装了 cc-switch，并在里面添加过供应商",
+            "reason": "未找到 cc-switch 的数据库（~/.cc-switch/cc-switch.db)——请确认本机安装了 cc-switch，并在里面添加过供应商",
         });
     }
 

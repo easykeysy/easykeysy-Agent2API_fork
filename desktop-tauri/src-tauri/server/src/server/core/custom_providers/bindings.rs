@@ -107,13 +107,13 @@ pub(super) fn validate_change(
         {
             return Err(GatewayError::with_status(
                 409,
-                format!("模型 ID「{alias}」在该提供商已有启用绑定，请先关闭它再添加"),
+                format!("Model ID「{alias}」在该提供商已有启用绑定，请先关闭它再添加"),
             ));
         }
         if enabled && active.insert(alias.clone(), target).is_some() {
             return Err(GatewayError::with_status(
                 409,
-                format!("模型 ID「{alias}」不能同时启用多个绑定"),
+                format!("Model ID「{alias}」不能同时启用多个绑定"),
             ));
         }
     }

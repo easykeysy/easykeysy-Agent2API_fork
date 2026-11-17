@@ -82,7 +82,7 @@ pub async fn start(app: &AppHandle, options: &Value) -> Result<Value, String> {
         allowed(&url) && url.host_str() == Some("chat.deepseek.com")
     });
     let result = if valid {
-        crate::login::run_cookie_login_with_proxy(app, "deepseek-web", auth_url, "登录 DeepSeek 账号", &flow, proxy).await
+        crate::login::run_cookie_login_with_proxy(app, "deepseek-web", auth_url, "Sign in DeepSeek Accounts", &flow, proxy).await
     } else {
         Err("DeepSeek 登录地址不是官方站点".into())
     };
@@ -123,9 +123,9 @@ pub async fn credentials(window: &WebviewWindow, capture: &mut CredentialCapture
     if !capture.stable(token) { return Ok(None); }
     let owned = window.clone();
     let cookies = tokio::time::timeout(Duration::from_secs(10), tokio::task::spawn_blocking(move || owned.cookies()))
-        .await.map_err(|_| "读取 DeepSeek Cookie 超时")?
+        .await.map_err(|_| "读取 DeepSeek Cookie Timeout")?
         .map_err(|_| "读取 DeepSeek Cookie 的后台任务失败")?
-        .map_err(|_| "读取 DeepSeek Cookie 失败")?;
+        .map_err(|_| "读取 DeepSeek Cookie failed")?;
     let now = chrono::Utc::now().timestamp();
     let rows: Vec<String> = cookies.into_iter().filter_map(|cookie| {
         let domain = cookie.domain()?.trim_start_matches('.');
@@ -144,7 +144,7 @@ pub async fn credentials(window: &WebviewWindow, capture: &mut CredentialCapture
     }).collect();
     let cookie = rows.join("; ");
     if cookie.len() > 32768 {
-        return Err("DeepSeek 网页 Cookie 过大".into());
+        return Err("DeepSeek Web Cookie 过大".into());
     }
     let current = read_login_state(window).await;
     match current {

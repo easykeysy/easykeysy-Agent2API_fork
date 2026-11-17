@@ -55,7 +55,7 @@ function Pager({
       // 说明文字是同一档，用更淡的那档在浅色主题下会糊
       className='text-[11.5px] text-subtle [font-variant-numeric:tabular-nums]'
     >
-      {t('第 {current} / {total} 页', { current, total })}
+      {t('Page {current} of {total}', { current, total })}
     </span>
   )
 
@@ -69,7 +69,7 @@ function Pager({
         disabled={disabled || current <= 1}
         onClick={() => onPageChange(current - 1)}
       >
-        {t('上一页')}
+        {t('Previous')}
       </Button>
       <Button
         type='button'
@@ -78,7 +78,7 @@ function Pager({
         disabled={disabled || current >= total}
         onClick={() => onPageChange(current + 1)}
       >
-        {t('下一页')}
+        {t('Next')}
       </Button>
       {!infoFirst && info}
     </div>

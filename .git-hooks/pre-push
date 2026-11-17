@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# pre-push: LAW-11.R2 - fork release tags must (1) inherit an upstream base tag
+# name, (2) pin to that base (the upstream base commit is an ancestor of the
+# tag target), and (3) increment -fork.N sequentially, no gaps, no reuse.
+# Data: .git-hooks/upstream-tags.manifest  ("<upstream-commit-sha>\t<tagname>")
+# Mode: .git-hooks/tag-rules.env  (BARE_UPSTREAM_TAG_MODE=leave|repoint)
+# Regenerate the manifest at every base bump (LAW.md LAW-11.R3).
+set -uo pipefail
+
+fail() { echo "pre-push: $*" >&2; exit 1; }
+
+MANIFEST=".git-hooks/upstream-tags.manifest"
+RULES=".git-hooks/tag-rules.env"
+[ -f "$MANIFEST" ] || exit 0
+MODE="leave"
+[ -f "$RULES" ] && . "$RULES"
+
+zero=0000000000000000000000000000000000000000
+
+up_sha() { awk -F '\t' -v n="$1" '$1 ~ /^#/ {next} $2 == n {print $1; exit}' "$MANIFEST"; }
+
+while read -r lref lsha rref rsha; do
+  [ -n "${lref:-}" ] || continue
+  case "$lref" in refs/tags/*) ;; *) continue ;; esac
+  [ "$lsha" = "$zero" ] && continue
+  name="${lref#refs/tags/}"
+
+  case "$name" in
+    *-fork.*)
+      base="${name%-fork.*}"
+      n="${name##*-fork.}"
+      case "$n" in ''|*[!0-9]*) fail "LAW-11.R2: '$name' suffix must be numeric" ;; esac
+      bsha=$(up_sha "$base")
+      [ -n "$bsha" ] || fail "LAW-11.R2: '$name' base '$base' is not a known upstream tag"
+      git merge-base --is-ancestor "$bsha" "$lsha" 2>/dev/null \
+        || fail "LAW-11.R2: '$name' does not pin its base '$base' ($bsha is not an ancestor of the tag target)"
+      max=0
+      for t in $(git tag --list "${base}-fork.*"); do
+        [ "$t" = "$name" ] && continue
+        k="${t##*-fork.}"
+        case "$k" in ''|*[!0-9]*) continue ;; esac
+        [ "$k" -gt "$max" ] && max="$k"
+      done
+      [ "$n" -eq "$((max + 1))" ] || fail "LAW-11.R2: '$name' must carry the next increment (expected -fork.$((max + 1)), got -fork.$n)"
+      i=1
+      while [ "$i" -lt "$n" ]; do
+        git rev-parse -q --verify "refs/tags/${base}-fork.$i" >/dev/null \
+          || fail "LAW-11.R2: gap - '${base}-fork.$i' missing before '$name'"
+        i=$((i + 1))
+      done
+      case "$MODE" in
+        repoint)
+          ok=""
+          for t in $(git tag --list "${base}-fork.*"); do
+            [ "$(git rev-parse "refs/tags/$t^{commit}" 2>/dev/null)" = "$lsha" ] && ok=1
+          done
+          [ -n "$ok" ] || fail "LAW-11.R2: repoint mode requires a paired '${base}-fork.*' tag at the same commit"
+          ;;
+        *)
+          if git rev-parse -q --verify "refs/tags/$base" >/dev/null; then
+            cur=$(git rev-parse "refs/tags/$base^{commit}")
+            [ "$cur" = "$bsha" ] || fail "LAW-11.R2: bare tag '$base' has been re-pointed ($cur != upstream $bsha); mode is 'leave'"
+          fi
+          ;;
+      esac
+      ;;
+    *)
+      bsha=$(up_sha "$name")
+      [ -n "$bsha" ] || continue
+      case "$MODE" in
+        repoint)
+          ok=""
+          for t in $(git tag --list "${name}-fork.*"); do
+            [ "$(git rev-parse "refs/tags/$t^{commit}" 2>/dev/null)" = "$lsha" ] && ok=1
+          done
+          [ -n "$ok" ] || fail "LAW-11.R2: repoint mode requires a paired '${name}-fork.*' tag at the same commit"
+          ;;
+        *)
+          [ "$lsha" = "$bsha" ] || fail "LAW-11.R2: bare upstream tag '$name' must point at $bsha (mode 'leave'); re-pointing requires a maintainer ruling"
+          ;;
+      esac
+      ;;
+  esac
+done
+
+exit 0

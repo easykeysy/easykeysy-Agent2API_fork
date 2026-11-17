@@ -57,20 +57,20 @@ fn public(branding: &StoredBranding) -> Value {
 
 pub fn load(db: &Db) -> Result<Value, String> {
     db.with(|conn| read(conn).map(|value| public(&value)))
-        .ok_or_else(|| "数据库不可用".to_string())?
+        .ok_or_else(|| "Database unavailable".to_string())?
 }
 
 pub fn logo(db: &Db) -> Result<Option<(Vec<u8>, String)>, String> {
-    let branding = db.with(read).ok_or("数据库不可用")??;
+    let branding = db.with(read).ok_or("Database unavailable")??;
     let Some(png) = branding.logo_png else {
         return Ok(None);
     };
     if png.len() > MAX_LOGO_BYTES.div_ceil(3) * 4 {
-        return Err("品牌 Logo 数据过大".into());
+        return Err("Brand logo 数据过大".into());
     }
-    let bytes = STANDARD.decode(&png).map_err(|_| "品牌 Logo 数据无效")?;
+    let bytes = STANDARD.decode(&png).map_err(|_| "Brand logo 数据无效")?;
     if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
-        return Err("品牌 Logo 格式无效".into());
+        return Err("Brand logo 格式无效".into());
     }
     let etag = format!("\"{:x}\"", Sha256::digest(png.as_bytes()));
     Ok(Some((bytes, etag)))
@@ -102,7 +102,7 @@ pub fn parse_patch(payload: Value) -> Result<BrandingPatch, String> {
         None => None,
         Some(Value::Null) => Some(None),
         Some(Value::String(value)) => Some(Some(normalize_logo(value)?)),
-        _ => return Err("品牌 Logo 必须是上传的图片或 null".into()),
+        _ => return Err("Brand logo 必须是上传的图片或 null".into()),
     };
     if name.is_none() && logo.is_none() {
         return Err("未提供品牌设置".into());
@@ -111,22 +111,22 @@ pub fn parse_patch(payload: Value) -> Result<BrandingPatch, String> {
 }
 
 fn normalize_logo(data: &str) -> Result<String, String> {
-    let (header, encoded) = data.split_once(',').ok_or("品牌 Logo 数据无效")?;
+    let (header, encoded) = data.split_once(',').ok_or("Brand logo 数据无效")?;
     let format = match header {
         "data:image/png;base64" => image::ImageFormat::Png,
         "data:image/jpeg;base64" => image::ImageFormat::Jpeg,
         "data:image/webp;base64" => image::ImageFormat::WebP,
-        _ => return Err("品牌 Logo 仅支持 PNG、JPG、WebP 图片".into()),
+        _ => return Err("Brand logo 仅支持 PNG, JPG, WebP Images".into()),
     };
     if encoded.len() > MAX_LOGO_BYTES.div_ceil(3) * 4 {
-        return Err("品牌 Logo 不能超过 2 MiB".into());
+        return Err("Brand logo 不能超过 2 MiB".into());
     }
-    let bytes = STANDARD.decode(encoded).map_err(|_| "品牌 Logo 数据无效")?;
+    let bytes = STANDARD.decode(encoded).map_err(|_| "Brand logo 数据无效")?;
     if bytes.is_empty() || bytes.len() > MAX_LOGO_BYTES {
-        return Err("品牌 Logo 必须是非空且不超过 2 MiB 的图片".into());
+        return Err("Brand logo 必须是非空且不超过 2 MiB 的图片".into());
     }
     if image::guess_format(&bytes).ok() != Some(format) {
-        return Err("品牌 Logo 内容与图片格式不匹配".into());
+        return Err("Brand logo 内容与图片格式不匹配".into());
     }
     let mut reader = image::ImageReader::with_format(Cursor::new(bytes), format);
     let mut limits = image::Limits::default();
@@ -136,18 +136,18 @@ fn normalize_logo(data: &str) -> Result<String, String> {
     reader.limits(limits);
     let decoded = reader
         .decode()
-        .map_err(|_| "无法读取品牌 Logo，图片长宽不能超过 4096 像素")?;
+        .map_err(|_| "无法读取品牌 Logo，图片长宽不能超过 4096 px")?;
     if decoded.width() == 0 || decoded.height() == 0 {
-        return Err("品牌 Logo 尺寸无效".into());
+        return Err("Brand logo 尺寸无效".into());
     }
     // 统一重编码为静态 PNG，移除上传文件中的元数据与附带内容。
     let normalized = image::DynamicImage::ImageRgba8(decoded.thumbnail(512, 512).to_rgba8());
     let mut output = Cursor::new(Vec::new());
     normalized
         .write_to(&mut output, image::ImageFormat::Png)
-        .map_err(|_| "品牌 Logo 转换失败")?;
+        .map_err(|_| "Brand logo 转换失败")?;
     if output.get_ref().len() > MAX_LOGO_BYTES {
-        return Err("品牌 Logo 转换后过大".into());
+        return Err("Brand logo 转换后过大".into());
     }
     Ok(STANDARD.encode(output.into_inner()))
 }
@@ -163,5 +163,5 @@ pub fn save(db: &Db, patch: BrandingPatch) -> Result<Value, String> {
             .map_err(|_| "保存品牌设置失败")?;
         transaction.commit().map_err(|_| "保存品牌设置失败")?;
         Ok(public(&branding))
-    }).ok_or_else(|| "数据库不可用".to_string())?
+    }).ok_or_else(|| "Database unavailable".to_string())?
 }

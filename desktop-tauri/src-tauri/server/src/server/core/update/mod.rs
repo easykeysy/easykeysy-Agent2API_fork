@@ -410,7 +410,7 @@ impl UpdateManager {
         if self.lock().pending_restart {
             return Err(UpdateError::with_status(
                 400,
-                "本次更新已经应用，请先重启服务（面板上的重启，或宿主机 docker compose restart）",
+                "本次更新已经应用，请先重启服务（面板上的重启，或宿主机 docker compose restart)",
             ));
         }
         let bundle = selfupdate::bundle_name().expect("supported 已判定平台与架构");
@@ -473,7 +473,7 @@ impl UpdateManager {
         if expected != actual {
             logging::log(
                 "[Update]",
-                &format!("❌ 更新包 sha256 校验失败（期望 {expected}，实际 {actual}）"),
+                &format!("❌ 更新包 sha256 校验失败（期望 {expected}, actually{actual})"),
             );
             return Err(UpdateError::new(
                 "更新包校验失败（sha256 不匹配），已放弃安装；可删掉该文件后重新下载",

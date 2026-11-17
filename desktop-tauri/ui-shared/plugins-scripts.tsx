@@ -148,18 +148,18 @@ export function ScriptPluginsPanel({ state, request, refresh, t, disabled = fals
 
   return <>
     {failure ? <Alert variant='destructive' className='whitespace-pre-wrap break-words'>{failure}</Alert> : null}
-    {galleryVisible || count > 0 || unmatchedOperation ? <section aria-label={t('Magpie 插件')}>
-      <PluginSectionHeading t={t} title={t('Magpie 插件')} count={count + Number(unmatchedOperation)}
+    {galleryVisible || count > 0 || unmatchedOperation ? <section aria-label={t('Magpie plugins')}>
+      <PluginSectionHeading t={t} title={t('Magpie plugins')} count={count + Number(unmatchedOperation)}
         filters={galleryVisible ? <SegmentedControl<ScriptPublisherFilter> value={publisher} onValueChange={changePublisher}
-          aria-label={`${t('Magpie 插件')} · ${t('来源')}`} className='max-w-full flex-wrap' options={[
-            { value: 'all', label: t('全部'), count: publisherCount('all') },
-            { value: 'official', label: t('Magpie 官方'), count: publisherCount('official') },
-            { value: 'recommended', label: t('Magpie 推荐'), count: publisherCount('recommended') },
-            { value: 'third-party', label: t('第三方'), count: publisherCount('third-party') },
+          aria-label={`${t('Magpie plugins')} · ${t('Source')}`} className='max-w-full flex-wrap' options={[
+            { value: 'all', label: t('All'), count: publisherCount('all') },
+            { value: 'official', label: t('Magpie official'), count: publisherCount('official') },
+            { value: 'recommended', label: t('Magpie recommended'), count: publisherCount('recommended') },
+            { value: 'third-party', label: t('Third-party'), count: publisherCount('third-party') },
           ]} /> : null}
-        hint={t('Magpie 官方与社区插件，共用一个按需下载的运行时')}
+        hint={t('Official and community Magpie plugins share one runtime downloaded on demand')}
         actions={galleryVisible && showInstallAction ? <Button variant='ghost' size='sm' disabled={locked} onClick={() => openInstall({ name: '', version: '' })}>
-          {t('从 npm / GitHub / Magpie 安装')}
+          {t('Install from npm / GitHub / Magpie')}
         </Button> : null} />
       {galleryVisible && state.catalog ? <ScriptCatalogStatus catalog={state.catalog} request={request} refresh={refresh} disabled={disabled} t={t} /> : null}
       <div className='grid grid-cols-1 gap-3.5 min-[900px]:grid-cols-2'>
@@ -175,7 +175,7 @@ export function ScriptPluginsPanel({ state, request, refresh, t, disabled = fals
               icon={iconUrl(item.icon)} status='missing' providerCount={item.providers.length || undefined}
               metadata={<ScriptRepository item={item} onOpenExternal={onOpenExternal} t={t} />}
               feedback={<>{unavailable ? <p className='m-0 break-words text-xs text-muted-foreground'>{unavailable}</p> : null}{progress}</>}
-              actions={unavailable ? <Badge variant='secondary' shape='tag'>{t('暂不可安装')}</Badge>
+              actions={unavailable ? <Badge variant='secondary' shape='tag'>{t('Unavailable')}</Badge>
                 : <PluginGetButton t={t} disabled={locked} onClick={() => openInstall({ name: item.source || item.name, version: item.selector ?? item.version })} />} />
           }
           const pack = entry.value
@@ -187,13 +187,13 @@ export function ScriptPluginsPanel({ state, request, refresh, t, disabled = fals
             badges={update ? <Badge variant='warning' shape='tag'>{updateLabel(update, t)}</Badge> : undefined}
             metadata={<ScriptRepository item={pack} onOpenExternal={onOpenExternal} t={t} />}
             status={!pack.enabled ? 'disabled' : pack.running && !pack.error ? 'running' : 'unavailable'} startup={startup}
-            footerAction={<Button variant='link' size='xs' onClick={() => requestPluginDiagnostics(pack.id)}>{t('加载诊断')}</Button>}
+            footerAction={<Button variant='link' size='xs' onClick={() => requestPluginDiagnostics(pack.id)}>{t('Load diagnostics')}</Button>}
             providerCount={pack.providers.length} enabledCount={pack.providers.filter(provider => provider.enabled).length}
             actions={<>
               {update ? <Button variant='outline' size='sm' disabled={locked}
-                onClick={() => openInstall(reinstallRequest(pack))}>{t('更新')}</Button> : null}
+                onClick={() => openInstall(reinstallRequest(pack))}>{t('Update')}</Button> : null}
               <PluginSettingsButton name={name} t={t} onClick={() => { setError(''); setSettingsId(pack.id) }} />
-              <Switch checked={pack.enabled} disabled={locked} aria-label={`${t('启用')} ${name}`}
+              <Switch checked={pack.enabled} disabled={locked} aria-label={`${t('enabled')} ${name}`}
                 onCheckedChange={enabled => { void act('/api/plugins/scripts/change', { id: pack.id, action: 'enable', enabled }) }} />
             </>}
             feedback={<>
@@ -204,12 +204,12 @@ export function ScriptPluginsPanel({ state, request, refresh, t, disabled = fals
       </div>
       {galleryVisible ? <ScriptPaginationFooter page={page} total={count} t={t} /> : null}
       {galleryVisible && count === 0 && !unmatchedOperation ? <Card><Empty>
-        <EmptyTitle>{catalogPending ? t('正在读取插件清单…') : catalogFailed ? t('插件清单暂未完整读取')
-          : !recommended.length && !state.packages.length ? t('暂无可安装的插件') : t('没有符合筛选条件的插件')}</EmptyTitle>
-        <EmptyDescription>{catalogPending ? t('读取完成的插件会陆续显示，无需停留在此页面等待。')
-          : catalogFailed ? t('请查看上方原因，稍后刷新重试。') : t('换一组筛选条件，或把来源和状态都切回「全部」。')}</EmptyDescription>
+        <EmptyTitle>{catalogPending ? t('Loading plugin catalog…') : catalogFailed ? t('The plugin catalog is not fully loaded')
+          : !recommended.length && !state.packages.length ? t('No plugins available to install') : t('No plugins match these filters')}</EmptyTitle>
+        <EmptyDescription>{catalogPending ? t('Plugins appear as their information loads. You can leave this page while loading continues.')
+          : catalogFailed ? t('See the reason above and refresh again later.') : t('Try different filters, or set both Source and Status back to All.')}</EmptyDescription>
         {publisher !== 'all' || status !== 'all' || query.trim() ? <Button variant='outline' size='sm' className='mt-2'
-          onClick={() => { changePublisher('all'); onClearFilters?.() }}>{t('清除筛选')}</Button> : null}
+          onClick={() => { changePublisher('all'); onClearFilters?.() }}>{t('Clear filters')}</Button> : null}
       </Empty></Card> : null}
     </section> : null}
     {settingsPack ? <ScriptPluginSettings key={settingsPack.id} pack={settingsPack} icon={iconUrl(settingsPack.icon)} recommended={recommended} t={t}
@@ -222,51 +222,51 @@ export function ScriptPluginsPanel({ state, request, refresh, t, disabled = fals
       if (!open) { if (busy || installNotice) details.cancel(); else setInstall(null) }
     }}>
       <DialogContent className='text-foreground'>
-        <DialogHeader><DialogTitle>{t('安装脚本插件')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t('Install script plugin')}</DialogTitle></DialogHeader>
         <DialogBody className='gap-4'>
-          <DialogDescription className='text-xs leading-relaxed text-subtle'>{t('仅安装你信任的 npm 包、GitHub 仓库或 Magpie 社区分发包；完整性校验不等于安全审计。')}</DialogDescription>
-          <div className='space-y-2'><Label htmlFor={`${prefix}-package`}>{t('npm 包名、GitHub 地址或 magpie:包名')}</Label>
+          <DialogDescription className='text-xs leading-relaxed text-subtle'>{t('Only install npm packages, GitHub repositories or Magpie community packages you trust. Integrity verification is not a security audit.')}</DialogDescription>
+          <div className='space-y-2'><Label htmlFor={`${prefix}-package`}>{t('npm package, GitHub URL or magpie:package')}</Label>
             <Input id={`${prefix}-package`} value={install?.name || ''} disabled={busy} autoComplete='off' placeholder='@scope/plugin / https://github.com/owner/repo'
               onChange={event => { setInstall(value => value ? { ...value, name: event.target.value } : value); setTrusted(false) }} /></div>
-          <div className='space-y-2'><Label htmlFor={`${prefix}-version`}>{github ? t('分支、标签或提交（留空使用默认分支）') : t('插件版本（留空使用 latest）')}</Label>
-            <Input id={`${prefix}-version`} value={install?.version || ''} disabled={busy} placeholder={github ? t('默认分支') : 'latest'} autoComplete='off'
+          <div className='space-y-2'><Label htmlFor={`${prefix}-version`}>{github ? t('Branch, tag or commit (leave blank for the default branch)') : t('Plugin version (leave blank for latest)')}</Label>
+            <Input id={`${prefix}-version`} value={install?.version || ''} disabled={busy} placeholder={github ? t('Default branch') : 'latest'} autoComplete='off'
               onChange={event => { setInstall(value => value ? { ...value, version: event.target.value } : value); setTrusted(false) }} /></div>
-          {github ? <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('从 GitHub 官方源下载固定提交。仓库须包含可运行的提供商入口；安装运行依赖，但不执行构建和安装脚本。')}</p> : null}
-          {magpie ? <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('从 Magpie 社区官方分发目录下载，核验 SHA-512；更新与重装继续使用此来源。')}</p> : null}
-          <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('也可输入 file: 加网关电脑上的插件目录或 tgz 文件绝对路径；本地插件会复制安装，不修改源目录。')}</p>
-          <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('npm 未发布的包会尝试 Magpie 社区分发源；不会绕过完整性校验或执行安装脚本。')}</p>
+          {github ? <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('Downloads a pinned commit directly from GitHub. The repository must include a runnable provider entry point. Runtime dependencies are installed, but build and installation scripts are not run.')}</p> : null}
+          {magpie ? <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('Downloads from Magpie\'s official community distribution with SHA-512 verification. Updates and reinstalls keep this source.')}</p> : null}
+          <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('You can also enter file: followed by the absolute path to a plugin directory or tgz file on the gateway computer. Local plugins are copied for installation without changing the source directory.')}</p>
+          <p className='m-0 text-xs leading-relaxed text-muted-foreground'>{t('Packages missing from npm are looked up in Magpie\'s community distribution. Integrity checks are never skipped, and install scripts are not run.')}</p>
           <div className='space-y-2 text-xs leading-relaxed text-muted-foreground'>
-            <Badge variant='outline'>Bun {state.runtime.version} · {state.runtime.installed ? t('已下载') : t('按需下载')}</Badge>
-            <p className='m-0'>{t('运行时不内置于安装包，首次安装脚本插件时自动下载并校验。')}</p>
-            <p className='m-0'>{t('兼容 OpenCode v1 / Magpie 提供商插件及其运行依赖；不加载界面、独立工具或 Pi 扩展。')}</p>
-            <p className='m-0'>{t('支持自动授权、设备码、手动授权码和插件声明的凭据表单；本机读取作用于网关电脑。')}</p>
+            <Badge variant='outline'>Bun {state.runtime.version} · {state.runtime.installed ? t('Downloaded') : t('Download on demand')}</Badge>
+            <p className='m-0'>{t('The runtime is not bundled with the installer. It is downloaded and verified when you first install a script plugin.')}</p>
+            <p className='m-0'>{t('Supports OpenCode v1 / Magpie provider plugins and their runtime dependencies. UI plugins, standalone tools and Pi extensions are not loaded.')}</p>
+            <p className='m-0'>{t('Supports automatic authorization, device codes, manual authorization codes and plugin-defined credential forms. Local imports read from the gateway machine.')}</p>
           </div>
-          <Alert variant='warning'>{t('脚本不是安全沙箱，可以访问网关所在电脑的文件和网络。不要安装来历不明的插件。')}</Alert>
+          <Alert variant='warning'>{t('Scripts are not sandboxed and can access files and the network on the gateway computer. Do not install plugins from unknown sources.')}</Alert>
           <Label className='flex items-start gap-2 text-xs leading-relaxed'><Checkbox checked={trusted} disabled={busy} onCheckedChange={value => setTrusted(value === true)} />
-            {t('我信任此插件来源，并允许它在网关电脑上运行。')}</Label>
+            {t('I trust this plugin source and allow it to run on the gateway computer.')}</Label>
           {error ? <p role='alert' className='m-0 text-xs text-destructive'>{error}</p> : null}
         </DialogBody>
-        <DialogFooter><Button variant='outline' disabled={busy} onClick={() => setInstall(null)}>{t('取消')}</Button>
+        <DialogFooter><Button variant='outline' disabled={busy} onClick={() => setInstall(null)}>{t('Cancel')}</Button>
           <Button disabled={locked || !trusted || !install?.name.trim()} onClick={() => {
             if (install && trusted && !locked && !pending.current) {
               setError('')
               setInstallNotice({ ...install, name: install.name.trim(), version: install.version.trim() })
             }
-          }}>{t('继续安装')}</Button></DialogFooter>
+          }}>{t('Continue installing')}</Button></DialogFooter>
         <ScriptPluginInstallNotice open={installNotice !== null} source={installNotice?.name || ''}
           version={installNotice?.version || ''} disabled={locked || !trusted} busy={busy} error={error} t={t}
           onCancel={() => { setInstallNotice(null); setError('') }} onConfirm={() => void confirmInstall()} />
       </DialogContent>
     </Dialog>
     <Dialog open={remove !== null} onOpenChange={open => { if (!open && !busy) setRemove(null) }}>
-      <DialogContent className='text-foreground'><DialogHeader><DialogTitle>{t('卸载插件包')}</DialogTitle></DialogHeader>
-        <DialogBody><p className='m-0 text-sm leading-relaxed'>{t('确定卸载「{name}」吗？对应提供商将停止转发，账号数据仍然保留，重新安装后恢复。', { name: remove?.name || '' })}</p>
+      <DialogContent className='text-foreground'><DialogHeader><DialogTitle>{t('Uninstall plugin pack')}</DialogTitle></DialogHeader>
+        <DialogBody><p className='m-0 text-sm leading-relaxed'>{t('Uninstall “{name}”? Its providers will stop forwarding. Account data is retained and becomes available again after reinstalling.', { name: remove?.name || '' })}</p>
           {error ? <p role='alert' className='m-0 text-xs text-destructive'>{error}</p> : null}
         </DialogBody>
-        <DialogFooter><Button variant='outline' disabled={busy} onClick={() => setRemove(null)}>{t('取消')}</Button>
+        <DialogFooter><Button variant='outline' disabled={busy} onClick={() => setRemove(null)}>{t('Cancel')}</Button>
           <Button variant='destructive' disabled={locked} onClick={async () => {
             if (remove && await act('/api/plugins/scripts/change', { id: remove.id, action: 'remove' })) setRemove(null)
-          }}>{t('卸载')}</Button></DialogFooter>
+          }}>{t('Uninstall')}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </>

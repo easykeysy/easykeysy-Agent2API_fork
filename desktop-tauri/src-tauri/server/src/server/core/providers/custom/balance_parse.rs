@@ -134,8 +134,8 @@ pub(super) fn parse_sub2api(payload: &Value) -> Option<Value> {
         .unwrap_or("USD")
         .to_string();
     let wallets = vec![
-        wallet("remaining", "剩余额度", remaining, &unit),
-        wallet("used", "已用额度", used, &unit),
+        wallet("remaining", "Remaining quota", remaining, &unit),
+        wallet("used", "Used quota", used, &unit),
         wallet("total", "总额度", total, &unit),
     ]
     .into_iter()
@@ -272,9 +272,9 @@ pub(super) fn parse_opencode(payload: &Value) -> Option<Value> {
     let usage = data.get("usage").and_then(map_of)?;
     let mut reads: Vec<(&str, &str, &str, UsageWindow)> = Vec::new();
     for (key, label, code) in [
-        ("rolling", "5 小时", "5h"),
-        ("weekly", "每周", "weekly"),
-        ("monthly", "每月", "monthly"),
+        ("rolling", "5 hours", "5h"),
+        ("weekly", "Weekly", "weekly"),
+        ("monthly", "Monthly", "monthly"),
     ] {
         let Some(window) = usage.get(key).and_then(map_of) else { continue };
         reads.push((key, label, code, usage_window(window)));
@@ -324,7 +324,7 @@ pub(super) fn parse_opencode(payload: &Value) -> Option<Value> {
             parts.push(format!("已用 {}%", percent_text(used)));
         }
         if let Some(text) = reset_text(window.resets_at_ms) {
-            parts.push(format!("{text} 重置"));
+            parts.push(format!("{text} Reset"));
         }
         if let Some(object) = row.as_object_mut() {
             object.insert("balanceView".to_string(), Value::String(parts.join(" · ")));
@@ -489,9 +489,9 @@ pub(super) fn parse_zhipu(
             .and_then(Value::as_str)
             .map(|text| shorten(text, 120))
             .filter(|text| !text.is_empty())
-            .unwrap_or_else(|| "未知错误".to_string());
+            .unwrap_or_else(|| "Unknown error".to_string());
         return Err(matches!(code, Some(401.0) | Some(1000.0) | Some(1001.0))
-            .then(|| format!("{invalid_credential}：{message}"))
+            .then(|| format!("{invalid_credential}: {message}"))
             .unwrap_or_else(|| {
                 format!(
                     "智谱余额接口返回错误（code={}）：{message}",
@@ -580,8 +580,8 @@ pub(super) fn parse_sensenova(payload: &Value) -> Option<Value> {
     let mut wallets: Vec<Value> = Vec::new();
     for pool in &pools {
         for (key, label, window) in [
-            ("5h", "5 小时", pool.window_5h.as_ref()),
-            ("7d", "7 天", pool.window_7d.as_ref()),
+            ("5h", "5 hours", pool.window_5h.as_ref()),
+            ("7d", "7 days", pool.window_7d.as_ref()),
         ] {
             let Some(window) = window else { continue };
             if let Some(row) = wallet(
@@ -593,7 +593,7 @@ pub(super) fn parse_sensenova(payload: &Value) -> Option<Value> {
                 wallets.push(row);
             }
         }
-        if let Some(row) = wallet("grant", &format!("{} · 活动返赠", pool.name), pool.grant_balance, "积分") {
+        if let Some(row) = wallet("grant", &format!("{} · 活动返赠", pool.name), pool.grant_balance, "Points") {
             wallets.push(row);
         }
     }

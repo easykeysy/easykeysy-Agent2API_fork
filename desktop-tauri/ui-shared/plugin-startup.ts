@@ -36,33 +36,33 @@ export function pluginFailed(status?: PluginLoadStatus | null): boolean {
 }
 export function pluginPhaseLabel(status: PluginLoadStatus | null | undefined, t: Translate): string {
   switch (status?.phase) {
-    case 'queued': return t('等待加载')
-    case 'runtime': return t('准备运行环境')
-    case 'starting': return t('正在启动')
-    case 'loading': return t('正在加载')
-    case 'registering': return t('即将就绪')
-    case 'ready': return t('已就绪')
-    case 'failed': return t('加载失败')
-    case 'timeout': return t('初始化超时')
-    case 'blocked': return t('等待运行环境恢复')
-    case 'disabled': return t('已停用')
-    default: return t('状态待确认')
+    case 'queued': return t('Waiting to load')
+    case 'runtime': return t('Preparing runtime')
+    case 'starting': return t('Starting')
+    case 'loading': return t('Loading')
+    case 'registering': return t('Almost ready')
+    case 'ready': return t('Ready')
+    case 'failed': return t('Load failed')
+    case 'timeout': return t('Initialization timed out')
+    case 'blocked': return t('Waiting for runtime recovery')
+    case 'disabled': return t('Disabled')
+    default: return t('Status unconfirmed')
   }
 }
 export function pluginPhaseDetail(status: PluginLoadStatus | null | undefined, t: Translate, now = Date.now()): string {
   if (status?.error && pluginFailed(status)) return status.error
   switch (status?.phase) {
-    case 'queued': return t('等待前面的插件完成，不代表加载失败。')
-    case 'runtime': return t('正在检查或准备脚本运行环境。')
-    case 'starting': return t('正在启动插件，账号将在就绪后自动恢复。')
+    case 'queued': return t('Waiting for earlier plugins to finish. This is not a load failure.')
+    case 'runtime': return t('Checking or preparing the script runtime.')
+    case 'starting': return t('Starting the plugin. Accounts will return automatically when it is ready.')
     case 'loading': return now - status.updatedAt > 10_000
-      ? t('启动较慢，仍在加载；尚未收到失败结果。') : t('正在初始化插件，尚未收到失败结果。')
-    case 'registering': return t('初始化已完成，正在等待校验和登记。')
-    case 'ready': return t('插件已就绪，账号列表将自动同步。')
-    case 'timeout': return t('本次初始化超过等待时限，已停止；可查看诊断后重试。')
-    case 'blocked': return t('共享运行环境尚未就绪，本插件没有明确的加载失败结果。')
-    case 'failed': return t('本次加载未完成，请查看诊断。')
-    default: return t('暂未取得明确的加载结果，不能据此判断启动失败。')
+      ? t('Startup is taking longer, but loading is still in progress. No failure has been reported.') : t('Initializing the plugin. No failure has been reported.')
+    case 'registering': return t('Initialization is complete. Waiting for validation and registration.')
+    case 'ready': return t('The plugin is ready. The account list will update automatically.')
+    case 'timeout': return t('This initialization exceeded its time limit and was stopped. Check diagnostics before retrying.')
+    case 'blocked': return t('The shared runtime is not ready. No load failure has been confirmed for this plugin.')
+    case 'failed': return t('This load did not complete. Check diagnostics.')
+    default: return t('No confirmed load result is available yet. This does not indicate a startup failure.')
   }
 }
 

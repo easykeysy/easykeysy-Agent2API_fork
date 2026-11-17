@@ -81,7 +81,7 @@ export function useRoutingCanvasActivity(active: boolean, model: string, options
         const next = await bridge().getRoutingFlow({ model: model || undefined, minutes: 10, scope: 'running', detail: 'requests', offset, limit: 100 })
         if (!current(id)) return null
         if (next.available === false || !Array.isArray(next.entries) || !Number.isFinite(next.matched) || next.matched < 0) {
-          throw new Error(t('路由接口返回了不完整的数据'))
+          throw new Error(t('The routing API returned incomplete data'))
         }
         matched = Math.min(matched, next.matched)
         if (!next.entries.length) break
@@ -107,7 +107,7 @@ export function useRoutingCanvasActivity(active: boolean, model: string, options
         if ((workspace?.model || '').trim().toLowerCase() !== workspaceModel || !workspace?.profile
           || !Array.isArray(workspace.accounts) || !Array.isArray(workspace.queue?.ordered) || !Array.isArray(workspace.queue?.blocked)
           || !workspace.metrics?.accountConnections || !Number.isFinite(workspace.updatedAt)) {
-          throw new Error(t('路由接口返回了不完整的数据'))
+          throw new Error(t('The routing API returned incomplete data'))
         }
         setSnapshot({ key, workspace, activity: activityResult.value })
         setFailure(null)

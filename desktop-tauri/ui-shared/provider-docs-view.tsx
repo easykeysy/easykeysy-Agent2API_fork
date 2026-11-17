@@ -6,28 +6,28 @@ import { documentText, PROVIDER_CAPABILITY_KEYS, type PluginProviderDocumentatio
 
 function columns(): Record<ProviderCapabilityKey, string> {
   return {
-    chat: t('LLM 请求'),
-    refresh: t('Token 自动续期'),
-    model_refresh: t('在线模型列表'),
-    usage: t('余额查询'),
-    checkin: t('签到'),
-    claims: t('领取类'),
+    chat: t('LLLM requests'),
+    refresh: t('Automatic token renewal'),
+    model_refresh: t('Online model list'),
+    usage: t('Balance query'),
+    checkin: t('Check in'),
+    claims: t('Reward claims'),
   }
 }
 
 function statusLabel(status: ProviderCapabilityStatus): string {
   switch (status) {
-    case 'supported': return t('支持')
-    case 'implemented_unverified': return t('已实现，待实测')
-    case 'unsupported': return t('不支持')
-    case 'not_applicable': return t('无此概念')
-    default: return t('未声明')
+    case 'supported': return t('Supported')
+    case 'implemented_unverified': return t('Implemented; pending live testing')
+    case 'unsupported': return t('Not supported')
+    case 'not_applicable': return t('Not applicable')
+    default: return t('Not declared')
   }
 }
 
 function Status({ status }: { status: ProviderCapabilityStatus }) {
   const symbols: Record<ProviderCapabilityStatus, string> = {
-    supported: '✓', implemented_unverified: t('待实测'), unsupported: '✗', not_applicable: '—', undeclared: '?',
+    supported: '✓', implemented_unverified: t('Pending live testing'), unsupported: '✗', not_applicable: '—', undeclared: '?',
   }
   return <span aria-label={statusLabel(status)} title={statusLabel(status)}
     className={status === 'supported' ? 'text-success font-semibold' : 'text-muted-foreground'}>
@@ -45,7 +45,7 @@ function rowNotes(provider: ProviderDocumentation, locale: string, labels: Recor
 }
 
 function packTitle(pack: PluginProviderDocumentation): string {
-  return pack.id === 'builtin-subscriptions' ? t('本体订阅') : t(pack.name)
+  return pack.id === 'builtin-subscriptions' ? t('Native subscriptions') : t(pack.name)
 }
 
 export function ProviderDocsTable({ packs }: { packs: PluginProviderDocumentation[] }) {
@@ -61,13 +61,13 @@ export function ProviderDocsTable({ packs }: { packs: PluginProviderDocumentatio
         </CardDescription> : null}
       </CardHeader>
       <CardContent className='p-0'>
-        <Table className='min-w-[860px]' aria-label={`${packTitle(pack)} ${t('提供商能力适配表')}`}>
+        <Table className='min-w-[860px]' aria-label={`${packTitle(pack)} ${t('Provider capability matrix')}`}>
           <TableHeader><TableRow>
-            <TableHead className='min-w-[170px]'>{t('提供商')}</TableHead>
+            <TableHead className='min-w-[170px]'>{t('Provider')}</TableHead>
             {PROVIDER_CAPABILITY_KEYS.map(key => <TableHead key={key} className='text-center'>
               {labels[key]}
             </TableHead>)}
-            <TableHead className='min-w-[250px]'>{t('说明')}</TableHead>
+            <TableHead className='min-w-[250px]'>{t('Note')}</TableHead>
           </TableRow></TableHeader>
           <TableBody>{pack.providers.map(provider => {
             const notes = rowNotes(provider, locale, labels)
@@ -75,8 +75,8 @@ export function ProviderDocsTable({ packs }: { packs: PluginProviderDocumentatio
               <TableCell>
                 <div className='flex flex-col items-start gap-1'>
                   <span className='font-medium'>{t(provider.label)}</span>
-                  {!provider.enabled ? <Badge variant='outline'>{t('已停用')}</Badge>
-                    : !provider.loaded ? <Badge variant='outline'>{t('未加载')}</Badge> : null}
+                  {!provider.enabled ? <Badge variant='outline'>{t('Disabled')}</Badge>
+                    : !provider.loaded ? <Badge variant='outline'>{t('Not loaded')}</Badge> : null}
                 </div>
               </TableCell>
               {PROVIDER_CAPABILITY_KEYS.map(key => <TableCell key={key} className='text-center'>
@@ -92,10 +92,10 @@ export function ProviderDocsTable({ packs }: { packs: PluginProviderDocumentatio
         </Table>
       </CardContent>
       <CardFooter className='flex-col items-start gap-1'>
-        <span>{t('✓ 支持 · ✗ 不支持 · — 无此概念 · ? 未声明')}</span>
-        <span>{t('已实现，待实测：仅表示代码已接入，尚未通过真实账号验证。')}</span>
-        <span>{t('在线模型列表指自动拉取上游目录；仅有静态模型清单不算在线支持。')}</span>
-        <span>{t('未声明表示网关本体或插件没有提供明确结论，不等于不支持。')}</span>
+        <span>{t('✓ Supported · ✗ Unsupported · — Not applicable · ? Undeclared')}</span>
+        <span>{t('Implemented; pending live testing: the code is integrated, but has not been validated with a real account.')}</span>
+        <span>{t('Online model lists mean the upstream catalog can be fetched automatically; a static list alone does not count as online support.')}</span>
+        <span>{t('Undeclared means the gateway or plugin has not provided a definite conclusion; it does not mean unsupported.')}</span>
       </CardFooter>
     </Card>)}
   </div>

@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 fn supported(value: &Value) -> Result<(), String> {
     if value.get("providers").is_some() {
         return Err(
-            "检测到 OpenCode v2 的 providers 格式；当前仅适配 v1 provider 格式，已停止写入".into(),
+            "检测到 OpenCode v2 — see the providers 格式；当前仅适配 v1 provider 格式，已停止写入".into(),
         );
     }
     Ok(())

@@ -35,13 +35,13 @@ pub struct EditionInfo {
 /// 国内版
 const EDITION_CN: EditionInfo = EditionInfo {
     id: "cn",
-    label: "国内版",
+    label: "China edition",
 };
 
 /// 国际版
 const EDITION_INTL: EditionInfo = EditionInfo {
     id: "intl",
-    label: "国际版",
+    label: "International edition",
 };
 
 /// 全部版本，顺序与界面上两家的先后一致（cn → intl）

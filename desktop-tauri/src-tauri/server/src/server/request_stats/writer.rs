@@ -72,6 +72,12 @@ impl RequestStats {
                 // 僵尸收尾可能先于真实用量到达；终态不覆盖，额度仍按请求 ID 幂等补记。
                 let row_id = limiter_event.as_ref().map(|event| event.insert(&tx)).transpose()?.flatten();
                 tx.commit()?;
+                // fork: bodies live on the file side; after the ledger trim, sweep orphans in passing (same beat, one directory read).
+                if maintain {
+                    if let Ok(ids) = sql::raw_ids(conn) {
+                        super::raw_file::sweep(&std::collections::HashSet::from_iter(ids));
+                    }
+                }
                 Ok(row_id)
             })
         };

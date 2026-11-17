@@ -81,18 +81,18 @@ impl Downgrade {
                 labels.join(", ")
             ));
             if let Some(reason) = reason {
-                text.push_str(&format!("（{reason}）"));
+                text.push_str(&format!("（{reason})"));
             }
         }
         if let Some(choice) = &self.choice {
             if text.is_empty() {
-                text.push_str(&format!("⚠️ 撤掉 tool_choice（{choice}）"));
+                text.push_str(&format!("⚠️ 撤掉 tool_choice（{choice})"));
             } else {
-                text.push_str(&format!("；连带撤掉 tool_choice（{choice}）"));
+                text.push_str(&format!("；连带撤掉 tool_choice（{choice})"));
             }
         }
         if let Some(provider) = provider {
-            text.push_str(&format!("；provider={provider}"));
+            text.push_str(&format!("; provider={provider}"));
         }
         text
     }
@@ -227,7 +227,7 @@ pub fn is_native_choice(choice: &Value) -> bool {
 pub fn choice_conflict(choice: &Value, dropped: &[Value]) -> Option<String> {
     if is_native_choice(choice) {
         let kind = super::string_field(choice, "type");
-        return Some(format!("它本身指向原生工具（type={kind}）"));
+        return Some(format!("它本身指向原生工具（type={kind})"));
     }
     let name = choice_target(choice)?;
     dropped

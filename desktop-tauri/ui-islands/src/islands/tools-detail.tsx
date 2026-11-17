@@ -15,35 +15,35 @@ import {
 const CAPABILITY_DESCRIPTIONS: Record<string, { title: string; desc: string; params: Array<{ name: string; type: string; desc: string; required: boolean }> }[]> = {
   'web-search': [
     {
-      title: t('批量网页搜索'),
-      desc: t('批量搜索 1～10 条查询，并发调用后台选中的提供商后合并重复来源。'),
-      params: [{ name: 'queries', type: 'string[]', desc: t('要搜索的查询，每条并发执行（1～10 条）'), required: true }],
+      title: t('Batch web search'),
+      desc: t('Search 1-10 queries in parallel with the providers selected on the server, then merge duplicate sources.'),
+      params: [{ name: 'queries', type: 'string[]', desc: t('Queries to search, each executed in parallel (1-10)'), required: true }],
     },
     {
-      title: t('批量网页抓取'),
-      desc: t('批量抓取 1～10 个 URL，使用后台选中的单个抓取提供商。'),
-      params: [{ name: 'urls', type: 'string[]', desc: t('要抓取并提取正文的网页 URL（1～10 个）'), required: true }],
+      title: t('Batch page fetching'),
+      desc: t('Fetch 1-10 URLs using the single fetch provider selected on the server.'),
+      params: [{ name: 'urls', type: 'string[]', desc: t('Page URLs to fetch and extract (1-10)'), required: true }],
     },
   ],
   'image-generation': [
-    { title: t('生成图片'), desc: t('按描述使用已配置的模型生图，默认一张，会消耗账号额度。'), params: [
-      { name: 'prompt', type: 'string', desc: t('完整的图片要求'), required: true },
-      { name: 'request_id', type: 'string', desc: t('本次提交的唯一编号，断线重试使用原编号'), required: true },
+    { title: t('Generate images'), desc: t('Generate images from a description using the configured model. Defaults to one image and consumes account credits.'), params: [
+      { name: 'prompt', type: 'string', desc: t('Complete image requirements'), required: true },
+      { name: 'request_id', type: 'string', desc: t('Unique submission ID; reuse it when retrying after a disconnect'), required: true },
     ] },
-    { title: t('编辑图片'), desc: t('按参考图修改，仅在配置了可用编辑模型时提供。'), params: [
-      { name: 'images', type: 'string[]', desc: t('参考图链接或已生成图片 ID；本地桥接还可传文件路径'), required: true },
+    { title: t('Edit images'), desc: t('Edit reference images; available only when a supported editing model is configured.'), params: [
+      { name: 'images', type: 'string[]', desc: t('Reference URLs or generated image IDs; the local bridge also accepts file paths'), required: true },
     ] },
-    { title: t('查询生成结果'), desc: t('查询原任务并取回图片，不再次生图或扣费。'), params: [
-      { name: 'job_id / request_id', type: 'string', desc: t('任务编号或原提交编号，至少提供一项'), required: true },
+    { title: t('Get generation result'), desc: t('Query the original job and retrieve its images without generating or charging again.'), params: [
+      { name: 'job_id / request_id', type: 'string', desc: t('Provide a job ID or the original submission ID'), required: true },
     ] },
   ],
   vision: [
     {
-      title: t('图片分析'),
-      desc: t('把 1～10 张图片与提示词交给后台配置的视觉模型，返回模型回复文本。'),
+      title: t('Image analysis'),
+      desc: t('Send 1-10 images and a prompt to the vision model configured on the server and return the model reply text.'),
       params: [
-        { name: 'images', type: 'string[]', desc: t('要分析的图片（1～10 张），每张为 http(s) URL 或图片 data URI'), required: true },
-        { name: 'prompt', type: 'string', desc: t('提示词，描述要让模型在图片中查看的内容'), required: true },
+        { name: 'images', type: 'string[]', desc: t('Images to analyze (1-10), each an http(s) URL or an image data URI'), required: true },
+        { name: 'prompt', type: 'string', desc: t('Prompt describing what the model should look for in the images'), required: true },
       ],
     },
   ],
@@ -68,26 +68,26 @@ function McpConnectCard({ info, protocol }: { info: InstallInfo; protocol: ToolP
     },
   }, null, 2)
   return <Card>
-    <CardHeader><CardTitle>{t('MCP 接入信息')}</CardTitle></CardHeader>
+    <CardHeader><CardTitle>{t('MCP connection details')}</CardTitle></CardHeader>
     <CardContent className='flex flex-col gap-3'>
       <div>
-        <div className='text-sm font-medium'>{t('服务地址')}</div>
+        <div className='text-sm font-medium'>{t('Service URL')}</div>
         <div className='mt-1 flex items-center gap-2'>
           <code className='min-w-0 flex-1 break-all rounded-sm bg-surface-2 px-2 py-1 text-xs'>{info.mcp.url}</code>
-          <Button size='sm' variant='outline' onClick={() => void copyText(info.mcp.url).then(ok => toast(ok ? t('已复制') : t('复制失败，请手动选择后复制'), ok ? 'ok' : 'err'))}>{t('复制')}</Button>
+          <Button size='sm' variant='outline' onClick={() => void copyText(info.mcp.url).then(ok => toast(ok ? t('Copied') : t('Copy failed; select and copy manually'), ok ? 'ok' : 'err'))}>{t('Copy')}</Button>
         </div>
-        <p className='mt-1 text-[11.5px] text-subtle'>{t('在支持远程 MCP 的客户端中填写该地址，并使用网关 Key 作为 Bearer 令牌。')}</p>
+        <p className='mt-1 text-[11.5px] text-subtle'>{t('Fill in this URL in any client that supports remote MCP, and use a gateway Key as the Bearer token.')}</p>
       </div>
       <div>
-        <div className='text-sm font-medium'>{t('暴露的工具')}</div>
+        <div className='text-sm font-medium'>{t('Exposed tools')}</div>
         <div className='mt-1 flex flex-wrap gap-1.5'>{info.mcp.tools.map(name => <Badge key={name}>{name}</Badge>)}</div>
       </div>
       <div>
         <div className='flex items-center gap-2'>
-          <div className='text-sm font-medium'>{t('客户端配置示例')}</div>
-          <Button size='sm' variant='outline' className='ml-auto' onClick={() => void copyText(snippet).then(ok => toast(ok ? t('已复制') : t('复制失败，请手动选择后复制'), ok ? 'ok' : 'err'))}>{t('复制')}</Button>
+          <div className='text-sm font-medium'>{t('Client configuration example')}</div>
+          <Button size='sm' variant='outline' className='ml-auto' onClick={() => void copyText(snippet).then(ok => toast(ok ? t('Copied') : t('Copy failed; select and copy manually'), ok ? 'ok' : 'err'))}>{t('Copy')}</Button>
         </div>
-        <p className='mt-1 text-[11.5px] text-subtle'>{t('把下面这段合并到客户端配置的 mcpServers 里，并把 Key 换成你自己的。')}</p>
+        <p className='mt-1 text-[11.5px] text-subtle'>{t('Merge the snippet below into the client\'s mcpServers and replace the Key with your own.')}</p>
         <pre className='mt-2 max-h-64 overflow-auto rounded-md bg-surface-2 p-3 text-[11.5px] leading-relaxed'>{snippet}</pre>
       </div>
     </CardContent>
@@ -123,7 +123,7 @@ export function ToolDetail({ service, onBack, onChanged }: { service: ToolServic
     try {
       await patchServer(service.id, { protocol: service.protocol, enabled })
       setEnabled(enabled)
-      toast(t('服务状态已更新'), 'ok')
+      toast(t('Service status updated'), 'ok')
       onChanged()
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
@@ -138,7 +138,7 @@ export function ToolDetail({ service, onBack, onChanged }: { service: ToolServic
     try {
       await patchServer(service.id, { protocol: service.protocol, timeout_seconds: timeoutDraft })
       setSavedTimeout(timeoutDraft)
-      toast(t('工具执行超时已保存'), 'ok')
+      toast(t('Tool execution timeout saved'), 'ok')
       onChanged()
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
@@ -148,23 +148,23 @@ export function ToolDetail({ service, onBack, onChanged }: { service: ToolServic
   }
 
   const capabilities = (CAPABILITY_DESCRIPTIONS[service.id] || [])
-    .filter(capability => service.id !== 'image-generation' || capability.title !== t('编辑图片') || info?.mcp.tools.includes('edit_images'))
+    .filter(capability => service.id !== 'image-generation' || capability.title !== t('Edit images') || info?.mcp.tools.includes('edit_images'))
 
   return <div className='flex flex-col gap-4'>
-    <Button variant='ghost' size='sm' className='self-start' onClick={onBack}>← {t('返回列表')}</Button>
+    <Button variant='ghost' size='sm' className='self-start' onClick={onBack}>← {t('Back to list')}</Button>
 
     <Card>
       <CardHeader>
         <CardTitle>{SERVICE_NAME[service.id] || service.id}</CardTitle>
         <div className='ml-2 flex flex-wrap items-center gap-2'>
           <Badge>{PROTOCOL_LABELS[service.protocol]}</Badge>
-          <Badge variant={enabled ? 'success' : 'outline'}>{enabled ? t('已启用') : t('已停用')}</Badge>
-          <span className='text-xs text-subtle'>{t('能力数量')}: {service.capability_count}</span>
+          <Badge variant={enabled ? 'success' : 'outline'}>{enabled ? t('Enabled') : t('Disabled')}</Badge>
+          <span className='text-xs text-subtle'>{t('Capabilities')}: {service.capability_count}</span>
           <span className='text-xs text-subtle'>v{service.version}</span>
         </div>
         <div className='ml-auto flex items-center gap-2'>
-          <span className='text-xs text-subtle'>{t('启用 / 停用此服务')}</span>
-          <Switch checked={enabled} disabled={toggling} onCheckedChange={checked => void toggle(checked === true)} aria-label={t('启用 / 停用此服务')} />
+          <span className='text-xs text-subtle'>{t('Enable / disable this service')}</span>
+          <Switch checked={enabled} disabled={toggling} onCheckedChange={checked => void toggle(checked === true)} aria-label={t('Enable / disable this service')} />
         </div>
       </CardHeader>
       <CardContent className='flex flex-col gap-3'>
@@ -172,37 +172,37 @@ export function ToolDetail({ service, onBack, onChanged }: { service: ToolServic
         <p className='text-xs text-subtle'>{PROTOCOL_DESC[service.protocol]}</p>
         <div className='flex flex-wrap items-end gap-2'>
           <Field className='w-[180px]'>
-            <FieldLabel>{t('工具执行超时')}</FieldLabel>
+            <FieldLabel>{t('Tool execution timeout')}</FieldLabel>
             <Input type='number' min={5} max={600} value={String(timeoutDraft)} onChange={event => setTimeoutDraft(Number(event.currentTarget.value) || 0)} />
           </Field>
-          <span className='pb-2 text-xs text-subtle'>{t('秒')}</span>
+          <span className='pb-2 text-xs text-subtle'>{t('seconds')}</span>
           <Button size='sm' variant='outline' disabled={loading || savingTimeout || !timeoutDraft || timeoutDraft === savedTimeout} onClick={() => void saveTimeout()}>
-            {savingTimeout ? <Spinner /> : null}{t('保存')}
+            {savingTimeout ? <Spinner /> : null}{t('Save')}
           </Button>
         </div>
         <p className='text-[11.5px] text-subtle'>{service.id === 'image-generation'
-          ? t('这是后台生成任务的时间上限。单次 MCP 调用最多等待 20 秒，未完成时返回任务编号；查询不会重新生图。')
-          : t('服务端强制单次工具执行的超时上限（同一服务的 Skill / MCP 共用）。安装 MCP 时会按此值写入客户端配置；修改后需在客户端重新「更新」配置并重进会话才会生效。')}</p>
-        {!enabled && <Alert variant='warning'>{t('该协议已停用，已接入的客户端会收到服务停用错误。')}</Alert>}
+          ? t('This limits the background generation task. Each MCP call waits up to 20 seconds, then returns a job ID if unfinished. Queries never generate again.')
+          : t('Server-enforced timeout for a single tool execution (shared by the Skill / MCP protocols of the same service). Installing MCP writes this value into the client configuration; after changing it, re-run "Update" in the client and reopen the session.')}</p>
+        {!enabled && <Alert variant='warning'>{t('This protocol is disabled; connected clients will receive a service-disabled error.')}</Alert>}
         {error && <Alert variant='destructive' className='whitespace-pre-wrap'>{error}</Alert>}
       </CardContent>
     </Card>
 
-    {loading ? <div className='flex items-center gap-2 text-sm text-subtle'><Spinner />{t('正在加载工具服务配置…')}</div>
+    {loading ? <div className='flex items-center gap-2 text-sm text-subtle'><Spinner />{t('Loading tool service configuration…')}</div>
       : service.protocol === 'mcp' && info ? <McpConnectCard info={info} protocol={service.protocol} />
-        : service.protocol === 'skill' ? <Alert>{t('该协议通过 Agent2API 面板安装到本机客户端目录。')}</Alert> : null}
+        : service.protocol === 'skill' ? <Alert>{t('This protocol is installed into local client directories from the Agent2API panel.')}</Alert> : null}
 
     <div className='flex items-center gap-2'>
       <SegmentedControl value={tab} onValueChange={value => { if (value === 'config' || value === 'capabilities') setTab(value) }} options={[
-        { value: 'config', label: t('服务配置') }, { value: 'capabilities', label: t('服务能力') },
-      ]} aria-label={t('服务配置')} />
+        { value: 'config', label: t('Service configuration') }, { value: 'capabilities', label: t('Capabilities') },
+      ]} aria-label={t('Service configuration')} />
     </div>
 
     {tab === 'config'
       ? (service.id === 'image-generation' ? <ImageGenerationConfigPanel onChanged={onChanged} />
         : service.id === 'vision' ? <VisionConfigPanel /> : <WebSearchConfig />)
       : <Card>
-        <CardHeader><CardTitle>{t('服务能力')}</CardTitle><span className='ml-auto text-xs text-subtle'>{t('共 {count} 项能力', { count: service.capability_count })}</span></CardHeader>
+        <CardHeader><CardTitle>{t('Capabilities')}</CardTitle><span className='ml-auto text-xs text-subtle'>{t('{count} capabilities', { count: service.capability_count })}</span></CardHeader>
         <CardContent className='grid grid-cols-1 gap-3 md:grid-cols-2'>
           {capabilities.map(capability => <div key={capability.title} className='rounded-md border border-border p-3'>
             <div className='text-sm font-semibold'>{capability.title}</div>
@@ -211,7 +211,7 @@ export function ToolDetail({ service, onBack, onChanged }: { service: ToolServic
               {capability.params.map(param => <div key={param.name} className='flex flex-wrap items-baseline gap-2 text-[11.5px]'>
                 <code className='rounded-sm bg-surface-2 px-1.5 py-0.5'>{param.name}</code>
                 <span className='text-subtle'>{param.type}</span>
-                <span className={param.required ? 'text-destructive' : 'text-subtle'}>{param.required ? t('必填') : t('可选')}</span>
+                <span className={param.required ? 'text-destructive' : 'text-subtle'}>{param.required ? t('Required') : t('Optional')}</span>
                 <span className='w-full text-subtle'>{param.desc}</span>
               </div>)}
             </div>

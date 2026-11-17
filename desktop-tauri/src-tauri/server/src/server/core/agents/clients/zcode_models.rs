@@ -36,7 +36,7 @@ pub(super) fn write(value: &mut Value, profile: &Profile, provider: &str) -> Res
         let matches = |rule: &Value| string(rule, "providerId") == provider && string(rule, "modelId") == model.id;
         for rule in smart.iter().chain(&manual).filter(|rule| matches(rule)) {
             if !rule.get("config").is_some_and(Value::is_object) {
-                return Err(format!("ZCode 模型 {} 的配置不是对象，拒绝覆盖", model.id));
+                return Err(format!("ZCode Model {} 的配置不是对象，拒绝覆盖", model.id));
             }
         }
         let old_index = smart.iter().position(|rule| matches(rule)).unwrap_or(smart.len());

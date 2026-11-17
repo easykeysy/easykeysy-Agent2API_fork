@@ -48,9 +48,9 @@ export function useAssistantMessageOperations(options: Options) {
       await options.persist()
       const detail = await forkSession(options.activeId.current, id)
       options.open(detail)
-      toast(t('已从这条消息分叉为新对话'))
+      toast(t('A new conversation was forked from this message'))
     } catch (failure) {
-      toast(t('分叉会话失败：{message}', { message: errorText(failure) }), 'err')
+      toast(t('Failed to fork conversation: {message}', { message: errorText(failure) }), 'err')
     } finally { options.setBusy(false) }
   }, [options])
 

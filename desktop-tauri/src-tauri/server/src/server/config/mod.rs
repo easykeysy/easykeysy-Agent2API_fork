@@ -1379,14 +1379,14 @@ pub fn save_raw(raw: &Map<String, Value>) -> bool {
     let Some(db) = db() else {
         crate::server::logging::log(
             "[Config]",
-            "❌ 保存失败: 数据库不可用（本次改动仅内存生效）",
+            "❌ Save failed: 数据库不可用（本次改动仅内存生效）",
         );
         return false;
     };
     match sql::write_all(&db, raw) {
         Ok(()) => true,
         Err(error) => {
-            crate::server::logging::log("[Config]", &format!("❌ 保存失败: {error}"));
+            crate::server::logging::log("[Config]", &format!("❌ Save failed: {error}"));
             false
         }
     }

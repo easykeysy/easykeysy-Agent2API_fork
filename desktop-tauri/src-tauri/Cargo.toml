@@ -1,7 +1,7 @@
 [package]
 name = "workbuddy-proxy-desktop"
 version = "3.5.0-beta.1"
-description = "Agent2API 桌面端 — AI 路由网关与 Agent 客户端接管"
+description = "Agent2API Desktop app — AI Routing gateway and Agent client takeover"
 authors = ["Agent2API"]
 edition = "2021"
 # MSRV 由 rusqlite 0.40 → libsqlite3-sys 0.38 决定（它的声明值是 1.88）。

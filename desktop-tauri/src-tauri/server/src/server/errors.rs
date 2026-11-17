@@ -256,7 +256,7 @@ impl From<std::io::Error> for GatewayError {
 
 impl From<serde_json::Error> for GatewayError {
     fn from(error: serde_json::Error) -> Self {
-        Self::new(format!("JSON 解析失败: {error}"))
+        Self::new(format!("JSON Resolve failed: {error}"))
     }
 }
 
@@ -706,7 +706,7 @@ mod quota_reset_text_tests {
     #[test]
     fn the_full_utc_plus_8_stamp_still_parses() {
         // 回归：新增第二种形态不能把原来那一形弄坏
-        let text = "您的使用量已超出频率限制，将在 2026-09-11 19:43:46 UTC+8 重置";
+        let text = "您的使用量已超出频率限制，将在 2026-09-11 19:43:46 UTC+8 Reset";
         assert_eq!(
             beijing(2026, 9, 11, 19, 43) + 46_000,
             parse_quota_reset_at(text)

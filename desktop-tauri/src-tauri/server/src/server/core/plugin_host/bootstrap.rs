@@ -118,7 +118,7 @@ impl GatewayCallbacks for StoreCallbacks {
             };
             let Some(id) = id else {
                 return Err(proto::WireError::with_code(
-                    format!("{provider} 没有可用账号"),
+                    format!("{provider} No accounts available"),
                     proto::WireError::NOT_FOUND,
                 ));
             };
@@ -441,7 +441,7 @@ async fn start_pack_inner(
         .unwrap_or_else(|| pack.entry.clone());
     let exe = dir.join(&entry);
     if !exe.exists() {
-        return Err(format!("插件入口不存在（{}）", exe.display()));
+        return Err(format!("插件入口不存在（{})", exe.display()));
     }
     let wasm = match manifest.as_ref().map(|manifest| super::wasm::manifest::read(&dir, manifest)).transpose() {
         Ok(wasm) => wasm.flatten(),
@@ -493,16 +493,16 @@ async fn start_pack_inner(
             for info in providers {
                 let id = info.id.0.clone();
                 if crate::server::core::providers::availability::is_suspended(&id) {
-                    logging::log("Plugin", &format!("提供商 {id} 已暂停，跳过执行体登记"));
+                    logging::log("Plugin", &format!("Provider {id} 已暂停，跳过执行体登记"));
                     continue;
                 }
                 if owners.get(&id).map(String::as_str) != Some(pack.id.as_str()) {
-                    logging::log("Plugin", &format!("提供商 {id} 不归插件包「{}」接管，跳过", pack.id));
+                    logging::log("Plugin", &format!("Provider {id} 不归插件包「{}」接管，跳过", pack.id));
                     continue;
                 }
                 // 逐 provider 的启停（用户可以只关掉包里的一家）
                 if !pack.providers.get(&id).copied().unwrap_or(true) {
-                    logging::log("Plugin", &format!("提供商 {id} 已被用户停用，跳过"));
+                    logging::log("Plugin", &format!("Provider {id} 已被用户停用，跳过"));
                     continue;
                 }
                 if super::wasm::has_capability(&id, "tasks.v1") {
@@ -516,7 +516,7 @@ async fn start_pack_inner(
                 }
                 let kind = plugin_kind(&id);
                 if let Some((models, at)) = super::rpc_cache::set_defaults(&id, info.default_models.clone()) {
-                    restored.push(format!("{id}（{models} 个，{}）", crate::server::core::providers::catalog_cache::age_text(at)));
+                    restored.push(format!("{id}（{models} 个，{})", crate::server::core::providers::catalog_cache::age_text(at)));
                 }
                 if super::wasm::catalog::enabled(&id) { super::wasm::catalog::rebuild(&id); }
                 let mut adapter = RpcAdapter::new(id.clone(), kind, host.clone(), info);
@@ -534,8 +534,8 @@ async fn start_pack_inner(
             );
             if !restored.is_empty() {
                 logging::log("[Models]", &format!(
-                    "📦 已从缓存恢复 {} 份插件模型清单（{}）——刷新成功后覆盖",
-                    restored.len(), restored.join("、"),
+                    "📦 已从缓存恢复 {} 份插件模型清单（{})——刷新成功后覆盖",
+                    restored.len(), restored.join(", "),
                 ));
             }
             Ok(host)

@@ -83,20 +83,20 @@ jobs:
           # 「已入库但构建不再产出」三种形态，diff 只能看见第一种。
           changed="$(git status --porcelain -- desktop-tauri/ui)"
           if [ -z "$changed" ]; then
-            echo "✅ 入库的构建产物可由源码复现（逐字节相同）"
+            echo "✅ The committed build artifacts are reproducible from source (byte-identical)"
             exit 0
           fi
-          echo "::error::入库的前端产物与源码不同源（改了源码没重建，或手改了产物）"
+          echo "::error::The frontend artifacts committed to the repo are out of sync with the source (the source was changed without a rebuild, or the artifact was hand-edited)"
           echo
-          echo "--- 差异文件（M=被改动 / ??=构建新产出未入库 / D=已入库但不再产出）---"
+          echo "--- Diff files (M=changed /??=New build output not committed / D=committed but no longer produced) ---"
           echo "$changed"
           echo
-          echo "--- 内容差异摘要 ---"
+          echo "--- Content diff summary ---"
           git --no-pager diff --stat -- desktop-tauri/ui
           echo
-          echo "本地修复方式："
+          echo "Local repair method:"
           echo "  npm --prefix desktop-tauri/ui-islands run build"
           echo "  npm --prefix desktop-tauri/mobile run build"
           echo "  node desktop-tauri/i18n/build.mjs"
-          echo "（不要手动编辑 ui/islands/ui.js、ui/islands/login.js、ui/m/** 或 ui/i18n/** —— 它们是产物，重建即可）"
+          echo " (do not edit ui/islands/ui.js, ui/islands/login.js, ui/m/** or ui/i18n/** by hand — they are build artifacts; just rebuild)"
           exit 1

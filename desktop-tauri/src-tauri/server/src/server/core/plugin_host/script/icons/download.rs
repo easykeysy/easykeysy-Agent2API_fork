@@ -35,7 +35,7 @@ async fn request(value: &str, limit: usize) -> Result<Vec<u8>, String> {
     };
     for _ in 0..=4 {
         if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
-            return Err("图标仅支持不含登录凭据的 HTTPS 地址".into());
+            return Err("图标仅支持不含登录凭据的 HTTPS Address".into());
         }
         let host = url.host_str().ok_or("图标地址缺少域名")?.trim_matches(['[', ']']);
         if host.eq_ignore_ascii_case("localhost") || host.ends_with(".local") || host.ends_with(".localhost") {

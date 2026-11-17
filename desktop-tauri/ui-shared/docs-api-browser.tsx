@@ -26,7 +26,7 @@ function MarkdownArticle({ section, onCopy }: { section: ApiSection; onCopy: Doc
     </div> : null}
     <div className='docs-block'>
       <div className='mb-3 flex justify-end'>
-        <Button variant='outline' size='sm' onClick={() => void onCopy(markdown, t('工具服务 API 文档'))}>{t('复制文档')}</Button>
+        <Button variant='outline' size='sm' onClick={() => void onCopy(markdown, t('Tool services API documentation'))}>{t('Copy document')}</Button>
       </div>
       {html ? <HtmlContent className='tool-api-doc' html={html} />
         : <pre className='tool-api-doc max-h-[640px] overflow-auto whitespace-pre-wrap rounded-md border border-border p-4 text-xs'>{markdown}</pre>}
@@ -85,7 +85,7 @@ export function DocumentationBrowser({ origin, packs, addresses, notice, onCopy 
   function pageLink(entry: DocumentationEntry, direction: 'previous' | 'next') {
     return <Button variant='ghost' className={`docs-page-link docs-page-link-${direction}`} onClick={() => navigate(entry.id)}>
       <span className='docs-page-link-label'>
-        {direction === 'previous' ? t('上一章') : t('下一章')}
+        {direction === 'previous' ? t('Previous chapter') : t('Next chapter')}
       </span>
       <span className='docs-page-link-title'>{entry.title}</span>
       <span className='docs-page-link-arrow' aria-hidden='true'>{direction === 'previous' ? '←' : '→'}</span>
@@ -94,13 +94,13 @@ export function DocumentationBrowser({ origin, packs, addresses, notice, onCopy 
 
   return <div className='docs-browser' data-menu-open={menuOpen ? 'true' : undefined}>
     <div className='docs-layout'>
-      <aside className='docs-sidebar' aria-label={t('文档目录')}>
+      <aside className='docs-sidebar' aria-label={t('Documentation contents')}>
         <div className='docs-sidebar-head'>
-          <div className='docs-sidebar-title'>{t('接口文档')}</div>
-          <div className='docs-sidebar-caption'>{t('接入指南与接口参考')}</div>
+          <div className='docs-sidebar-title'>{t('The API documentation')}</div>
+          <div className='docs-sidebar-caption'>{t('Guides and API reference')}</div>
           <InputGroup className='docs-search'>
             <InputGroupInput ref={searchRef} type='search' value={query} autoComplete='off'
-              placeholder={t('搜索文档、参数或接口…')} aria-label={t('搜索文档')}
+              placeholder={t('Search docs, parameters or endpoints…')} aria-label={t('Search documentation')}
               onChange={event => { setQuery(event.currentTarget.value); setMenuOpen(true) }}
               onKeyDown={event => {
                 if (event.key === 'Escape') {
@@ -113,19 +113,19 @@ export function DocumentationBrowser({ origin, packs, addresses, notice, onCopy 
               }} />
             <InputGroupAddon aria-hidden='true'>⌕</InputGroupAddon>
             {query ? <InputGroupAddon align='inline-end'>
-              <InputGroupButton size='icon-xs' title={t('清除搜索')} aria-label={t('清除搜索')} onClick={clearSearch}>×</InputGroupButton>
+              <InputGroupButton size='icon-xs' title={t('Clear search')} aria-label={t('Clear search')} onClick={clearSearch}>×</InputGroupButton>
             </InputGroupAddon> : null}
           </InputGroup>
           <Button variant='ghost' className='docs-menu-toggle' aria-expanded={menuOpen || searching}
             aria-controls='docs-navigation' onClick={() => { if (searching) setQuery(''); setMenuOpen(!menuOpen) }}>
             <span className='docs-menu-current'>{active.title}</span>
-            <span className='docs-menu-action'>{menuOpen || searching ? t('收起目录') : t('展开目录')}</span>
+            <span className='docs-menu-action'>{menuOpen || searching ? t('Hide contents') : t('Show contents')}</span>
             <span aria-hidden='true'>{menuOpen || searching ? '−' : '+'}</span>
           </Button>
         </div>
-        <nav id='docs-navigation' className='docs-navigation' aria-label={t('接口参考目录')}>
+        <nav id='docs-navigation' className='docs-navigation' aria-label={t('API reference contents')}>
           {searching ? <div className='docs-search-summary' role='status'>
-            {t('找到 {count} 个章节', { count: results.length })}
+            {t('Found {count} chapters', { count: results.length })}
           </div> : null}
           {filteredGroups.map(group => <section key={group.id} className='docs-nav-group' aria-labelledby={`docs-group-${group.id}`}>
             <SidebarGroupLabel id={`docs-group-${group.id}`} className='docs-group-head'>
@@ -148,9 +148,9 @@ export function DocumentationBrowser({ origin, packs, addresses, notice, onCopy 
             </NavList>
           </section>)}
           {!results.length ? <Empty className='docs-search-empty'>
-            <EmptyTitle>{t('没有找到匹配的文档')}</EmptyTitle>
-            <EmptyDescription>{t('试试接口路径、参数名或其他关键词。')}</EmptyDescription>
-            <Button variant='outline' size='sm' onClick={clearSearch}>{t('清除搜索')}</Button>
+            <EmptyTitle>{t('No matching documentation')}</EmptyTitle>
+            <EmptyDescription>{t('Try an endpoint path, parameter name or another keyword.')}</EmptyDescription>
+            <Button variant='outline' size='sm' onClick={clearSearch}>{t('Clear search')}</Button>
           </Empty> : null}
         </nav>
       </aside>
@@ -159,7 +159,7 @@ export function DocumentationBrowser({ origin, packs, addresses, notice, onCopy 
           {notice}
           <header className='docs-article-head'>
             <div className='docs-breadcrumb'>
-              <span>{t('接口文档')}</span><span aria-hidden='true'>/</span><span>{active.group}</span>
+              <span>{t('The API documentation')}</span><span aria-hidden='true'>/</span><span>{active.group}</span>
             </div>
             <h2 id='docs-article-title' ref={headingRef} tabIndex={-1}>{active.title}</h2>
             <p>{active.description}</p>
@@ -171,7 +171,7 @@ export function DocumentationBrowser({ origin, packs, addresses, notice, onCopy 
             ? <MarkdownArticle section={section} onCopy={onCopy} />
             : section ? <ApiReference key={section.id} section={section} onCopy={onCopy} /> : null}
           {active.id === 'providers' ? <ProviderDocsTable packs={packs} /> : null}
-          <nav className='docs-pagination' aria-label={t('章节导航')}>
+          <nav className='docs-pagination' aria-label={t('Chapter navigation')}>
             <div>{previous ? pageLink(previous, 'previous') : null}</div>
             <div>{next ? pageLink(next, 'next') : null}</div>
           </nav>

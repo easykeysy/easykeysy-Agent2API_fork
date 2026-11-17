@@ -28,6 +28,9 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: '0'
+  # LAW-15.3: CI pins build output back into the ephemeral workspace (env takes precedence over .cargo/config.toml's
+  # out-of-tree target-dir); paired verbatim with rust-cache's ../../target.
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
 jobs:
   server:
@@ -62,7 +65,7 @@ jobs:
           package = next(p for p in lock['package'] if p['name'] == 'agent2api-provider-protocol')
           revision = package['source'].rsplit('#', 1)[1]
           if len(revision) != 40 or any(c not in '0123456789abcdef' for c in revision):
-              raise ValueError('插件协议未锁定到完整提交')
+              raise ValueError('The plugin protocol is not pinned to a full commit')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write(f'revision={revision}\n')
       - uses: actions/checkout@v7
@@ -111,7 +114,7 @@ jobs:
       - name: 生成覆盖率
         run: |
           node -e "require('node:fs').mkdirSync('target/coverage', { recursive: true })"
-          node scripts/cargo-test.mjs --coverage --lcov --output-path ../../target/coverage/lcov.info
+          node scripts/cargo-test.mjs --coverage --lcov --output-path target/coverage/lcov.info
       - uses: actions/upload-artifact@v7
         with:
           name: rust-coverage

@@ -780,10 +780,10 @@ body.queue-dragging * { cursor: grabbing; }
    ── 静息态**要有底色与描边**（2026-10 修）─────────────────────
    这一枚原来在原处写的是 `border: 1px solid transparent; background: none`：
    浅色主题下像一句读数旁边挂个 caret，还能认；深色主题里底色本身就是黑的，
-   "透明"等于"看不见" —— 用户的原话是「它的背景是黑的，然后你这个按钮也是黑的，
+   "Transparent"等于"Invisible" —— 用户的原话是「它的背景是黑的，然后你这个按钮也是黑的，
    都看不到，除非我鼠标移到上面」。悬停那一块底色其实也不是下面那条规则给的：
    通用 `button:hover:not(:disabled)` 的特异性 (0,2,1) 比 `.usage-toggle:hover`
-   (0,2,0) 高，一直是它在生效 —— 于是"静息全透明、一动鼠标才冒出一块"，正好是
+   (0,2,0) 高，一直是它在生效 —— 于是"Fully transparent at rest; a panel pops out only when the mouse moves"，正好是
    最难用的那种组合。现在静息/悬停都直接取全站按钮那一套 `--control-*`，与同一
    行的「余额 / 设置」同族；几何（宽度出血 / 内边距 / 圆角 / 字号）保持原样，
    `.usage-toggle` 没声明的 `height: 30px`、`box-shadow` 仍按通用 button 来。 */
@@ -804,7 +804,7 @@ body.queue-dragging * { cursor: grabbing; }
 }
 /* 悬停沿用全站按钮那套：与上面那条通用 `button:hover:not(:disabled)` 同色，但必须
    自己写一遍并带上 `:not(:disabled)` —— 否则以后有人调通用悬停色，这一枚的静息态
-   与悬停态会各走各的（这正是上一版"两种底色"的来源） */
+   与悬停态会各走各的（这正是上一版"Two background colors"的来源） */
 .usage-toggle:hover:not(:disabled) {
   background: var(--control-hover);
   border-color: var(--control-border-hover);
@@ -1002,7 +1002,7 @@ body.queue-dragging * { cursor: grabbing; }
   overflow-y: auto;
   overscroll-behavior: contain;
   /* 这一层是弹层的初始焦点（见 accounts-credit-detail.tsx 的 initialFocus）：
-     聚焦它只是为了"别让焦点落到末尾那个组表头上、把列表拽到底部"，
+     聚焦它只是为了"do not let focus land on that last group header and drag the list to the bottom"，
      不是要给用户一个可操作的目标 —— 所以不画焦点框。 */
   outline: none;
 }
@@ -1010,10 +1010,10 @@ body.queue-dragging * { cursor: grabbing; }
 /* ─── 末尾那组「已用完 / 已过期」（默认折叠）────────────────────
    花不出去的明细收在这里，表头即开关。它是这一组的**页脚条**：铺满弹层宽度
    （向两侧出血到内边距之外）、方角、无描边，靠一整条底色与上面那串记录分开 ——
-   比"飘在列表中间的小按钮"更像个收尾。
+   比"a small button floating in the middle of the list"更像个收尾。
 
-   底色一开始写的是 `background: none`（当时按"分隔线"的思路做的），深色主题下
-   等于没有 —— 用户报的就是这个：「底部'已用完'的那个……也一样有这个问题」。
+   底色一开始写的是 `background: none`（当时按"Divider"的思路做的），深色主题下
+   等于没有 —— 用户报的就是这个：「底部'Used up'的那个……也一样有这个问题」。
    现在静息态取全站按钮那套 `--control-bg`，悬停 `--control-hover`（同样要带
    `:not(:disabled)`，理由见 .usage-toggle 那段）。
 
@@ -1045,7 +1045,7 @@ body.queue-dragging * { cursor: grabbing; }
 /* 展开态与 .usage-toggle 的展开态同一语言（主色浅底），一眼看出这一组是开着的 */
 .usage-pop-spent-head[aria-expanded="true"] { background: var(--primary-soft); }
 /* 三角用 CSS 画（border 那套），不用 ▾ 这个字形：同一串 ▾ 在 9~10px 下各家字体的
-   墨迹差得远（这份界面里它已经缩成像个小点），而这一行整行就靠它表明"能点"。
+   墨迹差得远（这份界面里它已经缩成像个小点），而这一行整行就靠它表明"Clickable"。
    尺寸写死 5×8px，旋转只负责方向：收起朝右（▸），展开转 90° 朝下（▾）。 */
 .usage-pop-spent-head .caret {
   flex: none;

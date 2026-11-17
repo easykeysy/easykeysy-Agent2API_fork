@@ -20,16 +20,16 @@ export function SupportDialog({ open, onClose }: { open: boolean; onClose: () =>
   const methods = [
     {
       value: 'wechat' as const,
-      label: t('微信赞赏'),
+      label: t('WeChat'),
       src: 'assets/support/wechat-reward.png',
-      alt: t('微信赞赏码'),
+      alt: t('WeChat donation code'),
       pixels: 710,
     },
     {
       value: 'alipay' as const,
-      label: t('支付宝'),
+      label: t('Alipay'),
       src: 'assets/support/alipay-receive.png',
-      alt: t('支付宝收款码'),
+      alt: t('Alipay payment QR code'),
       pixels: 1620,
     },
   ]
@@ -38,16 +38,16 @@ export function SupportDialog({ open, onClose }: { open: boolean; onClose: () =>
     <Dialog open={open} onOpenChange={next => { if (!next) onClose() }}>
       <DialogContent className='w-[min(680px,calc(100vw-48px))]'>
         <DialogHeader>
-          <DialogTitle>{t('支持作者')}</DialogTitle>
+          <DialogTitle>{t('Support the author')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <DialogDescription className='support-intro'>
-            {t('Agent2API 一直在更新，是因为有人在背后持续投入。如果它帮到了你，欢迎请作者喝杯咖啡。')}
+            {t('Agent2API keeps improving because someone keeps investing time in it. If it has helped you, consider buying the author a coffee.')}
           </DialogDescription>
           {narrow ? (
             <SegmentedControl
               className='self-center'
-              aria-label={t('赞赏方式')}
+              aria-label={t('Donation method')}
               options={methods}
               value={method}
               onValueChange={setMethod}
@@ -68,7 +68,7 @@ export function SupportDialog({ open, onClose }: { open: boolean; onClose: () =>
             ))}
           </div>
           <p className='support-note'>
-            {t('赞赏完全自愿，不解锁任何功能，也不影响正常使用。')}
+            {t('Donations are entirely voluntary. They do not unlock any features or affect normal use.')}
           </p>
         </DialogBody>
       </DialogContent>

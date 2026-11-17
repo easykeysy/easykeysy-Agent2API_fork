@@ -23,11 +23,11 @@ export function usageAggregateOf(value: unknown, t: Translate): UsageAggregate |
   const hasTotalLeft = Object.prototype.hasOwnProperty.call(usage, 'totalLeft')
   const sources = Array.isArray(usage.quotaSources) ? usage.quotaSources : []
   const account = sources.map(object).find(source => source?.id === 'account')
-  const unit = String(usage.unit || account?.unit || (hasTotalLeft ? '积分' : '')).trim()
+  const unit = String(usage.unit || account?.unit || (hasTotalLeft ? 'Points' : '')).trim()
   const remaining = usageNumberOrNull(hasTotalLeft ? usage.totalLeft : usage.available)
   const unlimited = usage.unlimited === true
   if (remaining === null && !unlimited) return null
-  return { label: isCreditUnit(unit) ? t('总积分') : t('可用合计'),
+  return { label: isCreditUnit(unit) ? t('Total points') : t('Total available'),
     unit: usageUnitLabel(unit, t), remaining, unlimited }
 }
 
@@ -38,11 +38,11 @@ function object(value: unknown): UsageObject | null {
 export function usageEmptyStateOf(value: unknown, t: Translate): { text: string; detail: string } | null {
   const usage = object(value)
   if (usage?.empty !== true || usage.error) return null
-  const reason = usage.emptyText === '暂无可用积分信息' ? t('暂无可用积分信息')
+  const reason = usage.emptyText === 'No credit information is currently available' ? t('No credit information is currently available')
     : typeof usage.emptyText === 'string' ? t(usage.emptyText.trim()) : ''
   return {
-    text: t('暂无额度信息'),
-    detail: [reason, t('查询已成功，但上游未提供额度数据，不代表余额为零。')].filter(Boolean).join(' · '),
+    text: t('No quota information'),
+    detail: [reason, t('The query succeeded, but the provider returned no quota data. This does not mean the balance is zero.')].filter(Boolean).join(' · '),
   }
 }
 
@@ -70,12 +70,12 @@ export function creditPacksOf(value: unknown): UsageObject[] {
     if (pack.snapshot === true || pack.record === true) return pack
     const { remain, ...rest } = pack
     switch (pack.name) {
-      case '可用魔粒':
-        return { ...rest, key: 'available', name: '可用余额', balance: remain, unit: '魔粒', snapshot: true }
-      case '冻结魔粒':
-        return { ...rest, key: 'frozen', name: '冻结余额', balance: remain, unit: '魔粒', snapshot: true }
-      case '今日已用（次）':
-        return { ...rest, key: 'used-today', name: '今日已用', used: pack.used ?? remain, unit: '次', daily: true, snapshot: true }
+      case 'Available magic grains':
+        return { ...rest, key: 'available', name: 'Available balance', balance: remain, unit: 'Magicubes', snapshot: true }
+      case 'Frozen magic grains':
+        return { ...rest, key: 'frozen', name: 'Frozen balance', balance: remain, unit: 'Magicubes', snapshot: true }
+      case 'Used today (times)':
+        return { ...rest, key: 'used-today', name: 'Used today', used: pack.used ?? remain, unit: 'times', daily: true, snapshot: true }
       default:
         return pack
     }
@@ -83,16 +83,16 @@ export function creditPacksOf(value: unknown): UsageObject[] {
 }
 
 export function isCreditUnit(unit: string): boolean {
-  return unit.trim() === '积分' || unit.trim().toLowerCase() === 'credits'
+  return unit.trim() === 'Points' || unit.trim().toLowerCase() === 'credits'
 }
 
 export function usageUnitLabel(unit: string, t: Translate): string {
-  if (isCreditUnit(unit)) return t('积分')
+  if (isCreditUnit(unit)) return t('Points')
   switch (unit) {
-    case '额度': return t('额度')
-    case '魔粒': return t('魔粒')
-    case '次': return t('次')
-    case 'copilot_quota_units': return t('Copilot 额度单位')
+    case 'Quota': return t('Quota')
+    case 'Magicubes': return t('Magicubes')
+    case 'times': return t('times')
+    case 'copilot_quota_units': return t('Copilot quota units')
     default: return unit
   }
 }
@@ -100,9 +100,9 @@ export function usageUnitLabel(unit: string, t: Translate): string {
 /** 上游 Copilot 的账单单位标签，不称为 Token 或货币。 */
 export function usageWindowLabel(value: unknown, t: Translate): string {
   switch (value) {
-    case 'Premium requests': return t('高级请求')
-    case 'Chat requests': return t('对话请求')
-    case 'Completions': return t('补全请求')
+    case 'Premium requests': return t('Premium requests')
+    case 'Chat requests': return t('Chat requests')
+    case 'Completions': return t('Completion requests')
     default: return typeof value === 'string' ? t(value) : ''
   }
 }
@@ -114,14 +114,14 @@ export function usageWindowView(row: UsageObject, t: Translate, format: (value: 
   const limit = usageNumberOrNull(row.limit)
   const ratio = usageNumberOrNull(row.remainingPercent)
   const unit = typeof row.unit === 'string' ? usageUnitLabel(row.unit, t) : ''
-  if (row.unlimited === true && (!supplied || supplied === '不限')) return t('不限')
+  if (row.unlimited === true && (!supplied || supplied === 'Unlimited')) return t('Unlimited')
   if (remaining !== null && (!supplied || /^剩余 [-+\d.eE]+(?: \/ [-+\d.eE]+)?(?: .+)?$/.test(supplied))) {
-    const text = limit === null ? t('剩 {remaining}', { remaining: format(remaining) })
-      : t('剩 {remaining} / {total}', { remaining: format(remaining), total: format(limit) })
+    const text = limit === null ? t('{remaining} left', { remaining: format(remaining) })
+      : t('{remaining} / {total} left', { remaining: format(remaining), total: format(limit) })
     return [text, unit].filter(Boolean).join(' ')
   }
   if (ratio !== null && (!supplied || /^剩余 [-+\d.]+%$/.test(supplied))) {
-    return t('剩余 {percent}%', { percent: Math.round(Math.max(0, Math.min(100, ratio))) })
+    return t('{percent}% left', { percent: Math.round(Math.max(0, Math.min(100, ratio))) })
   }
   return supplied ? t(supplied) : '—'
 }
@@ -133,13 +133,13 @@ export function snapshotReadingOf(pack: UsageObject, t: Translate, format: (valu
   const value = used ?? usageNumberOrNull(pack.balance) ?? usageNumberOrNull(pack.remain)
   const unit = String(pack.unit || '').trim()
   const rawName = String(pack.name || '').trim()
-  const name = rawName === '可用余额' ? t('可用余额')
-    : rawName === '冻结余额' ? t('冻结余额')
-      : rawName === '今日已用' ? t('今日已用')
-        : rawName === '今日发放' ? t('今日发放')
-          : rawName || t('明细')
+  const name = rawName === 'Available balance' ? t('Available balance')
+    : rawName === 'Frozen balance' ? t('Frozen balance')
+      : rawName === 'Used today' ? t('Used today')
+        : rawName === 'Granted today' ? t('Granted today')
+          : rawName || t('Details')
   const view = value === null ? '—'
-    : unit === '次' ? t('{count} 次', { count: format(value) })
+    : unit === 'times' ? t('{count} calls', { count: format(value) })
       : unit ? `${format(value)} ${usageUnitLabel(unit, t)}` : format(value)
   return {
     name,
@@ -169,7 +169,7 @@ export function usageSupplementReadingsOf(value: unknown, t: Translate, format: 
   const readings: string[] = []
   const subscription = object(data.subscription)
   if (typeof subscription?.planName === 'string' && subscription.planName.trim()) {
-    readings.push(t('套餐 {name}', { name: subscription.planName }))
+    readings.push(t('Plan {name}', { name: subscription.planName }))
   }
   if (typeof data.balanceView === 'string' && data.balanceView.trim()) readings.push(t(data.balanceView))
   for (const wallet of creditStatisticsWalletsOf(data) ?? (Array.isArray(data.wallets) ? data.wallets : [])) {
@@ -179,7 +179,7 @@ export function usageSupplementReadingsOf(value: unknown, t: Translate, format: 
       : usageNumberOrNull(row.balance) === null ? '' : format(usageNumberOrNull(row.balance)!)
     if (!view) continue
     const name = typeof row.displayName === 'string' ? t(row.displayName)
-      : typeof row.type === 'string' ? row.type : t('明细')
+      : typeof row.type === 'string' ? row.type : t('Details')
     readings.push([name, view].filter(Boolean).join(' '))
   }
   return [...new Set(readings)]
@@ -204,7 +204,7 @@ export function recordReadingsOf(
     const view = amount === null ? '—' : `${amount > 0 ? '+' : ''}${format(amount)}${unit ? ` ${usageUnitLabel(unit, t)}` : ''}`
     const expireAt = usageNumberOrNull(pack.expireAt)
     const window = expireAt !== null && expireAt > 0
-      ? expireAt <= Date.now() ? t('已过期') : t('到期 {time}', { time: time(expireAt) })
+      ? expireAt <= Date.now() ? t('Expired') : t('Expires {time}', { time: time(expireAt) })
       : ''
     return [String(pack.name || '').trim(), view, window].filter(Boolean).join(' · ')
   })

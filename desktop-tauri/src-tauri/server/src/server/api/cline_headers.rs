@@ -99,7 +99,7 @@ pub async fn put_cline_headers(State(state): State<ServerState>, body: Bytes) ->
 /// 构造请求时用的是**同一套规则**，不需要另维护一张字符白名单。
 fn validated_overrides(entries: &Map<String, Value>) -> Result<BTreeMap<String, String>, String> {
     if entries.len() > MAX_ENTRIES {
-        return Err(format!("overrides 最多 {} 项", MAX_ENTRIES));
+        return Err(format!("overrides 最多 {} items", MAX_ENTRIES));
     }
     let mut overrides = BTreeMap::new();
     for (key, value) in entries {
@@ -109,7 +109,7 @@ fn validated_overrides(entries: &Map<String, Value>) -> Result<BTreeMap<String, 
         }
         if HeaderName::try_from(key).is_err() {
             return Err(format!(
-                "头名含非法字符（只能是字母、数字与 !#$%&'*+-.^_`|~）: {key:?}"
+                "头名含非法字符（只能是字母、数字与 !#$%&'*+-.^_`|~): {key:?}"
             ));
         }
         if FIXED_HEADERS.iter().any(|name| name.eq_ignore_ascii_case(key)) {

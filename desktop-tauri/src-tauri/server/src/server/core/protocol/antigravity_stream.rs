@@ -454,7 +454,7 @@ impl ChatFromAntigravityStream {
         crate::server::logging::verbose(
             "[Antigravity]",
             &format!(
-                "上游流内错误：{message}（映射为 {status} {}）",
+                "上游流内错误：{message}（映射为 {status} {})",
                 error_type(status)
             ),
         );

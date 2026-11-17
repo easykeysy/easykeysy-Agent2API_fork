@@ -21,14 +21,14 @@ fn with_redirect_context(message: String, urls: &[Url]) -> String {
         .map(|url| redact_url(url.as_str()))
         .collect::<Vec<_>>()
         .join(" → ");
-    format!("{message}。已跟随 {} 次重定向（{route}）", urls.len() - 1)
+    format!("{message}。已跟随 {} 次重定向（{route})", urls.len() - 1)
 }
 
 fn redirect_error(reason: &str, status: StatusCode, urls: &[Url]) -> String {
     let url = urls.last().map(Url::as_str).unwrap_or("");
     with_redirect_context(
         format!(
-            "WebDAV GET 重定向失败（HTTP {status}：{reason}）: {}",
+            "WebDAV GET 重定向失败（HTTP {status}: {reason}): {}",
             redact_url(url)
         ),
         urls,
@@ -85,7 +85,7 @@ pub(super) async fn get_bytes(
             .get(header::LOCATION)
             .and_then(|value| value.to_str().ok())
             .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| redirect_error("缺少有效的 Location 地址", status, &urls))?;
+            .ok_or_else(|| redirect_error("缺少有效的 Location Address", status, &urls))?;
         let next = current
             .join(location)
             .map_err(|_| redirect_error("Location 地址无效", status, &urls))?;
@@ -121,7 +121,7 @@ pub(super) async fn get_bytes(
     if !status.is_success() {
         let message = if urls.len() > 1 {
             format!(
-                "WebDAV GET失败（重定向目标返回 HTTP {status}）: {}",
+                "WebDAV GET失败（重定向目标返回 HTTP {status}): {}",
                 redact_url(current.as_str())
             )
         } else {

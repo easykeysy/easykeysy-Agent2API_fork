@@ -69,7 +69,7 @@ impl AccountStore {
             }).collect()
         } else {
             return Err(AccountStoreError::bad_request(format!(
-                "队列不完整：可见账号 {} 个，全部账号 {} 个，队列里只有 {} 个",
+                "队列不完整：可见账号 {} 个，全部账号 {} 个，队列里只有 {} total",
                 visible.len(), known.len(), seen.len()
             )));
         };

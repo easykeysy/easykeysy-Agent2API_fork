@@ -93,11 +93,11 @@ export function createPageRefreshStore(api: Api, t: RefreshTranslator) {
         const result = await Promise.resolve().then(() => api.list())
         if (version !== value.version) return
         const task = normalize(id, result?.tasks?.find(item => item.id === id))
-        if (!task) throw new Error(t('未能读取自动刷新设置'))
+        if (!task) throw new Error(t('Could not load auto-refresh settings'))
         value.confirmed = task
       } catch (error) {
         if (version === value.version) {
-          value.snapshot = { ...value.snapshot, error: errorText(error) || t('未能读取自动刷新设置') }
+          value.snapshot = { ...value.snapshot, error: errorText(error) || t('Could not load auto-refresh settings') }
         }
       } finally {
         value.loading = null
@@ -115,7 +115,7 @@ export function createPageRefreshStore(api: Api, t: RefreshTranslator) {
         const pending = value.pending[0]
         try {
           const task = normalize(id, await api.save(id, pending.patch))
-          if (!task) throw new Error(t('未能保存自动刷新设置'))
+          if (!task) throw new Error(t('Could not save auto-refresh settings'))
           value.confirmed = task
           pending.resolve()
         } catch (error) {
@@ -132,7 +132,7 @@ export function createPageRefreshStore(api: Api, t: RefreshTranslator) {
 
   function save(id: PageRefreshTaskId, patch: PageRefreshPatch): Promise<void> {
     const value = entry(id)
-    if (!value.confirmed) return Promise.reject(new Error(t('未能读取自动刷新设置')))
+    if (!value.confirmed) return Promise.reject(new Error(t('Could not load auto-refresh settings')))
     value.version += 1
     return new Promise<void>((resolve, reject) => {
       // 失焦保存间隔后紧接着拨开关，两次局部修改必须按顺序落盘。

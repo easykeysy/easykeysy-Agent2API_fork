@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Agent2API 桌面端 React 岛 —— 消费 ui-kit 私有组件库（Base UI + Tailwind v4），产物落 ui/islands/",
+  "description": "Agent2API Desktop app React The island—— Consumes the ui-kit private component library (Base UI + Tailwind v4); output lands in ui/islands/",
   "scripts": {
     "build": "tsc --noEmit && vite build && vite build --config vite.login.config.ts",
     "watch": "vite build --watch",

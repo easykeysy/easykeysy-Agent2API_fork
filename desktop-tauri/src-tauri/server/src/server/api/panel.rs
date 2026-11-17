@@ -58,7 +58,7 @@ pub async fn captcha_challenge(State(state): State<ServerState>) -> Response {
     }
     match altcha::challenge(state.local_panel) {
         Some(challenge) => crate::server::http::raw_json(challenge),
-        None => errors::management_error(400, "机器人校验未启用"),
+        None => errors::management_error(400, "Robot verification is not enabled"),
     }
 }
 
@@ -155,7 +155,7 @@ fn marker_source(headers: &HeaderMap, query: &std::collections::HashMap<String, 
     {
         "参数"
     } else {
-        "无"
+        "None"
     }
 }
 
@@ -291,10 +291,10 @@ pub async fn panel_setup(
         .and_then(serde_json::Value::as_str)
         .unwrap_or("");
     if username.is_empty() || username.len() > 64 {
-        return management_error(400, "请填写管理员账号（64 字符以内）");
+        return management_error(400, "Enter an admin account (up to 64 characters)");
     }
     if password.len() < 8 {
-        return management_error(400, "密码至少 8 位");
+        return management_error(400, "Password must be at least 8 characters");
     }
     let hash = match access::hash_password(password) {
         Ok(hash) => hash,
@@ -307,7 +307,7 @@ pub async fn panel_setup(
         Ok(true) => {
             logging::log(
                 "[Security]",
-                &format!("✅ 管理员「{username}」注册完成（{}）", addr.ip()),
+                &format!("✅ 管理员「{username}」注册完成（{})", addr.ip()),
             );
             issue_response(access::IssuedSession::new_session(), tokens_in_body(&headers, &query))
         }
@@ -331,7 +331,7 @@ pub async fn panel_login(
         return management_error(400, "尚未注册管理员账号：请先在登录页完成首次注册");
     }
     if access::login_locked(addr.ip()) {
-        logging::log("[Security]", &format!("❌ 面板登录已锁定（{}）", addr.ip()));
+        logging::log("[Security]", &format!("❌ 面板登录已锁定（{})", addr.ip()));
         return management_error(429, "登录失败次数过多，请 5 分钟后再试");
     }
     let payload = parse_body(&body).unwrap_or(serde_json::Value::Null);
@@ -346,7 +346,7 @@ pub async fn panel_login(
 
     if !access::verify_login(&username, password) {
         access::record_login_failure(addr.ip());
-        logging::log("[Security]", &format!("❌ 面板登录失败（{}）", addr.ip()));
+        logging::log("[Security]", &format!("❌ 面板登录失败（{})", addr.ip()));
         return management_error(401, "账号或密码不正确");
     }
     access::clear_login_failures(addr.ip());
@@ -388,13 +388,13 @@ pub async fn panel_change_password(headers: HeaderMap, body: Bytes) -> Response 
     let old_password = body_str(&payload, "oldPassword");
     let new_password = body_str(&payload, "newPassword");
     if old_password.is_empty() {
-        return management_error(400, "请输入当前密码");
+        return management_error(400, "Please enter your current password");
     }
     if new_password.len() < 8 {
-        return management_error(400, "新密码至少 8 位");
+        return management_error(400, "Password must be at least 8 characters");
     }
     if new_password == old_password {
-        return management_error(400, "新密码不能与当前密码相同");
+        return management_error(400, "New password must differ from the current one");
     }
     let hash = match access::hash_password(&new_password) {
         Ok(hash) => hash,

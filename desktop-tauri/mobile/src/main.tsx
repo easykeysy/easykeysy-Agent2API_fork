@@ -33,5 +33,5 @@ if (host) {
 } else {
   // 挂载点缺失时给出可读错误，而不是静默白屏
   document.body.innerHTML =
-    '<pre style="padding:20px;font:13px/1.6 monospace;color:#c00">手机端挂载失败：页面缺少 #root 容器。</pre>'
+    '<pre style="padding:20px;font:13px/1.6 monospace;color:#c00">Phone-side mount failed: the page is missing#root container.</pre>'
 }

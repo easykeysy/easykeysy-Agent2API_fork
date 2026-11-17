@@ -16,8 +16,8 @@ export type DocumentationGroup = { id: string; title: string; entries: Documenta
 
 export function documentationGroups(sections: ApiSection[], packs: PluginProviderDocumentation[]): DocumentationGroup[] {
   const addresses: DocumentationEntry = {
-    id: 'addresses', title: t('接口地址'), group: '',
-    description: t('查看当前网关的客户端地址和各接口路径，一键复制后即可使用。'),
+    id: 'addresses', title: t('API address'), group: '',
+    description: t('View the current gateway\'s client addresses and endpoint paths, ready to copy and use.'),
     searchText: apiEndpoints().flatMap(endpoint => [endpoint.name, endpoint.path, endpoint.note, endpoint.group]),
   }
   const entries: DocumentationEntry[] = [addresses, ...sections.map(section => ({
@@ -28,11 +28,11 @@ export function documentationGroups(sections: ApiSection[], packs: PluginProvide
       section.markdown || ''],
   }))]
   const definitions = [
-    { id: 'guide', title: t('接入指南'), ids: ['addresses', 'start', 'models'] },
-    { id: 'chat', title: t('对话协议'), ids: ['chat', 'tools', 'responses', 'messages'] },
-    { id: 'images', title: t('图片生成与编辑'), ids: ['image-generation', 'image-editing', 'image-results', 'image-sdk'] },
-    { id: 'tools', title: t('工具服务 API'), ids: ['tools-api'] },
-    { id: 'troubleshooting', title: t('排错与限制'), ids: ['errors'] },
+    { id: 'guide', title: t('Getting started'), ids: ['addresses', 'start', 'models'] },
+    { id: 'chat', title: t('Chat protocols'), ids: ['chat', 'tools', 'responses', 'messages'] },
+    { id: 'images', title: t('Image generation and editing'), ids: ['image-generation', 'image-editing', 'image-results', 'image-sdk'] },
+    { id: 'tools', title: t('Tool services API'), ids: ['tools-api'] },
+    { id: 'troubleshooting', title: t('Troubleshooting and limits'), ids: ['errors'] },
   ]
   const groups = definitions.map(definition => ({
     id: definition.id, title: definition.title,
@@ -45,15 +45,15 @@ export function documentationGroups(sections: ApiSection[], packs: PluginProvide
   const remaining = entries.filter(entry => !assignedIds.has(entry.id))
   if (remaining.length) {
     groups.push({
-      id: 'reference', title: t('详细接口参考'), entries: remaining.map(entry => ({ ...entry, group: t('详细接口参考') })),
+      id: 'reference', title: t('Detailed API reference'), entries: remaining.map(entry => ({ ...entry, group: t('Detailed API reference') })),
     })
   }
   if (packs.length) {
     const locale = (window as unknown as { wbI18n?: { locale(): string } }).wbI18n?.locale() || 'zh-Hans'
     groups.push({
-      id: 'providers', title: t('提供商能力'), entries: [{
-        id: 'providers', title: t('提供商能力适配表'), group: t('提供商能力'),
-        description: t('能力由当前网关本体或插件版本申报，表示适配支持情况，不代表账号额度或当前可用性。'),
+      id: 'providers', title: t('Provider capabilities'), entries: [{
+        id: 'providers', title: t('Provider capability matrix'), group: t('Provider capabilities'),
+        description: t('Capabilities are declared by the current gateway or plugin version. They describe integration support, not account quota or current availability.'),
         searchText: packs.flatMap(pack => [pack.name, documentText(pack.description, locale),
           ...pack.providers.flatMap(provider => [provider.id, provider.label,
             ...provider.notes.map(note => documentText(note, locale)),

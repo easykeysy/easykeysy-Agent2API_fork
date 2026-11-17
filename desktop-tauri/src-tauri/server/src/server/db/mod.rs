@@ -152,7 +152,7 @@ impl Db {
         }
         let conn = Connection::open(path).map_err(|error| format!("打开数据库失败: {error}"))?;
         apply_pragmas(&conn)?;
-        schema::migrate(&conn).map_err(|error| format!("建表/升级 schema 失败: {error}"))?;
+        schema::migrate(&conn).map_err(|error| format!("建表/升级 schema failed: {error}"))?;
         let accounts = Arc::new(revisions::AccountRevisions::default());
         install_cloud_sync_hook(&conn, accounts.clone());
         Ok(Db {
@@ -290,7 +290,7 @@ fn apply_pragmas(conn: &Connection) -> Result<(), String> {
          PRAGMA foreign_keys=ON;
          PRAGMA busy_timeout=5000;",
     )
-    .map_err(|error| format!("设置数据库 PRAGMA 失败: {error}"))
+    .map_err(|error| format!("设置数据库 PRAGMA failed: {error}"))
 }
 
 /// 给主连接装云同步的变更钩子（`core::cloud_sync::auto_sync`）。

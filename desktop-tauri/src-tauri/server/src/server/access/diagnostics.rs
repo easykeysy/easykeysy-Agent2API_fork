@@ -81,14 +81,14 @@ pub(crate) fn log_rejection(headers: &HeaderMap, method: &Method, path: &str, li
     } else {
         "本次管理请求在身份验证阶段被拒绝，未执行后续操作；这条日志本身不代表模型提供商账号失效，也不代表整个网关停止工作。"
     };
-    let summary = format!("{action}：{}", diagnosis.summary);
+    let summary = format!("{action}: {}", diagnosis.summary);
     let detail = format!(
         "原因：{}\n影响：{impact}\n建议：{}",
         diagnosis.detail, diagnosis.suggestion,
     );
-    let message = format!("[Security] {summary}（{method} {path}，HTTP 401）");
+    let message = format!("[Security] {summary}（{method} {path}, HTTP 401)");
     // 控制台与日志库各一份，不再用 log() 根据「失败」等字样猜级别。
-    logging::console_line("[Security]", &format!("{summary}（{method} {path}，HTTP 401）\n{detail}"));
+    logging::console_line("[Security]", &format!("{summary}（{method} {path}, HTTP 401)\n{detail}"));
     let credential_headers: Vec<&str> = ["x-panel-token", "x-panel-refresh", "authorization", "x-api-key"]
         .into_iter()
         .filter(|name| headers.contains_key(*name))

@@ -52,7 +52,7 @@ pub fn validate(settings: &CompactRoutes) -> Result<(), String> {
     let mut sources = HashSet::new();
     for rule in &settings.rules {
         if rule.client != CLIENT_ZCODE {
-            return Err("压缩路由目前只支持 ZCode 客户端".into());
+            return Err("压缩路由目前只支持 ZCode Client".into());
         }
         for model in [&rule.source, &rule.target] {
             if model.trim().is_empty() || model.trim() != model || model.chars().count() > 256
@@ -63,7 +63,7 @@ pub fn validate(settings: &CompactRoutes) -> Result<(), String> {
         }
         let source = model_key(&rule.source);
         if source == model_key(&rule.target) {
-            return Err("来源模型和压缩模型不能相同".into());
+            return Err("The source and compaction models must be different.".into());
         }
         if !sources.insert((rule.client.clone(), source)) {
             return Err(format!("同一客户端的来源模型不能重复：{}", rule.source));

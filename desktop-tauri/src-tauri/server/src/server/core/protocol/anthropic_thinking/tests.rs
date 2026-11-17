@@ -12,7 +12,7 @@ fn request(model: &str) -> Value {
                 {"type":"redacted_thinking","data":"opaque+/=="},
                 {"type":"text","text":"你好"}
             ]},
-            {"role":"user","content":"继续"}
+            {"role":"user","content":"Continue"}
         ]
     })
 }

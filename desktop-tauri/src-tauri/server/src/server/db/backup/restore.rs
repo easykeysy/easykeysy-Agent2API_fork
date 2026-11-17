@@ -52,12 +52,12 @@ pub(super) fn import(
     }
     if version > schema::SCHEMA_VERSION {
         return Err(format!(
-            "备份来自更新版本的应用（库版本 {version} > 当前 {}），请先升级本应用",
+            "备份来自更新版本的应用（库版本 {version} > Current {}），请先升级本应用",
             schema::SCHEMA_VERSION
         ));
     }
     validate_required_tables(&temp.conn)?;
-    schema::migrate(&temp.conn).map_err(|error| format!("对齐备份库 schema 失败: {error}"))?;
+    schema::migrate(&temp.conn).map_err(|error| format!("对齐备份库 schema failed: {error}"))?;
     let integrity: String = temp
         .conn
         .query_row("PRAGMA quick_check", [], |row| row.get(0))
@@ -114,7 +114,7 @@ pub(super) fn import(
     logging::log(
         "[Storage]",
         &format!(
-            "📥 整库恢复完成: {} 张表，已迁移 {reencrypted_secrets} 项加密凭证；安全备份: {}",
+            "📥 The full-database restore is complete: {} 张表，已迁移 {reencrypted_secrets} 项加密凭证；安全备份: {}",
             tables.len(),
             safety.display()
         ),

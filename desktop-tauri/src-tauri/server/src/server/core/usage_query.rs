@@ -164,7 +164,7 @@ async fn query_usage_for(store: &AccountStore, account: &Value) -> Value {
         == Some(crate::server::core::providers::adapter::USAGE_NOT_CONFIGURED_CODE)
         || matches!(error, Some("没有可用凭证"));
     let level = if error.is_none() || not_configured { "debug" } else { "warn" };
-    let summary = if error.is_none() { "余额查询完成" } else if not_configured { "余额查询未配置" } else { "余额查询失败" };
+    let summary = if error.is_none() { "Balance query completed" } else if not_configured { "Balance query not configured" } else { "Balance query failed" };
     logging::log_event(level, "account", summary, Some(json!({
         "provider": provider,
         "providerLabel": crate::server::core::providers::label_of(provider),
@@ -378,7 +378,7 @@ fn enforce_token_disable(store: &AccountStore, accounts: &[Value], now: i64) {
             ),
             Err(error) => logging::verbose(
                 "[Usage]",
-                &format!("账号 {id} Token 限额自动禁用失败：{}", error.message),
+                &format!("Account {id} Token 限额自动禁用失败：{}", error.message),
             ),
         }
     }

@@ -92,7 +92,7 @@ async fn curated(force: bool) {
                     if let Some(error) = distribution_error { Err(error) }
                     else {
                         entry.installable = false;
-                        entry.unavailable_reason = Some("插件尚未提供可下载的发布包".to_string());
+                        entry.unavailable_reason = Some("The plugin does not have a downloadable release yet.".to_string());
                         Ok(())
                     }
                 }
@@ -102,9 +102,9 @@ async fn curated(force: bool) {
         if let Err(error) = &result {
             if entry.version.is_empty() {
                 entry.installable = false;
-                entry.unavailable_reason = Some("插件发布信息读取失败，请稍后刷新".to_string());
+                entry.unavailable_reason = Some("Could not read the plugin release information. Refresh later.".to_string());
             }
-            crate::server::logging::verbose("[PluginCatalog]", &format!("{}：{}", entry.name, error.message));
+            crate::server::logging::verbose("[PluginCatalog]", &format!("{}: {}", entry.name, error.message));
         }
         (index, entry, result)
     })).buffer_unordered(6);

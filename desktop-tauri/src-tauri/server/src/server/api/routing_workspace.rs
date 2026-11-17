@@ -139,7 +139,7 @@ fn put_profile_blocking(state: ServerState, payload: Value) -> Response {
     if config::routing_profiles().group_for_model(&model).is_some() {
         return errors::management_error(400, "此入口是自定义路由组，请在路由组中修改，不能覆盖为模型独立配置");
     }
-    let Some(raw) = object.get("profile") else { return errors::management_error(400, "缺少 profile（恢复继承请传 null）") };
+    let Some(raw) = object.get("profile") else { return errors::management_error(400, "缺少 profile（恢复继承请传 null)") };
     let mut profile = if raw.is_null() { None } else {
         let profile: config::RoutingProfile = match serde_json::from_value(raw.clone()) {
             Ok(profile) => profile,
@@ -181,15 +181,15 @@ fn put_profile_blocking(state: ServerState, payload: Value) -> Response {
     if model.is_empty() {
         if let Some(order) = object.get("orderChange") {
             let Some(kind) = order.get("kind").and_then(Value::as_str) else {
-                return errors::management_error(400, "顺序修改缺少 kind 字段");
+                return errors::management_error(400, "顺序修改缺少 kind field");
             };
             let provider = match kind {
                 "provider" => None,
                 "account" => match order.get("provider").and_then(Value::as_str) {
                     Some(provider) => Some(provider),
-                    None => return errors::management_error(400, "账号顺序修改缺少 provider 字段"),
+                    None => return errors::management_error(400, "账号顺序修改缺少 provider field"),
                 },
-                _ => return errors::management_error(400, "顺序修改 kind 必须为 provider 或 account"),
+                _ => return errors::management_error(400, "顺序修改 kind 必须为 provider or account"),
             };
             let Some(profile) = &profile else { return errors::management_error(400, "修改顺序必须提供路由配置") };
             let accounts = routing::accounts_of(&state.store().list_visible_accounts());

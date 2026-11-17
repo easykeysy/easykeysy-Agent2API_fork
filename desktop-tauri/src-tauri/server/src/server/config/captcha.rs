@@ -70,14 +70,14 @@ impl CaptchaSettings {
             "turnstile" => {
                 validate_key(&self.site_key, "Turnstile 站点密钥")?;
                 if self.hostnames.is_empty() {
-                    return Err("请填写 Turnstile 允许的域名".into());
+                    return Err("请填写 Turnstile Allowed hostnames".into());
                 }
                 for hostname in &self.hostnames {
                     normalize_hostname(hostname)?;
                 }
                 validate_key(&self.secret()?, "Turnstile 服务端密钥")
             }
-            _ => Err("机器人校验方式无效，请选择 ALTCHA 或 Cloudflare Turnstile".into()),
+            _ => Err("机器人校验方式无效，请选择 ALTCHA or Cloudflare Turnstile".into()),
         }
     }
 
@@ -186,7 +186,7 @@ pub(crate) fn save(object: &Map<String, Value>) -> Result<(), (i32, String)> {
         let values = value
             .as_array()
             .filter(|items| items.len() <= 32)
-            .ok_or_else(|| (400, "允许的域名必须是数组，最多 32 项".into()))?;
+            .ok_or_else(|| (400, "允许的域名必须是数组，最多 32 items".into()))?;
         settings.hostnames.clear();
         for value in values {
             let hostname = normalize_hostname(

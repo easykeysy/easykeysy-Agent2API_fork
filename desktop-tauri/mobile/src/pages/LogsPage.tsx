@@ -18,9 +18,9 @@ import { dateRangeQuery, readCustomRange, saveCustomRange, type CustomDates, typ
 const LIMIT = 50
 const CUSTOM_RANGE_KEY = 'agent2api-mobile-logs-custom-range'
 const VIEWS = [
-  { value: 'important' as LogView, label: t('重要事件') },
-  { value: 'all' as LogView, label: t('全部事件') },
-  { value: 'debug' as LogView, label: t('调试详情') },
+  { value: 'important' as LogView, label: t('Important events') },
+  { value: 'all' as LogView, label: t('All events') },
+  { value: 'debug' as LogView, label: t('Debug details') },
 ]
 
 export function LogsPage() {
@@ -141,8 +141,8 @@ export function LogsPage() {
     try {
       const raw = entries.flatMap(group => group.entries)
       await navigator.clipboard.writeText(logRawText(raw))
-      store.toast(t('已复制 {n} 条日志', { n: raw.length }))
-    } catch { store.toast(t('复制失败'), 'err') }
+      store.toast(t('Copied {n} log entries', { n: raw.length }))
+    } catch { store.toast(t('Copy failed'), 'err') }
   }
 
   return (
@@ -150,43 +150,43 @@ export function LogsPage() {
       <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
       <div className='m-sticky'>
         <PageAutoRefresh settings={auto} onRefresh={() => load(false, true, true)} disabled={loading} />
-        <PageIntro subtitle={data ? t('显示 {groups} 组 · 原始记录 {entries} 条', { groups: totalGroups, entries: Number(data.matched) || 0 }) : undefined}
+        <PageIntro subtitle={data ? t('{groups} groups · {entries} raw records', { groups: totalGroups, entries: Number(data.matched) || 0 }) : undefined}
           actions={<Button variant='ghost' size='sm' aria-pressed={paused} onClick={() => {
             const next = !stateRef.current.paused
             stateRef.current.paused = next
             setPaused(next)
             if (!next && page === 1 && !detail && (bodyRef.current?.scrollTop || 0) <= 20) void load(true)
-          }}>{paused ? t('结束阅读') : t('阅读模式')}</Button>} />
+          }}>{paused ? t('End reading') : t('Reading mode')}</Button>} />
         <div className='m-section' style={{ marginTop: 0 }}>
-          <SegmentedControl options={VIEWS} value={view} onValueChange={setView} aria-label={t('日志视图')} className='w-full' />
+          <SegmentedControl options={VIEWS} value={view} onValueChange={setView} aria-label={t('Log view')} className='w-full' />
           <Input className='mt-2.5 w-full' type='search' value={keyword} onChange={event => setKeyword(event.currentTarget.value)}
-            placeholder={t('搜索插件、消息、提供商或账号…')} aria-label={t('搜索插件、消息、提供商或账号')} />
+            placeholder={t('Search plugins, messages, providers or accounts…')} aria-label={t('Search plugins, messages, providers or accounts')} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 10, fontSize: 11.5, color: 'var(--m-text-3)' }}>
-            <span>{held ? t('阅读模式，列表保持不动') : auto.enabled ? t('自动刷新') : t('自动刷新已关闭')}</span>
-            <Label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Switch checked={aggregate} onCheckedChange={setAggregate} aria-label={t('折叠重复日志')} />{t('折叠重复日志')}</Label>
+            <span>{held ? t('Reading mode: list stays in place') : auto.enabled ? t('Auto-refresh') : t('Auto-refresh disabled')}</span>
+            <Label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Switch checked={aggregate} onCheckedChange={setAggregate} aria-label={t('Collapse repeated logs')} />{t('折叠重复日志')}</Label>
           </div>
         </div>
-        <DateRangeFilter range={range} dates={dates} onRangeChange={setRange} label={t('事件日志时间范围')}
+        <DateRangeFilter range={range} dates={dates} onRangeChange={setRange} label={t('Event log time range')}
           onDatesChange={next => { setDates(next); saveCustomRange(CUSTOM_RANGE_KEY, next) }} />
         {view !== 'debug' ? <div className='m-chips' style={{ padding: '0 16px 10px' }}>
-          {[{ value: '', label: t('全部级别') }, { value: 'warn', label: t('警告及以上') }, { value: 'error', label: t('仅错误') }].map(option =>
+          {[{ value: '', label: t('All levels') }, { value: 'warn', label: t('Warnings and errors') }, { value: 'error', label: t('Errors only') }].map(option =>
             <UiToggle size='default' variant='outline' key={option.value} type='button' className='m-chip rounded-pill' pressed={level === option.value} onClick={() => setLevel(option.value)}>{option.label}</UiToggle>)}
         </div> : null}
       </div>
       <div className='m-body' ref={bodyRef} onScroll={() => setReading((bodyRef.current?.scrollTop || 0) > 20)}>
         {error ? <ErrorNote text={error} /> : null}
         <div className='m-section' style={{ fontSize: 11.5, color: 'var(--m-text-3)', lineHeight: 1.6 }}>{logViewNote(view, t)}</div>
-        {view === 'debug' && data && !data.debugEnabled ? <div className='m-section' style={{ fontSize: 11.5, color: 'var(--m-text-3)' }}>{t('调试采集未开启，仅显示已保留的记录。可在设置中开启调试模式。')}</div> : null}
-        {pending || held ? <div className='m-section'><Button variant='outline' className='w-full' disabled={loading} onClick={() => void load(true)}>{pending ? t('有 {n} 条新日志', { n: pending }) : t('阅读模式，列表保持不动')} · {t('查看最新')}</Button></div> : null}
+        {view === 'debug' && data && !data.debugEnabled ? <div className='m-section' style={{ fontSize: 11.5, color: 'var(--m-text-3)' }}>{t('Debug collection is off. Only retained records are shown. Enable debug mode in Settings to collect new records.')}</div> : null}
+        {pending || held ? <div className='m-section'><Button variant='outline' className='w-full' disabled={loading} onClick={() => void load(true)}>{pending ? t('{n} new log entries', { n: pending }) : t('Reading mode: list stays in place')} · {t('View latest')}</Button></div> : null}
         {!data && !error ? <SkeletonList rows={5} height={68} /> : null}
-        {data && !groups.length ? <div className='m-section'><Card className='m-card'><Empty text={t('没有符合筛选条件的日志')} /></Card></div> : null}
+        {data && !groups.length ? <div className='m-section'><Card className='m-card'><Empty text={t('No logs match the filters')} /></Card></div> : null}
         {groups.length ? <div className='m-section' style={{ marginTop: 0 }}><Card className='m-card'>
           {groups.map(group => <div key={group.id} style={{ padding: '11px 14px', borderBottom: '1px solid var(--m-line)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
               <span style={{ color: levelFg(group.entry.level) }}>{logLevel(group.entry.level, t)}</span>
               <span style={{ flex: 1, color: 'var(--m-text-3)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{logSource(group.entry, t)}</span>
               {group.count > 1 ? <span style={{ color: 'var(--m-text-3)' }}>×{group.count}</span> : null}
-              <Button variant='ghost' size='xs' onClick={() => { stateRef.current.detail = group; setDetail(group) }}>{t('详情')}</Button>
+              <Button variant='ghost' size='xs' onClick={() => { stateRef.current.detail = group; setDetail(group) }}>{t('Details')}</Button>
             </div>
             <div style={{ color: 'var(--m-text)', lineHeight: 1.55, fontSize: 12.5, marginTop: 3 }}>{logSummary(group.entry, t)}</div>
             {logContext(group.entry, t) ? <div style={{ color: 'var(--m-text-3)', fontSize: 11, lineHeight: 1.5, marginTop: 3, overflowWrap: 'anywhere' }}>{logContext(group.entry, t)}</div> : null}
@@ -194,37 +194,37 @@ export function LogsPage() {
           </div>)}
         </Card></div> : null}
         {data ? <div className='m-section' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <Button variant='outline' size='sm' disabled={loading || page <= 1} onClick={() => nextPage(page - 1)}>{t('上一页')}</Button>
+          <Button variant='outline' size='sm' disabled={loading || page <= 1} onClick={() => nextPage(page - 1)}>{t('Previous')}</Button>
           <span style={{ color: 'var(--m-text-3)', fontSize: 11.5 }}>{page} / {pageCount}</span>
-          <Button variant='outline' size='sm' disabled={loading || page >= pageCount} onClick={() => nextPage(page + 1)}>{t('下一页')}</Button>
+          <Button variant='outline' size='sm' disabled={loading || page >= pageCount} onClick={() => nextPage(page + 1)}>{t('Next')}</Button>
         </div> : null}
-        {groups.length ? <div className='m-section'><Button variant='ghost' className='w-full' onClick={() => void copy(groups)}>{t('复制本页原始记录')}</Button></div> : null}
+        {groups.length ? <div className='m-section'><Button variant='ghost' className='w-full' onClick={() => void copy(groups)}>{t('Copy this page\'s raw records')}</Button></div> : null}
       </div>
       <Sheet open={Boolean(detail)} onOpenChange={open => { if (!open) { stateRef.current.detail = null; setDetail(null) } }}>
-        <SheetContent><SheetHeader><SheetTitle>{t('日志详情')}</SheetTitle></SheetHeader><SheetBody>
+        <SheetContent><SheetHeader><SheetTitle>{t('Log details')}</SheetTitle></SheetHeader><SheetBody>
           {detail ? <>
             <div style={{ fontSize: 13, color: 'var(--m-text)', lineHeight: 1.6 }}>{logSummary(detail.entry, t)}</div>
-            <div style={{ fontSize: 11, color: 'var(--m-text-3)' }}>{groupTime(detail)} · {t('原始记录 {n} 条', { n: detail.count })}</div>
+            <div style={{ fontSize: 11, color: 'var(--m-text-3)' }}>{groupTime(detail)} · {t('{n} raw records', { n: detail.count })}</div>
             <div style={{ fontSize: 11.5, color: 'var(--m-text-2)', overflowWrap: 'anywhere' }}>{logContext(detail.entry, t)}</div>
-            <SegmentedControl options={[{ value: 'detail' as const, label: t('事件详情') }, { value: 'raw' as const, label: t('原始记录') }]}
-              value={detailTab} onValueChange={setDetailTab} aria-label={t('日志详情视图')} />
+            <SegmentedControl options={[{ value: 'detail' as const, label: t('Event details') }, { value: 'raw' as const, label: t('Raw records') }]}
+              value={detailTab} onValueChange={setDetailTab} aria-label={t('Log details view')} />
             {detailTab === 'detail' ? <>
-              <div style={{ fontSize: 12 }}>{t('来源')}：{logSource(detail.entry, t)}</div>
+              <div style={{ fontSize: 12 }}>{t('Source')}：{logSource(detail.entry, t)}</div>
               {logAdvice(detail.entry, t) ? <div style={{ fontSize: 12, lineHeight: 1.6, padding: 12, background: 'var(--m-surface)', borderRadius: 10 }}>
-                <strong>{t('处理建议')}</strong><p style={{ margin: '6px 0 0' }}>{logAdvice(detail.entry, t)}</p>
+                <strong>{t('Suggested action')}</strong><p style={{ margin: '6px 0 0' }}>{logAdvice(detail.entry, t)}</p>
               </div> : null}
-              {logPlugins(detail.entry, t).length ? <section><h3 style={{ fontSize: 12 }}>{t('启动结果')}</h3>
+              {logPlugins(detail.entry, t).length ? <section><h3 style={{ fontSize: 12 }}>{t('Startup results')}</h3>
                 {logPlugins(detail.entry, t).map(plugin => <div key={plugin.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', fontSize: 12 }}>
                   <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{plugin.name}</span>
                   <span style={{ flexShrink: 0, color: plugin.phase === 'ready' ? 'var(--m-text-3)' : 'var(--m-warn)' }}>{plugin.status}</span>
                 </div>)}
               </section> : null}
-              {logSteps(detail.entry, t).length ? <section><h3 style={{ fontSize: 12 }}>{t('各阶段耗时')}</h3>
+              {logSteps(detail.entry, t).length ? <section><h3 style={{ fontSize: 12 }}>{t('Time spent at each stage')}</h3>
                 {logSteps(detail.entry, t).map((step, index) => <div key={index} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '5px 0', fontSize: 12 }}>
                   <span>{step.label}</span><span>{step.duration}</span>
                 </div>)}
               </section> : null}
-              {logDetailText(detail.entry) ? <section><h3 style={{ fontSize: 12 }}>{t('详细信息')}</h3>
+              {logDetailText(detail.entry) ? <section><h3 style={{ fontSize: 12 }}>{t('Details')}</h3>
                 <pre style={{ fontSize: 11, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', lineHeight: 1.6 }}>{logDetailText(detail.entry)}</pre>
               </section> : null}
             </> : detail.entries.map((entry, index) => <div key={entry.id ?? index}>
@@ -232,7 +232,7 @@ export function LogsPage() {
               <pre style={{ fontFamily: 'var(--font-mono)', fontSize: 11, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', lineHeight: 1.6, padding: 10, margin: 0, borderRadius: 10, background: 'var(--m-surface)' }}>{JSON.stringify(entry, null, 2)}</pre>
             </div>)}
           </> : null}
-        </SheetBody><SheetFooter><Button variant='outline' className='w-full' onClick={() => { if (detail) void copy([detail]) }}>{t('复制原始记录')}</Button></SheetFooter></SheetContent>
+        </SheetBody><SheetFooter><Button variant='outline' className='w-full' onClick={() => { if (detail) void copy([detail]) }}>{t('Copy raw records')}</Button></SheetFooter></SheetContent>
       </Sheet>
     </div>
   )

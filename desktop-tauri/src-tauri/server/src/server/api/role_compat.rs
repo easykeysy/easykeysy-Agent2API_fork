@@ -48,7 +48,7 @@ pub async fn put_role_compat(State(_state): State<ServerState>, body: Bytes) -> 
         return errors::management_error(400, format!("缺少 {key}"));
     };
     let Some(enabled) = value.as_bool() else {
-        return errors::management_error(400, format!("{key} 必须是 true 或 false"));
+        return errors::management_error(400, format!("{key} 必须是 true or false"));
     };
     if !config::set_developer_role_compat(enabled) {
         logging::log(

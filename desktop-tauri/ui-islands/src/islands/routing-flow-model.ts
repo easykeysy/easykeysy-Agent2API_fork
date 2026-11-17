@@ -13,13 +13,13 @@ import { isTraceRunning, isTraceSuccess, traceAttempts } from './routing-trace-m
  */
 export const clientLabel = (client: string): string => {
   switch (client) {
-    case '': return t('未识别客户端')
-    case 'other': return t('其他客户端')
-    case 'assistant': return t('模型对话')
-    case 'assistant_images': return t('助手图片工具')
-    case 'assistant_title': return t('助手标题总结')
-    case 'model_test': return t('模型测试')
-    case 'checkin_keepalive': return t('日活保活')
+    case '': return t('Unidentified client')
+    case 'other': return t('Other clients')
+    case 'assistant': return t('Model chat')
+    case 'assistant_images': return t('Assistant image tools')
+    case 'assistant_title': return t('Assistant title summary')
+    case 'model_test': return t('Model test')
+    case 'checkin_keepalive': return t('Daily activity keepalive')
     default: return client
   }
 }
@@ -53,13 +53,13 @@ export function accountParticipation(workspace: RoutingWorkspace, account: Accou
 }
 export function providerFlowReason(workspace: RoutingWorkspace, provider: string): string {
   const profile = workspace.profile
-  if (profile.disabledProviders.includes(provider) || profile.providerScope !== 'all' && !profile.providers.includes(provider)) return t('当前配置已排除')
-  if (workspace.providers.find(item => item.id === provider)?.available === false) return t('模型绑定不可用')
+  if (profile.disabledProviders.includes(provider) || profile.providerScope !== 'all' && !profile.providers.includes(provider)) return t('Excluded by current configuration')
+  if (workspace.providers.find(item => item.id === provider)?.available === false) return t('Model binding unavailable')
   const accounts = workspace.accounts.filter(account => providerOf(account) === provider)
-  if (!accounts.length) return t('没有参与路由的账号')
+  if (!accounts.length) return t('No accounts participating in routing')
   const participants = accounts.filter(account => accountParticipation(workspace, account))
-  if (!participants.length) return t('没有参与路由的账号')
-  return participants.every(account => account.enabled === false) ? t('全部禁用') : ''
+  if (!participants.length) return t('No accounts participating in routing')
+  return participants.every(account => account.enabled === false) ? t('All accounts disabled') : ''
 }
 export function flowProviderGroups(workspace: RoutingWorkspace, paths: FlowPath[], selection: FlowSelection, focused: boolean) {
   const request = selectedRequest(selection)
@@ -91,12 +91,12 @@ export function flowProviderGroups(workspace: RoutingWorkspace, paths: FlowPath[
 export function accountFlowState(workspace: RoutingWorkspace, account: AccountRecord, now: number) {
   const fact = workspace.accountStates?.[account.id]
   const entry = [...workspace.queue.ordered, ...workspace.queue.blocked].find(entry => entry.id === account.id)
-  if (!workspace.model && fact?.limitedModels) return { state: 'partial', label: t('{n} 个模型限流', { n: fact.limitedModels }), reason: t('选择请求模型后查看具体限流状态'), resetAt: 0 }
-  if ((fact?.resetAt || 0) > now) return { state: 'cooldown', label: t('此模型限流'), reason: fact?.model || '', resetAt: fact!.resetAt }
-  if (account.enabled === false) return { state: 'disabled', label: t('已禁用'), reason: '', resetAt: 0 }
-  if (account.hasCredentials === false) return { state: 'no-credentials', label: t('无凭证'), reason: '', resetAt: 0 }
-  if (!accountParticipation(workspace, account)) return { state: 'excluded', label: t('当前配置已排除'), reason: '', resetAt: 0 }
+  if (!workspace.model && fact?.limitedModels) return { state: 'partial', label: t('{n} models rate-limited', { n: fact.limitedModels }), reason: t('Select a request model to see its rate-limit state'), resetAt: 0 }
+  if ((fact?.resetAt || 0) > now) return { state: 'cooldown', label: t('Rate-limited for this model'), reason: fact?.model || '', resetAt: fact!.resetAt }
+  if (account.enabled === false) return { state: 'disabled', label: t('Disabled'), reason: '', resetAt: 0 }
+  if (account.hasCredentials === false) return { state: 'no-credentials', label: t('No credentials'), reason: '', resetAt: 0 }
+  if (!accountParticipation(workspace, account)) return { state: 'excluded', label: t('Excluded by current configuration'), reason: '', resetAt: 0 }
   const state = entry?.state || 'unready'
-  const label = state === 'usable' ? workspace.metrics.accountRunning?.[account.id] ? t('当前承载') : t('可用待命') : state === 'concurrency' ? t('并发已满') : state === 'limiter' ? t('限制器跳过') : state === 'cooldown' ? t('冷却中') : t('未就绪')
+  const label = state === 'usable' ? workspace.metrics.accountRunning?.[account.id] ? t('Current handling account') : t('Available, on standby') : state === 'concurrency' ? t('Concurrency limit reached') : state === 'limiter' ? t('Skipped by limiter') : state === 'cooldown' ? t('Cooling down') : t('Not ready')
   return { state, label, reason: entry?.reason || '', resetAt: entry?.resetAt || 0 }
 }

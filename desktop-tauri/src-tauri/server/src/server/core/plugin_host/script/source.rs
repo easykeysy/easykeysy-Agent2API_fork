@@ -45,7 +45,7 @@ impl InstallSource {
                 || url.port_or_known_default() != Some(443) || !url.username().is_empty()
                 || url.password().is_some() || url.query().is_some()
             {
-                return Err("只支持 github:所有者/仓库 或 https://github.com/所有者/仓库".into());
+                return Err("只支持 github:所有者/仓库 OR https://github.com/所有者/仓库".into());
             }
             let parts: Vec<_> = url.path().trim_matches('/').split('/').collect();
             if parts.len() < 2 { return Err("GitHub 仓库地址不完整".into()); }

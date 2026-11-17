@@ -74,14 +74,14 @@ fn zcode_account_of(
                 .find(|account| account.get("id").and_then(Value::as_str) == Some(account_id))
         })
         .cloned()
-        .ok_or_else(|| (404, "找不到该 ZCode 账号".to_string()))?;
+        .ok_or_else(|| (404, "找不到该 ZCode Accounts".to_string()))?;
     let provider = record
         .get("provider")
         .and_then(Value::as_str)
         .unwrap_or("");
     if !crate::server::core::providers::zcode::region::Region::from_provider_id(provider).is_some()
     {
-        return Err((400, "该账号不是 ZCode 账号".to_string()));
+        return Err((400, "该账号不是 ZCode Accounts".to_string()));
     }
     Ok(record)
 }
@@ -96,7 +96,7 @@ async fn call_action(
     let provider = state
         .store()
         .account_provider_of(account_id)
-        .ok_or_else(|| (404, "找不到该 ZCode 账号".to_string()))?;
+        .ok_or_else(|| (404, "找不到该 ZCode Accounts".to_string()))?;
     let Some(adapter) = crate::server::core::providers::adapter::adapter_by_id(&provider) else {
         return Err((
             400,
@@ -225,7 +225,7 @@ fn record_claim(state: &ServerState, account_id: &str, plan_id: &str, claimed_at
     } else {
         crate::server::logging::verbose(
             "[Claim]",
-            &format!("账号 {account_id} 的领取时间未能落盘（账号可能已被删除）"),
+            &format!("Account {account_id} 的领取时间未能落盘（账号可能已被删除）"),
         );
         0
     }

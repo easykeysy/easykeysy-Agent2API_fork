@@ -118,7 +118,7 @@ export function manualUpdateReason(info: UpdateInfo | null | undefined): string 
   if (!info?.updateCapability) return ''
   const reason = updateUnavailableReason(info.updateCapability, t)
   return info.updateCapability.deployment === 'docker'
-    ? `${reason} ${t('在宿主机执行 docker compose pull && docker compose up -d 即可升级。')}` : reason
+    ? `${reason} ${t('Run docker compose pull && docker compose up -d on the host to upgrade.')}` : reason
 }
 
 /** 包类型不随自动安装开关变化，手动升级同样指向正确的服务端包。 */
@@ -308,13 +308,13 @@ export function safeExternal(value: unknown): string {
 export async function openExternal(url: string): Promise<void> {
   const target = safeExternal(url)
   if (!target) {
-    toast(t('链接地址不受支持'), 'err')
+    toast(t('Unsupported link'), 'err')
     return
   }
   try {
     await shared().workbuddyDesktop?.openReleasePage(target)
   } catch (error) {
-    toast(t('打开链接失败：{error}', { error: errorMessage(error) }), 'err')
+    toast(t('Failed to open the link: {error}', { error: errorMessage(error) }), 'err')
   }
 }
 
@@ -384,7 +384,7 @@ export async function forwardUpdateResult(): Promise<void> {
     // 通道变更必须清掉旧徽标和读数；首次启动无缓存则保持现有显示。
     if (info && (info.checked !== false || info.channelChanged)) shared().wbApp?.updateUpdateBadge?.(info)
   } catch (error) {
-    console.warn('读取版本检查结果失败:', errorMessage(error))
+    console.warn('Failed to read the version check result:', errorMessage(error))
   }
 }
 
@@ -415,18 +415,18 @@ export async function fetchProxySelection(): Promise<ProxySelection> {
   if (!api?.getUpdateProxy) return selection
   try {
     const data = await api.getUpdateProxy()
-    if (!data || !Object.prototype.hasOwnProperty.call(data, 'proxy')) throw new Error('更新线路响应异常')
+    if (!data || !Object.prototype.hasOwnProperty.call(data, 'proxy')) throw new Error('The update route responded abnormally')
     selection.proxyChoice = data.proxy ?? null
     selection.proxyLoaded = true
   } catch {
     /* 设置读不到：按直连显示，保存动作会把真实值带回来 */
   }
   try {
-    if (typeof api.getProxyPool !== 'function') throw new Error('桥未提供代理池方法')
+    if (typeof api.getProxyPool !== 'function') throw new Error('The bridge does not provide the proxy pool method')
     const data = await api.getProxyPool()
     const items = data?.items
     // 桥异常时可能 resolve 出 undefined 而不是 reject：不校验会伪装成「池里一条都没有」
-    if (!Array.isArray(items)) throw new Error('代理池响应异常')
+    if (!Array.isArray(items)) throw new Error('Invalid proxy pool response')
     selection.pool = items
     acceptProxyPool(items)
   } catch (error) {
@@ -448,13 +448,13 @@ export async function saveProxy(value: string): Promise<{ choice: UpdateProxyCho
     // 以后端回报的描述形态为准（含解析失败时的 error），不从本地猜
     const choice = result?.proxy ?? null
     const saved = result?.saved !== false
-    if (!saved) toast(t('出网线路已切换，但写入磁盘失败（重启后会恢复原线路）'), 'err')
+    if (!saved) toast(t('Outbound route switched, but writing to disk failed (the old route will be restored after a restart)'), 'err')
     else toast(choice
-      ? t('✅ 更新出网已切换为 {label}', { label: choice.label || t('指定代理') })
-      : t('✅ 更新出网已切换为直连'))
+      ? t('✅ Outbound route for updates switched to {label}', { label: choice.label || t('Selected proxy') })
+      : t('✅ Outbound route for updates switched to Direct connection'))
     return { choice, saved }
   } catch (error) {
-    toast(t('保存失败：{error}', { error: errorMessage(error) }), 'err')
+    toast(t('Save failed: {error}', { error: errorMessage(error) }), 'err')
     return null
   }
 }
@@ -468,7 +468,7 @@ export function buildProxyPick(selection: ProxySelection): {
 } {
   const proxy = selection.proxyChoice
   const source = proxy?.config?.source || proxy?.source
-  const label = proxy?.label || (source === 'custom' ? t('自定义代理') : t('已设置'))
+  const label = proxy?.label || (source === 'custom' ? t('Custom proxy') : t('Configured'))
   const poolItems = Array.isArray(selection.pool) ? selection.pool : []
   const broken = Boolean(proxy?.error)
   // 坏形状）落到占位项 —— 绝不能回落成「直连」
@@ -476,7 +476,7 @@ export function buildProxyPick(selection: ProxySelection): {
   if (source === 'pool' && proxy?.config?.proxyId) current = `${POOL_VALUE_PREFIX}${proxy.config.proxyId}`
   else if (proxy) current = PROXY_OTHER_CURRENT
 
-  const items: Array<{ value: string; label: string; disabled?: boolean }> = [{ value: '', label: t('直连') }]
+  const items: Array<{ value: string; label: string; disabled?: boolean }> = [{ value: '', label: t('Direct') }]
   for (const item of poolItems) {
     // 「名字（协议 主机:端口）」—— 与账号页代理列、账号弹窗的代理表单同一格式。
     // 禁用项置灰：指定的更新出口解析失败时不会回退直连
@@ -489,22 +489,22 @@ export function buildProxyPick(selection: ProxySelection): {
   if (selection.pool === null) {
     // 还没读到（弹窗刚打开、请求在途）：给一句「读取中」而不是
     // 「还没有代理」—— 后者会让用户以为池是空的
-    items.push({ value: '__hint_pool__', label: t('正在读取代理列表…'), disabled: true })
+    items.push({ value: '__hint_pool__', label: t('Loading proxy list…'), disabled: true })
   } else if (!poolItems.length) {
     items.push({
       value: '__hint_pool__',
-      label: selection.poolError ? t('代理列表读取失败') : t('还没有代理（去「网络代理」页添加）'),
+      label: selection.poolError ? t('Failed to load the proxy list') : t('No proxies yet (add one on the Network proxy page)'),
       disabled: true,
     })
   }
   if (current === PROXY_OTHER_CURRENT) {
     // 现在没有对应的可选项（出口统一走池），但仍要显示出来 —— 它们照原样
     // 转发，用户想改就在这里选一条池条目或切回直连
-    const prefix = source === 'clash' ? t('Clash 出口：') : source === 'custom' ? t('自定义：') : ''
-    items.push({ value: PROXY_OTHER_CURRENT, label: `${prefix}${label}${broken ? t('（不可用）') : ''}` })
+    const prefix = source === 'clash' ? t('Clash exit: ') : source === 'custom' ? t('Custom: ') : ''
+    items.push({ value: PROXY_OTHER_CURRENT, label: `${prefix}${label}${broken ? t(' (unavailable)') : ''}` })
   } else if (source === 'pool' && !poolItems.some(item => `${POOL_VALUE_PREFIX}${item.id}` === current)) {
     // 后端解析失败的原因在 title 里
-    items.push({ value: current, label: `${label}${broken ? t('（不可用）') : ''}` })
+    items.push({ value: current, label: `${label}${broken ? t(' (unavailable)') : ''}` })
   }
   return {
     current,
@@ -512,7 +512,7 @@ export function buildProxyPick(selection: ProxySelection): {
     selected: items.find(item => item.value === current),
     broken,
     title: broken
-      ? t('当前线路不可用：{error}；请重新选择代理或切回直连', { error: String(proxy?.error || '') })
-      : t('检查更新与下载安装包使用所选线路；未选择代理时先直连，失败后尝试 Clash Verge 混合端口；指定代理不可用时不会自动改走直连。'),
+      ? t('The current route is unavailable: {error}; select another proxy or switch back to a direct connection', { error: String(proxy?.error || '') })
+      : t('Update checks and installer downloads use the selected route. Without a proxy selection, a direct connection is tried first, followed by the Clash Verge mixed port if it fails. An unavailable specified proxy never falls back to a direct connection.'),
   }
 }

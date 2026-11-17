@@ -89,8 +89,8 @@ pub async fn post_config(State(_state): State<ServerState>, body: Bytes) -> Resp
                 // 不可用，所以是 500（与 panel 注册的「密码加密失败」同一处置）；
                 // 原因一并带上，让用户能照着排查
                 if let Err(reason) = config::set_api_key(Some(text.clone())) {
-                    logging::log("[Config]", &format!("❌ API Key 保存失败: {reason}"));
-                    return errors::management_error(500, format!("API Key 保存失败: {reason}"));
+                    logging::log("[Config]", &format!("❌ API Key Save failed: {reason}"));
+                    return errors::management_error(500, format!("API Key Save failed: {reason}"));
                 }
                 // 不打印 key 本身（日志会被导出与截图），只说明已更新
                 logging::log("[Config]", "✅ API Key 已更新，客户端需带 Authorization: Bearer <key>");

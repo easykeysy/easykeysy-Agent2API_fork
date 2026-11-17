@@ -149,20 +149,20 @@ fn access_for_id(id: &str) -> Result<(crate::server::core::key_scope::KeyScope, 
         return Ok((KeyScope::default(), ApiKeyIdentity { source: "env".to_string(), ..Default::default() }));
     }
     let entry = api_keys::list().into_iter().find(|entry| entry.id == id && entry.is_usable())
-        .ok_or_else(|| GatewayError::with_status(401, "保活 API Key 已停用、删除或不可用，请重新选择"))?;
+        .ok_or_else(|| GatewayError::with_status(401, "Keep-alive API Key 已停用、删除或不可用，请重新选择"))?;
     Ok((KeyScope::from_entry(&entry), ApiKeyIdentity { id: entry.id, name: entry.name, source: "key".to_string() }))
 }
 
 pub fn authorized_models() -> Result<(Vec<String>, crate::server::request_stats::ApiKeyIdentity), crate::server::errors::GatewayError> {
     use crate::server::errors::GatewayError;
-    let id = effective_key_id().ok_or_else(|| GatewayError::with_status(401, "日活保活会调用模型，请先在「网关 Key」页创建一把 Key（或设置环境变量 Key）"))?;
+    let id = effective_key_id().ok_or_else(|| GatewayError::with_status(401, "日活保活会调用模型，请先在「网关 Key」页创建一把 Key（或设置环境变量 Key)"))?;
     let (scope, identity) = access_for_id(&id)?;
     if !scope.allows_provider("workbuddy-intl") {
-        return Err(GatewayError::with_status(403, "保活 API Key 不允许 WorkBuddy 国际版"));
+        return Err(GatewayError::with_status(403, "Keep-alive API Key 不允许 WorkBuddy International edition"));
     }
     let models = models();
     if models.is_empty() && scope.restricts_models() {
-        return Err(GatewayError::with_status(403, "受限 API Key 的保活模型链不能为空，请明确填写获准使用的模型"));
+        return Err(GatewayError::with_status(403, "Restricted API Key 的保活模型链不能为空，请明确填写获准使用的模型"));
     }
     if models.iter().any(|model| !scope.allows_model(model)) {
         return Err(GatewayError::with_status(403, "保活模型链包含所选 API Key 未授权的模型"));

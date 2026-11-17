@@ -14,49 +14,49 @@ export const API_ENDPOINTS = [
 ] as const
 
 export function apiEndpoints() {
-  const chat = t('对话协议与上下文预算')
-  const images = t('图片生成与编辑')
-  const probes = t('模型清单与健康检查')
+  const chat = t('Chat protocols and context budgets')
+  const images = t('Image generation and editing')
+  const probes = t('Model list and health checks')
   const labels: Record<typeof API_ENDPOINTS[number]['id'], { name: string; note: string; group: string }> = {
     'api-base': {
       name: 'Base URL', group: '',
-      note: t('OpenAI 兼容客户端使用此地址；Anthropic 官方 SDK 使用下方说明中的网关根地址。'),
+      note: t('Use this address for OpenAI-compatible clients; the official Anthropic SDK uses the gateway root address described below.'),
     },
     'api-chat': {
       name: 'OpenAI Chat Completions', group: chat,
-      note: t('多数 OpenAI 兼容客户端的默认协议'),
+      note: t('The default protocol for most OpenAI-compatible clients'),
     },
     'api-responses': {
       name: 'OpenAI Responses', group: chat,
-      note: t('Codex / 新版 OpenAI SDK；无状态转发，历史由客户端携带。'),
+      note: t('Codex / newer OpenAI SDKs; stateless forwarding with client-supplied history.'),
     },
     'api-messages': {
       name: 'Anthropic Messages', group: chat,
-      note: t('Claude Code / Anthropic SDK；模型与账号池和 OpenAI 入口共用。'),
+      note: t('Claude Code / Anthropic SDK; shares models and the account pool with the OpenAI endpoints.'),
     },
     'api-count-tokens': {
-      name: t('Token 数量估算'), group: chat,
-      note: t('本地上下文预算估算，返回 estimated=true；不是上游精确分词。'),
+      name: t('Token count estimate'), group: chat,
+      note: t('Local context budget estimate, returning estimated=true; not an exact upstream token count.'),
     },
     'api-image-generations': {
-      name: t('图片生成'), group: images,
-      note: t('文本生成图片；JSON 请求，非流式返回 base64 或下载链接。'),
+      name: t('Image generation'), group: images,
+      note: t('Generate images from text; send JSON and receive non-streaming base64 data or download URLs.'),
     },
     'api-image-edits': {
-      name: t('图片编辑'), group: images,
-      note: t('参考图编辑；支持 multipart 文件上传或 JSON 图片引用。'),
+      name: t('Image editing'), group: images,
+      note: t('Reference-image editing; accepts multipart file uploads or JSON image references.'),
     },
     'api-image-files': {
-      name: t('临时图片下载'), group: images,
-      note: t('仅用于响应返回的网关临时链接；{id} 必须替换为实际下载令牌。'),
+      name: t('Temporary image download'), group: images,
+      note: t('Only for temporary gateway URLs returned in responses; replace {id} with the actual download token.'),
     },
     'api-models': {
-      name: t('模型列表'), group: probes,
-      note: t('不强制鉴权；携带有效 Key 可查看该 Key 获准使用的模型。'),
+      name: t('List models'), group: probes,
+      note: t('Authentication is not required; a valid Key filters the list to models that Key is authorized to use.'),
     },
     'api-health': {
-      name: t('健康检查'), group: probes,
-      note: t('不强制鉴权；仅用于确认网关可访问，不保证模型或额度可用。'),
+      name: t('Health check'), group: probes,
+      note: t('Authentication is not required; checks gateway reachability, not model or quota availability.'),
     },
   }
   return API_ENDPOINTS.map(endpoint => ({ ...endpoint, ...labels[endpoint.id] }))

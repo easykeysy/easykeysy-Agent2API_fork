@@ -55,12 +55,12 @@ pub(super) fn resolve_egress_candidates() -> Result<Vec<(String, Option<Resolved
                 return Ok(vec![(label, Some(proxy))]);
             }
             Some(ProxyResolution::Failed(reason)) => {
-                return Err(format!("指定的更新出口不可用（{reason}）"));
+                return Err(format!("指定的更新出口不可用（{reason})"));
             }
             _ => return Err("指定的更新出口没有可用端口".to_string()),
         }
     }
-    let mut candidates = vec![("直连".to_string(), None)];
+    let mut candidates = vec![("Direct".to_string(), None)];
     let resolution = resolve_account_proxy(Some(&json!({
         "source": "clash",
         "listenerUid": CLASH_MIXED_UID,
@@ -150,7 +150,7 @@ async fn fetch_github(
         };
         if source::should_switch(candidate, response.status()) && index + 1 < candidates.len() {
             candidate.observe("failed", started.elapsed().as_millis() as u64, false);
-            failures.push(UpdateError::new(format!("{}返回 HTTP {}", candidate.label(), response.status().as_u16())));
+            failures.push(UpdateError::new(format!("{}Back HTTP {}", candidate.label(), response.status().as_u16())));
             continue;
         }
         if response.status().is_success() {
@@ -167,7 +167,7 @@ pub async fn fetch_candidate(
     timeout_ms: Option<u64>,
 ) -> Result<reqwest::Response, UpdateError> {
     if candidate.proxy != config::update_proxy() || candidate.egress != super::rate_limit::egress_key() {
-        return Err(UpdateError::new("更新通道已改变，请重新检查更新。"));
+        return Err(UpdateError::new("Update channels changed. Check for updates again."));
     }
     if let Some(error) = candidate.cooling_error(headers) {
         return Err(error);
@@ -207,7 +207,7 @@ pub async fn fetch_candidate(
                     .headers()
                     .get("location")
                     .and_then(|value| value.to_str().ok())
-                    .ok_or_else(|| "重定向缺少 Location".to_string())?;
+                    .ok_or_else(|| "The redirect is missing a Location".to_string())?;
                 let next = current.join(location).map_err(|error| error.to_string())?;
                 if !candidate.allows_redirect(&next) {
                     return Err("GitHub 源重定向到未允许的地址，已拒绝访问".to_string());
@@ -233,7 +233,7 @@ pub async fn fetch_candidate(
             Err(error) => {
                 logging::verbose(
                     "[Update]",
-                    &format!("经 {label} 访问{}失败：{error}", candidate.label()),
+                    &format!("经 {label} Access{}Failed: {error}", candidate.label()),
                 );
                 last_error = error;
             }
@@ -257,7 +257,7 @@ pub async fn fetch_public(
         .unwrap_or_else(|| url.to_string());
     fetch_via_candidates("[Models]", url, headers, timeout_ms)
         .await
-        .map_err(|detail| format!("无法连接 {host}：{detail}"))
+        .map_err(|detail| format!("无法连接 {host}: {detail}"))
 }
 
 /// 候选出口依次尝试的共用实现：返回第一个连上的响应，全部失败时把最后一条
@@ -307,7 +307,7 @@ async fn fetch_via_candidates(
     }
     Err(match &last_error {
         Some(error) => egress::describe_error_detail(error),
-        None => "未知错误".to_string(),
+        None => "Unknown error".to_string(),
     })
 }
 

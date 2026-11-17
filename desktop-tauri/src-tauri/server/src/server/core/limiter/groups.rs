@@ -49,16 +49,16 @@ pub fn normalize_groups(value: &Value) -> Result<Vec<Group>, String> {
         }
         for (index, condition) in group.conditions.iter_mut().enumerate() {
             if !condition.threshold.is_finite() || condition.threshold < 0.0 {
-                return Err("限制阈值必须是非负有限数字".to_string());
+                return Err("The threshold must be a non-negative finite number".to_string());
             }
             if matches!(condition.metric, Metric::Tokens | Metric::Requests)
                 && (condition.threshold <= 0.0 || condition.threshold.fract() != 0.0
                     || condition.threshold > 9_007_199_254_740_991.0) {
-                return Err("本地消耗上限必须是大于 0 的安全整数".to_string());
+                return Err("The local usage limit must be a positive safe integer".to_string());
             }
             if matches!(condition.metric, Metric::RemainingPercent | Metric::UsedPercent)
                 && condition.threshold > 100.0 {
-                return Err("百分比阈值必须在 0~100 之间".to_string());
+                return Err("The percentage threshold must be between 0 and 100".to_string());
             }
             condition.source_id = condition.source_id.trim().to_string();
             if condition.source_id.len() > 512 || condition.models.len() > 128 {
@@ -102,11 +102,11 @@ pub fn normalize_groups(value: &Value) -> Result<Vec<Group>, String> {
 fn validate_window(window: &Window) -> Result<(), String> {
     if matches!(window.reset, Reset::Fixed | Reset::Rolling)
         && !(60..=2_678_400).contains(&window.seconds) {
-        return Err("统计窗口必须是 1 分钟~31 天".to_string());
+        return Err("The counting window must be between 1 minute and 31 days".to_string());
     }
     if window.starts_at < 0 || window.ends_at < 0
         || (window.ends_at > 0 && window.ends_at <= window.starts_at) {
-        return Err("统计结束时间必须晚于开始时间".to_string());
+        return Err("The counting end time must be later than the start time".to_string());
     }
     if window.utc_offset_minutes.is_some_and(|offset| !(-720..=840).contains(&offset)) {
         return Err("重置时区偏移无效".to_string());
@@ -140,8 +140,8 @@ pub fn legacy_rules(groups: &[Group]) -> Vec<legacy::LimiterRule> {
 }
 
 pub fn describe_groups(groups: &[Group]) -> String {
-    if groups.is_empty() { return "限制器 → 无条件组（不限制）".to_string(); }
+    if groups.is_empty() { return "Limiter → 无条件组（不限制）".to_string(); }
     let enabled = groups.iter().filter(|group| group.enabled).count();
     let conditions: usize = groups.iter().map(|group| group.conditions.len()).sum();
-    format!("限制器 → {} 个条件组（{enabled} 个启用），{conditions} 条条件", groups.len())
+    format!("Limiter → {} 个条件组（{enabled} 个启用），{conditions} 条条件", groups.len())
 }

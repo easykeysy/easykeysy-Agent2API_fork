@@ -30,8 +30,8 @@ impl ImageOperation {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Generate => "图片生成",
-            Self::Edit => "图片编辑",
+            Self::Generate => "Image generation",
+            Self::Edit => "Image editing",
         }
     }
 

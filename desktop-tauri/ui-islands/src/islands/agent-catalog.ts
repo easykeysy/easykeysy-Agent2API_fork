@@ -9,9 +9,9 @@ const EMPTY_CATALOG: CatalogModel[] = []
 
 export async function loadCatalog(gatewayKeyId?: string): Promise<CatalogModel[]> {
   const call = (window as unknown as CatalogWindow).workbuddyDesktop?.getAgentModels
-  if (!call) throw new Error(t('当前环境无法读取网关模型目录'))
+  if (!call) throw new Error(t('The gateway model catalog cannot be read in this environment'))
   const result = await call(gatewayKeyId)
-  if (!Array.isArray(result?.models)) throw new Error(t('模型目录响应无效'))
+  if (!Array.isArray(result?.models)) throw new Error(t('Invalid model catalog response'))
   const seen = new Set<string>()
   return result.models.filter(model => {
     if (!model.id?.trim() || seen.has(model.id.toLowerCase())) return false

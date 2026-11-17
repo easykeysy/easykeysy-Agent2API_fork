@@ -48,7 +48,7 @@ pub async fn configure(body: Bytes) -> Response {
         .map(|object| object.contains_key("enabled") || object.contains_key("times"))
         .unwrap_or(false);
     if !has_field {
-        return bad_request("没有需要更新的字段（enabled / times）");
+        return bad_request("没有需要更新的字段（enabled / times)");
     }
     match growth_scheduler::configure(&payload) {
         Ok(state) => {
@@ -71,7 +71,7 @@ pub async fn configure(body: Bytes) -> Response {
                 "[Travel]",
                 &format!(
                     "猫猫旅行排程已{}，时刻 {times}",
-                    if enabled { "开启" } else { "关闭" }
+                    if enabled { "开启" } else { "Close" }
                 ),
             );
             ok_json(state)

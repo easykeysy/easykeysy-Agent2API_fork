@@ -99,7 +99,7 @@ async function runScan(options: { force?: boolean } = {}): Promise<void> {
   let scan: ImportScan
   try {
     const data = (await request('GET', '/api/import/cc-switch')) as ImportScan | null
-    scan = data || { available: false, reason: t('响应为空') }
+    scan = data || { available: false, reason: t('Empty response') }
   } catch (error) {
     scan = {
       available: false,
@@ -129,9 +129,9 @@ function modelNote(item: ImportProvider): string {
     .map(entry => String(entry || '').trim())
     .filter(Boolean)
   if (!models.length) return ''
-  const head = models.slice(0, 2).join(t('、'))
-  const rest = models.length > 2 ? t(' 等 {n} 个', { n: models.length }) : ''
-  return t(' · 模型 {head}{rest}', { head, rest })
+  const head = models.slice(0, 2).join(t(', '))
+  const rest = models.length > 2 ? t(' ({n} total)', { n: models.length }) : ''
+  return t(' · Models: {head}{rest}', { head, rest })
 }
 
 /**
@@ -164,7 +164,7 @@ async function saveModels(created: unknown, item: ImportProvider): Promise<void>
     await request('POST', '/api/custom-providers/models', { providerId, models, mappings })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.warn('导入时写入初始模型清单失败:', message)
+    console.warn('Failed to write the initial model list on import:', message)
   }
 }
 
@@ -215,12 +215,12 @@ async function runImport(): Promise<void> {
   const failedCount = selected.length - ok
   if (ok > 0 && !failedCount) {
     shared().wbAddAccountModal?.close?.()
-    toast(t('✅ 已从 cc-switch 导入 {n} 个供应商', { n: ok }))
+    toast(t('✅ Imported {n} providers from cc-switch', { n: ok }))
   } else if (ok > 0) {
-    toast(t('已导入 {ok} 个，失败 {fail} 个（失败项已标注在列表里）', { ok, fail: failedCount }), 'err')
+    toast(t('Imported {ok}, failed {fail} (failed items are marked in the list)', { ok, fail: failedCount }), 'err')
   } else {
     const first = [...failures.values()][0]
-    patch({ footHint: first || t('导入失败') })
+    patch({ footHint: first || t('Import failed') })
   }
 }
 
@@ -238,7 +238,7 @@ export function ImportPanel({ segmentOn }: { segmentOn: boolean }): React.ReactE
   if (current.scanState === 'loading') {
     return (
       <div id='add-import-panel' style={style}>
-        <div id='add-import-status'>{t('正在扫描本机 cc-switch…')}</div>
+        <div id='add-import-status'>{t('Scanning cc-switch on this machine…')}</div>
         <div id='add-import-list' />
       </div>
     )
@@ -253,19 +253,19 @@ export function ImportPanel({ segmentOn }: { segmentOn: boolean }): React.ReactE
       <div id='add-import-status'>
         {!scan || !scan.available ? (
           <Empty className='add-import-empty'>
-            <p>{scan?.reason || t('未能读取 cc-switch 数据')}</p>
+            <p>{scan?.reason || t('Could not read cc-switch data')}</p>
             <Button variant='outline' size='sm' onClick={() => { void runScan({ force: true }) }}>
-              {t('重新扫描')}
+              {t('Rescan')}
             </Button>
           </Empty>
         ) : (
           <div className='add-import-head'>
             <span>
-              {t('在 cc-switch 里找到')} <b>{providers.length}</b> {t('条配置，其中')}{' '}
-              <b>{importable.length}</b> {t('条可导入')}
+              {t('Found')} <b>{providers.length}</b> {t('configs in cc-switch, of which')}{' '}
+              <b>{importable.length}</b> {t('are importable')}
             </span>
             <Button variant='ghost' size='xs' className='linkish' onClick={() => { void runScan({ force: true }) }}>
-              {t('重新扫描')}
+              {t('Rescan')}
             </Button>
           </div>
         )}
@@ -278,10 +278,10 @@ export function ImportPanel({ segmentOn }: { segmentOn: boolean }): React.ReactE
           const failed = current.failures.get(id)
           // 模型名一并展示：它会被登记成新家的初始清单，用户看得见「带过来了什么」
           const meta = failed
-            ? t('导入失败：{reason}', { reason: failed })
+            ? t('Import failed: {reason}', { reason: failed })
             : canImport
               ? String(item.baseUrl || '') + modelNote(item)
-              : String(item.reason || t('不支持导入'))
+              : String(item.reason || t('Import not supported'))
           const toggle = (): void => {
             const checked = new Set(state.checked)
             if (checked.has(id)) checked.delete(id)
@@ -344,7 +344,7 @@ export function ImportFootActions(): React.ReactElement {
           disabled={current.busy || !count}
           onClick={() => { void runImport() }}
         >
-          {current.busy ? t('导入中…') : count ? t('导入所选（{n}）', { n: count }) : t('导入所选')}
+          {current.busy ? t('Importing…') : count ? t('Import selected ({n})', { n: count }) : t('Import selected')}
         </Button>
       </span>
     </>

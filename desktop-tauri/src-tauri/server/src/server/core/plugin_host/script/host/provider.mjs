@@ -206,7 +206,7 @@ export async function dispatch(provider, method, params, call) {
     case "cooldown_models": return { models: [] }
     case "reasoning_patch": return Object.hasOwn(provider.models[params.model]?.variants ?? {}, params.level)
       ? { action: "set", field: "reasoning_effort", value: params.level }
-      : { action: "skip", reason: "插件模型未声明该思考档位" }
+      : { action: "skip", reason: "The plugin model has not declared this thinking level" }
     default: throw unsupported(`Unsupported plugin operation: ${method}`)
   }
 }

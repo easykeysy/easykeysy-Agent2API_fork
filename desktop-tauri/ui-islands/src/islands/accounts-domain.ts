@@ -484,9 +484,9 @@ export function tokenCountdownText(remainingMs: number, daily: boolean): string 
   const minutes = Math.ceil(remainingMs / 60_000)
   if (daily) {
     const hours = Math.ceil(remainingMs / 3_600_000)
-    return hours >= 1 ? t('今日剩 {n} 小时', { n: hours }) : t('今日剩 {n} 分钟', { n: minutes })
+    return hours >= 1 ? t('{n} h left today', { n: hours }) : t('{n} min left today', { n: minutes })
   }
-  return minutes >= 1 ? t('剩 {n} 分钟', { n: minutes }) : t('剩不到 1 分钟')
+  return minutes >= 1 ? t('{n} min left', { n: minutes }) : t('Less than 1 min left')
 }
 
 /** units.js 的公开面（本文件只读 formatTokens）：量级词（万 / 亿 与 k / M）已按界面语言
@@ -506,9 +506,9 @@ export function formatTokenCount(value: unknown): string {
 /** 秒数 → 人能读的间隔文案（`每 90 分钟` 这类），与后端变更提示同一口径：
  * 整小时 / 整分钟进位，其余按秒。 */
 export function formatIntervalSeconds(seconds: number): string {
-  if (seconds > 0 && seconds % 3600 === 0) return t('{n} 小时', { n: seconds / 3600 })
-  if (seconds > 0 && seconds % 60 === 0) return t('{n} 分钟', { n: seconds / 60 })
-  return t('{n} 秒', { n: seconds })
+  if (seconds > 0 && seconds % 3600 === 0) return t('{n} h', { n: seconds / 3600 })
+  if (seconds > 0 && seconds % 60 === 0) return t('{n} min', { n: seconds / 60 })
+  return t('{n} s', { n: seconds })
 }
 
 /** 是否为「桌面端实时登录态」账号（凭证实时读客户端文件；可禁用、也可删除） */
@@ -538,9 +538,9 @@ export function isCustomProviderId(provider: string | null | undefined): boolean
 }
 
 export function typeLabel(type: string | undefined): string {
-  if (type === 'enterprise') return t('企业')
-  if (type === 'ultimate') return t('旗舰')
-  return t('个人')
+  if (type === 'enterprise') return t('Enterprise')
+  if (type === 'ultimate') return t('Pro')
+  return t('Personal')
 }
 
 /**
@@ -614,7 +614,7 @@ export function zcodePlanOf(account: AccountRecord | null | undefined): string {
  * 还有新注册用户的免费体验额度（issue #134 / #232 的用户都在这一档）。
  */
 export function zcodePlanLabel(plan: string | undefined): string {
-  return plan === ZCODE_PLAN_START ? t('套餐池（Start Plan）') : t('编码套餐（Coding Plan）')
+  return plan === ZCODE_PLAN_START ? t('Plan pool (Start Plan)') : t('Coding Plan')
 }
 
 /**
@@ -627,10 +627,10 @@ export function zcodePlanLabel(plan: string | undefined): string {
  */
 export function zcodePlanStateLabel(state: unknown): string {
   switch (String(state ?? '').trim()) {
-    case 'pending': return t('待生效')
-    case 'active': return t('生效中')
-    case 'expired': return t('已过期')
-    case 'unknown': return t('状态未知')
+    case 'pending': return t('Pending')
+    case 'active': return t('Active')
+    case 'expired': return t('Expired')
+    case 'unknown': return t('Unknown')
     default: return String(state ?? '')
   }
 }
@@ -773,8 +773,8 @@ export function isFreePlan(planName: unknown): boolean {
  */
 export function planBadgeLabel(planName: unknown): string {
   const name = String(planName ?? '').trim()
-  if (/^trial$/i.test(name)) return t('试用版')
-  if (isFreePlan(name)) return t('免费版')
+  if (/^trial$/i.test(name)) return t('Trial')
+  if (isFreePlan(name)) return t('Free')
   return name
 }
 
@@ -834,7 +834,7 @@ export function welfareDoneTitle(state: WelfareState): string {
   // 「不增加福利模型的 token 池」是**故意留在这里**的：这一家有两份账，领到的积分进的
   // 是套餐赠送积分，而用户点完最可能问的下一句就是「那我的福利模型怎么还是没额度」——
   // 答案放在这行说明里，不必再去余额明细里猜（后端 usage 文档的 note 同口径）。
-  return t('今天（北京时间 {day}）已由官方确认到账 {n} 项；领到的是套餐赠送积分，不增加福利模型的 token 池；按自然日重置，明天可再领', {
+  return t('The official side confirmed {n} credits today (Beijing time {day}); they are plan gift points and do not add to the welfare model token pool; resets per calendar day, so you can claim again tomorrow', {
     day: state.day, n: state.confirmed,
   })
 }
@@ -842,9 +842,9 @@ export function welfareDoneTitle(state: WelfareState): string {
 /** 「去领取」的悬停说明：把台账里已有的读数带上，回答「今天第几次了」。 */
 export function welfareTodoTitle(state: WelfareState): string {
   const tried = state.today && state.attempts > 0
-    ? t('今天（北京时间 {day}）已试过 {n} 次但官方尚未确认到账，', { day: state.day, n: state.attempts })
+    ? t('Tried {n} times today (Beijing time {day}) but the official side has not confirmed the credit yet. ', { day: state.day, n: state.attempts })
     : ''
-  return t('{tried}探测并领取官方每日登录赠送的套餐积分（到账进套餐积分，不增加福利模型 token 池）', { tried })
+  return t('{tried}Probe and claim the plan points the official app gifts on daily login (they credit to plan points and do not add to the welfare model token pool)', { tried })
 }
 
 /* ─── 筛选维度（provider / enabled / limit / q 四维各自独立）───
@@ -1184,7 +1184,7 @@ export function displayNameOf(account: AccountRecord | null | undefined): string
 }
 
 /** 无有效恢复时间时的退化文案：它本身就是完整一句，调用方据此不再拼「，恢复时间：」 */
-export const RESET_UNKNOWN = '已限流'
+export const RESET_UNKNOWN = 'Rate-limited'
 
 /** 某时刻所在自然日的零点（本地时区），用于按「日历天」计算今天 / 明天 */
 const startOfDay = (value: Date): number => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
@@ -1205,9 +1205,9 @@ export function formatResetText(resetAt: unknown): string {
   // 按自然日求差而不是按 24 小时：今晚 23:50 到明天 00:10 只差 20 分钟，但用户嘴里
   // 它就是「明天」，按毫秒差算会显示成「今天」，与直觉相反
   const days = Math.round((startOfDay(date) - startOfDay(new Date())) / 86400e3)
-  if (days === 0) return t('今天 {clock}', { clock })
-  if (days === 1) return t('明天 {clock}', { clock })
-  return t('{month}月{day}日 {clock}', { month: date.getMonth() + 1, day: date.getDate(), clock })
+  if (days === 0) return t('today {clock}', { clock })
+  if (days === 1) return t('tomorrow {clock}', { clock })
+  return t('{month}/{day} {clock}', { month: date.getMonth() + 1, day: date.getDate(), clock })
 }
 
 /**
@@ -1226,10 +1226,10 @@ export function editionSuffix(account: AccountRecord | null | undefined): string
   const edition = accountEdition(account)
   const custom = account?.editionLabel
   // 判重比的是注册名里的中文地区词（后端数据，不随界面语言变）；只有最终展示的后缀走 t()
-  const suffix = custom || (edition === 'intl' ? '国际版' : '国内版')
+  const suffix = custom || (edition === 'intl' ? 'International edition' : 'China edition')
   const label = shared().wbProviders?.labelOf?.(provider) || ''
   if (label.includes(suffix)) return ''
-  return custom || (edition === 'intl' ? t('国际版') : t('国内版'))
+  return custom || (edition === 'intl' ? t('International edition') : t('China edition'))
 }
 
 /** 健康标签（结构化；原来由 accountTags 直接拼 HTML，现在交给 React 渲染成 Badge） */
@@ -1248,14 +1248,14 @@ export function accountTags(account: AccountRecord): AccountTag[] {
   return [
     suspendedReason
       ? {
-        text: t('上游限制 · 已禁用'),
+        text: t('Upstream restriction · Disabled'),
         kind: 'bad' as const,
         title: suspendedReason,
       }
       : null,
     account.needsRelogin
       ? {
-        text: t('需要重新登录'),
+        text: t('Sign-in required'),
         kind: 'bad' as const,
         title: accountReloginText(account),
       }
@@ -1265,9 +1265,9 @@ export function accountTags(account: AccountRecord): AccountTag[] {
     // 留着是为了「将来某家处于只有账号管理的过渡期」时界面能自己说清楚
     supportsChat(account)
       ? null : {
-        text: t('仅账号管理'),
+        text: t('Account management only'),
         kind: 'plain' as const,
-        title: t('该提供商的推理转发尚未接入，账号不参与转发'),
+        title: t('Inference forwarding for this provider is not wired up yet; the account takes no part in forwarding'),
       },
     // 自定义账号没有凭证：既没填 API Key、也没勾「无需鉴权」时，它在选路里会被
     // **静默跳过**（后端 hasCredentials = false，目录也不广告它家的模型）——原样
@@ -1276,17 +1276,17 @@ export function accountTags(account: AccountRecord): AccountTag[] {
     // false —— 其它家的凭证各有各的链路），再限定 id 前缀避免误报。
     isCustomProviderId(providerOf(account)) && account.hasCredentials === false
       ? {
-        text: t('未配置凭证'),
+        text: t('No credential'),
         kind: 'bad' as const,
-        title: t('这条自定义账号既没有 API Key，也没有勾选「无需鉴权」：转发时会被跳过，该提供商下的模型也不会出现在模型列表里。去账号「设置」里补上 Key，或勾选「该上游无需鉴权」'),
+        title: t('This custom account has neither an API Key nor "This upstream needs no auth" checked: forwarding will skip it, and this provider\'s models will not appear in the model list. Add a Key in the account\'s Settings, or check "This upstream needs no auth"'),
       }
       : null,
     // 代理解析失败时明确标出，不能让用户以为仍在使用指定出口。
     account.proxy?.error
       ? {
-        text: t('代理异常'),
+        text: t('Proxy error'),
         kind: 'bad' as const,
-        title: t('{error}（不会自动改为直连）', { error: account.proxy.error }),
+        title: t('{error} (no automatic fallback to a direct connection)', { error: account.proxy.error }),
       }
       : null,
     // 走套餐池（Start Plan）通道时标出来：它不是默认值，而「这条请求到底花的
@@ -1294,9 +1294,9 @@ export function accountTags(account: AccountRecord): AccountTag[] {
     // 挂着两份）
     zcodePlanOf(account) === ZCODE_PLAN_START
       ? {
-        text: t('套餐池'),
+        text: t('Plan pool'),
         kind: 'plain' as const,
-        title: t('转发走套餐池（Start Plan）通道（zcode.z.ai 的 Anthropic 端点，用账号里的体验额度 / 活动领取额度）；在账号设置里可切回编码套餐'),
+        title: t('Forwarding uses the plan-pool (Start Plan) channel (zcode.z.ai\'s Anthropic endpoint, with the account\'s trial quota / event grants); you can switch back to Coding Plan in account settings'),
       }
       : null,
   ].filter((tag): tag is AccountTag => tag !== null)

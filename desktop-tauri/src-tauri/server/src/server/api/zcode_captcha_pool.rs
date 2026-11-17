@@ -61,7 +61,7 @@ pub async fn put_captcha_pool(State(_state): State<ServerState>, body: Bytes) ->
             object.get(KEY_CAPTCHA_POOL_TARGET),
             CAPTCHA_POOL_MIN_TARGET,
             CAPTCHA_POOL_MAX_TARGET,
-            "库存目标",
+            "Stock target",
             &mut patch.target,
         ),
         (
@@ -69,7 +69,7 @@ pub async fn put_captcha_pool(State(_state): State<ServerState>, body: Bytes) ->
             object.get(KEY_CAPTCHA_POOL_POLL_MS),
             CAPTCHA_POOL_MIN_POLL_MS,
             CAPTCHA_POOL_MAX_POLL_MS,
-            "轮询间隔",
+            "Poll interval",
             &mut patch.poll_ms,
         ),
         (
@@ -77,7 +77,7 @@ pub async fn put_captcha_pool(State(_state): State<ServerState>, body: Bytes) ->
             object.get(KEY_CAPTCHA_POOL_MAX_PER_ROUND),
             CAPTCHA_POOL_MIN_MAX_PER_ROUND,
             CAPTCHA_POOL_MAX_MAX_PER_ROUND,
-            "单轮铸造上限",
+            "Per-round mint cap",
             &mut patch.max_per_round,
         ),
     ];
@@ -109,7 +109,7 @@ pub async fn put_captcha_pool(State(_state): State<ServerState>, body: Bytes) ->
         logging::log(
             "[Config]",
             &format!(
-                "验证码令牌池已更新: 目标 {} 个 / 轮询 {}ms / 单轮最多 {} 个",
+                "验证码令牌池已更新: 目标 {} total / 轮询 {}ms / 单轮最多 {} total",
                 settings.target, settings.poll_ms, settings.max_per_round
             ),
         );

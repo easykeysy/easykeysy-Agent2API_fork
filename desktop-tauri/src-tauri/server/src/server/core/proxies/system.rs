@@ -12,19 +12,19 @@ pub(crate) fn snapshot() -> Result<Value, String> {
     let (protocol, default_port) = match uri.scheme_str() {
         Some("http") => ("http", 80),
         Some("socks5" | "socks5h") => ("socks5", 1080),
-        _ => return Err("系统代理协议暂不支持自动填入，请手动配置 HTTP 或 SOCKS5 代理".into()),
+        _ => return Err("This system proxy protocol cannot be imported. Configure an HTTP or SOCKS5 proxy manually.".into()),
     };
     let host = uri.host().filter(|host| !host.is_empty())
-        .ok_or("系统代理地址无效，请手动填写")?;
+        .ok_or("The system proxy address is invalid. Enter it manually.")?;
     let port = uri.port_u16().unwrap_or(default_port);
     if port == 0 {
-        return Err("系统代理地址无效，请手动填写".into());
+        return Err("The system proxy address is invalid. Enter it manually.".into());
     }
     let (username, password) = credentials(&proxy)?;
     let config = super::normalize_account_proxy(&json!({
         "source": "custom", "protocol": protocol, "host": host, "port": port,
         "username": username, "password": password,
-    })).map_err(|_| "系统代理地址无效，请手动填写".to_string())?;
+    })).map_err(|_| "The system proxy address is invalid. Enter it manually.".to_string())?;
     Ok(json!({ "proxy": config }))
 }
 
@@ -45,7 +45,7 @@ fn credentials(proxy: &Intercept) -> Result<(String, String), String> {
     let Some(header) = proxy.basic_auth() else {
         return Ok((String::new(), String::new()));
     };
-    let invalid = || "系统代理认证信息无法读取，请手动填写".to_string();
+    let invalid = || "The system proxy credentials could not be read. Enter them manually.".to_string();
     let encoded = header.to_str().ok().and_then(|value| value.strip_prefix("Basic "))
         .ok_or_else(invalid)?;
     let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).map_err(|_| invalid())?;

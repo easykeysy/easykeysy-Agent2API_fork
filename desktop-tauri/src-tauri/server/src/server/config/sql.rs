@@ -129,7 +129,7 @@ pub(crate) fn write_conn(conn: &Connection, raw: &Map<String, Value>) -> Result<
     // 差集：库里的非保留键 − 新配置的键 = 本次要删掉的项
     for key in stale_keys(&tx, raw)? {
         tx.execute("DELETE FROM kv WHERE key = ?1", rusqlite::params![key])
-            .map_err(|error| format!("删除配置项 {key} 失败: {error}"))?;
+            .map_err(|error| format!("删除配置项 {key} failed: {error}"))?;
     }
     tx.commit()
         .map_err(|error| format!("提交配置写入失败: {error}"))?;
@@ -184,13 +184,13 @@ fn upsert(conn: &Connection, key: &str, value: &Value) -> Result<(), String> {
         return Err(format!("配置键与保留键同名，拒绝写入: {key}"));
     }
     let text = serde_json::to_string(value)
-        .map_err(|error| format!("配置项 {key} 序列化失败: {error}"))?;
+        .map_err(|error| format!("Setting {key} 序列化失败: {error}"))?;
     conn.execute(
         "INSERT INTO kv (key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         rusqlite::params![key, text],
     )
-    .map_err(|error| format!("写入配置项 {key} 失败: {error}"))?;
+    .map_err(|error| format!("写入配置项 {key} failed: {error}"))?;
     Ok(())
 }
 
@@ -254,7 +254,7 @@ pub(super) fn read_snapshot(db: &Db) -> Option<(Map<String, Value>, bool)> {
 /// 在锁外记（`config::save_raw` 就是这么做的）。
 pub(super) fn write_all(db: &Db, raw: &Map<String, Value>) -> Result<(), String> {
     match db.with(|conn| write_conn(conn, raw)) {
-        None => Err("数据库不可用".to_string()),
+        None => Err("Database unavailable".to_string()),
         Some(result) => result,
     }
 }

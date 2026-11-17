@@ -103,7 +103,7 @@ export function groupBalanceOf(members: AccountRecord[], scope: 'group' | 'filte
     const hasTotalLeft = Object.prototype.hasOwnProperty.call(entry, 'totalLeft')
     const rawValue = usageNumberOrNull(hasTotalLeft ? entry.totalLeft : entry.available)
     const ratio = groupRatioOf(usageWindows(entry), rawValue)
-    const unit = String(entry.unit || t('积分')).trim()
+    const unit = String(entry.unit || t('Points')).trim()
     const entryMode: 'additive' | 'ratio' | null =
       rawValue === null && ratio === null ? null : unit === '%' || rawValue === null ? 'ratio' : 'additive'
     if (entryMode === null) { out.uncountable++; continue }
@@ -146,40 +146,40 @@ function groupBalanceTitle(balance: GroupBalance): string {
   const parts = [
     balance.additive
       ? balance.scope === 'filtered'
-        ? t('当前筛选下 {n} 个账号的可用余额之和（随筛选、搜索变化，不受分页影响）', { n: balance.total })
-        : t('本组 {n} 个账号的可用余额之和，按整组统计（不受筛选、搜索影响）', { n: balance.total })
+        ? t('Total available balance of the {n} accounts under the current filter (changes with filter and search; not affected by pagination)",', { n: balance.total })
+        : t('Sum of available balance across all {n} accounts in this group, counted over the whole group (unaffected by filters or search)', { n: balance.total })
       : balance.scope === 'filtered'
-        ? t('当前筛选下 {n} 个账号的额度概览（随筛选、搜索变化，不受分页影响）', { n: balance.total })
-        : t('本组 {n} 个账号的额度概览（按整组统计，不受筛选、搜索影响）', { n: balance.total }),
+        ? t('Quota overview for the {n} accounts under the current filter (changes with filters and search, unaffected by paging)', { n: balance.total })
+        : t('Quota overview for the {n} accounts in this group (whole group, unaffected by filters or search)', { n: balance.total }),
   ]
-  parts.push(t('{n} 个已计入', { n: balance.counted }))
-  if (balance.unlimited) parts.push(t('含 {n} 个不限额度账号，合计记为 ∞', { n: balance.unlimited }))
+  parts.push(t('{n} counted', { n: balance.counted }))
+  if (balance.unlimited) parts.push(t('includes {n} unlimited account(s); total shown as ∞', { n: balance.unlimited }))
   if (!balance.additive && balance.ratio) {
     parts.push(balance.ratio.hasShortWindow
-      ? t('按每日或短周期实际可用额度最低的账号展示，所有周期均来自同一账号')
-      : t('按最低剩余比例选择账号，所有周期均来自同一账号'))
-    parts.push(t('所选账号的各周期：{list}', {
+      ? t('Shows the account with the lowest effective daily or short-window quota; all periods come from that account')
+      : t('Selects the account with the lowest remaining percentage; all periods come from that account'))
+    parts.push(t('Selected account\'s periods: {list}', {
       list: balance.ratio.windows.map(row => [row.label, ratioText(row)].filter(Boolean).join(' ')).join(' · '),
     }))
     if (balance.ratio.adjusted) {
-      parts.push(t('每周或每月额度已耗尽，短周期实际可用额度按 0% 计算；账号明细保留原始读数'))
+      parts.push(t('The weekly or monthly quota is exhausted, so the effective short-window quota is treated as 0%; account details retain the original readings'))
     }
   }
-  if (balance.pending) parts.push(t('{n} 个还没查到（未查询或正在查询）', { n: balance.pending }))
-  if (balance.failed) parts.push(t('{n} 个查询失败', { n: balance.failed }))
+  if (balance.pending) parts.push(t('{n} not read yet (not queried or in progress)', { n: balance.pending }))
+  if (balance.failed) parts.push(t('{n} failed to query', { n: balance.failed }))
   if (balance.uncountable) {
     parts.push(balance.additive
-      ? t('{n} 个读数没有绝对数（只给比例或无额度），未计入', { n: balance.uncountable })
-      : t('{n} 个读数里没有可用比例，未计入', { n: balance.uncountable }))
+      ? t('{n} have no absolute figure (percentage only or no quota), not counted', { n: balance.uncountable })
+      : t('{n} readings had no usable percentage and were not counted', { n: balance.uncountable }))
   }
-  if (balance.partial) parts.push(t('{n} 个读数只读到一半（读数可信但不完整）', { n: balance.partial }))
-  const expiryText = creditExpiryText(balance.expiring, t, balanceAmountText, balance.unit === t('积分') ? '积分' : balance.unit)
+  if (balance.partial) parts.push(t('{n} only partially read (readable but incomplete)', { n: balance.partial }))
+  const expiryText = creditExpiryText(balance.expiring, t, balanceAmountText, balance.unit === t('Points') ? 'Points' : balance.unit)
   if (expiryText.detail) parts.push(expiryText.detail)
-  return parts.join('；')
+  return parts.join('; ')
 }
 
 export function GroupBalanceBadge({ balance }: { balance: GroupBalance }) {
-  const expiryText = creditExpiryText(balance.expiring, t, balanceAmountText, balance.unit === t('积分') ? '积分' : balance.unit)
+  const expiryText = creditExpiryText(balance.expiring, t, balanceAmountText, balance.unit === t('Points') ? 'Points' : balance.unit)
   const warned = balance.failed + balance.partial > 0
   const empty = balance.additive
     ? balance.sum === null && balance.unlimited === 0
@@ -189,15 +189,15 @@ export function GroupBalanceBadge({ balance }: { balance: GroupBalance }) {
   const amount = balance.unlimited > 0
     ? '∞'
     : balance.sum === null ? '—' : balanceAmountText(balance.sum)
-  const unit = balance.additive && balance.unit && balance.unit !== '积分' && balance.unit !== t('积分')
+  const unit = balance.additive && balance.unit && balance.unit !== 'Points' && balance.unit !== t('Points')
     ? usageUnitLabel(balance.unit, t)
     : ''
   const note = balance.unlimited === 0 && balance.counted < balance.total
-    ? t('计入 {counted}/{total}', { counted: balance.counted, total: balance.total })
+    ? t('counted {counted}/{total}', { counted: balance.counted, total: balance.total })
     : ''
   return (
     <span className={`grp-balance ${tone}`} title={groupBalanceTitle(balance)}>
-      <span className='k'>{balance.additive ? t('可用合计') : t('可用最低')}</span>
+      <span className='k'>{balance.additive ? t('Total available') : t('Lowest available')}</span>
       {balance.additive ? (
         <>
           <b className='v'>{amount}</b>

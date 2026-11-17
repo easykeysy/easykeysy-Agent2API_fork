@@ -43,7 +43,7 @@ type VisionKey = { id: string; name: string; key_prefix: string }
 type ManageModel = { id: string; provider: string; enabled: boolean; kind?: string }
 type ManageProvider = { provider: string; providerLabel?: string; count?: number }
 
-const SERVICE_NAME: Record<string, string> = { 'web-search': t('网络搜索'), vision: t('视觉分析'), 'image-generation': t('图片生成') }
+const SERVICE_NAME: Record<string, string> = { 'web-search': t('Web Search'), vision: t('Vision Analysis'), 'image-generation': t('Image generation') }
 const PROTOCOL_LABEL: Record<ToolProtocol, string> = { skill: 'Skill', mcp: 'MCP', api: 'API' }
 const REASONING = ['off', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
 
@@ -95,7 +95,7 @@ export function ToolsPage() {
     try {
       await apiCall(`/api/tools/servers/${service.id}`, { method: 'PATCH', body: { protocol: service.protocol, enabled } })
       setServices(current => current.map(item => item.key === service.key ? { ...item, enabled } : item))
-      store.toast(t('服务状态已更新'))
+      store.toast(t('Service status updated'))
     } catch (failure) {
       store.toast(message(failure), 'err')
     } finally {
@@ -106,7 +106,7 @@ export function ToolsPage() {
   const toggleProvider = async (provider: ProviderRow, enabled: boolean) => {
     try {
       await apiCall(`/api/tools/providers/${provider.provider}`, { method: 'PUT', body: { enabled } })
-      store.toast(t('已保存'))
+      store.toast(t('Saved'))
       await load()
     } catch (failure) {
       store.toast(message(failure), 'err')
@@ -118,8 +118,8 @@ export function ToolsPage() {
     try {
       const result = await apiCall<{ success: boolean; result_count?: number; duration_ms?: number; error?: string; code?: string }>(
         `/api/tools/providers/${provider.provider}/test`, { method: 'POST' })
-      if (result.success) store.toast(t('连接成功：{count} 条结果，耗时 {duration}ms', { count: result.result_count ?? 0, duration: result.duration_ms ?? 0 }))
-      else store.toast(result.error ? t(result.error) : t('连接测试失败'), 'err')
+      if (result.success) store.toast(t('Connected: {count} results in {duration}ms', { count: result.result_count ?? 0, duration: result.duration_ms ?? 0 }))
+      else store.toast(result.error ? t(result.error) : t('Connection test failed'), 'err')
     } catch (failure) {
       store.toast(message(failure), 'err')
     } finally {
@@ -130,7 +130,7 @@ export function ToolsPage() {
   const clearProvider = async (provider: ProviderRow) => {
     try {
       await apiCall(`/api/tools/providers/${provider.provider}/key`, { method: 'DELETE' })
-      store.toast(t('密钥已清除'))
+      store.toast(t('Key cleared'))
       await load()
     } catch (failure) {
       store.toast(message(failure), 'err')
@@ -149,8 +149,8 @@ export function ToolsPage() {
 
   return <div className='m-page' ref={pull.bindRef}>
     <PullIndicator pull={pull.pull} refreshing={pull.refreshing} />
-    <PageIntro subtitle={t('搜索、视觉与生图共用网关配置。本机客户端的 MCP 安装在桌面端完成。')}
-      actions={<IconButton name='refresh' label={t('刷新')} onClick={() => void load()} />} />
+    <PageIntro subtitle={t('Search, vision and image generation use gateway settings. Install MCP into local clients from the desktop app.')}
+      actions={<IconButton name='refresh' label={t('Refresh')} onClick={() => void load()} />} />
     {error ? <ErrorNote text={error} /> : null}
     {loading && !services.length ? <SkeletonList rows={4} height={90} /> : null}
 
@@ -158,13 +158,13 @@ export function ToolsPage() {
       <div className='m-section'>
         <Card className='m-card m-card-pad'>
           <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--m-text-2)' }}>
-            {t('将搜索、视觉等能力通过 MCP 或 Skills 接入客户端。')}
+            {t('Connect clients to search, vision and other capabilities through MCP or Skills.')}
           </div>
         </Card>
       </div>
 
       <div className='m-section'>
-        <div className='m-section-head'><h2>{t('服务与协议')}</h2></div>
+        <div className='m-section-head'><h2>{t('Services and protocols')}</h2></div>
         <Card className='m-card'>
           {services.map((service, index) => <div key={service.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderTop: index ? '1px solid var(--m-line)' : undefined }}>
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -173,53 +173,53 @@ export function ToolsPage() {
                 <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--m-text-3)' }}>{PROTOCOL_LABEL[service.protocol]}</span>
               </div>
               <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--m-text-3)' }}>
-                <code>{service.endpoint}</code> · v{service.version} · {t('超时 {seconds}s', { seconds: service.timeout_seconds })}
+                <code>{service.endpoint}</code> · v{service.version} · {t('Timeout {seconds}s', { seconds: service.timeout_seconds })}
               </div>
             </div>
             <Switch checked={service.enabled} disabled={busy === service.key}
-              onCheckedChange={checked => void toggle(service, checked === true)} aria-label={t('启用 / 停用此服务')} />
+              onCheckedChange={checked => void toggle(service, checked === true)} aria-label={t('Enable / disable this service')} />
           </div>)}
-          {!services.length ? <Empty text={t('没有可用的工具服务')} /> : null}
+          {!services.length ? <Empty text={t('No tool services available')} /> : null}
         </Card>
       </div>
 
       <div className='m-section'>
         <div className='m-section-head'>
-          <h2>{t('上游提供商')}</h2>
-          <Button size='sm' variant='link' type='button' className='m-link px-0' onClick={() => setSelectionOpen(true)}>{t('提供商选择')}</Button>
+          <h2>{t('Upstream provider')}</h2>
+          <Button size='sm' variant='link' type='button' className='m-link px-0' onClick={() => setSelectionOpen(true)}>{t('Provider selection')}</Button>
         </div>
         <Card className='m-card m-card-pad'>
           <div style={{ fontSize: 12, color: searchReady ? 'var(--m-ok)' : 'var(--m-warn)', marginBottom: 8 }}>
             {searchReady
               ? (missingProviders.length
-                ? t('批量网页搜索可用：将使用 {ready}，未配置的 {missing} 会自动跳过。', { ready: readyNames, missing: missingNames })
-                : t('批量网页搜索可用：所选来源均已启用并配置完成。'))
-              : t('批量网页搜索不可用：请启用来源并配置密钥或绑定可用账号。')}
+                ? t('Batch web search available: using {ready}; unconfigured {missing} will be skipped automatically.', { ready: readyNames, missing: missingNames })
+                : t('Batch web search is available: all selected sources are enabled and configured.'))
+              : t('Batch web search is unavailable: enable a source and configure its API key or bind an available account.')}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
             {selection.search_providers.map(item => <Badge key={item} tone='brand'>{item}</Badge>)}
-            <Badge tone='mute'>{t('抓取：{name}', { name: selection.fetch_provider })}</Badge>
+            <Badge tone='mute'>{t('Fetch: {name}', { name: selection.fetch_provider })}</Badge>
           </div>
         </Card>
         {providers.map(provider => <Card key={provider.provider} className='m-card m-card-pad' style={{ marginTop: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>{provider.display_name}</span>
-            <Badge tone={provider.configured ? 'ok' : 'mute'}>{provider.configured ? t('已配置') : t('未配置')}</Badge>
+            <Badge tone={provider.configured ? 'ok' : 'mute'}>{provider.configured ? t('Configured') : t('Not configured')}</Badge>
             <span style={{ marginLeft: 'auto' }} />
-            <Switch checked={provider.enabled} disabled={provider.available === false && !provider.enabled} onCheckedChange={checked => void toggleProvider(provider, checked === true)} aria-label={t('启用')} />
+            <Switch checked={provider.enabled} disabled={provider.available === false && !provider.enabled} onCheckedChange={checked => void toggleProvider(provider, checked === true)} aria-label={t('enabled')} />
           </div>
           <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--m-text-3)' }}>
             {provider.auth_type === 'account' ? <>
-              <div>{t('已有账号')} · {t('仅搜索')}</div>
-              <div>{t('搜索账号')}: {provider.account_name || t('未选择账号')}</div>
-              {provider.max_query_chars ? <div>{t('每条搜索词最多 {count} 字', { count: provider.max_query_chars })}</div> : null}
+              <div>{t('Existing account')} · {t('Search only')}</div>
+              <div>{t('Search accounts')}: {provider.account_name || t('No account selected')}</div>
+              {provider.max_query_chars ? <div>{t('Up to {count} characters per query', { count: provider.max_query_chars })}</div> : null}
               {provider.unavailable_reason ? <div style={{ color: 'var(--m-warn)' }}>{t(provider.unavailable_reason)}</div> : null}
-            </> : <>{t('密钥提示')}: {provider.key_hint || '-'}</>}
+            </> : <>{t('Key hint')}: {provider.key_hint || '-'}</>}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-            <Button size='sm' variant='outline' onClick={() => setEditing(provider)}>{t('编辑')}</Button>
-            <Button size='sm' variant='outline' disabled={!provider.configured || busy === provider.provider} onClick={() => void testProvider(provider)}>{t('测试连接')}</Button>
-            {provider.auth_type !== 'account' ? <Button size='sm' variant='ghost' disabled={!provider.configured} onClick={() => void confirmDialog(t('确定清除提供商 {name} 的 API Key？清除后该提供商将不可用，直到重新保存新密钥。', { name: provider.display_name }), { destructive: true }).then(ok => { if (ok) void clearProvider(provider) })}>{t('清除密钥')}</Button> : null}
+            <Button size='sm' variant='outline' onClick={() => setEditing(provider)}>{t('Edit')}</Button>
+            <Button size='sm' variant='outline' disabled={!provider.configured || busy === provider.provider} onClick={() => void testProvider(provider)}>{t('Test connection')}</Button>
+            {provider.auth_type !== 'account' ? <Button size='sm' variant='ghost' disabled={!provider.configured} onClick={() => void confirmDialog(t('Clear the API Key of {name}? The provider will be unavailable until a new key is saved.', { name: provider.display_name }), { destructive: true }).then(ok => { if (ok) void clearProvider(provider) })}>{t('Clear key')}</Button> : null}
           </div>
         </Card>)}
       </div>
@@ -228,23 +228,23 @@ export function ToolsPage() {
 
       <div className='m-section'>
         <div className='m-section-head'>
-          <h2>{t('视觉分析')}</h2>
-          <Button size='sm' variant='link' type='button' className='m-link px-0' onClick={() => setVisionOpen(true)}>{t('配置')}</Button>
+          <h2>{t('Vision Analysis')}</h2>
+          <Button size='sm' variant='link' type='button' className='m-link px-0' onClick={() => setVisionOpen(true)}>{t('Profile')}</Button>
         </div>
         <Card className='m-card m-card-pad'>
           {!vision.config?.configured
-            ? <div style={{ fontSize: 12.5, color: 'var(--m-warn)' }}>{t('尚未配置视觉模型，配置前调用方会收到“未配置”错误。')}</div>
+            ? <div style={{ fontSize: 12.5, color: 'var(--m-warn)' }}>{t('No vision model is configured yet; callers receive a "not configured" error until it is.')}</div>
             : vision.config.key_available === false
-              ? <div style={{ fontSize: 12.5, color: 'var(--m-danger)' }}>{t('已配置的 API Key 已失效（被删除或禁用），请重新选择并保存。')}</div>
-              : <div style={{ fontSize: 12.5, color: 'var(--m-text-2)' }}>{t('当前模型：{provider} / {model}', { provider: vision.config.provider_label || vision.config.provider, model: vision.config.upstream_model })}</div>}
+              ? <div style={{ fontSize: 12.5, color: 'var(--m-danger)' }}>{t('The configured API Key is no longer valid (deleted or disabled); select a new one and save.')}</div>
+              : <div style={{ fontSize: 12.5, color: 'var(--m-text-2)' }}>{t('Current model: {provider} / {model}', { provider: vision.config.provider_label || vision.config.provider, model: vision.config.upstream_model })}</div>}
           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
             <Button size='sm' variant='outline' disabled={!vision.config?.configured} onClick={async () => {
               try {
                 const result = await apiCall<{ success: boolean; duration_ms?: number; error?: string }>('/api/tools/vision/config/test', { method: 'POST' })
-                if (result.success) store.toast(t('视觉链路连通：耗时 {duration}ms', { duration: result.duration_ms ?? 0 }))
-                else store.toast(result.error || t('视觉链路测试失败'), 'err')
+                if (result.success) store.toast(t('Vision pipeline connected in {duration}ms', { duration: result.duration_ms ?? 0 }))
+                else store.toast(result.error || t('Vision pipeline test failed'), 'err')
               } catch (failure) { store.toast(message(failure), 'err') }
-            }}>{t('测试连接')}</Button>
+            }}>{t('Test connection')}</Button>
           </div>
         </Card>
       </div>
@@ -275,7 +275,7 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: ProviderRow;
   const isAccount = provider.auth_type === 'account'
   const accounts = (provider.accounts || []).filter(account => account.enabled)
   const accountLabel = accounts.find(account => account.id === accountId)?.name
-    || (accountId ? t('已绑定账号不可用，请重新选择') : t('未选择账号'))
+    || (accountId ? t('The bound account is unavailable; select another account') : t('No account selected'))
   const [enabled, setEnabled] = useState(provider.enabled)
   const [busy, setBusy] = useState(false)
   const save = async () => {
@@ -284,38 +284,38 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: ProviderRow;
       await apiCall(`/api/tools/providers/${provider.provider}`, { method: 'PUT', body: isAccount
         ? { account_id: accountId || null, enabled }
         : { api_key: apiKey.trim() || undefined, enabled } })
-      store.toast(t('已保存'))
+      store.toast(t('Saved'))
       onSaved()
     } catch (failure) { store.toast(message(failure), 'err') }
     finally { setBusy(false) }
   }
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}>
     <DialogContent>
-      <DialogHeader><DialogTitle>{t('编辑 {name}', { name: provider.display_name })}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Edit {name}', { name: provider.display_name })}</DialogTitle></DialogHeader>
       <DialogBody className='flex flex-col gap-3'>
         {isAccount ? <div>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('搜索账号')}</div>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('Search accounts')}</div>
           <SearchableSelect value={accountId || '__none__'} className='w-full' displayValue={accountLabel}
-            aria-label={t('搜索账号')} searchPlaceholder={t('搜索账号…')}
+            aria-label={t('Search accounts')} searchPlaceholder={t('Search accounts…')}
             onValueChange={value => setAccountId(value === '__none__' ? '' : value)} options={[
-              { value: '__none__', label: t('未选择账号') },
+              { value: '__none__', label: t('No account selected') },
               ...(accountId && !accounts.some(account => account.id === accountId)
                 ? [{ value: accountId, label: accountLabel, disabled: true }] : []),
               ...accounts.map(account => ({ value: account.id, label: account.name })),
             ]} />
-          <p style={{ fontSize: 11.5, color: 'var(--m-text-3)' }}>{t('复用「账号」页的登录态，不需要额外填写搜索密钥。账号停用或删除后不会自动换号。')}</p>
-          {!accounts.length ? <ErrorNote text={t('没有可绑定的启用账号，请先到「账号」页添加或启用。')} /> : null}
+          <p style={{ fontSize: 11.5, color: 'var(--m-text-3)' }}>{t('Uses an existing login from the Accounts page; no additional search API key is required. Disabled or deleted accounts are not replaced automatically.')}</p>
+          {!accounts.length ? <ErrorNote text={t('No enabled account is available to bind. Add or enable one on the Accounts page first.')} /> : null}
           {provider.available === false && provider.unavailable_reason ? <ErrorNote text={t(provider.unavailable_reason)} /> : null}
         </div> : <label style={{ fontSize: 12.5 }}>{t('API Key')}
-          <Input type='password' autoComplete='new-password' value={apiKey} placeholder={t('输入新密钥；留空保持不变')} onChange={event => setApiKey(event.currentTarget.value)} />
+          <Input type='password' autoComplete='new-password' value={apiKey} placeholder={t('Enter a new key; leave empty to keep the current one')} onChange={event => setApiKey(event.currentTarget.value)} />
         </label>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
-          {t('启用')}<Switch checked={enabled} disabled={isAccount && provider.available === false && !enabled} onCheckedChange={checked => setEnabled(checked === true)} aria-label={t('启用')} />
+          {t('enabled')}<Switch checked={enabled} disabled={isAccount && provider.available === false && !enabled} onCheckedChange={checked => setEnabled(checked === true)} aria-label={t('enabled')} />
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
-        <Button disabled={busy} onClick={() => void save()}>{t('保存')}</Button>
+        <Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
+        <Button disabled={busy} onClick={() => void save()}>{t('Save')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -328,7 +328,7 @@ function SelectionDialog({ providers, fetchProviders, value, onClose, onSaved }:
   const [draft, setDraft] = useState(value)
   const [busy, setBusy] = useState(false)
   const save = async () => {
-    if (!draft.search_providers.length) { store.toast(t('至少选择一个搜索提供商'), 'err'); return }
+    if (!draft.search_providers.length) { store.toast(t('Select at least one search provider'), 'err'); return }
     setBusy(true)
     try {
       const next = await apiCall<Selection>('/api/tools/provider-selection', { method: 'PUT', body: draft })
@@ -339,24 +339,24 @@ function SelectionDialog({ providers, fetchProviders, value, onClose, onSaved }:
   const fetchLabel = fetchProviders.find(item => item.value === draft.fetch_provider)?.label || draft.fetch_provider
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}>
     <DialogContent>
-      <DialogHeader><DialogTitle>{t('提供商选择')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Provider selection')}</DialogTitle></DialogHeader>
       <DialogBody className='flex flex-col gap-3'>
         <div>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('批量网页搜索提供商')}</div>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('Batch web search providers')}</div>
           <MultiSelect value={draft.search_providers} onValueChange={items => setDraft(current => ({ ...current, search_providers: items }))}
-            options={providers} placeholder={t('请选择提供商')} aria-label={t('批量网页搜索提供商')} />
+            options={providers} placeholder={t('Select a provider')} aria-label={t('Batch web search providers')} />
         </div>
         <div>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('批量网页抓取提供商')}</div>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('Batch page fetch provider')}</div>
           <SearchableSelect value={draft.fetch_provider} options={fetchProviders} className='w-full'
-            aria-label={t('批量网页抓取提供商')} searchPlaceholder={t('搜索提供商')} displayValue={fetchLabel}
+            aria-label={t('Batch page fetch provider')} searchPlaceholder={t('Search providers')} displayValue={fetchLabel}
             onValueChange={fetch_provider => setDraft(current => ({ ...current, fetch_provider }))} />
-          <p style={{ fontSize: 11.5, color: 'var(--m-text-3)' }}>{t('已有账号搜索只支持搜索，不支持网页抓取；请求会使用绑定账号的额度与出网设置。')}</p>
+          <p style={{ fontSize: 11.5, color: 'var(--m-text-3)' }}>{t('Account-based sources support search only, not page fetching. Requests use the bound account’s quota and outbound network settings.')}</p>
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
-        <Button disabled={busy} onClick={() => void save()}>{t('保存')}</Button>
+        <Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
+        <Button disabled={busy} onClick={() => void save()}>{t('Save')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -378,15 +378,15 @@ function VisionDialog({ config, keys, providers, models, onClose, onSaved }: {
   const keyOptions = keys.map(key => ({ value: key.id, label: `${key.name}（${key.key_prefix}）` }))
   const savedKeyMissing = Boolean(config?.api_key_id) && !keys.some(key => key.id === config?.api_key_id)
   const keyLabel = keyOptions.find(item => item.value === keyId)?.label
-    || (savedKeyMissing ? `${config?.api_key_name || config?.api_key_id}（${t('已失效')}）` : t('请选择 API Key'))
+    || (savedKeyMissing ? `${config?.api_key_name || config?.api_key_id}（${t('Invalid')}）` : t('Select an API Key'))
 
   const save = async () => {
-    if (!provider || !model) { store.toast(t('请选择提供商与上游模型'), 'err'); return }
-    if (!keyId) { store.toast(t('请选择内部调用 API Key'), 'err'); return }
+    if (!provider || !model) { store.toast(t('Select a provider and an upstream model'), 'err'); return }
+    if (!keyId) { store.toast(t('Select the internal API Key'), 'err'); return }
     setBusy(true)
     try {
       await apiCall('/api/tools/vision/config', { method: 'PUT', body: { provider, upstream_model: model, reasoning_effort: reasoning, api_key_id: keyId } })
-      store.toast(t('视觉服务配置已保存'))
+      store.toast(t('Vision service configuration saved'))
       onSaved()
     } catch (failure) { store.toast(message(failure), 'err') }
     finally { setBusy(false) }
@@ -394,38 +394,38 @@ function VisionDialog({ config, keys, providers, models, onClose, onSaved }: {
 
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose() }}>
     <DialogContent>
-      <DialogHeader><DialogTitle>{t('视觉模型配置')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Vision model configuration')}</DialogTitle></DialogHeader>
       <DialogBody className='flex flex-col gap-3'>
         <div>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('上游提供商')}</div>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('Upstream provider')}</div>
           <SearchableSelect value={provider} options={providerOptions} className='w-full'
-            aria-label={t('上游提供商')} searchPlaceholder={t('搜索提供商')}
-            displayValue={providerOptions.find(item => item.value === provider)?.label || t('请选择提供商')}
+            aria-label={t('Upstream provider')} searchPlaceholder={t('Search providers')}
+            displayValue={providerOptions.find(item => item.value === provider)?.label || t('Select a provider')}
             onValueChange={value => { setProvider(value); setModel('') }} />
         </div>
         <div>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('上游模型')}</div>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('Upstream model')}</div>
           <SearchableSelect value={model} options={modelOptions} onValueChange={setModel} disabled={!provider}
-            className='w-full' aria-label={t('上游模型')} searchPlaceholder={t('搜索模型')}
-            displayValue={model || (provider ? t('请选择模型') : t('请先选择提供商'))} />
+            className='w-full' aria-label={t('Upstream model')} searchPlaceholder={t('Search models')}
+            displayValue={model || (provider ? t('Select a model') : t('Select a provider first'))} />
         </div>
         <div>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('思考等级')}</div>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('Reasoning level')}</div>
           <Select value={reasoning} onValueChange={next => { if (typeof next === 'string') setReasoning(next) }}>
-            <SelectTrigger className='w-full'><SelectValue>{reasoning || t('不指定')}</SelectValue></SelectTrigger>
-            <SelectContent><SelectItem value=''>{t('不指定')}</SelectItem>{REASONING.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}</SelectContent>
+            <SelectTrigger className='w-full'><SelectValue>{reasoning || t('Not specified')}</SelectValue></SelectTrigger>
+            <SelectContent><SelectItem value=''>{t('Not specified')}</SelectItem>{REASONING.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
-          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('内部调用 API Key')}</div>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>{t('Internal API Key')}</div>
           <SearchableSelect value={keyId} options={keyOptions} onValueChange={setKeyId} className='w-full'
-            aria-label={t('内部调用 API Key')} displayValue={keyLabel} />
+            aria-label={t('Internal API Key')} displayValue={keyLabel} />
         </div>
-        {!providers.length ? <div style={{ fontSize: 11.5, color: 'var(--m-warn)' }}>{t('还没有可用的提供商，请先在桌面端添加账号并确认有已启用的模型。')}</div> : null}
+        {!providers.length ? <div style={{ fontSize: 11.5, color: 'var(--m-warn)' }}>{t('No providers available yet. Add accounts on desktop and make sure there are enabled models.')}</div> : null}
       </DialogBody>
       <DialogFooter>
-        <Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
-        <Button disabled={busy} onClick={() => void save()}>{t('保存')}</Button>
+        <Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
+        <Button disabled={busy} onClick={() => void save()}>{t('Save')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

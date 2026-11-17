@@ -126,7 +126,7 @@ pub(crate) async fn receive(
         )
         .await
         .map_err(|_| {
-            GatewayError::with_status(502, format!("非流式响应超时({}秒)", budget.as_secs()))
+            GatewayError::with_status(502, format!("Non-Streaming Timeout({}seconds)", budget.as_secs()))
         })??;
         rewrite_response_model(protocol, &mut body, requested);
         return Ok(NativeResponse {
@@ -157,11 +157,11 @@ pub(crate) async fn receive(
             bytes.extend_from_slice(&chunk);
         }
         serde_json::from_slice::<Value>(&bytes).map_err(|error| {
-            GatewayError::with_status(502, format!("上游原生响应不是有效 JSON：{error}"))
+            GatewayError::with_status(502, format!("上游原生响应不是有效 JSON: {error}"))
         })
     };
     let mut body = tokio::time::timeout(budget, read).await.map_err(|_| {
-        GatewayError::with_status(502, format!("非流式响应超时({}秒)", budget.as_secs()))
+        GatewayError::with_status(502, format!("Non-Streaming Timeout({}seconds)", budget.as_secs()))
     })??;
     let mut observer = Observer::default();
     observer.observe(protocol, &body, &telemetry);
@@ -344,7 +344,7 @@ impl Observer {
         } else if event.get("type").and_then(Value::as_str) == Some("response.failed")
             || event.get("status").and_then(Value::as_str) == Some("failed")
         {
-            telemetry.note_error("上游 Responses 请求失败");
+            telemetry.note_error("Upstream Responses Request failed");
         }
     }
 }

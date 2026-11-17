@@ -188,7 +188,7 @@ pub(crate) fn local_client(timeout: Duration) -> Result<reqwest::Client, String>
         .no_proxy()
         .timeout(timeout)
         .build()
-        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))
+        .map_err(|error| format!("Create HTTP 客户端失败: {error}"))
 }
 
 fn management_client(path: &str, timeout_ms: u64) -> Result<reqwest::Client, String> {
@@ -361,6 +361,6 @@ fn describe_transport_error(error: &reqwest::Error) -> String {
         // 否则用户会重复点一遍，把同一个慢操作叠第二次。
         "等待本地代理响应超时（网关可能仍在处理，请稍后查看结果）".to_string()
     } else {
-        format!("无法连接本地代理（127.0.0.1:{}）: {error}", proxy_port())
+        format!("无法连接本地代理（127.0.0.1:{}): {error}", proxy_port())
     }
 }

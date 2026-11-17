@@ -95,12 +95,12 @@ pub async fn patch_server(Path(id): Path<String>, body: Bytes) -> Response {
         return errors::management_error(400, "protocol 必须是 skill / mcp 之一");
     }
     if !tool_services::service_protocols(&id).contains(&protocol) {
-        return errors::management_error(400, format!("服务 {id} 不支持 {protocol} 协议"));
+        return errors::management_error(400, format!("Service {id} Not supported {protocol} Protocol"));
     }
     let enabled = object.get("enabled").and_then(Value::as_bool);
     let timeout = object.get("timeout_seconds").and_then(Value::as_u64);
     if enabled.is_none() && timeout.is_none() {
-        return errors::management_error(400, "需要 enabled 或 timeout_seconds");
+        return errors::management_error(400, "Needed enabled or timeout_seconds");
     }
     if let Some(seconds) = timeout {
         if !(tool_services::TIMEOUT_MIN_SECONDS..=tool_services::TIMEOUT_MAX_SECONDS).contains(&seconds) {
@@ -249,13 +249,13 @@ pub async fn put_vision_config(State(state): State<ServerState>, body: Bytes) ->
     let reasoning = text_field(object, "reasoning_effort").to_string();
     let api_key_id = text_field(object, "api_key_id").to_string();
     if provider.is_empty() || upstream_model.is_empty() {
-        return errors::management_error(400, "请选择提供商与上游模型");
+        return errors::management_error(400, "Select a provider and an upstream model");
     }
     if !tool_services::is_reasoning_level(&reasoning) {
         return errors::management_error(400, "思考等级无效");
     }
     if api_key_id.is_empty() {
-        return errors::management_error(400, "请选择内部调用 API Key");
+        return errors::management_error(400, "Select the internal API Key");
     }
 
     // 提供商与模型从模型管理的当前视图里取：只接受「这家、这个已启用的模型」
@@ -446,7 +446,7 @@ pub async fn install_mcp(State(state): State<ServerState>, headers: HeaderMap, b
     let mode = text_field(object, "mode");
     let mode = if mode.is_empty() { "http" } else { mode };
     if mode != "http" && mode != "bridge" {
-        return errors::management_error(400, "接入方式必须是 http 或 bridge");
+        return errors::management_error(400, "接入方式必须是 http or bridge");
     }
     if mode == "bridge" && !matches!(service, tool_services::VISION_SERVICE_ID | tool_services::IMAGE_GENERATION_SERVICE_ID) {
         return errors::management_error(400, "该服务不支持本地桥接");

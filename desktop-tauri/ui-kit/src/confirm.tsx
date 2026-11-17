@@ -19,11 +19,11 @@ function confirmDialog(message: React.ReactNode, options: { title?: string; conf
     }
     root.render(<AlertDialog open onOpenChange={open => { if (!open) finish(false) }}>
       <AlertDialogContent initialFocus={cancelRef}>
-        <AlertDialogHeader><AlertDialogTitle>{options.title || t('请确认')}</AlertDialogTitle></AlertDialogHeader>
+        <AlertDialogHeader><AlertDialogTitle>{options.title || t('Please confirm')}</AlertDialogTitle></AlertDialogHeader>
         <AlertDialogBody><div className='whitespace-pre-wrap text-[13px] leading-relaxed'>{message}</div></AlertDialogBody>
         <AlertDialogFooter>
-          <Button ref={cancelRef} variant='outline' onClick={() => finish(false)}>{t('取消')}</Button>
-          <Button variant={options.destructive === false ? 'default' : 'destructive'} onClick={() => finish(true)}>{options.confirmText || t('确定')}</Button>
+          <Button ref={cancelRef} variant='outline' onClick={() => finish(false)}>{t('Cancel')}</Button>
+          <Button variant={options.destructive === false ? 'default' : 'destructive'} onClick={() => finish(true)}>{options.confirmText || t('Confirm')}</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>)

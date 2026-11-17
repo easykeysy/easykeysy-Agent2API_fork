@@ -201,20 +201,20 @@ fn read_table(conn: &Connection, table: &str) -> Result<Vec<Map<String, Value>>,
             "SELECT {quoted} FROM {}",
             quote_identifier(table)
         ))
-        .map_err(|error| format!("读取 {table} 失败: {error}"))?;
+        .map_err(|error| format!("读取 {table} failed: {error}"))?;
     let mut rows = stmt
         .query([])
-        .map_err(|error| format!("读取 {table} 失败: {error}"))?;
+        .map_err(|error| format!("读取 {table} failed: {error}"))?;
     let mut out = Vec::new();
     while let Some(row) = rows
         .next()
-        .map_err(|error| format!("读取 {table} 失败: {error}"))?
+        .map_err(|error| format!("读取 {table} failed: {error}"))?
     {
         let mut entry = Map::new();
         for (index, column) in columns.iter().enumerate() {
             let value = row
                 .get_ref(index)
-                .map_err(|error| format!("读取 {table}.{column} 失败: {error}"))?;
+                .map_err(|error| format!("读取 {table}.{column} failed: {error}"))?;
             entry.insert(column.clone(), sql_to_json(value));
         }
         out.push(entry);
@@ -282,19 +282,19 @@ pub(crate) fn apply(
 ) -> Result<(Value, String), String> {
     if snapshot.format != SNAPSHOT_FORMAT {
         return Err(format!(
-            "远端快照格式不兼容（format = {}）",
+            "远端快照格式不兼容（format = {})",
             snapshot.format
         ));
     }
     if snapshot.version != SNAPSHOT_VERSION {
         return Err(format!(
-            "远端快照协议版本不兼容（v{}，本机 v{SNAPSHOT_VERSION}）",
+            "远端快照协议版本不兼容（v{}，本机 v{SNAPSHOT_VERSION})",
             snapshot.version
         ));
     }
     if snapshot.schema_version > SCHEMA_VERSION {
         return Err(format!(
-            "远端快照来自更新版本的应用（库版本 {} > 当前 {SCHEMA_VERSION}）",
+            "远端快照来自更新版本的应用（库版本 {} > Current {SCHEMA_VERSION})",
             snapshot.schema_version
         ));
     }
@@ -330,7 +330,7 @@ fn apply_conn(
             continue;
         }
         tx.execute(&format!("DELETE FROM {}", quote_identifier(table)), [])
-            .map_err(|error| format!("清空 {table} 失败: {error}"))?;
+            .map_err(|error| format!("Clear {table} failed: {error}"))?;
         let mut inserted = 0usize;
         for row in rows {
             insert_row(&tx, table, &current_columns, row)?;
@@ -357,7 +357,7 @@ fn apply_conn(
     }
     for key in &stale {
         tx.execute("DELETE FROM kv WHERE key = ?1", rusqlite::params![key])
-            .map_err(|error| format!("删除配置项 {key} 失败: {error}"))?;
+            .map_err(|error| format!("删除配置项 {key} failed: {error}"))?;
     }
     for (key, value) in &snapshot.kv {
         // 快照里若混进了本机专属键（旧版本写的 / 手改的），一律忽略：
@@ -370,7 +370,7 @@ fn apply_conn(
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             rusqlite::params![key, value],
         )
-        .map_err(|error| format!("写入配置项 {key} 失败: {error}"))?;
+        .map_err(|error| format!("写入配置项 {key} failed: {error}"))?;
     }
     applied.insert("kv".to_string(), json!(snapshot.kv.len()));
 
@@ -413,7 +413,7 @@ fn insert_row(
         rusqlite::params_from_iter(values),
     )
     .map(|_| ())
-    .map_err(|error| format!("写入 {table} 失败: {error}"))
+    .map_err(|error| format!("写入 {table} failed: {error}"))
 }
 
 fn json_to_sql(value: &Value) -> rusqlite::types::Value {

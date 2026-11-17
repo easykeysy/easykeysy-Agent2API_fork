@@ -73,8 +73,8 @@ pub(super) async fn forward(
             logging::verbose(
                 "[CustomProvider]",
                 &format!(
-                    "provider={provider_id} model={wire_model}：{}",
-                    changes.join("；")
+                    "provider={provider_id} model={wire_model}: {}",
+                    changes.join("; ")
                 ),
             );
         }
@@ -149,7 +149,7 @@ pub(super) async fn forward(
         capture.reset_request(&url, provider_id, &headers, &outbound);
     }
     logging::verbose("[CustomProvider]", &format!(
-        "POST {url} protocol={} 原生转发 model={wire_model} stream={stream} account={account_id} 出口={}",
+        "POST {url} protocol={} 原生转发 model={wire_model} stream={stream} account={account_id} Exit={}",
         protocol.as_str(), describe_proxy(proxy.as_ref()),
     ));
     let transport = TransportRequest {

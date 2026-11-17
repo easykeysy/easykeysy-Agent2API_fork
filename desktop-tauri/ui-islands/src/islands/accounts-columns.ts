@@ -52,34 +52,34 @@ export type AccountColumn = {
  * 到一条中轴，比左对齐更好扫读）。legacyAlign 只写在「上一版默认与新版不同」的列上。
  */
 export const ACCOUNT_COLUMNS: AccountColumn[] = [
-  { key: 'pick', label: t('选择'), align: 'center', legacyAlign: 'left' },
+  { key: 'pick', label: t('Select'), align: 'center', legacyAlign: 'left' },
   {
-    key: 'order', label: t('顺序'),
-    title: t('组内先后：按住左边的把手上下拖动即可调整；整组的先后拖分组带的把手'),
+    key: 'order', label: t('Order'),
+    title: t('Within the group: hold the handle on the left and drag up / down to reorder; for the order of whole groups, drag the group band\'s handle'),
     align: 'center', legacyAlign: 'left',
   },
-  { key: 'account', label: t('账号'), align: 'center', legacyAlign: 'left' },
+  { key: 'account', label: t('Accounts'), align: 'center', legacyAlign: 'left' },
   {
-    key: 'proxy', label: t('代理'),
-    title: t('该账号出网走的代理（已保存的代理 / 自定义 / 直连）；点击可修改'),
+    key: 'proxy', label: t('Proxy'),
+    title: t('Proxy used by this account (saved proxy / custom / direct); click to change.'),
     align: 'center',
   },
   {
-    key: 'connections', label: t('连接数'),
-    title: t('此刻正在使用这个账号的请求数（含还在下发内容的流式请求）；为 0 时不显示'),
+    key: 'connections', label: t('Connections'),
+    title: t('The number of requests currently using this account (including streaming requests still sending content); hidden when 0'),
     align: 'center',
   },
-  { key: 'status', label: t('状态'), align: 'center', legacyAlign: 'left' },
+  { key: 'status', label: t('Status'), align: 'center', legacyAlign: 'left' },
   {
-    key: 'limits', label: t('限流'),
-    title: t('该账号当前限流中的模型；点徽章看明细'),
+    key: 'limits', label: t('Rate limit'),
+    title: t('Models this account is currently rate-limited on; click the badge for details'),
     align: 'center', legacyAlign: 'left',
   },
-  { key: 'expiry', label: t('有效期'), align: 'center', legacyAlign: 'left' },
+  { key: 'expiry', label: t('Expiry'), align: 'center', legacyAlign: 'left' },
   // 「余额」列只放读数（查询按钮在操作列）：一个只显示余额数字的列叫「余额 / 积分」
   // 会让人以为这里还能点。而「余额」这个词也容得下各家的不同叫法（积分 / 余额）
-  { key: 'usage', label: t('余额'), align: 'center', legacyAlign: 'left' },
-  { key: 'actions', label: t('操作'), align: 'right' },
+  { key: 'usage', label: t('Balance'), align: 'center', legacyAlign: 'left' },
+  { key: 'actions', label: t('Actions'), align: 'right' },
 ]
 
 /* ─── 列宽 ─────────────────────────────────── */

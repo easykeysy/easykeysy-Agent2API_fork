@@ -429,8 +429,8 @@ export function poolItemAddress(item: PoolItem): string {
 
 export function poolItemLabel(item: PoolItem): string {
   const name = item.name || item.id
-  const parts = [item.source === 'clash' ? 'Clash Verge' : '', item.resolveError ? t('解析失败') : poolItemAddress(item), item.enabled === false ? t('已禁用') : ''].filter(Boolean)
-  return parts.length ? t('{name}（{parts}）', { name, parts: parts.join(' · ') }) : name
+  const parts = [item.source === 'clash' ? 'Clash Verge' : '', item.resolveError ? t('Resolve failed') : poolItemAddress(item), item.enabled === false ? t('Disabled') : ''].filter(Boolean)
+  return parts.length ? t('{name} ({parts})', { name, parts: parts.join(' · ') }) : name
 }
 
 /**

@@ -114,8 +114,8 @@ function AccountsPage() {
    * 它与分段徽标回答的不是同一个问题 ——「这一家里有多少个」而不是「点进去能看到几条」，
    * 于是「哪家有账号、各有多少」不切页就能看到（家数动态，这也是它用下拉不用分段的原因）。
    */
-  const providerOptions = [{ value: 'all', label: t('全部（{n}）', { n: all.length }) }]
-    .concat(providerSummaryList().map(item => ({ value: item.id, label: t('{label}（{count}）', { label: t(item.label), count: item.count }) })))
+  const providerOptions = [{ value: 'all', label: t('All ({n})', { n: all.length }) }]
+    .concat(providerSummaryList().map(item => ({ value: item.id, label: t('{label} ({count})', { label: t(item.label), count: item.count }) })))
   /** 真正会渲染出来的行（组序 → 组内序）。全选 / 计数 / 分页都以它为基准：
    *  被隐藏的组（一个启用的都没有）不该算进「当前看到的这些」—— 否则「全选（8 个）」
    *  会连看不见的行一起勾上，数字也对不上。分段计数（工具条那几枚徽标）另一回事：
@@ -138,7 +138,7 @@ function AccountsPage() {
     || store.filter.q.trim() !== ''
     || store.filter.limit !== 'all'
   const groupLocked = groupFilterLocked || paging.paged
-  const lockReason = groupFilterLocked ? t('清除筛选') : t('把每页调回「全部」')
+  const lockReason = groupFilterLocked ? t('Clear filters') : t('Set the page size back to "All"')
 
   // 代理列的选项（「网络代理」页的池条目）没就绪就补拉（节流 30 秒，失败不缓存）。
   // Clash 出口那一组已经不在这一页了 —— 出口统一由代理页的「同步 Clash Verge」
@@ -185,7 +185,7 @@ function AccountsPage() {
       colSettingsRegistered = true
       colHandle = shared().wbColSettings?.register({
         id: 'accounts',
-        label: t('账号表'),
+        label: t('Accounts table'),
         columns: ACCOUNT_COLUMNS.map(column => ({
           key: column.key,
           label: column.label,
@@ -275,7 +275,7 @@ function AccountsPage() {
       const next = [...rest.slice(0, to), moved, ...rest.slice(to)]
       // 整组移动不覆盖组内手动兜底；自动消耗规则仍由网关动态执行。
       const queue = next.flatMap(group => group.queueMembers.map(account => account.id))
-      void reorderQueue(queue, t('{name} 移到第 {rank} 顺位', { name: moved.label, rank: to + 1 }))
+      void reorderQueue(queue, t('Moved {name} to global position {rank}', { name: moved.label, rank: to + 1 }))
       return
     }
     const orderRules = activeGroupSortRules(drop.provider, groupSortRules(drop.provider))
@@ -306,7 +306,7 @@ function AccountsPage() {
       ? { ...item, members: nextMembers, queueMembers: nextMembers }
       : item)
     const queue = next.flatMap(item => item.queueMembers.map(account => account.id))
-    void reorderQueue(queue, t('{name} 移到 {group} 组内第 {rank} 位', {
+    void reorderQueue(queue, t('Moved {name} to position {rank} within the {group} group', {
       name: String(moved.name || moved.id), group: t(group.label), rank: to + 1,
     }))
   }, [])
@@ -319,7 +319,7 @@ function AccountsPage() {
     bindQueueDrag(listRef.current, {
       isLocked: () => dragHandlers.current.locked,
       onLockedAttempt: () => toast(
-        t('当前视图不能调整组顺位：{reason} 之后再拖动', { reason: dragHandlers.current.lockReason }),
+        t('Group order cannot be changed in this view: clear {reason} first, then drag', { reason: dragHandlers.current.lockReason }),
         'err',
       ),
       isRowLocked: provider => activeGroupSortRules(provider, groupSortRules(provider)).length > 0,
@@ -336,8 +336,8 @@ function AccountsPage() {
     switch (key) {
       case 'pick':
         return (
-          <Checkbox checked={ctx.picked} data-pick={account.id} title={t('勾选后可批量操作')}
-            aria-label={t('勾选后可批量操作')}
+          <Checkbox checked={ctx.picked} data-pick={account.id} title={t('Check to enable batch actions')}
+            aria-label={t('Check to enable batch actions')}
             onCheckedChange={next => togglePick(account.id, next)} />
         )
       case 'order':
@@ -372,36 +372,36 @@ function AccountsPage() {
               列表被收窄这件事必须仍然可见，否则用户会以为账号丢了。 */}
           <Button size='default' variant='ghost' type='button' className='acct-filter-open hidden max-[767px]:inline-flex'
             onClick={() => setFilterOpen(true)}
-            aria-label={t('打开筛选')}>
-            {t('筛选')}
+            aria-label={t('Open the filter')}>
+            {t('Filter')}
             {activeFilterCount > 0 ? <Badge variant='brand' shape='tag' className='acct-filter-badge'>{activeFilterCount}</Badge> : null}
           </Button>
 
           {/* 筛选值受控，切换布局不会改变条件。 */}
-          <ResponsiveSheet open={filterOpen} onOpenChange={setFilterOpen} title={t('筛选')}
+          <ResponsiveSheet open={filterOpen} onOpenChange={setFilterOpen} title={t('Filter')}
             inlineClassName='contents' bodyClassName='acct-filter-body'
-            actions={<Button variant='ghost' size='sm' disabled={activeFilterCount === 0} onClick={() => clearFilter()}>{t('清空')}</Button>}>
+            actions={<Button variant='ghost' size='sm' disabled={activeFilterCount === 0} onClick={() => clearFilter()}>{t('Clear')}</Button>}>
           {/* 提供商：分组模式把「哪一家」画在了页面上（一家一段），但「只看某一家」仍是
               常用动作 —— 分组带收得掉一家、收不掉其余那几家。用下拉而不是分段按钮：家数
               是**动态**的（后端注册表加一家就多一项），分段按钮会随家数增长把工具条挤成
               一团；选项里带账号数（`WorkBuddy 国内版（14）`），于是「哪家有账号、各有多少」
               不用切页就能看到。取值与计数都以 store 为准（受控） */}
           <div className='group' data-provider-group='1'>
-            <span className='label'>{t('提供商')}</span>
+            <span className='label'>{t('Provider')}</span>
             <Combobox items={providerOptions}
               value={providerOptions.find(item => item.value === store.filter.provider) ?? providerOptions[0]}
               onValueChange={item => { if (item) setProviderFilter(item.value) }}
               isItemEqualToValue={(item, selected) => item.value === selected.value} autoHighlight>
-              <ComboboxTrigger className='max-w-none min-w-0 w-full min-[768px]:max-w-[200px] min-[768px]:min-w-[130px] min-[768px]:w-auto' aria-label={t('按提供商筛选账号')}>
+              <ComboboxTrigger className='max-w-none min-w-0 w-full min-[768px]:max-w-[200px] min-[768px]:min-w-[130px] min-[768px]:w-auto' aria-label={t('Filter accounts by provider')}>
                 <ComboboxValue>
-                  {providerOptions.find(item => item.value === store.filter.provider)?.label || t('全部')}
+                  {providerOptions.find(item => item.value === store.filter.provider)?.label || t('All')}
                 </ComboboxValue>
               </ComboboxTrigger>
               <ComboboxContent>
                 <div className='shrink-0 border-b border-hairline p-2'>
-                  <ComboboxInput placeholder={t('搜索提供商…')} aria-label={t('搜索提供商')} />
+                  <ComboboxInput placeholder={t('Search providers…')} aria-label={t('Search providers')} />
                 </div>
-                <ComboboxEmpty>{t('没有匹配的选项')}</ComboboxEmpty>
+                <ComboboxEmpty>{t('No matching options')}</ComboboxEmpty>
                 <ComboboxList>
                   {(item: (typeof providerOptions)[number]) => (
                     <ComboboxItem key={item.value} value={item}>{item.label}</ComboboxItem>
@@ -416,66 +416,66 @@ function AccountsPage() {
               按名字 / 邮箱 / 标识定位。与三个筛选档位共用同一条可见性口径
               （accounts-domain 的 matchesFilter），命中的行留在它自己的组里 */}
           <div className='group'>
-            <span className='label'>{t('搜索')}</span>
+            <span className='label'>{t('Search')}</span>
             <Input className='acct-search' type='search' value={store.filter.q}
-              placeholder={t('账号名 / 邮箱 / 备注')} aria-label={t('搜索账号')}
+              placeholder={t('Account name / email / note')} aria-label={t('Search accounts')}
               onChange={event => setSearchFilter(event.currentTarget.value)} />
           </div>
           <div className='divider' />
 
           <div className='group'>
-            <span className='label'>{t('状态')}</span>
+            <span className='label'>{t('Status')}</span>
             {/* 两个分段维度（状态 / 限额）是**受控**的（取值与计数都以 store 为准）。
                 计数按两级筛选分工（见 filterCounts 的说明）：状态是一级，徽标数全量
                 （只随提供商与搜索收窄，切限额不动它）；限额是二级，徽标数「状态收窄
                 后」的范围。限流组在状态筛成「禁用」时置灰 —— 已禁用账号既不算正常
                 也不算已限流 */}
             <SegmentedControl options={[
-              { value: 'all', label: t('全部'), count: counts.enabledAll ?? 0 },
-              { value: 'enabled', label: t('启用'), count: counts.enabled ?? 0 },
-              { value: 'disabled', label: t('禁用'), count: counts.disabled ?? 0 },
+              { value: 'all', label: t('All'), count: counts.enabledAll ?? 0 },
+              { value: 'enabled', label: t('enabled'), count: counts.enabled ?? 0 },
+              { value: 'disabled', label: t('Disable'), count: counts.disabled ?? 0 },
             ]} value={store.filter.enabled} onValueChange={value => setSegmentFilter('enabled', value)}
-              aria-label={t('启用状态')} />
+              aria-label={t('Enabled status')} />
           </div>
 
           <div className='group'>
-            <span className='label'>{t('限额')}</span>
+            <span className='label'>{t('Limit')}</span>
             <SegmentedControl options={[
-              { value: 'all', label: t('全部'), count: counts.limitAll ?? 0 },
-              { value: 'normal', label: t('正常'), count: counts.normal ?? 0, disabled: store.filter.enabled === 'disabled' },
-              { value: 'limited', label: t('已限流'), count: counts.limited ?? 0, disabled: store.filter.enabled === 'disabled' },
+              { value: 'all', label: t('All'), count: counts.limitAll ?? 0 },
+              { value: 'normal', label: t('Normal'), count: counts.normal ?? 0, disabled: store.filter.enabled === 'disabled' },
+              { value: 'limited', label: t('Rate-limited'), count: counts.limited ?? 0, disabled: store.filter.enabled === 'disabled' },
             ]} value={store.filter.limit} onValueChange={value => setSegmentFilter('limit', value)}
-              aria-label={t('限额状态')} />
+              aria-label={t('Limit status')} />
           </div>
           </ResponsiveSheet>
 
           <div className='actions'>
             <Button id='btn-refresh-accounts' variant='outline' disabled={store.listBusy}
-              title={t('重新读取账号列表和插件状态，不刷新 Token 或查询余额')}
+              title={t('Reload the account list and plugin status without refreshing tokens or querying balances')}
               onClick={() => void refreshList({ feedback: true })}>
-              {store.listBusy ? t('刷新中…') : t('刷新')}
+              {store.listBusy ? t('Refreshing…') : t('Refresh')}
             </Button>
             {/* 「添加账号」的打开逻辑归 add-account.js（它按同一个 id 绑了监听），这里再挂
                 一次 onClick 是**冗余保险**：万一那个脚本的绑定因加载顺序没接上，按钮仍可用
                 （openModal / resetAddStep 都是幂等的，重复调用无副作用） */}
-            <Button id='btn-add-account-2' variant='default' title={t('登录 / 导入一个新账号')}
+            <Button id='btn-add-account-2' variant='default' title={t('Sign in / import a new account')}
               onClick={() => {
                 shared().wbAddAccountModal?.open?.()
                 shared().wbAccountAddForms?.syncAddProvider?.()
-              }}>{t('添加账号')}</Button>
+              }}>{t('Add account')}</Button>
             <Button id='btn-query-usage' variant='outline'
               disabled={store.usageStarting.has('*') || !all.some(supportsUsage)}
-              title={t('查询全部账号的余额（含已禁用账号 —— 禁用只表示不参与转发）')}
-              onClick={() => void queryAllUsage()}>{store.usageStarting.has('*') ? t('启动中…') : store.usageBusy ? t('重新查询') : t('查询余额')}</Button>
-            {store.usageBusy ? <Button variant='outline' onClick={() => void cancelAllUsage()}>{t('取消查询')}</Button> : null}
+              title={t('Query the balance of all accounts (including disabled ones — disabled only means they take no part in forwarding)')}
+              onClick={() => void queryAllUsage()}>{store.usageStarting.has('*') ? t('Starting…') : store.usageBusy ? t('Check again') : t('Query balance')}</Button>
+            {store.usageBusy ? <Button variant='outline' onClick={() => void cancelAllUsage()}>{t('Cancel query')}</Button> : null}
           </div>
         </div>
 
         {store.listError ? (
           <Alert variant='destructive' className='acct-load-error' role='alert'>
             {loaded
-              ? t('刷新账号列表失败，当前仍显示上一次成功读取的数据：{message}', { message: store.listError })
-              : t('账号列表加载失败，请点击「刷新」重试：{message}', { message: store.listError })}
+              ? t('Failed to refresh accounts. The last successfully loaded data is still shown: {message}', { message: store.listError })
+              : t('Failed to load accounts. Click "Refresh" to retry: {message}', { message: store.listError })}
           </Alert>
         ) : null}
 
@@ -483,35 +483,35 @@ function AccountsPage() {
         <div className={cn('batch-bar', active && 'active')} id='batch-bar'>
           <Label className='batch-select-all'>
             <Checkbox id='batch-select-all' checked={allPicked} indeterminate={!allPicked && somePicked}
-              disabled={!visibleIds.length} aria-label={t('全选当前筛选结果')}
+              disabled={!visibleIds.length} aria-label={t('Select all filtered results')}
               onCheckedChange={next => setAllPicked(visibleIds, next)} />
             <span id='batch-select-label'>
-              {visibleIds.length ? t('全选当前筛选结果（{n} 个）', { n: visibleIds.length }) : t('没有可全选的账号')}
+              {visibleIds.length ? t('Select all filtered ({n})', { n: visibleIds.length }) : t('No accounts to select')}
             </span>
           </Label>
           <span className='batch-count'>
-            {t('已选')} <b id='batch-count'>{store.selected.size}</b> {t('个 · 共')} <b id='accounts-count'>{all.length}</b> {t('个')}
+            {t('Selected')} <b id='batch-count'>{store.selected.size}</b> {t('of')} <b id='accounts-count'>{all.length}</b> {t('total')}
           </span>
           {/* 分组已经逐段给出「哪家有几个」，这里只留一句「当前显示了几家的几行」 */}
           <span className='batch-summary' id='accounts-group-summary'>
             {groups.length
-              ? t('{groups} 家 · 显示 {rows} 行', { groups: groups.length, rows: visibleIds.length })
+              ? t('{groups} providers · showing {rows} rows', { groups: groups.length, rows: visibleIds.length })
               : ''}
           </span>
           {/* 锁定条只管**组顺位**（组内行按可见行换算落点，筛选下照常拖得动） */}
           {groupLocked ? (
             <span className='batch-hidden' title={lockReason}>
-              {t('组顺位已锁定')}
+              {t('Group order locked')}
             </span>
           ) : null}
           {filterActive() ? (
             <Button id='btn-clear-filter' variant='ghost' size='xs'
-              title={t('清空搜索与三个筛选档位，回到全部账号')}
-              onClick={() => clearFilter()}>{t('清除筛选')}</Button>
+              title={t('Clear the search box and the three filter groups, back to all accounts')}
+              onClick={() => clearFilter()}>{t('Clear filters')}</Button>
           ) : null}
           {hiddenByFilter ? (
             <span className='batch-hidden' id='batch-hidden-hint'>
-              {t('另有 {n} 个已勾选账号被当前筛选隐藏，仍会参与操作', { n: hiddenByFilter })}
+              {t('{n} selected accounts are hidden by the current filter but still take part', { n: hiddenByFilter })}
             </span>
           ) : null}
           <div className='batch-actions'>
@@ -524,9 +524,9 @@ function AccountsPage() {
                 setAllGroupsCollapsed 的说明） */}
             <Button id='btn-fold-groups' variant='outline'
               disabled={!allGroups.length}
-              title={allCollapsed ? t('展开全部分组') : t('折叠全部分组（只留组头）')}
+              title={allCollapsed ? t('Expand all groups') : t('Collapse all groups (keep only the group headers)')}
               onClick={() => setAllGroupsCollapsed(allGroups.map(group => group.provider), !allCollapsed)}>
-              {allCollapsed ? t('展开') : t('折叠')}
+              {allCollapsed ? t('Expand') : t('Collapse')}
             </Button>
             {/* 「列设置」按钮由 wbColSettings.register 插进这个宿主的最前面（命令式，
                 插入位置由那边决定，本岛只留容器） */}
@@ -536,7 +536,7 @@ function AccountsPage() {
                 「全选当前筛选结果」的勾就能取消全选，而逐行取消是行上的勾，都不缺入口 */}
             {active ? (
               <Button id='btn-batch-open' variant='default'
-                onClick={() => openBatchDialog([...store.selected], 'enable')}>{t('批量操作')}</Button>
+                onClick={() => openBatchDialog([...store.selected], 'enable')}>{t('Batch actions')}</Button>
             ) : null}
           </div>
         </div>
@@ -545,18 +545,18 @@ function AccountsPage() {
           {!loaded ? (
             <Empty className='empty'>
               {store.listError
-                ? t('账号列表加载失败，请点击「刷新」重试')
-                : <><Spinner />{t('正在加载…')}</>}
+                ? t('Failed to load accounts. Click "Refresh" to retry')
+                : <><Spinner />{t('Loading…')}</>}
             </Empty>
           ) : !all.length ? (
             hidden.total > 0
               ? <HiddenAccountsEmptyNote hidden={hidden} onOpen={() => setHiddenOpen(true)} />
-              : <Empty className='empty'>{t('暂无账号，请点击右上角「添加账号」')}</Empty>
+              : <Empty className='empty'>{t('No accounts yet — click "Add account" in the top right')}</Empty>
           ) : !shown.length ? (
             <Empty className='empty'>
-              {t('当前筛选条件下没有账号')}
+              {t('No accounts match the current filter')}
               {filterActive() ? (
-                <Button size='default' variant='ghost' type='button' className='link-btn' onClick={() => clearFilter()}>{t('清除筛选')}</Button>
+                <Button size='default' variant='ghost' type='button' className='link-btn' onClick={() => clearFilter()}>{t('Clear filters')}</Button>
               ) : null}
             </Empty>
           ) : (

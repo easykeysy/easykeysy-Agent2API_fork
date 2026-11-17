@@ -109,7 +109,7 @@ fn persist(context: &RecordContext, fallback_error: Option<String>) {
     logging::verbose(
         "[Stats]",
         &format!(
-            "记一条请求: model={} status={} {duration_ms}ms 首响={} attempts={attempts} tokens={}+{}（缓存 {}）",
+            "记一条请求: model={} status={} {duration_ms}ms First response={} attempts={attempts} tokens={}+{}（缓存 {})",
             if context.model.is_empty() { "(未指定)" } else { &context.model },
             context.status,
             first_response_ms.map(|value| format!("{value}ms")).unwrap_or_else(|| "-".to_string()),

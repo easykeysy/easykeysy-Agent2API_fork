@@ -42,8 +42,8 @@ function compact(value: unknown): string {
   const abs = Math.abs(num)
   // 「万 / 亿」只保留 1~2 位小数：行内读数要短，精度对余额没有行动价值
   const chinese = locale().startsWith('zh')
-  if (abs >= 1e8 && chinese) return `${(num / 1e8).toFixed(2)} ${locale() === 'zh-Hant' ? '億' : '亿'}`
-  if (abs >= 1e4 && chinese) return `${(num / 1e4).toFixed(1)} ${locale() === 'zh-Hant' ? '萬' : '万'}`
+  if (abs >= 1e8 && chinese) return `${(num / 1e8).toFixed(2)} ${locale() === 'zh-Hant' ? 'Billion' : '100M'}`
+  if (abs >= 1e4 && chinese) return `${(num / 1e4).toFixed(1)} ${locale() === 'zh-Hant' ? 'Ten-thousand' : '10k'}`
   if (!chinese && abs >= 1e6) return `${(num / 1e6).toFixed(1)}M`
   if (!chinese && abs >= 1e4) return `${(num / 1000).toFixed(1)}k`
   const language = locale() === 'zh-Hans' ? 'zh-CN' : locale()
@@ -54,14 +54,14 @@ function compact(value: unknown): string {
 /** usage 里可读的「单位」：缺失时按积分兜底 */
 function unitOf(usage: Record<string, unknown>): string {
   const unit = usage.unit
-  return typeof unit === 'string' && unit.trim() ? usageUnitLabel(unit.trim(), t) : t('积分')
+  return typeof unit === 'string' && unit.trim() ? usageUnitLabel(unit.trim(), t) : t('Points')
 }
 
 /** 补充查询中的部分失败说明。 */
 function partialErrors(usage: Record<string, unknown>): string[] {
   const parts = usageWarningsOf(usage).map(line => t(line))
   if (usage.statisticsError) {
-    parts.push(t('订阅统计未读到：{error}', { error: String(usage.statisticsError) }))
+    parts.push(t('Failed to read subscription stats: {error}', { error: String(usage.statisticsError) }))
   }
   return parts
 }
@@ -70,19 +70,19 @@ function partialErrors(usage: Record<string, unknown>): string[] {
 export function usageText(row?: UsageRow, now = Date.now()): UsageView {
   // ① 还没查过（快照里没有这一行）
   if (row === undefined) {
-    return { kind: 'muted', text: t('未查询'), detail: t('尚未查询该账号的余额') }
+    return { kind: 'muted', text: t('Not queried'), detail: t('This account\'s balance has not been queried yet') }
   }
 
   // ② 这一行明确失败：「未配置查询凭证」是中性提示，其余才是红色失败
   if (row.error) {
     if (row.code === 'usage_not_configured') {
-      return { kind: 'muted', text: t('未配置'), detail: t(row.error) }
+      return { kind: 'muted', text: t('Not configured'), detail: t(row.error) }
     }
     const status = usageQueryFailureStatus(row, t, formatStamp)
     const previous = row.lastUsage ? usageText({ usage: row.lastUsage }, now) : null
     return {
       kind: 'bad',
-      text: previous?.text || t('查询失败'),
+      text: previous?.text || t('Query failed'),
       detail: [status?.detail || t(row.error), previous?.detail].filter(Boolean).join(' · '),
       failureStatus: previous ? status?.text : undefined,
       failureDetail: previous ? status?.detail : undefined,
@@ -92,18 +92,18 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
 
   const usage = row.usage
   if (!usage || typeof usage !== 'object' || Array.isArray(usage)) {
-    return { kind: 'muted', text: t('无数据'), detail: t('未返回可识别的余额数据') }
+    return { kind: 'muted', text: t('No data'), detail: t('No recognizable balance data returned') }
   }
 
   const data = usage as Record<string, unknown>
-  if (data.error) return { kind: 'bad', text: t('查询失败'), detail: t(String(data.error)) }
+  if (data.error) return { kind: 'bad', text: t('Query failed'), detail: t(String(data.error)) }
   const empty = usageEmptyStateOf(data, t)
   if (empty) return { kind: 'muted', ...empty }
   const errors = partialErrors(data)
   const aggregate = usageAggregateOf(data, t)
   const expiry = creditExpiryText(creditExpirySummaryOf(expiringCreditsOf(data, now), now), t, compact, creditExpiryUnitOf(data))
   const readings = [
-    ...(aggregate ? [`${aggregate.label} ${aggregate.unlimited ? t('不限') : compact(aggregate.remaining)}${aggregate.unit && !aggregate.unlimited ? ` ${aggregate.unit}` : ''}`] : []),
+    ...(aggregate ? [`${aggregate.label} ${aggregate.unlimited ? t('Unlimited') : compact(aggregate.remaining)}${aggregate.unit && !aggregate.unlimited ? ` ${aggregate.unit}` : ''}`] : []),
     ...usageSupplementReadingsOf(data, t, compact),
     ...snapshotReadingsOf(data, t, compact).map(reading => `${reading.name} ${reading.view}`),
     ...recordReadingsOf(data, t, compact, formatStamp),
@@ -122,25 +122,25 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
       const label = usageWindowLabel(window.label, t)
       const view = usageWindowView(window, t, compact)
       const reset = typeof window.resetsAt === 'number' && window.resetsAt > 0
-        ? t('重置 {date}', { date: formatStamp(window.resetsAt) }) : ''
+        ? t('Resets {date}', { date: formatStamp(window.resetsAt) }) : ''
       const expires = typeof window.expiresAt === 'number' && window.expiresAt > 0 && window.expiresAt <= 8.64e15
-        ? t('到期 {date}', { date: formatStamp(window.expiresAt) }) : ''
+        ? t('Expires {date}', { date: formatStamp(window.expiresAt) }) : ''
       return [label, view, reset, expires].filter(Boolean).join(' ')
     }).join(' · ')
-    return withErrors({ kind: baseKind, text: t('分窗口额度'), detail })
+    return withErrors({ kind: baseKind, text: t('Quota by window'), detail })
   }
 
   // ④ workbuddy 既有形状：totalLeft / planLeft / bonusLeft
   if (Object.prototype.hasOwnProperty.call(data, 'totalLeft')) {
     const total = data.unlimited === true ? '∞' : compact(data.totalLeft)
-    const parts = [t('总剩余 {total}', { total })]
+    const parts = [t('Total left {total}', { total })]
     if (data.planLeft !== undefined && data.planLeft !== null) {
-      parts.push(t('套餐 {plan}', { plan: compact(data.planLeft) }))
+      parts.push(t('Plan {plan}', { plan: compact(data.planLeft) }))
     }
     if (data.bonusLeft !== undefined && data.bonusLeft !== null) {
-      parts.push(t('奖励 {bonus}', { bonus: compact(data.bonusLeft) }))
+      parts.push(t('Bonus {bonus}', { bonus: compact(data.bonusLeft) }))
     }
-    return withErrors({ kind: baseKind, text: t('可用 {total}', { total }), detail: parts.join(' · ') })
+    return withErrors({ kind: baseKind, text: t('{total} available', { total }), detail: parts.join(' · ') })
   }
 
   // ⑤ 后端已经给好的紧凑展示串（ZCode 的「1亿 token」之类）优先
@@ -148,7 +148,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
     const text = data.availableView.trim()
     const parts = [text]
     if (data.available !== undefined && data.available !== null) {
-      parts.push(t('可用 {value} {unit}', { value: compact(data.available), unit: unitOf(data) }))
+      parts.push(t('{value} {unit} available', { value: compact(data.available), unit: unitOf(data) }))
     }
     return withErrors({ kind: baseKind, text, detail: parts.join(' · ') })
   }
@@ -157,8 +157,8 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
   if (typeof data.available === 'number' && Number.isFinite(data.available)) {
     return withErrors({
       kind: baseKind,
-      text: t('可用 {value} {unit}', { value: compact(data.available), unit: unitOf(data) }),
-      detail: t('可用 {value} {unit}', { value: compact(data.available), unit: unitOf(data) }),
+      text: t('{value} {unit} available', { value: compact(data.available), unit: unitOf(data) }),
+      detail: t('{value} {unit} available', { value: compact(data.available), unit: unitOf(data) }),
     })
   }
 
@@ -175,7 +175,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
           const name =
             (typeof item.displayName === 'string' && item.displayName) ||
             (typeof item.type === 'string' && item.type) ||
-            t('明细')
+            t('Details')
           const balance =
             item.balance !== undefined && item.balance !== null
               ? compact(item.balance)
@@ -187,7 +187,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
         .join(' · ')
       return withErrors({
         kind: baseKind,
-        text: t('可用 {value} {unit}', { value: compact(lead.balance), unit: walletUnit }),
+        text: t('{value} {unit} available', { value: compact(lead.balance), unit: walletUnit }),
         detail,
       })
     }
@@ -196,7 +196,7 @@ export function usageText(row?: UsageRow, now = Date.now()): UsageView {
   const supplements = usageSupplementReadingsOf(data, t, compact)
   if (supplements.length) return withErrors({ kind: 'muted', text: supplements[0], detail: supplements.join(' · ') })
   // ⑧ 形状认不出来
-  return withErrors({ kind: 'muted', text: t('无数据'), detail: t('未返回可识别的余额数据') })
+  return withErrors({ kind: 'muted', text: t('No data'), detail: t('No recognizable balance data returned') })
 }
 
 /** 把快照行按账号 id 索引（没有 id 的行跳过） */

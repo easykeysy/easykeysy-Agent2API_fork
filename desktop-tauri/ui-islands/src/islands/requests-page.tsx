@@ -99,19 +99,19 @@ function errorMessage(error: unknown): string {
 }
 
 const COLUMNS: Column[] = [
-  { key: 'time', label: t('时间'), sel: '.req-time', track: '92px' },
-  { key: 'target', label: t('提供商 / 账号'), sel: '.req-target', track: 'minmax(0, 1.1fr)' },
-  { key: 'retry', label: t('重试'), sel: '.req-retry', track: '52px' },
-  { key: 'status', label: t('状态'), sel: '.req-status', track: '96px' },
-  { key: 'model', label: t('模型'), sel: '.req-model', track: 'minmax(0, 1.3fr)' },
-  { key: 'client', label: t('客户端'), sel: '.req-client', track: '110px' },
+  { key: 'time', label: t('Time'), sel: '.req-time', track: '92px' },
+  { key: 'target', label: t('Provider / Account'), sel: '.req-target', track: 'minmax(0, 1.1fr)' },
+  { key: 'retry', label: t('Retry'), sel: '.req-retry', track: '52px' },
+  { key: 'status', label: t('Status'), sel: '.req-status', track: '96px' },
+  { key: 'model', label: t('Model'), sel: '.req-model', track: 'minmax(0, 1.3fr)' },
+  { key: 'client', label: t('Client'), sel: '.req-client', track: '110px' },
   { key: 'apiKey', label: t('API Key'), sel: '.req-api-key', track: '140px' },
-  { key: 'dur', label: t('用时'), sel: '.req-dur', track: '96px', align: 'right' },
-  { key: 'speed', label: t('速度'), sel: '.req-speed', track: '96px', align: 'center', legacyAlign: 'right' },
-  { key: 'credit', label: t('积分'), sel: '.req-credit', track: '72px', align: 'center' },
-  { key: 'usage', label: t('用量'), sel: '.req-usage', track: 'minmax(0, 1.6fr)' },
-  { key: 'error', label: t('错误'), sel: '.req-error-cell', track: 'minmax(0, 1.2fr)' },
-  { key: 'detail', label: t('详情'), sel: '.req-detail', track: '60px', align: 'right' },
+  { key: 'dur', label: t('Duration'), sel: '.req-dur', track: '96px', align: 'right' },
+  { key: 'speed', label: t('Speed'), sel: '.req-speed', track: '96px', align: 'center', legacyAlign: 'right' },
+  { key: 'credit', label: t('Points'), sel: '.req-credit', track: '72px', align: 'center' },
+  { key: 'usage', label: t('Usage'), sel: '.req-usage', track: 'minmax(0, 1.6fr)' },
+  { key: 'error', label: t('Error'), sel: '.req-error-cell', track: 'minmax(0, 1.2fr)' },
+  { key: 'detail', label: t('Details'), sel: '.req-detail', track: '60px', align: 'right' },
 ]
 
 const PAGE_SIZES = SERVER_PAGE_SIZES
@@ -131,12 +131,12 @@ const RANGES: readonly string[] = DATE_RANGES
 const DEFAULT_RANGE = 'all'
 
 const RANGE_LABEL: Record<string, string> = {
-  today: t('今天'), yesterday: t('昨天'), 7: t('近 7 天'), 30: t('近 30 天'),
-  month: t('本月'), all: t('全部'), custom: t('自定义区间'),
+  today: t('Today'), yesterday: t('Yesterday'), 7: t('Last 7 days'), 30: t('Last 30 days'),
+  month: t('This month'), all: t('All'), custom: t('Custom range'),
 }
 const RANGE_OPTION_LABEL: Record<string, string> = {
-  today: t('今天'), yesterday: t('昨天'), 7: t('7 天'), 30: t('30 天'),
-  month: t('本月'), all: t('全部'), custom: t('自定义'),
+  today: t('Today'), yesterday: t('Yesterday'), 7: t('7 days'), 30: t('30 days'),
+  month: t('This month'), all: t('All'), custom: t('Custom'),
 }
 
 const RANGE_OPTIONS: readonly SegmentedControlOption<string>[] = RANGES.map(value => ({
@@ -144,13 +144,13 @@ const RANGE_OPTIONS: readonly SegmentedControlOption<string>[] = RANGES.map(valu
 }))
 
 const STATUS_OPTIONS: readonly { value: string; label: string }[] = [
-  { value: '', label: t('全部状态') },
-  { value: 'ok', label: t('成功') },
-  { value: 'error', label: t('失败') },
+  { value: '', label: t('All statuses') },
+  { value: 'ok', label: t('Success') },
+  { value: 'error', label: t('Failed') },
 ]
-const ALL_STATUS_LABEL = t('全部状态')
-const ALL_PROVIDER_LABEL = t('全部提供商')
-const ALL_MODEL_LABEL = t('全部模型')
+const ALL_STATUS_LABEL = t('All statuses')
+const ALL_PROVIDER_LABEL = t('All providers')
+const ALL_MODEL_LABEL = t('All models')
 
 type Filters = { status: string; provider: string; model: string; client: string; apiKey: string }
 const DEFAULT_FILTERS: Filters = { status: '', provider: '', model: '', client: ALL_CLIENTS, apiKey: '' }
@@ -262,7 +262,7 @@ async function refreshFilterOptions(): Promise<void> {
       .filter(Boolean)
     handle?.setFilterOptions(providers, models, filters?.clients || [], filters?.apiKeys || [])
   } catch (error) {
-    console.warn('读取请求日志筛选清单失败，筛选项退化为「全部」:', errorMessage(error))
+    console.warn('Failed to read the request-log filter list; the filter falls back to "All":', errorMessage(error))
   }
 }
 
@@ -277,7 +277,7 @@ function ensureColumns(): void {
   colTried = true
   colHandle = api.register({
     id: 'requests',
-    label: t('请求日志表'),
+    label: t('Request Logs table'),
     columns: COLUMNS.map(({ key, label, align, legacyAlign }) => ({ key, label, align, legacyAlign })),
     mount: () => document.querySelector('.page[data-page="requests"] .panel-head .head-actions'),
     onChange: () => {
@@ -305,9 +305,9 @@ const EMPTY_DATA: PanelData = {
 }
 
 function emptyText(data: PanelData): string {
-  if (!data.loaded) return t('正在加载请求日志…')
-  if (!data.total) return t('暂无请求日志，网关还没有转发过请求')
-  return t('没有符合筛选条件的请求')
+  if (!data.loaded) return t('Loading request logs…')
+  if (!data.total) return t('No request logs yet; the Gateway hasn\'t forwarded any requests')
+  return t('No requests match the current filters')
 }
 
 function RequestsPage() {
@@ -375,7 +375,7 @@ function RequestsPage() {
     loadingRef.current += 1
     try {
       const api = shared().workbuddyDesktop
-      if (!api) throw new Error(t('后端桥不可用'))
+      if (!api) throw new Error(t('Backend bridge unavailable'))
       const result = await api.getStatsRequests(queryParams())
       if (token !== seq) return
       const next: PanelData = {
@@ -396,8 +396,8 @@ function RequestsPage() {
     } catch (error) {
       if (token !== seq) return
       if (!silent) {
-        console.warn('读取请求日志失败:', errorMessage(error))
-        paintError(t('读取请求日志失败，详见控制台'))
+        console.warn('Failed to read the request log:', errorMessage(error))
+        paintError(t('Failed to load request logs; see the console for details'))
       }
     } finally {
       loadingRef.current -= 1
@@ -532,17 +532,17 @@ function RequestsPage() {
   const badgeText = data.error
     ? '—'
     : data.matched === data.total
-      ? t('{n} 条', { n: data.total })
-      : t('{matched} / {total} 条', { matched: data.matched, total: data.total })
-  const liveText = !runningOnly && data.running > 0 ? t(' · {n} 进行中', { n: data.running }) : ''
+      ? t('{n} entries', { n: data.total })
+      : t('{matched} / {total} entries', { matched: data.matched, total: data.total })
+  const liveText = !runningOnly && data.running > 0 ? t(' · {n} in progress', { n: data.running }) : ''
 
-  const summaryParts = [dates ? `${dates.start} ～ ${dates.end}` : RANGE_LABEL[range] || t('全部')]
-  if (dates?.productionOnly) summaryParts.push(t('生产请求'))
-  if (filters.client !== ALL_CLIENTS) summaryParts.push(clientOptions.find(item => clientFilterValue(item.value) === filters.client)?.label || t('未记录客户端'))
+  const summaryParts = [dates ? `${dates.start} ～ ${dates.end}` : RANGE_LABEL[range] || t('All')]
+  if (dates?.productionOnly) summaryParts.push(t('Production requests'))
+  if (filters.client !== ALL_CLIENTS) summaryParts.push(clientOptions.find(item => clientFilterValue(item.value) === filters.client)?.label || t('Unrecorded client'))
   if (filters.apiKey) summaryParts.push(apiKeyOptions.find(item => item.value === filters.apiKey)?.label || filters.apiKey)
-  if (runningOnly) summaryParts.push(t('只看进行中'))
-  else if (filters.status === 'ok') summaryParts.push(t('只看成功'))
-  else if (filters.status === 'error') summaryParts.push(t('只看失败'))
+  if (runningOnly) summaryParts.push(t('In progress only'))
+  else if (filters.status === 'ok') summaryParts.push(t('Success only'))
+  else if (filters.status === 'error') summaryParts.push(t('Failed only'))
   if (filters.provider) summaryParts.push(providerLabelOf(filters.provider))
   if (filters.model) summaryParts.push(filters.model)
 
@@ -566,14 +566,14 @@ function RequestsPage() {
     <Card render={<section />} className='panel'>
       <PageAutoRefresh id='requestsAutoRefresh' settings={auto} onRefresh={() => loadPanel()} />
       <CardHeader className='panel-head'>
-        <h2>{t('请求日志列表')}</h2>
+        <h2>{t('Request Logs')}</h2>
         {}
         <Badge id='req-badge' variant='outline' data-tone=''>{badgeText + liveText}</Badge>
-        <span className='panel-sub'>{t('按时间倒序，全量保留')}</span>
+        <span className='panel-sub'>{t('Reverse chronological order; kept in full')}</span>
         <div className='head-actions'>
           {}
           <Button id='btn-req-clear' variant='destructive'
-            onClick={() => { void shared().wbRequestClearModal?.open?.() }}>{t('清理')}</Button>
+            onClick={() => { void shared().wbRequestClearModal?.open?.() }}>{t('Clear')}</Button>
         </div>
       </CardHeader>
 
@@ -581,7 +581,7 @@ function RequestsPage() {
         <div className='log-filters'>
           {}
           <SegmentedControl options={RANGE_OPTIONS} value={range} onValueChange={onRangeChange}
-            aria-label={t('请求日志时间范围')} className='shrink-0' />
+            aria-label={t('Request Logs time range')} className='shrink-0' />
           {range === 'custom' && dates ? <LogDateFilters dates={dates} onChange={next => {
             current.dates = next
             setDates(next)
@@ -592,8 +592,8 @@ function RequestsPage() {
           <Select value={filters.status} disabled={runningOnly}
             onValueChange={next => onSelectChange({ status: String(next ?? '') })}>
             <SelectTrigger id='req-status' className='min-w-[120px]'
-              title={runningOnly ? t('「仅看进行中」开启时，状态固定为进行中') : t('按请求结果筛选')}
-              aria-label={t('按请求结果筛选')}>
+              title={runningOnly ? t('When "In progress only" is on, the status is pinned to In progress') : t('Filter by request result')}
+              aria-label={t('Filter by request result')}>
               <SelectValue>
                 {STATUS_OPTIONS.find(item => item.value === filters.status)?.label ?? ALL_STATUS_LABEL}
               </SelectValue>
@@ -606,18 +606,18 @@ function RequestsPage() {
           </Select>
           <SearchableSelect value={filters.provider} onValueChange={provider => onSelectChange({ provider })}
             id='req-provider' className='min-w-[120px] max-w-[240px]'
-            title={t('按提供商筛选（只列日志里出现过的）')} aria-label={t('按提供商筛选')}
-            searchPlaceholder={t('搜索提供商')} options={[{ value: '', label: ALL_PROVIDER_LABEL }, ...providerSelectOptions]} />
+            title={t('Filter by provider (only lists providers seen in the logs)')} aria-label={t('Filter by provider')}
+            searchPlaceholder={t('Search providers')} options={[{ value: '', label: ALL_PROVIDER_LABEL }, ...providerSelectOptions]} />
           <SearchableSelect value={filters.model} onValueChange={model => onSelectChange({ model })}
             id='req-model' className='min-w-[120px] max-w-[240px]'
-            title={t('按模型筛选（只列日志里出现过的；精确匹配模型名）')} aria-label={t('按模型筛选')}
-            searchPlaceholder={t('搜索模型')}
+            title={t('Filter by model (only lists models seen in the logs; matches the exact model name)')} aria-label={t('Filter by model')}
+            searchPlaceholder={t('Search models')}
             options={[{ value: '', label: ALL_MODEL_LABEL }, ...modelSelectOptions.map(value => ({ value, label: value }))]} />
           <SourceLogFilters filters={filters} clients={clientOptions} apiKeys={apiKeyOptions} onChange={onSelectChange} />
           {}
           <Toggle id='btn-req-running' variant='outline' size='default' pressed={runningOnly}
             onPressedChange={onRunningOnlyChange}
-            title={t('只显示正在转发中的请求（状态列按阶段显示：连接中 / 等待响应 / 响应中 / 重试中，用时列显示已用时）')}>{t('仅看进行中')}</Toggle>
+            title={t('Only shows requests currently being forwarded (the status column shows the phase: Connecting / Awaiting response / Streaming / Retrying; the duration column shows elapsed time)')}>{t('In progress only')}</Toggle>
           <div className='spacer' />
           <span className='panel-sub' id='req-summary'>{summaryParts.join(' · ')}</span>
         </div>

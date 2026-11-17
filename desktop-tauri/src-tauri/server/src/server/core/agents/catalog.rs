@@ -92,7 +92,7 @@ pub fn validate_profile(store: &AccountStore, profile: &Profile) -> Result<(), S
     ]);
     let unavailable = wanted.filter(|id| !id.is_empty() && !ids.contains(&id.to_lowercase())).collect::<Vec<_>>();
     if !unavailable.is_empty() {
-        return Err(format!("以下模型已不可用或所选网关 Key 无权使用，请重新选择：{}", unavailable.join("、")));
+        return Err(format!("以下模型已不可用或所选网关 Key 无权使用，请重新选择：{}", unavailable.join(", ")));
     }
     Ok(())
 }

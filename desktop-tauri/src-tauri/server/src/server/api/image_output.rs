@@ -32,7 +32,7 @@ fn format_of(bytes: &[u8]) -> Result<image::ImageFormat, GatewayError> {
         Ok(format)
     } else {
         Err(failure(
-            "上游返回了不支持的图片编码（仅支持 png、jpeg、webp）",
+            "上游返回了不支持的图片编码（仅支持 png, jpeg, webp)",
         ))
     }
 }
@@ -79,7 +79,7 @@ fn encode(
             compression.unwrap_or(90).max(1),
         )
         .encode_image(&decoded.to_rgb8())
-        .map_err(|_| failure("生成图片 JPEG 编码失败"))?;
+        .map_err(|_| failure("Generate images JPEG 编码失败"))?;
     } else {
         decoded
             .write_to(&mut out, format)
@@ -183,7 +183,7 @@ pub(super) async fn download(
         }
         if !response.status().is_success() {
             return Err(failure(format!(
-                "下载生成图片失败（HTTP {}）",
+                "下载生成图片失败（HTTP {})",
                 response.status().as_u16()
             )));
         }
@@ -269,7 +269,7 @@ async fn normalize_inner(
     let n = payload.get("n").and_then(Value::as_u64).unwrap_or(1) as usize;
     if data.len() < n {
         return Err(failure(format!(
-            "请求 {n} 张图片，上游仅返回 {} 张，未重复调用生图",
+            "Requests {n} 张图片，上游仅返回 {} 张，未重复调用生图",
             data.len()
         )));
     }
@@ -318,7 +318,7 @@ async fn normalize_inner(
             .and_then(Value::as_str)
             .filter(|value| !value.is_empty());
         if want_url && b64.is_none() && output_format.is_none() && compression.is_none() {
-            let link = link.ok_or_else(|| failure("上游图片条目缺少 url 或 b64_json"))?;
+            let link = link.ok_or_else(|| failure("上游图片条目缺少 url or b64_json"))?;
             let parsed = url::Url::parse(link).map_err(|_| failure("上游返回了无效图片链接"))?;
             if !matches!(parsed.scheme(), "https" | "http")
                 || !parsed.username().is_empty()
@@ -337,7 +337,7 @@ async fn normalize_inner(
                     .map_err(|_| failure("上游生成图片不是有效 base64"))?
             } else {
                 download(
-                    link.ok_or_else(|| failure("上游图片条目缺少 url 或 b64_json"))?,
+                    link.ok_or_else(|| failure("上游图片条目缺少 url or b64_json"))?,
                     proxy.as_ref(),
                     system_proxy,
                 )

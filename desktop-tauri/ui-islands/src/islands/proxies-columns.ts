@@ -35,13 +35,13 @@ export type ProxyColumn = { key: string; label: string; align?: Align }
  * 空串会退化成原始 key（与账号表的「选择」同一条约定）。
  */
 export const PROXY_COLUMNS: readonly ProxyColumn[] = [
-  { key: 'pick', label: t('选择'), align: 'center' },
-  { key: 'name', label: t('代理名称') },
-  { key: 'addr', label: t('地址') },
-  { key: 'usage', label: t('使用情况') },
-  { key: 'state', label: t('启用'), align: 'center' },
-  { key: 'test', label: t('最近检测') },
-  { key: 'act', label: t('操作'), align: 'right' },
+  { key: 'pick', label: t('Select'), align: 'center' },
+  { key: 'name', label: t('Proxy name') },
+  { key: 'addr', label: t('Address') },
+  { key: 'usage', label: t('Usage') },
+  { key: 'state', label: t('enabled'), align: 'center' },
+  { key: 'test', label: t('Last check') },
+  { key: 'act', label: t('Actions'), align: 'right' },
 ]
 
 
@@ -122,7 +122,7 @@ export function setupColumns(onChange: () => void): boolean {
   if (!api?.register) return false
   handle = api.register({
     id: COL_SETTINGS_ID,
-    label: t('代理池表'),
+    label: t('Proxy pool table'),
     columns: PROXY_COLUMNS.map(column => ({
       key: column.key,
       label: column.label,

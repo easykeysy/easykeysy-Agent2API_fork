@@ -21,7 +21,7 @@ impl AccountStore {
         };
         if interval != 0 && !(MIN_QUERY_INTERVAL_SECONDS..=MAX_QUERY_INTERVAL_SECONDS).contains(&interval) {
             return Err(AccountStoreError::bad_request(format!(
-                "查询间隔必须是 {MIN_QUERY_INTERVAL_SECONDS}~{MAX_QUERY_INTERVAL_SECONDS} 秒"
+                "查询间隔必须是 {MIN_QUERY_INTERVAL_SECONDS}~{MAX_QUERY_INTERVAL_SECONDS} seconds"
             )));
         }
         if enabled && interval == 0 {
@@ -39,7 +39,7 @@ impl AccountStore {
         let timeout = match fields.get("timeoutSeconds") {
             None => DEFAULT_QUERY_TIMEOUT_SECONDS,
             Some(value) => value.as_u64().filter(|value| (15..=MAX_QUERY_TIMEOUT_SECONDS).contains(value))
-                .ok_or_else(|| AccountStoreError::bad_request("整轮查询时限必须是 15~180 秒的整数"))?,
+                .ok_or_else(|| AccountStoreError::bad_request("The overall timeout must be an integer from 15 to 180 seconds."))?,
         };
         Ok(json!({ "enabled": enabled, "interval": interval, "retries": retries, "timeoutSeconds": timeout }))
     }
@@ -53,21 +53,21 @@ impl AccountStore {
         let mut description = if enabled {
             let seconds = next.get("interval").and_then(Value::as_i64).unwrap_or(0);
             let span = if seconds > 0 && seconds % 3600 == 0 {
-                format!("{} 小时", seconds / 3600)
+                format!("{} hours", seconds / 3600)
             } else if seconds > 0 && seconds % 60 == 0 {
-                format!("{} 分钟", seconds / 60)
+                format!("{} minutes", seconds / 60)
             } else {
-                format!("{seconds} 秒")
+                format!("{seconds} seconds")
             };
-            format!("自动查询余额 → 开启（每 {span}）")
+            format!("Auto-query balance → 开启（每 {span})")
         } else {
-            "自动查询余额 → 关闭".to_string()
+            "Auto-query balance → Close".to_string()
         };
         if let Some(retries) = next.get("retries").and_then(Value::as_u64) {
-            description.push_str(&format!("；失败重试 → {retries} 次"));
+            description.push_str(&format!("；失败重试 → {retries} times"));
         }
         if let Some(timeout) = next.get("timeoutSeconds").and_then(Value::as_u64) {
-            description.push_str(&format!("；整轮时限 → {timeout} 秒"));
+            description.push_str(&format!("；整轮时限 → {timeout} seconds"));
         }
         description
     }

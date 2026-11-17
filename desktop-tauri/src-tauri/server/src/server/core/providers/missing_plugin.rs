@@ -83,7 +83,7 @@ impl ProviderAdapter for MissingPluginAdapter {
             message: if detail.is_empty() {
                 message
             } else {
-                format!("{message}（上游原文：{detail}）")
+                format!("{message}（上游原文：{detail})")
             },
             upstream_code: None,
         }
@@ -118,7 +118,7 @@ impl ProviderAdapter for MissingPluginAdapter {
         _account_id: &'a str,
         _force: bool,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ModelRefreshOutcome> + Send + 'a>> {
-        Box::pin(async move { ModelRefreshOutcome::failed(missing_plugin_message(self.0, "模型目录刷新")) })
+        Box::pin(async move { ModelRefreshOutcome::failed(missing_plugin_message(self.0, "Model catalog refresh")) })
     }
 }
 

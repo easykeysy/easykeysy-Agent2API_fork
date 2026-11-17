@@ -27,7 +27,7 @@ function connectTray(): void {
         host.wbApp.showPage('settings', { persist: false, checkUpdate: true })
       }
     } catch (error) {
-      host.wbApp.toast(t('检查更新失败：{error}', {
+      host.wbApp.toast(t('Update check failed: {error}', {
         error: error instanceof Error ? error.message : String(error),
       }), 'err')
     }

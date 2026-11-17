@@ -61,12 +61,12 @@ if [ "$need_islands" = 0 ] && [ "$need_mobile" = 0 ] && [ "$need_i18n" = 0 ]; th
 fi
 
 if ! command -v npm > /dev/null 2>&1; then
-  echo "pre-commit: 检测到前端源码改动，但找不到 npm，无法重建产物。" >&2
-  echo "  装好 Node 后重试，或用 git commit --no-verify 跳过（不推荐）。" >&2
+  echo "pre-commit: Frontend source changes were detected, but npm was not found; the artifacts cannot be rebuilt." >&2
+  echo "  Install Node and retry, or skip with git commit --no-verify (not recommended)." >&2
   exit 1
 fi
 
-echo "pre-commit: 检测到前端源码改动，重建入库产物……"
+echo "pre-commit: Frontend source changes detected; rebuilding the committed artifacts……"
 
 if [ "$need_islands" = 1 ]; then
   npm --prefix desktop-tauri/ui-islands run build
@@ -85,5 +85,5 @@ fi
 
 # 产物更新后可能在暂存区留下差异（也可能没有 —— 那说明本来就同源），
 # 两种情况都放行；真正的把关交给构建是否成功
-echo "pre-commit: 产物已重建并加入本次提交"
+echo "pre-commit: The artifacts have been rebuilt and included in this commit"
 exit 0

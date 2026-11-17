@@ -88,7 +88,7 @@ export async function checkApkUpdate(): Promise<ApkUpdateInfo> {
   const raw = await apiCall<RawCheckResult>(
     `/api/update/check?current=${encodeURIComponent(APP_VERSION)}`,
   )
-  if (raw.channelChanged && raw.checked === false) throw new Error(t('更新通道已改变，请重新检查更新。'))
+  if (raw.channelChanged && raw.checked === false) throw new Error(t('Update channels changed. Check for updates again.'))
   const asset = raw.androidAsset && raw.androidAsset.url ? raw.androidAsset : null
   return {
     forceUpdate: raw.forceUpdate,
@@ -213,7 +213,7 @@ export async function downloadApk(
   url: string,
   onProgress?: (progress: DownloadProgress) => void,
 ): Promise<{ path: string; size: number }> {
-  if (downloadTask) throw new Error('下载或探测正在进行')
+  if (downloadTask) throw new Error('A download or probe is in progress')
   downloadCanceled = false
   const task = runApkDownload(url, onProgress)
   downloadTask = task
@@ -230,11 +230,11 @@ async function runApkDownload(
     // iOS 与浏览器都会走到这里：两者都不允许应用内自装安装包
     throw new Error(
       nativePlatform() === 'ios'
-        ? 'iOS 不支持应用内安装，请到 GitHub Release 页面下载'
-        : '当前不是 APK 形态，无法在应用内更新',
+        ? 'iOS In-app installation is not supported; download from the GitHub Releases page'
+        : 'The current form is not an APK; in-app updates are not possible',
     )
   }
-  if (!url) throw new Error('缺少下载地址')
+  if (!url) throw new Error('Missing download address')
 
   let plan: DownloadPlan
   try {
@@ -243,15 +243,15 @@ async function runApkDownload(
     if (!(error instanceof ApiError) || error.status !== 404) throw error
     plan = { urls: [url] }
   }
-  if (!plan.urls?.length) throw new Error('没有可用的下载源')
-  if (downloadCanceled) throw new Error('已取消下载')
+  if (!plan.urls?.length) throw new Error('No download source is available')
+  if (downloadCanceled) throw new Error('Download cancelled')
   const candidates = [...plan.urls]
   const hasNativeSelection = await sourceSelectionSupported(api)
   if (plan.mode === 'auto' && candidates.length > 1 && hasNativeSelection) {
-    if (downloadCanceled) throw new Error('已取消下载')
+    if (downloadCanceled) throw new Error('Download cancelled')
     onProgress?.({ received: 0, total: 0, percent: -1, phase: 'selecting' })
     const selected = await api.selectSources({ urls: candidates, sha256: plan.sha256 || undefined, scope: activeServerId() || 'local' })
-    if (downloadCanceled) throw new Error('已取消下载')
+    if (downloadCanceled) throw new Error('Download cancelled')
     const valid = selected.urls.filter(candidate => candidates.includes(candidate))
     candidates.splice(0, candidates.length, ...new Set([...valid, ...candidates]))
   }
@@ -261,16 +261,16 @@ async function runApkDownload(
     handle = await api.addListener('downloadProgress', data => onProgress({ ...data, phase: 'downloading', source: currentSource }))
   }
   try {
-    let lastError: unknown = new Error('没有可用的下载源')
+    let lastError: unknown = new Error('No download source is available')
     for (const candidate of candidates) {
-      if (downloadCanceled) throw new Error('已取消下载')
+      if (downloadCanceled) throw new Error('Download cancelled')
       try {
         currentSource = new URL(candidate).host
         onProgress?.({ received: 0, total: plan.size || 0, percent: -1, phase: 'downloading', source: currentSource })
         const result = await api.download({ url: candidate, sha256: plan.sha256 || undefined, size: plan.size })
         return result
       } catch (error) {
-        if (downloadCanceled) throw new Error('已取消下载')
+        if (downloadCanceled) throw new Error('Download cancelled')
         const message = error instanceof Error ? error.message : String(error)
         if (/限流|HTTP 429\b/.test(message) || (!hasNativeSelection && /HTTP 403\b/.test(message))) throw error
         lastError = error
@@ -308,8 +308,8 @@ export async function installApk(): Promise<void> {
   if (!api) {
     throw new Error(
       nativePlatform() === 'ios'
-        ? 'iOS 不支持应用内安装，请到 GitHub Release 页面下载'
-        : '当前不是 APK 形态，无法安装',
+        ? 'iOS In-app installation is not supported; download from the GitHub Releases page'
+        : 'The current form is not an APK; installation is not possible',
     )
   }
   await api.install()

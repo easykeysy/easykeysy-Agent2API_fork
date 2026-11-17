@@ -3,7 +3,7 @@
   "version": "3.5.0-beta.1",
   "private": true,
   "type": "module",
-  "description": "Agent2API 手机端 —— 响应式 Web / PWA，消费 ui-kit（Base UI + Tailwind v4），产物落 ui/m/",
+  "description": "Agent2API Mobile —— Responsive web / PWA, consuming the ui-kit (Base UI + Tailwind v4); output lands in ui/m/",
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "build:native": "tsc --noEmit && vite build --mode apk",

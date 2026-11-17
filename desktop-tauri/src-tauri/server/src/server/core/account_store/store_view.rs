@@ -960,10 +960,10 @@ mod tests {
     #[test]
     fn custom_note_wins_over_email() {
         let value = fields(json!({
-            "provider": "qoder", "name": "备注名", "nameCustom": true,
+            "provider": "qoder", "name": "Label", "nameCustom": true,
             "email": "a@b.com", "userId": "u1",
         }));
-        assert_eq!(display_name_of(&value, "id-1"), "备注名");
+        assert_eq!(display_name_of(&value, "id-1"), "Label");
     }
 
     #[test]

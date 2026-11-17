@@ -3,7 +3,7 @@ use super::super::{files, ClientDef, ConfigFormat};
 use super::paths::ResourcePaths;
 
 pub fn read(paths: &ResourcePaths) -> Result<Value, String> {
-    let (path, format, parents) = paths.mcp.as_ref().ok_or("尚未支持这个客户端的 MCP 配置")?;
+    let (path, format, parents) = paths.mcp.as_ref().ok_or("尚未支持这个客户端的 MCP Profile")?;
     let bytes = files::read(path)?;
     let original = files::text(bytes.as_deref())?;
     let value = files::parse(*format, &original)?;
@@ -29,7 +29,7 @@ pub fn read(paths: &ResourcePaths) -> Result<Value, String> {
 
 pub fn change(def: &ClientDef, paths: &ResourcePaths, name: &str, config: Option<&Value>) -> Result<files::Change, String> {
     if name.is_empty() || name.len() > 128 || name.chars().any(char::is_control) { return Err("MCP 服务名称无效".into()); }
-    let (path, format, parents) = paths.mcp.as_ref().ok_or("尚未支持这个客户端的 MCP 配置")?;
+    let (path, format, parents) = paths.mcp.as_ref().ok_or("尚未支持这个客户端的 MCP Profile")?;
     if let Some(config) = config { validate(def, config)?; }
     let mut change = files::Change::load(path.clone())?;
     super::reject_links(path)?;
@@ -55,23 +55,23 @@ fn validate(def: &ClientDef, value: &Value) -> Result<(), String> {
         match object.get("type").and_then(Value::as_str) {
             Some("local") => {
                 if !object.get("command").and_then(Value::as_array).is_some_and(|items| !items.is_empty() && items.iter().all(|item| item.as_str().is_some_and(|text| !text.is_empty()))) {
-                    return Err("OpenCode 本地 MCP 的 command 必须是非空字符串数组".into());
+                    return Err("OpenCode 本地 MCP — see the command 必须是非空字符串数组".into());
                 }
             }
             Some("remote") => validate_url(object.get("url"))?,
-            _ => return Err("OpenCode MCP 类型必须为 local 或 remote".into()),
+            _ => return Err("OpenCode MCP 类型必须为 local or remote".into()),
         }
     } else if let Some(url) = object.get("httpUrl").or_else(|| object.get("url")) { validate_url(Some(url))?; }
     else if !object.get("command").and_then(Value::as_str).is_some_and(|text| !text.trim().is_empty()) {
-        return Err("MCP 配置需要 command 或 HTTP(S) 地址".into());
+        return Err("MCP 配置需要 command or HTTP(S) Address".into());
     }
     if let Some(args) = object.get("args") {
         if !args.as_array().is_some_and(|items| items.iter().all(Value::is_string)) { return Err("MCP args 必须是字符串数组".into()); }
     }
     if def.id == "gemini-cli" && object.get("type").and_then(Value::as_str) == Some("http") && !object.contains_key("httpUrl") {
-        return Err("Gemini CLI 的 HTTP MCP 请使用 httpUrl 字段".into());
+        return Err("Gemini CLI — see the HTTP MCP 请使用 httpUrl field".into());
     }
-    if *format_for(def) == ConfigFormat::Toml && object.values().any(Value::is_null) { return Err("TOML MCP 不支持 null 字段".into()); }
+    if *format_for(def) == ConfigFormat::Toml && object.values().any(Value::is_null) { return Err("TOML MCP Not supported null field".into()); }
     Ok(())
 }
 

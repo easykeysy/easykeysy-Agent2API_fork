@@ -119,7 +119,7 @@ pub fn write(
             .unwrap_or_else(|| format!("{id}/{}", model.id));
         let existing = value.get("models").and_then(|v| v.get(&key));
         if existing.is_some_and(|entry| string(entry, "provider") != id) {
-            return Err(format!("Kimi 模型名称 {key} 已由其它提供商使用，拒绝覆盖"));
+            return Err(format!("Kimi Model name {key} 已由其它提供商使用，拒绝覆盖"));
         }
         let original = imported.and_then(|v| v.get(&key)).unwrap_or(&Value::Null);
         let mut entry = native_entry(existing, original)?;

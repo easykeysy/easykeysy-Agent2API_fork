@@ -58,7 +58,7 @@ function tryMount(entry: PendingMount): void {
   try {
     entry.mount()
   } catch (error) {
-    console.error('[islands] 页面挂载失败:', entry.selector, error)
+    console.error('[islands] Failed to mount the page:', entry.selector, error)
   }
 }
 

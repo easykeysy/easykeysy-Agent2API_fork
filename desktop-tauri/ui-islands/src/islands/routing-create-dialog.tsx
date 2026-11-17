@@ -41,15 +41,15 @@ export function RoutingCreateDialog({ workspace, choices, accounts, lastUsed, re
     if (type === 'group') {
       const message = routeGroupFieldsError(fields, reserved)
       if (message) { setError(message); return }
-      if (!picked.length) { setError(t('请选择模型')); return }
+      if (!picked.length) { setError(t('Select a model')); return }
       if (!onCreateGroup({ id: newRouteId(), name: fields.name.trim(), model: fields.model.trim().toLowerCase(), description: fields.description.trim(),
         strategy: 'order', sticky: 'auto', members: createRouteMembers(picked, accounts) })) {
-        setError(t('路由数据正在更新，请稍后重试')); return
+        setError(t('Routing data is being updated. Please try again shortly.')); return
       }
       onClose()
       return
     }
-    if (!selected) { setError(t('请选择模型')); return }
+    if (!selected) { setError(t('Select a model')); return }
     setBusy(true)
     try { if (await onCreateModel(selectedModel)) onClose() }
     catch (failure) { setError(errorMessage(failure)) }
@@ -61,37 +61,37 @@ export function RoutingCreateDialog({ workspace, choices, accounts, lastUsed, re
     if (busy) { details.cancel(); return }
     onClose()
   }}><DialogContent className='routing-create-dialog'>
-    <DialogHeader><RouteIcon name='route' /><DialogTitle>{t('新增路由配置')}</DialogTitle></DialogHeader>
+    <DialogHeader><RouteIcon name='route' /><DialogTitle>{t('Add routing configuration')}</DialogTitle></DialogHeader>
     <DialogBody>
-      <SegmentedControl aria-label={t('路由类型')} value={type} disabled={locked} className='self-start' options={[
-        { value: 'model', label: t('模型独立路由') }, { value: 'group', label: t('路由组') },
+      <SegmentedControl aria-label={t('Route type')} value={type} disabled={locked} className='self-start' options={[
+        { value: 'model', label: t('Model-specific route') }, { value: 'group', label: t('Route group') },
       ]} onValueChange={value => { setType(value); setError('') }} />
       {type === 'model' ? <>
-        <p className='routing-config-note'>{t('从现有模型中创建独立配置，自动列出提供它的全部提供商；之后的修改只跟随这个模型。')}</p>
-        <Input value={search} disabled={locked} placeholder={t('搜索模型')} aria-label={t('搜索模型')}
+        <p className='routing-config-note'>{t('Create an independent configuration for an existing model. All providers serving it are listed automatically; later changes apply only to this model.')}</p>
+        <Input value={search} disabled={locked} placeholder={t('Search models')} aria-label={t('Search models')}
           onChange={event => setSearch(event.currentTarget.value)} />
         <div className='routing-create-models'>
-          <Button variant='ghost' className='routing-model-all' disabled={locked} aria-pressed={!search.trim()} title={t('显示全部')}
-            onClick={() => setSearch('')}>{t('全部')}</Button>
-          <RadioGroup className='routing-model-picker routing-create-model-list' value={selectedModel} disabled={locked} aria-label={t('模型独立路由')}
+          <Button variant='ghost' className='routing-model-all' disabled={locked} aria-pressed={!search.trim()} title={t('Show all')}
+            onClick={() => setSearch('')}>{t('All')}</Button>
+          <RadioGroup className='routing-model-picker routing-create-model-list' value={selectedModel} disabled={locked} aria-label={t('Model-specific route')}
             onValueChange={value => setSelectedModel(value)}>
             {models.map(model => <Label key={model} className='routing-single-model' data-checked={selectedModel === model ? '' : undefined}>
               <RadioGroupItem value={model} /><span title={model}>{model}</span>
             </Label>)}
-            {!models.length ? <Empty>{search.trim() ? t('没有匹配的模型') : t('没有可添加的模型')}</Empty> : null}
+            {!models.length ? <Empty>{search.trim() ? t('No matching models') : t('No models available to add')}</Empty> : null}
           </RadioGroup>
         </div>
-        <p className='routing-config-note'>{t('共 {n} 个可添加的模型', { n: availableModels.length })}{selected ? ` · ${selectedModel}` : ''}</p>
+        <p className='routing-config-note'>{t('{n} models can be added', { n: availableModels.length })}{selected ? ` · ${selectedModel}` : ''}</p>
       </> : <>
         <RoutingGroupForm value={fields} onChange={setFields} disabled={locked} />
-        <p className='routing-config-note'>{t('可以跨提供商、跨模型多选。同一提供商也可以加入不同模型。')}</p>
+        <p className='routing-config-note'>{t('Select multiple models across providers. Different models from the same provider can also be included.')}</p>
         <RoutingModelPicker choices={memberChoices} accounts={accounts} lastUsed={usageSnapshot} selected={selectedMembers} onChange={setSelectedMembers} disabled={locked} />
       </>}
       {error || type === 'model' && modelError ? <p className='routing-config-error' role='alert'>{error || modelError}</p> : null}
     </DialogBody>
-    <DialogFooter><Button variant='outline' disabled={busy} onClick={onClose}>{t('取消')}</Button>
+    <DialogFooter><Button variant='outline' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
       <Button disabled={locked || (type === 'model' ? !selected : !picked.length || !fields.name.trim() || !fields.model.trim())} onClick={() => void create()}>
-        {busy ? t('保存中…') : type === 'model' ? t('创建独立配置') : t('创建草稿')}
+        {busy ? t('Saving…') : type === 'model' ? t('Create independent configuration') : t('Create draft')}
       </Button>
     </DialogFooter>
   </DialogContent></Dialog>

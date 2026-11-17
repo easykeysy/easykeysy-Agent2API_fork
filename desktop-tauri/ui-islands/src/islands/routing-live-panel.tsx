@@ -30,79 +30,79 @@ export function RoutingLivePanel({ workspace, model, loading, error, dirty, glob
   const available = queue?.ordered || []
   const blocked = queue?.blocked || []
   const next = available[0]
-  const badge = preview ? { dot: 'warning' as const, text: t('草稿预演') } : dirty
-    ? { dot: 'warning' as const, text: t('按已保存配置') }
-    : customized ? { dot: 'muted' as const, text: t('独立配置') }
-      : { dot: 'success' as const, text: t('继承全局') }
+  const badge = preview ? { dot: 'warning' as const, text: t('Draft preview') } : dirty
+    ? { dot: 'warning' as const, text: t('Using saved configuration') }
+    : customized ? { dot: 'muted' as const, text: t('Independent configuration') }
+      : { dot: 'success' as const, text: t('Inherit global') }
 
   const side = (entry: RouteEntry) => {
     const label = entry.providerLabel || entry.provider
     const reset = entry.resetAt && entry.resetAt > now
-      ? t('{time} 后恢复', { time: formatDuration(entry.resetAt - now) })
+      ? t('Recovers in {time}', { time: formatDuration(entry.resetAt - now) })
       : ''
     return <div className='routing-live-side'><span>{label}</span>{entry.model ? <code>{entry.model}</code> : null}{reset ? <span className='routing-live-reset'>{reset}</span> : null}</div>
   }
 
-  if (compact) return <div className='routing-preview-summary' aria-label={t('草稿预演')}>
+  if (compact) return <div className='routing-preview-summary' aria-label={t('Draft preview')}>
     {globalScope && customized && workspace ? <div className='routing-live-banner'>
-      <b>{t('{model} 有独立配置', { model })}</b><span>{t('左侧修改的是全局默认，不会影响它。')}</span>
-      <Button variant='link' size='sm' onClick={() => onOpenScope(model)}>{t('打开该模型配置')}</Button>
+      <b>{t('{model} has its own configuration', { model })}</b><span>{t('Changes on the left apply to the global default and do not affect it.')}</span>
+      <Button variant='link' size='sm' onClick={() => onOpenScope(model)}>{t('Open this model\'s configuration')}</Button>
     </div> : null}
-    {loading ? <div className='routing-live-loading'><Spinner />{t('计算中…')}</div>
-      : error ? <p className='routing-live-error' role='alert'>{error}<Button variant='link' size='sm' onClick={onRefresh}>{t('重试')}</Button></p>
+    {loading ? <div className='routing-live-loading'><Spinner />{t('Calculating…')}</div>
+      : error ? <p className='routing-live-error' role='alert'>{error}<Button variant='link' size='sm' onClick={onRefresh}>{t('Retry')}</Button></p>
         : workspace ? <>
           {available.slice(0, 3).map((entry, index) => <div className={`routing-preview-row${index === 0 ? ' is-first' : ''}`} key={entry.candidateId || `${entry.memberId || ''}:${entry.id}`}>
             <span className='routing-live-rank'>{String(index + 1).padStart(2, '0')}</span>
             <div className='routing-preview-row-main'><b title={entry.name}>{entry.name}</b><span title={entry.reason}>{entry.providerLabel || entry.provider}{entry.model ? ` · ${entry.model}` : ''}</span></div>
-            <Badge shape='tag' variant={index === 0 ? 'brand' : 'ghost'}>{index === 0 ? t('预演首选') : t('候选')}</Badge>
+            <Badge shape='tag' variant={index === 0 ? 'brand' : 'ghost'}>{index === 0 ? t('Preview primary choice') : t('Candidates')}</Badge>
           </div>)}
-          {!available.length ? <p className='routing-live-empty'>{t('没有可用账号')}</p> : null}
-          <p className='routing-preview-counts'>{t('{available} 可用 · {blocked} 跳过', { available: available.length, blocked: blocked.length })}</p>
-        </> : <p className='routing-live-empty'>{modelsAvailable ? t('选择预览模型后查看队列') : t('还没有可用模型，先在账号页添加账号')}</p>}
+          {!available.length ? <p className='routing-live-empty'>{t('No accounts available')}</p> : null}
+          <p className='routing-preview-counts'>{t('{available} available · {blocked} skipped', { available: available.length, blocked: blocked.length })}</p>
+        </> : <p className='routing-live-empty'>{modelsAvailable ? t('Select a preview model to view the queue') : t('No models available yet. Add an account on the Accounts page first.')}</p>}
   </div>
 
-  return <aside className='routing-live-panel' aria-label={t('此刻队列')}>
+  return <aside className='routing-live-panel' aria-label={t('Current queue')}>
     <div className='routing-live-head'>
-      <b>{t('此刻队列')}</b>
+      <b>{t('Current queue')}</b>
       <span className='routing-live-badge'><StatusDot variant={badge.dot} />{badge.text}</span>
       <span className='routing-live-model'>{model}</span>
-      <Button variant='ghost' size='sm' className='routing-live-refresh' onClick={onRefresh} title={t('刷新')} aria-label={t('刷新')}>
+      <Button variant='ghost' size='sm' className='routing-live-refresh' onClick={onRefresh} title={t('Refresh')} aria-label={t('Refresh')}>
         <RouteIcon name='refresh' size={13} />
       </Button>
     </div>
 
     {globalScope && customized && workspace ? <div className='routing-live-banner'>
-      <b>{t('{model} 有独立配置', { model })}</b>
-      <span>{t('左侧修改的是全局默认，不会影响它。')}</span>
-      <Button variant='outline' size='sm' onClick={() => onOpenScope(model)}>{t('打开该模型配置')}</Button>
+      <b>{t('{model} has its own configuration', { model })}</b>
+      <span>{t('Changes on the left apply to the global default and do not affect it.')}</span>
+      <Button variant='outline' size='sm' onClick={() => onOpenScope(model)}>{t('Open this model\'s configuration')}</Button>
     </div> : null}
 
     {loading && !workspace ? <div className='routing-live-loading'><Spinner /></div> : null}
     {error ? <p className='routing-live-error' role='alert'>{error}</p> : null}
     {!loading && !error && !workspace ? <div className='routing-live-empty'>
-      {modelsAvailable ? t('选择预览模型后查看队列') : t('还没有可用模型，先在账号页添加账号')}
+      {modelsAvailable ? t('Select a preview model to view the queue') : t('No models available yet. Add an account on the Accounts page first.')}
     </div> : null}
 
     {workspace ? <>
       <div className='routing-live-summary'>
         {next ? <>
-          <div className='routing-live-eyebrow'>{preview ? t('预演首选') : t('当前可用队首')}</div>
+          <div className='routing-live-eyebrow'>{preview ? t('Preview primary choice') : t('Current available queue head')}</div>
           <div className='routing-live-name'>{next.model || next.name}</div>
           {next.model ? <p className='routing-live-reason'>{next.providerLabel || next.provider} · {next.name}</p> : null}
           <p className='routing-live-reason'>{next.reason}</p>
         </> : <>
-          <div className='routing-live-eyebrow'>{t('下一条请求')}</div>
-          <div className='routing-live-name is-empty'>{t('没有可用账号')}</div>
-          <p className='routing-live-reason'>{t('先处理凭证、限额或参与范围。')}</p>
+          <div className='routing-live-eyebrow'>{t('Next request')}</div>
+          <div className='routing-live-name is-empty'>{t('No accounts available')}</div>
+          <p className='routing-live-reason'>{t('Resolve credentials, limits, or scope first.')}</p>
         </>}
         <div className='routing-live-counts'>
-          <span>{t('{available} 可用 · {blocked} 跳过', { available: available.length, blocked: blocked.length })}</span>
-          <span>{strategyLabel(queue?.strategy)} · {t('粘滞 {mode}', { mode: stickyLabel(queue?.sticky) })}</span>
+          <span>{t('{available} available · {blocked} skipped', { available: available.length, blocked: blocked.length })}</span>
+          <span>{strategyLabel(queue?.strategy)} · {t('Affinity {mode}', { mode: stickyLabel(queue?.sticky) })}</span>
         </div>
       </div>
 
       {available.length ? <>
-        <div className='routing-live-subhead'><span>{t('可用候选')}</span><span>{available.length}</span></div>
+        <div className='routing-live-subhead'><span>{t('Available candidates')}</span><span>{available.length}</span></div>
         <div className='routing-live-list'>{available.map((entry, index) => <div className='routing-live-row' key={entry.candidateId || `${entry.memberId || ''}:${entry.id}`}>
           <span className='routing-live-rank'>{index + 1}</span>
           <div className='routing-live-main'>
@@ -114,7 +114,7 @@ export function RoutingLivePanel({ workspace, model, loading, error, dirty, glob
       </> : null}
 
       {blocked.length ? <>
-        <div className='routing-live-subhead'><span>{t('被跳过')}</span><span>{blocked.length}</span></div>
+        <div className='routing-live-subhead'><span>{t('Skipped')}</span><span>{blocked.length}</span></div>
         <div className='routing-live-list'>{blocked.map(entry => <div className='routing-live-row is-blocked' key={entry.candidateId || `${entry.memberId || ''}:${entry.id}`}>
           <span className='routing-live-rank'>–</span>
           <div className='routing-live-main'>
@@ -126,9 +126,9 @@ export function RoutingLivePanel({ workspace, model, loading, error, dirty, glob
       </> : null}
 
       <div className='routing-live-foot'>
-        {dirty ? <p>{t('有未保存修改，预演仍按已保存配置。')}</p> : null}
-        <p>{t('只读预演，不会推进轮转；保存后才会影响真实请求。')}</p>
-        <p>{t('真实请求还会考虑当时的会话绑定、并发与限额状态。')}</p>
+        {dirty ? <p>{t('There are unsaved changes; the preview still uses the saved configuration.')}</p> : null}
+        <p>{t('Read-only preview; it does not advance rotation. Only saving affects real requests.')}</p>
+        <p>{t('Real requests also consider current session bindings, concurrency and quota.')}</p>
       </div>
     </> : null}
   </aside>

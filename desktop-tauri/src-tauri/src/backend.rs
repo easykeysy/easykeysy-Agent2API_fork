@@ -151,7 +151,7 @@ pub async fn ensure_ready(app: &AppHandle) -> Result<(), StartupFailure> {
             server::access::set_v1_fail_closed(true);
             server::logging::log(
                 "[Security]",
-                "⚠️  网络访问已开启但尚未配置 API Key：/v1/* 暂时拒绝服务，请在「网关 Key」页创建第一把",
+                "⚠️  网络访问已开启但尚未配置 API Key: /v1/* 暂时拒绝服务，请在「网关 Key」页创建第一把",
             );
         }
         // 网页管理面板（可选）：设了 ui_dir 网关就在本端口托管 ui/ 静态目录
@@ -206,7 +206,7 @@ pub async fn ensure_ready(app: &AppHandle) -> Result<(), StartupFailure> {
     while std::time::Instant::now() < deadline {
         if is_ready(port).await {
             let scope = if lan.lan_access { "，网络访问已开启" } else { "" };
-            server::logging::log("[Server]", &format!("服务已就绪（127.0.0.1:{port}{scope}）"));
+            server::logging::log("[Server]", &format!("服务已就绪（127.0.0.1:{port}{scope})"));
             crate::panel_session::ensure_local_access().map_err(StartupFailure::other)?;
             // 起来了就清掉上一次的失败记录：那条记录描述的是「之前起不来」，
             // 留着会让界面在网关正常运行时仍显示「端口被占用」——
@@ -302,7 +302,7 @@ pub fn end_occupant(port: u16, occupant: &Occupant) -> Result<(), PortConflict> 
             port,
             None,
             &format!(
-                "结束进程失败（PID {}，{}）：可能权限不足，请以管理员身份重试",
+                "结束进程失败（PID {}, {}）：可能权限不足，请以管理员身份重试",
                 occupant.pid, occupant.name
             ),
         ));
@@ -311,7 +311,7 @@ pub fn end_occupant(port: u16, occupant: &Occupant) -> Result<(), PortConflict> 
     server::logging::log(
         "[Server]",
         &format!(
-            "已结束占用端口的进程（PID {}，{}）",
+            "已结束占用端口的进程（PID {}, {})",
             occupant.pid, occupant.name
         ),
     );
@@ -360,7 +360,7 @@ async fn reclaim_port_from_legacy(port: u16) -> bool {
     let Some((pid, exe_path)) = listener_process(port) else {
         server::logging::log(
             "[Server]",
-            &format!("端口 {port} 上的服务疑似旧版网关，但查不到监听进程，需手动处理"),
+            &format!("Port {port} 上的服务疑似旧版网关，但查不到监听进程，需手动处理"),
         );
         return false;
     };
@@ -368,7 +368,7 @@ async fn reclaim_port_from_legacy(port: u16) -> bool {
         server::logging::log(
             "[Server]",
             &format!(
-                "端口 {port} 被 WorkBuddy 网关占用，但进程不在本应用安装目录（{exe_path}），\
+                "Port {port} 被 WorkBuddy 网关占用，但进程不在本应用安装目录（{exe_path}），\
                  不自动结束 —— 可能是你自己用 npm start 起的服务"
             ),
         );

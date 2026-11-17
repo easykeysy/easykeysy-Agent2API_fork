@@ -14,7 +14,7 @@ export async function runToolBatch<T>(
   execute: (item: T) => Promise<string>,
   t: Translate,
 ): Promise<OperationResult> {
-  if (!items.length) throw new Error(t('没有提供要修改的项目'))
+  if (!items.length) throw new Error(t('No items to modify were provided'))
   checkToolSignal(context)
   const changed: string[] = []
   let error = ''
@@ -33,8 +33,8 @@ export async function runToolBatch<T>(
   const complete = changed.length === items.length
   return {
     text: JSON.stringify({ ok: complete && !error, changed, remaining: items.length - changed.length, cancelled, ...(error ? { error } : {}) }),
-    summary: complete ? t('已完成 {n} 项改动', { n: changed.length })
-      : t('已完成 {n} 项，剩余 {m} 项未执行', { n: changed.length, m: items.length - changed.length }),
+    summary: complete ? t('Completed {n} changes', { n: changed.length })
+      : t('Completed {n} items; {m} items were not executed', { n: changed.length, m: items.length - changed.length }),
   }
 }
 

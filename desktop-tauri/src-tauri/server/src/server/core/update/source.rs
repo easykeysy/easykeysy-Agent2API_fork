@@ -16,16 +16,16 @@ impl GithubSettings {
     fn message_for_token(self, retry_at: i64, filled: bool) -> String {
         if !filled {
             return match self {
-                Self::Update => "GitHub 接口限流中，请在「更新设置」的「GitHub 令牌」中填写凭证，以提高请求限额。",
-                Self::Plugin => "GitHub 接口限流中，请在「插件设置」的「GitHub 令牌」中填写凭证，以提高请求限额。",
+                Self::Update => "The GitHub API is rate-limited. Enter your credentials under GitHub Token in Update settings to increase the request limit.",
+                Self::Plugin => "The GitHub API is rate-limited. Enter your credentials under GitHub Token in Plugin settings to increase the request limit.",
             }
             .to_string();
         }
         let seconds = retry_at.saturating_sub(logging::now_ms()).max(0).saturating_add(999) / 1000;
         if seconds > 0 {
-            format!("GitHub 接口限流中，请在 {seconds} 秒后重试")
+            format!("The GitHub API is rate-limited. Try again in {seconds} seconds.")
         } else {
-            "GitHub 接口限流中，请稍后重试".to_string()
+            "The GitHub API is rate-limited. Try again later.".to_string()
         }
     }
 
@@ -34,7 +34,7 @@ impl GithubSettings {
             return message.to_string();
         }
         if retry_at <= logging::now_ms() {
-            return "上次 GitHub 限流的等待时间已结束，可重新检查".to_string();
+            return "The previous GitHub rate-limit wait has ended. You can check again.".to_string();
         }
         self.message_for_token(retry_at, token::effective_token().is_some())
     }
@@ -53,11 +53,11 @@ pub fn is_rate_limit_error(message: &str) -> bool {
     [
         "GitHub 接口限流中",
         "GitHub 源「",
-        "上次 GitHub 限流",
+        "上次 GitHub Rate limit",
         "GitHub 接口处于限流冷却期",
         "GitHub 接口访问受限",
-        "查询插件更新失败：GitHub 返回 HTTP 403",
-        "查询插件更新失败：GitHub 返回 HTTP 429",
+        "查询插件更新失败：GitHub Back HTTP 403",
+        "查询插件更新失败：GitHub Back HTTP 429",
     ]
     .iter()
     .any(|prefix| message.contains(prefix))
@@ -201,7 +201,7 @@ pub async fn download_candidates(
 impl Candidate {
     pub fn label(&self) -> String {
         match self.source {
-            Source::Official => "官方源".to_string(),
+            Source::Official => "Official source".to_string(),
             Source::Mirror => self.mirror_origin.as_ref()
                 .and_then(|url| url.host_str()).unwrap_or("加速源").to_string(),
         }
@@ -259,8 +259,8 @@ pub fn should_switch(candidate: &Candidate, status: reqwest::StatusCode) -> bool
 }
 
 pub(crate) fn failed_state(message: &str) -> &'static str {
-    if message.contains("限流") { "rateLimited" }
-    else if message.contains("超时") { "timeout" }
+    if message.contains("Rate limit") { "rateLimited" }
+    else if message.contains("Timeout") { "timeout" }
     else if message.contains("格式") || message.contains("JSON") || message.contains("内容") { "invalid" }
     else { "failed" }
 }

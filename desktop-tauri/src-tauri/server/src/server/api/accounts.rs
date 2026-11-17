@@ -910,7 +910,7 @@ pub async fn add_account(state: &ServerState, body: &Bytes) -> Response {
         Some(crate::server::core::providers::ProviderKind::LobsterAi) => {
             return management_error(
                 400,
-                "LobsterAI 只能通过「网页登录」添加：它的续期需要换码时下发的 uuid 与 keyfrom，粘贴给不出这三项",
+                "LobsterAI 只能通过「网页登录」添加：它的续期需要换码时下发的 uuid and keyfrom，粘贴给不出这三项",
             );
         }
         // WorkBuddy 系的两家（国内版 / 国际版）：实现已整体搬到插件
@@ -940,7 +940,7 @@ pub fn export_accounts(state: &ServerState) -> Response {
         .and_then(Value::as_array)
         .map(|items| items.len())
         .unwrap_or(0);
-    logging::log("[Accounts]", &format!("📤 账号已导出: {count} 个"));
+    logging::log("[Accounts]", &format!("📤 账号已导出: {count} total"));
     ok_json(data)
 }
 
@@ -1341,7 +1341,7 @@ pub async fn accounts_checkin(state: &ServerState, body: &Bytes) -> Response {
         state.billing(),
         providers.as_slice(),
         id.as_deref(),
-        "手动签到",
+        "Manual check-in",
         source,
     )
     .await
@@ -1411,7 +1411,7 @@ pub async fn patch_account(state: &ServerState, id: &str, body: &Bytes) -> Respo
                 })
                 .unwrap_or(false);
             return if known {
-                management_error(400, "只有 CatPaw 账号有余额查询凭证（balanceToken）")
+                management_error(400, "只有 CatPaw 账号有余额查询凭证（balanceToken)")
             } else {
                 store_error(AccountStoreError::new("账号不存在", 404))
             };
@@ -1439,7 +1439,7 @@ pub async fn patch_account(state: &ServerState, id: &str, body: &Bytes) -> Respo
                 })
                 .unwrap_or(false);
             return if known {
-                management_error(400, "只有 ZCode 账号可以选「使用哪个套餐」（zcodePlan）")
+                management_error(400, "只有 ZCode 账号可以选「使用哪个套餐」（zcodePlan)")
             } else {
                 store_error(AccountStoreError::new("账号不存在", 404))
             };
@@ -1474,7 +1474,7 @@ pub async fn patch_account(state: &ServerState, id: &str, body: &Bytes) -> Respo
                 })
                 .unwrap_or(false);
             return if known {
-                management_error(400, "只有自定义提供商的账号有 API Key / 无需鉴权 / 上游地址这几项")
+                management_error(400, "只有自定义提供商的账号有 API Key / No authentication / 上游地址这几项")
             } else {
                 store_error(AccountStoreError::new("账号不存在", 404))
             };
@@ -1524,7 +1524,7 @@ pub async fn patch_account(state: &ServerState, id: &str, body: &Bytes) -> Respo
                 })
                 .unwrap_or(false);
             return if known {
-                management_error(400, "只有自定义提供商的账号有余额查询配置（balanceQuery）")
+                management_error(400, "只有自定义提供商的账号有余额查询配置（balanceQuery)")
             } else {
                 store_error(AccountStoreError::new("账号不存在", 404))
             };
@@ -1606,7 +1606,7 @@ pub async fn move_account(state: &ServerState, id: &str, body: &Bytes) -> Respon
                     .get("reason")
                     .and_then(Value::as_str)
                     .unwrap_or("顺序未变");
-                logging::log("[Accounts]", &format!("顺序未变（{reason}）"));
+                logging::log("[Accounts]", &format!("顺序未变（{reason})"));
             }
             ok_json(result)
         }
@@ -1647,7 +1647,7 @@ pub fn clear_rate_limits(state: &ServerState, id: &str, body: &Bytes) -> Respons
         logging::log(
             "[Accounts]",
             &format!(
-                "🧹 已清除账号 {id} 的限流标记（{}）",
+                "🧹 已清除账号 {id} 的限流标记（{})",
                 model.map(|value| value.to_string()).unwrap_or_else(|| format!("{cleared} 个模型"))
             ),
         );

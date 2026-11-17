@@ -49,39 +49,39 @@ export function ScriptPluginSettings({ pack, recommended, disabled, error, onClo
         <ScriptRepository item={pack} onOpenExternal={onOpenExternal} t={t} />
         <DialogSection>
           <Label htmlFor={`${prefix}-enabled`} className='justify-between text-[12.5px] text-foreground'>
-            {t('启用')}<Switch id={`${prefix}-enabled`} checked={pack.enabled} disabled={disabled} onCheckedChange={onEnabled} />
+            {t('enabled')}<Switch id={`${prefix}-enabled`} checked={pack.enabled} disabled={disabled} onCheckedChange={onEnabled} />
           </Label>
-          <p className='m-0'>{t('更新或启停会等待共享宿主内的请求结束；账号数据始终由网关统一保存。')}</p>
+          <p className='m-0'>{t('Updates and enable/disable changes wait for requests in the shared host to finish. The gateway always manages account data.')}</p>
         </DialogSection>
         <DialogSection>
-          <h3 className='m-0'>{t('加载状态')}</h3>
+          <h3 className='m-0'>{t('Load status')}</h3>
           <PluginStartupDetails id={pack.id} status={startup} t={t} />
-          <Button variant='link' size='sm' onClick={() => { onClose(); requestPluginDiagnostics(pack.id) }}>{t('加载诊断')}</Button>
+          <Button variant='link' size='sm' onClick={() => { onClose(); requestPluginDiagnostics(pack.id) }}>{t('Load diagnostics')}</Button>
         </DialogSection>
         <DialogSection>
-          <h3 className='m-0'>{t('版本')}</h3>
+          <h3 className='m-0'>{t('Version')}</h3>
           <p className='m-0 break-all font-mono'>{pack.name}</p>
           <div className='flex flex-wrap items-center justify-between gap-3'>
             <div className='text-[11.5px] text-muted-foreground'>
               <span className='tabular-nums'>v{pack.version}</span>
-              {pack.installedAt ? <span> · {t('安装于 {time}', { time: new Date(pack.installedAt).toLocaleString() })}</span> : null}
+              {pack.installedAt ? <span> · {t('Installed {time}', { time: new Date(pack.installedAt).toLocaleString() })}</span> : null}
             </div>
-            <Button variant='outline' size='sm' disabled={disabled} onClick={onReinstall}>{t('更新／重装')}</Button>
+            <Button variant='outline' size='sm' disabled={disabled} onClick={onReinstall}>{t('Update / reinstall')}</Button>
           </div>
           {pack.source?.kind === 'github' ? <p className='m-0 break-all'>
-            GitHub · {pack.source.repository} · {pack.source.ref || t('默认分支')} · <span className='font-mono'>{pack.source.commit.slice(0, 12)}</span>
+            GitHub · {pack.source.repository} · {pack.source.ref || t('Default branch')} · <span className='font-mono'>{pack.source.commit.slice(0, 12)}</span>
           </p> : null}
-          {pack.source?.kind === 'magpie' ? <p className='m-0 break-all'>{t('Magpie 社区分发源')} · SHA-512</p> : null}
+          {pack.source?.kind === 'magpie' ? <p className='m-0 break-all'>{t('Magpie community distribution')} · SHA-512</p> : null}
         </DialogSection>
         <DialogSection>
           <h3 className='m-0 flex items-baseline justify-between gap-3'>
-            <span>{t('提供商启停')}</span>
+            <span>{t('Provider switches')}</span>
             <span className='text-[11.5px] font-normal text-muted-foreground'>
-              {pack.providers.filter(provider => provider.enabled).length}/{pack.providers.length} {t('已启用')}
+              {pack.providers.filter(provider => provider.enabled).length}/{pack.providers.length} {t('Enabled')}
             </span>
           </h3>
-          <p className='m-0'>{t('这个包提供的提供商（可单独停用某一家）')}</p>
-          {pack.providers.length > 6 ? <Input type='search' value={search} placeholder={t('搜索提供商')} aria-label={t('搜索提供商')}
+          <p className='m-0'>{t('Providers in this pack (each can be disabled separately)')}</p>
+          {pack.providers.length > 6 ? <Input type='search' value={search} placeholder={t('Search providers')} aria-label={t('Search providers')}
             onChange={event => setSearch(event.currentTarget.value)} /> : null}
           <div className='max-h-[32vh] overflow-y-auto overscroll-contain'>
             {providers.map(provider => <div key={provider.id} className='flex items-center justify-between gap-3 border-t border-hairline py-2 first:border-t-0'>
@@ -92,15 +92,15 @@ export function ScriptPluginSettings({ pack, recommended, disabled, error, onClo
               <Switch id={`${prefix}-${provider.id}`} checked={provider.enabled} disabled={disabled || !pack.enabled}
                 onCheckedChange={enabled => onProvider(provider.id, enabled)} />
             </div>)}
-            {!providers.length ? <p className='m-0 py-3 text-center'>{t('没有匹配「{keyword}」的提供商', { keyword: search.trim() })}</p> : null}
+            {!providers.length ? <p className='m-0 py-3 text-center'>{t('No providers match "{keyword}"', { keyword: search.trim() })}</p> : null}
           </div>
         </DialogSection>
         <ScriptPluginOptions pack={pack} disabled={disabled} request={request} refresh={refresh} t={t} />
         {error || (startup ? pluginFailed(startup) && startup.error : pack.error) ? <p role='alert' className='m-0 break-words text-[12px] text-destructive'>{error || startup?.error || pack.error}</p> : null}
       </DialogBody>
       <DialogFooter>
-        <Button variant='destructive' size='sm' className='mr-auto' disabled={disabled} onClick={onRemove}>{t('卸载插件')}</Button>
-        <Button variant='outline' size='sm' onClick={onClose}>{t('完成')}</Button>
+        <Button variant='destructive' size='sm' className='mr-auto' disabled={disabled} onClick={onRemove}>{t('Uninstall plugin')}</Button>
+        <Button variant='outline' size='sm' onClick={onClose}>{t('Done')}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

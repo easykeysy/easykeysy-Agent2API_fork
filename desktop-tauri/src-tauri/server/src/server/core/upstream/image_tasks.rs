@@ -22,7 +22,7 @@ pub(super) async fn collect(payload: &Value, transport: &TransportRequest, telem
             if !name.eq_ignore_ascii_case("x-modelscope-async-mode") { request = request.header(name, value); }
         }
         let response = request.header("X-ModelScope-Task-Type", "image_generation").send().await
-            .map_err(|error| ImageFailure::invalid(format!("图片任务 {id} 查询失败：{error}；未重新提交任务")))?;
+            .map_err(|error| ImageFailure::invalid(format!("图片任务 {id} Query failed: {error}；未重新提交任务")))?;
         let status = response.status().as_u16();
         if !(200..300).contains(&status) {
             return Err(ImageFailure::invalid(format!("图片任务 {id} 查询返回 HTTP {status}，未重新提交任务")));

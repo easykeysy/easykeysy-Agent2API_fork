@@ -179,7 +179,7 @@
         var response = await fetch(endpoint, { cache: 'no-store' })
         challenge = await response.json()
         if (!response.ok) {
-          if (response.status === 400 && challenge?.error === '机器人校验未启用') {
+          if (response.status === 400 && challenge?.error === 'Robot verification is not enabled') {
             if (generation !== this.generation) return
             this.dropPayload()
             this.config = { ...this.config, captchaEnabled: false }
@@ -187,7 +187,7 @@
             this.dispatchEvent(new CustomEvent('disabled'))
             return
           }
-          throw new Error('领题失败（HTTP ' + response.status + '）')
+          throw new Error('Failed to fetch the challenge (HTTP' + response.status + ')')
         }
       } catch (error) {
         if (generation === this.generation) this.fail(error)
@@ -225,17 +225,17 @@
       var target = String((challenge && challenge.challenge) || '').toLowerCase()
       var salt = String((challenge && challenge.salt) || '')
       var max = Number(challenge && challenge.maxnumber) || 0
-      if (!target || !salt) throw new Error('题面不完整')
+      if (!target || !salt) throw new Error('The question text is incomplete')
       for (var n = 0; n <= max; n++) {
         if (generation !== this.generation) return -1
         if ((await sha256Hex(salt + n)) === target) return n
         if (n % 2000 === 1999) await new Promise((resolve) => setTimeout(resolve, 0))
       }
-      throw new Error('未找到答案（maxnumber=' + max + '）')
+      throw new Error('No answer found (maxnumber=' + max + ')')
     }
 
     fail(error) {
-      console.warn('机器人校验失败:', (error && error.message) || error)
+      console.warn('Robot verification failed:', (error && error.message) || error)
       this.setState('error')
     }
 

@@ -79,23 +79,23 @@ export const PROVIDER_S3 = 's3'
 export const WEBDAV_PRESETS = [
   {
     id: 'jianguoyun',
-    label: t('坚果云'),
+    label: t('Jianguoyun (Nutstore)'),
     baseUrl: 'https://dav.jianguoyun.com/dav/',
-    hint: t('坚果云需使用「第三方应用密码」（账户信息 → 安全选项里生成），地址必须是 /dav/ 下的目录。'),
+    hint: t('Jianguoyun requires an app-specific password (generate it under Account info → Security), and the URL must point to a directory under /dav/.'),
   },
   {
     id: 'nextcloud',
     label: t('Nextcloud'),
     baseUrl: 'https://your-server/remote.php/dav/files/USERNAME/',
-    hint: t('把地址里的 your-server 与 USERNAME 换成你自己的；目录不存在时会自动创建。'),
+    hint: t('Replace your-server and USERNAME in the URL with your own; the directory is created automatically if missing.'),
   },
   {
     id: 'synology',
-    label: t('群晖 NAS'),
+    label: t('Synology NAS'),
     baseUrl: 'http://your-nas-ip:5005/',
-    hint: t('群晖需在「控制面板 → 应用程序门户 → WebDAV」里启用服务，端口默认 5005（HTTP）/ 5006（HTTPS）。'),
+    hint: t('On Synology, enable the service under Control Panel → Application Portal → WebDAV; the default ports are 5005 (HTTP) / 5006 (HTTPS).'),
   },
-  { id: 'custom', label: t('自定义'), baseUrl: '', hint: '' },
+  { id: 'custom', label: t('Custom'), baseUrl: '', hint: '' },
 ] as const
 
 export const S3_PRESETS = [
@@ -103,39 +103,39 @@ export const S3_PRESETS = [
     id: 'aws',
     label: 'Amazon S3',
     regionPlaceholder: 'us-east-1',
-    hint: t('Endpoint 留空即走 AWS 官方地址；Region 必须与桶所在区域一致。'),
+    hint: t('Leave Endpoint empty to use the official AWS address; Region must match the bucket\'s region.'),
   },
   {
     id: 'r2',
     label: 'Cloudflare R2',
     regionPlaceholder: 'auto',
-    hint: t('Endpoint 填 https://<账户ID>.r2.cloudflarestorage.com，Region 固定填 auto。'),
+    hint: t('Set Endpoint to https://<account ID>.r2.cloudflarestorage.com and Region to auto.'),
   },
   {
     id: 'minio',
     label: 'MinIO',
     regionPlaceholder: 'us-east-1',
-    hint: t('Endpoint 形如 http://192.168.1.10:9000（自建通常用 http）；Region 一般填 us-east-1。'),
+    hint: t('Endpoint looks like http://192.168.1.10:9000 (self-hosted usually uses http); Region is typically us-east-1.'),
   },
   {
     id: 'oss',
-    label: t('阿里云 OSS'),
+    label: t('Alibaba Cloud OSS'),
     regionPlaceholder: 'cn-hangzhou',
-    hint: t('Endpoint 填 https://oss-cn-hangzhou.aliyuncs.com，Region 填 cn-hangzhou（按实际地域改）。'),
+    hint: t('Set Endpoint to https://oss-cn-hangzhou.aliyuncs.com and Region to cn-hangzhou (change to your actual region).'),
   },
   {
     id: 'cos',
-    label: t('腾讯云 COS'),
+    label: t('Tencent Cloud COS'),
     regionPlaceholder: 'ap-guangzhou',
-    hint: t('Endpoint 填 https://cos.ap-guangzhou.myqcloud.com，Region 填 ap-guangzhou（按实际地域改）。'),
+    hint: t('Set Endpoint to https://cos.ap-guangzhou.myqcloud.com and Region to ap-guangzhou (change to your actual region).'),
   },
   {
     id: 'obs',
-    label: t('华为云 OBS'),
+    label: t('Huawei Cloud OBS'),
     regionPlaceholder: 'cn-north-4',
-    hint: t('Endpoint 填 https://obs.cn-north-4.myhuaweicloud.com，Region 填 cn-north-4（按实际地域改）。'),
+    hint: t('Set Endpoint to https://obs.cn-north-4.myhuaweicloud.com and Region to cn-north-4 (change to your actual region).'),
   },
-  { id: 'custom', label: t('自定义'), regionPlaceholder: 'us-east-1', hint: '' },
+  { id: 'custom', label: t('Custom'), regionPlaceholder: 'us-east-1', hint: '' },
 ] as const
 
 export function formatTime(ms?: number): string {

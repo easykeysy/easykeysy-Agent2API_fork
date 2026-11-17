@@ -167,7 +167,7 @@ export function serverIdentity(): string {
  */
 export function saveServer(input: { id?: string; name?: string; base: string }): ServerEntry {
   const base = normalizeBase(input.base)
-  if (!base) throw new Error('地址不合法')
+  if (!base) throw new Error('The address is invalid')
   const list = readServers()
   const existing = input.id
     ? list.find(item => item.id === input.id)

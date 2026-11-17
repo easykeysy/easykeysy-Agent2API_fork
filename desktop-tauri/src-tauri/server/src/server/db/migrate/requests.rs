@@ -97,7 +97,7 @@ fn read_requests(path: &Path) -> Option<Vec<RequestEntry>> {
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 请求明细迁移失败：无法读取 {}（{error}）", path.display()),
+                &format!("❌ 请求明细迁移失败：无法读取 {}（{error})", path.display()),
             );
             return None;
         }
@@ -133,7 +133,7 @@ pub(super) fn import_requests(conn: &Connection, dir: &Path) -> Option<LegacyOut
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 请求明细迁移失败：读取迁移标记失败（{error}）"),
+                &format!("❌ 请求明细迁移失败：读取迁移标记失败（{error})"),
             );
             return None;
         }
@@ -142,7 +142,7 @@ pub(super) fn import_requests(conn: &Connection, dir: &Path) -> Option<LegacyOut
     if let Err(error) = request_stats::legacy::import_legacy_requests(conn, &entries) {
         logging::console_line(
             "[Storage]",
-            &format!("❌ 请求明细迁移失败：写入数据库失败（{error}）"),
+            &format!("❌ 请求明细迁移失败：写入数据库失败（{error})"),
         );
         return None;
     }
@@ -184,7 +184,7 @@ pub(super) fn import_daily(conn: &Connection, dir: &Path) -> Option<LegacyOutcom
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 请求聚合迁移失败：读取迁移标记失败（{error}）"),
+                &format!("❌ 请求聚合迁移失败：读取迁移标记失败（{error})"),
             );
             return None;
         }
@@ -194,7 +194,7 @@ pub(super) fn import_daily(conn: &Connection, dir: &Path) -> Option<LegacyOutcom
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 请求聚合迁移失败：无法读取 {}（{error}）", path.display()),
+                &format!("❌ 请求聚合迁移失败：无法读取 {}（{error})", path.display()),
             );
             return None;
         }
@@ -205,7 +205,7 @@ pub(super) fn import_daily(conn: &Connection, dir: &Path) -> Option<LegacyOutcom
         Err(error) => {
             logging::console_line(
                 "[Storage]",
-                &format!("❌ 请求聚合迁移失败：写入数据库失败（{error}）"),
+                &format!("❌ 请求聚合迁移失败：写入数据库失败（{error})"),
             );
             return None;
         }

@@ -13,14 +13,14 @@ const plugins = argv[0] === '--plugins'
 const coverage = argv[0] === '--coverage'
 if (plugins || coverage) argv.shift()
 if (plugins && !process.env.AGENT2API_TEST_PLUGIN_EXE) {
-  console.error('插件联调需要 AGENT2API_TEST_PLUGIN_EXE 指向含 demo 的测试插件。')
+  console.error('Plugin integration testing needs AGENT2API_TEST_PLUGIN_EXE pointing at a test plugin that contains the demo.",')
   process.exit(1)
 }
 let executable = process.env.AGENT2API_TEST_PLUGIN_EXE
 if (plugins) {
   try {
     executable = realpathSync(executable)
-    if (!statSync(executable).isFile()) throw new Error('路径不是文件')
+    if (!statSync(executable).isFile()) throw new Error('The path is not a file')
   } catch (error) {
     console.error(`测试插件不可用：${executable}（${error.message}）`)
     process.exit(1)
@@ -39,7 +39,7 @@ const args = coverage
   : ['test', '--locked', '-p', 'agent2api-server', ...(plugins
       ? ['--lib', 'server::core::plugin_host::tests::', '--', '--ignored', ...argv]
       : argv)]
-console.log(plugins ? '运行插件联调（使用独立临时目录）' : '运行服务端测试（使用独立临时目录）')
+console.log(plugins ? 'Run the plugin joint test (using a dedicated temporary directory)' : 'Run the server tests (using a dedicated temporary directory)')
 const child = spawn('cargo', args, { cwd, env, stdio: 'inherit' })
 let cleaned = false
 const cleanup = () => {

@@ -187,7 +187,7 @@ pub async fn clear_logs(State(_state): State<ServerState>, Query(params): Query<
             );
         }
         let stats = store.clear();
-        logging::log("[Logs]", "运行日志已清空");
+        logging::log("[Logs]", "Runtime logs cleared");
         return match serde_json::to_value(stats) {
             Ok(value) => ok_json(value),
             Err(error) => {

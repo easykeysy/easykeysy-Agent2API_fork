@@ -92,7 +92,7 @@ function UserMessage({ text, images, files, children }: { text: string; images?:
         {images?.length ? (
           <div className='asst-msg-atts'>
             {images.map((url, index) => (
-              <img key={index} className='asst-msg-shot' src={url} alt={t('图片 {n}', { n: index + 1 })} />
+              <img key={index} className='asst-msg-shot' src={url} alt={t('Image {n}', { n: index + 1 })} />
             ))}
           </div>
         ) : null}
@@ -130,7 +130,7 @@ function BotMessage({ text, streaming, model, children }: { text: string; stream
         {text ? (
           <HtmlContent className='md' html={renderMarkdown(text)} />
         ) : streaming ? (
-          <Spinner className='text-muted-foreground' aria-label={t('正在思考…')} />
+          <Spinner className='text-muted-foreground' aria-label={t('Thinking…')} />
         ) : null}
         {streaming && text ? <span className='asst-caret' /> : null}
         {children}
@@ -145,15 +145,15 @@ function BotMessage({ text, streaming, model, children }: { text: string; stream
 function toolStateText(item: ToolCardItem): { text: string; tone: 'ok' | 'bad' | 'muted' } {
   switch (item.state) {
     case 'running':
-      return { text: t('执行中'), tone: 'muted' }
+      return { text: t('Running'), tone: 'muted' }
     case 'done':
-      return { text: item.summary || t('完成'), tone: 'ok' }
+      return { text: item.summary || t('Done'), tone: 'ok' }
     case 'failed':
-      return { text: t('失败'), tone: 'bad' }
+      return { text: t('Failed'), tone: 'bad' }
     case 'cancelled':
-      return { text: t('已取消'), tone: 'muted' }
+      return { text: t('Canceled'), tone: 'muted' }
     default:
-      return { text: t('待确认'), tone: 'muted' }
+      return { text: t('Pending confirmation'), tone: 'muted' }
   }
 }
 
@@ -196,8 +196,8 @@ function ToolCard({ item, onConfirm }: { item: ToolCardItem; onConfirm: (run: bo
                 : <LayersIcon size={13} />}
         </span>
         <span className='asst-tool-name'>{label}</span>
-        {item.state === 'confirm' && <span className='asst-tool-sum'>{t('{n} 条改动', { n: planRowCount(item.plan) })}</span>}
-        {item.state === 'done' && item.detail && !open && <span className='asst-tool-sum'>{t('查看结果')}</span>}
+        {item.state === 'confirm' && <span className='asst-tool-sum'>{t('{n} changes', { n: planRowCount(item.plan) })}</span>}
+        {item.state === 'done' && item.detail && !open && <span className='asst-tool-sum'>{t('View result')}</span>}
         <Badge variant={state.tone === 'ok' ? 'success' : state.tone === 'bad' ? 'destructive' : 'outline'} className={cn('asst-tool-state', state.tone)}>
           {item.state === 'done' && <CheckIcon size={12} />}
           {state.text}
@@ -226,7 +226,7 @@ function ToolCard({ item, onConfirm }: { item: ToolCardItem; onConfirm: (run: bo
                 </Table>
               )}
               {item.plan.table && item.plan.table.rows.length > 20 && (
-                <div className='hint'>{t('（仅显示前 20 条，共 {n} 条）', { n: item.plan.table.rows.length })}</div>
+                <div className='hint'>{t('(showing the first 20 of {n})', { n: item.plan.table.rows.length })}</div>
               )}
               {item.plan.note && <div className='hint'>{item.plan.note}</div>}
             </div>
@@ -245,12 +245,12 @@ function ToolCard({ item, onConfirm }: { item: ToolCardItem; onConfirm: (run: bo
           {item.state === 'confirm' && (
             <CardFooter className='asst-tool-foot'>
               <span className={cn('hint', tool?.kind === 'run' && 'danger')}>
-                {tool?.kind === 'run' ? t('这会真实发起上游请求并消耗额度') : t('确认后立即生效')}
+                {tool?.kind === 'run' ? t('This sends a real upstream request and spends quota') : t('Takes effect right after confirmation')}
               </span>
               <span className='spacer' />
               <Button size='sm' variant={tool?.kind === 'run' ? 'destructive' : 'default'}
-                onClick={() => onConfirm(true)}>{t('执行')}</Button>
-              <Button size='sm' variant='outline' onClick={() => onConfirm(false)}>{t('取消')}</Button>
+                onClick={() => onConfirm(true)}>{t('Run')}</Button>
+              <Button size='sm' variant='outline' onClick={() => onConfirm(false)}>{t('Cancel')}</Button>
             </CardFooter>
           )}
         </>

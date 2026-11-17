@@ -12,12 +12,12 @@ import { metricLabel, modelsOf, sourceIdentity, sourceLabel, sourcesOf } from '.
 import { isCreditUnit, usageUnitLabel } from '../../../ui-shared/usage-readings'
 
 const RESET_OPTIONS: Array<{ value: LimiterWindow['reset']; label: () => string }> = [
-  { value: 'fixed', label: () => t('固定周期') },
-  { value: 'rolling', label: () => t('滚动窗口') },
-  { value: 'daily', label: () => t('自然日') },
-  { value: 'weekly', label: () => t('自然周') },
-  { value: 'monthly', label: () => t('自然月') },
-  { value: 'total', label: () => t('生效至到期累计（不自动回满）') },
+  { value: 'fixed', label: () => t('Fixed period') },
+  { value: 'rolling', label: () => t('Rolling window') },
+  { value: 'daily', label: () => t('Calendar day') },
+  { value: 'weekly', label: () => t('Calendar week') },
+  { value: 'monthly', label: () => t('Calendar month') },
+  { value: 'total', label: () => t('Cumulative from activation to expiry (no automatic refill)') },
 ]
 
 type Draft = {
@@ -89,8 +89,8 @@ export function LimiterConditionDialog({ account, value, allowBalance = true, on
   const convertedThreshold = Number(draft.threshold) * (draft.unit === 'yi' ? 100_000_000 : draft.unit === 'wan' ? 10_000 : 1)
   const thresholdPreview = condition.metric === 'tokens' && draft.unit !== 'unit' && draft.threshold.trim()
     && Number.isSafeInteger(convertedThreshold) && convertedThreshold > 0 ? convertedThreshold.toLocaleString('en-US') : ''
-  const aggregateView = aggregate?.unlimited ? t('不限') : aggregate?.remaining == null ? t('暂无读数')
-    : `${numberText(aggregate.remaining)} ${t('积分')}`
+  const aggregateView = aggregate?.unlimited ? t('Unlimited') : aggregate?.remaining == null ? t('No reading available')
+    : `${numberText(aggregate.remaining)} ${t('Points')}`
   const modelOptions = source?.models?.length
     ? source.models.map(model => ({ value: model, label: model })) : modelsOf(account)
   for (const model of condition.models) if (!modelOptions.some(option => option.value === model)) modelOptions.push({ value: model, label: model })
@@ -117,13 +117,13 @@ export function LimiterConditionDialog({ account, value, allowBalance = true, on
     const threshold = condition.metric === 'tokens'
       ? Math.round(raw * (draft.unit === 'yi' ? 100_000_000 : draft.unit === 'wan' ? 10_000 : 1)) : raw
     if (!draft.threshold.trim() || !Number.isFinite(threshold) || threshold < 0) {
-      setError(t('限制阈值必须是非负有限数字')); return
+      setError(t('The threshold must be a non-negative finite number')); return
     }
     if (local && (!Number.isSafeInteger(threshold) || threshold <= 0)) {
-      setError(t('本地消耗上限必须是大于 0 的安全整数')); return
+      setError(t('The local usage limit must be a positive safe integer')); return
     }
     if (condition.metric.endsWith('percent') && threshold > 100) {
-      setError(t('百分比阈值必须在 0~100 之间')); return
+      setError(t('The percentage threshold must be between 0 and 100')); return
     }
     let window = condition.window
     if (local) {
@@ -131,7 +131,7 @@ export function LimiterConditionDialog({ account, value, allowBalance = true, on
       if (window.reset === 'fixed' || window.reset === 'rolling') {
         const seconds = Math.round(Number(draft.period) * 3600)
         if (!Number.isFinite(seconds) || seconds < 60 || seconds > 2_678_400) {
-          setError(t('统计窗口必须是 1 分钟~31 天')); return
+          setError(t('The counting window must be between 1 minute and 31 days')); return
         }
         window.seconds = seconds
       }
@@ -140,7 +140,7 @@ export function LimiterConditionDialog({ account, value, allowBalance = true, on
         window.endsAt = draft.end ? new Date(draft.end).getTime() : 0
         if (!Number.isFinite(window.startsAt) || !Number.isFinite(window.endsAt)
           || window.endsAt > 0 && window.endsAt <= window.startsAt) {
-          setError(t('统计结束时间必须晚于开始时间')); return
+          setError(t('The counting end time must be later than the start time')); return
         }
       }
     }
@@ -151,23 +151,23 @@ export function LimiterConditionDialog({ account, value, allowBalance = true, on
 
   return <Dialog open onOpenChange={next => { if (!next) onClose() }}>
     <DialogContent className='w-[min(680px,calc(100vw-48px))]' showCloseButton overlayForceRender>
-      <DialogHeader><DialogTitle>{t('编辑限制条件')}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t('Edit limit condition')}</DialogTitle></DialogHeader>
       <DialogBody className='space-y-3'>
         {plans.length ? <Field orientation='horizontal' className='field-row'>
-          <FieldLabel>{t('套餐')}</FieldLabel>
+          <FieldLabel>{t('Plan')}</FieldLabel>
           <Select value={plan} onValueChange={id => {
             const next = sources.find(source => id ? source.planId === id : !source.planId)
             if (next) selectSource(next.id)
           }}>
-            <SelectTrigger className='min-w-0 flex-1'><SelectValue>{plans.find(([id]) => id === plan)?.[1] || t('通用额度／本地保护')}</SelectValue></SelectTrigger>
+            <SelectTrigger className='min-w-0 flex-1'><SelectValue>{plans.find(([id]) => id === plan)?.[1] || t('General quota / local protection')}</SelectValue></SelectTrigger>
             <SelectContent>
-              <SelectItem value=''>{t('通用额度／本地保护')}</SelectItem>
+              <SelectItem value=''>{t('General quota / local protection')}</SelectItem>
               {plans.map(([id, label]) => <SelectItem key={id} value={id}>{label}</SelectItem>)}
             </SelectContent>
           </Select>
         </Field> : null}
         <Field orientation='horizontal' className='field-row'>
-          <FieldLabel>{t('额度来源')}</FieldLabel>
+          <FieldLabel>{t('Quota source')}</FieldLabel>
           <Select value={condition.sourceId || 'account'} onValueChange={id => { if (id) selectSource(id) }}>
             <SelectTrigger className='min-w-0 flex-1'><SelectValue>{sourceLabel(source, condition.sourceId || 'account')}</SelectValue></SelectTrigger>
             <SelectContent>{options.map(source => <SelectItem key={source.id} value={source.id}>
@@ -177,22 +177,22 @@ export function LimiterConditionDialog({ account, value, allowBalance = true, on
         </Field>
         {aggregate ? <MetricCard className='space-y-2'>
           <div className='flex flex-wrap items-center gap-2'>
-            <span className='text-xs text-subtle'>{t('总积分')}</span>
+            <span className='text-xs text-subtle'>{t('Total points')}</span>
             <span className='text-[13px] font-semibold tabular-nums'>{aggregateView}</span>
             <Button variant='outline' size='sm' className='ml-auto'
               disabled={source?.id === aggregate.id && condition.metric === 'remaining'}
-              onClick={() => selectSource(aggregate.id)}>{t('按总积分设置限制')}</Button>
+              onClick={() => selectSource(aggregate.id)}>{t('Limit by total points')}</Button>
           </div>
-          <p className='detail'>{t('总积分是当前可用积分的汇总，与余额列一致；不重复累加汇总行，不包含 Token、次数或其他单位的额度。')}</p>
+          <p className='detail'>{t('Total points is the aggregate of currently available points, matching the balance column. Summary rows are not counted twice, and tokens, request counts, and quotas in other units are excluded.')}</p>
         </MetricCard> : null}
         <Field orientation='horizontal' className='field-row'>
-          <FieldLabel>{t('模型范围')}</FieldLabel>
+          <FieldLabel>{t('Model scope')}</FieldLabel>
           <MultiSelect value={condition.models} options={modelOptions}
-            onValueChange={models => update({ models })} placeholder={source?.models?.length ? t('该额度中的全部模型') : t('全部模型')}
-            className='min-w-0 flex-1' aria-label={t('模型范围')} />
+            onValueChange={models => update({ models })} placeholder={source?.models?.length ? t('All models in this quota') : t('All models')}
+            className='min-w-0 flex-1' aria-label={t('Model scope')} />
         </Field>
         <Field orientation='horizontal' className='field-row'>
-          <FieldLabel>{t('限制指标')}</FieldLabel>
+          <FieldLabel>{t('Limit metric')}</FieldLabel>
           <Select value={condition.metric} onValueChange={metric => {
             if (!metric) return
             update({ metric: metric as LimiterMetric, comparison: metric.startsWith('remaining') ? 'lte' : 'gte' })
@@ -203,58 +203,58 @@ export function LimiterConditionDialog({ account, value, allowBalance = true, on
           </Select>
         </Field>
         <FieldGroup orientation='horizontal' className='field-row'>
-          <span className='text-[12.5px] text-subtle'>{t('触发条件')}</span>
+          <span className='text-[12.5px] text-subtle'>{t('Condition')}</span>
           <Select value={condition.comparison} onValueChange={comparison => update({ comparison: comparison as LimiterCondition['comparison'] })}>
-            <SelectTrigger className='w-[92px]' aria-label={t('触发条件')}><SelectValue>{condition.comparison === 'lt' ? '<' : condition.comparison === 'lte' ? '≤' : '≥'}</SelectValue></SelectTrigger>
+            <SelectTrigger className='w-[92px]' aria-label={t('Condition')}><SelectValue>{condition.comparison === 'lt' ? '<' : condition.comparison === 'lte' ? '≤' : '≥'}</SelectValue></SelectTrigger>
             <SelectContent><SelectItem value='lt'>{'<'}</SelectItem><SelectItem value='lte'>≤</SelectItem><SelectItem value='gte'>≥</SelectItem></SelectContent>
           </Select>
           <Input type='number' min={0} className='max-w-[160px]' value={draft.threshold}
-            onChange={event => setDraft({ ...draft, threshold: event.currentTarget.value })} placeholder={t('阈值')} aria-label={t('阈值')} />
+            onChange={event => setDraft({ ...draft, threshold: event.currentTarget.value })} placeholder={t('Threshold')} aria-label={t('Threshold')} />
           {condition.metric === 'tokens' ? <Select value={draft.unit} onValueChange={unit => setDraft({ ...draft, unit: unit as Draft['unit'] })}>
-            <SelectTrigger className='w-[84px]' aria-label={t('Token 单位')}><SelectValue>{draft.unit === 'yi' ? t('亿') : draft.unit === 'wan' ? t('万') : t('个')}</SelectValue></SelectTrigger>
-            <SelectContent><SelectItem value='yi'>{t('亿')}</SelectItem><SelectItem value='wan'>{t('万')}</SelectItem><SelectItem value='unit'>{t('个')}</SelectItem></SelectContent>
-          </Select> : <span className='detail'>{condition.metric.endsWith('percent') ? '%' : condition.metric === 'requests' ? t('次') : usageUnitLabel(source?.unit || '', t)}</span>}
+            <SelectTrigger className='w-[84px]' aria-label={t('Token unit')}><SelectValue>{draft.unit === 'yi' ? t('100M') : draft.unit === 'wan' ? t('10k') : t('total')}</SelectValue></SelectTrigger>
+            <SelectContent><SelectItem value='yi'>{t('100M')}</SelectItem><SelectItem value='wan'>{t('10k')}</SelectItem><SelectItem value='unit'>{t('total')}</SelectItem></SelectContent>
+          </Select> : <span className='detail'>{condition.metric.endsWith('percent') ? '%' : condition.metric === 'requests' ? t('times') : usageUnitLabel(source?.unit || '', t)}</span>}
         </FieldGroup>
-        {thresholdPreview ? <p className='detail'>{t('实际阈值：{value} Token', { value: thresholdPreview })}</p> : null}
+        {thresholdPreview ? <p className='detail'>{t('Actual threshold: {value} tokens', { value: thresholdPreview })}</p> : null}
         {local ? <>
           <Field orientation='horizontal' className='field-row'>
-            <FieldLabel>{t('统计周期')}</FieldLabel>
+            <FieldLabel>{t('Counting period')}</FieldLabel>
             <Select value={condition.window?.reset || 'daily'} onValueChange={reset => update({ window: { ...condition.window, reset: reset as LimiterWindow['reset'] } })}>
               <SelectTrigger className='min-w-0 flex-1'><SelectValue>{RESET_OPTIONS.find(option => option.value === (condition.window?.reset || 'daily'))!.label()}</SelectValue></SelectTrigger>
               <SelectContent>{RESET_OPTIONS.map(option => <SelectItem key={option.value} value={option.value}>{option.label()}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
           {condition.window?.reset === 'fixed' || condition.window?.reset === 'rolling' ? <Field orientation='horizontal' className='field-row'>
-            <FieldLabel>{t('窗口长度')}</FieldLabel>
+            <FieldLabel>{t('Window length')}</FieldLabel>
             <Input type='number' min={1 / 60} max={744} step='any' value={draft.period} className='max-w-[130px]'
               onChange={event => setDraft({ ...draft, period: event.currentTarget.value })} /><span className='detail'>{t('小时')}</span>
           </Field> : null}
           {condition.window?.reset === 'total' || condition.window?.reset === 'fixed' ? <>
-            <Field orientation='horizontal' className='field-row'><FieldLabel>{t('累计起点')}</FieldLabel><Input type='datetime-local' value={draft.anchor}
+            <Field orientation='horizontal' className='field-row'><FieldLabel>{t('Counting start')}</FieldLabel><Input type='datetime-local' value={draft.anchor}
               onChange={event => setDraft({ ...draft, anchor: event.currentTarget.value })} className='min-w-0 flex-1' /></Field>
-            <Field orientation='horizontal' className='field-row'><FieldLabel>{t('到期时间')}</FieldLabel><Input type='datetime-local' value={draft.end}
+            <Field orientation='horizontal' className='field-row'><FieldLabel>{t('Expiry time')}</FieldLabel><Input type='datetime-local' value={draft.end}
               onChange={event => setDraft({ ...draft, end: event.currentTarget.value })} className='min-w-0 flex-1' /></Field>
           </> : null}
           {['daily', 'weekly', 'monthly'].includes(condition.window?.reset || 'daily') ? <Field orientation='horizontal' className='field-row'>
-            <FieldLabel>{t('重置时区')}</FieldLabel>
+            <FieldLabel>{t('Reset time zone')}</FieldLabel>
             <Select value={condition.window?.utcOffsetMinutes === 480 ? 'beijing' : condition.window?.utcOffsetMinutes === 0 ? 'utc' : 'local'}
               onValueChange={zone => update({ window: { ...condition.window, reset: condition.window?.reset || 'daily', utcOffsetMinutes: zone === 'beijing' ? 480 : zone === 'utc' ? 0 : null } })}>
-              <SelectTrigger className='min-w-[190px]'><SelectValue>{condition.window?.utcOffsetMinutes === 480 ? t('北京时间（UTC+8）') : condition.window?.utcOffsetMinutes === 0 ? 'UTC' : t('服务器本地时区')}</SelectValue></SelectTrigger>
-              <SelectContent><SelectItem value='local'>{t('服务器本地时区')}</SelectItem><SelectItem value='beijing'>{t('北京时间（UTC+8）')}</SelectItem><SelectItem value='utc'>UTC</SelectItem></SelectContent>
+              <SelectTrigger className='min-w-[190px]'><SelectValue>{condition.window?.utcOffsetMinutes === 480 ? t('Beijing time (UTC+8)') : condition.window?.utcOffsetMinutes === 0 ? 'UTC' : t('Server local time zone')}</SelectValue></SelectTrigger>
+              <SelectContent><SelectItem value='local'>{t('Server local time zone')}</SelectItem><SelectItem value='beijing'>{t('Beijing time (UTC+8)')}</SelectItem><SelectItem value='utc'>UTC</SelectItem></SelectContent>
             </Select>
           </Field> : null}
         </> : null}
         <p className='detail'>{local
-          ? t('本地统计只包含经过本网关的请求，不等于上游账单；清理请求日志不会清零。套餐选择用于限定保护范围，不会强制上游扣指定套餐。')
-          : t('按上游额度查询的读数判定；模型共用同一个额度池时，选择模型不会拆分该池余额。')}</p>
-        {local && modelOptions.length > 0 ? <p className='detail'>{t('选中多个模型时，每个模型单独累计、单独比较阈值；不合并用量。')}</p> : null}
-        {source?.localEstimate ? <p className='detail text-warning'>{t('上游没有提供此额度的分桶用量，当前使用本地估算保护；在其他客户端产生的消耗不会计入。')}</p> : null}
+          ? t('Local counters include only requests through this gateway, not the upstream bill. Clearing request logs does not reset them. Selecting a plan scopes protection; it does not force the upstream to charge that plan.')
+          : t('Evaluated using the upstream quota reading. Selecting models does not split the balance of a shared quota pool.')}</p>
+        {local && modelOptions.length > 0 ? <p className='detail'>{t('When multiple models are selected, usage and thresholds are evaluated separately for each model. Usage is not combined.')}</p> : null}
+        {source?.localEstimate ? <p className='detail text-warning'>{t('The upstream does not provide usage for this quota bucket, so protection uses a local estimate. Usage in other clients is not counted.')}</p> : null}
         {source?.channel && source.channel !== String(account?.quotaChannel || account?.zcodePlan || '') ? <p className='detail text-warning'>
-          {t('此额度不属于账号当前使用的通道，切换到对应通道后才参与判定。')}
+          {t('This quota does not belong to the account’s current channel. It is evaluated only after switching to its channel.')}
         </p> : null}
         {error ? <p className='detail text-destructive'>{error}</p> : null}
       </DialogBody>
-      <DialogFooter><Button variant='outline' onClick={onClose}>{t('取消')}</Button><Button onClick={save}>{t('保存条件')}</Button></DialogFooter>
+      <DialogFooter><Button variant='outline' onClick={onClose}>{t('Cancel')}</Button><Button onClick={save}>{t('Save condition')}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }

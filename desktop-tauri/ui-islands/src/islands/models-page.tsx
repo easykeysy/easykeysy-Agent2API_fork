@@ -212,9 +212,9 @@ function ModelsPage() {
    * 有映射按 `model.aliases`（与「有映射」筛选同一份判据）。
    */
   const titleLabel = provider === 'all'
-    ? t('全部')
+    ? t('All')
     : (provider === ALL_CUSTOM
-      ? t('自定义 · 全部')
+      ? t('Custom · all')
       : (custom
         ? String(customSource.record(provider)?.name || provider)
         : (builtinRailCounts().get(provider)?.label || providerLabelOf(provider))))
@@ -245,8 +245,8 @@ function ModelsPage() {
   /** 表头那格没有文案（照账号页勾选列：列设置里才需要名字），只有全选复选框 */
   const allPickNode = (
     <Checkbox checked={allVisiblePicked} indeterminate={!allVisiblePicked && someVisiblePicked}
-      disabled={!visibleKeys.length} aria-label={t('全选当前筛选结果')}
-      title={t('全选当前筛选出的模型（跨分页）；再点取消')}
+      disabled={!visibleKeys.length} aria-label={t('Select all filtered results')}
+      title={t('Select all models in the current filter (across pages); click again to clear')}
       onCheckedChange={next => {
         const nextSet = new Set(selection)
         for (const key of visibleKeys) {
@@ -270,17 +270,17 @@ function ModelsPage() {
     const shownBuiltins = [...counts].filter(([id, entry]) => matchesProvider(id, entry.label))
     const shownCustoms = customs.filter(item => matchesProvider(String(item.id || ''), String(item.name || item.id || '')))
     const total = [...counts.values()].reduce((sum, item) => sum + item.n, 0)
-    const allLabel = t('全部（{n} 家）', { n: counts.size })
+    const allLabel = t('All ({n} providers)', { n: counts.size })
     // 自定义组「全部」的计数 = 各家模型数之和；「N 家」按实有模型的家算，
     // 空家（登记了但还没拉到清单）不虚增数字
     const customTotal = [...customCounts.values()].reduce((sum, item) => sum + item.n, 0)
-    const customAllLabel = t('全部（{n} 家）', { n: [...customCounts.values()].filter(item => item.n > 0).length })
+    const customAllLabel = t('All ({n} providers)', { n: [...customCounts.values()].filter(item => item.n > 0).length })
     return (
-      <Sidebar className='prov-rail' id='prov-rail' aria-label={t('按提供商选择')}>
+      <Sidebar className='prov-rail' id='prov-rail' aria-label={t('Select by provider')}>
         <div className='models-provider-search'>
           <InputGroup>
             <InputGroupInput ref={providerSearchRef} id='models-provider-search' type='search'
-              placeholder={t('搜索提供商…')} aria-label={t('搜索提供商')}
+              placeholder={t('Search providers…')} aria-label={t('Search providers')}
               autoComplete='off' spellCheck={false} value={providerSearch}
               onChange={event => setProviderSearch(event.currentTarget.value)}
               onKeyDown={event => {
@@ -297,7 +297,7 @@ function ModelsPage() {
               </svg>
             </InputGroupAddon>
             {providerSearch ? <InputGroupAddon align='inline-end'>
-              <InputGroupButton size='icon-xs' aria-label={t('清空')} title={t('清空')}
+              <InputGroupButton size='icon-xs' aria-label={t('Clear')} title={t('Clear')}
                 onClick={() => { setProviderSearch(''); providerSearchRef.current?.focus() }}>
                 <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor'
                   strokeWidth='2' strokeLinecap='round' aria-hidden='true'>
@@ -308,7 +308,7 @@ function ModelsPage() {
           </InputGroup>
         </div>
         <NavList className='rail-scroll'>
-          {(!providerKeyword || shownBuiltins.length > 0) && <div className='rail-label'>{t('内置提供商')}</div>}
+          {(!providerKeyword || shownBuiltins.length > 0) && <div className='rail-label'>{t('Built-in provider')}</div>}
           {/* 条目是导航项而不是按钮，走 NavItem（选中态 / 悬浮态 / 字重 / 计数都在组件里，
               与原来的 .pv 是同一套令牌取值）。头像（icon=）按家给一枚色相 monogram，
               见 ProviderAvatar 的说明。shadow-none 是为了清掉 ui/css/components.css
@@ -319,12 +319,12 @@ function ModelsPage() {
             className='shadow-none' onClick={() => selectProvider('all')}>{allLabel}</NavItem>}
           {shownBuiltins.map(([key, entry]) => (
             <NavItem key={key} active={provider === key} data-provider={key}
-              title={entry.n ? entry.label : t('{provider}：模型清单为空，等待获取', { provider: entry.label })}
+              title={entry.n ? entry.label : t('{provider}: the model catalog is empty and waiting to be fetched', { provider: entry.label })}
               count={entry.n} icon={<ProviderAvatar id={key} label={entry.label} />} className='shadow-none'
-              trailing={entry.n === 0 ? <Badge variant='outline'>{t('待获取')}</Badge> : undefined}
+              trailing={entry.n === 0 ? <Badge variant='outline'>{t('Not fetched')}</Badge> : undefined}
               onClick={() => selectProvider(key)}>{entry.label}</NavItem>
           ))}
-          {(!providerKeyword || shownCustoms.length > 0) && <div className='rail-label'>{t('自定义提供商')}</div>}
+          {(!providerKeyword || shownCustoms.length > 0) && <div className='rail-label'>{t('Custom provider')}</div>}
           {customs.length ? [
             // 自定义组自己的「全部」：选中时右栏聚合所有自定义家的模型（不含内置家 ——
             // 与上面内置组那颗「全部」是并列的两份聚合）。计数非零才显示条目：
@@ -347,23 +347,23 @@ function ModelsPage() {
                     icon={<ProviderAvatar id={id} label={label} />}
                     className={cn('shadow-none', RAIL_HIDE_COUNT_ON_HOVER)}
                     onClick={() => selectProvider(id)}>{label}</NavItem>
-                  <Button size='default' variant='ghost' type='button' className='pv-del' aria-label={t('删除自定义提供商')}
-                    title={t('删除这个自定义提供商（连同名下账号）')}
+                  <Button size='default' variant='ghost' type='button' className='pv-del' aria-label={t('Delete custom provider')}
+                    title={t('Delete this custom provider (along with its accounts)')}
                     onClick={() => void removeCustomProvider(id)}>×</Button>
                 </div>
               )
             }),
-          ] : !providerKeyword ? <Empty className='rail-empty'>{t('还没有自定义提供商')}</Empty> : null}
+          ] : !providerKeyword ? <Empty className='rail-empty'>{t('No custom providers yet')}</Empty> : null}
           {providerKeyword && !shownBuiltins.length && !shownCustoms.length ? (
             <Empty className='models-provider-empty' role='status'>
-              {t('没有匹配「{keyword}」的提供商', { keyword: providerSearch.trim() })}
+              {t('No providers match "{keyword}"', { keyword: providerSearch.trim() })}
             </Empty>
           ) : null}
         </NavList>
         <div className='rail-foot'>
           <NavItem variant='add' id='rail-add-custom'
-            title={t('新建一个自定义提供商（同时创建它的第一个账号）')}
-            onClick={() => openAddCustomProvider()}>{t('＋ 新建自定义提供商')}</NavItem>
+            title={t('Create a custom provider (and its first account)')}
+            onClick={() => openAddCustomProvider()}>{t('+ New custom provider')}</NavItem>
         </div>
       </Sidebar>
     )
@@ -391,21 +391,21 @@ function ModelsPage() {
       // 说清下一步该做什么才有用；目录还没就位时既不能说「已删除」也不能说「还没有模型」
       const empty = custom
         ? (!directoryReady()
-          ? t('加载中…')
+          ? t('Loading…')
           : isAllCustomView()
-            ? t('自定义提供商还没有模型：先在左栏选一家，点「添加模型」登记，或「获取上游模型」从上游拉取')
+            ? t('This custom provider has no models yet: pick a provider in the left rail, click "Add model" to register one, or "Fetch upstream models" to pull from upstream')
             : customMissing
-              ? t('该提供商已不存在（可能已被删除），请刷新列表')
-              : t('这家还没有模型：点「添加模型」登记，或「获取上游模型」从上游拉取'))
+              ? t('This provider no longer exists (it may have been deleted); refresh the list')
+              : t('No models for this provider yet: click “Add model” to register one, or “Fetch models” to pull from upstream'))
         : (!state.data
-          ? t('加载中…')
+          ? t('Loading…')
           : builtinRailCounts().size
-            ? t('模型清单为空：已有可用账号，请点「获取模型」拉取目录')
-            : t('暂无模型（请先添加账号）'))
+            ? t('The model catalog is empty. Usable accounts are available; click “Fetch models” to retrieve it.')
+            : t('No models yet (add an account first)'))
       return <TableRow><TableCell colSpan={columnCount} className='empty'>{empty}</TableCell></TableRow>
     }
     if (!shown.length) {
-      return <TableRow><TableCell colSpan={columnCount} className='empty'>{keyword ? t('没有匹配「{keyword}」的模型', { keyword }) : t('没有匹配当前筛选的模型')}</TableCell></TableRow>
+      return <TableRow><TableCell colSpan={columnCount} className='empty'>{keyword ? t('No models match “{keyword}”', { keyword }) : t('No models match the current filter')}</TableCell></TableRow>
     }
     // 分组带只在「全部」视图里出现：选中单家时标题已经写了是哪一家，再叠一条是重复的
     // 分组带在两个聚合视图（内置「全部」/ 自定义「全部」）里出现：选中单家时标题已经
@@ -417,7 +417,7 @@ function ModelsPage() {
     const groups = new Map<string, { label: string; items: ManageModel[] }>()
     for (const model of shown) {
       const key = model.provider || ''
-      if (!groups.has(key)) groups.set(key, { label: model.providerLabel || key || t('未知'), items: [] })
+      if (!groups.has(key)) groups.set(key, { label: model.providerLabel || key || t('Unknown'), items: [] })
       groups.get(key)?.items.push(model)
     }
     const rows: React.ReactNode[] = []
@@ -454,7 +454,7 @@ function ModelsPage() {
         rows.push(
           <TableRow className='tr-group' key={`group:${key}`}>
             <TableCell colSpan={columnCount}>
-              <span className='prov-tag'>{group.label}</span>{from > 0 ? t('（续）') : ''}{t('{n} 个模型', { n: group.items.length })}
+              <span className='prov-tag'>{group.label}</span>{from > 0 ? t('(cont.) ') : ''}{t('{n} models', { n: group.items.length })}
             </TableCell>
           </TableRow>,
         )
@@ -465,7 +465,7 @@ function ModelsPage() {
         rows.push(
           <TableRow className='tr-more' key={`more:${key}`}>
             <TableCell colSpan={columnCount}>
-              <Button variant='ghost' size='sm' onClick={() => expandGroup(key)}>{t('展开其余 {n} 个模型 ▾', { n: rest })}</Button>
+              <Button variant='ghost' size='sm' onClick={() => expandGroup(key)}>{t('Show {n} more models ▾', { n: rest })}</Button>
             </TableCell>
           </TableRow>,
         )
@@ -473,7 +473,7 @@ function ModelsPage() {
         rows.push(
           <TableRow className='tr-more' key={`collapse:${key}`}>
             <TableCell colSpan={columnCount}>
-              <Button variant='ghost' size='sm' onClick={() => collapseGroup(key)}>{t('收起 ▴')}</Button>
+              <Button variant='ghost' size='sm' onClick={() => collapseGroup(key)}>{t('Collapse ▴')}</Button>
             </TableCell>
           </TableRow>,
         )
@@ -499,26 +499,26 @@ function ModelsPage() {
                   <ProviderAvatar id={provider} label={titleLabel} glyph={provider === 'all' || provider === ALL_CUSTOM ? GRID_GLYPH : undefined} />
                   <h2>{titleLabel}</h2>
                   <span className='mm-meta'>
-                    <b>{providerModels.length}</b>{t(' 个模型 · 已启用 ')}<b>{enabledCount}</b>{t(' · 有映射 ')}<b>{mappedCount}</b>
+                    <b>{providerModels.length}</b>{t(' models · enabled ')}<b>{enabledCount}</b>{t(' · mapped ')}<b>{mappedCount}</b>
                   </span>
                 </div>
                 <div className='head-actions'>
                   {view.providers?.some(item => item.provider === provider && item.settingsAvailable) ? <Button variant='outline' size='sm'
-                    onClick={() => openProviderSettings(provider)}>{t('提供商设置')}</Button> : null}
+                    onClick={() => openProviderSettings(provider)}>{t('Provider settings')}</Button> : null}
                   {/* 「获取模型」是这一页的主操作（把清单拉回来），用实心主按钮建立主次；
                       「添加模型」是补充，维持描边档。文案与 title 只有一处事实来源（这里），
                       index.html 里不写死 */}
                   <Button id='btn-refresh-models'
                     title={customSource.isCustom(provider)
-                      ? t('从这一家的上游拉一份模型清单，勾选要哪些再导入（已添加的不会重复导入）')
-                      : t('刷新模型管理页里各提供商的远程模型目录，逐家结果列在弹窗里')}
-                    onClick={() => refreshModels()}>{t('获取模型')}</Button>
+                      ? t('Pull a model catalog from this provider\'s upstream, check the ones you want, then import them (models already added won\'t be imported again)')
+                      : t('Refresh the remote model catalogs of the providers on the Model Management page; per-provider results are listed in the dialog')}
+                    onClick={() => refreshModels()}>{t('Fetch models')}</Button>
                   <Button id='btn-add-custom-model' variant='outline' size='sm'
-                    onClick={() => openCustomModel()}>{t('＋ 添加模型')}</Button>
+                    onClick={() => openCustomModel()}>{t('+ Add model')}</Button>
                   {/* 窄屏「筛选」入口：桌面隐藏（CSS 控制）。角标是生效的筛选条数 */}
                   <Button size='default' variant='ghost' type='button' className='mm-filter-open hidden max-[767px]:inline-flex' onClick={() => setFilterOpen(true)}
-                    aria-label={t('打开筛选')}>
-                    {t('筛选')}
+                    aria-label={t('Open the filter')}>
+                    {t('Filter')}
                     {(() => {
                       const n = (state.stateFilter !== 'all' ? 1 : 0)
                         + (state.visibilityFilter !== 'all' ? 1 : 0)
@@ -528,29 +528,29 @@ function ModelsPage() {
                   </Button>
                 </div>
               </div>
-              <ResponsiveSheet open={filterOpen} onOpenChange={setFilterOpen} title={t('筛选')}
+              <ResponsiveSheet open={filterOpen} onOpenChange={setFilterOpen} title={t('Filter')}
                 inlineClassName='mm-filters' bodyClassName='model-filter-body'
                 actions={<Button variant='ghost' size='sm' onClick={() => {
                   setStateFilter('all')
                   setVisibilityFilter('all')
                   setSearch('')
-                }}>{t('清空')}</Button>}>
+                }}>{t('Clear')}</Button>}>
                 {/* 状态筛选：语义、键盘、滑块都在组件库里，取值仍以快照为准（完全受控） */}
                 <SegmentedControl options={MODEL_STATE_OPTIONS} value={state.stateFilter}
-                  onValueChange={setStateFilter} aria-label={t('按状态筛选')} className='shrink-0' />
+                  onValueChange={setStateFilter} aria-label={t('Filter by status')} className='shrink-0' />
                 {/* 可见性筛选：上游目录是超集，里面混着官方客户端不展示的模型
                     （本仓已默认关闭它们的默认绑定）。默认停「可见」—— 一打开就
                     让它们占满表格会把用户真能用的模型挤下去。切到「全部」即可
                     看到清单全貌（落盘，下次打开记住）。 */}
                 <SegmentedControl options={MODEL_VISIBILITY_OPTIONS} value={state.visibilityFilter}
-                  onValueChange={setVisibilityFilter} aria-label={t('按可见性筛选')} className='shrink-0' />
+                  onValueChange={setVisibilityFilter} aria-label={t('Filter by visibility')} className='shrink-0' />
                 {/* 搜索框：InputGroup + addon 图标（与 input-control.tsx 的用法一致）。
                     刻意**不带** data-island-input：那是输入框岛（就地升级）的钩子，
                     两个岛同时挂一个输入框会打架。宽度：桌面 240px；手机上整行
                     （工具条已改纵向排列，固定 240px 会与上下两条线段右边缘不齐）。 */}
                 <InputGroup className='w-full min-[768px]:w-[240px] flex-none min-[768px]:flex-none' id='models-search'>
-                  <InputGroupInput type='search' placeholder={t('搜索模型 ID / 名称 / 映射名…')}
-                    aria-label={t('搜索模型')} autoComplete='off' value={state.search}
+                  <InputGroupInput type='search' placeholder={t('Search model ID / name / mapping name…')}
+                    aria-label={t('Search models')} autoComplete='off' value={state.search}
                     onChange={event => setSearch(event.currentTarget.value)} />
                   <InputGroupAddon aria-hidden='true'>⌕</InputGroupAddon>
                 </InputGroup>
@@ -558,10 +558,10 @@ function ModelsPage() {
                     不勾就不占位置）。弹窗里可删除 / 启用 / 禁用 / 设置思考等级 */}
                 {selectedModels.length > 0 ? (
                   <Badge variant='brand' className='batch-chip'>
-                    {t('已选 ')}<b>{selectedModels.length}</b>{t(' 个')}
+                    {t('Selected ')}<b>{selectedModels.length}</b>{t(' total')}
                     <Button id='btn-batch-models' variant='outline' size='xs'
-                      title={t('对选中的 {n} 个模型执行批量操作', { n: selectedModels.length })}
-                      onClick={() => setBatchOpen(true)}>{t('批量操作')}</Button>
+                      title={t('Run batch actions on the {n} selected models', { n: selectedModels.length })}
+                      onClick={() => setBatchOpen(true)}>{t('Batch actions')}</Button>
                   </Badge>
                 ) : null}
               </ResponsiveSheet>
@@ -584,29 +584,29 @@ function ModelsPage() {
                 </colgroup>
                 <TableHeader><TableRow>
                   <TableHead data-col='check'>{allPickNode}</TableHead>
-                  <TableHead data-col='model'>{t('上游模型')}</TableHead>
+                  <TableHead data-col='model'>{t('Upstream model')}</TableHead>
                   <TableHead data-col='rate'
                     sortDirection={sort === 'rate-asc' ? 'asc' : sort === 'rate-desc' ? 'desc' : false}
                     sortLabel={sort === 'rate-asc'
-                      ? t('倍率升序，点击切换为降序')
+                      ? t('Multiplier ascending; click to switch to descending')
                       : sort === 'rate-desc'
-                        ? t('倍率降序，点击切换为升序')
-                        : t('按倍率升序排列')}
-                    title={t('按提供商分组排序，已启用模型优先；未知倍率排在末尾')}
+                        ? t('Multiplier descending; click to switch to ascending')
+                        : t('Sort by multiplier ascending')}
+                    title={t('Sort within provider groups, with enabled models first; unknown multipliers stay last')}
                     onSortChange={direction => {
                       setSort(`rate-${direction}`)
                       paging.goto(1)
-                    }}>{t('倍率')}</TableHead>
-                  <TableHead data-col='visibility' title={t('这个模型在官方客户端里是否会被展列；不展示的那些默认已关闭（含默认绑定）')}>{t('可见性')}</TableHead>
-                  <TableHead data-col='source'>{t('来源')}</TableHead>
+                    }}>{t('Multiplier')}</TableHead>
+                  <TableHead data-col='visibility' title={t('Whether the official client lists this model; entries that are not shown are disabled by default (including the default binding)')}>{t('Visibility')}</TableHead>
+                  <TableHead data-col='source'>{t('Source')}</TableHead>
                   {/* 表头只留短标题，完整口径进问号提示（原括号长标题让表头喧宾夺主）。
                       这是静态内容：重渲染时逐字不变，不会破坏「静态表头」的约定。
                       这两枚问号讲的是**同一套视觉语言**（这个值到底是不是上游说的）：
                       内侧描边 / 虚线底 = models.dev 补的，右上角小点 = 你改过 */}
                   <TableHead data-col='budget'>
-                    {t('上下文 / 输出')}
+                    {t('Context / Output')}
                     <span className='th-help' aria-hidden='true'
-                      title={t('数字带虚线底 = 由 models.dev 补齐；右上角小点 = 你手动覆盖过；— = 未声明。点任意一格可改。')}>
+                      title={t('Number with a dotted underline = filled in by models.dev; small dot at the corner = you overrode it; — = not declared. Click any cell to edit.')}>
                       <svg viewBox='0 0 24 24'>
                         <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round'>
                           <circle cx='12' cy='12' r='9' /><path d='M12 16v-4' /><path d='M12 8h.01' />
@@ -615,9 +615,9 @@ function ModelsPage() {
                     </span>
                   </TableHead>
                   <TableHead data-col='caps'>
-                    {t('能力')}
+                    {t('Capabilities')}
                     <span className='th-help' aria-hidden='true'
-                      title={t('圆点带内侧描边 = 由 models.dev 补齐；右上角小点 = 你手动覆盖过；虚线圈 = 未声明。悬停某一枚可看逐项出处。')}>
+                      title={t('Dot with an inner ring = filled in by models.dev; small dot at the corner = you overrode it; dashed ring = not declared. Hover a dot to see where each value comes from.')}>
                       <svg viewBox='0 0 24 24'>
                         <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round'>
                           <circle cx='12' cy='12' r='9' /><path d='M12 16v-4' /><path d='M12 8h.01' />
@@ -628,9 +628,9 @@ function ModelsPage() {
                   {/* 表头只留短标题，完整口径进问号提示（原括号长标题让表头喧宾夺主）。
                       这是静态内容：重渲染时逐字不变，不会破坏「静态表头」的约定 */}
                   <TableHead data-col='alias'>
-                    {t('模型映射')}
+                    {t('Model mapping')}
                     <span className='th-help' aria-hidden='true'
-                      title={t('每条映射 = 对外名 → 上游模型；原始 ID 与别名有独立开关，默认绑定永远存在（没有映射时是合成的那条）。')}>
+                      title={t('Each mapping = public name → upstream model; the original ID and each alias have their own toggle, and the default binding always exists (it\'s the synthesized one when there are no mappings).')}>
                       <svg viewBox='0 0 24 24'>
                         <g fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round'>
                           <circle cx='12' cy='12' r='9' /><path d='M12 16v-4' /><path d='M12 8h.01' />
@@ -638,7 +638,7 @@ function ModelsPage() {
                       </svg>
                     </span>
                   </TableHead>
-                  <TableHead className='r' data-col='act'>{t('操作')}</TableHead>
+                  <TableHead className='r' data-col='act'>{t('Actions')}</TableHead>
                 </TableRow></TableHeader>
                 <TableBody id='models'>{body()}</TableBody>
               </Table>
@@ -653,9 +653,9 @@ function ModelsPage() {
             <TableFooter
               className='models-panel-foot'
               leading={isAllCustomView()
-                ? <>{t('这里是')}<b>{t('全部自定义提供商')}</b>{t('的模型合集：每家的清单互相独立，别名也只在自己那家内生效；要改名称 / 协议 / Base URL，到账号页该家账号的「设置」→ 提供商一栏。')}</>
+                ? <>{t('This is ')}<b>{t('All custom providers')}</b>{t('\'s model collection: each provider\'s list is independent, and aliases only take effect within their own provider; to change the name / protocol / Base URL, go to that provider\'s account on the Accounts page → "Settings" → provider section.')}</>
                 : (custom
-                  ? <>{t('自定义提供商的清单')}<b>{t('只属于这一家')}</b>{t('：这里的模型不会出现在其他家，别名也只在这一家内生效。改名称 / 协议 / Base URL 在账号页该家账号的「设置」→ 提供商一栏；整家不要了，鼠标移到左栏这家上点 × 删除（连同名下账号）。')}</>
+                  ? <>{t('Custom provider catalog —')}<b>{t('exclusive to this provider')}</b>{t(': the models here won\'t appear under other providers, and aliases take effect only within this provider. To change the name / protocol / Base URL, use the “Settings” → Provider section of this provider\'s account on the Accounts page; to remove the whole provider, hover over it in the left rail and click × to delete it (along with its accounts).')}</>
                   : undefined)}
               total={shown.length}
               range={paging.paged ? { start: paging.rangeStart, end: paging.rangeEnd } : null}

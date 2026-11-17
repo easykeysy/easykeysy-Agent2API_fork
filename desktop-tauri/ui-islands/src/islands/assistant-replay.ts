@@ -12,14 +12,14 @@ export function replayMessages(messages: ChatMessage[], model: string | null): U
     for (const call of message.toolCalls || []) {
       const result = results.get(call.id)
       let inferred: ToolCardItem['state'] = result ? 'done' : 'cancelled'
-      if (result?.content.includes('用户取消') || result?.content.includes('用户已停止')) inferred = 'cancelled'
-      else if (result?.content.startsWith('工具执行失败') || result?.content.startsWith('未知工具')) inferred = 'failed'
+      if (result?.content.includes('The user cancelled') || result?.content.includes('The user has stopped')) inferred = 'cancelled'
+      else if (result?.content.startsWith('Tool execution failed') || result?.content.startsWith('Unknown tool')) inferred = 'failed'
       else if (result) {
         try { if (JSON.parse(result.content)?.error) inferred = 'failed' } catch { /* 旧版本只读工具也会返回纯文本。 */ }
       }
       items.push({ kind: 'tool', call, state: result?.outcome?.state || inferred,
         summary: result?.outcome?.summary, auto: result?.outcome?.auto, error: result?.outcome?.error,
-        detail: result?.content || t('这次工具调用没有保存完成结果，历史回放不会重新执行。'), images: result?.images,
+        detail: result?.content || t('No completed result was saved for this tool call. Replaying history will not execute it again.'), images: result?.images,
       })
     }
     return items

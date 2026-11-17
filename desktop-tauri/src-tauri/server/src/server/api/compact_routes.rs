@@ -78,7 +78,7 @@ pub async fn put_routes(State(state): State<ServerState>, body: Bytes) -> Respon
         let enabled = payload.config.enabled;
         let count = payload.config.rules.len();
         compact_routes::save(payload.config, &payload.revision)?;
-        logging::log("[Models]", &format!("压缩路由已保存：开关={}，规则={count}", if enabled { "开" } else { "关" }));
+        logging::log("[Models]", &format!("压缩路由已保存：开关={}，规则={count}", if enabled { "On" } else { "Off" }));
         view(&state)
     }).await {
         Ok(Ok(value)) => ok_json(value),

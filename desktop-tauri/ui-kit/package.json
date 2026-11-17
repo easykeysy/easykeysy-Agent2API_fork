@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Agent2API 私有组件库 —— Base UI 交互原语 + Tailwind v4 + CVA 变体，源码随仓库维护、不对外发布",
+  "description": "Agent2API The private component library—— Base UI Interaction primitives + Tailwind v4 + CVA variants; source is maintained in the repo and not published",
   "exports": {
     ".": "./src/index.ts",
     "./styles/globals.css": "./styles/globals.css",

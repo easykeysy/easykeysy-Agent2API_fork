@@ -30,26 +30,26 @@ function KeepalivePanel({ center, busy, action }: { center: CheckinCenter; busy:
   const text = draft ?? center.keepalive.models.join('\n')
   const save = async () => {
     const models = [...new Set(text.split(/[\n,，、]+/).map(item => item.trim()).filter(Boolean))]
-    const result = await action('keepalive', () => saveKeepalive(models), t('模型链已保存'))
+    const result = await action('keepalive', () => saveKeepalive(models), t('The model chain has been saved'))
     if (result) setDraft(null)
   }
 
   return (
     <div className='m-section'>
-      <SectionHead title={t('保活模型链')} />
+      <SectionHead title={t('Keep-alive model chain')} />
       <Card className='m-card m-card-pad'>
         <ModelApiKeyField {...keyState} value={center.keepalive.apiKeyId ?? null} disabled={Boolean(busy)}
           onRefresh={() => { void keyState.refresh().catch(() => {}) }} t={t} id='keepalive-api-key'
-          onChange={apiKeyId => { void action('keepalive', () => saveKeepalive(center.keepalive.models, apiKeyId), t('保活 API Key 已保存')) }} />
+          onChange={apiKeyId => { void action('keepalive', () => saveKeepalive(center.keepalive.models, apiKeyId), t('Keepalive API Key saved')) }} />
         {center.keepalive.authError ? <p role='status' className='m-ck-error'>{center.keepalive.authError}</p> : null}
-        <p className='m-ck-note'>{t('按顺序尝试免费模型，一行一个；清空并保存恢复默认链。')}</p>
+        <p className='m-ck-note'>{t('Try the free models in order, one per line; clear and save to restore the default chain.')}</p>
         <Textarea className='text-base' rows={4} value={text} disabled={Boolean(busy)}
-          aria-label={t('保活模型链')} onChange={event => setDraft(event.currentTarget.value)} />
+          aria-label={t('Keep-alive model chain')} onChange={event => setDraft(event.currentTarget.value)} />
         <div className='m-ck-actions'>
           <Button size='sm' variant='outline' disabled={Boolean(busy)} onClick={() => setDraft(center.keepalive.defaultModels.join('\n'))}>
-            {t('填入缺省链')}
+            {t('Fill in default chain')}
           </Button>
-          <Button size='sm' disabled={Boolean(busy) || draft === null} onClick={() => void save()}>{busy === 'keepalive' ? t('保存中…') : t('保存')}</Button>
+          <Button size='sm' disabled={Boolean(busy) || draft === null} onClick={() => void save()}>{busy === 'keepalive' ? t('Saving…') : t('Save')}</Button>
         </div>
       </Card>
     </div>
@@ -64,10 +64,10 @@ function TravelPanel({ center, busy, action }: { center: CheckinCenter; busy: st
   const save = async () => {
     const times = text.split(/[,，\s]+/).map(item => item.trim()).filter(Boolean)
     if (!times.length || times.length > 6 || times.some(time => !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) {
-      store.toast(t('请填写 1–6 个 HH:MM 时刻，以逗号分隔'), 'err')
+      store.toast(t('Please enter 1–6 total HH:MM Times, comma-separated'), 'err')
       return
     }
-    const result = await action('travel-save', () => saveTravel({ times }), t('已保存'))
+    const result = await action('travel-save', () => saveTravel({ times }), t('Saved'))
     if (result) setDraft(null)
   }
 
@@ -75,37 +75,37 @@ function TravelPanel({ center, busy, action }: { center: CheckinCenter; busy: st
     const result = await action('travel-run', runTravel)
     if (!result) return
     const failed = Number(result.summary?.failed) || 0
-    store.toast(result.outcome === 'skipped' ? result.message || t('本轮已跳过')
-      : t('猫猫旅行：{n} 个动作，+{credit} 积分，{failed} 个失败', {
+    store.toast(result.outcome === 'skipped' ? result.message || t('Skipped this round')
+      : t('Cat travel: {n} actions, +{credit} credits, {failed} failed', {
         n: result.summary?.actions?.length || 0, credit: Number(result.summary?.credit) || 0, failed,
       }), failed > 0 ? 'err' : 'ok')
   }
 
   return (
     <div className='m-section'>
-      <SectionHead title={t('猫猫旅行定时排程')} />
+      <SectionHead title={t('Cat travel schedule')} />
       <Card className='m-card m-card-pad'>
         <div className='m-ck-toolbar'>
           <div className='m-ck-grow'>
-            <div className='m-ck-title'>{t('自动巡检')}</div>
-            <div className='m-ck-note'>{t('一趟推进一步，与签到排程互相独立')}</div>
+            <div className='m-ck-title'>{t('Automatic inspection')}</div>
+            <div className='m-ck-note'>{t('Each trip advances one step, independent of the sign-in schedule')}</div>
           </div>
-          <Switch checked={travel.enabled} disabled={Boolean(busy)} aria-label={t('自动巡检')}
-            onCheckedChange={enabled => void action('travel-toggle', () => saveTravel({ enabled }), t('已保存'))} />
+          <Switch checked={travel.enabled} disabled={Boolean(busy)} aria-label={t('Automatic inspection')}
+            onCheckedChange={enabled => void action('travel-toggle', () => saveTravel({ enabled }), t('Saved'))} />
         </div>
-        {travel.available === false ? <p className='m-ck-note'>{t('自动巡检已暂停：{reason}', { reason: travel.pausedReason || '' })}</p> : null}
-        <Label className='m-ck-field'>{t('每天时刻（北京时间）')}
+        {travel.available === false ? <p className='m-ck-note'>{t('Automatic inspection is paused: {reason}', { reason: travel.pausedReason || '' })}</p> : null}
+        <Label className='m-ck-field'>{t('Daily time (Beijing time)')}
           <Input className='text-base' value={text} placeholder='09:00, 21:00' disabled={Boolean(busy)}
             onChange={event => setDraft(event.currentTarget.value)} />
         </Label>
         <div className='m-ck-actions'>
-          <Button size='sm' disabled={Boolean(busy) || draft === null} onClick={() => void save()}>{t('保存')}</Button>
+          <Button size='sm' disabled={Boolean(busy) || draft === null} onClick={() => void save()}>{t('Save')}</Button>
           <Button size='sm' variant='outline' disabled={Boolean(busy) || travel.running || travel.available === false} onClick={() => void run()}>
-            {busy === 'travel-run' || travel.running ? t('巡检中…') : t('立即巡检全部')}
+            {busy === 'travel-run' || travel.running ? t('Inspecting…') : t('Inspect all now')}
           </Button>
         </div>
-        {travel.firedToday?.length ? <p className='m-ck-note'>{t('今天已执行：{times}', { times: travel.firedToday.join(' / ') })}</p> : null}
-        {travel.lastResult?.at ? <p className='m-ck-note'>{t('上次执行：{time}', { time: formatStamp(travel.lastResult.at) })}</p> : null}
+        {travel.firedToday?.length ? <p className='m-ck-note'>{t('Executed today: {times}', { times: travel.firedToday.join(' / ') })}</p> : null}
+        {travel.lastResult?.at ? <p className='m-ck-note'>{t('Last run: {time}', { time: formatStamp(travel.lastResult.at) })}</p> : null}
         {travel.lastResult?.error ? <p className='m-ck-error'>{travel.lastResult.error}</p> : null}
         {travel.lastResult?.actions?.map((item, index) => <p className='m-ck-note' key={`${item.accountId}:${index}`}>
           {item.name || item.accountId}: {item.message || item.outcome}

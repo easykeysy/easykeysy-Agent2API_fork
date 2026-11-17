@@ -18,7 +18,7 @@ pub(super) fn private_directory(config_dir: &Path) -> Result<TempDir, String> {
             std::fs::create_dir_all(config_dir)
                 .map_err(|error| format!("创建备用暂存目录失败: {error}"))?;
             builder.tempdir_in(config_dir).map_err(|error| {
-                format!("创建暂存目录失败（系统临时目录: {system_error}；配置目录: {error}）")
+                format!("创建暂存目录失败（系统临时目录: {system_error}；配置目录: {error})")
             })
         }
     }
@@ -34,7 +34,7 @@ pub fn transfer_file(config_dir: &Path) -> Result<NamedTempFile, String> {
             std::fs::create_dir_all(config_dir)
                 .map_err(|error| format!("创建备用传输目录失败: {error}"))?;
             builder.tempfile_in(config_dir).map_err(|error| {
-                format!("创建传输文件失败（系统临时目录: {system_error}；配置目录: {error}）")
+                format!("创建传输文件失败（系统临时目录: {system_error}；配置目录: {error})")
             })
         }
     }
@@ -61,7 +61,7 @@ impl TempRestoreDb {
             &path,
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
         )
-        .map_err(|error| format!("创建暂存库失败（{}）: {error}", path.display()))?;
+        .map_err(|error| format!("创建暂存库失败（{}): {error}", path.display()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;")
             .map_err(|error| format!("设置暂存库失败: {error}"))?;
         Ok(Self {

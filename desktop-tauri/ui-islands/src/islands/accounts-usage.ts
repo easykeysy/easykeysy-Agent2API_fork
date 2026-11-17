@@ -142,11 +142,11 @@ export async function queryUsageFor(id?: string | null, replace = true): Promise
 
 export async function queryAllUsage(): Promise<void> {
   if (getStore().usageStarting.has('*')) return
-  if (!batchUsageTargets().length) { toast(t('暂无可查询余额的账号'), 'err'); return }
+  if (!batchUsageTargets().length) { toast(t('No accounts with a queryable balance'), 'err'); return }
   try {
     await startUsageTasks(undefined, true)
   } catch (error) {
-    toast(t('余额查询失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Balance query failed: {message}', { message: errorMessage(error) }), 'err')
   }
 }
 
@@ -158,11 +158,11 @@ export async function queryUsageOnce(id: string): Promise<void> {
     const failure = usageFailureOf(entry)
     const empty = usageEmptyStateOf(entry, t)
     if (failure?.notConfigured) toast(failure.message, 'ok')
-    else if (failure) toast(t('余额查询失败：{message}', { message: failure.message }), 'err')
+    else if (failure) toast(t('Balance query failed: {message}', { message: failure.message }), 'err')
     else if (empty) toast(empty.detail, 'ok')
-    else toast(t('✅ 已更新余额'))
+    else toast(t('✅ Balance updated'))
   } catch (error) {
-    toast(t('余额查询失败：{message}', { message: errorMessage(error) }), 'err')
+    toast(t('Balance query failed: {message}', { message: errorMessage(error) }), 'err')
   }
 }
 

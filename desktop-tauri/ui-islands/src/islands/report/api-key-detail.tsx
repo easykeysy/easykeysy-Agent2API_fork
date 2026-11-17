@@ -17,7 +17,7 @@ export function ApiKeyUsageDialog({ target, range, dates, onClose }: {
     const api = (window as unknown as { workbuddyDesktop?: {
       getStatsSummary(range: string, dates?: CustomRange, options?: { apiKey?: string }): Promise<StatsSummary>
     } }).workbuddyDesktop
-    if (!api) { setError(t('后端桥不可用')); return }
+    if (!api) { setError(t('Backend bridge unavailable')); return }
     void api.getStatsSummary(range, dates, { apiKey: filterValue }).then(value => {
       if (!cancelled) setData(value)
     }).catch(failure => {
@@ -30,14 +30,14 @@ export function ApiKeyUsageDialog({ target, range, dates, onClose }: {
     const total = Number(detail?.totalTokens) || 0
     return rows?.length ? (
       <Table><TableHeader><TableRow>
-        <TableHead>{clients ? t('客户端') : t('模型')}</TableHead>
-        <TableHead className='text-right'>{t('请求数')}</TableHead>
-        <TableHead className='text-right'>{t('总 Token')}</TableHead>
-        <TableHead className='text-right'>{t('占比')}</TableHead>
-        <TableHead className='text-right'>{t('操作')}</TableHead>
+        <TableHead>{clients ? t('Client') : t('Model')}</TableHead>
+        <TableHead className='text-right'>{t('Requests')}</TableHead>
+        <TableHead className='text-right'>{t('Total tokens')}</TableHead>
+        <TableHead className='text-right'>{t('Share')}</TableHead>
+        <TableHead className='text-right'>{t('Actions')}</TableHead>
       </TableRow></TableHeader><TableBody>{rows.map((row, index) => (
         <TableRow key={row.id || row.model || index}>
-          <TableCell>{clients ? sourceName(row, 'clients') : row.label || row.model || t('未知模型')}</TableCell>
+          <TableCell>{clients ? sourceName(row, 'clients') : row.label || row.model || t('Unknown model')}</TableCell>
           <TableCell className='text-right'>{formatInt(row.requests)}</TableCell>
           <TableCell className='text-right'>{formatTokens(row.totalTokens)}</TableCell>
           <TableCell className='text-right'>{total ? `${((Number(row.totalTokens) || 0) / total * 100).toFixed(1)}%` : '—'}</TableCell>
@@ -45,28 +45,28 @@ export function ApiKeyUsageDialog({ target, range, dates, onClose }: {
             openRequestLogs({ apiKey: filterValue, startDate: data?.startDate, endDate: data?.endDate,
               ...(clients ? { client: row.id || '' } : { model: row.model || '' }) })
             onClose()
-          }}>{t('请求日志')}</Button></TableCell>
+          }}>{t('Request logs')}</Button></TableCell>
         </TableRow>
       ))}</TableBody></Table>
-    ) : <Empty>{t('没有可恢复的维度明细')}</Empty>
+    ) : <Empty>{t('No recoverable breakdown')}</Empty>
   }
   return (
     <Dialog open onOpenChange={open => { if (!open) onClose() }}>
       <DialogContent className='max-w-[900px]'>
-        <DialogHeader><DialogTitle>{t('API Key 用量详情')} · {sourceName(target, 'apiKeys')}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t('API key usage details')} · {sourceName(target, 'apiKeys')}</DialogTitle></DialogHeader>
         <DialogBody>
           <div className='flex items-center gap-2 text-xs text-muted-foreground'>
             {data?.startDate} ～ {data?.endDate}
             {target.source !== 'key' ? <Badge variant='outline'>{sourceName(target, 'apiKeys')}</Badge> : null}
           </div>
-          {error ? <Empty className='text-destructive'>{error}</Empty> : !data ? <Empty>{t('正在加载…')}</Empty> : (
+          {error ? <Empty className='text-destructive'>{error}</Empty> : !data ? <Empty>{t('Loading…')}</Empty> : (
             <>
-              {detail?.detailsComplete === false ? <p className='text-xs text-warning'>{t('历史明细不完整，输入、输出与缓存读数无法恢复')}</p> : null}
-              <h3 className='mt-4 mb-2 font-semibold'>{t('客户端分布')}</h3>
+              {detail?.detailsComplete === false ? <p className='text-xs text-warning'>{t('Historical details are incomplete; input, output and cache readings cannot be recovered.')}</p> : null}
+              <h3 className='mt-4 mb-2 font-semibold'>{t('Client breakdown')}</h3>
               {showRows(detail?.clients, true)}
-              <h3 className='mt-4 mb-2 font-semibold'>{t('模型分布')}</h3>
+              <h3 className='mt-4 mb-2 font-semibold'>{t('Model breakdown')}</h3>
               {showRows(detail?.models, false)}
-              <p className='mt-3 text-xs text-muted-foreground'>{t('分布来自保留的日报来源明细；无法恢复的历史不反推客户端或模型。')}</p>
+              <p className='mt-3 text-xs text-muted-foreground'>{t('Breakdowns come from retained daily source aggregates; clients or models are not inferred for unrecoverable history.')}</p>
             </>
           )}
         </DialogBody>

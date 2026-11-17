@@ -23,10 +23,10 @@
 
   async function readStats() {
     const bridge = window.workbuddyDesktop;
-    if (!bridge?.zcodeCaptchaStats) throw new Error(wbI18n.t('验证码令牌池接口不可用'));
+    if (!bridge?.zcodeCaptchaStats) throw new Error(wbI18n.t('CAPTCHA token pool interface unavailable'));
     const value = await bridge.zcodeCaptchaStats();
     if (value?.error) throw new Error(String(value.error));
-    if (!value) throw new Error(wbI18n.t('验证码令牌池未返回状态'));
+    if (!value) throw new Error(wbI18n.t('The verification token pool returned no status.'));
     stats = value;
     return value;
   }
@@ -63,16 +63,16 @@
   }
 
   async function verify(accountId, signal, onPhase) {
-    if (verifying) throw new Error(wbI18n.t('已有验证码流程正在进行，请先完成或取消'));
+    if (verifying) throw new Error(wbI18n.t('A verification is already in progress. Complete or cancel it first.'));
     const bridge = window.workbuddyDesktop;
     if (!accountId || !bridge?.zcodeClaimCaptchaConfig || !bridge?.pushZcodeCaptchaTokens) {
-      throw new Error(wbI18n.t('验证码令牌入池接口不可用'));
+      throw new Error(wbI18n.t('The verification token submission API is unavailable.'));
     }
     verifying = true;
     publish('verifying');
     try {
       const requireActive = () => {
-        if (signal?.aborted) throw new DOMException('请求已取消', 'AbortError');
+        if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
       };
       requireActive();
       onPhase?.('preparing');
@@ -85,12 +85,12 @@
         return false;
       }
       const captcha = window.wbAliyunCaptcha;
-      if (!captcha?.requestToken) throw new Error(wbI18n.t('验证码组件未加载，请重启应用后重试'));
+      if (!captcha?.requestToken) throw new Error(wbI18n.t('Verification component not loaded; restart the app and try again'));
       const token = await captcha.requestToken(config, signal, { onPhase });
       requireActive();
       onPhase?.('submitting');
       const outcome = await bridge.pushZcodeCaptchaTokens([{ param: token.param, region: config.region || '' }]);
-      if (Number(outcome?.accepted) !== 1) throw new Error(wbI18n.t('验证码令牌未全部入池'));
+      if (Number(outcome?.accepted) !== 1) throw new Error(wbI18n.t('The verification token was not accepted by the pool.'));
       stats = outcome;
       publish('idle');
       return true;

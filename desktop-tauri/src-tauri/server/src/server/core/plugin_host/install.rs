@@ -403,10 +403,10 @@ pub fn validate_manifest(manifest: &proto::PackManifest, host_protocol: u32) -> 
             || entry.starts_with('\\')
             || entry.chars().nth(1) == Some(':')
         {
-            return Err(format!("入口路径必须是相对路径（{target}: {entry}）"));
+            return Err(format!("入口路径必须是相对路径（{target}: {entry})"));
         }
         if entry.split(['/', '\\']).any(|part| part == "..") {
-            return Err(format!("入口路径不能包含 ..（{target}: {entry}）"));
+            return Err(format!("入口路径不能包含 ..（{target}: {entry})"));
         }
     }
     Ok(())
@@ -433,7 +433,7 @@ pub fn entry_for_target(manifest: &proto::PackManifest, target: &str) -> Option<
 pub fn read_manifest(dir: &Path) -> Result<proto::PackManifest, String> {
     let path = dir.join("pack.json");
     let text = std::fs::read_to_string(&path)
-        .map_err(|e| format!("读不到 pack.json（{}）: {e}", path.display()))?;
+        .map_err(|e| format!("读不到 pack.json（{}): {e}", path.display()))?;
     serde_json::from_str(&text).map_err(|e| format!("pack.json 不是合法 JSON: {e}"))
 }
 
@@ -478,7 +478,7 @@ pub(super) fn extract_zip(bytes: &[u8], target: &Path) -> Result<(), String> {
             std::fs::create_dir_all(parent).map_err(|e| format!("建目录失败: {e}"))?;
         }
         let mut out = std::fs::File::create(&out_path)
-            .map_err(|e| format!("写文件失败（{}）: {e}", out_path.display()))?;
+            .map_err(|e| format!("写文件失败（{}): {e}", out_path.display()))?;
         let mut file_expanded = 0_u64;
         loop {
             let remaining = 128 * 1024 * 1024 - actual_expanded;
@@ -586,14 +586,14 @@ fn explain_dir_error(error: std::io::Error, subject: &Path) -> std::io::Error {
         return error;
     }
     let hint = if cfg!(windows) {
-        "（重试 3 次仍被拒绝：多半是杀毒软件的实时保护正锁着刚解压出来的 exe。\
+        "（重试 3 次仍被拒绝：多半是杀毒软件的实时保护正锁着刚解压出来的 exe.\
          把配置目录加入杀软白名单，或关掉实时保护后重试）"
     } else {
         "（重试 3 次仍被拒绝：请检查该目录的写权限）"
     };
     std::io::Error::new(
         error.kind(),
-        format!("{}{}：{subject:?}", error, hint),
+        format!("{}{}: {subject:?}", error, hint),
     )
 }
 

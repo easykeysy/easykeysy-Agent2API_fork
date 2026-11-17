@@ -11,12 +11,12 @@ export type RecordColumn = {
 export const RECORDS_TABLE_ID = 'checkin-records'
 
 const RECORD_COLUMNS: RecordColumn[] = [
-  { key: 'time', label: t('时间') },
-  { key: 'account', label: t('账号') },
-  { key: 'provider', label: t('提供商') },
-  { key: 'source', label: t('来源') },
-  { key: 'outcome', label: t('结果') },
-  { key: 'detail', label: t('说明') },
+  { key: 'time', label: t('Time') },
+  { key: 'account', label: t('Accounts') },
+  { key: 'provider', label: t('Provider') },
+  { key: 'source', label: t('Source') },
+  { key: 'outcome', label: t('Result') },
+  { key: 'detail', label: t('Note') },
 ]
 
 type ColSettingsHandle = {
@@ -48,7 +48,7 @@ export function setupRecordColumns(mount: HTMLElement | null, onChange: () => vo
   if (!api) return false
   handle = api.register({
     id: RECORDS_TABLE_ID,
-    label: t('签到记录表'),
+    label: t('Check-in records table'),
     columns: RECORD_COLUMNS,
     mount: () => mount,
     onChange: () => onColumnsChanged?.(),

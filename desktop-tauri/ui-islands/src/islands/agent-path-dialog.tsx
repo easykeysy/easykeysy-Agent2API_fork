@@ -17,22 +17,22 @@ export function PathDialog({client,onClose}: {client:AgentClient;onClose:()=>voi
     catch(error) {setError(errorMessage(error));setSaving(false)}
   }
   return <Dialog open onOpenChange={(open,details)=>{if(!open){if(saving)details.cancel();else onClose()}}}>
-    <DialogContent><DialogHeader><DialogTitle>{t('指定配置路径')} · {client.name}</DialogTitle></DialogHeader>
-      <DialogBody><Alert>{t('路径属于网关所在机器，不是浏览器所在设备。只改变检测目标，不修改客户端文件。')}</Alert>
+    <DialogContent><DialogHeader><DialogTitle>{t('Specify configuration path')} · {client.name}</DialogTitle></DialogHeader>
+      <DialogBody><Alert>{t('The path is on the gateway host, not the browser\'s device. Only the detection target changes; client files are not modified.')}</Alert>
         {client.id === 'dsh' && Boolean(client.configTargets?.length) && <Field>
-          <FieldLabel>{t('DSH 配置目标')}</FieldLabel>
+          <FieldLabel>{t('DSH configuration target')}</FieldLabel>
           <Select value={path} disabled={saving} onValueChange={value => { if (typeof value === 'string') setPath(value) }}>
-            <SelectTrigger><SelectValue>{selectedTarget ? dshTargetLabel(selectedTarget.profile, selectedTarget.label) : t('自定义路径')}</SelectValue></SelectTrigger>
+            <SelectTrigger><SelectValue>{selectedTarget ? dshTargetLabel(selectedTarget.profile, selectedTarget.label) : t('Custom path')}</SelectValue></SelectTrigger>
             <SelectContent>{client.configTargets?.map(target => <SelectItem key={target.path} value={target.path}>{dshTargetLabel(target.profile, target.label)}{target.version ? ` · ${target.version}` : ''}</SelectItem>)}</SelectContent>
           </Select>
-          <p className='text-xs text-subtle'>{t('新版网页版和桌面版分别保存模型配置；旧版模型设置共享，MCP 始终只写入所选运行方式。')}</p>
+          <p className='text-xs text-subtle'>{t('Newer web and desktop apps store model settings separately. Legacy model settings are shared; MCP is always written only to the selected profile.')}</p>
         </Field>}
-        <TextField label={t('完整配置文件路径')} fieldKey='' value={path} onChange={setPath} disabled={saving} />
-        <p className='text-xs text-subtle'>{t('客户端必须实际使用同一个配置文件；本页不改变客户端启动参数。')}</p>
+        <TextField label={t('Full configuration file path')} fieldKey='' value={path} onChange={setPath} disabled={saving} />
+        <p className='text-xs text-subtle'>{t('The client must use the same configuration file. This page does not change its launch arguments.')}</p>
         {error&&<Alert variant='destructive'>{error}</Alert>}
       </DialogBody>
-      <DialogFooter><Button variant='ghost' disabled={saving} onClick={()=>void save('')}>{t('恢复自动检测')}</Button><span className='mr-auto'/>
-        <Button variant='outline' disabled={saving} onClick={onClose}>{t('取消')}</Button><Button disabled={saving} onClick={()=>void save(path)}>{t('保存路径')}</Button></DialogFooter>
+      <DialogFooter><Button variant='ghost' disabled={saving} onClick={()=>void save('')}>{t('Restore automatic detection')}</Button><span className='mr-auto'/>
+        <Button variant='outline' disabled={saving} onClick={onClose}>{t('Cancel')}</Button><Button disabled={saving} onClick={()=>void save(path)}>{t('Save path')}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }

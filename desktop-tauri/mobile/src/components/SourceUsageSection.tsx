@@ -6,11 +6,11 @@ import { formatInt, formatPercent, formatTokens } from '../lib/format'
 import { t } from '../i18n'
 
 export function reportSourceName(row: StatsDimension, key: boolean): string {
-  if (!key) return !row.id ? t('未记录客户端') : row.id === 'other' ? t('其它') : String(row.label || row.id)
-  if (row.source === 'none') return t('免鉴权调用')
-  if (row.source === 'env') return t('环境变量 Key')
-  if (row.source !== 'key') return t('历史未记录 Key')
-  return row.label || row.id || t('未命名')
+  if (!key) return !row.id ? t('Unrecorded client') : row.id === 'other' ? t('Other') : String(row.label || row.id)
+  if (row.source === 'none') return t('Unauthenticated calls')
+  if (row.source === 'env') return t('Environment variable key')
+  if (row.source !== 'key') return t('Key not recorded in history')
+  return row.label || row.id || t('Untitled')
 }
 
 function value(amount: number | null | undefined): string {
@@ -45,43 +45,43 @@ export function SourceUsageSection({ summary, apiKeys = false }: { summary: Stat
   return (
     <div className='m-section'>
       <div className='flex flex-wrap justify-between items-center gap-2 mb-2'>
-        <b className='text-sm'>{apiKeys ? t('API Key 统计') : t('客户端统计')}</b>
-        <SegmentedControl value={sort} onValueChange={setSort} aria-label={t('统计排序')}
-          options={[{ value: 'tokens', label: t('按 Token') }, { value: 'requests', label: t('按请求数') }]} />
+        <b className='text-sm'>{apiKeys ? t('API key statistics') : t('Client statistics')}</b>
+        <SegmentedControl value={sort} onValueChange={setSort} aria-label={t('Statistics sort order')}
+          options={[{ value: 'tokens', label: t('By tokens') }, { value: 'requests', label: t('By requests') }]} />
       </div>
       <Card className='m-card p-3'>
-        {!list.length ? <Empty>{t('所选范围内暂无请求')}</Empty> : (expanded ? list : list.slice(0, 5)).map(row => (
+        {!list.length ? <Empty>{t('No requests in the selected range')}</Empty> : (expanded ? list : list.slice(0, 5)).map(row => (
           <div className='border-b border-border py-2 last:border-0' key={row.filterValue || row.id || 'unknown'}>
             <div className='flex items-center gap-2'>
               <Button variant='link' size='sm' className='px-0 min-w-0 truncate' onClick={() => openMobileRequestLogs(summary, query(row))}>
                 {reportSourceName(row, apiKeys)}
               </Button>
               {apiKeys && row.source === 'key' ? <Badge variant={row.state === 'enabled' ? 'success' : 'outline'}>
-                {row.state === 'enabled' ? t('启用') : row.state === 'disabled' ? t('停用') : t('已删除')}
+                {row.state === 'enabled' ? t('enabled') : row.state === 'disabled' ? t('Disabled') : t('Deleted')}
               </Badge> : null}
               <span className='ml-auto text-xs whitespace-nowrap'>{formatTokens(row.totalTokens || 0)}</span>
             </div>
             <div className='text-xs text-muted-foreground leading-6'>
-              {t('{n} 次请求', { n: formatInt(row.requests || 0) })} · {t('成功 / 失败')} {formatInt(row.success || 0)} / {formatInt(row.failures || 0)}
-              <br />{t('成功率')} {typeof row.successRate === 'number' ? formatPercent(row.successRate) : '—'} · {t('占比')} {summary.overview?.tokens ? formatPercent((row.totalTokens || 0) / summary.overview.tokens) : '—'}
-              <br />{t('输入 / 输出')} {value(row.promptTokens)} / {value(row.completionTokens)}
-              <br />{t('缓存读取')} {value(row.cacheReadTokens)} · {t('缓存命中率')} {typeof row.cacheRate === 'number' ? formatPercent(row.cacheRate) : '—'}
-              {apiKeys ? <><br />{t('最近调用')} {row.lastUsedAt ? new Date(row.lastUsedAt).toLocaleString() : '—'}</> : null}
+              {t('{n} requests', { n: formatInt(row.requests || 0) })} · {t('Success / failure')} {formatInt(row.success || 0)} / {formatInt(row.failures || 0)}
+              <br />{t('Success rate')} {typeof row.successRate === 'number' ? formatPercent(row.successRate) : '—'} · {t('Share')} {summary.overview?.tokens ? formatPercent((row.totalTokens || 0) / summary.overview.tokens) : '—'}
+              <br />{t('Input / output')} {value(row.promptTokens)} / {value(row.completionTokens)}
+              <br />{t('Cache reads')} {value(row.cacheReadTokens)} · {t('Cache hit rate')} {typeof row.cacheRate === 'number' ? formatPercent(row.cacheRate) : '—'}
+              {apiKeys ? <><br />{t('Last call')} {row.lastUsedAt ? new Date(row.lastUsedAt).toLocaleString() : '—'}</> : null}
             </div>
-            {apiKeys ? <Button variant='ghost' size='sm' onClick={() => setTarget(row)}>{t('用量详情')}</Button> : null}
+            {apiKeys ? <Button variant='ghost' size='sm' onClick={() => setTarget(row)}>{t('Usage details')}</Button> : null}
           </div>
         ))}
         {list.length > 5 ? <Button variant='ghost' size='sm' className='w-full' onClick={() => setExpanded(!expanded)}>
-          {expanded ? t('收起') : t('查看全部')}
+          {expanded ? t('Collapse') : t('View all')}
         </Button> : null}
       </Card>
       <Sheet open={!!target} onOpenChange={open => { if (!open) setTarget(null) }}>
-        <SheetContent><SheetHeader><SheetTitle>{t('API Key 用量详情')} · {target && reportSourceName(target, true)}</SheetTitle></SheetHeader>
+        <SheetContent><SheetHeader><SheetTitle>{t('API key usage details')} · {target && reportSourceName(target, true)}</SheetTitle></SheetHeader>
           <SheetBody>
-            {error ? <Empty>{error}</Empty> : !detail ? <Empty>{t('正在加载…')}</Empty> : (
+            {error ? <Empty>{error}</Empty> : !detail ? <Empty>{t('Loading…')}</Empty> : (
               <>{(['clients', 'models'] as const).map(section => (
                 <div key={section} className='mb-4'>
-                  <b>{section === 'clients' ? t('客户端分布') : t('模型分布')}</b>
+                  <b>{section === 'clients' ? t('Client breakdown') : t('Model breakdown')}</b>
                   {detail.apiKeyDetail?.[section]?.length ? detail.apiKeyDetail[section]?.map((row, index) => (
                     <Button key={row.id || row.model || index} variant='ghost' className='w-full justify-between my-1' onClick={() => {
                       openMobileRequestLogs(summary, { apiKey: target?.filterValue || 'unknown',
@@ -89,7 +89,7 @@ export function SourceUsageSection({ summary, apiKeys = false }: { summary: Stat
                       setTarget(null)
                     }}><span className='truncate'>{section === 'clients' ? reportSourceName(row, false) : row.label || row.model}</span>
                       <span>{formatTokens(row.totalTokens || 0)} · {formatInt(row.requests || 0)}</span></Button>
-                  )) : <Empty>{t('没有可恢复的维度明细')}</Empty>}
+                  )) : <Empty>{t('No recoverable breakdown')}</Empty>}
                 </div>
               ))}</>
             )}

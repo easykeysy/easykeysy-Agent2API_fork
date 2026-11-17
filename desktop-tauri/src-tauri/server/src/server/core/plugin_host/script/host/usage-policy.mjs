@@ -1,4 +1,4 @@
-const JOYCODE_EMPTY_ERROR = "JoyCode 暂未返回额度数据"
+const JOYCODE_EMPTY_ERROR = "JoyCode Quota data has not been returned yet"
 
 export function observeUsageResponse(response, url, context) {
   if (context.provider !== "joycode" || context.action !== "usage.query"

@@ -45,7 +45,7 @@ async fn http<S: AsyncRead + AsyncWrite + Unpin>(
             parts.next()?.parse::<u16>().ok()
         }).ok_or("HTTP 代理响应无效")?;
     if !(200..300).contains(&status) {
-        return Err(format!("HTTP 代理拒绝连接（HTTP {status}）"));
+        return Err(format!("HTTP 代理拒绝连接（HTTP {status})"));
     }
     Ok(())
 }
@@ -71,7 +71,7 @@ async fn socks<S: AsyncRead + AsyncWrite + Unpin>(
             auth.extend_from_slice(username);
             auth.push(password.len() as u8);
             auth.extend_from_slice(password);
-            socket.write_all(&auth).await.map_err(|_| "无法发送 SOCKS5 认证")?;
+            socket.write_all(&auth).await.map_err(|_| "无法发送 SOCKS5 Authentication")?;
             socket.read_exact(&mut response).await.map_err(|_| "SOCKS5 认证失败")?;
             if response != [1, 0] { return Err("SOCKS5 代理拒绝用户名或密码".to_string()); }
         }
@@ -92,7 +92,7 @@ async fn socks<S: AsyncRead + AsyncWrite + Unpin>(
     let mut response = [0_u8; 4];
     socket.read_exact(&mut response).await.map_err(|_| "SOCKS5 连接响应不完整")?;
     if response[0] != 5 || response[1] != 0 || response[2] != 0 {
-        return Err(format!("SOCKS5 代理拒绝连接（状态 {}）", response[1]));
+        return Err(format!("SOCKS5 代理拒绝连接（状态 {})", response[1]));
     }
     let size = match response[3] {
         1 => 4,

@@ -10,7 +10,7 @@ use crate::server::{logging, ServerState};
 
 pub async fn get(State(state): State<ServerState>) -> Response {
     let Some(db) = state.db() else {
-        return management_error(503, "数据库不可用");
+        return management_error(503, "Database unavailable");
     };
     match branding::load(db) {
         Ok(branding) => {
@@ -26,7 +26,7 @@ pub async fn get(State(state): State<ServerState>) -> Response {
 
 pub async fn put(State(state): State<ServerState>, body: Bytes) -> Response {
     let Some(db) = state.db().cloned() else {
-        return management_error(503, "数据库不可用");
+        return management_error(503, "Database unavailable");
     };
     let payload = match parse_body(&body) {
         Ok(payload) => payload,
@@ -53,11 +53,11 @@ pub async fn put(State(state): State<ServerState>, body: Bytes) -> Response {
 
 pub async fn logo(State(state): State<ServerState>, headers: HeaderMap) -> Response {
     let Some(db) = state.db() else {
-        return management_error(503, "数据库不可用");
+        return management_error(503, "Database unavailable");
     };
     let (bytes, etag) = match branding::logo(db) {
         Ok(Some(logo)) => logo,
-        Ok(None) => return (StatusCode::NOT_FOUND, "品牌 Logo 未设置").into_response(),
+        Ok(None) => return (StatusCode::NOT_FOUND, "Brand logo 未设置").into_response(),
         Err(error) => return management_error(500, error),
     };
     let matches = headers

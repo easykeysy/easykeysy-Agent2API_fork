@@ -33,7 +33,7 @@ const CLIENT_LABEL: Record<string, string> = {
   codex: 'Codex',
 }
 
-const clientText = (client?: string) => client ? CLIENT_LABEL[client] || client : t('客户端未记录')
+const clientText = (client?: string) => client ? CLIENT_LABEL[client] || client : t('Not recorded by the client')
 
 /** 从 route 快照里读出这次请求发生过的模型改写。 */
 export function requestRewrite(row: ReplayRow): Rewrite | null {
@@ -46,13 +46,13 @@ export function requestRewrite(row: ReplayRow): Rewrite | null {
 
   const compact = route.compactRoute
   if (compact?.source && compact.target) {
-    return { kind: 'compact', label: t('压缩上下文'), from: compact.source, to: compact.target,
-      detail: t('{client} 的上下文压缩请求', { client: clientText(compact.client) }) }
+    return { kind: 'compact', label: t('Context compaction'), from: compact.source, to: compact.target,
+      detail: t('{client} context compression request', { client: clientText(compact.client) }) }
   }
   const title = route.titleRoute
   if (title?.source && title.target) {
-    return { kind: 'title', label: t('标题生成'), from: title.source, to: title.target,
-      detail: t('{client} 的标题请求', { client: clientText(title.client) }) }
+    return { kind: 'title', label: t('Title generation'), from: title.source, to: title.target,
+      detail: t('{client} title request', { client: clientText(title.client) }) }
   }
   const vision = route.visionCompatibility
   if (vision?.mode) {
@@ -60,10 +60,10 @@ export function requestRewrite(row: ReplayRow): Rewrite | null {
     const calls = Array.isArray(vision.calls) ? vision.calls.length : 0
     const assist = vision.mode === 'assist_call' || vision.mode === 'assist'
     return {
-      kind: 'vision', label: t('图片兼容'),
+      kind: 'vision', label: t('Image compatibility'),
       from: requestModel(row),
-      to: assist ? t('辅助识图 · {n} 次读图', { n: calls }) : (vision.target?.model || t('视觉模型接管')),
-      detail: assist ? t('读图结果交回原模型继续回答') : t('整次请求交给视觉模型'),
+      to: assist ? t('Assisted image reading · {n} image reads', { n: calls }) : (vision.target?.model || t('The vision model takes over')),
+      detail: assist ? t('The image-reading result is handed back to the original model to continue answering') : t('Hand the whole request to the vision model'),
     }
   }
   return null
@@ -76,14 +76,14 @@ export function RoutingExecRewrite({ row }: { row: ReplayRow }) {
   return <section className='routing-exec-rewrite' data-kind={rewrite.kind}>
     <header className='routing-exec-rewrite-head'>
       <RouteIcon name='route' size={14} />
-      <b>{t('模型改写')}</b>
+      <b>{t('Model rewriting')}</b>
       <Badge variant={tone} shape='tag'>{rewrite.label}</Badge>
       <span>{rewrite.detail}</span>
     </header>
     <div className='routing-exec-rewrite-flow'>
-      <div className='routing-exec-rewrite-node'><span>{t('客户端模型')}</span><b>{rewrite.from}</b></div>
+      <div className='routing-exec-rewrite-node'><span>{t('The client\'s model')}</span><b>{rewrite.from}</b></div>
       <span className='routing-exec-rewrite-arrow' aria-hidden='true'><RouteIcon name='caretRight' size={14} /></span>
-      <div className='routing-exec-rewrite-node is-accent'><span>{t('实际使用')}</span><b>{rewrite.to}</b></div>
+      <div className='routing-exec-rewrite-node is-accent'><span>{t('Actually used')}</span><b>{rewrite.to}</b></div>
     </div>
   </section>
 }

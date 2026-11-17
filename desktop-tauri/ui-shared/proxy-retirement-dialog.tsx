@@ -31,34 +31,34 @@ export function ProxyRetirementDialog({ open, onClose, t, scope = '' }: {
               <circle cx='12' cy='12' r='9' /><path d='M12 11v5m0-9h.01' strokeLinecap='round' />
             </svg>
           </div>
-          <span className='text-[11px] tracking-wide text-muted-foreground'>{t('功能调整通知')}</span>
+          <span className='text-[11px] tracking-wide text-muted-foreground'>{t('Feature change notice')}</span>
           <DialogTitle className='mt-1.5 text-[22px] font-semibold leading-snug max-sm:text-xl'>
-            {t('代理订阅功能已下线')}
+            {t('Proxy subscriptions have been discontinued')}
           </DialogTitle>
           <DialogDescription className='mt-3 text-xs leading-[1.9] text-subtle'>
-            {t('为降低维护成本、资源占用及合规风险，Agent2API 已停止提供代理订阅与内置代理内核相关功能。')}
+            {t('To reduce maintenance costs, resource usage and compliance risks, Agent2API no longer provides proxy subscriptions or built-in proxy kernel features.')}
           </DialogDescription>
           <div className='mt-5 divide-y divide-border overflow-hidden rounded-md border border-border bg-surface-2'>
-            <Change retained={false} title={t('不再提供')}>
-              {t('订阅导入与更新、订阅节点管理，以及代理内核的下载、安装和运行。')}
+            <Change retained={false} title={t('No longer available')}>
+              {t('Subscription import and updates, subscription node management, and proxy kernel download, installation and execution.')}
             </Change>
-            <Change retained title={t('手动代理与 Clash Verge 同步仍然保留')}>
-              {t('已有手动配置和 Clash Verge 端点引用不受影响。仍可添加 HTTP / SOCKS5 地址、同步 Clash Verge 端点并测试连通性；Clash Verge 由你自行安装和运行。')}
+            <Change retained title={t('Manual proxies and Clash Verge sync remain available')}>
+              {t('Existing manual configurations and Clash Verge endpoint references are not affected. You can still add HTTP / SOCKS5 addresses, sync Clash Verge endpoints and test connectivity. Install and run Clash Verge separately.')}
             </Change>
           </div>
           <div className='mt-5 text-xs leading-[1.85]'>
-            <strong className='font-semibold'>{t('之前使用订阅节点？')}</strong>
+            <strong className='font-semibold'>{t('Previously using subscription nodes?')}</strong>
             <p className='mt-1.5 text-muted-foreground'>
-              {t('请填写已有代理服务的 HTTP / SOCKS5 地址，或自行运行 Clash Verge 后同步端点，并重新为相关账号和服务线路选择代理。')}
+              {t('Enter the HTTP / SOCKS5 address of an existing proxy service, or run Clash Verge separately and sync its endpoints, then select a proxy again for the affected accounts and service routes.')}
             </p>
           </div>
         </DialogBody>
         <DialogFooter className='justify-between px-7 max-sm:px-5'>
           <Label htmlFor={checkboxId} className='inline-flex cursor-pointer items-center gap-2 text-xs font-normal text-subtle'>
             <Checkbox id={checkboxId} checked={hide} onCheckedChange={next => setHide(next === true)} />
-            {t('不再提醒')}
+            {t('Do not show again')}
           </Label>
-          <Button onClick={acknowledge}>{t('我知道了')}</Button>
+          <Button onClick={acknowledge}>{t('Got it')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

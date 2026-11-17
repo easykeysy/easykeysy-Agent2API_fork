@@ -1651,7 +1651,7 @@ pub fn usage_not_configured(provider_label: &str, field_hint: &str) -> GatewayEr
     GatewayError::with_status(
         400,
         format!(
-            "该账号没有余额查询凭证（{provider_label} 的 {field_hint}），\
+            "该账号没有余额查询凭证（{provider_label} — see the {field_hint}），\
              请在账号设置里配置后再查询"
         ),
     )

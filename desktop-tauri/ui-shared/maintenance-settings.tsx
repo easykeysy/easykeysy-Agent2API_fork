@@ -31,7 +31,7 @@ export function MaintenanceSettings({ tasks, api, onClose, onSaved }: {
     for (const task of tasks) {
       const value = drafts[task.id]?.interval.trim() ?? ''
       if (!/^\d+$/.test(value) || Number(value) < task.min || Number(value) > task.max) {
-        setError(t('{name}间隔必须是 {min}–{max} 分钟的整数', { name: maintenanceLabel(task.id), min: task.min, max: task.max }))
+        setError(t('The {name} interval must be a whole number from {min} to {max} minutes', { name: maintenanceLabel(task.id), min: task.min, max: task.max }))
         return
       }
     }
@@ -44,13 +44,13 @@ export function MaintenanceSettings({ tasks, api, onClose, onSaved }: {
         if (!unsaved.current.has(task.id) && task.enabled === draft.enabled && task.interval === Number(draft.interval)) continue
         unsaved.current.add(task.id)
         const result = await api.save(task.id, { enabled: draft.enabled, interval: Number(draft.interval) })
-        if (result.saved === false) throw new Error(t('维护设置未能保存到数据库，请检查磁盘空间和权限'))
+        if (result.saved === false) throw new Error(t('Maintenance settings could not be saved to the database. Check disk space and permissions.'))
         unsaved.current.delete(task.id)
       }
       onSaved()
       onClose()
     } catch (failure) {
-      setError(t('部分设置可能已保存，请核对后重试：{reason}', { reason: failure instanceof Error ? failure.message : String(failure) }))
+      setError(t('Some settings may have been saved. Review them before retrying: {reason}', { reason: failure instanceof Error ? failure.message : String(failure) }))
       onSaved()
     } finally {
       saving.current = false
@@ -61,8 +61,8 @@ export function MaintenanceSettings({ tasks, api, onClose, onSaved }: {
     <DialogContent className='w-[min(600px,calc(100vw-32px))]'>
       <form className='flex min-h-0 flex-col' onSubmit={event => void save(event)}>
         <DialogHeader className='shrink-0 flex-col items-start gap-1'>
-          <DialogTitle>{t('维护设置')}</DialogTitle>
-          <DialogDescription className='text-xs leading-relaxed text-muted-foreground'>{t('自动维护与手动执行共用同一份结果记录')}</DialogDescription>
+          <DialogTitle>{t('Maintenance settings')}</DialogTitle>
+          <DialogDescription className='text-xs leading-relaxed text-muted-foreground'>{t('Automatic and manual runs share the same result history')}</DialogDescription>
         </DialogHeader>
         <DialogBody className='flex min-h-0 flex-col gap-3'>
           {error ? <Alert variant='destructive'>{error}</Alert> : null}
@@ -71,23 +71,23 @@ export function MaintenanceSettings({ tasks, api, onClose, onSaved }: {
               <div className='maintenance-setting-heading'>
                 <div>
                   <h3>{maintenanceLabel(task.id)}</h3>
-                  <p>{task.id === 'credentialMaintenance' ? t('只刷新过期或即将过期的账号凭证') : t('定期获取各提供商的最新模型清单')}</p>
+                  <p>{task.id === 'credentialMaintenance' ? t('Renew only expired or soon-to-expire account credentials') : t('Periodically fetch each provider\'s latest model list')}</p>
                 </div>
                 <Switch checked={drafts[task.id].enabled} disabled={busy} aria-label={maintenanceLabel(task.id)} onCheckedChange={enabled => patch(task.id, { enabled })} />
               </div>
               <Field className='w-[220px]'>
-                <FieldLabel>{t('执行间隔（分钟）')}</FieldLabel>
+                <FieldLabel>{t('Interval (minutes)')}</FieldLabel>
                 <Input type='number' inputMode='numeric' min={task.min} max={task.max} step={1} disabled={busy || !drafts[task.id].enabled}
                   value={drafts[task.id].interval} onChange={event => patch(task.id, { interval: event.target.value })} />
-                <FieldDescription>{t('可填 {min}–{max}', { min: task.min, max: task.max })}</FieldDescription>
+                <FieldDescription>{t('Allowed: {min}–{max}', { min: task.min, max: task.max })}</FieldDescription>
               </Field>
             </div>)}
           </div>
-          <p className='maintenance-muted'>{t('关闭自动维护不影响手动执行，也不影响对话请求所需的按需续期。')}</p>
+          <p className='maintenance-muted'>{t('Turning off automatic maintenance does not affect manual runs or on-demand credential renewal for chat requests.')}</p>
         </DialogBody>
         <DialogFooter className='shrink-0 flex-wrap'>
-          <Button type='button' variant='ghost' disabled={busy} onClick={onClose}>{t('取消')}</Button>
-          <Button type='submit' disabled={busy}>{busy ? <Spinner /> : null}{busy ? t('保存中…') : t('保存设置')}</Button>
+          <Button type='button' variant='ghost' disabled={busy} onClick={onClose}>{t('Cancel')}</Button>
+          <Button type='submit' disabled={busy}>{busy ? <Spinner /> : null}{busy ? t('Saving…') : t('Save settings')}</Button>
         </DialogFooter>
       </form>
     </DialogContent>

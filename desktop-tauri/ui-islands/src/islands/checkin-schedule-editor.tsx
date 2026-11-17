@@ -54,19 +54,19 @@ function ScheduleEditorForm({ entry, options, defaultRetryTime, onClose }: {
   }
 
   return <>
-    <DialogHeader><DialogTitle>{entry ? t('编辑签到计划') : t('新建签到计划')}</DialogTitle></DialogHeader>
+    <DialogHeader><DialogTitle>{entry ? t('Edit check-in schedule') : t('New check-in schedule')}</DialogTitle></DialogHeader>
     <DialogBody className='ck-schedule-editor-body grid gap-0 p-0'>
       <div className='ck-schedule-editor-fields'>
         <section className='ck-schedule-form-section'>
-          <h3>{t('基本设置')}</h3>
+          <h3>{t('Basic settings')}</h3>
           <div className='ck-schedule-basic-fields'>
             <Label className='ck-schedule-field grid items-stretch'>
-              <span>{t('计划名称')} <small>{t('选填')}</small></span>
-              <Input value={name} disabled={store.saving} placeholder={t('例如：每日自动签到')}
+              <span>{t('Schedule name')} <small>{t('Optional')}</small></span>
+              <Input value={name} disabled={store.saving} placeholder={t('For example: Daily automatic check-in')}
                 onChange={event => setName(event.currentTarget.value)} />
             </Label>
             <Label className='ck-schedule-field grid items-stretch'>
-              <span>{t('随机签到开始')}</span>
+              <span>{t('Random check-in start')}</span>
               <Input type='time' value={time} disabled={store.saving} className='font-mono tabular-nums'
                 onChange={event => {
                   const value = event.currentTarget.value
@@ -75,25 +75,25 @@ function ScheduleEditorForm({ entry, options, defaultRetryTime, onClose }: {
                 }} />
             </Label>
             <Label className='ck-schedule-field grid items-stretch'>
-              <span>{t('随机签到结束')}</span>
+              <span>{t('Random check-in end')}</span>
               <Input type='time' value={timeEnd} disabled={store.saving} className='font-mono tabular-nums'
                 onChange={event => setTimeEnd(event.currentTarget.value)} />
             </Label>
           </div>
-          <p className='ck-schedule-hint'>{t('每个账号每天在区间内随机执行一次；开始与结束相同则按固定时刻执行。')}</p>
-          {!validCheckinRange(time, timeEnd) ? <p className='ck-schedule-error'>{t('结束时间不能早于开始时间，暂不支持跨天区间。')}</p> : null}
+          <p className='ck-schedule-hint'>{t('Each account runs once a day at a random time within the window. Equal start and end times mean a fixed-time run.')}</p>
+          {!validCheckinRange(time, timeEnd) ? <p className='ck-schedule-error'>{t('The end cannot be earlier than the start. Overnight windows are not supported yet.')}</p> : null}
         </section>
         <section className='ck-schedule-form-section'>
-          <div className='ck-schedule-form-title'><h3>{t('平台与随机签到区间')}</h3>
-            <span>{t('已选 {n} / {total} 个平台', { n: providers.length, total: options.length })}</span>
+          <div className='ck-schedule-form-title'><h3>{t('Platforms and random check-in windows')}</h3>
+            <span>{t('{n} / {total} platforms selected', { n: providers.length, total: options.length })}</span>
           </div>
           <div className='ck-schedule-picker-tools'>
-            <Input type='search' value={search} disabled={store.saving} placeholder={t('搜索平台')}
-              aria-label={t('搜索签到平台')} onChange={event => setSearch(event.currentTarget.value)} />
+            <Input type='search' value={search} disabled={store.saving} placeholder={t('Search platforms')}
+              aria-label={t('Search check-in platforms')} onChange={event => setSearch(event.currentTarget.value)} />
             <Button variant='link' size='xs' disabled={store.saving}
-              onClick={() => setProviders(options.map(item => item.id))}>{t('全选')}</Button>
+              onClick={() => setProviders(options.map(item => item.id))}>{t('Select all')}</Button>
             <Button variant='ghost' size='xs' disabled={store.saving}
-              onClick={() => setProviders([])}>{t('清空')}</Button>
+              onClick={() => setProviders([])}>{t('Clear')}</Button>
           </div>
           <div className='ck-schedule-picker'>
             {visible.map(option => {
@@ -102,53 +102,53 @@ function ScheduleEditorForm({ entry, options, defaultRetryTime, onClose }: {
               return <div className={`ck-schedule-picker-row${checked ? ' selected' : ''}`} key={option.id}>
                 <Label className='ck-schedule-picker-label'>
                   <Checkbox checked={checked} disabled={store.saving}
-                    aria-label={t('选择 {name}', { name: t(option.label) })}
+                    aria-label={t('Select {name}', { name: t(option.label) })}
                     onCheckedChange={next => toggle(option.id, next === true)} />
                   <ProviderLogo id={option.id} label={t(option.label)} />
                   <span className='ck-schedule-picker-name'>{t(option.label)}
-                    {!option.available ? <small>{t('插件未就绪，范围仍保留')}</small> : null}
+                    {!option.available ? <small>{t('Plugin unavailable; scope retained')}</small> : null}
                   </span>
                 </Label>
                 <div className='ck-schedule-picker-time'>
                   <Input type='time' value={override || effectiveScheduleTime(time, providerTimes, option)}
                     disabled={!checked || store.saving} className='w-[108px] font-mono tabular-nums'
-                    aria-label={t('{name}签到时间', { name: t(option.label) })}
+                    aria-label={t('Check-in time for {name}', { name: t(option.label) })}
                     onChange={event => setProviderTimes(previous => ({ ...previous, [option.id]: event.currentTarget.value }))} />
                   <small className='font-mono tabular-nums'>{checkinRangeText(
                     effectiveScheduleTime(time, providerTimes, option),
                     providerCheckinEnd(effectiveScheduleTime(time, providerTimes, option), time, timeEnd),
                   )}</small>
                   {override ? <Button size='xs' variant='link' disabled={store.saving} onClick={() => resetTime(option.id)}>
-                    {t('恢复默认')}
-                  </Button> : <span>{option.builtinTime ? t('平台专属') : t('跟随默认')}</span>}
+                    {t('Restore Defaults')}
+                  </Button> : <span>{option.builtinTime ? t('Platform-specific') : t('Follow Default')}</span>}
                 </div>
               </div>
             })}
-            {!visible.length ? <p className='ck-schedule-hint'>{t('没有匹配的平台')}</p> : null}
+            {!visible.length ? <p className='ck-schedule-hint'>{t('No matching platforms')}</p> : null}
           </div>
-          {!providers.length ? <p className='ck-schedule-error'>{t('请至少选择一个签到平台')}</p> : null}
+          {!providers.length ? <p className='ck-schedule-error'>{t('Select at least one check-in platform')}</p> : null}
         </section>
         <div className='ck-schedule-editor-note'>{entry
-          ? t('这里只修改定时签到；补签和活动重试配置保持原样，在「定时补签」页单独设置。')
-          : t('新计划默认开启补签和活动窗口重试；保存后可到「定时补签」页单独调整。')}</div>
+          ? t('Only scheduled check-ins are edited here. Catch-up and campaign retry settings are preserved and configured separately on the catch-up tab.')
+          : t('New schedules enable catch-up and campaign retries by default. After saving, adjust them on the Scheduled catch-up tab.')}</div>
       </div>
       <aside className='ck-schedule-preview'>
-        <h3>{t('实际签到安排')}</h3><p>{t('北京时间 · 每天重复 · 随设置更新')}</p>
+        <h3>{t('Actual check-in schedule')}</h3><p>{t('Beijing time · Repeats daily · Updates with settings')}</p>
         <div className='ck-schedule-preview-groups'>
           {groups.map(group => <div className='ck-schedule-preview-group' key={group.time}>
             <strong className='font-mono tabular-nums'>{checkinRangeText(group.time, group.timeEnd) || '—'}</strong>
-            <Badge variant='outline' shape='tag'>{t('{n} 个平台', { n: group.rows.length })}</Badge>
-            <div>{group.rows.map(row => t(row.label)).join('、')}</div>
+            <Badge variant='outline' shape='tag'>{t('{n} platforms', { n: group.rows.length })}</Badge>
+            <div>{group.rows.map(row => t(row.label)).join(', ')}</div>
           </div>)}
-          {!groups.length ? <p>{t('选择平台后显示实际签到时间')}</p> : null}
+          {!groups.length ? <p>{t('Select platforms to see actual check-in times')}</p> : null}
         </div>
-        <p className='ck-schedule-preview-note'>{t('专属或自定义时间作为区间起点，沿用默认区间长度；每天重新随机，重启不改变当天安排。')}</p>
+        <p className='ck-schedule-preview-note'>{t('Platform-specific or custom times set the start and use the default window length. Times are randomized daily; restarting keeps today’s schedule.')}</p>
       </aside>
     </DialogBody>
     <DialogFooter>
-      <span className='ck-schedule-footer-note'>{t('{n} 个平台 · {groups} 组签到时间', { n: providers.length, groups: groups.length })}</span>
-      <Button variant='outline' size='sm' disabled={store.saving} onClick={onClose}>{t('取消')}</Button>
-      <Button size='sm' disabled={!canSave} onClick={submit}>{store.saving ? t('保存中…') : t('保存计划')}</Button>
+      <span className='ck-schedule-footer-note'>{t('{n} platforms · {groups} time groups', { n: providers.length, groups: groups.length })}</span>
+      <Button variant='outline' size='sm' disabled={store.saving} onClick={onClose}>{t('Cancel')}</Button>
+      <Button size='sm' disabled={!canSave} onClick={submit}>{store.saving ? t('Saving…') : t('Save schedule')}</Button>
     </DialogFooter>
   </>
 }

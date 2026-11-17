@@ -27,7 +27,7 @@ impl PatchDocument {
         let tree = YamlFile::from_str(&normalized)
             .map_err(|_| "DSH 插件配置无法保留原有格式，已停止写入")?;
         if tree.documents().count() != 1 {
-            return Err("DSH 插件配置只能包含一个 YAML 文档".into());
+            return Err("DSH 插件配置只能包含一个 YAML Docs".into());
         }
         Ok(Self {
             tree,
@@ -131,7 +131,7 @@ pub fn parse_value(text: &str) -> Result<Value, String> {
     let tree = YamlFile::from_str(text.trim_start_matches('\u{feff}'))
         .map_err(|_| "DSH YAML 无法完整解析")?;
     if tree.documents().count() > 1 {
-        return Err("DSH 配置只能包含一个 YAML 文档".into());
+        return Err("DSH 配置只能包含一个 YAML Docs".into());
     }
     for root in tree.documents() {
         if let Some(sequence) = root.as_sequence() {
@@ -221,7 +221,7 @@ pub fn json_node(value: &Value) -> Result<YamlNode, String> {
         return Err("不能把动态 YAML 表达式作为普通配置写入".into());
     }
     let text =
-        serde_yaml::to_string(&json!({ "value": value })).map_err(|_| "生成 DSH YAML 失败")?;
+        serde_yaml::to_string(&json!({ "value": value })).map_err(|_| "生成 DSH YAML failed")?;
     Document::from_str(&text)
         .map_err(|_| "生成 DSH YAML 节点失败")?
         .get("value")
@@ -259,7 +259,7 @@ pub fn sync_mapping(map: &Mapping, before: &Value, after: &Value) -> Result<(), 
             continue;
         };
         if old.contains_key(&name) && !new.contains_key(&name) && has_references(&value) {
-            return Err(format!("DSH 的 {name} 使用标签或锚点，不能安全删除"));
+            return Err(format!("DSH — see the {name} 使用标签或锚点，不能安全删除"));
         }
     }
     for key in old.keys().filter(|key| !new.contains_key(*key)) {
@@ -271,7 +271,7 @@ pub fn sync_mapping(map: &Mapping, before: &Value, after: &Value) -> Result<(), 
         }
         if let Some(current) = map.get(key.as_str()) {
             if has_references(&current) {
-                return Err(format!("DSH 的 {key} 使用标签或锚点，不能安全改写"));
+                return Err(format!("DSH — see the {key} 使用标签或锚点，不能安全改写"));
             }
             if let (Some(child), Some(previous)) = (
                 current.as_mapping(),

@@ -173,7 +173,7 @@ pub fn record_activity(row: &Value, provider: &str, mode: &str) {
                     claim
                         .get("msg")
                         .and_then(Value::as_str)
-                        .unwrap_or("活跃保活失败")
+                        .unwrap_or("Keep-alive failed")
                         .to_string(),
                 ),
                 false,
@@ -328,13 +328,13 @@ impl Query {
             // 的 reason 固定是「补签（条目名）」）；上线之后的新行不会命中
             // 这条兜底
             Some("schedule") => conditions.push(
-                "source = 'schedule' AND reason NOT LIKE '补签%'".to_string(),
+                "source = 'schedule' AND reason NOT LIKE 'Catch-up%'".to_string(),
             ),
             // 定时补签：补签轮（`makeup`）与旧的启动补签（`startup`），外加
             // 按旧口径记成 schedule 的历史补签行
             Some("makeup") => conditions.push(
                 "(source IN ('makeup', 'startup')
-                  OR (source = 'schedule' AND reason LIKE '补签%'))"
+                  OR (source = 'schedule' AND reason LIKE 'Catch-up%'))"
                     .to_string(),
             ),
             _ => {}

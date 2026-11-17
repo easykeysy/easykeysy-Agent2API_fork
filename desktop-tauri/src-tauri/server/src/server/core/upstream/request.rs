@@ -206,7 +206,7 @@ pub(super) async fn send_chat_with_client(
         // 文案不能再说「直连」—— 诊断时要能一眼看出流量从哪出去（见
         // `ProviderAdapter::system_proxy_when_unset`）
         None if plan.system_proxy_when_unset => "跟随系统代理".to_string(),
-        None => "直连".to_string(),
+        None => "Direct".to_string(),
     };
     // 等待响应头有上限（见 headers_timeout 的说明）：超时后 future 被丢弃，
     // 上游连接随之关闭（与客户端断开时的取消是同一机制）
@@ -220,15 +220,15 @@ pub(super) async fn send_chat_with_client(
             // 与实际生效的秒数；其余（ECONNREFUSED、代理鉴权失败、DNS…）
             // 保留根因与出口说明，便于判断是不是代理配错了
             let reason = if error.is_timeout() {
-                format!("连接中超时({}秒)", connect_timeout_seconds())
+                format!("Connect Timeout({}seconds)", connect_timeout_seconds())
             } else {
                 "上游连接失败".to_string()
             };
             let message = if error.is_timeout() {
-                format!("连接中超时({}秒，出口 {via})", connect_timeout_seconds())
+                format!("Connect Timeout({}秒，出口 {via})", connect_timeout_seconds())
             } else {
                 format!(
-                    "上游请求失败（{via}）: {}",
+                    "上游请求失败（{via}): {}",
                     egress::describe_error_detail(&error)
                 )
             };
@@ -247,8 +247,8 @@ pub(super) async fn send_chat_with_client(
         Err(_elapsed) => {
             let seconds = headers_budget.as_secs();
             Err(UpstreamRequestError {
-                reason: format!("等待响应超时({seconds}秒)"),
-                message: format!("等待响应超时({seconds}秒，出口 {via})"),
+                reason: format!("Response Headers Timeout({seconds}seconds)"),
+                message: format!("Response Headers Timeout({seconds}秒，出口 {via})"),
                 safe_to_retry: false,
                 network_failure: true,
             })

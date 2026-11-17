@@ -63,15 +63,15 @@ type MultiSelectProps<Value extends string = string> = {
 }
 
 /** 选中项的连接符（与 select.js 的 selectedText 逐字一致） */
-const JOINER = '、'
+const JOINER = ', '
 
 function MultiSelect<Value extends string = string>({
   value,
   onValueChange,
   options,
   placeholder = '',
-  emptyHint = t('没有匹配的选项'),
-  searchPlaceholder = t('搜索…'),
+  emptyHint = t('No matching options'),
+  searchPlaceholder = t('Search…'),
   disabled = false,
   className,
   id,

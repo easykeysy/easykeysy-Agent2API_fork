@@ -19,7 +19,7 @@ type AgentWindow = {
 const host = () => window as unknown as AgentWindow
 export const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error)
 export const toast = (message: string, kind?: 'err' | 'ok') => host().wbApp?.toast?.(message, kind)
-export async function confirm(title: string, text: string, okText = t('确定')): Promise<boolean> {
+export async function confirm(title: string, text: string, okText = t('Confirm')): Promise<boolean> {
   return await host().wbConfirm?.ask?.({ title, text, okText }) ?? false
 }
 
@@ -49,8 +49,8 @@ export function setFilter(filter: string): void { patch({ filter }) }
 export function setQuery(query: string): void { patch({ query }) }
 
 function accept(payload: AgentPayload): void {
-  if (!payload || !Array.isArray(payload.clients)) throw new Error(t('客户端列表响应无效'))
-  if (payload.clients.some(client => !Array.isArray(client.configurations))) throw new Error(t('配置列表格式不匹配，请重启网关后刷新页面'))
+  if (!payload || !Array.isArray(payload.clients)) throw new Error(t('Invalid client list response'))
+  if (payload.clients.some(client => !Array.isArray(client.configurations))) throw new Error(t('Configuration list format mismatch. Restart the gateway, then refresh this page.'))
   patch({ clients: payload.clients, gateway: payload.gateway.baseUrl, defaultModel: payload.gateway.defaultModel || '', requiresKey: payload.gateway.requiresKey,
     gatewayKeys: payload.gateway.keys || [], detectedAt: payload.detectedAt, hostName: payload.host?.name || '', error: '',
     selected: payload.clients.some(client => client.id === state.selected) ? state.selected : (payload.clients.find(client => client.detected)?.id || payload.clients[0]?.id || '') })
@@ -75,7 +75,7 @@ let loadingRequest = 0
 export async function loadPanel(silent = false): Promise<void> {
   if (state.loading || state.busy) return
   const call = host().workbuddyDesktop?.getAgents
-  if (!call) { patch({ error: t('当前环境不支持客户端配置'), loading: false }); return }
+  if (!call) { patch({ error: t('Client configuration is unavailable in this environment'), loading: false }); return }
   const request = ++loadingRequest
   patch({ loading: true })
   try { const payload = await call(); if (request === loadingRequest) accept(payload) }
@@ -84,7 +84,7 @@ export async function loadPanel(silent = false): Promise<void> {
 }
 
 async function mutation(clientId: string, call: () => Promise<AgentPayload>): Promise<AgentPayload> {
-  if (state.busy) throw new Error(t('另一项配置操作尚未完成'))
+  if (state.busy) throw new Error(t('Another configuration operation is still running'))
   loadingRequest += 1
   patch({ busy: clientId, loading: false })
   try { const payload = await call(); accept(payload); return payload }
@@ -93,42 +93,42 @@ async function mutation(clientId: string, call: () => Promise<AgentPayload>): Pr
 
 export async function saveProfiles(client: AgentClient, profiles: AgentProfile[]): Promise<void> {
   const call = host().workbuddyDesktop?.saveAgentProfiles
-  if (!call) throw new Error(t('当前环境不支持保存'))
+  if (!call) throw new Error(t('Saving is unavailable in this environment'))
   await mutation(client.id, () => call({ clientId: client.id, profiles, revision: client.revision }))
 }
 
 export async function saveConfiguration(client: AgentClient, profile: AgentProfile, creating: boolean): Promise<void> {
   const call = host().workbuddyDesktop?.saveAgentProfiles
-  if (!call) throw new Error(t('当前环境不支持保存'))
+  if (!call) throw new Error(t('Saving is unavailable in this environment'))
   await mutation(client.id, () => call({ clientId: client.id, action: 'config-save', profile,
     profileId: creating ? '' : profile.id, liveId: profile.liveId || '', revision: client.revision, nativeRevision: client.nativeRevision, configPath: client.configPath }))
 }
 
 export async function removeConfiguration(client: AgentClient, profile: AgentProfile): Promise<void> {
   const call = host().workbuddyDesktop?.saveAgentProfiles
-  if (!call) throw new Error(t('当前环境不支持保存'))
+  if (!call) throw new Error(t('Saving is unavailable in this environment'))
   await mutation(client.id, () => call({ clientId: client.id, action: 'config-remove', profileId: profile.id,
     liveId: profile.liveId || '', revision: client.revision, nativeRevision: client.nativeRevision, configPath: client.configPath }))
 }
 
 export async function savePath(client: AgentClient, configPath: string): Promise<void> {
   const call = host().workbuddyDesktop?.saveAgentProfiles
-  if (!call) throw new Error(t('当前环境不支持保存'))
+  if (!call) throw new Error(t('Saving is unavailable in this environment'))
   await mutation(client.id, () => call({ clientId: client.id, action: 'path', configPath }))
 }
 
 export async function importFromClient(client: AgentClient): Promise<void> {
   const call = host().workbuddyDesktop?.importAgentClient
-  if (!call) throw new Error(t('当前环境不支持导入'))
+  if (!call) throw new Error(t('Importing is unavailable in this environment'))
   try {
     const payload = await mutation(client.id, () => call({ clientId: client.id, adopt: true, revision: client.revision }))
-    toast(payload.imported?.count ? t('已导入 {n} 套方案', { n: payload.imported.count }) : t('没有新的配置可以导入'))
+    toast(payload.imported?.count ? t('Imported {n} profiles', { n: payload.imported.count }) : t('No new configuration to import'))
   } catch (error) { toast(errorMessage(error), 'err') }
 }
 
 export async function requestPreview(client: AgentClient, profile: AgentProfile | undefined, operation: AgentOperation): Promise<AgentPreview> {
   const call = host().workbuddyDesktop?.previewAgentProfile
-  if (!call) throw new Error(t('当前环境不支持预览'))
+  if (!call) throw new Error(t('Preview is unavailable in this environment'))
   return call({ clientId: client.id, profileId: profile?.id || '', ...(profile ? { profile } : {}), operation,
     ...(operation.startsWith('native-') || operation.startsWith('config-') ? { nativeRevision: client.nativeRevision } : {}),
     ...(operation.startsWith('config-') ? { revision: client.revision, liveId: profile?.liveId || '', configPath: client.configPath } : {}) })
@@ -136,21 +136,21 @@ export async function requestPreview(client: AgentClient, profile: AgentProfile 
 
 export async function applyProfile(client: AgentClient, profile: AgentProfile, operation: AgentOperation, preview: AgentPreview): Promise<void> {
   const call = host().workbuddyDesktop?.applyAgentProfile
-  if (!call) throw new Error(t('当前环境不支持应用'))
+  if (!call) throw new Error(t('Applying is unavailable in this environment'))
   const direct = operation.startsWith('native-') || operation.startsWith('config-') || operation === 'quick-connect'
   const result = await mutation(client.id, () => call({ clientId: client.id, profileId: profile.id, operation, token: preview.token,
     ...(direct ? { profile, nativeRevision: client.nativeRevision } : {}),
     ...(operation.startsWith('config-') ? { revision: client.revision, liveId: profile.liveId || '', configPath: client.configPath } : {}) }))
-  if (!result.applied?.verified) throw new Error(t('客户端配置写入后未通过校验'))
-  if (operation === 'config-delete') { toast(t('配置已删除，客户端文件已同步更新')); return }
+  if (!result.applied?.verified) throw new Error(t('Client configuration failed verification after writing'))
+  if (operation === 'config-delete') { toast(t('Configuration deleted and client files updated')); return }
   toast(result.applied.changed ? client.id === 'dsh'
-    ? t('配置文件已写入并校验；尚未验证 DSH 是否加载，请在所选客户端新建会话确认。')
-    : t('配置已应用并读回校验；请重开客户端或会话') : t('客户端配置已经一致，无需写入'))
+    ? t('Configuration files were written and verified. DSH loading has not been verified; start a new session in the selected client to confirm.')
+    : t('Configuration applied and verified by reading it back. Restart the client or session.') : t('Client configuration already matches; no write is needed'))
 }
 
 export async function restoreClient(client: AgentClient, operation: AgentOperation, preview: AgentPreview): Promise<void> {
   const call = host().workbuddyDesktop?.restoreAgentClient
-  if (!call) throw new Error(t('当前环境不支持恢复'))
+  if (!call) throw new Error(t('Restoring is unavailable in this environment'))
   await mutation(client.id, () => call({ clientId: client.id, operation, token: preview.token }))
-  toast(t('配置已恢复并校验'))
+  toast(t('Configuration restored and verified'))
 }

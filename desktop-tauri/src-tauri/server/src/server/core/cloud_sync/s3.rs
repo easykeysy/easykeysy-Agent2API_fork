@@ -57,7 +57,7 @@ fn client(credentials: &S3Credentials) -> Result<reqwest::Client, String> {
     }
     builder
         .build()
-        .map_err(|error| format!("创建 HTTP 客户端失败: {error}"))
+        .map_err(|error| format!("Create HTTP 客户端失败: {error}"))
 }
 
 fn is_aws_endpoint(endpoint: &str) -> bool {
@@ -265,26 +265,26 @@ fn redact_url(raw: &str) -> String {
 
 fn transport_error(op: &str, error: &reqwest::Error) -> String {
     let reason = if error.is_timeout() {
-        "请求超时"
+        "Request Timeouts"
     } else if error.is_connect() {
-        "连接失败（端点 / 端口 / 证书，或需要代理）"
+        "连接失败（端点 / Port / 证书，或需要代理）"
     } else if error.is_request() {
         "请求构造失败"
     } else {
         "网络请求失败"
     };
-    format!("S3 {op}失败（{reason}）")
+    format!("S3 {op}失败（{reason})")
 }
 
 fn status_error(op: &str, status: StatusCode, url: &str) -> String {
     let safe_url = redact_url(url);
-    let mut message = format!("S3 {op} 失败: {status} ({safe_url})");
+    let mut message = format!("S3 {op} failed: {status} ({safe_url})");
     if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
         message.push_str("。请检查 Access Key ID / Secret Access Key，以及该密钥是否有这个桶的读写权限。若确认无误仍被拒，部分服务（如中国科技云数据胶囊）会按 User-Agent 校验密钥绑定的客户端类型，可在下方填写「自定义 User-Agent」（如 rclone/v1.67.0）。");
     } else if status == StatusCode::NOT_FOUND {
         message.push_str("。请检查存储桶名称、区域（Region）与端点（Endpoint）。");
     } else if status == StatusCode::BAD_REQUEST {
-        message.push_str("。请检查区域（Region）是否正确 —— 部分服务商（如 Cloudflare R2）要求填 auto。");
+        message.push_str("。请检查区域（Region）是否正确 —— 部分服务商（如 Cloudflare R2）要求填 auto.");
     }
     message
 }
