@@ -14,9 +14,11 @@ name: Build desktop binaries (Windows + Linux AppImage)
 # Publishing behavior:
 # - push of a tag matching v*  -> builds and uploads produced outputs to that
 #   tag's GitHub Release (created if missing).
-# - workflow_dispatch          -> always uploads workflow artifacts; if
-#   `release_tag` is provided, also uploads produced outputs to that tag's
-#   GitHub Release.
+# - workflow_dispatch          -> always uploads workflow artifacts, and
+#   publishes produced outputs to the resolved tag's GitHub Release (created
+#   if missing): `release_tag` when provided, otherwise auto-derived as
+#   v{version}-fork.{N+1} from the highest existing fork tag. Set the
+#   `publish` input to false to skip the release upload (artifacts only).
 
 on:
   workflow_dispatch:
@@ -26,9 +28,14 @@ on:
         required: false
         default: "main"
       release_tag:
-        description: "Optional tag to publish successful binaries to (e.g. v3.5.2). Leave empty to skip release upload."
+        description: "Optional tag to publish successful binaries to (e.g. v3.5.2). Leave empty to auto-derive v{version}-fork.{N+1}."
         required: false
         default: ""
+      publish:
+        description: "Publish produced binaries to the GitHub Release for the resolved tag. Uncheck to only upload workflow artifacts."
+        required: false
+        type: boolean
+        default: true
   push:
     tags:
       - "v*"
@@ -157,6 +164,10 @@ jobs:
             cp -f "../out/windows/$src" "../out/release-windows/${portable_name}"
           fi
           echo "Release assets (windows):"; ls -la ../out/release-windows 2>/dev/null || true
+          if [ ! -f "../out/release-windows/${portable_name}" ]; then
+            echo "::error::Build produced no portable exe (expected ${portable_name}). See build-windows.log inside the windows-binaries artifact."
+            exit 1
+          fi
 
       - name: Upload workflow artifacts
         if: always()
@@ -172,11 +183,33 @@ jobs:
         if: always()
         shell: bash
         run: |
+          publish="${{ github.event.inputs.publish || 'true' }}"
           tag=""
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             tag="${GITHUB_REF_NAME}"
-          elif [[ -n "${{ github.event.inputs.release_tag || '' }}" ]]; then
-            tag="${{ github.event.inputs.release_tag }}"
+          elif [[ "$publish" == "true" ]]; then
+            tag="${{ github.event.inputs.release_tag || '' }}"
+            if [[ -z "$tag" ]]; then
+              # No explicit tag: auto-derive v{version}-fork.{N+1} from the
+              # highest existing fork tag so every dispatch lands its binaries
+              # on the Releases page.
+              version=$(node -p "require('./package.json').version")
+              prefix="v${version}-fork."
+              tags=$(git ls-remote --tags origin "v${version}-fork.*") || { echo "::error::git ls-remote failed while deriving the release tag"; exit 1; }
+              max=0
+              while read -r t; do
+                n="${t#"$prefix"}"
+                if [[ "$n" =~ ^[0-9]+$ ]] && (( 10#$n > max )); then
+                  max=$n
+                fi
+              done < <(printf '%s\n' "$tags" | sed 's#.*refs/tags/##' | grep -vF '^{}')
+              tag="${prefix}$((max + 1))"
+              echo "Auto-derived release tag: $tag"
+            fi
+          fi
+          if [[ -n "$tag" && ! "$tag" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
+            echo "::error::Invalid release tag: $tag"
+            exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
@@ -297,6 +330,10 @@ jobs:
             find ../out/linux -maxdepth 1 -type f -perm -111 \( -name 'agent2api*' -o -name 'workbuddy*' \) -exec cp -f {} ../out/release-linux/ \; 2>/dev/null || true
           fi
           echo "Release assets (linux):"; ls -la ../out/release-linux 2>/dev/null || true
+          if [ -z "$(ls -A ../out/release-linux 2>/dev/null)" ]; then
+            echo "::error::Build produced no release assets (expected Agent2API_${{ steps.expected.outputs.version }}_amd64.AppImage). See build-linux.log inside the linux-binaries artifact."
+            exit 1
+          fi
 
       - name: Upload workflow artifacts
         if: always()
@@ -312,11 +349,33 @@ jobs:
         if: always()
         shell: bash
         run: |
+          publish="${{ github.event.inputs.publish || 'true' }}"
           tag=""
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             tag="${GITHUB_REF_NAME}"
-          elif [[ -n "${{ github.event.inputs.release_tag || '' }}" ]]; then
-            tag="${{ github.event.inputs.release_tag }}"
+          elif [[ "$publish" == "true" ]]; then
+            tag="${{ github.event.inputs.release_tag || '' }}"
+            if [[ -z "$tag" ]]; then
+              # No explicit tag: auto-derive v{version}-fork.{N+1} from the
+              # highest existing fork tag so every dispatch lands its binaries
+              # on the Releases page.
+              version=$(node -p "require('./package.json').version")
+              prefix="v${version}-fork."
+              tags=$(git ls-remote --tags origin "v${version}-fork.*") || { echo "::error::git ls-remote failed while deriving the release tag"; exit 1; }
+              max=0
+              while read -r t; do
+                n="${t#"$prefix"}"
+                if [[ "$n" =~ ^[0-9]+$ ]] && (( 10#$n > max )); then
+                  max=$n
+                fi
+              done < <(printf '%s\n' "$tags" | sed 's#.*refs/tags/##' | grep -vF '^{}')
+              tag="${prefix}$((max + 1))"
+              echo "Auto-derived release tag: $tag"
+            fi
+          fi
+          if [[ -n "$tag" && ! "$tag" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
+            echo "::error::Invalid release tag: $tag"
+            exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
